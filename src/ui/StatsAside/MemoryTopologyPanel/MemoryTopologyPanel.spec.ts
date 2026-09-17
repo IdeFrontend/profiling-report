@@ -3,10 +3,14 @@ import { defineComponent, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryTopologyPanel, {
   DEFAULT_MAX_W,
+  PLATE_MAX_W,
+  PLATE_SLOTS,
   SLOT_MAX_W,
+  ZOOM_STEPS,
   fitFontSize,
 } from './MemoryTopologyPanel.vue';
-import { hasDrawableTopology } from '../../../adapters/memoryTopology';
+import { TOPOLOGY_PLATE_NODE_IDS, hasDrawableTopology } from '../../../adapters/memoryTopology';
+import type { TopologyPlateNodeId } from '../../../adapters/memoryTopology';
 
 const model = {
   nodes: [
@@ -34,6 +38,17 @@ const model = {
 
 /** Chrome geometry (448×540 units): GM x16–56, L2 x94–134, cluster rows x188–432. */
 const CHROME = { gmRight: 56, l2Left: 94, l2Right: 134, clusterLeft: 188 };
+
+/** Two panels in *one* app: the stacked aside and the fullscreen overlay render at the same time,
+ *  which a pair of `mount()` calls cannot reproduce (each is its own app). */
+const TwoPanels = defineComponent({
+  components: { MemoryTopologyPanel },
+  props: { model: { type: Object, required: true } },
+  template: `<div>
+    <MemoryTopologyPanel :model="model" />
+    <MemoryTopologyPanel :model="model" />
+  </div>`,
+});
 
 describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-001: renders the chrome asset and the L2 node anchor', () => {
@@ -177,6 +192,38 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.find('svg').text()).not.toContain('77.50%77.50%');
   });
 
+  it('PR-MEMTOP-016 (UI-49): paints an in-box unit badge per plated unit, blank otherwise', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          nodes: [...model.nodes, { id: 'vec', label: 'Vec' }, { id: 'aiv_scalar', label: 'Scalar' }],
+          plates: [
+            { node: 'aiv_scalar', label: '57.90%' },
+            { node: 'vec', label: '56.06%' },
+          ],
+        },
+      },
+    });
+    // One element per slot: the AIV0/AIV1 pair shares the unit's one field (DATA-28), like the
+    // paired link values, and the slot index keeps each testid unique.
+    const scalar = wrapper.findAll('[data-testid^="plate-aiv_scalar-"]');
+    expect(scalar).toHaveLength(2);
+    expect(scalar.every((el) => el.text() === '57.90%')).toBe(true);
+    expect(wrapper.findAll('[data-testid^="plate-vec-"]')).toHaveLength(2);
+    expect(wrapper.get('[data-testid="plate-vec-0"]').classes()).toContain('pr-topo__pct');
+    // Cube / Scalar(AIC) / SIMT / FixP have no producer field (`NA`), so they carry no badge at
+    // all — 4 drawn, not 11.
+    expect(wrapper.findAll('[data-testid^="plate-"]')).toHaveLength(4);
+
+    // The in-box badges join the text alternative, named once per unit.
+    const id = wrapper.get('svg').attributes('aria-describedby')!;
+    const summary = wrapper.get(`[id="${id}"]`);
+    expect(summary.text()).toContain('Scalar (AIV0, AIV1): 57.90%');
+    expect(summary.text()).toContain('Vec (AIV0, AIV1): 56.06%');
+    expect(summary.text().match(/Scalar \(AIV0, AIV1\)/g)).toHaveLength(1);
+  });
+
   it('PR-MEMTOP-008: right-click emits open-details', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
@@ -189,6 +236,18 @@ describe('MemoryTopologyPanel', () => {
     });
     await wrapper.get('[data-testid="memory-topology-panel"]').trigger('contextmenu');
     expect(wrapper.emitted('open-details')).toBeUndefined();
+  });
+
+  it('PR-MEMTOP-008c: right-click on the zoom bar is not the diagram gesture', async () => {
+    // The bar lives inside the panel that carries the handler, so without a guard a right-click on
+    // a control opens the memory CSV overlay over the chrome that was clicked.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('contextmenu');
+    await wrapper.get('[data-testid="topology-controls"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toBeUndefined();
+    // The diagram itself still emits.
+    await wrapper.get('[data-testid="topology-viewport"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toHaveLength(1);
   });
 
   it('PR-MEMTOP-009: edges with no chrome slot are not drawn', () => {
@@ -232,13 +291,26 @@ describe('MemoryTopologyPanel', () => {
   it('PR-MEMTOP-012: suppresses overlays and warns once when chrome fails to load', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+      // In-box badges are value overlays too: they live at sketch coordinates the chrome does not
+      // draw, so they must vanish with the link values rather than float over an empty rectangle.
+      const wrapper = mount(MemoryTopologyPanel, {
+        props: {
+          model: {
+            ...model,
+            nodes: [...model.nodes, { id: 'vec', label: 'Vec' }],
+            plates: [{ node: 'vec', label: '56.06%' }],
+          },
+        },
+      });
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="plate-vec-0"]').exists()).toBe(true);
       expect(wrapper.get('svg').attributes('aria-describedby')).toBeTruthy();
       await wrapper.get('image').trigger('error');
       expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid^="plate-"]').exists()).toBe(false);
       expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(false);
       expect(wrapper.find('.pr-topo__sr').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="topology-controls"]').exists()).toBe(false);
       expect(wrapper.get('svg').attributes('aria-describedby')).toBeUndefined();
       expect(warn).toHaveBeenCalledTimes(1);
       expect(String(warn.mock.calls[0]?.[0])).toContain('memory-topology.svg');
@@ -249,24 +321,302 @@ describe('MemoryTopologyPanel', () => {
     }
   });
   it('PR-MEMTOP-011: gives each instance its own description id', () => {
-    // The stacked aside and the fullscreen overlay render two panels in the *same* app, so a
-    // hardcoded id would collide and point both diagrams at one description. `useId` is unique
+    // A hardcoded id would collide and point both diagrams at one description. `useId` is unique
     // per app, which two separate `mount()` calls would not reproduce (each is its own app).
-    const Host = defineComponent({
-      components: { MemoryTopologyPanel },
-      props: { model: { type: Object, required: true } },
-      template: `<div>
-        <MemoryTopologyPanel :model="model" />
-        <MemoryTopologyPanel :model="model" />
-      </div>`,
-    });
-    const wrapper = mount(Host, { props: { model } });
-    const ids = wrapper.findAll('svg').map((s) => s.attributes('aria-describedby'));
+    const wrapper = mount(TwoPanels, { props: { model } });
+    const ids = wrapper.findAll('svg[role="img"]').map((s) => s.attributes('aria-describedby'));
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
     expect(wrapper.findAll('.pr-topo__sr')).toHaveLength(2);
     expect(wrapper.get(`[id="${ids[0]}"]`).text()).toBe(wrapper.get(`[id="${ids[1]}"]`).text());
     expect(wrapper.get(`[id="${ids[0]}"]`).text().length).toBeGreaterThan(0);
+  });
+});
+
+describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', () => {
+  it('PR-MEMTOP-014: renders 缩小 / readout / 放大 / 适应窗口 in the export order', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const bar = wrapper.get('[data-testid="topology-controls"]');
+    expect(
+      bar.findAll('button, span[data-testid]').map((n) => n.attributes('data-testid')),
+    ).toEqual([
+      'topology-zoom-out',
+      'topology-zoom-percent',
+      'topology-zoom-in',
+      'topology-zoom-fit',
+    ]);
+    expect(wrapper.get('[data-testid="topology-zoom-out"]').attributes('aria-label')).toBe('缩小');
+    expect(wrapper.get('[data-testid="topology-zoom-in"]').attributes('aria-label')).toBe('放大');
+    expect(wrapper.get('[data-testid="topology-zoom-fit"]').attributes('aria-label')).toBe(
+      '适应窗口',
+    );
+    // No host asked for fullscreen here (the overlay is already full).
+    expect(wrapper.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
+  });
+
+  it('PR-MEMTOP-014: renders 全屏 last only when the host asks for it', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model, showFullscreen: true } });
+    const bar = wrapper.get('[data-testid="topology-controls"]');
+    expect(bar.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
+      'topology-zoom-out',
+      'topology-zoom-in',
+      'topology-zoom-fit',
+      'topology-fullscreen',
+    ]);
+    const fullscreen = wrapper.get('[data-testid="topology-fullscreen"]');
+    expect(fullscreen.attributes('aria-label')).toBe('全屏');
+    // The panel never mounts the overlay itself — it only asks the host.
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    await fullscreen.trigger('click');
+    expect(wrapper.emitted('open-fullscreen')).toHaveLength(1);
+  });
+
+  it('PR-MEMTOP-015: steps the ladder one stop per click and clamps at both ends', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const readout = wrapper.get('[data-testid="topology-zoom-percent"]');
+    const zoomIn = wrapper.get('[data-testid="topology-zoom-in"]');
+    const zoomOut = wrapper.get('[data-testid="topology-zoom-out"]');
+    expect(readout.text()).toBe('100%');
+    // Both ends of the ladder are reachable — and disabled there, not silently no-op.
+    expect(zoomOut.attributes('disabled')).toBeUndefined();
+    await zoomOut.trigger('click');
+    expect(readout.text()).toBe('75%');
+    await zoomOut.trigger('click');
+    expect(readout.text()).toBe('50%');
+    expect(zoomOut.attributes('disabled')).toBeDefined();
+    for (let i = 0; i < ZOOM_STEPS.length; i++) await zoomIn.trigger('click');
+    expect(readout.text()).toBe('400%');
+    expect(zoomIn.attributes('disabled')).toBeDefined();
+  });
+
+  it('PR-MEMTOP-015: 适应窗口 resets the readout and the scroll origin', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    viewport.scrollTop = 120;
+    viewport.scrollLeft = 40;
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
+    expect(viewport.scrollTop).toBe(0);
+    expect(viewport.scrollLeft).toBe(0);
+  });
+
+  it('PR-MEMTOP-015: each panel instance keeps its own zoom', async () => {
+    const wrapper = mount(TwoPanels, { props: { model } });
+    const bars = wrapper.findAll('[data-testid="topology-zoom-in"]');
+    await bars[0]!.trigger('click');
+    const readouts = wrapper.findAll('[data-testid="topology-zoom-percent"]');
+    expect(readouts[0]!.text()).toBe('125%');
+    expect(readouts[1]!.text()).toBe('100%');
+  });
+
+  it('PR-MEMTOP-013: the diagram sits in a stage of its own, scaled by the zoom', async () => {
+    // The ratio itself is CSS (`aspect-ratio` on the box and the stage, measured in the browser —
+    // see the spec and tests/e2e/topology-zoom-geometry.spec.ts); jsdom has no layout, so what is
+    // checkable here is that the stage is the diagram's own box between the window and the `svg`,
+    // and that the zoom actually reaches it.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]');
+    const viewport = wrapper.get('[data-testid="topology-viewport"]');
+    const stage = viewport.get('.pr-topo__stage');
+    expect(stage.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 540');
+    const scale = () => root.attributes('style') ?? '';
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1\.25(;|$)/);
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
+  });
+
+  it('PR-MEMTOP-013: the fit box only scrolls past the fit, so the fitted state has no scrollbar', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get('[data-testid="topology-viewport"]');
+    // 100% and below: the stage is at most the box, so there is nothing to scroll to.
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
+    await wrapper.get('[data-testid="topology-zoom-out"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('75%');
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
+    // Past the fit the diagram is larger than its box, and panning is the platform's own scroll.
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(viewport.classes()).toContain('pr-topo__viewport--pannable');
+    // 适应窗口 puts it back to the non-scrolling fitted state.
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
+  });
+
+  it('PR-MEMTOP-015: stepping back down to a fitted stop also restores the scroll origin', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    const zoomIn = wrapper.get('[data-testid="topology-zoom-in"]');
+    await zoomIn.trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    // Pan the zoomed diagram, then walk back down to 100% with the ladder — not with 适应窗口.
+    viewport.scrollTop = 120;
+    viewport.scrollLeft = 40;
+    await wrapper.get('[data-testid="topology-zoom-out"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
+    expect(viewport.scrollTop).toBe(0);
+    expect(viewport.scrollLeft).toBe(0);
+  });
+
+  it('PR-MEMTOP-018: a zoom step re-centres on the part that was under the middle', async () => {
+    // jsdom has no layout, so the box's scroll geometry is stood in for. It is sized from the same
+    // `--pr-topo-zoom` the stage is sized from, so the stub moves with the component's own scale —
+    // which is also what makes the write-back assertion meaningful: the new `scrollWidth` has to be
+    // read after the step, not carried over from before it.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]').element as HTMLElement;
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
+    const BOX = { w: 448, h: 540 };
+    Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => BOX.h * scale() });
+
+    // Fitted: the stage is the box, so the middle is the drawing's own middle — half of it.
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    // 0.5 × 560 − 224 and 0.5 × 675 − 270, i.e. half of each step's own overflow.
+    expect(el.scrollLeft).toBeCloseTo(56, 6);
+    expect(el.scrollTop).toBeCloseTo(67.5, 6);
+
+    // Panned by hand, then stepped up to 150%: the fraction under the middle is what is kept, not
+    // the offset — `(60 + 224) / 560` and `(100 + 270) / 675` of the new 672 × 810 stage.
+    el.scrollLeft = 60;
+    el.scrollTop = 100;
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    expect(el.scrollLeft).toBeCloseTo(116.8, 1);
+    expect(el.scrollTop).toBeCloseTo(174, 1);
+  });
+
+  it('PR-MEMTOP-018: a box with no layout is left alone rather than centred on nothing', async () => {
+    // The jsdom escape hatch, and the state every other test in this file runs in: no box means no
+    // middle, no fraction to divide by, and — the part that matters — no `NaN` written to the offset
+    // a later pan would then read as its origin.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+  });
+});
+
+describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
+  /** happy-dom has no layout: `getBoundingClientRect()` is all zeros and `clientWidth` is 0, so a
+   *  press is given its box coordinates the way the component reads them — `clientX` against the
+   *  border box — and the box's own size is stubbed where the test needs a scrollbar band. */
+  function press(el: Element, type: string, init: PointerEventInit): void {
+    el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, ...init }));
+  }
+
+  it('PR-MEMTOP-017: drags the diagram 1:1 with the pointer, past the fit only', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    const el = viewport.element;
+
+    // Fitted: the box is not a scroll container (PR-MEMTOP-013), so the drag has nowhere to go.
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    press(el, 'pointerup', { button: 0, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).toContain('pr-topo__viewport--dragging');
+    // 1:1 and in the pointer's direction: 40px left / 30px up moves the drawing with the cursor.
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(40);
+    expect(el.scrollTop).toBe(30);
+
+    // A grab from an already-panned origin, in two legs: every move applies the *whole* travel
+    // from the press point to the origin that press captured, never a per-move delta. Both legs
+    // stay inside the range, so this is what a browser does rather than a clamped hypothetical.
+    el.scrollLeft = 100;
+    press(el, 'pointerup', { button: 0, clientX: 260, clientY: 270 });
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 320, clientY: 300 });
+    expect(el.scrollLeft).toBe(80);
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 340, clientY: 300 });
+    expect(el.scrollLeft).toBe(60);
+    // The vertical origin is whatever the box was at the press — still 30 here, and the pointer
+    // has not moved in y, so it stays there.
+    expect(el.scrollTop).toBe(30);
+
+    press(el, 'pointerup', { button: 0, clientX: 340, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--dragging');
+    // Released: the pan is over, and 适应窗口 still has the scroll origin to return to.
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 100, clientY: 100 });
+    expect(el.scrollLeft).toBe(60);
+    await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+  });
+
+  it('PR-MEMTOP-017: a pointercancel ends the drag, as the platform sends one when it takes over', async () => {
+    // Any platform takeover — a pen handed to the OS scroll, a browser gesture — cancels the
+    // element's pointer, so the `grabbing` state must not survive it. (A finger never gets here:
+    // `onPanStart` refuses touch, leaving it to the platform's own scroll.)
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    const el = viewport.element;
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).toContain('pr-topo__viewport--dragging');
+    press(el, 'pointercancel', { button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--dragging');
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 260, clientY: 300 });
+    expect(el.scrollLeft).toBe(0);
+  });
+
+  it('PR-MEMTOP-017: a press on a scrollbar, a non-primary button, or a finger is not a pan', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    // A box with a size, as a laid-out one has. `clientWidth` is 0 without layout, which is why the
+    // component skips its scrollbar check on a zero-sized box — the same escape hatch this needs.
+    Object.defineProperty(el, 'clientWidth', { value: 380, configurable: true });
+    Object.defineProperty(el, 'clientHeight', { value: 500, configurable: true });
+
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    // Touch: left to the platform's own scroll. Not arming the gesture is what keeps its
+    // `pointercancel` handover on time, and it keeps the `grabbing` cursor off a finger.
+    press(el, 'pointerdown', { pointerType: 'touch', button: 0, clientX: 300, clientY: 300 });
+    await nextTick();
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--dragging');
+    press(el, 'pointermove', { pointerType: 'touch', button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    // Middle button: the platform's own gesture space (autoscroll), never a pan.
+    press(el, 'pointerdown', { button: 1, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 1, buttons: 4, clientX: 260, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    // A classic bar sits past the client box; its press belongs to the platform's thumb.
+    press(el, 'pointerdown', { button: 0, clientX: 396, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 356, clientY: 270 });
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+
+    // …and the drawing still drags in the same box — including while panned, where a test measured
+    // against the content rather than the box would have read the press as a bar (see the component).
+    el.scrollLeft = 100;
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(el, 'pointermove', { button: 0, buttons: 1, clientX: 280, clientY: 300 });
+    expect(el.scrollLeft).toBe(120);
   });
 });
 
@@ -329,6 +679,45 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     }
   });
 
+  it('keeps every in-box badge bound inside its own unit box', () => {
+    // The sketch's nine in-box badges; only the plated three get a slot (UI-49), and each has to
+    // stay inside its own box wall — these are box interiors, not the corridors between pillars.
+    // Walls measured off the export at each badge's height band: AIV0/AIV1 `Scalar` x266.5–297.5,
+    // AIV0/AIV1 `Vec` x361.5–382.5 (the narrow one), AIC `Cube` x322.5–353.5.
+    const BOXES: Record<TopologyPlateNodeId, [number, number, number]> = {
+      aiv_scalar: [266.5, 282.1, 297.5],
+      vec: [361.5, 372.0, 382.5],
+      cube: [322.5, 338.0, 353.5],
+    };
+    expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());
+    expect(Object.keys(PLATE_SLOTS).sort()).toEqual([...TOPOLOGY_PLATE_NODE_IDS].sort());
+    for (const node of TOPOLOGY_PLATE_NODE_IDS) {
+      const [left, centre, right] = BOXES[node];
+      const half = PLATE_MAX_W[node] / 2;
+      expect(centre - half, `${node} left`).toBeGreaterThanOrEqual(left);
+      expect(centre + half, `${node} right`).toBeLessThanOrEqual(right);
+    }
+  });
+
+  it('shrinks an in-box badge that outgrows the narrow Vec box', () => {
+    // `100.00%` measures 31.11 units — wider than any unit box at its badge band — so each box
+    // scales it by its own wall, the 22-unit Vec box the most. Badges are not corridor values:
+    // they never consult `SLOT_MAX_W`.
+    expect(fitFontSize(31.11, 'vec', 6.3, PLATE_MAX_W)).toBeCloseTo(
+      (PLATE_MAX_W['vec']! / 31.11) * 6.3,
+      6,
+    );
+    for (const node of ['cube', 'aiv_scalar'] as const) {
+      expect(fitFontSize(31.11, node, 6.3, PLATE_MAX_W), node).toBeLessThan(6.3);
+      expect(fitFontSize(31.11, node, 6.3, PLATE_MAX_W), node).toBeCloseTo(
+        (PLATE_MAX_W[node]! / 31.11) * 6.3,
+        6,
+      );
+    }
+    // A badge the box holds keeps the base size.
+    expect(fitFontSize(15, 'vec', 6.3, PLATE_MAX_W)).toBe(6.3);
+  });
+
   it('shrinks a value that outgrows the tight GM↔L2 corridor', () => {
     const tight = SLOT_MAX_W['gm-l2-read']!;
     expect(fitFontSize(43.19, 'gm-l2-read')).toBeCloseTo((tight / 43.19) * 6.3, 6);
@@ -377,6 +766,24 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       const px = /font-size:\s*([\d.]+)px/.exec(wide.attributes('style') ?? '')?.[1];
       expect(Number(px)).toBeCloseTo((SLOT_MAX_W['gm-l2-read']! / 43.19) * 6.3, 4);
       expect(fits.attributes('style') ?? '').not.toContain('font-size');
+    } finally {
+      restore();
+    }
+  });
+
+  it('PR-MEMTOP-016: applies the fitted size to an over-wide in-box badge', async () => {
+    const restore = stubMetrics();
+    try {
+      const wrapper = mount(MemoryTopologyPanel, {
+        props: {
+          model: { ...model, plates: [{ node: 'vec', label: '100.00%' }] },
+        },
+      });
+      await nextTick();
+      const plate = wrapper.get('[data-testid="plate-vec-0"]');
+      expect(plate.text()).toBe('100.00%');
+      const px = /font-size:\s*([\d.]+)px/.exec(plate.attributes('style') ?? '')?.[1];
+      expect(Number(px)).toBeCloseTo((PLATE_MAX_W['vec']! / 31.11) * 6.3, 4);
     } finally {
       restore();
     }

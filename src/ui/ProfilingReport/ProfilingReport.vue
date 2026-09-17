@@ -1788,8 +1788,15 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   box-sizing: border-box;
 }
 
-.pr-topo-fs__body :deep(.pr-topo__svg) {
-  width: 100%;
-  height: 100%;
+/* No `svg` override here: the panel's stage is already the diagram's box (448:540 at the current
+ * zoom), and the panel sizes the `svg` to it. Sizing the `svg` to the leftover box instead — the
+ * old `width/height: 100%` — fills the stage's *used* box rather than the chrome ratio, and only
+ * agreed with it while the stage happened to be that ratio. */
+
+/* The export's overlay frame drops the aside's bar strip: covering the report already separates the
+ * controls from everything else, so they sit straight on the card (PR-MEMTOP-014). Padding stays —
+ * it is the control's own hit spacing, not the strip's. */
+.pr-topo-fs__body :deep(.pr-topo__bar) {
+  background: transparent;
 }
 </style>

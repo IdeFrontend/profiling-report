@@ -355,14 +355,14 @@ describe('StatsAside', () => {
     const memoryTables = [
       {
         fileName: 'Memory.csv',
-        headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-        rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+        headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+        rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
         blockIds: ['0'],
       },
     ];
     const csvTexts = {
       'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.1\n',
-      'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n',
+      'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n',
     };
 
     const wrapper = mount(StatsAside, {
@@ -991,8 +991,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1001,10 +1001,10 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });
@@ -1020,8 +1020,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1030,7 +1030,7 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
           // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
@@ -1038,10 +1038,10 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ])!,
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });
@@ -1217,6 +1217,19 @@ describe('StatsAside', () => {
         report: report({
           summary: { taskDurationUs: 1 },
           memoryTables: tables,
+          // UI-49: the in-box badges live in `PipeUtilization.csv`, so the picked-block rebuild gets
+          // them only because the aside joins the compute table to the Memory* ones.
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.5' },
+                { block_id: '1', aiv_vec_ratio: '0.9' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
             edges: [{ id: 'gm-l2-read', from: 'gm', to: 'l2', label: '1.56 GB/s' }],
@@ -1231,6 +1244,14 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-topology"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('1.56 GB/s');
+
+    // UI-49: the picked-block rebuild joins `PipeUtilization.csv` to the Memory* tables, so block 0
+    // brings its own in-box badge back — the pipe ratio × 100 (DATA-28).
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    await wrapper.get('[data-testid="csv-block"]').setValue('0');
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.get('[data-testid="edge-gm-l2-read-0"]').text()).toBe('1.56 GB/s');
+    expect(wrapper.get('[data-testid="plate-vec-0"]').text()).toBe('50.00%');
   });
 
   it('PR-STATS-022: CSV tab fallback does not rewrite topology block', async () => {
@@ -1281,12 +1302,12 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': 'NA' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': 'NA' }],
               blockIds: ['0'],
             },
           ],
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,NA\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,NA\n' },
         }),
       },
     });
@@ -1305,8 +1326,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1326,7 +1347,7 @@ describe('StatsAside', () => {
             },
           ],
           csvTexts: {
-            'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n',
+            'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n',
             'PipeUtilization.csv':
               'block_id,aic_mte1_ratio,aic_mte2_ratio,aiv_mte3_ratio\n0,0.28,0.65,0.14\n',
           },
@@ -1349,7 +1370,7 @@ describe('StatsAside', () => {
         report: report({
           summary: { taskDurationUs: 1 },
           summaryCategories: [
-            { id: 'Memory', title: 'Memory', fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }] },
+            { id: 'Memory', title: 'Memory', fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }] },
             {
               id: 'PipeUtilization',
               title: 'PipeUtilization',
@@ -1359,8 +1380,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1387,7 +1408,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="csv-tab-PipeUtilization.csv"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-033: 全屏 next to 详情 when topology shown; hidden when diagram hidden', () => {
+  it('PR-STATS-033: header is cannbot + 详情; 全屏 lives in the diagram bar, hidden with it', () => {
     const withTopo = mount(StatsAside, {
       props: {
         report: report({
@@ -1395,8 +1416,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1405,7 +1426,7 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
           // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
@@ -1413,20 +1434,28 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ])!,
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });
     const actions = withTopo.get('[data-testid="stats-topology"] .pr-pipe-head__actions');
-    const fullscreen = withTopo.get('[data-testid="topology-fullscreen"]');
     expect(actions.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
       'cannbot-memory',
-      'topology-fullscreen',
       'topology-details',
     ]);
+    // The bar's 全屏 is the aside's only fullscreen control (MemoryTopologyPanel PR-MEMTOP-014);
+    // it sits inside the panel, after the zoom controls, and only when the aside asks for it.
+    const bar = withTopo.get('[data-testid="topology-controls"]');
+    expect(bar.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
+      'topology-zoom-out',
+      'topology-zoom-in',
+      'topology-zoom-fit',
+      'topology-fullscreen',
+    ]);
+    const fullscreen = bar.get('[data-testid="topology-fullscreen"]');
     expect(fullscreen.find('svg').exists()).toBe(true);
     expect(fullscreen.attributes('aria-label')).toBe('全屏');
 
@@ -1437,8 +1466,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': 'NA' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': 'NA' }],
               blockIds: ['0'],
             },
           ],
@@ -1446,13 +1475,15 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: 'NA' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: 'NA' }],
             },
           ],
         }),
       },
     });
     expect(without.find('[data-testid="topology-fullscreen"]').exists()).toBe(false);
+    expect(without.find('[data-testid="topology-controls"]').exists()).toBe(false);
+    expect(without.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
     expect(without.find('[data-testid="topology-details"]').exists()).toBe(true);
   });
 
@@ -1464,8 +1495,8 @@ describe('StatsAside', () => {
           memoryTables: [
             {
               fileName: 'Memory.csv',
-              headers: ['block_id', 'aic_l1_read_bw(GB/s)'],
-              rows: [{ block_id: '0', 'aic_l1_read_bw(GB/s)': '1.2' }],
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
               blockIds: ['0'],
             },
           ],
@@ -1474,7 +1505,7 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ],
           // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
@@ -1482,10 +1513,10 @@ describe('StatsAside', () => {
             {
               id: 'Memory',
               title: 'Memory',
-              fields: [{ key: 'aic_l1_read_bw(GB/s)', value: '1.2' }],
+              fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }],
             },
           ])!,
-          csvTexts: { 'Memory.csv': 'block_id,aic_l1_read_bw(GB/s)\n0,1.2\n' },
+          csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
         }),
       },
     });

@@ -268,30 +268,35 @@ watch(
 );
 
 /**
+ * Memory* CSVs **plus** `PipeUtilization.csv` — the one table set the memory surface reads. The
+ * adapter's builder looks files up by name, so any other extra table is inert. Two callers need it:
+ * the picked-block topology rebuild (UI-49's in-box Scalar/Vec/Cube badges live in PipeUtilization)
+ * and the memory 详情 CSV field list (UI-38's MTE utilizations do too).
+ */
+const memoryTablesWithPipe = computed(() => [
+  ...(props.report?.memoryTables ?? []),
+  ...(props.report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
+]);
+
+/**
  * `All` = the adapter's snapshot (`summary.jsonl` categories, else the first drawable block's CSV);
  * a picked id = that block's Memory* CSV row (DATA-19 / DATA-29). Rebuilding the `All` aggregate here
  * would be a second copy of the adapter rule, free to drift from `report.memoryTopology`.
  */
 const topologyModel = computed(() => {
   const id = blockId.value;
-  const tables = props.report?.memoryTables ?? [];
+  const tables = memoryTablesWithPipe.value;
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
   if (id && tables.length > 0) return buildMemoryTopology(tables, id);
   return props.report?.memoryTopology;
 });
 
 /**
- * UI-38: the chrome's MTE blocks carry no value plate, so their utilizations are not drawn on
- * the diagram. PipeUtilization is the only CSV holding them, so the memory 详情 CSV field list
- * (shown for CSV-only reports) offers that tab next to the memory ones. Reports with memory
- * summary categories render those categories instead — their MTE ratios stay under 计算 详情.
+ * UI-38: the chrome's MTE blocks carry no value plate, so their utilizations are not drawn on the
+ * diagram but are readable in the memory 详情 CSV field list (`memoryTablesWithPipe`, shown for
+ * CSV-only reports). Reports with memory summary categories render those categories instead — their
+ * MTE ratios stay under 计算 详情.
  */
-const memoryDetailTables = computed(() => {
-  const pipe = (props.report?.computeTables ?? []).filter(
-    (t) => t.fileName === 'PipeUtilization.csv',
-  );
-  return [...(props.report?.memoryTables ?? []), ...pipe];
-});
 
 const showTopology = computed(() => hasDrawableTopology(topologyModel.value));
 
@@ -627,7 +632,7 @@ function backToReport() {
       />
       <CsvFieldListPanel
         v-else
-        :tables="memoryDetailTables"
+        :tables="memoryTablesWithPipe"
         :csv-texts="report?.csvTexts ?? {}"
         :selected-block-id="overlayBlockId"
         :locale="locale"
@@ -698,7 +703,10 @@ function backToReport() {
                   <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
                   <span class="pr-card__unit">%</span>
                 </span>
-                <span class="pr-bw-col__side">{{ t(row.labelKey, locale) }}</span>
+                <span
+                  class="pr-bw-col__side"
+                  :title="t(row.labelKey, locale)"
+                >{{ t(row.labelKey, locale) }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -743,7 +751,10 @@ function backToReport() {
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
                 </span>
-                <span class="pr-bw-col__side">{{ row.label }}</span>
+                <span
+                  class="pr-bw-col__side"
+                  :title="row.label"
+                >{{ row.label }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -802,7 +813,10 @@ function backToReport() {
                   <span class="pr-card__num">{{ row.score }}</span>
                   <span class="pr-card__unit">%</span>
                 </span>
-                <span class="pr-bw-col__side">{{ t(row.labelKey, locale) }}</span>
+                <span
+                  class="pr-bw-col__side"
+                  :title="t(row.labelKey, locale)"
+                >{{ t(row.labelKey, locale) }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -987,40 +1001,6 @@ function backToReport() {
               <CannbotIcon />
             </button>
             <button
-              v-if="showTopology"
-              type="button"
-              class="pr-cannbot"
-              data-testid="topology-fullscreen"
-              :aria-label="t('fullscreen', locale)"
-              :title="t('fullscreen', locale)"
-              @click="openTopologyFullscreen"
-            >
-              <svg
-                viewBox="0 0 16 16"
-                width="16"
-                height="16"
-                aria-hidden="true"
-              >
-                <path
-                  d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.4"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <rect
-                  x="5"
-                  y="5"
-                  width="6"
-                  height="6"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.2"
-                />
-              </svg>
-            </button>
-            <button
               v-if="showMemory"
               type="button"
               class="pr-pipe-details"
@@ -1038,7 +1018,9 @@ function backToReport() {
           <MemoryTopologyPanel
             :model="topologyModel"
             :locale="locale"
+            show-fullscreen
             @open-details="openMemoryDetails"
+            @open-fullscreen="openTopologyFullscreen"
           />
         </div>
       </div>
@@ -1108,7 +1090,7 @@ function backToReport() {
           />
           <CsvFieldListPanel
             v-else
-            :tables="memoryDetailTables"
+            :tables="memoryTablesWithPipe"
             :csv-texts="report?.csvTexts ?? {}"
             :selected-block-id="overlayBlockId"
             :locale="locale"
@@ -1173,6 +1155,9 @@ function backToReport() {
      a scrollbar gutter or a DPR subpixel and would otherwise open a horizontal bar. */
   overflow-x: hidden;
   overflow-y: auto;
+  /* Query container for the summary grid's narrow-panel rule below. The body's inline size
+     comes from the aside track, so containing it does not change how it lays out. */
+  container-type: inline-size;
 }
 
 .pr-aside__head h3 {
@@ -1344,7 +1329,8 @@ function backToReport() {
 }
 
 /*
- * Sketch: 2×2 equal tiles (duration | AICore; compute | bandwidth).
+ * Sketch: 2×2 equal tiles (duration | AICore; compute | bandwidth); one tile per row below a
+ * 430px well (see the container query below, PR-STATS-036).
  * Bottom pad only so tile edges align with stack islands below.
  */
 .pr-cards {
@@ -1354,6 +1340,17 @@ function backToReport() {
   padding: 0 0 8px;
   border-radius: 0;
   background: var(--pr-bg-aside);
+}
+
+/*
+ * A dragged-narrow aside (or a host too small for the preferred width) squeezes each tile to
+ * ~36px per side column, where a two-column readout has nothing left to show. Below one tile's
+ * worth of well the stack goes single-column and every side gets the full width back.
+ */
+@container (max-width: 430px) {
+  .pr-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .pr-card {
@@ -1381,16 +1378,20 @@ function backToReport() {
   font-size: 11px;
   color: #999999;
   margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: visible;
+  /* Wrap rather than spill: `nowrap` + `overflow: visible` painted a long label outside the
+     tile, where the body's `overflow-x: hidden` cropped it (PR-STATS-036). */
+  white-space: normal;
 }
 
 .pr-card__sub {
   margin-top: 6px;
   font-size: 11px;
   color: #8a8a8a;
-  white-space: nowrap;
-  overflow: visible;
+  /* Same rule as the card label above: wrap inside the tile instead of painting past it. The
+     secondary falls back to `opName`, whose underscores give no break opportunity, so it needs
+     `anywhere` to wrap at all (PR-STATS-036). */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .pr-card__value {
@@ -1468,11 +1469,19 @@ function backToReport() {
 .pr-bw-col {
   flex: 1 1 0;
   min-width: 0;
-  overflow: hidden;
 }
 
+/*
+ * The column label sits beside the score while the two fit on one line, and drops to its own
+ * line when they do not. Both children used to be `flex: 0 0 auto` in a `nowrap` row inside an
+ * `overflow: hidden` column, so a label wider than the column — 并行使用率 / 负载均衡度, or
+ * "Parallel utilization" — was cropped with no cue (PR-STATS-036). Ellipsis is the floor for a
+ * column narrower than the label itself; every `.pr-bw-col__side` carries its full text in
+ * `title` (AICore, compute and BW alike) so an ellipsis is never a silent crop.
+ */
 .pr-bw-col__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: flex-start;
   gap: 8px;
@@ -1484,7 +1493,11 @@ function backToReport() {
 }
 
 .pr-bw-col__side {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   color: #999999;
   white-space: nowrap;
