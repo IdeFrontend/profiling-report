@@ -4,26 +4,26 @@
 
 Scoped catalog for profiling-report consumers. Full contract DB is **100 tables + 22 views** (`total_objects=122`). This doc lists **pack status** and Phase 1 / product surfaces.
 
-**Column names, SQL types, and field descriptions:** see **[SCHEMA.md](SCHEMA.md)** (SSOT from [`data/gelu/manifest.json`](../../../data/gelu/manifest.json)).
+**Column names, SQL types, and field descriptions:** see **[SCHEMA.md](SCHEMA.md)** (SSOT = `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep)).
 
-Contract + leaf pack: [FORMAT.md](FORMAT.md). Sample: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep), unpacked [`data/gelu/`](../../../data/gelu/), notes [`data/gelu.README.md`](../../../data/gelu.README.md).
+Contract + leaf pack: [FORMAT.md](FORMAT.md). Sample: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep), notes [`data/gelu.README.md`](../../../data/gelu.README.md). Unpack locally with `data/scripts/unpack_rep.py` when inspecting CSVs.
 
 ## Sample provenance (gelu)
 
 | Field | Value |
 |-------|--------|
 | Source DB | `0000_gelu_npu_emulated.db` |
-| Exported | `2026-09-15T08:04:27.476042+00:00` |
+| Exported | `2026-09-17T13:53:46.122341+00:00` |
 | `total_objects` / tables / views | 122 / 100 / 22 |
-| `total_rows` (all objects) | 169435 |
-| Leaf embeds | `manifest.json` + **34** populated CSVs + `PipeTrace.json` (+ `aicore_utilization.json`, `core_0_critical_path_report_0.json`) |
+| `total_rows` (all objects) | 170378 |
+| Leaf embeds | `manifest.json` + **51** populated CSVs + `core_0_tracing_report_0.json` (+ `aicore_utilization.json`, `core_0_critical_path_report_0.json`) |
 | Export catalog | `manifest.json` — `{ database, exported_at, total_*, objects[] }` with per-object `name`, `type`, `row_count`, `columns`, `file` |
 
-**Export catalog marker.** `manifest.json` **is** the emulate detection signal ([PROC-8](../../context/decisions/PROC.md)): export-catalog shape or thin `{ profile: "emulate", schemaVersion }`. Timeline uses normative **`PipeTrace.json`**.
+**Export catalog marker.** `manifest.json` **is** the emulate detection signal ([PROC-8](../../context/decisions/PROC.md)): export-catalog shape or thin `{ profile: "emulate", schemaVersion }`. Timeline accepts producer `core_*_tracing_report_*.json` or normative **`PipeTrace.json`**.
 
 ---
 
-## 1. Packed embeds in `gelu.npu-rep` (34 CSVs)
+## 1. Packed embeds in `gelu.npu-rep` (51 CSVs)
 
 Row counts are data rows (header excluded). Object names match the manifest; link → SCHEMA for full columns.
 
@@ -44,6 +44,7 @@ Row counts are data rows (header excluded). Object names match the manifest; lin
 | [`VfIPCDynamic`](SCHEMA.md#vfipcdynamic) | table | 1216 | Windowed VF IPC |
 | [`VfIPCInside`](SCHEMA.md#vfipcinside) | table | 1216 | In-VF IPC |
 | [`VfIPCDynamicView`](SCHEMA.md#vfipcdynamicview) | view | 1216 | Windowed VF IPC by core |
+| [`ArchDiagramMetrics`](SCHEMA.md#archdiagrammetrics) | table | 960 | Architecture diagram params |
 | [`UnitsUsageMetrics`](SCHEMA.md#unitsusagemetrics) | table | 924 | Sub-core / warp usage |
 | [`UnitUtilization`](SCHEMA.md#unitutilization) | table | 736 | Unit util time series |
 | [`PredicateRegValues`](SCHEMA.md#predicateregvalues) | table | 640 | Predicate registers |
@@ -53,18 +54,34 @@ Row counts are data rows (header excluded). Object names match the manifest; lin
 | [`SIMDSamplingStats`](SCHEMA.md#simdsamplingstats) | table | 256 | SIMD stall samples |
 | [`VfPMUMetrics`](SCHEMA.md#vfpmumetrics) | table | 215 | PMU metric dictionary |
 | [`PMUScalarCounters`](SCHEMA.md#pmuscalarcounters) | table | 141 | Scalar PMU counters |
-| [`ArchDiagramMetrics`](SCHEMA.md#archdiagrammetrics) | table | 120 | Architecture diagram params |
+| [`PipeDependency`](SCHEMA.md#pipedependency) | table | 118 | Pipe dependency flows |
+| [`CriticalPath`](SCHEMA.md#criticalpath) | table | 76 | Critical path links |
 | [`ExecQueueUtilization`](SCHEMA.md#execqueueutilization) | table | 72 | Exec queue util |
 | [`IssueQueueUtilization`](SCHEMA.md#issuequeueutilization) | table | 72 | Issue queue util |
 | [`BrifEvents`](SCHEMA.md#brifevents) | table | 64 | BRIF events |
-| [`CriticalPath`](SCHEMA.md#criticalpath) | table | 60 | Critical path links |
+| [`InstrNameHistClocks`](SCHEMA.md#instrnamehistclocks) | view | 57 | |
+| [`InstrNameHistCount`](SCHEMA.md#instrnamehistcount) | view | 57 | |
 | [`AnalysisState`](SCHEMA.md#analysisstate) | table | 33 | Which analyzers ran |
 | [`DmaMovProcessedBytes`](SCHEMA.md#dmamovprocessedbytes) | table | 32 | DMA traffic |
 | [`DmaMovSimpleParams`](SCHEMA.md#dmamovsimpleparams) | table | 32 | Simple DMA params |
 | [`VfIPC`](SCHEMA.md#vfipc) | table | 32 | VF IPC aggregates |
-| [`PipeDependency`](SCHEMA.md#pipedependency) | table | 30 | Pipe dependency flows |
+| [`VfPMUSummary`](SCHEMA.md#vfpmusummary) | table | 32 | |
+| [`PipesUtilization`](SCHEMA.md#pipesutilization) | table | 24 | PIPE occupancy |
+| [`PipeUtilizationHist`](SCHEMA.md#pipeutilizationhist) | view | 24 | PIPE hist (preferred for bars) |
+| [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 | Thin summary identity |
+| [`InstrTypes`](SCHEMA.md#instrtypes) | table | 15 | Instruction type names |
+| [`ActiveInstrTypes`](SCHEMA.md#activeinstrtypes) | view | 12 | |
+| [`InstrTypeHistClocks`](SCHEMA.md#instrtypehistclocks) | view | 12 | |
+| [`InstrTypeHistCount`](SCHEMA.md#instrtypehistcount) | view | 12 | |
+| [`ICacheRefillEvents`](SCHEMA.md#icacherefillevents) | table | 11 | |
+| [`HintTypes`](SCHEMA.md#hinttypes) | table | 10 | |
+| [`InstrQueueTypes`](SCHEMA.md#instrqueuetypes) | table | 9 | Queue display names |
+| [`SIMDStallsByAddr`](SCHEMA.md#simdstallsbyaddr) | table | 8 | |
+| [`AiCoreOccupancy`](SCHEMA.md#aicoreoccupancy) | view | 3 | AICore occupancy intervals |
+| [`CoreTypes`](SCHEMA.md#coretypes) | table | 3 | Core type names |
+| [`ICacheStartingPCs`](SCHEMA.md#icachestartingpcs) | table | 3 | |
 
-Plus leaf JSON (not contract tables): `PipeTrace.json`, `aicore_utilization.json`, `core_0_critical_path_report_0.json`, `manifest.json`.
+Plus leaf JSON (not contract tables): `core_0_tracing_report_0.json`, `aicore_utilization.json`, `core_0_critical_path_report_0.json`, `manifest.json`.
 
 ---
 
@@ -74,13 +91,13 @@ Plus leaf JSON (not contract tables): `PipeTrace.json`, `aicore_utilization.json
 
 | Table / view | Kind | DB rows | In gelu pack? | Used for |
 |---|---|---:|---|---|
-| [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 | **no** | Phase 1 thin summary / identity |
+| [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 | **yes** | Phase 1 thin summary / identity |
 | [`ExecutedInstructions`](SCHEMA.md#executedinstructions) | table | 6031 | yes | Hub; tracing; arch; roofline |
-| [`ArchDiagramMetrics`](SCHEMA.md#archdiagrammetrics) | table | 120 | yes | Architecture Diagram |
-| [`MemoryRWAccesses`](SCHEMA.md#memoryrwaccesses) | table | 34832 | yes | Memory heatmap |
-| [`AiCoreOccupancy`](SCHEMA.md#aicoreoccupancy) | view | 3 | **no** | AICore utilization overlay |
-| [`PipesUtilization`](SCHEMA.md#pipesutilization) | table | 24 | **no** | PIPE occupancy / CSV tab |
-| [`PipeUtilizationHist`](SCHEMA.md#pipeutilizationhist) | view | 24 | **no** | Util hist |
+| [`ArchDiagramMetrics`](SCHEMA.md#archdiagrammetrics) | table | 960 | yes | Architecture Diagram |
+| [`MemoryRWAccesses`](SCHEMA.md#memoryrwaccesses) | table | 34832 | yes | Memory heatmap (out of Sept 30 scope) |
+| [`AiCoreOccupancy`](SCHEMA.md#aicoreoccupancy) | view | 3 | **yes** | AICore utilization overlay (out of scope) |
+| [`PipesUtilization`](SCHEMA.md#pipesutilization) | table | 24 | **yes** | PIPE occupancy / CSV tab |
+| [`PipeUtilizationHist`](SCHEMA.md#pipeutilizationhist) | view | 24 | **yes** | Util hist |
 | [`Functions`](SCHEMA.md#functions) | table | 0 | no (empty) | Roofline VF names (ELF) |
 | [`VectorUtilizations`](SCHEMA.md#vectorutilizations) | table | 480 | yes | Roofline |
 | [`SourceInstructions`](SCHEMA.md#sourceinstructions) | table | 0 | no (empty) | Roofline / source join |
@@ -88,11 +105,11 @@ Plus leaf JSON (not contract tables): `PipeTrace.json`, `aicore_utilization.json
 | [`VfSimtIPC`](SCHEMA.md#vfsimtipc) | table | 0 | no (empty) | needs SIMT IPC path |
 | Call* / [`CallGraph`](SCHEMA.md#callgraph) … | table | 0 | no (empty) | Call stacks (ELF) |
 | [`DispatchTime`](SCHEMA.md#dispatchtime) | table | 4265 | yes | Chrome Trace |
-| [`InstrTypes`](SCHEMA.md#instrtypes) | table | 15 | **no** | Instruction type names |
-| [`CoreTypes`](SCHEMA.md#coretypes) | table | 3 | **no** | Core type names |
-| [`PipeDependency`](SCHEMA.md#pipedependency) | table | 30 | yes | Chrome Trace flows |
+| [`InstrTypes`](SCHEMA.md#instrtypes) | table | 15 | **yes** | Instruction type names |
+| [`CoreTypes`](SCHEMA.md#coretypes) | table | 3 | **yes** | Core type names |
+| [`PipeDependency`](SCHEMA.md#pipedependency) | table | 118 | yes | Chrome Trace flows |
 | [`ICacheEvents`](SCHEMA.md#icacheevents) | table | 2547 | yes | Chrome Trace ICache |
-| [`ICacheRefillEvents`](SCHEMA.md#icacherefillevents) | table | 11 | **no** | |
+| [`ICacheRefillEvents`](SCHEMA.md#icacherefillevents) | table | 11 | **yes** | |
 | [`QueueFullEvents`](SCHEMA.md#queuefullevents) | table | 0 | no (empty) | |
 | [`UnitUtilization`](SCHEMA.md#unitutilization) | table | 736 | yes | |
 | [`IssueQueueUtilization`](SCHEMA.md#issuequeueutilization) / [`ExecQueueUtilization`](SCHEMA.md#execqueueutilization) | table | 72 | yes | |
@@ -101,27 +118,7 @@ Plus leaf JSON (not contract tables): `PipeTrace.json`, `aicore_utilization.json
 
 ## 3. Populated in DB but **not** packed into gelu leaf
 
-Export packer skipped these despite `row_count > 0`. Packers aiming at Sept 30 / MHTML surfaces should **not** assume “present in DB ⇒ present in `.npu-rep`”.
-
-| Name | Kind | Rows |
-|---|---|---:|
-| [`InstrNameHistClocks`](SCHEMA.md#instrnamehistclocks) | view | 57 |
-| [`InstrNameHistCount`](SCHEMA.md#instrnamehistcount) | view | 57 |
-| [`VfPMUSummary`](SCHEMA.md#vfpmusummary) | table | 32 |
-| [`PipesUtilization`](SCHEMA.md#pipesutilization) | table | 24 |
-| [`PipeUtilizationHist`](SCHEMA.md#pipeutilizationhist) | view | 24 |
-| [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 |
-| [`InstrTypes`](SCHEMA.md#instrtypes) | table | 15 |
-| [`ActiveInstrTypes`](SCHEMA.md#activeinstrtypes) | view | 12 |
-| [`InstrTypeHistClocks`](SCHEMA.md#instrtypehistclocks) | view | 12 |
-| [`InstrTypeHistCount`](SCHEMA.md#instrtypehistcount) | view | 12 |
-| [`HintTypes`](SCHEMA.md#hinttypes) | table | 11 |
-| [`ICacheRefillEvents`](SCHEMA.md#icacherefillevents) | table | 11 |
-| [`InstrQueueTypes`](SCHEMA.md#instrqueuetypes) | table | 9 |
-| [`SIMDStallsByAddr`](SCHEMA.md#simdstallsbyaddr) | table | 8 |
-| [`CoreTypes`](SCHEMA.md#coretypes) | table | 3 |
-| [`ICacheStartingPCs`](SCHEMA.md#icachestartingpcs) | table | 3 |
-| [`AiCoreOccupancy`](SCHEMA.md#aicoreoccupancy) | view | 3 |
+**None** on the 2026-09-17 gelu export — every `row_count > 0` object is packed as a CSV embed.
 
 ---
 
@@ -139,7 +136,7 @@ Export packer skipped these despite `row_count > 0`. Packers aiming at Sept 30 /
 | [`DCacheHitMissEvents`](SCHEMA.md#dcachehitmissevents) | quantitative indices |
 | [`QueueFullEvents`](SCHEMA.md#queuefullevents) / [`QueueFullStalls`](SCHEMA.md#queuefullstalls) | not triggered on gelu |
 
-Full empty list: `data/gelu/manifest.json` → `objects` where `row_count == 0` (also enumerated in [SCHEMA.md](SCHEMA.md)).
+Full empty list: `manifest.json` in [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) → `objects` where `row_count == 0` (also enumerated in [SCHEMA.md](SCHEMA.md)).
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Profile:** `emulate` (npu_emulate contract SQLite / CSV export).
 
-Normative **object names**, **column names**, and **SQL types** come from [`data/gelu/manifest.json`](../../../data/gelu/manifest.json) (exported `2026-09-15T08:04:27.476042+00:00`, `total_objects=122`, tables=100, views=22, rows=169435).
+Normative **object names**, **column names**, and **SQL types** come from `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (exported `2026-09-17T13:53:46.122341+00:00`, `total_objects=122`, tables=100, views=22, rows=170378).
 
 Descriptions marked *inferred* are guesses from column names and known product surfaces (MHTML §11.2.3 / Phase 1), **not** producer documentation. Empty export types are shown as `(unspecified)`.
 
@@ -142,7 +142,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 120 |
+| Gelu rows | 960 |
 | CSV file | `ArchDiagramMetrics.csv` |
 | Role | Architecture-diagram / bandwidth-style scalar parameters (MHTML §11.2.3.1). |
 
@@ -331,7 +331,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 60 |
+| Gelu rows | 76 |
 | CSV file | `CriticalPath.csv` |
 | Role | Critical-path event ↔ instruction links. |
 
@@ -635,7 +635,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 11 |
+| Gelu rows | 10 |
 | CSV file | `HintTypes.csv` |
 | Role | Dictionary / enum lookup table. *inferred* |
 
@@ -905,7 +905,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 30 |
+| Gelu rows | 118 |
 | CSV file | `PipeDependency.csv` |
 | Role | Pipe dependency / sync flow edges for tracing. |
 
@@ -2223,7 +2223,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 
 ## Naming / type notes
 
-- **Ticks vs µs.** Contract tables use integer **ticks**. Product `PipeTrace.json` must be packed in **µs** ([DATA-46](../../context/decisions/DATA.md)).
+- **Ticks vs µs.** Contract tables use integer **ticks**. Product `PipeTrace.json` must be packed in **µs** ([DATA-41](../../context/decisions/DATA.md)).
 - **Types** are SQLite/export declarations (`INTEGER`, `REAL`, `BOOLEAN`, `VARCHAR(n)`, `TEXT`, `FLOAT`). `(unspecified)` means the gelu export left `type` empty.
 - **Hub join.** Most fact tables join on `ExecInstrId` → `ExecutedInstructions`.
 - **Dictionaries.** `CoreTypes`, `InstrTypes`, `InstrQueueTypes`, `HintTypes`, and similar are name lookups; often present in DB but omitted from slim packs — see [TABLES.md](TABLES.md).

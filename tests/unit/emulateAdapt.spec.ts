@@ -113,7 +113,7 @@ describe('emulate-format (PR-SIM-*)', () => {
     expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBe(100_000);
   });
 
-  it('PR-SIM-004: missing KernelInfo/summary → timeline-only, not invalid', () => {
+  it('PR-SIM-004: missing KernelInfo → timeline-only, not invalid', () => {
     expect(() => loadReportSource(packEmulateLeaf())).not.toThrow();
     const adapted = loadReportSource(packEmulateLeaf());
     expect(adapted.reportModel.summary).toEqual({});
@@ -163,7 +163,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     ).toBe(false);
   });
 
-  it('PR-ASIM-003: missing KernelInfo/summary does not throw', () => {
+  it('PR-ASIM-003: missing KernelInfo does not throw', () => {
     expect(() =>
       adaptEmulate({
         'manifest.json': enc.encode(emulateManifest()),
@@ -270,7 +270,7 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
   });
 
-  it('gelu.npu-rep opens as emulate with swimlane + ArchDiagram topology', () => {
+  it('gelu.npu-rep opens as emulate with swimlane + summary + PIPE + ArchDiagram', () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(__dirname, '../../data/gelu.npu-rep')),
     );
@@ -278,6 +278,9 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
+    expect(adapted.reportModel.summary.opName).toBe('gelu_kernel');
+    expect(adapted.reportModel.summary.blockDim).toBe('1');
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
     expect(adapted.capabilities).toContain('archDiagram');
     expect(adapted.reportModel.roofline).toBeUndefined();

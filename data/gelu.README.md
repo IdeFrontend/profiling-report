@@ -1,17 +1,16 @@
 # gelu — npu_emulate export sample
 
-Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`), repacked so the timeline embed uses the normative **`PipeTrace.json`** basename (source was `core_0_tracing_report_0.json`).
+Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`). Timeline uses the producer basename `core_0_tracing_report_0.json` (adapter also accepts normative `PipeTrace.json`).
 
 | Item | Value |
 |------|--------|
-| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~9.9 MiB) |
-| Unpacked | [`gelu/`](gelu/) |
-| SHA-256 | `0d1e4e0eb4a77a1c063d9b05b1f55747f61efa1da93f4a7de7ea4c8ba065f083` |
-| Exported | `2026-09-15T08:04:27.476042+00:00` |
-| Contract DB objects | 122 (100 tables + 22 views), 169435 rows total |
-| Leaf embeds | `manifest.json` + **34** CSVs + `PipeTrace.json` + `aicore_utilization.json` + `core_0_critical_path_report_0.json` |
+| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~9.7 MiB) |
+| SHA-256 | `e9ee81ded874ddd456c17cf09470611ada11598d9b2b183a7d5fafae0f55a11b` |
+| Exported | `2026-09-17T13:53:46.122341+00:00` |
+| Contract DB objects | 122 (100 tables + 22 views), 170378 rows total |
+| Leaf embeds | `manifest.json` + **51** CSVs + `core_0_tracing_report_0.json` + `aicore_utilization.json` + `core_0_critical_path_report_0.json` |
 
-## Unpack / re-pack
+## Unpack (local only — not committed)
 
 ```bash
 python3 data/scripts/unpack_rep.py data/gelu.npu-rep /tmp/gelu-out
@@ -19,16 +18,23 @@ python3 data/scripts/unpack_rep.py data/gelu.npu-rep /tmp/gelu-out
 # python3 data/scripts/pack_rep.py /tmp/gelu-out data/gelu-repacked.npu-rep
 ```
 
-## Viewer behavior
+## Viewer behavior (§4.1)
 
-Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/context/decisions/PROC.md)). Timeline from **`PipeTrace.json`** (µs per [DATA-46](../docs/context/decisions/DATA.md)). **ArchDiagramMetrics** is packed → memory topology (M4 / [DATA-48a](../docs/context/decisions/interim/DATA.md)). KernelInfo / PIPE CSVs still **not** packed by the export packer → thin summary and PIPE bars stay empty until the packer includes them ([milestone-4](../docs/process/roadmap/milestone-4.md)).
+Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/context/decisions/PROC.md)).
 
-Full aside demo leaf (KernelInfo + PIPE + ArchDiagramMetrics + PipeTrace): [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
+| Embed | Surface |
+|-------|---------|
+| `core_0_tracing_report_0.json` | Timeline (native name; µs contract [DATA-46](../docs/context/decisions/DATA.md)) |
+| `KernelInfo.csv` | Thin summary (`opName` / `blockDim`; duration attrs use producer `exec_time_ns` — not yet mapped by interim DATA-47a) |
+| `PipeUtilizationHist.csv` / `PipesUtilization.csv` | PIPE occupancy |
+| `ArchDiagramMetrics.csv` | Architecture Diagram (`archDiagram`, interim plated chrome [DATA-48a](../docs/context/decisions/interim/DATA.md)) |
 
-## Packed embeds (38)
+Full aside demo leaf (thin marker): [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
 
-34 contract CSVs + `manifest.json`, plus:
+## Packed embeds (55)
 
-- `PipeTrace.json` (Chrome Trace — timeline; renamed from producer `core_0_tracing_report_0.json`)
+51 contract CSVs + `manifest.json`, plus:
+
+- `core_0_tracing_report_0.json` (Chrome Trace — timeline)
 - `aicore_utilization.json`
 - `core_0_critical_path_report_0.json`

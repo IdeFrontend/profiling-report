@@ -32,7 +32,7 @@ Sources of tables (from npu_emulate docs):
 | Analysis output | Analyzers (often flag-gated) | `ArchDiagramMetrics`, `PipesUtilization`, `VfIPC*`, `TraceBubbles`, `VfPMU*` |
 | Hints | hints.sql | `HintTypes`, hint views |
 
-**Field catalog:** every contract object and column (name, SQL type, description) is listed in **[SCHEMA.md](SCHEMA.md)**, generated from [`data/gelu/manifest.json`](../../../data/gelu/manifest.json). That file is the SSOT for schema shape; this section only describes layers and packing rules.
+**Field catalog:** every contract object and column (name, SQL type, description) is listed in **[SCHEMA.md](SCHEMA.md)**, generated from `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep). That embed is the SSOT for schema shape; this section only describes layers and packing rules.
 
 **Hub table:** `ExecutedInstructions` — almost every report joins on `ExecInstrId` (cores, tick ranges, instr names/types). See [SCHEMA § ExecutedInstructions](SCHEMA.md#executedinstructions).
 
@@ -47,7 +47,7 @@ Sources of tables (from npu_emulate docs):
 npu_emulate `report` already emits (among others):
 
 - Per-core Chrome Trace JSON (`core_*_tracing_report_*.json`)
-- `aicore_utilization.json`, `summary.json`
+- `aicore_utilization.json`
 - Arch diagram SVGs, HTML charts, bubble JSON, …
 
 Profiling-report does **not** re-implement those HTML generators. It consumes a **packed leaf** (§4) and maps into shared view-models.
@@ -60,10 +60,10 @@ Two shapes appear in the wild:
 
 | Shape | Example | Marker | Typical embeds |
 |-------|---------|--------|----------------|
-| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | Populated contract CSVs + **`PipeTrace.json`** (normative; packer may rename from `core_*_tracing_report_*.json`) + optional `aicore_utilization.json` |
-| **Viewer leaf** (Sept 30+) | [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo/summary + PIPE CSVs (± more contract CSVs) |
+| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | All populated contract CSVs + timeline (`core_*_tracing_report_*.json` or normative `PipeTrace.json`) + optional `aicore_utilization.json` |
+| **Viewer leaf** (Sept 30+) | [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo + PIPE CSVs (± more contract CSVs) |
 
-gelu shows the export packer **skips** some populated DB objects (`KernelInfo`, `PipesUtilization`, `AiCoreOccupancy`, dictionaries, …). Pack those when thin summary / PIPE UI are expected — see [TABLES.md](TABLES.md) §2–3.
+gelu (2026-09-17) packs **every** `row_count > 0` object, including KernelInfo / PIPE / ArchDiagramMetrics — see [TABLES.md](TABLES.md) §1–3.
 
 ### 4.1 Embeds used by report visualization (Sept 30 / M4)
 
@@ -73,7 +73,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 |--------------------------------|----------------|--------------|-------|
 | `manifest.json` | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog |
 | `PipeTrace.json` | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). Native `core_*_tracing_report_*.json` accepted if `PipeTrace.json` absent. Absent → null swimlane |
-| `KernelInfo.csv` and/or `summary.json` | [Report statistics](../../views/report-summary.md) | `reportModel.summary*` | Thin identity / duration ([DATA-47a](../../context/decisions/interim/DATA.md)). Absent → hide cards |
+| `KernelInfo.csv` | [Report statistics](../../views/report-summary.md) | `reportModel.summary*` | Thin identity / duration ([DATA-47a](../../context/decisions/interim/DATA.md)). Absent → hide cards |
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
 | `ArchDiagramMetrics.csv` | [Architecture Diagram](../../views/arch-diagram.md) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
 
@@ -143,14 +143,14 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
-3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `summary*` from KernelInfo/summary; PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline/heatmap gaps ([DATA-30](../../context/decisions/DATA.md)).
+3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `summary*` from KernelInfo; PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline/heatmap gaps ([DATA-30](../../context/decisions/DATA.md)).
 4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/DATA.md)).
 
 ---
 
 ## 7. Reference sample (gelu)
 
-Committed producer export: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (+ unpacked [`data/gelu/`](../../../data/gelu/)). Detected as emulate via export-catalog `manifest.json`; timeline from normative `PipeTrace.json`. Table set: [TABLES.md](TABLES.md).
+Committed producer export: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep). Detected as emulate via export-catalog `manifest.json`; timeline from `core_0_tracing_report_0.json` (or normative `PipeTrace.json`). Table set: [TABLES.md](TABLES.md).
 
 Minimal viewer fixture (timeline + summary + PIPE): [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep).
 
@@ -161,9 +161,9 @@ Minimal viewer fixture (timeline + summary + PIPE): [`data/emulate-sample.npu-re
 | Item | Id |
 |------|-----|
 | Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
-| KernelInfo / summary.json → summary cards | [DATA-47](../../context/questions/DATA.md) |
+| KernelInfo → summary cards | [DATA-47](../../context/questions/DATA.md) |
 | ArchDiagramMetrics → Architecture Diagram slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
 | Dedicated ArchDiagramModel / biprof chrome; heatmap deferral | [DATA-49](../../context/questions/DATA.md) |
 | Exact `tickToUs` default when freq unknown | [DATA-47](../../context/questions/DATA.md) / producer docs |
-| Export packer omitting populated KernelInfo / PipesUtilization / AiCoreOccupancy | Packer bug vs intentional slim pack |
+| KernelInfo duration attrs (`exec_time_ns` vs `duration(us)`) for thin summary | [DATA-47](../../context/questions/DATA.md) |
 | Synthesizing PipeTrace from ExecutedInstructions / DispatchTime | Future — not required to open |
