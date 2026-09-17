@@ -8,6 +8,7 @@ import type {
   AdaptedReport,
   CsvTableModel,
   PipeOccupancyItem,
+  ReportCapability,
   ReportViewModel,
   SummaryMetrics,
   SwimlaneModel,
@@ -463,7 +464,7 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
     ...(memoryTopology ? { memoryTopology } : {}),
   };
 
-  const capabilities: string[] = [];
+  const capabilities: ReportCapability[] = [];
   if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   if (memoryTopology) capabilities.push('archDiagram');
 
