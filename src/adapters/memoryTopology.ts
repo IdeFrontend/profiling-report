@@ -5,7 +5,8 @@ import type {
   SummaryCategory,
 } from '../domain/types';
 
-const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
+/** Shared node scaffold for compute Memory* and emulate ArchDiagramMetrics mappers. */
+export const MEMORY_TOPOLOGY_NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'gm', label: 'GM' },
   { id: 'l2', label: 'L2 Cache' },
   { id: 'xn_imm', label: 'XN_IMM' },
@@ -82,7 +83,7 @@ const EDGE_MAP: {
   },
   // ponytail: L1/L0 stay at master from/to. out.rep is NA; L0A/L0B are L1→buffer→Cube, so the GM leaving-resource flip does not apply. Verify on an AIC-populated .rep.
   {
-    // DATA-43 (row 24): the producer assigns this plate — the AIC row's corridor slot, drawn
+    // DATA-48 (row 24): the producer assigns this plate — the AIC row's corridor slot, drawn
     // `L2 → MTE2 → L1 (AIC)` — the `GM -> UB` field `aiv_gm_to_ub_bw`, the same field the two AIV
     // `l2-ub` plates carry (DATA-23). Product ruling 2026-09-15: use the producer's field and
     // paint it on the chrome's own slot ("display it according to svg spec"). `aic_l1_read_bw` is
@@ -324,7 +325,7 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
 
   // DATA-20: L2 Peak(%) = same hit-rate value as the `l2-hit` edge (DATA-21 interim order).
   const peakPct = edgeValues.get('l2-hit');
-  const nodes = NODE_DEFS.map((n) =>
+  const nodes = MEMORY_TOPOLOGY_NODE_DEFS.map((n) =>
     n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
   );
 

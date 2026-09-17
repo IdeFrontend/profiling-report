@@ -16,6 +16,7 @@ import { hasDependencies } from '../domain/dependencies';
 import { laneColorKey } from '../domain/laneColors';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
+import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 
 /** Primary: producer `manifest.json`; legacy: `EmulateManifest.json` ([PROC-8]). */
 const MANIFEST_NAMES = [
@@ -29,6 +30,7 @@ const KERNEL_INFO_NAMES = ['KernelInfo.csv', 'kernelinfo.csv'];
 const SUMMARY_JSON_NAMES = ['summary.json', 'Summary.json'];
 const PIPES_UTIL_NAMES = ['PipesUtilization.csv', 'pipesutilization.csv'];
 const PIPE_HIST_NAMES = ['PipeUtilizationHist.csv', 'pipeutilizationhist.csv'];
+const ARCH_DIAGRAM_NAMES = ['ArchDiagramMetrics.csv', 'archdiagrammetrics.csv'];
 
 /** Hub object names that identify an npu_emulate CSV export catalog. */
 const EXPORT_CATALOG_HUBS = new Set(['ExecutedInstructions', 'KernelInfo', 'AnalysisState']);
@@ -431,23 +433,43 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
   const histTable = csvTableFromPayload(payloads, PIPE_HIST_NAMES);
   if (histTable) computeTables.push(histTable);
 
+  const memoryTables: CsvTableModel[] = [];
+  const archTable = csvTableFromPayload(payloads, ARCH_DIAGRAM_NAMES);
+  if (archTable) memoryTables.push(archTable);
+
   const csvTexts: Record<string, string> = {};
-  for (const name of [...PIPES_UTIL_NAMES, ...PIPE_HIST_NAMES, ...KERNEL_INFO_NAMES]) {
+  for (const name of [
+    ...PIPES_UTIL_NAMES,
+    ...PIPE_HIST_NAMES,
+    ...KERNEL_INFO_NAMES,
+    ...ARCH_DIAGRAM_NAMES,
+  ]) {
     const p = payloadByName(payloads, [name]);
     if (p) csvTexts[name] = decodeUtf8(p);
   }
+
+  const archBytes = payloadByName(payloads, ARCH_DIAGRAM_NAMES);
+  const memoryTopology = topologyFromArchDiagramMetrics(
+    archBytes ? decodeUtf8(archBytes) : undefined,
+  );
 
   const reportModel: ReportViewModel = {
     ...emptyReportViewModel(),
     summary,
     pipeOccupancy,
     computeTables,
+    memoryTables,
     csvTexts,
+    ...(memoryTopology ? { memoryTopology } : {}),
   };
+
+  const capabilities: string[] = [];
+  if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
+  if (memoryTopology) capabilities.push('memoryDiagram');
 
   return {
     swimlaneModel,
     reportModel,
-    capabilities: hasDependencies(swimlaneModel) ? ['dependencies'] : [],
+    capabilities,
   };
 }

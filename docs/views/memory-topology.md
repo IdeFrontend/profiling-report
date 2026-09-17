@@ -6,8 +6,8 @@
 | **Panel / component** | `MemoryTopologyPanel` → `src/ui/StatsAside/MemoryTopologyPanel/` |
 | **Capability** | `memoryDiagram` |
 | **Phase** | M2 |
-| **Unification** | `gap` (emulate) |
-| **Sept 30 (emulate)** | **hide** |
+| **Unification** | `adapt-mapper` (emulate) |
+| **Sept 30 (emulate)** | **in** |
 
 ## Sketches
 
@@ -40,7 +40,7 @@ No drawable labels / L2 plate → hide diagram ([DATA-30](../context/decisions/D
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` | not `MemoryRWAccesses` (that is heatmap) | Needs aggregate BW map or ArchDiagramMetrics→slot Product map | `gap` → hide |
+| `memoryTopology` | `ArchDiagramMetrics.csv` | Parameter→slot map [DATA-48a](../context/decisions/interim/DATA.md); not `MemoryRWAccesses` | `adapt-mapper` |
 | `memoryHeatmap` | `MemoryRWAccesses.csv` | Different surface | `out-of-scope` Sept 30 |
 
 ## Adapter
@@ -48,7 +48,7 @@ No drawable labels / L2 plate → hide diagram ([DATA-30](../context/decisions/D
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | |
-| emulate | — | No topology mapper yet |
+| emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` | Capability `memoryDiagram` when drawable |
 
 ## Related
 

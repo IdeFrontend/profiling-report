@@ -18,11 +18,13 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Thin summary.** When KernelInfo/summary payloads are present and mappable, fill `reportModel.summary` identity/duration fields (interim [DATA-47a](../../docs/context/decisions/interim/DATA.md)); otherwise leave summary empty/partial and let UI hide cards ([DATA-30](../../docs/context/decisions/DATA.md)).
 
-**PIPE occupancy (Sept 30).** When `PipeUtilizationHist.csv` or `PipesUtilization.csv` is present, map into `pipeOccupancy` / `computeTables` without inventing `PipeUtilization.csv` ([DATA-45](../../docs/context/decisions/DATA.md)). Prefer hist `PipeName`+`Utilization`.
+**PIPE occupancy (Sept 30 / M4).** When `PipeUtilizationHist.csv` or `PipesUtilization.csv` is present, map into `pipeOccupancy` / `computeTables` without inventing `PipeUtilization.csv` ([DATA-45](../../docs/context/decisions/DATA.md)). Prefer hist `PipeName`+`Utilization`.
 
-**Omit gap panels.** Do not populate `overviewSeries`, `memoryTopology`, `roofline`, or `hardwareDetails` from invented compute CSVs.
+**Memory topology (Sept 30 / M4).** When `ArchDiagramMetrics.csv` is present, map into `memoryTopology` + `memoryTables` via interim [DATA-48a](../../docs/context/decisions/interim/DATA.md). Do **not** use `MemoryRWAccesses` for topology chrome. Omit topology when nothing drawable.
 
-**Capabilities.** Typically empty or `dependencies` when present. Do not set `memoryDiagram` / `roofline` until dedicated mappers exist.
+**Omit gap panels.** Do not populate `overviewSeries`, `roofline`, or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards.
+
+**Capabilities.** `dependencies` when present; `memoryDiagram` when `memoryTopology` is drawable. Do not set `roofline` until a dedicated mapper exists.
 
 **Errors.** Corrupt marker or unparseable PipeTrace → throw. Missing PipeTrace or optional analytics embeds → omit fields / null swimlane, do not throw.
 
@@ -35,6 +37,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 5. **PR-ASIM-005** — Interim DATA-47a maps KernelInfo/summary.json into `summary.opName` / `taskDurationUs` when attrs present.
 6. **PR-ASIM-006** — Missing Trace → `swimlaneModel === null` without throw; corrupt Trace JSON → throw.
 7. **PR-ASIM-007** — Native `core_*_tracing_report_*.json` is used when `PipeTrace.json` is absent.
+8. **PR-ASIM-008** — `ArchDiagramMetrics.csv` → drawable `memoryTopology` + capability `memoryDiagram`; empty/unmapped → omit (DATA-48a).
 
 ## Edge Cases
 
@@ -49,8 +52,10 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 ## Open
 
 DATA-47 — Product-final summary field mapping (interim DATA-47a).
+DATA-48 — Product-final ArchDiagramMetrics → topology slot map (interim DATA-48a).
 
 ## Changelog
 - **2026-09-14** — Initial spec (docs pass; tests todo).
 - **2026-09-15** — Sept 30 PIPE + interim summary; rename emulate.
 - **2026-09-15** — `manifest.json` detection; optional PipeTrace (PR-ASIM-006).
+- **2026-09-17** — M4 memory topology from ArchDiagramMetrics (PR-ASIM-008 / DATA-48a).
