@@ -385,7 +385,7 @@ Same host file (`.npu-rep`); leaf detected via `manifest.json` ([PROC-8](../cont
 | — | Thin report summary | [report-summary](../views/report-summary.md) | **in** |
 | 11.2.3.4 / .6 | PIPE occupancy | [pipe-occupancy](../views/pipe-occupancy.md) | **in** |
 | — | Overview charts | [overview-charts](../views/overview-charts.md) | **hide** |
-| — | Memory topology chrome | [memory-topology](../views/memory-topology.md) | **hide** |
+| 11.2.3 / 11.2.6 | Memory topology chrome | [memory-topology](../views/memory-topology.md) | **in** (ArchDiagramMetrics) |
 | 11.2.3.5 | Roofline | [roofline](../views/roofline.md) | **hide** |
 | 11.2.3.1–3,7–8 | Arch / heatmap / AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
 

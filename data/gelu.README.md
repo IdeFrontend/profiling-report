@@ -21,9 +21,9 @@ python3 data/scripts/unpack_rep.py data/gelu.npu-rep /tmp/gelu-out
 
 ## Viewer behavior
 
-Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/context/decisions/PROC.md)). Timeline from **`PipeTrace.json`** (µs per [DATA-46](../docs/context/decisions/DATA.md); native file may still label `displayTimeUnit: "ns"`). KernelInfo / PIPE CSVs still not packed → empty Sept 30 aside bars. See [docs/formats/emulate/TABLES.md](../docs/formats/emulate/TABLES.md).
+Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/context/decisions/PROC.md)). Timeline from **`PipeTrace.json`** (µs per [DATA-46](../docs/context/decisions/DATA.md)). **ArchDiagramMetrics** is packed → memory topology (M4 / [DATA-48a](../docs/context/decisions/interim/DATA.md)). KernelInfo / PIPE CSVs still **not** packed by the export packer → thin summary and PIPE bars stay empty until the packer includes them ([milestone-4](../docs/process/roadmap/milestone-4.md)).
 
-Minimal leaf with KernelInfo + PIPE: [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
+Full aside demo leaf (KernelInfo + PIPE + ArchDiagramMetrics + PipeTrace): [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
 
 ## Packed embeds (38)
 

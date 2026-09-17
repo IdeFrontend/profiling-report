@@ -14,6 +14,7 @@ import {
   pipeOccupancyFromPipesUtilization,
   summaryFromKernelInfo,
 } from '../../src/index';
+import { buildCannbotPayload } from '../../src/domain/cannbot';
 import {
   NPU160_TYPE_CSV,
   NPU160_TYPE_JSON,
@@ -210,6 +211,40 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       }),
     ).not.toThrow();
   });
+
+  it('PR-ASIM-008: ArchDiagramMetrics → memoryTopology + memoryDiagram capability', () => {
+    const archCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,l2_cached_ratio,50.0',
+      '2,hbm_to_l2_syn_gbs,12.5',
+      '3,l2_to_hbm_syn_gbs,8.0',
+      '4,aic_out_to_l1_gbs,3.25',
+    ].join('\n');
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(minimalTraceUs()),
+      'ArchDiagramMetrics.csv': enc.encode(archCsv),
+    });
+    expect(adapted.reportModel.memoryTopology).toBeDefined();
+    expect(adapted.reportModel.memoryTopology!.nodes.find((n) => n.id === 'l2')?.peakPct).toBe(50);
+    expect(
+      adapted.reportModel.memoryTopology!.edges.find((e) => e.id === 'gm-l2-read')?.label,
+    ).toBe('12.50 GB/s');
+    expect(adapted.capabilities).toContain('memoryDiagram');
+    expect(adapted.reportModel.memoryTables.some((t) => /ArchDiagramMetrics/i.test(t.fileName))).toBe(
+      true,
+    );
+
+    const empty = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(minimalTraceUs()),
+      'ArchDiagramMetrics.csv': enc.encode(
+        'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue\n1,active_cores,1.0\n',
+      ),
+    });
+    expect(empty.reportModel.memoryTopology).toBeUndefined();
+    expect(empty.capabilities).not.toContain('memoryDiagram');
+  });
 });
 
 describe('npu-rep / loadReportSource profile routing', () => {
@@ -234,7 +269,7 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
   });
 
-  it('gelu.npu-rep opens as emulate with swimlane from PipeTrace.json', () => {
+  it('gelu.npu-rep opens as emulate with swimlane + ArchDiagram topology', () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(__dirname, '../../data/gelu.npu-rep')),
     );
@@ -242,8 +277,39 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
-    expect(adapted.reportModel.memoryTopology).toBeUndefined();
+    expect(adapted.reportModel.memoryTopology).toBeDefined();
+    expect(adapted.capabilities).toContain('memoryDiagram');
     expect(adapted.reportModel.roofline).toBeUndefined();
+  });
+
+  it('emulate-sample.npu-rep fills summary + PIPE + topology (M4)', () => {
+    const bytes = new Uint8Array(
+      readFileSync(resolve(__dirname, '../../data/emulate-sample.npu-rep')),
+    );
+    const adapted = loadReportSource(bytes);
+    expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.reportModel.summary.opName).toBeTruthy();
+    expect(adapted.reportModel.summary.taskDurationUs).toBeGreaterThan(0);
+    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.memoryTopology).toBeDefined();
+    expect(adapted.capabilities).toContain('memoryDiagram');
+
+    const summaryPayload = buildCannbotPayload('summary', adapted.reportModel, {
+      name: 'emulate-sample.npu-rep',
+    });
+    expect(summaryPayload.op_name).toBe(adapted.reportModel.summary.opName);
+    expect((summaryPayload.data as { pipeOccupancy: unknown[] }).pipeOccupancy.length).toBeGreaterThan(
+      0,
+    );
+    expect((summaryPayload.data as { memoryTopology: unknown }).memoryTopology).toBeDefined();
+
+    const computePayload = buildCannbotPayload('compute', adapted.reportModel);
+    expect((computePayload.data as { pipeOccupancy: unknown[] }).pipeOccupancy.length).toBeGreaterThan(
+      0,
+    );
+
+    const memoryPayload = buildCannbotPayload('memory', adapted.reportModel);
+    expect((memoryPayload.data as { memoryTopology: unknown }).memoryTopology).toBeDefined();
   });
 
   it('PR-ASIM-007: native core_*_tracing_report_*.json used when PipeTrace.json absent', () => {

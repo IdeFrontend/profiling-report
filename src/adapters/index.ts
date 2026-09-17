@@ -30,6 +30,7 @@ export {
   summaryFromKernelInfo,
   summaryFromEmulateJson,
 } from './adaptEmulate';
+export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export { buildMemoryTopology } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';

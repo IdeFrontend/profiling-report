@@ -119,4 +119,6 @@ Do **not** leave a `resolved` row parked on the open-questions list. Agents: see
 
 **Delivery Milestone 2 (MSTT + selection + memory + measure) — near complete 2026-08-24.** Library exit criteria met on `master` (deps, detail dock, memory topology, interim roofline, measure mode). MSTT host **Ready** on branch [`feature/profiling-report`](https://github.com/IdeFrontend/mstt/tree/feature/profiling-report); smoke pending. Full progress report: [M2_PROGRESS.md](roadmap/M2_PROGRESS.md).
 
-**Next:** [Delivery Milestone 3](roadmap/milestone-3.md) — remaining full UI, target **2026-09-15**.
+**Delivery Milestone 3** — remaining full sketch UI, target **2026-09-15**: [milestone-3.md](roadmap/milestone-3.md).
+
+**Next:** [Delivery Milestone 4](roadmap/milestone-4.md) — simulator (emulate) Sept 30: report statistics, compute-load PIPE, memory topology from ArchDiagramMetrics, CANNBot — target **2026-09-30**.

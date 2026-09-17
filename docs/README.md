@@ -50,7 +50,7 @@ End-user guide (shipped with the demo): [https://profiling-report.vercel.app/gui
 | [context/decisions/interim/](context/decisions/interim/) | Interim engineering defaults for MVP coding |
 | [context/PACKAGING_SUGGESTIONS.md](context/PACKAGING_SUGGESTIONS.md) | PKG-1 … PKG-3 suggestions (interim until Product confirms); UI-41 resolved in [decisions/UI.md](context/decisions/UI.md) |
 | [process/DEVELOPMENT.md](process/DEVELOPMENT.md) | Spec-driven TDD workflow, slice order, Definition of Done |
-| [process/roadmap/](process/roadmap/) | Delivery milestones M1–M3 (dates, swimlane vs other views, tasks, blockers) |
+| [process/roadmap/](process/roadmap/) | Delivery milestones M1–M4 (dates, swimlane vs other views, tasks, blockers) |
 | [process/TESTING.md](process/TESTING.md) | Unit / component / e2e stack and fixture rules |
 | [process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md) | Pre-coding checklist per slice |
 

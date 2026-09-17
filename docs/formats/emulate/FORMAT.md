@@ -77,19 +77,19 @@ gelu shows the export packer **skips** some populated DB objects (`KernelInfo`, 
 Optional: additional contract CSVs may be packed unused for later phases.
 
 **Not required for Sept 30:** sqlite3 blob (container type `5` remains reserved). Prefer CSV embeds matching export basenames (`ExecutedInstructions.csv`, …).
-### 4.2 Post–Sept 30 (capability-driven)
+### 4.2 Sept 30+ capability-driven embeds
 
-Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [ADAPTERS.md](../ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../VIEW_DATA_REQUIREMENTS.md) gaps):
+Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [ADAPTERS.md](../ADAPTERS.md), [milestone-4](../../process/roadmap/milestone-4.md)):
 
-| Capability (reserved) | Typical embeds |
-|----------------------|----------------|
-| `archDiagram` | `ArchDiagramMetrics.csv`, `ExecutedInstructions.csv` |
-| `memoryHeatmap` | `MemoryRWAccesses.csv` |
-| AiCore occupancy overlay | `AiCoreOccupancy.csv` and/or `aicore_utilization.json` |
-| `vfIpc` | `VfIPC.csv`, `VfSimtIPC.csv` (need `--vec-ipc`) |
-| `callStacks` | Call* tables (need ELF / `--object-file`) |
-| `roofline` | ArchDiagramMetrics + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions (gap vs compute Arithmetic+Memory) |
-| `memoryDiagram` | **gap** — not MemoryRWAccesses; needs aggregate BW map or Product slot names from ArchDiagramMetrics |
+| Capability | Typical embeds | Sept 30 |
+|------------|----------------|---------|
+| `memoryDiagram` | `ArchDiagramMetrics.csv` → topology slots ([DATA-48a](../../context/decisions/interim/DATA.md)); **not** MemoryRWAccesses | **in** |
+| `archDiagram` | `ArchDiagramMetrics.csv`, `ExecutedInstructions.csv` (diagram UI, not topology chrome) | out-of-scope |
+| `memoryHeatmap` | `MemoryRWAccesses.csv` | out-of-scope |
+| AiCore occupancy overlay | `AiCoreOccupancy.csv` and/or `aicore_utilization.json` | out-of-scope |
+| `vfIpc` | `VfIPC.csv`, `VfSimtIPC.csv` (need `--vec-ipc`) | out-of-scope |
+| `callStacks` | Call* tables (need ELF / `--object-file`) | out-of-scope |
+| `roofline` | ArchDiagramMetrics + Functions + ExecutedInstructions + VectorUtilizations + SourceInstructions | **hide** (gap) |
 
 ### 4.3 `manifest.json` (emulate marker)
 
@@ -141,8 +141,8 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
-3. Phase 1: build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `ReportViewModel.summary*` from KernelInfo/summary when mappable; PIPE from PipesUtilization/hist when packed; hide overview/memory/roofline gaps ([DATA-30](../../context/decisions/DATA.md)).
-4. Phase 2: set capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/DATA.md)).
+3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `summary*` from KernelInfo/summary; PIPE from PipesUtilization/hist; `memoryTopology` from ArchDiagramMetrics ([DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline gaps ([DATA-30](../../context/decisions/DATA.md)).
+4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/DATA.md)).
 
 ---
 
@@ -160,6 +160,7 @@ Minimal viewer fixture (timeline + summary + PIPE): [`data/emulate-sample.npu-re
 |------|-----|
 | Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
 | KernelInfo / summary.json → summary cards | [DATA-47](../../context/questions/DATA.md) |
+| ArchDiagramMetrics → memory topology slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
 | Exact `tickToUs` default when freq unknown | [DATA-47](../../context/questions/DATA.md) / producer docs |
 | Export packer omitting populated KernelInfo / PipesUtilization / AiCoreOccupancy | Packer bug vs intentional slim pack |
 | Synthesizing PipeTrace from ExecutedInstructions / DispatchTime | Future — not required to open |

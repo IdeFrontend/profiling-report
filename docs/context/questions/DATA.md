@@ -121,13 +121,13 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
 
-### DATA-44 — the DATA-39 table's Cube↔L0C direction slip
+### DATA-49 — the DATA-39 table's Cube↔L0C direction slip
 
 **Status:** `open`
 
 **Question:** The producer's DATA-39 "Memory" table names the Cube ↔ L0C pair **twice, with the two directions swapped**: row `21` `L0C -> Cube` = `aic_l0c_write_bw_cube(GB/s)` and row `22` `Cube->L0C` = `aic_l0c_read_bw_cube(GB/s)`, while rows `29` `Cube -> L0C` and `30` `L0C -> Cube` give the same two fields the opposite way round. Both pairs cannot be right, and the choice decides two shipped plates (`cube-l0c` and `l0c-cube`). Which pair is authoritative for the **direction** — rows `29`/`30`, or rows `21`/`22`?
 
-**Answer so far:** None from the producer. The shipped mapping follows **rows `29`/`30`**, on three grounds: the `*_write_bw_cube` suffix says the transfer is *into* L0C (Cube → L0C) and `*_read_bw_cube` *out of* it (L0C → Cube), which is exactly how [INPUT_FORMATS §3.5](../../formats/INPUT_FORMATS.md) reads the suffix rule; rows `29`/`30` are the numbered continuation of the AIC row's `25`–`28` slot list, which places them on the correct plate coordinates; and the same two rows are what [DATA-41](DATA.md) confirms 1:1 against the chrome's slots. Rows `21`/`22` look like a duplicate of the pair with the direction labels reversed, in the same table that already carries the (now resolved) row `24` and row `32` slips ([DATA-43](../decisions/DATA.md)). No behaviour changes while it is open.
+**Answer so far:** None from the producer. The shipped mapping follows **rows `29`/`30`**, on three grounds: the `*_write_bw_cube` suffix says the transfer is *into* L0C (Cube → L0C) and `*_read_bw_cube` *out of* it (L0C → Cube), which is exactly how [INPUT_FORMATS §3.5](../../formats/INPUT_FORMATS.md) reads the suffix rule; rows `29`/`30` are the numbered continuation of the AIC row's `25`–`28` slot list, which places them on the correct plate coordinates; and the same two rows are what [DATA-46](DATA.md) confirms 1:1 against the chrome's slots. Rows `21`/`22` look like a duplicate of the pair with the direction labels reversed, in the same table that already carries the (now resolved) row `24` and row `32` slips ([DATA-48](../decisions/DATA.md)). No behaviour changes while it is open.
 
 **Roots / evidence:** the producer's `DATA questions` doc § DATA-39 "Memory", rows `21`/`22` against rows `29`/`30`, and its numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png`; `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`cube-l0c` → `aic_l0c_write_bw_cube`, `l0c-cube` → `aic_l0c_read_bw_cube`); the `**Value slots**` table of [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
 
@@ -142,3 +142,13 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Context:** Thin summary from KernelInfo and/or emulate `summary.json` ([emulate/FORMAT](../../formats/emulate/FORMAT.md)). No compute `OpBasicInfo.csv` remap ([DATA-45](../decisions/DATA.md)). Coding uses interim [DATA-47a](../decisions/interim/DATA.md).
 
 **Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [view-models](../../../specs/core/view-models.spec.md)
+
+### DATA-48 — Emulate ArchDiagramMetrics → memory topology slots
+
+**Status:** `open`
+
+**Question:** Confirm the parameter-name → chrome slot map for emulate `ArchDiagramMetrics.csv` → `memoryTopology` (GB/s edges + L2 peak %). Are `hbm_to_l2_syn_gbs` / `l2_to_hbm_syn_gbs` / `aic_*` / `aiv*_` names authoritative? Dual AIV0/AIV1 plates: use both values or average?
+
+**Context:** Sept 30 (M4) lights memory topology from ArchDiagramMetrics, not MemoryRWAccesses ([memory-topology](../../views/memory-topology.md)). Coding uses interim [DATA-48a](../decisions/interim/DATA.md).
+
+**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [memory-topology](../../views/memory-topology.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
