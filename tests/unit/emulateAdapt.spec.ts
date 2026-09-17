@@ -80,7 +80,7 @@ describe('emulate-format (PR-SIM-*)', () => {
       isEmulateLeaf({
         'EmulateManifest.json': enc.encode(emulateManifest()),
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isEmulateLeaf({
         'manifest.json': enc.encode(JSON.stringify({ profile: 'compute', schemaVersion: 1 })),

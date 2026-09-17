@@ -19,13 +19,8 @@ import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
 import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 
-/** Primary: producer `manifest.json`; legacy: `EmulateManifest.json` ([PROC-8]). */
-const MANIFEST_NAMES = [
-  'manifest.json',
-  'Manifest.json',
-  'EmulateManifest.json',
-  'emulatemanifest.json',
-];
+/** Producer `manifest.json` only ([PROC-8]). */
+const MANIFEST_NAMES = ['manifest.json', 'Manifest.json'];
 const PIPE_TRACE_NAMES = ['PipeTrace.json', 'pipetrace.json'];
 const KERNEL_INFO_NAMES = ['KernelInfo.csv', 'kernelinfo.csv'];
 const SUMMARY_JSON_NAMES = ['summary.json', 'Summary.json'];
@@ -114,13 +109,13 @@ function isExportCatalog(obj: Record<string, unknown>): boolean {
   );
 }
 
-/** True when leaf payloads include a valid emulate `manifest.json` (or legacy EmulateManifest). */
+/** True when leaf payloads include a valid emulate `manifest.json`. */
 export function isEmulateLeaf(payloads: Record<string, Uint8Array>): boolean {
   return readEmulateManifest(payloads) != null;
 }
 
 /**
- * Read emulate marker from `manifest.json` / legacy `EmulateManifest.json`.
+ * Read emulate marker from `manifest.json`.
  * Accepts thin `{ profile: "emulate", schemaVersion }` or export-catalog `{ objects: [...] }` with a hub table.
  */
 export function readEmulateManifest(

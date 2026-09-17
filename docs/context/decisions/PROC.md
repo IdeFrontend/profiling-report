@@ -68,8 +68,8 @@ Format and statuses: [README.md](README.md).
 
 ## PROC-8
 
-- **Resolved:** 2026-09-14 (amended 2026-09-15)
+- **Resolved:** 2026-09-14 (amended 2026-09-15; amended 2026-09-17)
 - **Question:** How does the viewer detect a emulate leaf vs a compute leaf?
-- **Decision:** Require embed **`manifest.json`** that is either (1) a thin marker with `"profile": "emulate"` and integer `schemaVersion`, or (2) an npu_emulate **CSV export catalog** (`objects[]` including a hub name among `ExecutedInstructions` / `KernelInfo` / `AnalysisState`). Legacy **`EmulateManifest.json`** with the thin-marker shape remains accepted. Absence → compute (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated emulate origin ([PROC-9](../questions/PROC.md)).
+- **Decision:** Require embed **`manifest.json`** that is either (1) a thin marker with `"profile": "emulate"` and integer `schemaVersion`, or (2) an npu_emulate **CSV export catalog** (`objects[]` including a hub name among `ExecutedInstructions` / `KernelInfo` / `AnalysisState`). Absence → compute (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated emulate origin ([PROC-9](../questions/PROC.md)). Interim viewer-only filenames (`EmulateManifest.json` / earlier `SimulatorManifest.json`) are **not** accepted.
 - **Specs:** [INPUT_FORMATS](../../formats/README.md) §2.1, [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [load-report-source](../../../specs/core/load-report-source.spec.md)
-- **Source:** Engineering default for dual-profile detection without parser origin change; 2026-09-15 Product direction — detect producer `manifest.json` (gelu export catalog)
+- **Source:** Engineering default for dual-profile detection without parser origin change; 2026-09-15 Product direction — detect producer `manifest.json` (gelu export catalog); 2026-09-17 drop interim `EmulateManifest.json` alias
