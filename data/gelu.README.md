@@ -4,7 +4,7 @@ Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`). Timeline uses
 
 | Item | Value |
 |------|--------|
-| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~9.7 MiB) |
+| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~9.7 MiB, **not** Git LFS — intentional demo fixture; slim leaf is [`emulate-sample.npu-rep`](emulate-sample.npu-rep)) |
 | SHA-256 | `e9ee81ded874ddd456c17cf09470611ada11598d9b2b183a7d5fafae0f55a11b` |
 | Exported | `2026-09-17T13:53:46.122341+00:00` |
 | Contract DB objects | 122 (100 tables + 22 views), 170378 rows total |
