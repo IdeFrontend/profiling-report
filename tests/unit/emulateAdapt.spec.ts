@@ -183,7 +183,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(adapted.reportModel.overviewSeries).toEqual([]);
   });
 
-  it('PR-ASIM-005: interim DATA-42a maps KernelInfo into summary', () => {
+  it('PR-ASIM-005: interim DATA-47a maps KernelInfo into summary', () => {
     const csv = 'KernelInfoAttr,KernelInfoVal\nOp Name,my_kernel\nTask Duration(us),12.5\n';
     expect(summaryFromKernelInfo(enc.encode(csv))).toEqual({
       opName: 'my_kernel',
