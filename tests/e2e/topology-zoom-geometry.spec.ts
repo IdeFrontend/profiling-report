@@ -207,8 +207,13 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   expect(Math.abs(back.x - panned.x)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(back.y - panned.y)).toBeLessThanOrEqual(SLOP);
 
-  // Same rule in the wide overlay: its box is a different shape, and the anchor is nothing but the
-  // box's own scroll geometry — so the one place it could differ is the one worth stepping once.
+  // Same rule in the wide overlay, whose box is a different *shape* — and there, X is letterboxed at
+  // first: the stage is narrower than the box until the ladder reaches ~300%, so `scrollWidth` is the
+  // box's own width and the anchor is the fitted `margin-inline: auto` case. The step that crosses
+  // over is the one the aside cannot reach (its box is narrow enough that 125% overflows both axes):
+  // the placement has to hand over from centring to a real scroll, and a regression that left the
+  // stage left-aligned while `scrollLeft` stayed 0 would only show up here. So step the ladder until
+  // X really does overflow, asserting the middle at every step, including the crossing one.
   await aside.getByTestId('topology-fullscreen').click();
   const overlay = page.locator(
     '[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]',
@@ -231,12 +236,40 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
       },
       { w: CHROME_W, h: CHROME_H },
     );
+  /** What the box can scroll, and whether X has overflowed its own width yet. */
+  const overlayBox = () =>
+    overlayViewport.evaluate((el) => ({
+      left: el.scrollLeft,
+      top: el.scrollTop,
+      sw: el.scrollWidth,
+      sh: el.scrollHeight,
+      cw: el.clientWidth,
+      ch: el.clientHeight,
+    }));
 
   const overlayFitted = await overlayMiddle();
-  await overlay.getByTestId('topology-zoom-in').click();
-  const overlayStepped = await overlayMiddle();
-  expect(Math.abs(overlayStepped.x - overlayFitted.x)).toBeLessThanOrEqual(SLOP);
-  expect(Math.abs(overlayStepped.y - overlayFitted.y)).toBeLessThanOrEqual(SLOP);
+  // The ladder has five stops above the fit (125 … 400), so this cannot run past the end of it — a
+  // sixth click would land on a disabled 放大 and time out instead of failing on the line below.
+  let crossed = false;
+  for (let step = 0; step < 5 && !crossed; step++) {
+    await overlay.getByTestId('topology-zoom-in').click();
+    const stepped = await overlayMiddle();
+    expect(Math.abs(stepped.x - overlayFitted.x)).toBeLessThanOrEqual(SLOP);
+    expect(Math.abs(stepped.y - overlayFitted.y)).toBeLessThanOrEqual(SLOP);
+
+    const box = await overlayBox();
+    if (box.sw > box.cw) {
+      crossed = true;
+      // On a scrollable X the anchor is a real placement, not the letterboxed 0: half of the
+      // drawing's own overflow. This is the case a left-aligned-stage regression would move.
+      expect(box.sw - box.cw).toBeGreaterThan(SLOP);
+      expect(Math.abs(box.left - (box.sw - box.cw) / 2)).toBeLessThanOrEqual(SLOP);
+    }
+    // Y overflows in this host from the first step, so its placement is exercised on every one.
+    expect(Math.abs(box.top - (box.sh - box.ch) / 2)).toBeLessThanOrEqual(SLOP);
+  }
+  // The loop must have actually reached the crossing, or the assertions above say nothing about it.
+  expect(crossed).toBe(true);
 });
 
 /**
