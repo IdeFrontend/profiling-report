@@ -53,7 +53,13 @@ function findEmulateTracePayload(
         /\.json$/i.test(n) &&
         !/critical[_-]?path/i.test(n),
     )
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => {
+      const ai = a.match(/core[_-]?(\d+)/i);
+      const bi = b.match(/core[_-]?(\d+)/i);
+      const an = ai ? Number(ai[1]) : Number.POSITIVE_INFINITY;
+      const bn = bi ? Number(bi[1]) : Number.POSITIVE_INFINITY;
+      return an - bn || a.localeCompare(b);
+    });
   if (native.length === 0) return undefined;
   if (native.length === 1) return { bytes: payloads[native[0]], name: native[0] };
   return { bytes: mergeNativeChromeTraces(payloads, native), name: native.join('+') };

@@ -205,6 +205,8 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 **Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-008` + `archDiagram` assertions
 **Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model
 
+<a id="data-45"></a>
+
 ### DATA-45 — Do not invent compute CSVs from emulate
 
 **Status:** `interim` — engineering stamp pending Product
@@ -213,11 +215,13 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 **Implement / test as:** `adaptEmulate` / PR-ASIM-004; [emulate/FORMAT](../../../formats/emulate/FORMAT.md); [ADAPTERS](../../../formats/ADAPTERS.md)
 **Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
 
+<a id="data-46"></a>
+
 ### DATA-46 — Emulate PipeTrace time unit is µs
 
 **Status:** `interim` — engineering stamp pending Product
 **Question:** What time unit must an emulate leaf use in `PipeTrace.json` / native tracing report?
 **Interim:** Producer **MUST** convert simulator **ticks → microseconds** when packing timeline JSON. The viewer keeps the product rule: Trace timestamps/durations are **µs** (same as hardware `PipeTrace.json`). The viewer MUST NOT reinterpret Trace as ticks, and MUST ignore misleading `displayTimeUnit: "ns"` on emulate packs.
-**Implement / test as:** `adaptEmulate` `sourceTimeUnit: 'us'`; PR-SIM-003 / PR-SIM-003b
+**Implement / test as:** `adaptEmulate` `sourceTimeUnit: 'us'`; PR-SIM-003 (incl. displayTimeUnit override coverage)
 **Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
 
