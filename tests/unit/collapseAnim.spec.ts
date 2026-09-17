@@ -5,6 +5,7 @@ import {
   collapseHiddenHeight,
   collapsePaintState,
   eventBlockMetrics,
+  eventsIntersectingRect,
   findExactEdgeMatchesAt,
   groupBottomY,
   LANE_HEIGHT,
@@ -230,6 +231,36 @@ describe('paint-only rest collapse (PR-RENDER-052)', () => {
 
   it('collapseHiddenHeight matches descendant lane rows without filterCollapsedTree', () => {
     expect(collapseHiddenHeight(folderModel(), [], ['core'])).toBe(44);
+  });
+
+  it('PR-RENDER-049: paint-only collapse marquee skips hidden descendants and hits shifted rows', () => {
+    const model = folderModel();
+    const hbm = model.processes[0]!.threads.find((t) => t.id === 'hbm')!;
+    hbm.events = [{ id: 'e-hbm', name: 'hbm', startTime: 0, duration: 10 }];
+    const layout = rebuildLayout(model);
+    const view = { startTime: 0, endTime: 100, scrollY: 0 };
+    const folded = collapsePaintState(layout, ['core'], null, new Map()).hitLayout;
+    const paintedHbmY = folded.lanes.find((l) => l.thread.id === 'hbm')!.y;
+    const originalMte1Y = layout.lanes.find((l) => l.thread.id === 'mte1')!.y;
+    expect(paintedHbmY).toBe(originalMte1Y);
+
+    const atPaintedHbm = eventsIntersectingRect(folded, view, 400, {
+      x0: 0,
+      y0: paintedHbmY,
+      x1: 400,
+      y1: paintedHbmY + LANE_HEIGHT,
+    });
+    expect(atPaintedHbm.map((e) => e.id)).toEqual(['e-hbm']);
+
+    const originalHbmY = layout.lanes.find((l) => l.thread.id === 'hbm')!.y;
+    expect(
+      eventsIntersectingRect(folded, view, 400, {
+        x0: 0,
+        y0: originalHbmY,
+        x1: 400,
+        y1: originalHbmY + LANE_HEIGHT,
+      }),
+    ).toEqual([]);
   });
 
   it('PR-RENDER-053: exact-edge scan skips rest-collapsed descendant events', () => {

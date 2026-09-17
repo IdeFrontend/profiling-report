@@ -50,7 +50,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 
 **Marquee multi-selection.** `setMultiSelection(ids)` is the same emphasis machinery with a set instead of one id: a non-empty set counts as "there is a selection", the ids in it stay bright, and everything else uses the single-selection solid muted fill. An empty set clears the muting. No white stroke and no dependency curves — marquee is a bulk highlight, not a focus. The method is **optional** on `SwimlaneRenderer` (like `setDependencyMode` / `setDependencyDepth`); `SwimlaneCanvas` calls it with `?.`.
 
-**Marquee hit collection.** `eventsIntersectingRect(layout, view, width, rect)` returns the laid-out leaf events whose drawn block intersects a screen-space rect, in layout order. Rect corners are order-normalized, so a drag in any direction collects the same set. Folder rows carry no events, so a rect crossing Card header strips contributes none.
+**Marquee hit collection.** `eventsIntersectingRect(layout, view, width, rect)` returns the laid-out leaf events whose drawn block intersects a screen-space rect, in layout order. Rect corners are order-normalized, so a drag in any direction collects the same set. Folder rows carry no events, so a rect crossing Card header strips contributes none. Paint-only collapse does not clone `layout.events` Y/alpha; the walk uses visible `eventsByLane` (skip `alpha === 0` lanes) and `collapseShiftY` so a marquee cannot select hidden rest-collapsed descendants and still hits rows that painted after a fold.
 
 **Lane chrome.** Every event-sequence lane shares the same background fill (`LANE_FILL`, `#1f1f1f`); alternating zebra stripes are not used. The one leaf lane under the pointer fills `LANE_HOVER_FILL` (`#363636`) instead — AC-07's track half, matching the gutter row highlight so the two read as one continuous row. It is painted **in the background pass, behind events**, deliberately: composited over the lanes it would tint every event it crossed, and a lifted event fill already means hover on *that event* (AC-08). Both backends take it through `setHoveredLane`; folders never match, since the hit test returns leaves only. **Card / root group headers** paint a full-width band `rgb(42, 42, 42)` (`#2a2a2a`) under the DOM Card strips in `SwimlaneView`. Horizontal dividers (`#3a3a3a`) are drawn at the bottom of each group header and each lane (1 device px), aligned with the LaneGutter borders. WebGL draws the same uniform fill and divider rects; Canvas uses strokes at the same edges.
 
@@ -79,7 +79,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-013**: Selected event's predecessors/successors keep their original fill and label color; non-neighbors render solid dark-gray `#2C2C2C`.
 1. **PR-RENDER-014**: `SwimlaneRenderer.setDependencyMode` / `setDependencyDepth` / `setHoveredLane` are optional (existing implementers stay valid).
 1. **PR-RENDER-015**: `setMultiSelection` keeps selected ids bright and dims the rest with the single-click factor; empty clears it (Canvas + WebGL; `skipIf` when WebGL2 is missing).
-1. **PR-RENDER-049**: `eventsIntersectingRect` collects intersecting leaf events (block-edge intersection in CSS px), skipping `alpha === 0` (fully faded mid-collapse-tween) the same way `hitTestLayout` and the hover-gap/magnet scans do.
+1. **PR-RENDER-049**: `eventsIntersectingRect` collects intersecting leaf events (block-edge intersection in CSS px) from visible `eventsByLane` at fold-shifted Y, skipping `alpha === 0` lanes / rest-collapsed descendants the same way `hitTestLayout` and the hover-gap/magnet scans do.
 1. **PR-RENDER-050**: `eventsIntersectingRect` normalizes rect order (any 2-corner ordering) and returns `[]` on a miss (rect over headers / empty rows).
 1. **PR-RENDER-017**: `eventRadius` applies the CSS-px corner policy (1 below 4 CSS-px width, else 2) × `dpr` → device px; Canvas and WebGL share the same `shaders.ts` constants via one `uRR` vec3 uniform / `eventRadius`.
 1. **PR-RENDER-017b**: `uRR` painted radii (`xy`) round to integer device px, but the switch threshold (`z`) is the exact `rrSwitchThreshold × dpr` (fractional dpr parity).
@@ -132,6 +132,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-17** — PR-RENDER-049: marquee collection walks visible `eventsByLane` at `collapseShiftY` (paint-only collapse does not clone `layout.events` Y/alpha).
 - **2026-09-17** — PR-RENDER-054: hover-only `setSelection` does not rebuild emphasis meshes; ClearType overlay paints lifted leaves by id.
 - **2026-09-15** — PR-RENDER-053: pointermove magnet marks skip rest-collapsed descendants; unchanged `setCollapseAnim` does not rebuild folds/curves.
 - **2026-09-11** — PR-RENDER-052: rest collapse is paint-only (`setCollapsedIds` / multi-fold `CollapseTransform`); summaries via extras; no per-toggle `setModel`.

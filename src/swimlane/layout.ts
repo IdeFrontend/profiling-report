@@ -1058,6 +1058,8 @@ export interface MarqueeRect {
 /**
  * Leaf events whose drawn block intersects the marquee rect, in layout order.
  * Folder rows hold no events, so Card header strips the rect passes over contribute none.
+ * Paint-only collapse leaves `layout.events` expanded and unshifted; walk visible
+ * `eventsByLane` and apply `collapseShiftY` so the rect matches paint / hit-test.
  */
 export function eventsIntersectingRect(
   layout: SwimlaneLayout,
@@ -1071,11 +1073,13 @@ export function eventsIntersectingRect(
   const bottom = Math.max(rect.y0, rect.y1);
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
+  const fold = layout.collapse ?? IDLE_COLLAPSE;
   const out: LaidOutEvent[] = [];
-  for (const item of layout.events) {
-    if (item.summary || item.alpha === 0) continue;
+  for (const item of iterLaidOutEvents(layout)) {
+    if (item.summary) continue;
+    if (collapseAlpha(item.y, fold) <= 0) continue;
     const ev = item.event;
-    const { y, h } = eventBlockMetrics(item.y, view.scrollY);
+    const { y, h } = eventBlockMetrics(collapseShiftY(item.y, fold), view.scrollY);
     if (y > bottom || y + h < top) continue;
     const x = ((ev.startTime - view.startTime) / span) * w;
     const ew = Math.max(2, (ev.duration / span) * w);
@@ -1316,7 +1320,7 @@ export function computeAltMeasureGap(
 /**
  * Visible laid-out events only. `hitLayout.events` stays the expanded array
  * (paint-only collapse does not clone it), so a full walk would rescan every
- * rest-collapsed descendant on pointermove magnet marks.
+ * rest-collapsed descendant on pointermove magnet marks and marquee collection.
  */
 function* iterLaidOutEvents(layout: SwimlaneLayout): Iterable<LaidOutEvent> {
   for (let i = 0; i < layout.lanes.length; i++) {
