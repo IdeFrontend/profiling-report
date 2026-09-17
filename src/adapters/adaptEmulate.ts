@@ -465,7 +465,7 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
 
   const capabilities: string[] = [];
   if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
-  if (memoryTopology) capabilities.push('memoryDiagram');
+  if (memoryTopology) capabilities.push('archDiagram');
 
   return {
     swimlaneModel,

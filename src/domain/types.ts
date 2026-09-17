@@ -301,6 +301,7 @@ export type ReportCapability =
   | 'roofline'
   | 'dependencies'
   | 'memoryDiagram'
+  | 'archDiagram'
   | 'hardwareDetails'
   | 'sourceTab'
   | 'cacheTab'

@@ -11,8 +11,8 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Open `.npu-rep` in panel | H / M | Host opens; library renders ([PROC-2](../context/decisions/PROC.md)). Hardware or emulate profile ([PROC-6](../context/decisions/PROC.md), [PROC-7](../context/decisions/PROC.md)) |
 | Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/decisions/PROC.md)) |
 | Detect emulate leaf (`manifest.json`) | M | Library-internal ([PROC-8](../context/decisions/PROC.md)); no second host extension |
-| Emulate Sept 30 (M4): Timeline + thin summary + PIPE + memory topology + CANNBot | M | [milestone-4](../process/roadmap/milestone-4.md); `manifest.json` + PipeTrace + KernelInfo/summary + PipesUtilization + ArchDiagramMetrics — [emulate/FORMAT](../formats/emulate/FORMAT.md); view packets [views/](../views/); gaps: [roofline](../views/roofline.md) / [overview-charts](../views/overview-charts.md) |
-| Simulator Phase 2: arch diagram / memory heatmap / VF IPC / call stacks / … | P2 | MHTML §11.2.3; capabilities `archDiagram`, `memoryHeatmap`, `vfIpc`, `callStacks`, … |
+| Emulate Sept 30 (M4): Timeline + thin summary + PIPE + Architecture Diagram + CANNBot | M | [milestone-4](../process/roadmap/milestone-4.md); ArchDiagramMetrics → `archDiagram` ([arch-diagram](../views/arch-diagram.md)); heatmap / roofline / overview **out** — [emulate/FORMAT](../formats/emulate/FORMAT.md) |
+| Simulator Phase 2: dedicated arch chrome / memory heatmap / VF IPC / call stacks / … | P2 | MHTML §11.2.3; [DATA-49](../context/questions/DATA.md); capabilities `memoryHeatmap`, `vfIpc`, `callStacks`, … |
 | Timeline secondary tab | M | Primary view |
 | OP算子 / 源码 / 详情 / 缓存 tabs | M | **时间线** active; **源码 / 详情 / 缓存** visible and **disabled** ([UI-37](../context/decisions/UI.md)). No tab surfaces this phase. OP算子 = brand / multi-op selector. |
 | Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |

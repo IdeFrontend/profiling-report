@@ -172,11 +172,11 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Implement / test as:** `summaryFromKernelInfo` / `summaryFromEmulateJson` in `adaptEmulate`; `PR-ASIM-003` + summary assertions
 **Superseded when:** Product locks DATA-47 field map
 
-### DATA-48a — Emulate ArchDiagramMetrics → memory topology slots
+### DATA-48a — Emulate ArchDiagramMetrics → Architecture Diagram slots (interim chrome)
 
 **Status:** `interim`
 **Question:** [DATA-48](../../questions/DATA.md)
-**Interim:** Build `reportModel.memoryTopology` from `ArchDiagramMetrics.csv` (`ArchDiagramParameterName` / `ArchDiagramParameterValue`). Map plated edges (GB/s labels `{n} GB/s`) and L2 plate:
+**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **interim VM carrier** for plated Asc chrome ([arch-diagram](../../../views/arch-diagram.md)). Map plated edges (GB/s labels `{n} GB/s`) and L2 plate:
 
 | Slot / plate | Parameter |
 |--------------|-----------|
@@ -186,12 +186,12 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 | `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` |
 | `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` |
 | `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` |
-| `l2-ub` | `aiv0_out_to_ub_gbs` (AIV0 slot), `aiv1_out_to_ub_gbs` (AIV1) |
+| `l2-ub` | `aiv0_out_to_ub_gbs` (AIV0), `aiv1_out_to_ub_gbs` (AIV1) — average when both present |
 | `ub-l2` | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` |
 | `ub-vec` | `aiv0_ub_to_simd_gbs` / `aiv1_ub_to_simd_gbs` |
 | `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
 | L2 `peakPct` | `l2_cached_ratio` |
 
-Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability `memoryDiagram` when `hasDrawableTopology`. Do **not** use `MemoryRWAccesses` for this chrome (heatmap is separate / out-of-scope).
-**Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-*` topology assertions
-**Superseded when:** Product locks DATA-48 slot map
+Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
+**Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-008` + `archDiagram` assertions
+**Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model

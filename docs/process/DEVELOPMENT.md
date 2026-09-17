@@ -121,4 +121,4 @@ Do **not** leave a `resolved` row parked on the open-questions list. Agents: see
 
 **Delivery Milestone 3** — remaining full sketch UI, target **2026-09-15**: [milestone-3.md](roadmap/milestone-3.md).
 
-**Next:** [Delivery Milestone 4](roadmap/milestone-4.md) — simulator (emulate) Sept 30: report statistics, compute-load PIPE, memory topology from ArchDiagramMetrics, CANNBot — target **2026-09-30**.
+**Next:** [Delivery Milestone 4](roadmap/milestone-4.md) — simulator (emulate) Sept 30: report statistics, compute-load PIPE, Architecture Diagram from ArchDiagramMetrics, CANNBot — target **2026-09-30**.
