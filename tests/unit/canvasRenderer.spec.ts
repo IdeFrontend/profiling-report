@@ -28,7 +28,7 @@ import {
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
 import { eventFill } from '../../src/domain/laneColors';
-import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import { compositeLabelBackdrop, WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
@@ -1362,5 +1362,54 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     hovered.setSelection(null, 'folder/summary/0');
     hovered.render();
     expect(hoverCanvas.fills).toContain(eventFill(SUMMARY_EVENT_FILL, 'hover'));
+  });
+
+  it('PR-CANVAS-104: live-scroll overlay still paints collapsed-folder summary bars and labels', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'PIPE',
+              events: [],
+              children: [
+                {
+                  id: 'leaf',
+                  name: 'leaf',
+                  events: [{ id: 'e1', name: 'HIDDEN_LEAF', startTime: 10, duration: 40 }],
+                },
+              ],
+            },
+            {
+              id: 'open',
+              name: 'open',
+              events: [{ id: 'e2', name: 'OPEN_LEAF', startTime: 10, duration: 40 }],
+            },
+          ],
+        },
+      ],
+    };
+    const { canvas, fills, texts } = recordingCanvas();
+    const overlay = new SwimlaneOverlayPainter();
+    overlay.attach(canvas);
+    overlay.resize(400, 200, 1);
+    overlay.setLayout(rebuildLayout(model));
+    overlay.setCollapsedIds(['folder']);
+    overlay.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    overlay.setLiveScroll(true);
+    overlay.render();
+    expect(fills).toContain(SUMMARY_EVENT_FILL);
+    expect(texts.get('1 task')).toBe(SUMMARY_LABEL_COLOR);
+    expect(texts.has('OPEN_LEAF')).toBe(false);
+    expect(texts.has('HIDDEN_LEAF')).toBe(false);
+
+    overlay.setLiveScroll(false);
+    overlay.render();
+    expect(texts.has('OPEN_LEAF')).toBe(true);
   });
 });

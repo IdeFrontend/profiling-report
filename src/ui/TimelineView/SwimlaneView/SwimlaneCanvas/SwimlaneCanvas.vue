@@ -484,17 +484,13 @@ function paintFrame(): void {
   if (lastDeviceW < 1 || lastDeviceH < 1) return;
   applyLiveScrollHint(laneScrollEasing);
   backend.render();
-  if (useWebGl.value) {
-    // Overlay sits on top of GL fills. Skipping render without a clear leaves the
-    // last labels/hover-rects at the old Y, compositing over the moved events.
-    if (laneScrollEasing) overlay.clear();
-    else overlay.render();
-  }
+  if (useWebGl.value) overlay.render();
 }
 
 function applyLiveScrollHint(on: boolean): void {
   if (backend instanceof WebGlSwimlaneRenderer) backend.setLiveScroll(on);
   else if (backend instanceof CanvasSwimlaneRenderer) backend.setLiveScroll(on);
+  overlay.setLiveScroll(on);
 }
 
 function applyViewState(forceModel = false): void {
@@ -2305,7 +2301,9 @@ function onWheel(e: WheelEvent): void {
 function applyLaneScroll(y: number, settled = false): void {
   localScrollY = y;
   lastEmittedScrollY = y;
-  backend.setView(paintView());
+  const v = paintView();
+  backend.setView(v);
+  if (useWebGl.value) overlay.setView(v);
   flushPaint();
   emit('scroll-y', localScrollY, settled);
 }

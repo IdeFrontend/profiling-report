@@ -205,6 +205,7 @@ export class SwimlaneOverlayPainter {
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
   private searchQuery = '';
+  private liveScroll = false;
   /** When false, skip selection gray-muting (tests / overlays that opt out). */
   private selectionMuted = true;
   /** When false, the WebGL backend owns event labels (ClearType); overlay skips them. */
@@ -270,11 +271,12 @@ export class SwimlaneOverlayPainter {
     this.view = { ...view };
   }
 
-  /** Drop stale overlay pixels (labels / hover fills) without walking events. */
-  clear(): void {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    ctx.clearRect(0, 0, this.width, this.height);
+  /**
+   * In-flight lane scroll: skip leaf labels / hover fills (ClearType + overlay walk).
+   * Collapsed-folder summary bars still paint — they exist only on this overlay.
+   */
+  setLiveScroll(on: boolean): void {
+    this.liveScroll = on;
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
@@ -316,13 +318,28 @@ export class SwimlaneOverlayPainter {
     if (!ctx || !this.canvas) return;
     ctx.clearRect(0, 0, this.width, this.height);
 
+    const dpr = this.dpr;
+    if (this.liveScroll) {
+      paintCollapseSummaries(
+        ctx,
+        this.paintSummaries,
+        this.collapse,
+        this.view,
+        this.width,
+        this.height,
+        dpr,
+        this.selectedId,
+        this.hoveredId,
+      );
+      return;
+    }
+
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectionMuted && this.selectedId != null;
     const hasMulti = this.multiIds.size > 0;
     const bright = this.neighborIds;
-    const dpr = this.dpr;
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
@@ -725,20 +742,18 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
         ctx.fill();
         ctx.globalAlpha = 1;
-        if (collectLabels) {
-          drawEventLabel(
-            ctx,
-            taskCountLabel(ev.taskCount ?? 0),
-            fr.x,
-            fr.y,
-            fr.w,
-            fr.h,
-            this.width,
-            1,
-            SUMMARY_LABEL_COLOR,
-            dpr,
-          );
-        }
+        drawEventLabel(
+          ctx,
+          taskCountLabel(ev.taskCount ?? 0),
+          fr.x,
+          fr.y,
+          fr.w,
+          fr.h,
+          this.width,
+          1,
+          SUMMARY_LABEL_COLOR,
+          dpr,
+        );
         continue;
       }
 
