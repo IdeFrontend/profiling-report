@@ -71,7 +71,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 
 | Embed (basename in `.npu-rep`) | View / surface | Adapter fill | Notes |
 |--------------------------------|----------------|--------------|-------|
-| `manifest.json` | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog. Legacy `EmulateManifest.json` accepted |
+| `manifest.json` | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog |
 | `PipeTrace.json` | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/DATA.md)). Native `core_*_tracing_report_*.json` accepted if `PipeTrace.json` absent. Absent → null swimlane |
 | `KernelInfo.csv` and/or `summary.json` | [Report statistics](../../views/report-summary.md) | `reportModel.summary*` | Thin identity / duration ([DATA-47a](../../context/decisions/interim/DATA.md)). Absent → hide cards |
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
@@ -116,8 +116,6 @@ Optional: other contract CSVs may be packed unused for later phases. **Not requi
 | `tickToUs` | no | Scale factor used when converting ticks → µs for PipeTrace; informational |
 
 **Export catalog** (producer dump / gelu): object with `objects[]` where some entry `name` is `ExecutedInstructions`, `KernelInfo`, or `AnalysisState`. Thin `profile` fields are not required for this shape.
-
-Legacy filename **`EmulateManifest.json`** with the thin-marker body remains accepted.
 
 Additional fields allowed; unknown keys ignored by the viewer.
 ---

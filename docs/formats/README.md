@@ -52,7 +52,7 @@ Same container binary; **different embed sets** ([PROC-7](../context/decisions/P
 
 | Signal | Rule |
 | --- | --- |
-| Emulate marker | Leaf embeds **`manifest.json`** (thin `profile: "emulate"` **or** export catalog with hub objects) → **emulate** ([PROC-8](../context/decisions/PROC.md)). Legacy `EmulateManifest.json` accepted |
+| Emulate marker | Leaf embeds **`manifest.json`** (thin `profile: "emulate"` **or** export catalog with hub objects) → **emulate** ([PROC-8](../context/decisions/PROC.md)) |
 | Otherwise | Treat as **compute** (or Chrome Trace–only if no metric pack) |
 | Head `origin` | Product 160-byte layout uses `origin = 1` (profile) for both until Product assigns a dedicated emulate origin (open [PROC-9](../context/questions/PROC.md)). Parser today rejects `origin ≠ 1`. |
 
