@@ -38,19 +38,19 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-33b — PIPE aggregation
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-09-11
 **Question:** [DATA-33](../DATA.md)
-**Interim:** Default **All** = **mean of non-`NA` ratios** per pipe family across `block_id`. Summary block control may scope PIPE to one `block_id` (DATA-19).
+**Interim:** ~~Default **All** = **mean of non-`NA` ratios** per pipe family across `block_id`. Summary block control may scope PIPE to one `block_id`.~~ Product-confirmed ([DATA-28](../DATA.md) / [DATA-19](../DATA.md)): `All` = `summary.jsonl` non-`NA` mean across `block_id`; a picked `block_id` = that block's `PipeUtilization.csv` row.
 **Implement / test as:** `StatsAside` PIPE + `pipeOccupancyFromRows`; PR-STATS-014b
-**Superseded when:** DATA-33 / data spec overrides aggregation
+**Superseded when:** — done ([DATA-28](../DATA.md)).
 
 ### DATA-33c — Block scope vs aggregate
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-09-11
 **Question:** [DATA-33](../DATA.md)
-**Interim:** Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id` ([DATA-33b](#data-33b--pipe-aggregation), DATA-19). **Detail / memory / metrics** views are **block-scoped** via the block switcher ([`v930/memory-load-detail`](../../../../docs/ui/source/v930/memory-load-detail.jpeg)). Picking a summary block id syncs topology `selectedBlockId`; **All** restores the default topology block (`firstLabelledMemoryTopology` / first id). Default selected block = first `block_id` in fixture order.
+**Interim:** ~~Summary **PIPE** defaults to DATA-33b (**All** = mean across blocks); the summary block control may scope PIPE to one `block_id`. **Detail / memory / metrics** views are **block-scoped** via the block switcher; **All** restores the default topology block.~~ Product-confirmed ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)): **one** selector — **All | 0 | 1 | 2 …**, default **All** — scopes **every** CSV-backed widget; `All` reads `summary.jsonl`, a picked id reads that block's CSV row. Op-level-only metrics (`HardwareInfo`, AI Core 并行使用率 / 负载均衡度) do not change, and without `summary.jsonl` the `All` aggregate falls back to the CSV data.
 **Implement / test as:** Aside detail tabs + block picker tests
-**Superseded when:** Product defines block vs aggregate UX
+**Superseded when:** — done ([DATA-29](../DATA.md)).
 
 ### DATA-33d — 查看全部 CSV
 
@@ -72,7 +72,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-33](../DATA.md)
-**Interim:** **Product confirmed (DATA-18):** `absoluteValue` = **mean of non-`NA` `*_time(us)`** for the same family/side as the ratio (DATA-33b). Omit when all NA. Not cycles.
+**Interim:** **Product confirmed (DATA-18):** `absoluteValue` = **mean of non-`NA` `*_time(us)`** for the same family/side as the ratio (one selector scopes it, [DATA-19](../DATA.md) / [DATA-29](../DATA.md)). Omit when all NA. Not cycles.
 **Implement / test as:** `PR-STATS-013`, adapter unit tests
 **Superseded when:** Product changes in-bar metric
 
@@ -80,7 +80,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-04
 **Question:** [DATA-33](../DATA.md)
-**Interim:** ~~Peak/score still a guess (1600 GB/s; `round(measured/peak×100)`).~~ Product (NPU-Compute / DATA-5, DATA-6, DATA-7): measured read/write BW from `summary.jsonl` `Memory` category; peak = `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)` = **SOL 1600 GB/s**; score = `measured / peak × 100%`. Fall back to `Memory.csv` mean when `summary.jsonl` is absent. Display **GB/s** (UI-34).
+**Interim:** ~~Peak/score still a guess (1600 GB/s; `round(measured/peak×100)`).~~ Product ([DATA-8](../DATA.md), DATA-5–DATA-7): measured read / write BW = the `OpInfoSummary` sides `aicore_gm_read_bw` / `aicore_gm_write_bw` (the aic + aiv `Memory` sums), peak = `aicore_gm_bw_theoretical(GB/s)` = **SOL 1600 GB/s** (shared by both sides), score per direction = **measured ÷ peak**. Fall back to the `Memory.csv` non-`NA` mean when `summary.jsonl` is absent. Display **GB/s** (UI-34).
 **Implement / test as:** `bandwidthCards`, `PR-VM-013`, `PR-STATS-024`
 **Superseded when:** — already superseded by NPU-Compute.md / DATA-33.
 
@@ -112,7 +112,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-37](../../questions/DATA.md)
-**Interim:** Achieved performance = mean non-`NA` `aiv_vec_fops` / mean non-`NA` `aiv_time(us)` as `fops / timeUs / 1e6` (Cube: `aic_cube_fops` / `aic_time(us)` when Vector fops absent). Aggregate across blocks like DATA-33b.
+**Interim:** Achieved performance = mean non-`NA` `aiv_vec_fops` / mean non-`NA` `aiv_time(us)` as `fops / timeUs / 1e6` (Cube: `aic_cube_fops` / `aic_time(us)` when Vector fops absent). Aggregate across blocks follows the one selector: `All` = the `summary.jsonl` `ArithmeticUtilization` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).
 **Implement / test as:** `RooflinePanel` / adapter tests
 **Superseded when:** Product DATA-37 formulas
 
@@ -120,7 +120,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-37](../../questions/DATA.md)
-**Interim:** Intensity = same fops / `(mean(read_main_memory_datas(KB)) + mean(write_main_memory_datas(KB))) * 1024` from `Memory.csv`.
+**Interim:** Intensity = same fops / `(mean(read_main_memory_datas(KB)) + mean(write_main_memory_datas(KB))) * 1024` from `Memory.csv`. Under the one selector, `All` reads the `summary.jsonl` `Memory` category record and a picked `block_id` reads that block's `Memory.csv` row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).
 **Implement / test as:** Adapter GM point
 **Superseded when:** Product DATA-37
 
@@ -136,7 +136,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-37](../../questions/DATA.md)
-**Interim:** `peakComputeTops = 1`; `peakBandwidthGBs` = max of non-`NA` `aiv_main_mem_*_bw(GB/s)` / `aic_main_mem_*_bw(GB/s)` (fallback **100** if all NA). Roof TOps/s = `min(peakCompute, peakBW_GBs * intensity / 1000)`.
+**Interim:** `peakComputeTops = 1`; `peakBandwidthGBs` = max of non-`NA` `aiv_main_mem_*_bw(GB/s)` / `aic_main_mem_*_bw(GB/s)` (fallback **100** if all NA) — under the one selector, from the `summary.jsonl` `Memory` category for `All` and from the block's `Memory.csv` row otherwise ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)). Roof TOps/s = `min(peakCompute, peakBW_GBs * intensity / 1000)`.
 **Implement / test as:** Chart roof polyline
 **Superseded when:** Product peak sources
 
@@ -158,11 +158,19 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-38a — Card gutter 时钟周期 quantity / formula
 
-**Status:** `interim`
-**Question:** [DATA-38](../../questions/DATA.md)
-**Interim:** **Not** cycle counts and **not** a mean over swimlane events. Raw = mean of non-`NA` mapped `PipeUtilization.csv` `*_time(us)` across `block_id` (DATA-33b pattern; same quantity family as DATA-33f), keyed by `laneColorKey(thread.name)` per the column map in [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md). Folders = mean of child raws. Bar width = \((\mathrm{raw}/\max)\times 100\) within the Card; red = max lane only. Dropdown offers only **clockCycle** + **utilization** (`cacheHit` / `task` withdrawn). Ignore `*_total_cycles`. **Why not PyPTO sum-of-cycles:** PyPTO joins `tilefwk_prof_pmu.csv` → `event.pmu_info['total cycle']` then sums per thread; that input is missing from NPU-Compute embeds and scanned `.npu-rep` / PR #74 fixtures (event-level PMU absent, not merely undocumented).
+**Status:** `interim` — **SUPERSEDED** 2026-09-14 by [DATA-38](../DATA.md) / [UI-46](../UI.md)
+**Question:** [DATA-38](../../questions/DATA.md) *(resolved — removed from open list)*
+**Interim:** ~~Two dropdown modes; shared event-coverage barWidth; clockCycle labels = absolute `*_total_cycles` (derive when missing); folders sum labels; bare cycle integers.~~ Product-final: [DATA-38](../DATA.md) (formula) and [UI-46](../UI.md) (label units).
 **Implement / test as:** `gutterMetrics.ts`, `PR-GMET-*`
-**Superseded when:** Product confirms quantity (µs vs cycles), column map, or event-based / PMU formula ([DATA-38](../../questions/DATA.md)) — and producer ships the required join data
+**Superseded when:** — already superseded by DATA-38 / UI-46 (2026-09-14)
+
+### DATA-40a — Topology edge value candidates
+
+**Status:** `interim` — **SUPERSEDED** 2026-09-15 by [DATA-40](../DATA.md)
+**Question:** [DATA-40](../../questions/DATA.md) *(resolved — removed from open list)*
+**Interim:** ~~When an edge lists several candidate columns, the **first present non-`NA` candidate in the listed order wins** (`Memory.csv` `aic_main_mem_read_bw(GB/s)` then `aiv_main_mem_read_bw(GB/s)` for GM → L2, and the same shape for GM ← L2) — i.e. a single side, **not** the aic + aiv sum the BW card uses ([DATA-8](../DATA.md)). Values follow the one selector like every other CSV-backed widget: `All` = the `summary.jsonl` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).~~ Product [DATA-40](../DATA.md): the GM ↔ L2 plates are the producer's **Main Read** / **Main Write** = the aic + aiv sides **summed**; every other edge keeps first-present-non-`NA`.
+**Implement / test as:** `EDGE_MAP` in [`memoryTopology.ts`](../../../../src/adapters/memoryTopology.ts) (`aggregate: 'sum'` on the two GM↔L2 sources); edge table in [VIEW_DATA_MAPPING §11.2.6](../../../ui/VIEW_DATA_MAPPING.md)
+**Superseded when:** — already superseded by DATA-40
 
 ### DATA-47a — Emulate KernelInfo / summary.json → summary cards
 
@@ -171,6 +179,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Interim:** Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Overlay `summary.json` object fields `opName`/`name`, `opType`/`type`, `taskDurationUs`/`duration_us`, `pid`, `blockDim` (json wins on conflict). Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.
 **Implement / test as:** `summaryFromKernelInfo` / `summaryFromEmulateJson` in `adaptEmulate`; `PR-ASIM-003` + summary assertions
 **Superseded when:** Product locks DATA-47 field map
+
 
 ### DATA-48a — Emulate ArchDiagramMetrics → Architecture Diagram slots (interim chrome)
 
