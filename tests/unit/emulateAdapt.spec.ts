@@ -113,7 +113,7 @@ describe('emulate-format (PR-SIM-*)', () => {
     expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBe(100_000);
   });
 
-  it('PR-SIM-003b: displayTimeUnit ns on emulate Trace still treated as µs (DATA-46)', () => {
+  it('PR-SIM-003: displayTimeUnit ns on emulate Trace still treated as µs (DATA-46)', () => {
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(
@@ -347,7 +347,7 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel!.maxTime - adapted.swimlaneModel!.minTime).toBe(100_000);
   });
 
-  it('PR-ASIM-007b: merges multiple native core_*_tracing_report_*.json (remapped pids)', () => {
+  it('PR-ASIM-007: merges multiple native core_*_tracing_report_*.json (remapped pids; numeric core order)', () => {
     const core = (pid: number, name: string) =>
       JSON.stringify({
         displayTimeUnit: 'ns',
@@ -357,14 +357,15 @@ describe('npu-rep / loadReportSource profile routing', () => {
           { name: 'op', ph: 'X', pid, tid: 1, ts: 0, dur: 50 },
         ],
       });
+    // Insert core_10 before core_2 so localeCompare would reverse them; numeric sort must keep core_2 first.
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(exportCatalogManifest()),
-      'core_0_tracing_report_0.json': enc.encode(core(0, 'AIC0')),
-      'core_1_tracing_report_0.json': enc.encode(core(0, 'AIC1')),
+      'core_10_tracing_report_0.json': enc.encode(core(0, 'AIC10')),
+      'core_2_tracing_report_0.json': enc.encode(core(0, 'AIC2')),
     });
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.swimlaneModel!.processes.length).toBe(2);
-    expect(adapted.swimlaneModel!.processes.map((p) => p.name).sort()).toEqual(['AIC0', 'AIC1']);
+    expect(adapted.swimlaneModel!.processes.map((p) => p.name)).toEqual(['AIC2', 'AIC10']);
   });
 });
 describe('emulate pipe mappers', () => {

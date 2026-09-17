@@ -14,7 +14,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Dispatch.** Invoked when `loadReportSource` detects emulate `manifest.json` ([PROC-8](../../docs/context/decisions/PROC.md)).
 
-**Swimlane.** When `PipeTrace.json` **or** one or more native `*_tracing_report_*.json` embeds are present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). Multiple native core reports are **merged** (pids remapped). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
+**Swimlane.** When `PipeTrace.json` **or** one or more native `*_tracing_report_*.json` embeds are present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). Multiple native core reports are **merged** with remapped pids ([PR-ASIM-007](#acceptance-criteria)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
 
 **Thin summary.** When KernelInfo is present and mappable, fill `reportModel.summary` identity/duration fields (interim [DATA-47a](../../docs/context/decisions/interim/DATA.md)); otherwise leave summary empty/partial and let UI hide cards ([DATA-30](../../docs/context/decisions/DATA.md)).
 
@@ -36,7 +36,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 4. **PR-ASIM-004** — Does not invent compute-shaped metric CSV payloads ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 5. **PR-ASIM-005** — Interim DATA-47a maps KernelInfo into `summary.opName` / `taskDurationUs` when attrs present.
 6. **PR-ASIM-006** — Missing Trace → `swimlaneModel === null` without throw; corrupt Trace JSON → throw.
-7. **PR-ASIM-007** — Native `core_*_tracing_report_*.json` is used when `PipeTrace.json` is absent.
+7. **PR-ASIM-007** — When `PipeTrace.json` is absent, every native `core_*_tracing_report_*.json` (non–critical-path) is merged into one swimlane; pids are remapped so cores that each use `pid: 0` stay distinct. Cores are ordered by numeric core index when the basename matches `core_<n>_…`.
 8. **PR-ASIM-008** — `ArchDiagramMetrics.csv` → drawable `memoryTopology` + capability **`archDiagram`**; empty/unmapped → omit (DATA-48a). Do not set `memoryDiagram` on emulate.
 
 ## Edge Cases
@@ -61,3 +61,4 @@ DATA-49 — Dedicated ArchDiagramModel / biprof chrome vs heatmap deferral.
 - **2026-09-15** — `manifest.json` detection; optional PipeTrace (PR-ASIM-006).
 - **2026-09-17** — M4 ArchDiagramMetrics → interim plated chrome (PR-ASIM-008 / DATA-48a).
 - **2026-09-17** — Product lock: capability `archDiagram` (not `memoryDiagram`); heatmap out (DATA-49).
+- **2026-09-17** — PR-ASIM-007: multi-core native tracing reports merged with remapped pids.
