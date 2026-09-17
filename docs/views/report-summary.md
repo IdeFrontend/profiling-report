@@ -46,7 +46,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `summary.opName` / `taskDurationUs` / … | `KernelInfo.csv` / `summary.json` | Interim [DATA-47a](../context/decisions/interim/DATA.md) | `adapt-mapper` |
+| `summary.opName` / `taskDurationUs` / … | `KernelInfo.csv` | Interim [DATA-47a](../context/decisions/interim/DATA.md) | `adapt-mapper` |
 | `computeCard` / `bandwidthCards` | — | No compute-equivalent pack promised | `gap` → hide |
 
 ## Adapter
@@ -54,7 +54,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `adaptPayloads` | Full summary path |
-| emulate | `adaptEmulate` | `summaryFromKernelInfo` / `summaryFromEmulateJson` |
+| emulate | `adaptEmulate` | `summaryFromKernelInfo` |
 
 ## Related
 

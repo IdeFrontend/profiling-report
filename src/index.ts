@@ -32,7 +32,6 @@ export {
   parseRep,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
-  summaryFromEmulateJson,
   summaryFromKernelInfo,
 } from './adapters';
 

@@ -29,7 +29,7 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 | Semantic area | Insight operator (`.bin`) | `.npu-rep` **hardware** | `.npu-rep` **simulator** | PyPTO swimlane |
 |---------------|---------------------------|-------------------------|--------------------------|----------------|
 | **Timeline grain** | Per-**instruction** Gantt on named pipes + SET_FLAG/WAIT_FLAG | Chrome Trace → process/thread lanes (sample: pipe busy/state; product may be richer — [DATA-31](../context/questions/DATA.md)) | Emulate Chrome Trace (instr/tick events) packed as `PipeTrace.json` (**µs**, [DATA-46](../context/decisions/DATA.md)) | Process → thread → duration events; optional AICPU / counters |
-| **Op / block identity** | Details base info | `OpBasicInfo.csv` (+ `Summary.jsonl`) | `KernelInfo` / emulate `summary.json` (thin Phase 1; [DATA-47](../context/questions/DATA.md)) | Light names/args |
+| **Op / block identity** | Details base info | `OpBasicInfo.csv` (+ `Summary.jsonl`) | `KernelInfo` (thin Phase 1; [DATA-47](../context/questions/DATA.md)) | Light names/args |
 | **Pipe utilization aggregates** | Details compute workload % | `PipeUtilization.csv` (`aic_*` / `aiv_*`) | `PipesUtilization` / hist — **not** remapped to hardware CSV ([DATA-45](../context/decisions/DATA.md)) | Event spans and/or `tilefwk_prof_pmu.csv` |
 | **Arithmetic / roofline** | Compute + Roofline | `ArithmeticUtilization.csv` + Memory | ArchDiagramMetrics + Functions + VectorUtilizations + SourceInstructions (ELF often required) | Side panels if metrics fed in |
 | **Memory paths** | Heatmap HBM/L2/L1/L0/UB | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | Per-access `MemoryRWAccesses` (heatmap); ArchDiagram bandwidth metrics | Not core swimlane |

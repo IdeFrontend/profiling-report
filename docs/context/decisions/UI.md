@@ -162,7 +162,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-14
 - **Question:** Should gutter **时钟周期** labels show a time unit (e.g. **`µs`**), bare numbers, or cycle counts?
 - **Decision:** **Clock Cycles** gutter labels are **bare absolute cycle counts** — integer, space-grouped when ≥1000, **no** `µs` / ms / unit-word suffix. **Utilization** labels stay `` `${barWidth}%` ``. Quantity/formula owned by [DATA-38](./DATA.md).
-- **Specs:** [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md) (`PR-GMET-008`), [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)
+- **Specs:** [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md) (`PR-GMET-008`), [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)
 - **Source:** Product confirmation with [DATA-38](./DATA.md) (2026-09-14): bare absolute cycle counts, no `µs` / unit suffix. Supersedes interim [`UI-46a`](interim/UI.md).
 
 ---
