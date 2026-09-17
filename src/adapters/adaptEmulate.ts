@@ -33,8 +33,8 @@ const ARCH_DIAGRAM_NAMES = ['ArchDiagramMetrics.csv', 'archdiagrammetrics.csv'];
 const EXPORT_CATALOG_HUBS = new Set(['ExecutedInstructions', 'KernelInfo', 'AnalysisState']);
 
 /**
- * Prefer PipeTrace.json; else first `*_tracing_report_*.json` (npu_emulate native name).
- * Skips critical_path reports.
+ * Prefer PipeTrace.json; else merge every `*_tracing_report_*.json` (npu_emulate native).
+ * Skips critical_path reports. Multiple native cores are concatenated with remapped pids.
  */
 function findEmulateTracePayload(
   payloads: Record<string, Uint8Array>,
@@ -55,7 +55,54 @@ function findEmulateTracePayload(
     )
     .sort((a, b) => a.localeCompare(b));
   if (native.length === 0) return undefined;
-  return { bytes: payloads[native[0]], name: native[0] };
+  if (native.length === 1) return { bytes: payloads[native[0]], name: native[0] };
+  return { bytes: mergeNativeChromeTraces(payloads, native), name: native.join('+') };
+}
+
+/** Concatenate Chrome Trace Event lists from several native core reports; remap pids to avoid collisions. */
+function mergeNativeChromeTraces(
+  payloads: Record<string, Uint8Array>,
+  names: string[],
+): Uint8Array {
+  const mergedEvents: Record<string, unknown>[] = [];
+  let displayTimeUnit: string | undefined;
+  let pidOffset = 0;
+  for (const name of names) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(decodeUtf8(payloads[name]));
+    } catch {
+      throw new Error(`[profiling-report] adaptEmulate: ${name} is not valid JSON`);
+    }
+    const obj = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+    const events = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(obj?.traceEvents)
+        ? (obj!.traceEvents as unknown[])
+        : null;
+    if (!events) {
+      throw new Error(
+        `[profiling-report] adaptEmulate: ${name} must be Chrome Trace JSON (traceEvents[])`,
+      );
+    }
+    if (typeof obj?.displayTimeUnit === 'string' && displayTimeUnit == null) {
+      displayTimeUnit = obj.displayTimeUnit;
+    }
+    let localMaxPid = 0;
+    for (const raw of events) {
+      if (!raw || typeof raw !== 'object') continue;
+      const e = { ...(raw as Record<string, unknown>) };
+      if (typeof e.pid === 'number' && Number.isFinite(e.pid)) {
+        localMaxPid = Math.max(localMaxPid, e.pid);
+        e.pid = e.pid + pidOffset;
+      }
+      mergedEvents.push(e);
+    }
+    pidOffset += localMaxPid + 1;
+  }
+  const out: Record<string, unknown> = { traceEvents: mergedEvents };
+  if (displayTimeUnit != null) out.displayTimeUnit = displayTimeUnit;
+  return new TextEncoder().encode(JSON.stringify(out));
 }
 
 export interface EmulateManifest {

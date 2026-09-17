@@ -34,7 +34,7 @@ Profiling artifacts they open today:
 - **`.npu-rep` (compute profile)** — portable **report pack** from device OP profiling (metric CSVs + Chrome Trace) — [PROC-2](decisions/PROC.md), [PROC-7](decisions/PROC.md)
 - **`.npu-rep` (emulate profile)** — same host extension from **npu_emulate** cycle-accurate simulation (contract CSVs / Chrome Trace + `manifest.json`) — [PROC-6](decisions/PROC.md), [emulate/FORMAT](../formats/emulate/FORMAT.md)
 
-Grain differs: hardware packs **OP-level aggregates**; simulator is **instruction / tick**-level. Do not conflate schemas ([DATA-45](decisions/DATA.md)).
+Grain differs: hardware packs **OP-level aggregates**; simulator is **instruction / tick**-level. Do not conflate schemas ([DATA-45](decisions/interim/DATA.md#data-45)).
 ---
 
 ## 3. Workflow (before and through the UI)

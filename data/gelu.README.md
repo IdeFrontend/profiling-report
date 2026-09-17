@@ -24,7 +24,7 @@ Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/con
 
 | Embed | Surface |
 |-------|---------|
-| `core_0_tracing_report_0.json` | Timeline (native name; µs contract [DATA-46](../docs/context/decisions/DATA.md)) |
+| `core_0_tracing_report_0.json` | Timeline (native name; µs contract [DATA-46](../docs/context/decisions/interim/DATA.md#data-46)) |
 | `KernelInfo.csv` | Thin summary (`opName` / `blockDim`; duration attrs use producer `exec_time_ns` — not yet mapped by interim DATA-47a) |
 | `PipeUtilizationHist.csv` / `PipesUtilization.csv` | PIPE occupancy |
 | `ArchDiagramMetrics.csv` | Architecture Diagram (`archDiagram`, interim plated chrome [DATA-48a](../docs/context/decisions/interim/DATA.md)) |

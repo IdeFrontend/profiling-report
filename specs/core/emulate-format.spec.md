@@ -12,9 +12,9 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 **Sept 30 embeds.** `PipeTrace.json` (Chrome Trace Event format, µs) **SHOULD** be present for timeline; **absence MUST NOT** invalidate the leaf — viewer opens with `swimlaneModel: null` (metrics-only). `KernelInfo.csv` SHOULD be present for thin summary; absence yields empty summary cards per DATA-30. `PipesUtilization.csv` / `PipeUtilizationHist.csv` SHOULD be packed when PIPE UI is expected.
 
-**Time unit.** When present, `PipeTrace.json` `ts` / `dur` MUST be in **microseconds** after producer tick→µs conversion ([DATA-46](../../docs/context/decisions/DATA.md)). The viewer MUST NOT treat PipeTrace values as raw ticks.
+**Time unit.** When present, `PipeTrace.json` `ts` / `dur` MUST be in **microseconds** after producer tick→µs conversion ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). The viewer MUST NOT treat PipeTrace values as raw ticks.
 
-**No compute remap.** The leaf MUST NOT be required to contain compute-shaped `OpBasicInfo.csv` / `PipeUtilization.csv` / `Memory.csv` for valid open ([DATA-45](../../docs/context/decisions/DATA.md)).
+**No compute remap.** The leaf MUST NOT be required to contain compute-shaped `OpBasicInfo.csv` / `PipeUtilization.csv` / `Memory.csv` for valid open ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 
 **Post–Sept 30 embeds.** Optional CSVs listed in FORMAT §4.2 may be packed; capabilities are set only when data is present and mappers exist.
 

@@ -25,7 +25,7 @@ bytes
 | Leaf has emulate `manifest.json` | `emulate` | `adaptEmulate` ([PROC-8](../context/decisions/PROC.md)) |
 | Otherwise | `compute` | `adaptPayloads` / `adaptCompute` |
 
-Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisions/DATA.md)).
+Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisions/interim/DATA.md#data-45)).
 
 **Emulate embeds → lit views (Sept 30):** [emulate/FORMAT §4.1](emulate/FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).
 
@@ -53,4 +53,4 @@ Fill tables live in the view packets — do not duplicate them here.
 
 - Code: `loadReportSource` → `isEmulateLeaf` ? `adaptEmulate` : `adaptPayloads`. `parseNpuRep160` requires `origin === 1`.
 - Sample emulate leaf: `data/emulate-sample.npu-rep`.
-- Packer (npu_emulate): emit `manifest.json`; convert ticks → µs for PipeTrace ([DATA-46](../context/decisions/DATA.md)).
+- Packer (npu_emulate): emit `manifest.json`; convert ticks → µs for PipeTrace ([DATA-46](../context/decisions/interim/DATA.md#data-46)).

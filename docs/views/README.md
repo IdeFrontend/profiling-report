@@ -30,6 +30,6 @@ Surfaces still described in legacy [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA
 | UX scenarios / interactions | [`../ui/UX_SPEC.md`](../ui/UX_SPEC.md), [`../ui/INTERACTIONS.md`](../ui/INTERACTIONS.md) |
 | Component ACs | Co-located `src/ui/**/*.spec.md` — link here for data |
 
-Do **not** fork hide rules by raw CSV name. Do **not** invent compute-shaped embeds from emulate tables ([DATA-45](../context/decisions/DATA.md)).
+Do **not** fork hide rules by raw CSV name. Do **not** invent compute-shaped embeds from emulate tables ([DATA-45](../context/decisions/interim/DATA.md#data-45)).
 
 **Emulate packer checklist (embed → Sept 30 view):** [emulate/FORMAT §4.1](../formats/emulate/FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).

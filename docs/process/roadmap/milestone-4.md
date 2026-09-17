@@ -2,7 +2,7 @@
 
 **Target date:** **2026-09-30**
 
-**Goal:** Open npu_emulate `.npu-rep` leaves with the same host path as compute; light up **报告统计**, **计算负载分析**, **Architecture Diagram** (biprof §11.2.3.1), and **CANNBot** tuning prompts from simulator-native embeds ([DATA-45](../../context/decisions/DATA.md)).
+**Goal:** Open npu_emulate `.npu-rep` leaves with the same host path as compute; light up **报告统计**, **计算负载分析**, **Architecture Diagram** (biprof §11.2.3.1), and **CANNBot** tuning prompts from simulator-native embeds ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 

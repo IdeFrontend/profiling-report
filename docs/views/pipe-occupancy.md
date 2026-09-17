@@ -41,7 +41,7 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `pipeOccupancy` | `PipeUtilizationHist.csv` (prefer) or `PipesUtilization.csv` | Keep emulate basenames — **do not** invent `PipeUtilization.csv` ([DATA-45](../context/decisions/DATA.md)) | `adapt-mapper` |
+| `pipeOccupancy` | `PipeUtilizationHist.csv` (prefer) or `PipesUtilization.csv` | Keep emulate basenames — **do not** invent `PipeUtilization.csv` ([DATA-45](../context/decisions/interim/DATA.md#data-45)) | `adapt-mapper` |
 | PIPE CSV tab | same embeds → `computeTables` | | `adapt-mapper` |
 
 ## Adapter
