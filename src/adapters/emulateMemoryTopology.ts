@@ -1,5 +1,6 @@
 /**
- * Emulate ArchDiagramMetrics.csv → MemoryTopologyModel (DATA-48a).
+ * Emulate ArchDiagramMetrics.csv → MemoryTopologyModel interim carrier (DATA-48a).
+ * Product surface: Architecture Diagram (capability archDiagram); not compute memoryDiagram.
  * @see docs/context/decisions/interim/DATA.md DATA-48a
  */
 import type { MemoryTopologyModel } from '../domain/types';

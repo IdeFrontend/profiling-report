@@ -377,17 +377,18 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 
 ## Emulate profile (MHTML §11.2.3)
 
-Same host file (`.npu-rep`); leaf detected via `manifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Fill + sketches:** [views catalog](../views/README.md) — [timeline](../views/timeline.md), [report-summary](../views/report-summary.md), [pipe-occupancy](../views/pipe-occupancy.md), [overview-charts](../views/overview-charts.md), [roofline](../views/roofline.md), [memory-topology](../views/memory-topology.md).
+Same host file (`.npu-rep`); leaf detected via `manifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Fill + sketches:** [views catalog](../views/README.md) — [timeline](../views/timeline.md), [report-summary](../views/report-summary.md), [pipe-occupancy](../views/pipe-occupancy.md), [arch-diagram](../views/arch-diagram.md), [overview-charts](../views/overview-charts.md), [roofline](../views/roofline.md).
 
 | § | Feature | View packet | Sept 30 |
 | --- | --- | --- | --- |
 | — | Timeline swimlane | [timeline](../views/timeline.md) | **in** |
 | — | Thin report summary | [report-summary](../views/report-summary.md) | **in** |
 | 11.2.3.4 / .6 | PIPE occupancy | [pipe-occupancy](../views/pipe-occupancy.md) | **in** |
+| 11.2.3.1 | Architecture Diagram | [arch-diagram](../views/arch-diagram.md) | **in** (ArchDiagramMetrics; interim plated chrome) |
 | — | Overview charts | [overview-charts](../views/overview-charts.md) | **hide** |
-| 11.2.3 / 11.2.6 | Memory topology chrome | [memory-topology](../views/memory-topology.md) | **in** (ArchDiagramMetrics) |
 | 11.2.3.5 | Roofline | [roofline](../views/roofline.md) | **hide** |
-| 11.2.3.1–3,7–8 | Arch / heatmap / AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
+| 11.2.3.2 | Memory Utilization Heatmap | _(reserved)_ | **out** ([DATA-49](../context/questions/DATA.md)) |
+| 11.2.3.3,7–8 | AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
 
 ---
 

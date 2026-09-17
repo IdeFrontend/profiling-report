@@ -41,8 +41,8 @@ Adapters must not call `useViewServer()`, `window.vscode`, or host routers. Capa
 **Phasing**
 
 1. **v1 hardware:** `npu-rep` hardware adapter + MSTT host; classic `cann-rep` / sample `.rep` remain engineering fixtures.
-2. **v1 simulator (M4 / Sept 30):** detect `manifest.json` → `adaptEmulate` (Timeline + thin summary + PIPE + ArchDiagramMetrics topology + CANNBot payloads).
-3. **Later (optional):** PyPTO adapter; simulator Phase 2 capability panels (heatmap, VF IPC, …).
+2. **v1 simulator (M4 / Sept 30):** detect `manifest.json` → `adaptEmulate` (Timeline + thin summary + PIPE + ArchDiagramMetrics Architecture Diagram + CANNBot payloads).
+3. **Later (optional):** PyPTO adapter; simulator Phase 2 capability panels (heatmap, dedicated arch chrome, VF IPC, …).
 
 **Explicit non-goal:** parsing or rendering MindStudio Insight `.bin` inside this library. **Do not** silently remap simulator CSVs into hardware embeds ([DATA-45](../context/decisions/DATA.md)).
 

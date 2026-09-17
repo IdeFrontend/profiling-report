@@ -212,7 +212,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     ).not.toThrow();
   });
 
-  it('PR-ASIM-008: ArchDiagramMetrics → memoryTopology + memoryDiagram capability', () => {
+  it('PR-ASIM-008: ArchDiagramMetrics → memoryTopology + archDiagram capability', () => {
     const archCsv = [
       'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
       '1,l2_cached_ratio,50.0',
@@ -230,7 +230,8 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(
       adapted.reportModel.memoryTopology!.edges.find((e) => e.id === 'gm-l2-read')?.label,
     ).toBe('12.50 GB/s');
-    expect(adapted.capabilities).toContain('memoryDiagram');
+    expect(adapted.capabilities).toContain('archDiagram');
+    expect(adapted.capabilities).not.toContain('memoryDiagram');
     expect(adapted.reportModel.memoryTables.some((t) => /ArchDiagramMetrics/i.test(t.fileName))).toBe(
       true,
     );
@@ -243,7 +244,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       ),
     });
     expect(empty.reportModel.memoryTopology).toBeUndefined();
-    expect(empty.capabilities).not.toContain('memoryDiagram');
+    expect(empty.capabilities).not.toContain('archDiagram');
   });
 });
 
@@ -278,7 +279,7 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
-    expect(adapted.capabilities).toContain('memoryDiagram');
+    expect(adapted.capabilities).toContain('archDiagram');
     expect(adapted.reportModel.roofline).toBeUndefined();
   });
 
@@ -292,7 +293,7 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.summary.taskDurationUs).toBeGreaterThan(0);
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
-    expect(adapted.capabilities).toContain('memoryDiagram');
+    expect(adapted.capabilities).toContain('archDiagram');
 
     const summaryPayload = buildCannbotPayload('summary', adapted.reportModel, {
       name: 'emulate-sample.npu-rep',

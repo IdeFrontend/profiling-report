@@ -38,9 +38,10 @@ Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisio
 | PIPE bars | [pipe-occupancy](../views/pipe-occupancy.md) | PipeUtilization | PipesUtilization / hist **in** |
 | Overview | [overview-charts](../views/overview-charts.md) | Sampling.json | **hide** (gap) |
 | `roofline` | [roofline](../views/roofline.md) | Arithmetic + Memory | **hide** (gap) |
-| `memoryDiagram` | [memory-topology](../views/memory-topology.md) | Memory* | ArchDiagramMetrics **in** ([DATA-48a](../context/decisions/interim/DATA.md)) |
+| `memoryDiagram` | [memory-topology](../views/memory-topology.md) | Memory* | compute only (Asc 内存负载) |
+| `archDiagram` | [arch-diagram](../views/arch-diagram.md) | — | ArchDiagramMetrics **in** (interim plated chrome; [DATA-48a](../context/decisions/interim/DATA.md)) |
 | `hardwareDetails` | _(stub)_ | HardwareInfo | usually omit |
-| `archDiagram` / `memoryHeatmap` / `vfIpc` / `callStacks` | reserved | — | **out-of-scope** |
+| `memoryHeatmap` / `vfIpc` / `callStacks` | reserved | — | **out-of-scope** Sept 30 |
 
 Fill tables live in the view packets — do not duplicate them here.
 

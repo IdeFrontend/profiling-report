@@ -6,8 +6,8 @@
 | **Panel / component** | `MemoryTopologyPanel` → `src/ui/StatsAside/MemoryTopologyPanel/` |
 | **Capability** | `memoryDiagram` |
 | **Phase** | M2 |
-| **Unification** | `adapt-mapper` (emulate) |
-| **Sept 30 (emulate)** | **in** |
+| **Unification** | `adapt-mapper` (compute); emulate uses this chrome as interim [arch-diagram](arch-diagram.md) stand-in |
+| **Sept 30 (emulate)** | **interim chrome only** — product surface is Architecture Diagram (`archDiagram`), not Asc 内存负载 |
 
 ## Sketches
 
@@ -36,22 +36,22 @@ No drawable labels / L2 plate → hide diagram ([DATA-30](../context/decisions/D
 |---------------|-------|-----------------|-------------|
 | `memoryTopology` | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv` | Edge map in [VIEW_DATA_MAPPING §11.2.6](../ui/VIEW_DATA_MAPPING.md); `buildMemoryTopology` | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
 
-## Emulate fill
+## Emulate fill (interim Architecture Diagram stand-in)
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` | `ArchDiagramMetrics.csv` | Parameter→slot map [DATA-48a](../context/decisions/interim/DATA.md); not `MemoryRWAccesses` | `adapt-mapper` |
-| `memoryHeatmap` | `MemoryRWAccesses.csv` | Different surface | `out-of-scope` Sept 30 |
+| `memoryTopology` (VM carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map [DATA-48a](../context/decisions/interim/DATA.md); product surface [arch-diagram](arch-diagram.md) | `adapt-mapper` |
+| Heatmap | `MemoryRWAccesses.csv` | biprof §11.2.3.2 | **out** Sept 30 ([DATA-49](../context/questions/DATA.md)) |
 
 ## Adapter
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | |
-| emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` | Capability `memoryDiagram` when drawable |
+| compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | Capability `memoryDiagram` |
+| emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` | Capability **`archDiagram`**; interim use of this chrome |
 
 ## Related
 
 - Spec: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)
-- Product docx §: 11.2.6 / emulate heatmap 11.2.3.2 (not this panel)
+- Product: compute §11.2.6; emulate Architecture Diagram §11.2.3.1 ([arch-diagram](arch-diagram.md)); heatmap §11.2.3.2 out Sept 30
 - Catalog: [README](README.md)

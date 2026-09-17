@@ -83,9 +83,9 @@ Pack when the corresponding capability should light up (see [FEATURE_MATRIX](../
 
 | Capability | Typical embeds | Sept 30 |
 |------------|----------------|---------|
-| `memoryDiagram` | `ArchDiagramMetrics.csv` → topology slots ([DATA-48a](../../context/decisions/interim/DATA.md)); **not** MemoryRWAccesses | **in** |
-| `archDiagram` | `ArchDiagramMetrics.csv`, `ExecutedInstructions.csv` (diagram UI, not topology chrome) | out-of-scope |
-| `memoryHeatmap` | `MemoryRWAccesses.csv` | out-of-scope |
+| `archDiagram` | `ArchDiagramMetrics.csv` → Architecture Diagram slots via interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)); VM carrier `memoryTopology`; **not** MemoryRWAccesses | **in** |
+| `memoryDiagram` | compute Memory* only | n/a (emulate) |
+| `memoryHeatmap` | `MemoryRWAccesses.csv` | **out** ([DATA-49](../../context/questions/DATA.md)) |
 | AiCore occupancy overlay | `AiCoreOccupancy.csv` and/or `aicore_utilization.json` | out-of-scope |
 | `vfIpc` | `VfIPC.csv`, `VfSimtIPC.csv` (need `--vec-ipc`) | out-of-scope |
 | `callStacks` | Call* tables (need ELF / `--object-file`) | out-of-scope |
@@ -124,8 +124,8 @@ Product maps Biprof features → Asc Toolkit using **simulator CSV names** (not 
 
 | § | Feature | Primary sources |
 |---|---------|-----------------|
-| 11.2.3.1 | Architecture Diagram | `ArchDiagramMetrics`, `ExecutedInstructions` |
-| 11.2.3.2 | Memory Utilization Heatmap | `MemoryRWAccesses` |
+| 11.2.3.1 | Architecture Diagram | `ArchDiagramMetrics` (interim plated chrome; [DATA-48a](../../context/decisions/interim/DATA.md)) |
+| 11.2.3.2 | Memory Utilization Heatmap | `MemoryRWAccesses` — **out** Sept 30 ([DATA-49](../../context/questions/DATA.md)) |
 | 11.2.3.3 | AICore Utilization | `AiCoreOccupancy` (+ `aicore_utilization.json`) |
 | 11.2.3.4 | Sub Core / pipeline util | `PipesUtilization` |
 | 11.2.3.5 | Roofline | ArchDiagramMetrics, Functions, ExecutedInstructions, VectorUtilizations, SourceInstructions |
@@ -141,7 +141,7 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
-3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `summary*` from KernelInfo/summary; PIPE from PipesUtilization/hist; `memoryTopology` from ArchDiagramMetrics ([DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline gaps ([DATA-30](../../context/decisions/DATA.md)).
+3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `summary*` from KernelInfo/summary; PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline/heatmap gaps ([DATA-30](../../context/decisions/DATA.md)).
 4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/DATA.md)).
 
 ---
@@ -160,7 +160,8 @@ Minimal viewer fixture (timeline + summary + PIPE): [`data/emulate-sample.npu-re
 |------|-----|
 | Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
 | KernelInfo / summary.json → summary cards | [DATA-47](../../context/questions/DATA.md) |
-| ArchDiagramMetrics → memory topology slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
+| ArchDiagramMetrics → Architecture Diagram slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
+| Dedicated ArchDiagramModel / biprof chrome; heatmap deferral | [DATA-49](../../context/questions/DATA.md) |
 | Exact `tickToUs` default when freq unknown | [DATA-47](../../context/questions/DATA.md) / producer docs |
 | Export packer omitting populated KernelInfo / PipesUtilization / AiCoreOccupancy | Packer bug vs intentional slim pack |
 | Synthesizing PipeTrace from ExecutedInstructions / DispatchTime | Future — not required to open |
