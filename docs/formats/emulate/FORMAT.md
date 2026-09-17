@@ -2,7 +2,7 @@
 
 **Profile:** `emulate` (npu_emulate / Ascend cycle-accurate OP simulation).
 
-Shared container: [formats README](../README.md). Table inventory: [TABLES.md](TABLES.md). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
+Shared container: [formats README](../README.md). Column/type SSOT: [SCHEMA.md](SCHEMA.md). Pack / Phase 1 inventory: [TABLES.md](TABLES.md). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
 
 Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-45](../../context/decisions/DATA.md), [DATA-46](../../context/decisions/DATA.md).
 
@@ -32,7 +32,9 @@ Sources of tables (from npu_emulate docs):
 | Analysis output | Analyzers (often flag-gated) | `ArchDiagramMetrics`, `PipesUtilization`, `VfIPC*`, `TraceBubbles`, `VfPMU*` |
 | Hints | hints.sql | `HintTypes`, hint views |
 
-**Hub table:** `ExecutedInstructions` — almost every report joins on it (cores, tick ranges, instr names/types).
+**Field catalog:** every contract object and column (name, SQL type, description) is listed in **[SCHEMA.md](SCHEMA.md)**, generated from [`data/gelu/manifest.json`](../../../data/gelu/manifest.json). That file is the SSOT for schema shape; this section only describes layers and packing rules.
+
+**Hub table:** `ExecutedInstructions` — almost every report joins on `ExecInstrId` (cores, tick ranges, instr names/types). See [SCHEMA § ExecutedInstructions](SCHEMA.md#executedinstructions).
 
 **Time base:** simulation uses integer **ticks**. When packing `PipeTrace.json` for this viewer, the producer **MUST** convert ticks → **µs** ([DATA-46](../../context/decisions/DATA.md)).
 
