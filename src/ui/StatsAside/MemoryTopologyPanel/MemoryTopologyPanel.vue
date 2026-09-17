@@ -165,7 +165,7 @@ export function nextZoom(current: number, dir: 1 | -1): number {
 </script>
 
 <script setup lang="ts">
-import { computed, ref, useId, watchEffect } from 'vue';
+import { computed, nextTick, ref, useId, watchEffect } from 'vue';
 import { t } from '../../../i18n';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
  *  Its static labels stay outlined paths; the export's sample values were stripped in-repo.
@@ -403,11 +403,46 @@ function resetPan() {
   }
 }
 
+/** The middle of the box as a fraction of what it can scroll (PR-MEMTOP-018), so a zoom step can
+ *  put the same part of the drawing back under it.
+ *
+ *  Both halves come from the box's own scroll geometry, so there is no second copy of the stage's
+ *  size or its offset to keep in step with the CSS: `scrollLeft` and `scrollWidth` already describe
+ *  the content the bars move. Reading it as a fraction of the *scrollable* extent is also what makes
+ *  it survive the stage being centred while it fits (`margin-inline: auto`), where `scrollWidth` is
+ *  still the box's own width and the middle is exactly half of it. */
+function centerFraction(el: HTMLElement): { x: number; y: number } | null {
+  // jsdom has no layout: no box means no middle to keep, and no extent to divide by.
+  if (el.clientWidth <= 0 || el.clientHeight <= 0) return null;
+  return {
+    x: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
+    y: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+  };
+}
+
 function stepZoom(dir: 1 | -1) {
+  const el = viewport.value;
+  // Measured before the step, applied after it: the anchor is what the *old* scale had under the
+  // middle, and the assignment needs the new scale's `scrollWidth` to place it again.
+  const held = el ? centerFraction(el) : null;
   zoom.value = nextZoom(zoom.value, dir);
   // Stepping back down to a fitted scale has to drop the offset too: the box stops being
   // scrollable there (`pannable`), and a clip at a stale offset would cut the diagram's corner.
-  if (!pannable.value) resetPan();
+  if (!pannable.value) {
+    resetPan();
+    return;
+  }
+  // The stage's new size arrives with the class and the custom property, i.e. a tick later, and it
+  // is `scrollWidth` that has to be read after it — hence a `nextTick` rather than a `watch`, so
+  // the correction lands in the same gesture as the click and never on a later render of its own.
+  if (el && held) {
+    void nextTick(() => {
+      const box = viewport.value;
+      if (!box) return;
+      box.scrollLeft = held.x * box.scrollWidth - box.clientWidth / 2;
+      box.scrollTop = held.y * box.scrollHeight - box.clientHeight / 2;
+    });
+  }
 }
 
 /** **适应窗口** — back to the fitted scale, and back to the scroll origin so a diagram that was

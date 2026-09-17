@@ -145,6 +145,70 @@ test('PR-MEMTOP-014: the overlay drops the bar strip the aside keeps', async ({ 
 });
 
 /**
+ * A step's own offset (PR-MEMTOP-018): `scrollLeft`/`scrollTop` start at the origin, so a drawing
+ * that simply grew would do it away from the box's middle and the part being looked at would slide
+ * off the corner. The step keeps the middle instead. The assertion is the middle of the visible box
+ * in the *drawing's* own px, which is the same number at any scale — that is what "still looking at
+ * the same place" means, and it is comparable across two steps whose drawings are different sizes.
+ */
+test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample&renderer=canvas');
+
+  const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
+  const viewport = aside.getByTestId('topology-viewport');
+  await expect(viewport).toBeVisible();
+
+  /** The drawing's own point under the middle of the visible box, in the chrome's 448×540 units.
+   *  Measured from the box's `clientWidth` because that is the visible width on a platform whose
+   *  bars reserve a gutter, while the border box also counts the band they reserved. */
+  const middle = () =>
+    viewport.evaluate(
+      (el, chrome) => {
+        const box = el.getBoundingClientRect();
+        const ink = el.querySelector('.pr-topo__stage')!.getBoundingClientRect();
+        return {
+          x: ((box.left + el.clientWidth / 2 - ink.left) / ink.width) * chrome.w,
+          y: ((box.top + el.clientHeight / 2 - ink.top) / ink.height) * chrome.h,
+        };
+      },
+      { w: CHROME_W, h: CHROME_H },
+    );
+
+  // Fitted, the whole drawing is in the box: its middle is the drawing's own middle.
+  const fitted = await middle();
+  expect(fitted.x).toBeCloseTo(CHROME_W / 2, 0);
+  expect(fitted.y).toBeCloseTo(CHROME_H / 2, 0);
+
+  await aside.getByTestId('topology-zoom-in').click();
+  const stepped = await middle();
+  expect(Math.abs(stepped.x - fitted.x)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(stepped.y - fitted.y)).toBeLessThanOrEqual(SLOP);
+
+  // And it holds from an offset the step did not choose — both axes, and back down a stop. A tenth
+  // of the range is deliberate: the middle of a 125% drawing sits within a quarter of its own width
+  // of the edges, so a deeper offset would be clamped on the way back down and move the middle for
+  // a reason that is not this rule.
+  await viewport.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth * 0.1;
+    el.scrollTop = el.scrollHeight * 0.1;
+  });
+  const panned = await middle();
+
+  await aside.getByTestId('topology-zoom-in').click();
+  const deeper = await middle();
+  expect(Math.abs(deeper.x - panned.x)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(deeper.y - panned.y)).toBeLessThanOrEqual(SLOP);
+
+  await aside.getByTestId('topology-zoom-out').click();
+  const back = await middle();
+  expect(Math.abs(back.x - panned.x)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(back.y - panned.y)).toBeLessThanOrEqual(SLOP);
+});
+
+/**
  * PR-MEMTOP-017's drag is a gesture over a real scroll container: the pointer must move the box's
  * own `scrollLeft`/`scrollTop`, which only a browser can show. The maths is unit-tested
  * (`MemoryTopologyPanel.spec.ts`); what this covers is that a press on the diagram reaches the
@@ -181,6 +245,13 @@ test('PR-MEMTOP-017: dragging the zoomed diagram pans it', async ({ page }) => {
 
   // 200%: the box has its own width and height of drawing to travel through, both axes.
   for (let i = 0; i < 3; i++) await aside.getByTestId('topology-zoom-in').click();
+  // Back to the origin by hand: a zoom step now lands on the middle of the drawing (PR-MEMTOP-018),
+  // and this test is about the drag's own 1:1 maths, whose expectations below are measured from a
+  // known 0 rather than from wherever the last step happened to leave the offset.
+  await viewport.evaluate((el) => {
+    el.scrollLeft = 0;
+    el.scrollTop = 0;
+  });
   expect(await cursor()).toBe('grab');
   expect(await drag(-40, -30)).toBe('grabbing');
 
