@@ -157,7 +157,7 @@ function paintCollapseSummaries(
   const span = Math.max(1, view.endTime - view.startTime);
   for (const item of items) {
     const ev = item.event;
-    const alpha = item.alpha ?? 1;
+    const alpha = (item.alpha ?? 1) * collapseAlpha(item.y, collapse);
     if (alpha <= 0) continue;
     if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
     const x = ((ev.startTime - view.startTime) / span) * width;
@@ -420,7 +420,7 @@ export class SwimlaneOverlayPainter {
   }
 
   /** ClearType path: only lifted leaves (lookup), not every event. */
-  private paintLiftedLeaves(ctx: CanvasRenderingContext2D): void {
+  private paintLiftedLeaves(ctx: CanvasRenderingContext2D, maxMulti = Infinity): void {
     const seen = new Set<string>();
     const paint = (id: string | null) => {
       if (!id || seen.has(id)) return;
@@ -431,7 +431,9 @@ export class SwimlaneOverlayPainter {
     };
     paint(this.selectedId);
     paint(this.hoveredId);
-    for (const id of this.multiIds) paint(id);
+    if (this.multiIds.size <= maxMulti) {
+      for (const id of this.multiIds) paint(id);
+    }
   }
 
   render(): void {
@@ -452,6 +454,8 @@ export class SwimlaneOverlayPainter {
         this.selectedId,
         this.hoveredId,
       );
+      // By-id lifts track the easing Y without the O(events) overlay walk (PR-CANVAS-104).
+      this.paintLiftedLeaves(ctx, 32);
       return;
     }
 

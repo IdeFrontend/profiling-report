@@ -439,7 +439,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private timeBase = 0;
   private searchQuery = '';
   private selectedId: string | null = null;
-  private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
@@ -566,12 +565,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.liveScroll = on;
   }
 
-  setSelection(selectedId: string | null, hoveredId: string | null): void {
-    const selectionChanged = selectedId !== this.selectedId;
-    const hoverChanged = hoveredId !== this.hoveredId;
-    if (!selectionChanged && !hoverChanged) return;
-    this.hoveredId = hoveredId;
-    if (!selectionChanged) return;
+  /** Overlay owns hover lift; keep the arg so hover-only calls no-op on `selectedId`. */
+  setSelection(selectedId: string | null, _hoveredId: string | null): void {
+    if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
     this.refreshDepCache();
     this.rebuildEmphasisSplit();

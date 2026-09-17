@@ -469,7 +469,7 @@ function onGutterScroll(): void {
   const el = gutterRef.value?.root;
   if (!el) return;
   if (Math.abs(el.scrollTop - liveScrollY.value) > 0.5) {
-    onScrollY(el.scrollTop);
+    onScrollY(el.scrollTop, true);
   }
 }
 

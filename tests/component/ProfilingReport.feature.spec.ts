@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
 import TimelineView from '../../src/ui/TimelineView/TimelineView.vue';
 import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer, loadResultNpuRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
@@ -618,7 +619,39 @@ describe('PR-UI: ProfilingReport feature contract', () => {
   });
 
   it('PR-UI-018: collapse clamp uses viewport max (scrollHeight - clientHeight)', async () => {
-    const src = (await import('../../src/ui/ProfilingReport/ProfilingReport.vue?raw')).default as string;
-    expect(src).toMatch(/el\.scrollHeight - el\.clientHeight/);
+    stubReducedMotion();
+    const children = Array.from({ length: 12 }, (_, i) => ({
+      id: `card0/p${i}`,
+      name: `P${i}`,
+      events: [{ id: `e${i}`, name: 'e', startTime: 0, duration: 10 }],
+    }));
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card0',
+          name: 'Card0',
+          threads: [{ id: 'card0/core', name: 'Core', events: [], children }],
+        },
+      ],
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: { swimlaneModel: model, reportModel: emptyReportViewModel() },
+    });
+    await flushPromises();
+    const vm = wrapper.vm as unknown as { viewState: { scrollY: number } };
+    vm.viewState.scrollY = 5000;
+    await flushPromises();
+
+    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
+    Object.defineProperty(gutter, 'scrollHeight', { configurable: true, get: () => 300 });
+    Object.defineProperty(gutter, 'clientHeight', { configurable: true, get: () => 200 });
+
+    await wrapper.get('[data-testid="gutter-folder-card0/core"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    expect(vm.viewState.scrollY).toBe(100);
+    wrapper.unmount();
   });
 });

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyCollapseAnim,
+  collapseAlpha,
+  collapseClosedHeight,
   collapseFoldsFromLayout,
   collapseHiddenHeight,
   collectCollapseSummaries,
   collapsePaintState,
+  collapseShiftY,
   eventBlockMetrics,
   eventsIntersectingRect,
   findExactEdgeMatchesAt,
@@ -229,6 +232,67 @@ describe('paint-only rest collapse (PR-RENDER-052)', () => {
     const t = collapseFoldsFromLayout(layout, ['card', 'core'], null);
     expect(t.folds.map((f) => f.groupId)).toEqual(['card']);
     expect(collectCollapseSummaries(layout, ['card', 'core'], null, new Map())).toEqual([]);
+  });
+
+  it('PR-RENDER-055: parent tween keeps inner rest fold so nested rows stay hidden', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [
+            {
+              id: 'compute',
+              name: 'Compute',
+              events: [],
+              children: [
+                {
+                  id: 'core',
+                  name: 'Core',
+                  events: [],
+                  children: [
+                    { id: 'mte1', name: 'MTE1', events: [{ id: 'e1', name: 'a', startTime: 0, duration: 10 }] },
+                    { id: 'mte2', name: 'MTE2', events: [{ id: 'e2', name: 'b', startTime: 10, duration: 10 }] },
+                  ],
+                },
+                { id: 'pipe1', name: 'P1', events: [{ id: 'p1', name: 'p1', startTime: 0, duration: 10 }] },
+                { id: 'pipe2', name: 'P2', events: [{ id: 'p2', name: 'p2', startTime: 0, duration: 10 }] },
+                { id: 'pipe3', name: 'P3', events: [{ id: 'p3', name: 'p3', startTime: 0, duration: 10 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    const net = collapseHiddenHeight(model, ['core'], ['core', 'compute']);
+    expect(net).toBe(88);
+    const innerShift = collapseHiddenHeight(model, [], ['core']);
+    expect(innerShift).toBe(44);
+
+    const pipe2Y = layout.lanes.find((l) => l.thread.id === 'pipe2')!.y;
+    const mte1Y = layout.lanes.find((l) => l.thread.id === 'mte1')!.y;
+
+    const mid = collapseFoldsFromLayout(layout, ['core', 'compute'], {
+      groupId: 'compute',
+      visible: 0.99,
+      hiddenHeight: net,
+    });
+    expect(mid.folds.map((f) => f.groupId)).toEqual(['compute', 'core']);
+    expect(collapseClosedHeight(mid)).toBeCloseTo(net * (1 - 0.99) + innerShift);
+    expect(collapseAlpha(mte1Y, mid)).toBe(0);
+    expect(collapseShiftY(pipe2Y, mid)).toBeCloseTo(pipe2Y - collapseClosedHeight(mid));
+
+    const end = collapseFoldsFromLayout(layout, ['core', 'compute'], {
+      groupId: 'compute',
+      visible: 0,
+      hiddenHeight: net,
+    });
+    const settled = collapseFoldsFromLayout(layout, ['core', 'compute'], null);
+    expect(collapseClosedHeight(end)).toBe(collapseClosedHeight(settled));
+    expect(collapseAlpha(mte1Y, end)).toBe(0);
   });
 
   it('PR-RENDER-052: nested rest summaries do not stack on the parent folder row', () => {

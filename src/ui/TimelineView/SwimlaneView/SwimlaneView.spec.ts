@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
@@ -2193,8 +2194,66 @@ describe('SwimlaneView', () => {
   });
 
   it('PR-SWIMVIEW-033: collapse tween clamps liveScrollY to visual content height', async () => {
-    const src = (await import('./SwimlaneView.vue?raw')).default as string;
-    expect(src).toMatch(/function clampLiveScrollToContent/);
-    expect(src).toMatch(/visualContentHeight\(props\.model/);
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const children = Array.from({ length: 20 }, (_, i) => ({
+      id: `p${i}`,
+      name: `P${i}`,
+      events: [{ id: `e${i}`, name: 'e', startTime: 0, duration: 10 }],
+    }));
+    const model = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [{ id: 'core', name: 'Core', events: [] as { id: string; name: string; startTime: number; duration: number }[], children }],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    view.scrollY = 10_000;
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card',
+            name: 'Card',
+            lanes: [{ id: 'core', name: 'Core', color: '#888' }, ...children.map((t) => ({ id: t.id, name: t.name, color: '#888' }))],
+          },
+        ],
+        collapsedIds: [],
+        model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        preferRenderer: 'canvas',
+      },
+    });
+    await nextTick();
+    const strips = wrapper.get('[data-testid="card-strips"]');
+    const yBefore = Number(/translateY\((-?[\d.]+)px\)/.exec(strips.attributes('style') ?? '')?.[1] ?? 0);
+    expect(yBefore).toBe(-10_000);
+
+    await wrapper.setProps({
+      collapseAnim: { groupId: 'core', visible: 0.5, hiddenHeight: 20 * 22 },
+    });
+    await nextTick();
+    const yAfter = Number(/translateY\((-?[\d.]+)px\)/.exec(strips.attributes('style') ?? '')?.[1] ?? 0);
+    expect(-yAfter).toBeLessThan(10_000);
+    expect(-yAfter).toBeLessThan(800);
+
+    for (const cb of queued.splice(0)) cb(0);
+    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
+    gutter.scrollTop = -yAfter + 24;
+    await wrapper.get('[data-testid="lane-gutter"]').trigger('scroll');
+    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(-yAfter + 24);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
   });
 });

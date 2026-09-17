@@ -96,8 +96,11 @@ export interface FlatLane {
 
 /**
  * In-flight collapse/expand tween applied to a layout built from the **expanded**
- * model. `visible` = 1 fully expanded, 0 fully collapsed; `hiddenHeight` = px of
- * descendant content hidden at full collapse. Consumed by renderers + DOM gutter.
+ * model. `visible` = 1 fully expanded, 0 fully collapsed. `hiddenHeight` is the
+ * **net** px of descendant lane rows this tween hides (`collapseHiddenHeight` from
+ * the pre-toggle collapsed set to the post-toggle set) — not the full expanded
+ * subtree when a nested folder is already rest-collapsed. Consumed by renderers
+ * + DOM gutter.
  */
 export interface CollapseAnimState {
   groupId: string;
@@ -147,8 +150,10 @@ export function groupBottomY(layout: SwimlaneLayout, groupId: string): number {
 
 /**
  * One closed (or closing) group in content-space Y. Rest-collapsed folders use
- * `visible: 0`; the in-flight tween uses `CollapseAnimState.visible`. Nested folds
- * whose span sits inside another fold are dropped — a Card collapse swallows nested Cores.
+ * `visible: 0`; the in-flight tween uses `CollapseAnimState.visible`. Nested **rest**
+ * folds under a **rest** parent (and nested **anim** folds) are dropped — a Card
+ * collapse swallows nested Cores. Nested rest folds under an **animating** parent
+ * are kept so the inner shift/alpha stay continuous across the tween.
  */
 export interface CollapseFold {
   groupId: string;
@@ -162,6 +167,8 @@ export interface CollapseFold {
   visible: number;
   /** Gap close amount for rows after this subtree (`hiddenHeight × (1 − visible)`). */
   shift: number;
+  /** In-flight tween fold — nested rest folds are kept under this parent. */
+  animating?: boolean;
 }
 
 /**
@@ -216,7 +223,11 @@ function pruneNestedFolds(folds: CollapseFold[]): CollapseFold[] {
     .sort((a, b) => a.foldY - b.foldY || a.subtreeEnd - b.subtreeEnd);
   const out: CollapseFold[] = [];
   for (const f of sorted) {
-    if (out.some((p) => f.foldY >= p.foldY && f.subtreeEnd <= p.subtreeEnd)) continue;
+    const parent = out.find((p) => f.foldY >= p.foldY && f.subtreeEnd <= p.subtreeEnd);
+    if (parent) {
+      // Keep inner rest folds under the in-flight tween, including visible=0 last frame.
+      if (!(parent.animating && f.visible === 0 && !f.animating)) continue;
+    }
     out.push(f);
   }
   return out;
@@ -254,6 +265,7 @@ function foldsFromSpans(
         subtreeEnd: span.foldY + animLive.hiddenHeight,
         visible: animLive.visible,
         shift: animLive.hiddenHeight * (1 - animLive.visible),
+        animating: true,
       });
     }
   }
@@ -350,24 +362,38 @@ export function collapseClosedHeight(t: CollapseTransform): number {
  * Slide the collapse in two regions per fold (see `applyCollapseAnim`): subtree rows tuck
  * toward the group's top edge; rows after each subtree shift up to close that gap.
  */
-export function collapseShiftY(y: number, t: CollapseTransform): number {
-  if (!t.active || t.folds.length === 0) return y;
+function shiftByFolds(y: number, folds: readonly CollapseFold[]): number {
   let extraShift = 0;
-  for (const f of t.folds) {
+  for (let i = 0; i < folds.length; i++) {
+    const f = folds[i]!;
     if (y < f.foldY) return y - extraShift;
-    if (y < f.subtreeEnd) return f.groupTop - extraShift + (y - f.groupTop) * f.visible;
+    if (y < f.subtreeEnd) {
+      const nested: CollapseFold[] = [];
+      for (let j = i + 1; j < folds.length; j++) {
+        const g = folds[j]!;
+        if (g.foldY >= f.foldY && g.subtreeEnd <= f.subtreeEnd) nested.push(g);
+      }
+      const inner = nested.length > 0 ? shiftByFolds(y, nested) : y;
+      return f.groupTop - extraShift + (inner - f.groupTop) * f.visible;
+    }
     extraShift += f.shift;
   }
   return y - extraShift;
 }
 
-/** Fade any fold's collapsing subtree; everything else stays opaque. */
+export function collapseShiftY(y: number, t: CollapseTransform): number {
+  if (!t.active || t.folds.length === 0) return y;
+  return shiftByFolds(y, t.folds);
+}
+
+/** Fade any fold's collapsing subtree; min over all containing folds so a nested rest stays hidden. */
 export function collapseAlpha(y: number, t: CollapseTransform): number {
   if (!t.active) return 1;
+  let a = 1;
   for (const f of t.folds) {
-    if (y >= f.foldY && y < f.subtreeEnd) return Math.max(0, Math.min(1, f.visible));
+    if (y >= f.foldY && y < f.subtreeEnd) a = Math.min(a, Math.max(0, Math.min(1, f.visible)));
   }
-  return 1;
+  return a;
 }
 
 /**
@@ -625,8 +651,9 @@ function visibleLaneRowHeight(model: SwimlaneModel, collapsedIds: readonly strin
 
 /**
  * Exact px of lane rows hidden when `expandedIds` → `collapsedIds` (folder/Card subtree
- * rows only, no header bands, no `contentHeightFromModel` 120px floor). Used to size a
- * collapse/expand tween so the shift and the fade region line up with the true content.
+ * rows only, no header bands, no `contentHeightFromModel` 120px floor). Callers pass this
+ * **net** delta as `CollapseAnimState.hiddenHeight` so a parent tween does not double-count
+ * a nested folder that is already rest-collapsed.
  */
 export function collapseHiddenHeight(
   model: SwimlaneModel | null,
@@ -664,7 +691,12 @@ export interface SwimlaneLayout {
   events: LaidOutEvent[];
   eventsById: Map<string, LaidOutEvent>;
   lanesByTid: Map<string, FlatLane>;
-  /** Events for each lane index (contiguous groups from rebuild); expanded folders are `[]`, collapsed folders hold their summary bars. */
+  /**
+   * Events for each lane index (contiguous groups from rebuild). The viewer hot path
+   * keeps the expanded base (folders are `[]` here); rest/ghost summaries are spliced
+   * on by `applyCollapseFolds`. Hosts that pre-filter the tree still put summary bars
+   * on collapsed folders in this array.
+   */
   eventsByLane: LaidOutEvent[][];
   /**
    * Paint-only collapse folds. When set, event `y` stays on the expanded base and

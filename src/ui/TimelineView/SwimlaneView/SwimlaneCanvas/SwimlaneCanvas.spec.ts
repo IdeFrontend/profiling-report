@@ -2958,11 +2958,59 @@ describe('SwimlaneCanvas', () => {
   });
 
   it('PR-CANVAS-105: pointermove does not paint every pixel; lane change does', async () => {
-    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
-    const move = src.slice(src.indexOf('function onPointerMove'), src.indexOf('function onPointerUp'));
-    expect(move).not.toMatch(/schedulePaint\(\)/);
-    expect(src).toMatch(/function applyHoverPaint/);
-    expect(src).toMatch(/if \(id === trackHoveredLaneId\.value\) return/);
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const model = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'c0',
+          name: 'C0',
+          threads: [
+            { id: 'a', name: 'A', events: [{ id: 'ea', name: 'ea', startTime: 0, duration: 50 }] },
+            { id: 'b', name: 'B', events: [{ id: 'eb', name: 'eb', startTime: 0, duration: 50 }] },
+          ],
+        },
+      ],
+    };
+    const setHoveredLane = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setHoveredLane');
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    await fireAllDeviceRo();
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+      configurable: true,
+    });
+    setHoveredLane.mockClear();
+    queued.length = 0;
+
+    await canvas.trigger('pointermove', { clientX: 40, clientY: 50, pointerId: 1 });
+    expect(wrapper.emitted('lane-hover')?.at(-1)?.[0]).toBe('a');
+    expect(setHoveredLane).toHaveBeenCalledWith('a');
+    const paintsAfterEnter = queued.length;
+
+    await canvas.trigger('pointermove', { clientX: 80, clientY: 52, pointerId: 1 });
+    expect(wrapper.emitted('lane-hover')?.at(-1)?.[0]).toBe('a');
+    expect(queued.length).toBe(paintsAfterEnter);
+
+    await canvas.trigger('pointermove', { clientX: 40, clientY: 80, pointerId: 1 });
+    expect(wrapper.emitted('lane-hover')?.at(-1)?.[0]).toBe('b');
+    expect(setHoveredLane).toHaveBeenLastCalledWith('b');
+    wrapper.unmount();
   });
 
   it('PR-CANVAS-106: collapse tween clamps paint scrollY so bottom-scrolled rows stay put', async () => {
