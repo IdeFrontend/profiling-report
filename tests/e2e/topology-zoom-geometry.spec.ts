@@ -206,6 +206,37 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   const back = await middle();
   expect(Math.abs(back.x - panned.x)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(back.y - panned.y)).toBeLessThanOrEqual(SLOP);
+
+  // Same rule in the wide overlay: its box is a different shape, and the anchor is nothing but the
+  // box's own scroll geometry — so the one place it could differ is the one worth stepping once.
+  await aside.getByTestId('topology-fullscreen').click();
+  const overlay = page.locator(
+    '[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]',
+  );
+  const overlayViewport = overlay.getByTestId('topology-viewport');
+  await expect(overlayViewport).toBeVisible();
+  // The overlay opens under a 200ms `scale(0.98)` enter transition, and every rect inside it moves
+  // with that transform: measured through it, the "before" reading is 2% small and the drift this
+  // test reports would be the animation rather than the step. Wait for the transform to come off.
+  await expect(page.getByTestId('topology-fullscreen-overlay')).toHaveCSS('transform', 'none');
+  const overlayMiddle = () =>
+    overlayViewport.evaluate(
+      (el, chrome) => {
+        const box = el.getBoundingClientRect();
+        const ink = el.querySelector('.pr-topo__stage')!.getBoundingClientRect();
+        return {
+          x: ((box.left + el.clientWidth / 2 - ink.left) / ink.width) * chrome.w,
+          y: ((box.top + el.clientHeight / 2 - ink.top) / ink.height) * chrome.h,
+        };
+      },
+      { w: CHROME_W, h: CHROME_H },
+    );
+
+  const overlayFitted = await overlayMiddle();
+  await overlay.getByTestId('topology-zoom-in').click();
+  const overlayStepped = await overlayMiddle();
+  expect(Math.abs(overlayStepped.x - overlayFitted.x)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(overlayStepped.y - overlayFitted.y)).toBeLessThanOrEqual(SLOP);
 });
 
 /**
