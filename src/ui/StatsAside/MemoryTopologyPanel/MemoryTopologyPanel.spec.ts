@@ -461,6 +461,51 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     expect(viewport.scrollTop).toBe(0);
     expect(viewport.scrollLeft).toBe(0);
   });
+
+  it('PR-MEMTOP-018: a zoom step re-centres on the part that was under the middle', async () => {
+    // jsdom has no layout, so the box's scroll geometry is stood in for. It is sized from the same
+    // `--pr-topo-zoom` the stage is sized from, so the stub moves with the component's own scale —
+    // which is also what makes the write-back assertion meaningful: the new `scrollWidth` has to be
+    // read after the step, not carried over from before it.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]').element as HTMLElement;
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
+    const BOX = { w: 448, h: 540 };
+    Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => BOX.h * scale() });
+
+    // Fitted: the stage is the box, so the middle is the drawing's own middle — half of it.
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    // 0.5 × 560 − 224 and 0.5 × 675 − 270, i.e. half of each step's own overflow.
+    expect(el.scrollLeft).toBeCloseTo(56, 6);
+    expect(el.scrollTop).toBeCloseTo(67.5, 6);
+
+    // Panned by hand, then stepped up to 150%: the fraction under the middle is what is kept, not
+    // the offset — `(60 + 224) / 560` and `(100 + 270) / 675` of the new 672 × 810 stage.
+    el.scrollLeft = 60;
+    el.scrollTop = 100;
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    expect(el.scrollLeft).toBeCloseTo(116.8, 1);
+    expect(el.scrollTop).toBeCloseTo(174, 1);
+  });
+
+  it('PR-MEMTOP-018: a box with no layout is left alone rather than centred on nothing', async () => {
+    // The jsdom escape hatch, and the state every other test in this file runs in: no box means no
+    // middle, no fraction to divide by, and — the part that matters — no `NaN` written to the offset
+    // a later pan would then read as its origin.
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+  });
 });
 
 describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {

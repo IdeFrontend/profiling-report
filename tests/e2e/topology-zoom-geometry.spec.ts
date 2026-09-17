@@ -145,6 +145,134 @@ test('PR-MEMTOP-014: the overlay drops the bar strip the aside keeps', async ({ 
 });
 
 /**
+ * A step's own offset (PR-MEMTOP-018): `scrollLeft`/`scrollTop` start at the origin, so a drawing
+ * that simply grew would do it away from the box's middle and the part being looked at would slide
+ * off the corner. The step keeps the middle instead. The assertion is the middle of the visible box
+ * in the *drawing's* own px, which is the same number at any scale — that is what "still looking at
+ * the same place" means, and it is comparable across two steps whose drawings are different sizes.
+ */
+test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample&renderer=canvas');
+
+  const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
+  const viewport = aside.getByTestId('topology-viewport');
+  await expect(viewport).toBeVisible();
+
+  /** The drawing's own point under the middle of the visible box, in the chrome's 448×540 units.
+   *  Measured from the box's `clientWidth` because that is the visible width on a platform whose
+   *  bars reserve a gutter, while the border box also counts the band they reserved. */
+  const middle = () =>
+    viewport.evaluate(
+      (el, chrome) => {
+        const box = el.getBoundingClientRect();
+        const ink = el.querySelector('.pr-topo__stage')!.getBoundingClientRect();
+        return {
+          x: ((box.left + el.clientWidth / 2 - ink.left) / ink.width) * chrome.w,
+          y: ((box.top + el.clientHeight / 2 - ink.top) / ink.height) * chrome.h,
+        };
+      },
+      { w: CHROME_W, h: CHROME_H },
+    );
+
+  // Fitted, the whole drawing is in the box: its middle is the drawing's own middle.
+  const fitted = await middle();
+  expect(fitted.x).toBeCloseTo(CHROME_W / 2, 0);
+  expect(fitted.y).toBeCloseTo(CHROME_H / 2, 0);
+
+  await aside.getByTestId('topology-zoom-in').click();
+  const stepped = await middle();
+  expect(Math.abs(stepped.x - fitted.x)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(stepped.y - fitted.y)).toBeLessThanOrEqual(SLOP);
+
+  // And it holds from an offset the step did not choose — both axes, and back down a stop. A tenth
+  // of the range is deliberate: the middle of a 125% drawing sits within a quarter of its own width
+  // of the edges, so a deeper offset would be clamped on the way back down and move the middle for
+  // a reason that is not this rule.
+  await viewport.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth * 0.1;
+    el.scrollTop = el.scrollHeight * 0.1;
+  });
+  const panned = await middle();
+
+  await aside.getByTestId('topology-zoom-in').click();
+  const deeper = await middle();
+  expect(Math.abs(deeper.x - panned.x)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(deeper.y - panned.y)).toBeLessThanOrEqual(SLOP);
+
+  await aside.getByTestId('topology-zoom-out').click();
+  const back = await middle();
+  expect(Math.abs(back.x - panned.x)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(back.y - panned.y)).toBeLessThanOrEqual(SLOP);
+
+  // Same rule in the wide overlay, whose box is a different *shape* — and there, X is letterboxed at
+  // first: the stage is narrower than the box until the ladder reaches ~300%, so `scrollWidth` is the
+  // box's own width and the anchor is the fitted `margin-inline: auto` case. The step that crosses
+  // over is the one the aside cannot reach (its box is narrow enough that 125% overflows both axes):
+  // the placement has to hand over from centring to a real scroll, and a regression that left the
+  // stage left-aligned while `scrollLeft` stayed 0 would only show up here. So step the ladder until
+  // X really does overflow, asserting the middle at every step, including the crossing one.
+  await aside.getByTestId('topology-fullscreen').click();
+  const overlay = page.locator(
+    '[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]',
+  );
+  const overlayViewport = overlay.getByTestId('topology-viewport');
+  await expect(overlayViewport).toBeVisible();
+  // The overlay opens under a 200ms `scale(0.98)` enter transition, and every rect inside it moves
+  // with that transform: measured through it, the "before" reading is 2% small and the drift this
+  // test reports would be the animation rather than the step. Wait for the transform to come off.
+  await expect(page.getByTestId('topology-fullscreen-overlay')).toHaveCSS('transform', 'none');
+  const overlayMiddle = () =>
+    overlayViewport.evaluate(
+      (el, chrome) => {
+        const box = el.getBoundingClientRect();
+        const ink = el.querySelector('.pr-topo__stage')!.getBoundingClientRect();
+        return {
+          x: ((box.left + el.clientWidth / 2 - ink.left) / ink.width) * chrome.w,
+          y: ((box.top + el.clientHeight / 2 - ink.top) / ink.height) * chrome.h,
+        };
+      },
+      { w: CHROME_W, h: CHROME_H },
+    );
+  /** What the box can scroll, and whether X has overflowed its own width yet. */
+  const overlayBox = () =>
+    overlayViewport.evaluate((el) => ({
+      left: el.scrollLeft,
+      top: el.scrollTop,
+      sw: el.scrollWidth,
+      sh: el.scrollHeight,
+      cw: el.clientWidth,
+      ch: el.clientHeight,
+    }));
+
+  const overlayFitted = await overlayMiddle();
+  // The ladder has five stops above the fit (125 … 400), so this cannot run past the end of it — a
+  // sixth click would land on a disabled 放大 and time out instead of failing on the line below.
+  let crossed = false;
+  for (let step = 0; step < 5 && !crossed; step++) {
+    await overlay.getByTestId('topology-zoom-in').click();
+    const stepped = await overlayMiddle();
+    expect(Math.abs(stepped.x - overlayFitted.x)).toBeLessThanOrEqual(SLOP);
+    expect(Math.abs(stepped.y - overlayFitted.y)).toBeLessThanOrEqual(SLOP);
+
+    const box = await overlayBox();
+    if (box.sw > box.cw) {
+      crossed = true;
+      // On a scrollable X the anchor is a real placement, not the letterboxed 0: half of the
+      // drawing's own overflow. This is the case a left-aligned-stage regression would move.
+      expect(box.sw - box.cw).toBeGreaterThan(SLOP);
+      expect(Math.abs(box.left - (box.sw - box.cw) / 2)).toBeLessThanOrEqual(SLOP);
+    }
+    // Y overflows in this host from the first step, so its placement is exercised on every one.
+    expect(Math.abs(box.top - (box.sh - box.ch) / 2)).toBeLessThanOrEqual(SLOP);
+  }
+  // The loop must have actually reached the crossing, or the assertions above say nothing about it.
+  expect(crossed).toBe(true);
+});
+
+/**
  * PR-MEMTOP-017's drag is a gesture over a real scroll container: the pointer must move the box's
  * own `scrollLeft`/`scrollTop`, which only a browser can show. The maths is unit-tested
  * (`MemoryTopologyPanel.spec.ts`); what this covers is that a press on the diagram reaches the
@@ -181,6 +309,13 @@ test('PR-MEMTOP-017: dragging the zoomed diagram pans it', async ({ page }) => {
 
   // 200%: the box has its own width and height of drawing to travel through, both axes.
   for (let i = 0; i < 3; i++) await aside.getByTestId('topology-zoom-in').click();
+  // Back to the origin by hand: a zoom step now lands on the middle of the drawing (PR-MEMTOP-018),
+  // and this test is about the drag's own 1:1 maths, whose expectations below are measured from a
+  // known 0 rather than from wherever the last step happened to leave the offset.
+  await viewport.evaluate((el) => {
+    el.scrollLeft = 0;
+    el.scrollTop = 0;
+  });
   expect(await cursor()).toBe('grab');
   expect(await drag(-40, -30)).toBe('grabbing');
 
