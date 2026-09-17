@@ -44,7 +44,7 @@ Same container binary; **different embed sets** ([PROC-7](../context/decisions/P
 | Profile | Producer | Leaf contents (summary) | Adapter |
 | --- | --- | --- | --- |
 | `compute` | npu-compute | `OpBasicInfo.csv`, `PipeUtilization.csv`, `Memory*.csv`, `PipeTrace.json` / `trace.json`, … | Hardware path in [ADAPTERS.md](ADAPTERS.md) (today `adaptPayloads`) |
-| `emulate` | npu_emulate | `manifest.json` (thin profile or export catalog) + optional `PipeTrace.json` + KernelInfo/summary (+ contract CSVs). Raw packs like [`data/gelu.npu-rep`](../../data/gelu.npu-rep) open with null swimlane when Trace absent | `adaptEmulate` — see [emulate/FORMAT.md](emulate/FORMAT.md), [emulate/TABLES.md](emulate/TABLES.md) |
+| `emulate` | npu_emulate | `manifest.json` (thin profile or export catalog) + optional `PipeTrace.json` / `core_*_tracing_report_*.json` + KernelInfo (+ contract CSVs). [`data/gelu.npu-rep`](../../data/gelu.npu-rep) is a full producer dump | `adaptEmulate` — see [emulate/FORMAT.md](emulate/FORMAT.md), [emulate/TABLES.md](emulate/TABLES.md) |
 
 **No silent remap** ([DATA-45](../context/decisions/DATA.md)): do not invent compute-shaped metric CSVs from emulate tables. Map each profile into shared `SwimlaneModel` + `ReportViewModel` + `capabilities[]`.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate docs/formats/emulate/SCHEMA.md from data/gelu/manifest.json.
+"""Generate docs/formats/emulate/SCHEMA.md from data/gelu.npu-rep (embed manifest.json).
 
   python3 data/scripts/gen_emulate_schema_md.py
 
@@ -11,11 +11,27 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "data" / "gelu" / "manifest.json"
+GELU_REP = ROOT / "data" / "gelu.npu-rep"
 OUT = ROOT / "docs" / "formats" / "emulate" / "SCHEMA.md"
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from unpack_rep import decode_rep  # noqa: E402
+
+
+def load_gelu_manifest() -> dict:
+    """Read `manifest.json` from the committed gelu leaf (no unpacked tree)."""
+    encoded = GELU_REP.read_bytes()
+    _, entries = decode_rep(encoded, str(GELU_REP))
+    for name, _file_type, payload in entries:
+        if name == "manifest.json":
+            if isinstance(payload, (bytes, bytearray)):
+                return json.loads(payload.decode("utf-8"))
+            raise SystemExit("manifest.json payload is not bytes")
+    raise SystemExit(f"manifest.json not found in {GELU_REP}")
 
 ROLES: dict[str, str] = {
     "AnalysisState": "Which analyzers ran and whether each passed.",
@@ -239,7 +255,7 @@ def render(manifest: dict) -> str:
         "**Profile:** `emulate` (npu_emulate contract SQLite / CSV export).",
         "",
         "Normative **object names**, **column names**, and **SQL types** come from "
-        f"[`data/gelu/manifest.json`](../../../data/gelu/manifest.json) "
+        f"`manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) "
         f"(exported `{manifest.get('exported_at', '')}`, "
         f"`total_objects={manifest.get('total_objects')}`, "
         f"tables={manifest.get('total_tables')}, views={manifest.get('total_views')}, "
@@ -320,7 +336,7 @@ def render(manifest: dict) -> str:
 
 def main() -> None:
     # Normalize possible key variants from different export tool versions.
-    raw = json.loads(MANIFEST.read_text())
+    raw = load_gelu_manifest()
     objects = raw["objects"]
     for o in objects:
         o.setdefault("row_count", o.get("rows", 0))

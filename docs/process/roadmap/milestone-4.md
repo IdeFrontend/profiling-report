@@ -10,7 +10,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 
 | Product ask | View / component | Emulate fill |
 |-------------|------------------|--------------|
-| Report statistics（报告统计） | [report-summary](../../views/report-summary.md) | Thin `KernelInfo` / `summary.json` ([DATA-47a](../../context/decisions/interim/DATA.md)); hide FLOPS/BW |
+| Report statistics（报告统计） | [report-summary](../../views/report-summary.md) | Thin `KernelInfo` ([DATA-47a](../../context/decisions/interim/DATA.md)); hide FLOPS/BW |
 | Compute load analysis（计算负载分析） | [pipe-occupancy](../../views/pipe-occupancy.md) + PIPE 详情 | `PipesUtilization` / `PipeUtilizationHist` |
 | Architecture Diagram（架构图 / biprof 11.2.3.1） | [arch-diagram](../../views/arch-diagram.md) (interim chrome: [memory-topology](../../views/memory-topology.md)) | `ArchDiagramMetrics` → plated slots via `memoryTopology` VM ([DATA-48a](../../context/decisions/interim/DATA.md)); capability `archDiagram` |
 | Tuning report prompt | StatsAside CANNBot | Existing `cannbot-request` when sections mount |
@@ -30,7 +30,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Thin summary cards + meta | **In** | Packer must include KernelInfo/summary for gelu-class demos |
+| Thin summary cards + meta | **In** | Packer must include KernelInfo for gelu-class demos |
 | PIPE occupancy + CSV details | **In** | Emulate basenames only — no invent `PipeUtilization.csv` |
 | Architecture Diagram | **In** | ArchDiagramMetrics → interim plated chrome; capability `archDiagram` |
 | CANNBot summary / compute / memory | **In** | Host opens UI; library emits payload |
@@ -50,7 +50,7 @@ Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FOR
 
 1. `manifest.json` (thin or export catalog)
 2. `PipeTrace.json` (µs)
-3. `KernelInfo.csv` and/or `summary.json`
+3. `KernelInfo.csv`
 4. `PipesUtilization.csv` and/or `PipeUtilizationHist.csv`
 5. `ArchDiagramMetrics.csv`
 
@@ -61,7 +61,7 @@ Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FOR
 | **DATA-47** KernelInfo attr names | Thin summary field drift | Ship DATA-47a interim |
 | **DATA-48** Product slot map | Arch diagram labels wrong vs chrome | Ship DATA-48a name map from gelu; refine when Product answers |
 | **DATA-49** dedicated arch model/chrome | Lossy projection until biprof SVG | Interim topology chrome; escalate when Product provides chrome |
-| Export packer omits KernelInfo / PIPE | Aside empty on raw gelu | Packer requirement; sample leaf includes them |
+| Export packer must include KernelInfo / PIPE for aside | gelu 2026-09-17 packs them; keep packing on future dumps | Packer requirement; sample leaf also includes them |
 | **PROC-9** dedicated origin | Head still `origin=1` | Keep until Product assigns |
 
 ## Exit criteria

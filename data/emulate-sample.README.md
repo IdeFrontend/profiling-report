@@ -19,4 +19,4 @@ Embeds:
 | `PipesUtilization.csv` / `PipeUtilizationHist.csv` | Compute-load PIPE bars |
 | `ArchDiagramMetrics.csv` | Architecture Diagram slots (DATA-48a; gelu-sourced values) |
 
-For a real npu_emulate CSV export pack (export-catalog `manifest.json` + contract CSVs + full instruction Gantt), see [`gelu.README.md`](gelu.README.md) / [`gelu.npu-rep`](gelu.npu-rep). gelu often omits KernelInfo / PIPE CSVs until the packer includes them ([milestone-4](../docs/process/roadmap/milestone-4.md)).
+For a real npu_emulate CSV export pack (export-catalog `manifest.json` + all populated contract CSVs + full instruction Gantt), see [`gelu.README.md`](gelu.README.md) / [`gelu.npu-rep`](gelu.npu-rep).
