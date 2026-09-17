@@ -338,10 +338,14 @@ Format and statuses: [README.md](README.md).
 - **Status:** `interim` — engineering ruling pending Product stamp. Full text: [interim DATA-45](interim/DATA.md#data-45).
 - **Question:** May the viewer or packer invent hardware-shaped metric CSVs from npu_emulate contract tables?
 - **Decision (interim):** **No.** See interim entry.
+- **Specs:** [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
+- **Source:** Engineering format-fit (pending Product stamp) — [interim DATA-45](interim/DATA.md#data-45)
 
 ## DATA-46
 
 - **Status:** `interim` — engineering ruling pending Product stamp. Full text: [interim DATA-46](interim/DATA.md#data-46).
 - **Question:** What time unit must an emulate leaf use in `PipeTrace.json`?
 - **Decision (interim):** Producer packs **µs**; viewer must not reinterpret as ticks. See interim entry.
+- **Specs:** [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
+- **Source:** Engineering align with product PipeTrace µs (pending Product stamp) — [interim DATA-46](interim/DATA.md#data-46)
 
