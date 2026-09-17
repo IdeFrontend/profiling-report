@@ -616,4 +616,9 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
     wrapper.unmount();
   });
+
+  it('PR-UI-018: collapse clamp uses viewport max (scrollHeight - clientHeight)', async () => {
+    const src = (await import('../../src/ui/ProfilingReport/ProfilingReport.vue?raw')).default as string;
+    expect(src).toMatch(/el\.scrollHeight - el\.clientHeight/);
+  });
 });

@@ -2191,4 +2191,10 @@ describe('SwimlaneView', () => {
       'Utilization',
     );
   });
+
+  it('PR-SWIMVIEW-033: collapse tween clamps liveScrollY to visual content height', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(/function clampLiveScrollToContent/);
+    expect(src).toMatch(/visualContentHeight\(props\.model/);
+  });
 });

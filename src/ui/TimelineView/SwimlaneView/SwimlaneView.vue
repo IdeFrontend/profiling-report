@@ -17,6 +17,7 @@ import {
   LANE_GROUP_HEADER_HOVER,
   LANE_HEIGHT,
   layoutHeaders,
+  visualContentHeight,
   type CollapseAnimState,
 } from '../../../swimlane/layout';
 import {
@@ -405,6 +406,26 @@ watch(
     if (canvasLiveScroll) return;
     liveScrollY.value = y;
     setGutterScrollTop(y);
+  },
+);
+
+/** Native gutter `scrollTop` clamps as the collapse wrapper shrinks; canvas paint must too. */
+function maxBodyScrollY(): number {
+  const h = visualContentHeight(props.model, props.collapsedIds ?? [], props.collapseAnim ?? null);
+  return Math.max(0, h + overviewContentPad.value - (bodyViewportH.value || 0));
+}
+
+function clampLiveScrollToContent(): void {
+  const maxY = maxBodyScrollY();
+  if (liveScrollY.value <= maxY) return;
+  liveScrollY.value = maxY;
+  setGutterScrollTop(maxY);
+}
+
+watch(
+  () => [props.collapseAnim, props.collapsedIds, overviewContentPad.value, bodyViewportH.value] as const,
+  () => {
+    clampLiveScrollToContent();
   },
 );
 

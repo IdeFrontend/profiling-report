@@ -603,14 +603,14 @@ function clearHoverAfterCollapse(): void {
 
 function clampScrollAfterCollapse(): void {
   clearHoverAfterCollapse();
-  // Keep scroll within new content height once the collapse settles.
-  const el = timelineRef.value?.gutterRoot;
-  if (el) {
-    viewState.value = {
-      ...viewState.value,
-      scrollY: Math.min(viewState.value.scrollY, el.scrollHeight),
-    };
-  }
+  // Gutter layout (wrapper height) updates this tick; max scroll is viewport-relative.
+  void nextTick(() => {
+    const el = timelineRef.value?.gutterRoot;
+    if (!el) return;
+    const maxY = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (viewState.value.scrollY <= maxY) return;
+    viewState.value = { ...viewState.value, scrollY: maxY };
+  });
 }
 
 function onPinLane(laneId: string): void {

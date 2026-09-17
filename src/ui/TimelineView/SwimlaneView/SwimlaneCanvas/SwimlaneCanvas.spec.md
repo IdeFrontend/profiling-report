@@ -139,6 +139,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 103. **PR-CANVAS-103** — Applying `collapsedIds` before canvas attach still `setModel`s on the live backend so event blocks paint.
 104. **PR-CANVAS-104** — Vertical wheel eases `scrollY` toward the stacked target (not a single jump); `prefers-reduced-motion: reduce` snaps. In-flight frames skip leaf event labels (and the overlay's leaf hover/label walk) so stale fills do not sit on moved rects; collapsed-folder summary bars and their dimmed task-count labels still paint. Labels restore when the ease settles. The settle paint keeps the eased Y (does not snap to a stale parent `scrollY`). Gutter-forwarded wheel uses this same path.
 105. **PR-CANVAS-105** — Pointermove does not repaint the swim framebuffer while the hovered lane is unchanged; a hovered-event-only update paints the overlay (not a full GL pass). Lane-row tint paints only when the hovered lane changes.
+106. **PR-CANVAS-106** — While a collapse tween shrinks content, paint `scrollY` is clamped to the visual content height so a bottom-scrolled view does not send event rows up while the gutter stays bottom-pinned.
 
 ## Edge Cases
 
@@ -171,6 +172,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-17** — Collapse at max scroll clamps paint `scrollY` so event rows stay aligned with the gutter (`PR-CANVAS-106`).
 - **2026-09-17** — Hover-while-selected no longer rebuilds WebGL emphasis or repaints every pointer pixel; overlay owns hover lift (`PR-CANVAS-098` / `PR-CANVAS-105`).
 - **2026-09-17** — In-flight overlay still paints collapsed-folder summary bars + task-count labels (`PR-CANVAS-104`).
 - **2026-09-16** — Settle paint keeps the eased `scrollY` so event rects do not snap to a stale parent window (`PR-CANVAS-104`).

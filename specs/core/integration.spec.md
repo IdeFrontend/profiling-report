@@ -31,6 +31,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-UI-013**: Collapsing/expanding a folder starts a tween without re-deriving the display model — `displaySwim` is the unfiltered swim identity for the whole session (collapse is paint-only); `filterCollapsedTree` is not used on the viewer hot path.
 1. **PR-UI-014**: Re-clicking the same folder mid-tween reverses direction from the current `visible` (does not restart collapse from 1).
 1. **PR-UI-015**: Starting a collapse/expand on a *different* group while a tween is in flight commits the in-flight target `collapsedGroupIds` before cancelling (and clears hover / clamps scroll), so the first toggle is not discarded and stale tooltips do not linger.
+1. **PR-UI-018**: Collapse clamps vertical scroll to `scrollHeight - clientHeight` (not `scrollHeight`), and defers that clamp until after the gutter layout tick, so a bottom-scrolled view stays aligned with the shrinking content.
 ### E2E (PR-E2E)
 
 1. **PR-E2E-001**: Playground loads `data/out.rep` and renders timeline.
@@ -53,6 +54,7 @@ Outside-in tests verifying the full component tree and playground render correct
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-09-17** — PR-UI-018: collapse scroll clamp is viewport max (`scrollHeight - clientHeight`) after the gutter layout tick.
 - **2026-09-12** — PR-E2E-014: dock enter must not reserve a full-height flex slot while still visually empty (black-hole regression vs master).
 - **2026-09-11** — PR-UI-013: display model identity never changes on collapse/expand (`filterCollapsedTree` left the viewer hot path; rest collapse is paint-only).
 - **2026-09-07** — PR-UI-015: different-group toggle mid-tween commits the in-flight collapse target before starting the new tween.

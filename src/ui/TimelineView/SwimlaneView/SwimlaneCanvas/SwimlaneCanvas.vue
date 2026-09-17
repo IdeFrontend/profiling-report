@@ -385,10 +385,14 @@ function maxScrollY(): number {
 
 /** View window for paint/hit-test — scrollY shifted by overview pad. */
 function paintView(): SwimlaneViewWindow {
+  const raw = laneScrollEasing ? localScrollY : props.view.scrollY;
   return {
     startTime: props.view.startTime,
     endTime: props.view.endTime,
-    scrollY: (laneScrollEasing ? localScrollY : props.view.scrollY) - (props.contentTopPad ?? 0),
+    // Collapse shrinks visual height while parent scrollY stays at the old max until
+    // settle. Native gutter scrollTop clamps immediately — paint must match or event
+    // rows fly up while gutter rows stay bottom-pinned.
+    scrollY: clampScrollY(raw) - (props.contentTopPad ?? 0),
   };
 }
 
@@ -855,6 +859,9 @@ function applyCollapsePaint(): void {
   }
   const wrap = wrapRef.value;
   if (wrap) sizerHeight.value = Math.max(modelContentHeight(), wrap.clientHeight || 0);
+  const maxY = maxScrollY();
+  if (localScrollY > maxY) localScrollY = maxY;
+  if (scrollTargetY > maxY) scrollTargetY = maxY;
   sync();
 }
 

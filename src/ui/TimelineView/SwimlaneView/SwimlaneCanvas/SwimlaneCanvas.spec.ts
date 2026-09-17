@@ -2964,4 +2964,46 @@ describe('SwimlaneCanvas', () => {
     expect(src).toMatch(/function applyHoverPaint/);
     expect(src).toMatch(/if \(id === trackHoveredLaneId\.value\) return/);
   });
+
+  it('PR-CANVAS-106: collapse tween clamps paint scrollY so bottom-scrolled rows stay put', async () => {
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+    const children = Array.from({ length: 20 }, (_, i) => ({
+      id: `p${i}`,
+      name: `P${i}`,
+      events: [{ id: `e${i}`, name: 'e', startTime: 0, duration: 10 }],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          minTime: 0,
+          maxTime: 100,
+          processes: [
+            {
+              id: 'card',
+              name: 'Card',
+              threads: [{ id: 'core', name: 'Core', events: [], children }],
+            },
+          ],
+        },
+        view: { startTime: 0, endTime: 100, scrollY: 10_000 },
+      },
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 80, configurable: true });
+    await fireAllDeviceRo();
+    setView.mockClear();
+
+    await wrapper.setProps({
+      collapseAnim: { groupId: 'core', visible: 0.5, hiddenHeight: 20 * 22 },
+    });
+    await nextTick();
+
+    const last = setView.mock.calls.at(-1)![0] as { scrollY: number };
+    expect(last.scrollY).toBeGreaterThanOrEqual(0);
+    expect(last.scrollY).toBeLessThan(800);
+    wrapper.unmount();
+  });
 });
