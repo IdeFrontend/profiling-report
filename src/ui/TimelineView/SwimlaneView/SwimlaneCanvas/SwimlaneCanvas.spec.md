@@ -137,7 +137,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 101. **PR-CANVAS-101** — Once a marquee is live (>4px), every move emits `multi-select-preview` with the same event list commit will use (plain rect, or Shift union). Escape, end-without-rect, and post-commit emit `null`. Commit emits `multi-select` before the clearing `null` preview.
 102. **PR-CANVAS-102** — On marquee commit, `marqueePreviewIds` holds the committed id list through the sync `multi-select` emit and the immediate `sync()` so dim does not flash back to stale `props.multiSelectedIds`; the hold clears on the following `nextTick` once props have flushed.
 103. **PR-CANVAS-103** — Applying `collapsedIds` before canvas attach still `setModel`s on the live backend so event blocks paint.
-104. **PR-CANVAS-104** — Vertical wheel eases `scrollY` toward the stacked target (not a single jump); `prefers-reduced-motion: reduce` snaps. In-flight frames skip the full leaf-label walk; selected/hovered lifts still paint by id (multi capped) so they track the easing Y. Collapsed-folder summary bars and their dimmed task-count labels still paint. Labels restore when the ease settles. The settle paint keeps the eased Y (does not snap to a stale parent `scrollY`). Gutter-forwarded wheel uses this same path.
+104. **PR-CANVAS-104** — Vertical wheel eases `scrollY` toward the stacked target (not a single jump); `prefers-reduced-motion: reduce` snaps. In-flight frames still draw resting event labels, selected/hovered lifts, and collapsed-folder summary bars (same paint as a settled frame). WebGL dependency curves stay on; Canvas 2D per-link strokes skip during the ease. The settle paint keeps the eased Y (does not snap to a stale parent `scrollY`). Gutter-forwarded wheel uses this same path.
 105. **PR-CANVAS-105** — Pointermove does not repaint the swim framebuffer while the hovered lane is unchanged; a hovered-event-only update paints the overlay (not a full GL pass). Lane-row tint paints only when the hovered lane changes.
 106. **PR-CANVAS-106** — While a collapse tween shrinks content, paint `scrollY` is clamped to the visual content height so a bottom-scrolled view does not send event rows up while the gutter stays bottom-pinned.
 
@@ -172,6 +172,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-18** — In-flight lane-scroll frames keep resting event labels (`PR-CANVAS-104` / `PR-RENDER-056`); WebGL curves stay on, Canvas 2D strokes skip (`PR-RENDER-056`).
 - **2026-09-17** — In-flight overlay paints selected/hovered lifts by id (`PR-CANVAS-104`).
 - **2026-09-17** — Collapse at max scroll clamps paint `scrollY` so event rows stay aligned with the gutter (`PR-CANVAS-106`).
 - **2026-09-17** — Hover-while-selected no longer rebuilds WebGL emphasis or repaints every pointer pixel; overlay owns hover lift (`PR-CANVAS-098` / `PR-CANVAS-105`).
