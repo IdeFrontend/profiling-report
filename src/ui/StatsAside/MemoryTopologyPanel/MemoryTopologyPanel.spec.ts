@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryTopologyPanel, {
@@ -48,6 +48,25 @@ const TwoPanels = defineComponent({
     <MemoryTopologyPanel :model="model" />
     <MemoryTopologyPanel :model="model" />
   </div>`,
+});
+
+/** A gear for the whole file: the bar tweens a ladder step (PR-MEMTOP-019) with `animateProgress`,
+ *  which takes each frame's time from the callback's own `now` and only the start of the step from
+ *  `performance.now()` — so handing the callback a stamp past the end of the step lands the step in
+ *  the click itself. Every test below that clicks a zoom control is then the same test it was
+ *  before the tween existed (`await trigger('click')` still carries the post-flush placement of
+ *  PR-MEMTOP-018); the tween's own curve is covered by `animateViewWindow.spec.ts`, and the one test
+ *  that needs to see a step *in flight* re-stubs this with a queue of its own. */
+beforeEach(() => {
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    cb(performance.now() + 10_000);
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', () => {});
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('MemoryTopologyPanel', () => {
@@ -505,6 +524,61 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
     expect(el.scrollLeft).toBe(0);
     expect(el.scrollTop).toBe(0);
+  });
+
+  it('PR-MEMTOP-019: a step tweens the painted scale, while the bar commits its stop at once', async () => {
+    // Frames by hand here — the file's gear lands every step immediately — so the two halves of a
+    // step can be seen apart: the stop the bar has committed to, and the scale painted between the
+    // stop it left and the stop it is heading for.
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => queued.push(cb));
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]');
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.attributes('style') ?? '')?.[1] ?? 1);
+
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    // Committed on the click, so the readout, the ladder ends and `pannable` do not lag the tween.
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(root.attributes('data-topo-zoom-animating')).toBe('true');
+    // …while the painted scale is still the stop the step left, because no frame has run yet.
+    expect(scale()).toBe(1);
+
+    // Half way (200 of the 400ms) the drawing is between the two stops — and the readout is not.
+    queued.shift()!(performance.now() + 200);
+    await nextTick();
+    expect(scale()).toBeGreaterThan(1);
+    expect(scale()).toBeLessThan(1.25);
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+
+    // Landed: the painted scale *is* the committed stop, and the flag goes back down for the
+    // browser tests that settle on it (PR-MEMTOP-019).
+    while (queued.length) queued.shift()!(performance.now() + 10_000);
+    await nextTick();
+    expect(scale()).toBe(1.25);
+    expect(root.attributes('data-topo-zoom-animating')).toBe('false');
+  });
+
+  it('PR-MEMTOP-019b: reduced motion lands the step on the click, without spending a frame', async () => {
+    // `animateProgress` owns this rule (it is the same one the lane collapse rides), so what is
+    // asserted here is the panel's side of it: the step is *landed*, not merely queued — no frame
+    // is asked for at all, and the scale is the new stop by the time the click returns.
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const raf = vi.fn((cb: FrameRequestCallback) => {
+      cb(performance.now() + 10_000);
+      return 1;
+    });
+    vi.stubGlobal('requestAnimationFrame', raf);
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]');
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.attributes('style') ?? '')?.[1] ?? 1);
+
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(scale()).toBe(1.25);
+    expect(root.attributes('data-topo-zoom-animating')).toBe('false');
+    expect(raf).not.toHaveBeenCalled();
   });
 });
 
