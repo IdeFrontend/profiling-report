@@ -27,7 +27,9 @@ import {
   eventEmphasis,
   isKeepBright,
   eventLabelAnchor,
+  eventLabelsCanFit,
   eventPaintRect,
+  overlappingLaneRange,
   eventScreenRect,
   findEvent,
   findLaidOutEvent,
@@ -445,8 +447,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private paintDependencies = true;
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
-  /** Skip the ClearType label pass while lane-scroll is easing (fills still track scrollY). */
-  private liveScroll = false;
   private depLinks: DependencyLink[] = [];
   private width = 0;
   private height = 0;
@@ -558,11 +558,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   setView(view: SwimlaneViewWindow): void {
     this.view = { ...view };
-  }
-
-  /** In-flight lane scroll: skip dependency curves (labels still paint). */
-  setLiveScroll(on: boolean): void {
-    this.liveScroll = on;
   }
 
   /** Overlay owns hover lift; keep the arg so hover-only calls no-op on `selectedId`. */
@@ -808,7 +803,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.drawEventLabels();
 
     // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
-    if (this.paintDependencies && !this.liveScroll) {
+    // One instanced draw; scroll is already `uView.z`, so lane-scroll ease does not skip this pass.
+    if (this.paintDependencies) {
       gl.enable(gl.BLEND);
       this.drawDependencyCurves(gl);
     }
@@ -875,6 +871,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const devH = this.height;
     const dpr = this.dpr;
     const span = Math.max(1, this.view.endTime - this.view.startTime);
+    if (!eventLabelsCanFit(this.layout.maxLeafDuration, span, devW)) return;
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
@@ -895,8 +892,17 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i];
-      if (!lane || collapseAlpha(lane.y, this.collapse) <= 0) continue;
-      for (const item of this.layout.eventsByLane[i] ?? []) {
+      // Folder lanes hold summaries (and possibly unsorted extras); "N tasks" stays on the overlay.
+      if (!lane || lane.folder || collapseAlpha(lane.y, this.collapse) <= 0) continue;
+      const laneEvts = this.layout.eventsByLane[i] ?? [];
+      const [lo, hi] = overlappingLaneRange(
+        laneEvts,
+        this.view.startTime,
+        this.view.endTime,
+        this.layout.maxLeafDuration,
+      );
+      for (let j = lo; j < hi; j++) {
+      const item = laneEvts[j]!;
       // Collapsed-folder summary bars carry their own dimmed "N tasks" label via the overlay
       // (`taskCountLabel` in `SUMMARY_LABEL_COLOR`); the ClearType pass must not rasterize `ev.name`
       // (empty for multi-task unions, the leaf title for a single-event union) over it with a

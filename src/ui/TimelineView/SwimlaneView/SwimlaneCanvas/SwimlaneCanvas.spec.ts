@@ -2954,6 +2954,7 @@ describe('SwimlaneCanvas', () => {
     expect(lastView.scrollY).toBe(120);
     const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
     expect(src).toMatch(/backend\.setLiveScroll/);
+    expect(src).not.toMatch(/WebGlSwimlaneRenderer\) backend\.setLiveScroll/);
     wrapper.unmount();
   });
 

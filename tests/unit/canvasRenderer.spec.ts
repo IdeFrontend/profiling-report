@@ -8,7 +8,10 @@ import {
   eventEmphasis,
   isKeepBright,
   eventLabelAnchor,
+  eventLabelsCanFit,
   eventPaintRect,
+  overlappingLaneRange,
+  laneEventRange,
   eventRadius,
   eventsIntersectingRect,
   findExactEdgeMatches,
@@ -312,6 +315,97 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(clippedLeft).toEqual({ cx: 25, maxWidth: 42 });
     const tooNarrow = eventLabelAnchor(-30, 50, 400);
     expect(tooNarrow).toBeNull();
+  });
+
+  it('PR-RENDER-057: overlappingLaneRange bisects leaves; folders walk in full', async () => {
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 2000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'a', name: 'a', startTime: 0, duration: 10 },
+                { id: 'b', name: 'b', startTime: 100, duration: 50 },
+                { id: 'c', name: 'c', startTime: 200, duration: 10 },
+                { id: 'd', name: 'd', startTime: 1000, duration: 10 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(layout.maxLeafDuration).toBe(50);
+    const laneEvts = layout.eventsByLane[0]!;
+    const ids = (lo: number, hi: number) => laneEvts.slice(lo, hi).map((e) => e.id);
+    expect(ids(...overlappingLaneRange(laneEvts, 90, 160, layout.maxLeafDuration))).toEqual(['b']);
+    expect(ids(...overlappingLaneRange(laneEvts, 0, 5, layout.maxLeafDuration))).toEqual(['a']);
+    expect(eventLabelsCanFit(50, 2000, 400)).toBe(false);
+    expect(eventLabelsCanFit(50, 100, 400)).toBe(true);
+
+    const spanLayout = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'long', name: 'long', startTime: 0, duration: 800 },
+                { id: 'late', name: 'late', startTime: 900, duration: 50 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const spanEvts = spanLayout.eventsByLane[0]!;
+    expect(spanEvts.slice(...overlappingLaneRange(spanEvts, 400, 500, spanLayout.maxLeafDuration)).map((e) => e.id)).toEqual([
+      'long',
+    ]);
+
+    const folderLayout = rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'PIPE',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 's1', name: '', startTime: 50, duration: 10, taskCount: 1 },
+                { id: 's0', name: '', startTime: 0, duration: 10, taskCount: 1 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const folder = folderLayout.lanes[0]!;
+    expect(folder.folder).toBe(true);
+    const folderEvts = folderLayout.eventsByLane[0]!;
+    expect(laneEventRange(folder, folderEvts, 40, 60, 10)).toEqual([0, folderEvts.length]);
+    expect(overlappingLaneRange(folderEvts, 40, 60, 10)[0]).toBeGreaterThan(0);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/eventLabelsCanFit\(this\.layout\.maxLeafDuration/);
+    expect(webglSrc).toMatch(/overlappingLaneRange\(/);
+    expect(webglSrc).toMatch(/lane\.folder/);
   });
 
   it('PR-RENDER-042: assignEventRows greedy first-fit splits only overlaps', () => {
@@ -1112,7 +1206,14 @@ describe('PR-RENDER: lane chrome color', () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(webglSrc).toMatch(/this\.drawEventLabels\(\)/);
-    expect(webglSrc).not.toMatch(/if\s*\(\s*!this\.liveScroll\s*\)\s*this\.drawEventLabels/);
+    expect(webglSrc).not.toMatch(/\bliveScroll\b/);
+    expect(webglSrc).not.toMatch(/setLiveScroll/);
+    const renderBody = classMethodBody(webglSrc, 'render');
+    expect(renderBody).toMatch(/this\.drawDependencyCurves/);
+    expect(renderBody).not.toMatch(/liveScroll/);
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc).toMatch(/if \(this\.paintDependencies && !this\.liveScroll\)/);
   });
 
   it('PR-RENDER-054: WebGL meshes ignore hover; ClearType overlay lifts by id', async () => {
@@ -1123,6 +1224,8 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     expect(overlaySrc).toMatch(/private paintLiftedLeaves\(/);
     expect(overlaySrc).toMatch(/this\.layout\.eventsById\.get\(id\)/);
+    expect(overlaySrc).not.toMatch(/maxMulti/);
+    expect(overlaySrc).toMatch(/for \(const id of this\.multiIds\) paint\(id\)/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
