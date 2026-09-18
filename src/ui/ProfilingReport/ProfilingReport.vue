@@ -1481,6 +1481,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :model="swim"
             :locale="locale"
             :height="dockHeight"
+            :live-preview="marqueeLive"
             @close="onSelect(null)"
             @select-single="onSelect"
             @update:height="dockHeight = $event"

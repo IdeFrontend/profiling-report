@@ -445,6 +445,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private paintDependencies = true;
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
+  /** Rebuild GPU mute/bright split in `render()`, not on every `setMultiSelection`. */
+  private emphasisSplitDirty = false;
   /** Skip the ClearType label pass while lane-scroll is easing (fills still track scrollY). */
   private liveScroll = false;
   private depLinks: DependencyLink[] = [];
@@ -614,7 +616,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   setMultiSelection(ids: string[]): void {
     if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
     this.multiIds = new Set(ids);
-    this.rebuildEmphasisSplit();
+    this.emphasisSplitDirty = true;
   }
 
   contentHeight(): number {
@@ -668,6 +670,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const solid = this.solidProg;
     const unit = this.unitQuad;
     if (!gl || !swim || !solid || !unit) return;
+    if (this.emphasisSplitDirty) this.rebuildEmphasisSplit();
 
     const devW = this.width;
     const devH = this.height;
@@ -1058,6 +1061,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   /** Split lane meshes by Canvas-equivalent emphasis (search alpha × selection gray muting). */
   private rebuildEmphasisSplit(): void {
+    this.emphasisSplitDirty = false;
     const gl = this.gl;
     this.disposeEmphasisSplit();
     const q = this.searchQuery;

@@ -117,6 +117,8 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-055**: An animating parent keeps inner rest folds (`pruneNestedFolds` matches the innermost containing fold, so a rest-collapsed intermediate still swallows nested rest); its `subtreeEnd` is the group's real span (not net `hiddenHeight`); `collapseAlpha` is the min over containing folds and `collapseShiftY` composes nested rest shift so leftover rows tuck/fade with the parent and closed height stays continuous.
 1. **PR-RENDER-053**: Exact-edge magnet scans walk only visible `eventsByLane` rows (skip `alpha === 0` lanes); `setCollapseAnim` is a no-op when the tween payload is unchanged so hover `sync` does not rebuild hit layout / curves.
 1. **PR-RENDER-054**: WebGL emphasis meshes and ClearType labels ignore `hoveredId` (hover fill+label is the overlay); hover-only `setSelection` does not rebuild meshes; the ClearType overlay paints lifted leaves by id instead of walking every event.
+1. **PR-RENDER-056**: ClearType overlay skips multi-id lifts when the multi set exceeds 32 (hover/selected still paint); WebGL already owns the bright mesh.
+1. **PR-RENDER-057**: WebGL `setMultiSelection` marks the emphasis split dirty; `rebuildEmphasisSplit` runs in `render()`, not in the setter.
 
 ## Edge Cases
 
@@ -133,6 +135,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-18** — Overlay multi lifts cap at 32; WebGL rebuilds the emphasis split in `render()` (`PR-RENDER-056` / `PR-RENDER-057`).
 - **2026-09-18** — PR-RENDER-055: `pruneNestedFolds` takes the innermost containing fold so a rest-collapsed intermediate swallows nested rest under an animating ancestor.
 - **2026-09-18** — PR-RENDER-055: animating parent `subtreeEnd` is the group's real span so leftover rows past a nested rest fold tuck and fade.
 - **2026-09-17** — PR-RENDER-055: parent tween keeps inner rest folds; `collapseAlpha` mins containing folds so nested rest-collapsed rows stay hidden.

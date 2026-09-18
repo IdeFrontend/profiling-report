@@ -561,6 +561,7 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
     expect(vm.viewState.selectedEventId).toBe('a');
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
@@ -576,6 +577,7 @@ describe('ProfilingReport scaffold', () => {
     timeline().vm.$emit('multi-select', events);
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(true);
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
 
@@ -724,6 +726,8 @@ describe('ProfilingReport scaffold', () => {
       'b',
       'c',
     ]);
+    expect(summary.props('livePreview')).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
 
     vi.useRealTimers();
     wrapper.unmount();

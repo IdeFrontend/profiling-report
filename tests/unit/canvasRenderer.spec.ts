@@ -1089,6 +1089,23 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(overlaySrc).toMatch(/this\.layout\.eventsById\.get\(id\)/);
   });
 
+  it('PR-RENDER-056: overlay skips multi lifts above the 32-id cap', async () => {
+    const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(overlaySrc).toMatch(/OVERLAY_MULTI_LIFT_CAP = 32/);
+    expect(overlaySrc).toMatch(/if \(this\.multiIds\.size <= maxMulti\)/);
+  });
+
+  it('PR-RENDER-057: WebGL setMultiSelection defers rebuildEmphasisSplit to render', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(classMethodBody(webglSrc, 'setMultiSelection')).toMatch(/this\.emphasisSplitDirty = true/);
+    expect(classMethodBody(webglSrc, 'setMultiSelection')).not.toMatch(/this\.rebuildEmphasisSplit\(\)/);
+    expect(classMethodBody(webglSrc, 'render')).toMatch(
+      /if \(this\.emphasisSplitDirty\) this\.rebuildEmphasisSplit\(\)/,
+    );
+  });
+
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;

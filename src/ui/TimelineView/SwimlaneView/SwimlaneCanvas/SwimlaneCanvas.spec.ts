@@ -1182,6 +1182,12 @@ describe('SwimlaneCanvas', () => {
     return mountWithEventModel({ measureMode: false });
   }
 
+  function flushMarqueeRaf(): Promise<void> {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  }
+
   it('PR-CANVAS-078: unmodified drag past 4px draws the marquee and commits intersecting events', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
@@ -2276,6 +2282,7 @@ describe('SwimlaneCanvas', () => {
         buttons: 1,
       }),
     );
+    await flushMarqueeRaf();
     await wrapper.vm.$nextTick();
     expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
     expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
@@ -2367,6 +2374,89 @@ describe('SwimlaneCanvas', () => {
     // Commit lands before the clearing null preview.
     expect(multi.at(-1)![0]).toEqual(expect.any(Array));
     expect(emits.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-101: unchanged coverage does not re-emit multi-select-preview', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+    const afterFirst = wrapper.emitted('multi-select-preview')!.length;
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 24,
+        clientY: rect.y + rect.h + 6,
+        buttons: 1,
+      }),
+    );
+    await flushMarqueeRaf();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterFirst);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 24, clientY: rect.y + rect.h + 6 }),
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-107: live marquee coalesces post-gate moves and caches client origin', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const gcr = vi.spyOn(Element.prototype, 'getBoundingClientRect');
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
+    // Cross the gate with empty coverage (sync while pending).
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: rect.x - 10, clientY: rect.y - 4, buttons: 1 }),
+    );
+    await wrapper.vm.$nextTick();
+    const afterGate = wrapper.emitted('multi-select-preview')!.length;
+    const gcrAfterGate = gcr.mock.calls.length;
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 10,
+        clientY: rect.y + rect.h + 2,
+        buttons: 1,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterGate);
+    expect(gcr.mock.calls.length).toBe(gcrAfterGate);
+
+    await flushMarqueeRaf();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterGate + 1);
+    expect(
+      (wrapper.emitted('multi-select-preview')!.at(-1)![0] as { id: string }[]).map((e) => e.id),
+    ).toEqual(['e1']);
+    expect(gcr.mock.calls.length).toBe(gcrAfterGate);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
+    );
     wrapper.unmount();
   });
 
