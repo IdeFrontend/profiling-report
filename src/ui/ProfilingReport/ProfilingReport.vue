@@ -239,10 +239,8 @@ const caps = computed<ReportCapability[]>(() => {
   if (hostManaged.value) return [];
   return internalCapabilities.value ?? [];
 });
-/** DATA-48a: emulate ArchDiagram reuses topology fullscreen chrome under its own title. */
-const topologyFullscreenTitle = computed(() =>
-  t(caps.value.includes('archDiagram') ? 'archDiagramAnalysis' : 'memoryTopology', props.locale),
-);
+/** Emulate ArchDiagram reuses topology fullscreen chrome; same title as compute. */
+const topologyFullscreenTitle = computed(() => t('memoryTopology', props.locale));
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );

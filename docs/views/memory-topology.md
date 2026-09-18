@@ -7,7 +7,7 @@
 | **Capability** | `memoryDiagram` |
 | **Phase** | M2 |
 | **Unification** | `adapt-mapper` (compute); emulate uses this chrome as interim [arch-diagram](arch-diagram.md) stand-in |
-| **Sept 30 (emulate)** | **interim chrome only** — product surface is Architecture Diagram (`archDiagram`), not Asc 内存负载 |
+| **Sept 30 (emulate)** | **interim chrome** — data via `archDiagram`; **UI title** = 内存负载分析 (same as compute) |
 
 ## Sketches
 

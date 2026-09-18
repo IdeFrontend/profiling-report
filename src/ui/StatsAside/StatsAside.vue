@@ -303,13 +303,8 @@ const topologyModel = computed(() => {
  */
 
 const showTopology = computed(() => hasDrawableTopology(topologyModel.value));
-/** DATA-48a: emulate Architecture Diagram reuses topology chrome under a distinct title. */
-const topologySectionTitle = computed(() =>
-  t(
-    (props.capabilities ?? []).includes('archDiagram') ? 'archDiagramAnalysis' : 'memoryAnalysis',
-    props.locale,
-  ),
-);
+/** Same section title as compute 内存负载分析 (DATA-48a UI unify). */
+const topologySectionTitle = computed(() => t('memoryAnalysis', props.locale));
 
 const csvOnly = computed(
   () =>
@@ -446,10 +441,7 @@ const headerTitle = computed(() => {
   if (asideSurface.value === 'hardware') return t('hardwareDetails', props.locale);
   if (asideSurface.value === 'compute') return t('computeAnalysis', props.locale);
   if (asideSurface.value === 'memory') {
-    return t(
-      (props.capabilities ?? []).includes('archDiagram') ? 'archDiagramAnalysis' : 'memoryAnalysis',
-      props.locale,
-    );
+    return t('memoryAnalysis', props.locale);
   }
   return t('summary', props.locale);
 });

@@ -201,7 +201,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 | `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
 | L2 `peakPct` | `l2_cached_ratio` |
 
-Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside section title uses **架构图分析** / Architecture diagram (`archDiagramAnalysis`) when that capability is set — still rendered by `MemoryTopologyPanel` on the interim `memoryTopology` carrier. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
+Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the interim `memoryTopology` carrier. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
 **Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-008` + `archDiagram` assertions
 **Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model
 

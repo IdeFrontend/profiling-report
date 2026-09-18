@@ -13,7 +13,7 @@
 
 Biprof **Architecture Diagram** (§11.2.3.1): path/unit bandwidth and related metrics from `ArchDiagramMetrics`.
 
-Sept 30 uses the Asc Toolkit plated topology chrome as an **interim stand-in** — same `reportModel.memoryTopology` carrier, capability **`archDiagram`** (not compute `memoryDiagram` / 内存负载分析). Full biprof chrome / richer model: [DATA-49](../context/questions/DATA.md).
+Sept 30 uses the Asc Toolkit plated topology chrome as an **interim stand-in** — same `reportModel.memoryTopology` carrier and UI title **内存负载分析** / Memory load analysis as compute. Capability remains **`archDiagram`** (data gate; not compute `memoryDiagram`). Full biprof chrome / richer model: [DATA-49](../context/questions/DATA.md).
 
 ## View-model
 
