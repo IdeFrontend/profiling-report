@@ -12,7 +12,7 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 ## Goals
 
-1. Provide a **reusable Vue 3 library** (shared UI + `npu-rep` adapter first) that renders Ascend / CANN operator profiling reports (`.npu-rep`).
+1. Provide a **reusable Vue 3 library** (shared UI + format adapters) that renders Ascend / CANN operator profiling reports (`.npu-rep`) for both **hardware** (npu-compute) and **simulator** (npu_emulate) payload profiles ([PROC-6](decisions/PROC.md), [PROC-7](decisions/PROC.md)).
 2. Align visual and interaction patterns with **PyPTO swimlane** (timeline, lanes, zoom/pan, selection, detail panels) while matching the product sketches in [`docs/ui/`](../ui/).
 3. Integrate first into **MSTT** as a first-party webview panel, sibling to Insight — not injected into Insight iframes.
 4. Keep **msinsight** as the viewer for legacy **`.bin`** (and existing Insight JSON/DB workflows) until those formats are retired separately.
@@ -33,7 +33,8 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 
 | Consumer | Priority | Integration style |
 |----------|----------|-------------------|
-| **MSTT** (`mstt`) | Primary | Import Vue components into existing Vite webview panels; open `.npu-rep` from performance results tree |
+| **MSTT** (`mstt`) | Primary | Import Vue components into existing Vite webview panels; open `.npu-rep` from performance results tree (hardware or emulate profile) |
+| **npu_emulate / Asc Toolkit** | Primary (producer) | Packs simulator leaves into `.npu-rep` for the same host open path ([PROC-6](decisions/PROC.md)) |
 | **pypto-tools** | Optional later | May consume the library or remain on its own swimGraph; no pypto changes required for this project’s MVP |
 | Standalone / browser demo | Nice-to-have | Host can feed `ArrayBuffer` or parsed models without VS Code APIs |
 

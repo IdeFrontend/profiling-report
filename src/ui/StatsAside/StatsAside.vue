@@ -57,7 +57,9 @@ const COLOR: Record<string, string> = {
   default: 'var(--pr-color-default)',
 };
 
-const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
+const hasDuration = computed(
+  () => props.report?.profile !== 'emulate' && props.report?.summary.taskDurationUs != null,
+);
 
 /** One block selector for every widget (DATA-19 / DATA-29): `''` = All, else that `block_id`. */
 const blockId = ref('');
@@ -108,7 +110,9 @@ const showComputePlaceholder = computed(() => hasDuration.value && !showComputeC
 const showAicoreCard = computed(() => hasDuration.value);
 const bandwidthUtilSides = computed(() => bandwidthUtilFromCards(bandwidthCards.value));
 const hasSummary = computed(
-  () => hasDuration.value || bandwidthUtilSides.value.length > 0,
+  () =>
+    props.report?.profile !== 'emulate' &&
+    (hasDuration.value || bandwidthUtilSides.value.length > 0),
 );
 const bandwidthView = computed(() =>
   bandwidthUtilSides.value.map((row) => ({
@@ -299,6 +303,8 @@ const topologyModel = computed(() => {
  */
 
 const showTopology = computed(() => hasDrawableTopology(topologyModel.value));
+/** Same section title as compute 内存负载分析 (DATA-48a UI unify). */
+const topologySectionTitle = computed(() => t('memoryAnalysis', props.locale));
 
 const csvOnly = computed(
   () =>
@@ -335,12 +341,15 @@ const durationSecondary = computed(() => {
 });
 
 const hasMeta = computed(() => {
+  if (props.report?.profile === 'emulate') return false;
   const s = summary.value;
   return Boolean(s && (s.pid || s.opType || (s.blockDim != null && s.blockDim !== '')));
 });
 
-/** UI-30, UI-31: 更多 is always available on the report shell. */
-const showMore = computed(() => asideSurface.value === 'report');
+/** UI-30, UI-31: 更多 always on compute report shell; omit for emulate (DATA-47). */
+const showMore = computed(
+  () => asideSurface.value === 'report' && props.report?.profile !== 'emulate',
+);
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
 const isMix = computed(() => opType.value.toUpperCase() === 'MIX');
@@ -431,7 +440,9 @@ const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
 const headerTitle = computed(() => {
   if (asideSurface.value === 'hardware') return t('hardwareDetails', props.locale);
   if (asideSurface.value === 'compute') return t('computeAnalysis', props.locale);
-  if (asideSurface.value === 'memory') return t('memoryAnalysis', props.locale);
+  if (asideSurface.value === 'memory') {
+    return t('memoryAnalysis', props.locale);
+  }
   return t('summary', props.locale);
 });
 
@@ -987,7 +998,7 @@ function backToReport() {
         :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
       >
         <div class="pr-stack-section__head">
-          <h4>{{ t('memoryAnalysis', locale) }}</h4>
+          <h4>{{ topologySectionTitle }}</h4>
           <div class="pr-pipe-head__actions">
             <button
               v-if="showMemory"

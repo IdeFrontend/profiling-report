@@ -1,0 +1,8 @@
+CoreId,CoreTypeId,InstrQueueTypeId,PipeUtilization
+0,AIC,Cube,0.55
+0,AIC,MTE1,0.1
+0,AIC,MTE2,0.2
+0,AIC,Scalar,0.15
+1,AIV,Vector,0.6
+1,AIV,MTE2,0.3
+1,AIV,MTE3,0.25

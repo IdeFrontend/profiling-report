@@ -10,6 +10,8 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 **report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — the only flag this component reads is `roofline`, which mounts the Roofline card (Phase 2, out of the current release — opt-in only). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
 
+**Data SSOT:** [docs/views/](../../../docs/views/) — [report-summary](../../../docs/views/report-summary.md), [pipe-occupancy](../../../docs/views/pipe-occupancy.md), [roofline](../../../docs/views/roofline.md), [memory-topology](../../../docs/views/memory-topology.md).
+
 ## Outputs
 
 - **close** — aside close control; parent clears `asideVisible`.
@@ -76,8 +78,9 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides.
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
-7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing; **更多** always on report shell.
-8. **PR-STATS-008** — More always visible on report shell; missing hardware shows placeholder message.
+7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing; **更多** always on compute report shell.
+7b. **PR-STATS-007b** — Emulate (`report.profile === 'emulate'`) omits meta row, **更多**, summary cards, and summary CANNBot ([DATA-47](../../../../docs/context/decisions/DATA.md)).
+8. **PR-STATS-008** — More always visible on compute report shell; missing hardware shows placeholder message.
 9. **PR-STATS-009** — Duration card sketch chrome (raised tile, split value/unit, pill bar).
 10. **PR-STATS-009b** — Summary cards use the sketch 2×2 grid, collapsing to one tile per row below a **430px** well (PR-STATS-036).
 11. **PR-STATS-009c** — Duration display rounds to 2 decimal places; `title` tooltip carries the full value.
@@ -311,6 +314,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 - **2026-08-19** — PR-STATS-024 asserts score via `data-testid`; peak is adapter max (DATA-33g).
 - **2026-08-19** — I/O bandwidth cards DATA-33g (PR-STATS-024); PR-STATS-011 still hides compute/util.
 - **2026-08-14** — CSV tab switch does not rewrite topology block (PR-STATS-022).
+- **2026-09-18** — DATA-47: emulate omits summary cards + meta/更多 (PR-STATS-007b).
 - **2026-08-13** — Memory 详情 without diagram (PR-STATS-023); re-pick labelled block on report swap (PR-STATS-021).
 - **2026-08-13** — Stacked 报告统计; 详情/更多 overlays; drop mode tabs; topology section (PR-STATS-019–022).
 - **2026-08-10** — Hardware overlay via 更多 (PR-STATS-018, DATA-34a); PIPE 详情 → compute mode (PR-STATS-016).

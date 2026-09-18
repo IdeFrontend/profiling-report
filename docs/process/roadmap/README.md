@@ -9,6 +9,7 @@ Per milestone, features are split into **Swimlane** vs **Other views**, plus **i
 | **M1** | **2026-08-11** | Max demo-data UI (mostly **Other views**; swimlane keep) | [milestone-1.md](milestone-1.md) · [M1_PROGRESS.md](M1_PROGRESS.md) |
 | **M2** | **2026-08-25** | MSTT host + selection/deps + details + **memory graph** + **roofline** + **timeline time-range measure** | [milestone-2.md](milestone-2.md) · [M2_PROGRESS.md](M2_PROGRESS.md) |
 | **M3** | **2026-09-15** | Remaining swimlane and other-views sketch UI | [milestone-3.md](milestone-3.md) |
+| **M4** | **2026-09-30** | Simulator (emulate): report stats + PIPE + Architecture Diagram + CANNBot | [milestone-4.md](milestone-4.md) |
 
 ```mermaid
 flowchart LR
@@ -16,7 +17,8 @@ flowchart LR
   m1["M1: Max demo-data UI\n2026-08-11"]
   m2["M2: MSTT + selection + memory + measure\n2026-08-25"]
   m3["M3: Remaining full UI\n2026-09-15"]
-  done --> m1 --> m2 --> m3
+  m4["M4: Simulator Sept 30\n2026-09-30"]
+  done --> m1 --> m2 --> m3 --> m4
 ```
 
 ## Current state (done)

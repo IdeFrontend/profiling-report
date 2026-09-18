@@ -238,6 +238,8 @@ const caps = computed<ReportCapability[]>(() => {
   if (hostManaged.value) return [];
   return internalCapabilities.value ?? [];
 });
+/** Emulate ArchDiagram reuses topology fullscreen chrome; same title as compute. */
+const topologyFullscreenTitle = computed(() => t('memoryTopology', props.locale));
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
@@ -1558,7 +1560,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
               />
             </svg>
           </button>
-          <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
+          <h3 id="pr-topo-fs-title">{{ topologyFullscreenTitle }}</h3>
         </div>
         <div class="pr-topo-fs__body">
           <MemoryTopologyPanel

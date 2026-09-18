@@ -8,6 +8,8 @@ Log-log roofline bottleneck chart (M2 interim DATA-37*). **Not in the current re
 
 ## Inputs
 
+**Data SSOT:** [docs/views/roofline.md](../../../../docs/views/roofline.md).
+
 **model** is a `RooflineViewModel` (`points`, `mixLabels`, `peakComputeTops`, `peakBandwidthGBs`). Optional **locale** for title/legend.
 
 ## Behavior

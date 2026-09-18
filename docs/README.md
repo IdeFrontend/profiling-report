@@ -14,22 +14,27 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 7. **[process/PROJECT_STRUCTURE.md](process/PROJECT_STRUCTURE.md)** — canonical project layout: spec locations, per-component folders, test ID conventions, traceability
 8. **[process/TESTING.md](process/TESTING.md)** — Vitest / Playwright pyramid, fixtures, matrix → test ids
 9. **[process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md)** — checklist before implementing a slice
-10. **[formats/FORMATS_COMPARISON.md](formats/FORMATS_COMPARISON.md)** — semantic data comparison: Insight operator vs `.npu-rep` vs PyPTO
-11. **[formats/REP_FORMAT.md](formats/REP_FORMAT.md)** — `.npu-rep` product container + classic `cann-rep` fixture layout
-12. **[formats/METRICS_AND_TRACE.md](formats/METRICS_AND_TRACE.md)** — embedded CSVs and `trace.json`
-13. **[formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md)** — required inputs per chart/view; hide-if-missing rules
-14. **[ui/DESIGN_INDEX.md](ui/DESIGN_INDEX.md)** — design image hierarchy (sources → screens → component crops)
-15. **[ui/UI_OVERVIEW.md](ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
-16. **[ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md)** — UI section ↔ field ↔ source mappings
-17. **[ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md)** — normative colors from sketches
-18. **[ui/LOCALIZATION.md](ui/LOCALIZATION.md)** — zh-CN / en catalog, host `locale`, lane `categoryKey`
-19. **[ui/UX_SPEC.md](ui/UX_SPEC.md)** — complete UX: scenarios, static vs interactive, sync model
-20. **[ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
-21. **[ui/INTERACTIONS.md](ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
-22. **[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
-23. **[architecture/COMPONENTS.md](architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
-24. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.npu-rep` / `.json` beside Insight
-25. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
+10. **[formats/README.md](formats/README.md)** — **hub**: `.npu-rep` container + compute/emulate profile index
+11. **[formats/FORMATS_COMPARISON.md](formats/FORMATS_COMPARISON.md)** — Insight vs compute `.npu-rep` vs emulate `.npu-rep` vs PyPTO
+12. **[formats/compute/FORMAT.md](formats/compute/FORMAT.md)** — compute OP embed schemas
+13. **[formats/compute/METRICS_AND_TRACE.md](formats/compute/METRICS_AND_TRACE.md)** — compute embed column detail
+14. **[formats/emulate/FORMAT.md](formats/emulate/FORMAT.md)** — emulate contract + leaf pack
+15. **[formats/ADAPTERS.md](formats/ADAPTERS.md)** — detect profile → adapt
+16. **[formats/REP_FORMAT.md](formats/REP_FORMAT.md)** — classic `cann-rep` fixture only
+17. **[views/README.md](views/README.md)** — per-view packets (sketches + VM + compute/emulate fill)
+18. **[formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md)** — legacy redirect + unextracted surfaces
+19. **[ui/DESIGN_INDEX.md](ui/DESIGN_INDEX.md)** — design image hierarchy (sources → screens → component crops)
+20. **[ui/UI_OVERVIEW.md](ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
+21. **[ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md)** — docx § index → views (field tables migrating)
+22. **[ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md)** — normative colors from sketches
+23. **[ui/LOCALIZATION.md](ui/LOCALIZATION.md)** — zh-CN / en catalog, host `locale`, lane `categoryKey`
+24. **[ui/UX_SPEC.md](ui/UX_SPEC.md)** — complete UX: scenarios (incl. S10 emulate), static vs interactive, sync model
+25. **[ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md)** — MVP vs Phase 2+ feature list
+26. **[ui/INTERACTIONS.md](ui/INTERACTIONS.md)** — hover, selection, multiselect, menus
+27. **[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md)** — Vue library: shared UI + format adapters, modules, data flow
+28. **[architecture/COMPONENTS.md](architecture/COMPONENTS.md)** — reusable models, adapters, renderer, Vue component catalog
+29. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.npu-rep` / `.json` beside Insight
+30. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
 End-user guide (shipped with the demo): [https://profiling-report.vercel.app/guide/](https://profiling-report.vercel.app/guide/) (`playground/public/guide/`).
 
@@ -45,7 +50,7 @@ End-user guide (shipped with the demo): [https://profiling-report.vercel.app/gui
 | [context/decisions/interim/](context/decisions/interim/) | Interim engineering defaults for MVP coding |
 | [context/PACKAGING_SUGGESTIONS.md](context/PACKAGING_SUGGESTIONS.md) | PKG-1 … PKG-3 suggestions (interim until Product confirms); UI-41 resolved in [decisions/UI.md](context/decisions/UI.md) |
 | [process/DEVELOPMENT.md](process/DEVELOPMENT.md) | Spec-driven TDD workflow, slice order, Definition of Done |
-| [process/roadmap/](process/roadmap/) | Delivery milestones M1–M3 (dates, swimlane vs other views, tasks, blockers) |
+| [process/roadmap/](process/roadmap/) | Delivery milestones M1–M4 (dates, swimlane vs other views, tasks, blockers) |
 | [process/TESTING.md](process/TESTING.md) | Unit / component / e2e stack and fixture rules |
 | [process/DEFINITION_OF_READY.md](process/DEFINITION_OF_READY.md) | Pre-coding checklist per slice |
 
@@ -55,12 +60,14 @@ Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README
 
 | Doc | Role |
 |-----|------|
-| [ui/UX_SPEC.md](ui/UX_SPEC.md) | Scenarios S1–S9, static vs interactive, sync |
+| [ui/UX_SPEC.md](ui/UX_SPEC.md) | Scenarios S1–S10, static vs interactive, sync |
 | [ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md) | MVP vs Phase 2+ checklist |
 | [ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md) | UI section ↔ field ↔ source mappings |
 | [ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md) | Normative sketch color tokens |
 | [ui/LOCALIZATION.md](ui/LOCALIZATION.md) | zh-CN / en catalog; host `locale`; lane `categoryKey` |
-| [formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md) | Per-view required inputs |
+| [formats/README.md](formats/README.md) | Container hub + profiles |
+| [views/README.md](views/README.md) | Per-view sketches + VM + fills |
+| [formats/ADAPTERS.md](formats/ADAPTERS.md) | Profile detect → adapt |
 | [architecture/COMPONENTS.md](architecture/COMPONENTS.md) | Canonical models and Vue component catalog |
 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) | Packaging, adapters, data flow |
 

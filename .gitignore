@@ -4,6 +4,8 @@ dist/
 playground/dist/
 playground/public/data/*
 !playground/public/data/.gitkeep
+# Unpacked gelu leaf (use unpack_rep.py locally; commit only gelu.npu-rep)
+data/gelu/
 coverage/
 playwright-report/
 test-results/
@@ -22,3 +24,4 @@ blob-report/
 graphify-out/
 .hermes/
 .worktrees/
+data/scripts/__pycache__/

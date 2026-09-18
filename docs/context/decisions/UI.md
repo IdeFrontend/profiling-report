@@ -152,7 +152,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-10
 - **Question:** Timeline CPU clocks — true vs derived? Scope for axis / cursor / measure?
 - **Decision:** Use **derived** cycles: `cycles = ns × freqMHz / 1000` with `freqMHz` = OpBasicInfo `Current Freq` when valid, else `Rated Freq` (MHz; not HardwareInfo `ai_core_frequency_MHZ`). Integer, space-grouped, no suffix, no leading zeroes; cycle domain is trace-relative (`ns − model.minTime`). Scope = **event tooltip + event detail strip only**; axis ticks, cursor, and measure Δt stay in wall time. Not per-event `*_total_cycles`; display conversion only. Hide clocks option when freq missing/invalid; fall back to time if freq disappears while in cycles.
-- **Specs:** [format-time.spec.md](../../../specs/core/format-time.spec.md), [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [INTERACTIONS](../../ui/INTERACTIONS.md)
+- **Specs:** [format-time.spec.md](../../../specs/core/format-time.spec.md), [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md), [INPUT_FORMATS](../../formats/README.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [INTERACTIONS](../../ui/INTERACTIONS.md)
 - **Source:** Product confirmation of interim choice A (2026-09-10).
 
 ---
@@ -162,7 +162,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-14
 - **Question:** Should gutter **时钟周期** labels show a time unit (e.g. **`µs`**), bare numbers, or cycle counts?
 - **Decision:** **Clock Cycles** gutter labels are **bare absolute cycle counts** — integer, space-grouped when ≥1000, **no** `µs` / ms / unit-word suffix. **Utilization** labels stay `` `${barWidth}%` ``. Quantity/formula owned by [DATA-38](./DATA.md).
-- **Specs:** [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md) (`PR-GMET-008`), [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)
+- **Specs:** [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md) (`PR-GMET-008`), [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)
 - **Source:** Product confirmation with [DATA-38](./DATA.md) (2026-09-14): bare absolute cycle counts, no `µs` / unit suffix. Supersedes interim [`UI-46a`](interim/UI.md).
 
 ---

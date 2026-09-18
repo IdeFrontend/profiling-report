@@ -171,3 +171,57 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Interim:** ~~When an edge lists several candidate columns, the **first present non-`NA` candidate in the listed order wins** (`Memory.csv` `aic_main_mem_read_bw(GB/s)` then `aiv_main_mem_read_bw(GB/s)` for GM → L2, and the same shape for GM ← L2) — i.e. a single side, **not** the aic + aiv sum the BW card uses ([DATA-8](../DATA.md)). Values follow the one selector like every other CSV-backed widget: `All` = the `summary.jsonl` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).~~ Product [DATA-40](../DATA.md): the GM ↔ L2 plates are the producer's **Main Read** / **Main Write** = the aic + aiv sides **summed**; every other edge keeps first-present-non-`NA`.
 **Implement / test as:** `EDGE_MAP` in [`memoryTopology.ts`](../../../../src/adapters/memoryTopology.ts) (`aggregate: 'sum'` on the two GM↔L2 sources); edge table in [VIEW_DATA_MAPPING §11.2.6](../../../ui/VIEW_DATA_MAPPING.md)
 **Superseded when:** — already superseded by DATA-40
+
+### DATA-47a — Emulate KernelInfo → summary cards
+
+**Status:** `interim` — **SUPERSEDED** 2026-09-18 by [DATA-47](../DATA.md)
+**Question:** [DATA-47](../DATA.md) *(resolved — removed from open list)*
+**Interim:** ~~Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.~~ Product-final: [DATA-47](../DATA.md) — emulate does **not** map KernelInfo into summary cards or the meta/更多 header; `summary` stays empty and `profile: 'emulate'`.
+**Implement / test as:** ~~`summaryFromKernelInfo` in `adaptEmulate`; `PR-ASIM-003` + summary assertions~~ `profile: 'emulate'`; empty `summary`; PR-ASIM-005; PR-STATS-007b
+**Superseded when:** — already superseded by DATA-47
+
+
+### DATA-48a — Emulate ArchDiagramMetrics → Architecture Diagram slots (interim chrome)
+
+**Status:** `interim`
+**Question:** [DATA-48](../../questions/DATA.md)
+**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **interim VM carrier** for plated Asc chrome ([arch-diagram](../../../views/arch-diagram.md)). Map plated edges (GB/s labels `{n} GB/s`) and L2 plate:
+
+| Slot / plate | Parameter |
+|--------------|-----------|
+| `gm-l2-read` | `hbm_to_l2_syn_gbs` |
+| `gm-l2-write` | `l2_to_hbm_syn_gbs` |
+| `l2-l1-read` | `aic_out_to_l1_gbs` |
+| `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` |
+| `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` |
+| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` |
+| `l2-ub` | `aiv0_out_to_ub_gbs` (AIV0), `aiv1_out_to_ub_gbs` (AIV1) — average when both present |
+| `ub-l2` | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` |
+| `ub-vec` | `aiv0_ub_to_simd_gbs` / `aiv1_ub_to_simd_gbs` |
+| `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
+| L2 `peakPct` | `l2_cached_ratio` |
+
+Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the interim `memoryTopology` carrier. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
+**Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-008` + `archDiagram` assertions
+**Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model
+
+<a id="data-45"></a>
+
+### DATA-45 — Do not invent compute CSVs from emulate
+
+**Status:** `interim` — engineering stamp pending Product
+**Question:** May the viewer or packer invent hardware-shaped metric CSVs (`OpBasicInfo`, `PipeUtilization`, `Memory*.csv`, …) from npu_emulate contract tables?
+**Interim:** **No.** Do not silently remap simulator tables into hardware embed schemas. Each profile keeps its own sources; adapters map into shared `SwimlaneModel` / `ReportViewModel` / `capabilities[]`. Missing adapted fields → hide panels ([DATA-30](../DATA.md)).
+**Implement / test as:** `adaptEmulate` / PR-ASIM-004; [emulate/FORMAT](../../../formats/emulate/FORMAT.md); [ADAPTERS](../../../formats/ADAPTERS.md)
+**Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
+
+<a id="data-46"></a>
+
+### DATA-46 — Emulate PipeTrace time unit is µs
+
+**Status:** `interim` — engineering stamp pending Product
+**Question:** What time unit must an emulate leaf use in `PipeTrace.json` / native tracing report?
+**Interim:** Producer **MUST** convert simulator **ticks → microseconds** when packing timeline JSON. The viewer keeps the product rule: Trace timestamps/durations are **µs** (same as hardware `PipeTrace.json`). The viewer MUST NOT reinterpret Trace as ticks, and MUST ignore misleading `displayTimeUnit: "ns"` on emulate packs.
+**Implement / test as:** `adaptEmulate` `sourceTimeUnit: 'us'`; PR-SIM-003 (incl. displayTimeUnit override coverage)
+**Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
+
