@@ -50,7 +50,6 @@ import { leafRowCount } from '../../swimlane/layout';
 import {
   buildFolderSummaryEvents,
   collectLeafEventsFromModel,
-  filterCollapsedTree,
   findEventInModel,
   findThreadById,
   isFolderNode,
@@ -335,23 +334,15 @@ const laneGroups = computed((): GutterGroup[] => {
 });
 
 /** Collapse set with the in-flight group forced EXPANDED so the tween can interpolate.
- *  Depends only on `animGroupId` (stable across frames), not `collapseAnim.visible`, so
- *  `displaySwim` stays cached for the whole tween and the canvas never rebuilds meshes. */
+ *  Depends only on `animGroupId` (stable across frames), not `collapseAnim.visible`. */
 const visualCollapsedIds = computed(() =>
   animGroupId.value
     ? collapsedGroupIds.value.filter((id) => id !== animGroupId.value)
     : collapsedGroupIds.value,
 );
 
-/** Swim model with collapsed Cards/folders pruned so canvas row heights match gutter. */
-const displaySwim = computed((): SwimlaneModel | null => {
-  const m = swim.value;
-  if (!m) return null;
-  // Swim is already toRaw'd; replace swimlaneModel (or toggle collapse) to refresh — in-place nested edits do not.
-  // During a collapse tween, `visualCollapsedIds` omits the animating group so the expanded
-  // tree stays cached and the canvas never rebuilds meshes mid-animation.
-  return filterCollapsedTree(m, visualCollapsedIds.value);
-});
+/** Unfiltered swim identity — collapse is paint-only on the canvas (PR-UI-013). */
+const displaySwim = computed((): SwimlaneModel | null => swim.value);
 
 const bounds = computed(() => {
   const m = swim.value;
@@ -612,14 +603,14 @@ function clearHoverAfterCollapse(): void {
 
 function clampScrollAfterCollapse(): void {
   clearHoverAfterCollapse();
-  // Keep scroll within new content height once the collapse settles.
-  const el = timelineRef.value?.gutterRoot;
-  if (el) {
-    viewState.value = {
-      ...viewState.value,
-      scrollY: Math.min(viewState.value.scrollY, el.scrollHeight),
-    };
-  }
+  // Gutter layout (wrapper height) updates this tick; max scroll is viewport-relative.
+  void nextTick(() => {
+    const el = timelineRef.value?.gutterRoot;
+    if (!el) return;
+    const maxY = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (viewState.value.scrollY <= maxY) return;
+    viewState.value = { ...viewState.value, scrollY: maxY };
+  });
 }
 
 function onPinLane(laneId: string): void {
@@ -1114,14 +1105,18 @@ function onHover(ev: SwimEvent | null, clientX: number, clientY: number) {
   // While the context menu pins an event as highlighted, ignore the canvas clearing
   // hover (the pointer left for the menu/scrim) — keep the target highlighted.
   if (contextMenuContext.value?.target && ev == null) return;
-  hovered.value = ev;
-  viewState.value = { ...viewState.value, hoveredEventId: ev?.id ?? null };
+  const nextId = ev?.id ?? null;
   if (ev) {
     tooltipStyle.value = {
       left: `${clientX + 12}px`,
       top: `${clientY + 12}px`,
     };
   }
+  // Same-id moves only chase the tooltip. Cloning viewState every pixel re-renders
+  // the dock while a selection is open.
+  if (nextId === viewState.value.hoveredEventId) return;
+  hovered.value = ev;
+  viewState.value = { ...viewState.value, hoveredEventId: nextId };
 }
 
 function onCursor(payload: { time: number; xRatio: number; snapped?: boolean } | null) {

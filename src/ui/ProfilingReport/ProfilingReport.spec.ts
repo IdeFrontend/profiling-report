@@ -160,6 +160,22 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-018: same-id hover does not clone viewState', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+    const ev = { id: 'a', name: 'A', startTime: 0, duration: 10 };
+    const timeline = wrapper.findComponent(TimelineView);
+    timeline.vm.$emit('hover', ev, 12, 24);
+    await nextTick();
+    const first = wrapper.vm.viewState;
+    timeline.vm.$emit('hover', ev, 40, 50);
+    await nextTick();
+    expect(wrapper.vm.viewState).toBe(first);
+    expect(wrapper.vm.viewState.hoveredEventId).toBe('a');
+    wrapper.unmount();
+  });
+
   it('PR-CTXMENU-018: Shift+P toggles the hovered lane pin globally (menu closed)', async () => {
     const wrapper = mount(ProfilingReport, {
       attachTo: document.body,

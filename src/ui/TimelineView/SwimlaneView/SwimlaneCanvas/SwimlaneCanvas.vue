@@ -15,12 +15,13 @@ import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRendere
 import {
   computeAltMeasureDelta,
   computeAltMeasureGap,
-  contentHeightFromModel,
+  visualContentHeight,
   eventMeasureTargetTime,
   eventsIntersectingRect,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
   findHoverGap,
+  findLaidOutEvent,
   LANE_HEIGHT,
   laneIdAtPoint,
   leafLaneIdAtPoint,
@@ -96,6 +97,8 @@ const props = withDefaults(
     hoveredLaneId?: string | null;
     /** In-flight lane collapse/expand tween (see layout.CollapseAnimState). */
     collapseAnim?: CollapseAnimState | null;
+    /** Rest-collapsed Card/folder ids (paint-only; canvas keeps the expanded model). */
+    collapsedIds?: readonly string[];
     /**
      * Freeze the device backing store and CSS-stretch the bitmap (aside track tween).
      * When omitted, follows ReportLayout's provided `ASIDE_TRACK_ANIMATING_KEY`.
@@ -117,6 +120,7 @@ const props = withDefaults(
     pinnedLaneIds: () => [],
     hoveredLaneId: null,
     collapseAnim: null,
+    collapsedIds: () => [],
     contentTopPad: 0,
     multiSelectedIds: () => [],
   },
@@ -143,7 +147,8 @@ const emit = defineEmits<{
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
-  'scroll-y': [scrollY: number];
+  /** Second arg is true only on the settle frame (parent may clone viewState then). */
+  'scroll-y': [scrollY: number, settled?: boolean];
   'set-playhead': [time: number];
   'update:measureRange': [range: MeasureRange | null];
   /** Hide axis Δt arrow/label during appear/clear (view↔range) tweens only. */
@@ -174,8 +179,11 @@ function applyLaneHover(id: string | null): void {
 
 function emitLaneHover(localY: number | null): void {
   const id = localY == null ? null : laneIdAtPoint(backend.getLayout(), paintView(), localY);
+  if (id === trackHoveredLaneId.value) return;
   applyLaneHover(id);
   emit('lane-hover', id);
+  // Row tint lives on the GL background pass — paint only when the lane actually changes.
+  schedulePaint();
 }
 
 watch(
@@ -183,7 +191,7 @@ watch(
   (id) => {
     if (id === trackHoveredLaneId.value) return;
     applyLaneHover(id);
-    // Pointer path already paints in onPointerMove; gutter-driven updates need an explicit paint.
+    // Gutter-driven hover is not on the pointer path; paint the row tint here.
     schedulePaint();
   },
 );
@@ -298,7 +306,11 @@ let trackWidth = 1;
 let resizeObserver: ResizeObserver | null = null;
 let raf = 0;
 /** Local scroll accumulator so rapid wheel events do not drop deltas waiting on props. */
-let localScrollY = 0;
+let localScrollY = props.view.scrollY;
+/** Wheel destination; eased toward so gutter + canvas share native-like smooth scroll. */
+let scrollTargetY = props.view.scrollY;
+let scrollRaf = 0;
+let laneScrollEasing = false;
 /** Last client X across pointermoves — used by the pan branch to compute `dx` per move. */
 let lastX = 0;
 
@@ -361,14 +373,7 @@ function zeroBackingStores(): void {
 }
 
 function modelContentHeight(): number {
-  const base = contentHeightFromModel(props.model);
-  const anim = props.collapseAnim;
-  if (anim && anim.hiddenHeight > 0) {
-    // Match contentHeightFromModel's 120px body floor so the scroll area never
-    // under-shoots the settled height (which would clip the collapsed content).
-    return Math.max(120, base - anim.hiddenHeight * (1 - anim.visible));
-  }
-  return base;
+  return visualContentHeight(props.model, props.collapsedIds ?? [], props.collapseAnim ?? null);
 }
 
 function maxScrollY(): number {
@@ -379,10 +384,14 @@ function maxScrollY(): number {
 
 /** View window for paint/hit-test — scrollY shifted by overview pad. */
 function paintView(): SwimlaneViewWindow {
+  const raw = laneScrollEasing ? localScrollY : props.view.scrollY;
   return {
     startTime: props.view.startTime,
     endTime: props.view.endTime,
-    scrollY: props.view.scrollY - (props.contentTopPad ?? 0),
+    // Collapse shrinks visual height while parent scrollY stays at the old max until
+    // settle. Native gutter scrollTop clamps immediately — paint must match or event
+    // rows fly up while gutter rows stay bottom-pinned.
+    scrollY: clampScrollY(raw) - (props.contentTopPad ?? 0),
   };
 }
 
@@ -463,8 +472,7 @@ function schedulePaint(): void {
   if (raf) return;
   raf = requestAnimationFrame(() => {
     raf = 0;
-    backend.render();
-    if (useWebGl.value) overlay.render();
+    paintFrame();
   });
 }
 
@@ -475,11 +483,26 @@ function flushPaint(): void {
     cancelAnimationFrame(raf);
     raf = 0;
   }
+  paintFrame();
+}
+
+function paintFrame(): void {
+  if (lastDeviceW < 1 || lastDeviceH < 1) return;
+  applyLiveScrollHint(laneScrollEasing);
   backend.render();
   if (useWebGl.value) overlay.render();
 }
 
+function applyLiveScrollHint(on: boolean): void {
+  if (backend instanceof WebGlSwimlaneRenderer) backend.setLiveScroll(on);
+  else if (backend instanceof CanvasSwimlaneRenderer) backend.setLiveScroll(on);
+  overlay.setLiveScroll(on);
+}
+
 function applyViewState(forceModel = false): void {
+  // Dummy pre-attach backend must not steal `attachedModel` — parent onMounted can
+  // push defaultCollapsedIds before this canvas's `await nextTick()` attach.
+  if (!attached) return;
   if (!props.model) {
     cachedExactEdgeMatches = [];
     cachedExactEdgeMatchKey = '';
@@ -506,11 +529,14 @@ function applyViewState(forceModel = false): void {
   const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
   backend.setSelection(paintSelectedId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
+  backend.setCollapsedIds?.(props.collapsedIds ?? []);
+  backend.setCollapseAnim(props.collapseAnim ?? null);
   backend.setMultiSelection?.(marqueePreviewIds ?? props.multiSelectedIds);
   if (useWebGl.value) {
     // Overlay paints with collapseShiftY against the expanded base — do not pass
     // getLayout() (already shifted for hit-test) or the tween would apply twice.
     overlay.setLayout(backend.getBaseLayout());
+    overlay.setCollapsedIds(props.collapsedIds ?? []);
     overlay.setCollapseAnim(props.collapseAnim ?? null);
     overlay.setView(paintView());
     overlay.setSelection(paintSelectedId, props.hoveredEventId);
@@ -637,6 +663,7 @@ function ensureAttach(): void {
       overlay.attach(ov);
       overlay.setDrawEventLabels(!glBackend.hasClearTypeLabels());
       attached = true;
+      attachedModel = null;
       zeroBackingStores();
       return;
     }
@@ -649,6 +676,7 @@ function ensureAttach(): void {
   backend = new CanvasSwimlaneRenderer();
   backend.attach(fb);
   attached = true;
+  attachedModel = null;
   zeroBackingStores();
 }
 
@@ -717,7 +745,8 @@ function resize(entries: ResizeObserverEntry[] | null = null): void {
   const maxY = maxScrollY();
   if (localScrollY > maxY) {
     localScrollY = maxY;
-    emit('scroll-y', localScrollY);
+    scrollTargetY = Math.min(scrollTargetY, maxY);
+    emit('scroll-y', localScrollY, !(laneScrollEasing || scrollRaf));
   }
 }
 
@@ -803,6 +832,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onMarqueeKeydown);
   resizeObserver?.disconnect();
   if (raf) cancelAnimationFrame(raf);
+  if (scrollRaf) cancelAnimationFrame(scrollRaf);
+  scrollRaf = 0;
+  laneScrollEasing = false;
   backend.dispose();
   overlay.dispose();
 });
@@ -815,14 +847,34 @@ watch(
   },
 );
 
+function applyCollapsePaint(): void {
+  if (!attached) return;
+  backend.setCollapsedIds?.(props.collapsedIds ?? []);
+  backend.setCollapseAnim(props.collapseAnim ?? null);
+  if (useWebGl.value) {
+    overlay.setCollapsedIds(props.collapsedIds ?? []);
+    overlay.setCollapseAnim(props.collapseAnim ?? null);
+  }
+  const wrap = wrapRef.value;
+  if (wrap) sizerHeight.value = Math.max(modelContentHeight(), wrap.clientHeight || 0);
+  const maxY = maxScrollY();
+  if (localScrollY > maxY) localScrollY = maxY;
+  if (scrollTargetY > maxY) scrollTargetY = maxY;
+  sync();
+}
+
 /** Per-frame collapse/expand: transform the expanded layout, shrink the scroll area, repaint. */
 watch(
   () => props.collapseAnim,
-  (anim) => {
-    backend.setCollapseAnim(anim ?? null);
-    const wrap = wrapRef.value;
-    if (wrap) sizerHeight.value = Math.max(modelContentHeight(), wrap.clientHeight || 0);
-    sync();
+  () => {
+    applyCollapsePaint();
+  },
+);
+
+watch(
+  () => props.collapsedIds,
+  () => {
+    applyCollapsePaint();
   },
 );
 
@@ -833,8 +885,30 @@ watch(
   },
 );
 
+/** Hover-only: overlay lift, no GL mesh rebuild / label pass (PR-CANVAS-098 / 105). */
+function applyHoverPaint(): void {
+  if (!attached || !props.model) return;
+  if (laneScrollEasing || scrollRaf) return;
+  if (lastDeviceW < 1 || lastDeviceH < 1) return;
+  const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
+  backend.setSelection(paintSelectedId, props.hoveredEventId);
+  if (useWebGl.value) {
+    overlay.setSelection(paintSelectedId, props.hoveredEventId);
+    overlay.render();
+    return;
+  }
+  schedulePaint();
+}
+
 watch(
-  () => [props.selectedEventId, props.hoveredEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
+  () => props.hoveredEventId,
+  () => {
+    applyHoverPaint();
+  },
+);
+
+watch(
+  () => [props.selectedEventId, props.searchQuery, props.dependencyMode, props.dependencyDepth, props.showDependencies],
   () => {
     sync();
   },
@@ -844,7 +918,12 @@ watch(
 watch(
   () => props.view,
   () => {
-    localScrollY = props.view.scrollY;
+    const y = props.view.scrollY;
+    // Ease owns localScrollY. A delayed parent clone (dropped-frame debounce, settle lag)
+    // must not cancel the rAF or snap to a stale scrollY — that re-runs labels mid-motion.
+    if (laneScrollEasing || scrollRaf) return;
+    localScrollY = y;
+    scrollTargetY = y;
     sync();
   },
   { deep: true },
@@ -871,6 +950,7 @@ watch(
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY, () => props.contentTopPad],
   () => {
+    if (laneScrollEasing || scrollRaf) return;
     // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
     if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
@@ -1666,7 +1746,7 @@ function ownsAltMeasureEndpoint(
   surface: AltMeasureSurface | null,
 ): boolean {
   if (surface == null || surface !== thisAltMeasureSurface()) return false;
-  if (eventId != null && !backend.getLayout().eventsById.has(eventId)) return false;
+  if (eventId != null && !findLaidOutEvent(backend.getLayout(), eventId)) return false;
   return true;
 }
 
@@ -1915,7 +1995,6 @@ function onPointerMove(e: PointerEvent): void {
     return;
   }
 
-  schedulePaint();
   const mag = magnetizeLocal(x, y);
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 
@@ -2235,8 +2314,48 @@ function onWheel(e: WheelEvent): void {
     emit('pan', (panPx / w) * span);
     return;
   }
-  localScrollY = clampScrollY(localScrollY + e.deltaY);
-  emit('scroll-y', localScrollY);
+  scrollTargetY = clampScrollY(scrollTargetY + e.deltaY);
+  if (prefersReducedMotion()) {
+    if (scrollRaf) {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
+    }
+    finishLaneScroll(scrollTargetY);
+    return;
+  }
+  if (!scrollRaf) tickLaneScroll();
+}
+
+function applyLaneScroll(y: number, settled = false): void {
+  localScrollY = y;
+  const v = paintView();
+  backend.setView(v);
+  if (useWebGl.value) overlay.setView(v);
+  flushPaint();
+  emit('scroll-y', localScrollY, settled);
+}
+
+function finishLaneScroll(y: number): void {
+  // Keep easing true through setView so paintView still uses localScrollY.
+  laneScrollEasing = true;
+  localScrollY = y;
+  applyViewState();
+  laneScrollEasing = false;
+  flushPaint();
+  emit('scroll-y', y, true);
+}
+
+/** Exponential catch-up (~Chrome/Edge wheel smoothing). New deltas retarget without restarting. */
+function tickLaneScroll(): void {
+  scrollRaf = 0;
+  laneScrollEasing = true;
+  const next = localScrollY + (scrollTargetY - localScrollY) * 0.25;
+  if (Math.abs(scrollTargetY - next) < 0.5) {
+    finishLaneScroll(scrollTargetY);
+    return;
+  }
+  applyLaneScroll(next);
+  scrollRaf = requestAnimationFrame(tickLaneScroll);
 }
 
 defineExpose({

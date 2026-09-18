@@ -20,7 +20,7 @@ Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detai
 - **`categoryKey`** (`comm` \| `compute` \| `hbm`) — when set, gutter shows the localized label (`t(lane*)`) instead of raw `name`.
 
 **bar** (`GutterBarDisplay`) carries `{ barWidth, label, thresholdColor? }` from the parent for the active gutter metric (see [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md)). When **bar** is absent but **utilization** (0..1) is set, render legacy pipe-ratio mode (`barWidth = utilization × 100`, label = rounded `%`, `thresholdColor = true`). Parent builds this from `SwimlaneModel`, assigning colors via `colorVarForLaneName`. Flat CTEF (no `children`) still works as Card → leaf lanes.
-**collapsedIds** (optional `string[]`) — ids of Cards or nested folders whose **descendants** are hidden (the collapsed node row itself stays visible for nested folders; collapsing a Card hides all its lanes). Parent owns collapse so the canvas mirrors the visible row set (`displaySwim`).
+**collapsedIds** (optional `string[]`) — ids of Cards or nested folders whose **descendants** are hidden (the collapsed node row itself stays visible for nested folders; collapsing a Card hides all its lanes). Parent owns collapse; the canvas paints the full tree and applies the same ids as paint-only folds.
 
 **pinnedLaneIds** (optional `string[]`, read-only) — ids of **leaf** lanes currently pinned. Parent owns pin order; gutter uses this to render filled vs outline pushpin state on originals. Pinned duplicates render in `SwimlaneView`'s sticky strip (see [`SwimlaneView.spec.md`](../SwimlaneView.spec.md)).
 

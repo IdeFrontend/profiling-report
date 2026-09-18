@@ -28,7 +28,7 @@ import {
   LANE_HEIGHT,
 } from '../../src/swimlane/layout';
 import { eventFill } from '../../src/domain/laneColors';
-import { CanvasSwimlaneRenderer } from '../../src/swimlane/CanvasSwimlaneRenderer';
+import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import { compositeLabelBackdrop, WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
@@ -593,7 +593,7 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     renderer.dispose();
   });
 
-  it.skipIf(!hasWebGl2)('PR-CANVAS-098: WebGL rebuilds emphasis when hover changes under selection', () => {
+  it.skipIf(!hasWebGl2)('PR-CANVAS-098: WebGL hover-only setSelection does not rebuild emphasis', () => {
     const canvas = document.createElement('canvas');
     const renderer = new WebGlSwimlaneRenderer();
     expect(renderer.attach(canvas)).toBe(true);
@@ -607,8 +607,9 @@ describe('PR-RENDER: WebGlSwimlaneRenderer', () => {
     );
 
     renderer.setSelection('e-long', 'e-short');
+    renderer.setSelection('e-long', null);
 
-    expect(rebuild).toHaveBeenCalledOnce();
+    expect(rebuild).not.toHaveBeenCalled();
     renderer.dispose();
   });
 
@@ -1078,6 +1079,16 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
   });
 
+  it('PR-RENDER-054: WebGL meshes ignore hover; ClearType overlay lifts by id', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc.match(/isKeepBright\(item\.id, bright, null, /g)?.length).toBe(2);
+    const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(overlaySrc).toMatch(/private paintLiftedLeaves\(/);
+    expect(overlaySrc).toMatch(/this\.layout\.eventsById\.get\(id\)/);
+  });
+
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
@@ -1362,5 +1373,54 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     hovered.setSelection(null, 'folder/summary/0');
     hovered.render();
     expect(hoverCanvas.fills).toContain(eventFill(SUMMARY_EVENT_FILL, 'hover'));
+  });
+
+  it('PR-CANVAS-104: live-scroll overlay still paints collapsed-folder summary bars and labels', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'PIPE',
+              events: [],
+              children: [
+                {
+                  id: 'leaf',
+                  name: 'leaf',
+                  events: [{ id: 'e1', name: 'HIDDEN_LEAF', startTime: 10, duration: 40 }],
+                },
+              ],
+            },
+            {
+              id: 'open',
+              name: 'open',
+              events: [{ id: 'e2', name: 'OPEN_LEAF', startTime: 10, duration: 40 }],
+            },
+          ],
+        },
+      ],
+    };
+    const { canvas, fills, texts } = recordingCanvas();
+    const overlay = new SwimlaneOverlayPainter();
+    overlay.attach(canvas);
+    overlay.resize(400, 200, 1);
+    overlay.setLayout(rebuildLayout(model));
+    overlay.setCollapsedIds(['folder']);
+    overlay.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    overlay.setLiveScroll(true);
+    overlay.render();
+    expect(fills).toContain(SUMMARY_EVENT_FILL);
+    expect(texts.get('1 task')).toBe(SUMMARY_LABEL_COLOR);
+    expect(texts.has('OPEN_LEAF')).toBe(false);
+    expect(texts.has('HIDDEN_LEAF')).toBe(false);
+
+    overlay.setLiveScroll(false);
+    overlay.render();
+    expect(texts.has('OPEN_LEAF')).toBe(true);
   });
 });

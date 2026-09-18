@@ -160,7 +160,11 @@ export function linkIntersectsTimeView(link: DependencyLink, view: SwimlaneViewW
 
 /** True when content-space Y sits in the collapsing/expanding subtree band. */
 function yInCollapseSubtree(y: number, t: CollapseTransform): boolean {
-  return t.active && y >= t.foldY && y < t.subtreeEnd;
+  if (!t.active) return false;
+  for (const f of t.folds) {
+    if (y >= f.foldY && y < f.subtreeEnd) return true;
+  }
+  return false;
 }
 
 /**

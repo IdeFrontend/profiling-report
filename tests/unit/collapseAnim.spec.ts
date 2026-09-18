@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyCollapseAnim,
+  collapseAlpha,
+  collapseClosedHeight,
+  collapseFoldsFromLayout,
+  collapseHiddenHeight,
+  collectCollapseSummaries,
+  collapsePaintState,
+  collapseShiftY,
   eventBlockMetrics,
+  eventsIntersectingRect,
+  findExactEdgeMatchesAt,
   groupBottomY,
   LANE_HEIGHT,
   rebuildLayout,
@@ -167,7 +176,9 @@ describe('collapse summary dissolve (PR-RENDER-028)', () => {
       summaryEvents,
     });
 
-    const ghost = renderer.getLayout().events.find((e) => e.summary);
+    const ghost =
+      renderer.getLayout().summaryExtras?.find((e) => e.summary) ??
+      renderer.getLayout().events.find((e) => e.summary);
     expect(ghost).toBeTruthy();
     const rect = renderer.eventScreenRect(ghost!.id);
     expect(rect).toBeTruthy();
@@ -186,5 +197,247 @@ describe('collapse summary dissolve (PR-RENDER-028)', () => {
     expect(draw).toMatch(/collapseShiftY\(item\.y,\s*this\.collapse\)/);
     expect(draw).toMatch(/collapseAlpha\(item\.y,\s*this\.collapse\)/);
     expect(draw).toMatch(/labelAlpha\s*<=\s*0/);
+  });
+});
+
+describe('paint-only rest collapse (PR-RENDER-052)', () => {
+  it('setCollapsedIds folds without cloning events or rebuilding the base layout', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.setModel(folderModel());
+    renderer.resize(200, 400, 1);
+    renderer.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    const baseEvents = renderer.getBaseLayout().events;
+    const baseMte1 = renderer.getBaseLayout().lanes.find((l) => l.thread.id === 'mte1')!.y;
+
+    renderer.setCollapsedIds(['core']);
+
+    expect(renderer.getLayout().events).toBe(baseEvents);
+    expect(renderer.getBaseLayout().lanes.find((l) => l.thread.id === 'mte1')?.y).toBe(baseMte1);
+    const ghost = renderer.getLayout().summaryExtras?.find((e) => e.summary);
+    expect(ghost).toBeTruthy();
+    const rect = renderer.eventScreenRect(ghost!.id);
+    expect(rect).toBeTruthy();
+    expect(renderer.hitTest(rect!.x + 1, rect!.y + rect!.h / 2)).toBe(ghost!.id);
+    expect(renderer.findEvent(ghost!.id)?.id).toBe(ghost!.id);
+
+    const hbm = renderer.getLayout().lanes.find((l) => l.thread.id === 'hbm');
+    expect(hbm?.y).toBe(106);
+    expect(renderer.getLayout().lanes.find((l) => l.thread.id === 'mte1')?.alpha).toBe(0);
+  });
+
+  it('nested Card fold swallows a Core rest fold', () => {
+    const layout = rebuildLayout(folderModel());
+    const t = collapseFoldsFromLayout(layout, ['card', 'core'], null);
+    expect(t.folds.map((f) => f.groupId)).toEqual(['card']);
+    expect(collectCollapseSummaries(layout, ['card', 'core'], null, new Map())).toEqual([]);
+  });
+
+  it('PR-RENDER-055: parent tween keeps inner rest fold so nested rows stay hidden', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [
+            {
+              id: 'compute',
+              name: 'Compute',
+              events: [],
+              children: [
+                {
+                  id: 'core',
+                  name: 'Core',
+                  events: [],
+                  children: [
+                    { id: 'mte1', name: 'MTE1', events: [{ id: 'e1', name: 'a', startTime: 0, duration: 10 }] },
+                    { id: 'mte2', name: 'MTE2', events: [{ id: 'e2', name: 'b', startTime: 10, duration: 10 }] },
+                  ],
+                },
+                { id: 'pipe1', name: 'P1', events: [{ id: 'p1', name: 'p1', startTime: 0, duration: 10 }] },
+                { id: 'pipe2', name: 'P2', events: [{ id: 'p2', name: 'p2', startTime: 0, duration: 10 }] },
+                { id: 'pipe3', name: 'P3', events: [{ id: 'p3', name: 'p3', startTime: 0, duration: 10 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    const net = collapseHiddenHeight(model, ['core'], ['core', 'compute']);
+    expect(net).toBe(88);
+    const innerShift = collapseHiddenHeight(model, [], ['core']);
+    expect(innerShift).toBe(44);
+
+    const pipe2Y = layout.lanes.find((l) => l.thread.id === 'pipe2')!.y;
+    const mte1Y = layout.lanes.find((l) => l.thread.id === 'mte1')!.y;
+    const computeTop = layout.lanes.find((l) => l.thread.id === 'compute')!.y;
+
+    const mid = collapseFoldsFromLayout(layout, ['core', 'compute'], {
+      groupId: 'compute',
+      visible: 0.5,
+      hiddenHeight: net,
+    });
+    expect(mid.folds.map((f) => f.groupId)).toEqual(['compute', 'core']);
+    expect(collapseClosedHeight(mid)).toBeCloseTo(net * 0.5 + innerShift);
+    expect(collapseAlpha(mte1Y, mid)).toBe(0);
+    expect(collapseShiftY(pipe2Y, mid)).toBeCloseTo(
+      computeTop + (pipe2Y - innerShift - computeTop) * 0.5,
+    );
+    expect(collapseAlpha(pipe2Y, mid)).toBe(0.5);
+
+    const end = collapseFoldsFromLayout(layout, ['core', 'compute'], {
+      groupId: 'compute',
+      visible: 0,
+      hiddenHeight: net,
+    });
+    const settled = collapseFoldsFromLayout(layout, ['core', 'compute'], null);
+    expect(collapseClosedHeight(end)).toBe(collapseClosedHeight(settled));
+    for (const lane of layout.lanes) {
+      expect(collapseShiftY(lane.y, end)).toBeCloseTo(collapseShiftY(lane.y, settled));
+      expect(collapseAlpha(lane.y, end)).toBe(collapseAlpha(lane.y, settled));
+    }
+  });
+
+  it('PR-RENDER-055: innermost rest parent swallows nested rest under an animating ancestor', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [
+            {
+              id: 'outer',
+              name: 'Outer',
+              events: [],
+              children: [
+                {
+                  id: 'compute',
+                  name: 'Compute',
+                  events: [],
+                  children: [
+                    {
+                      id: 'core',
+                      name: 'Core',
+                      events: [],
+                      children: [
+                        { id: 'm1', name: 'M1', events: [{ id: 'e1', name: 'a', startTime: 0, duration: 10 }] },
+                        { id: 'm2', name: 'M2', events: [{ id: 'e2', name: 'b', startTime: 10, duration: 10 }] },
+                      ],
+                    },
+                    { id: 'pipe1', name: 'P1', events: [{ id: 'p1', name: 'p1', startTime: 0, duration: 10 }] },
+                  ],
+                },
+                { id: 'other', name: 'Other', events: [{ id: 'o', name: 'o', startTime: 0, duration: 10 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    const restIds = ['core', 'compute'];
+    const allIds = ['core', 'compute', 'outer'];
+    const net = collapseHiddenHeight(model, restIds, allIds);
+    const rest = collapseFoldsFromLayout(layout, restIds, null);
+    const settled = collapseFoldsFromLayout(layout, allIds, null);
+    const outerTop = layout.lanes.find((l) => l.thread.id === 'outer')!.y;
+    const foldY = outerTop + LANE_HEIGHT;
+    const otherY = layout.lanes.find((l) => l.thread.id === 'other')!.y;
+
+    const mk = (visible: number) =>
+      collapseFoldsFromLayout(layout, restIds, { groupId: 'outer', visible, hiddenHeight: net });
+
+    const start = mk(1 - 1e-6);
+    expect(start.folds.map((f) => f.groupId)).toEqual(['outer', 'compute']);
+    expect(collapseClosedHeight(start)).toBeCloseTo(collapseClosedHeight(rest));
+    expect(collapseShiftY(otherY, start)).toBeCloseTo(collapseShiftY(otherY, rest));
+
+    const end = mk(0);
+    expect(collapseClosedHeight(end)).toBe(collapseClosedHeight(settled));
+    for (const lane of layout.lanes) {
+      expect(collapseShiftY(lane.y, end)).toBeCloseTo(collapseShiftY(lane.y, settled));
+      expect(collapseAlpha(lane.y, end)).toBe(collapseAlpha(lane.y, settled));
+    }
+
+    for (const v of [1 - 1e-6, 0.5, 1e-6]) {
+      const t = mk(v);
+      for (const lane of layout.lanes) {
+        if (lane.y < foldY) continue;
+        expect(collapseShiftY(lane.y, t)).toBeGreaterThanOrEqual(outerTop);
+      }
+    }
+  });
+
+  it('PR-RENDER-052: nested rest summaries do not stack on the parent folder row', () => {
+    const layout = rebuildLayout(folderModel());
+    const extras = collectCollapseSummaries(layout, ['compute', 'core'], null, new Map());
+    expect(extras.map((e) => e.id)).toEqual(['compute/summary/0']);
+    const computeY = layout.lanes.find((l) => l.thread.id === 'compute')!.y;
+    expect(extras[0]!.y).toBe(computeY);
+
+    const folded = collapsePaintState(layout, ['compute', 'core'], null, new Map()).hitLayout;
+    expect(folded.summaryExtras?.map((e) => e.id)).toEqual(['compute/summary/0']);
+    expect(folded.summaryExtras?.some((e) => e.id.startsWith('core/'))).toBe(false);
+  });
+
+  it('collapseHiddenHeight matches descendant lane rows without filterCollapsedTree', () => {
+    expect(collapseHiddenHeight(folderModel(), [], ['core'])).toBe(44);
+  });
+
+  it('PR-RENDER-049: paint-only collapse marquee skips hidden descendants and hits shifted rows', () => {
+    const model = folderModel();
+    const hbm = model.processes[0]!.threads.find((t) => t.id === 'hbm')!;
+    hbm.events = [{ id: 'e-hbm', name: 'hbm', startTime: 0, duration: 10 }];
+    const layout = rebuildLayout(model);
+    const view = { startTime: 0, endTime: 100, scrollY: 0 };
+    const folded = collapsePaintState(layout, ['core'], null, new Map()).hitLayout;
+    const paintedHbmY = folded.lanes.find((l) => l.thread.id === 'hbm')!.y;
+    const originalMte1Y = layout.lanes.find((l) => l.thread.id === 'mte1')!.y;
+    expect(paintedHbmY).toBe(originalMte1Y);
+
+    const atPaintedHbm = eventsIntersectingRect(folded, view, 400, {
+      x0: 0,
+      y0: paintedHbmY,
+      x1: 400,
+      y1: paintedHbmY + LANE_HEIGHT,
+    });
+    expect(atPaintedHbm.map((e) => e.id)).toEqual(['e-hbm']);
+
+    const originalHbmY = layout.lanes.find((l) => l.thread.id === 'hbm')!.y;
+    expect(
+      eventsIntersectingRect(folded, view, 400, {
+        x0: 0,
+        y0: originalHbmY,
+        x1: 400,
+        y1: originalHbmY + LANE_HEIGHT,
+      }),
+    ).toEqual([]);
+  });
+
+  it('PR-RENDER-053: exact-edge scan skips rest-collapsed descendant events', () => {
+    const layout = rebuildLayout(folderModel());
+    const open = collapsePaintState(layout, [], null, new Map()).hitLayout;
+    expect(findExactEdgeMatchesAt(open, 0).some((m) => m.eventId === 'e1')).toBe(true);
+    const folded = collapsePaintState(layout, ['core'], null, new Map()).hitLayout;
+    expect(findExactEdgeMatchesAt(folded, 0).some((m) => m.eventId === 'e1')).toBe(false);
+  });
+
+  it('PR-RENDER-053: setCollapseAnim no-ops when the tween payload is unchanged', () => {
+    const canvas = document.createElement('canvas');
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.setModel(folderModel());
+    renderer.resize(200, 400, 1);
+    renderer.setCollapsedIds(['core']);
+    const hit = renderer.getLayout();
+    renderer.setCollapseAnim(null);
+    renderer.setCollapseAnim(null);
+    expect(renderer.getLayout()).toBe(hit);
   });
 });
