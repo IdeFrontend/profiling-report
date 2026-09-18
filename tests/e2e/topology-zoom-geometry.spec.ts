@@ -445,15 +445,22 @@ test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the draw
   // round-trips can straddle the landing, and an upper bound alone (`< stop`) passes on a stage
   // that never moved. The samples are what can be held to "between the two stops" — every one of
   // them inside the pair, and at least one of them strictly between.
+  //
+  // Sampled until the step lands rather than for a fixed number of frames: six ticks is a frame
+  // *count*, and at 120Hz that is ~50ms of an ease-in-out cubic that has barely left the stop (the
+  // 511px stage below has moved ~1px by then, failing the "strictly between" sample for a tween that
+  // is running perfectly), while at 60Hz the same six ticks are ~100ms and clear it. The guard is
+  // wall-clock, past the 400ms tween, so a step that never lands fails here instead of hanging.
   const samples = await aside.evaluate(async (root) => {
     const stage = root.querySelector('.pr-topo__stage') as HTMLElement;
     const out: { inFlight: boolean; h: number }[] = [];
-    for (let i = 0; i < 6; i += 1) {
+    const guard = performance.now() + 2000;
+    while (performance.now() < guard) {
       await new Promise((done) => requestAnimationFrame(() => done(null)));
-      out.push({
-        inFlight: root.getAttribute('data-topo-zoom-animating') === 'true',
-        h: stage.getBoundingClientRect().height,
-      });
+      const inFlight = root.getAttribute('data-topo-zoom-animating') === 'true';
+      out.push({ inFlight, h: stage.getBoundingClientRect().height });
+      // Landed: this frame and everything after it is the stop itself, not the flight.
+      if (!inFlight && out.length > 1) break;
     }
     return out;
   });

@@ -490,6 +490,11 @@ function setZoom(target: number) {
   });
 }
 
+/** The offset `placeZoomStep` wrote last, so its own scroll events can be told apart from a user's:
+ *  the placement writes `scrollLeft` / `scrollTop` too, and every one of those writes raises a
+ *  `scroll` event that is not a pan (PR-MEMTOP-019). */
+let lastPlacement = { left: 0, top: 0 };
+
 /** Put the held middle back under the middle of the box at the scale now painted (PR-MEMTOP-018).
  *  Runs **after** the render that carries the new `--pr-topo-zoom`, because it is the stage's new
  *  `scrollWidth` / `scrollHeight` that the placement is read from — hence a `flush: 'post'` watch
@@ -511,6 +516,20 @@ function placeZoomStep() {
   if (!el || !stepAnchor) return;
   el.scrollLeft = stepAnchor.x * el.scrollWidth - el.clientWidth / 2;
   el.scrollTop = stepAnchor.y * el.scrollHeight - el.clientHeight / 2;
+  lastPlacement = { left: el.scrollLeft, top: el.scrollTop };
+}
+
+/** The box was scrolled by something that is not the placement — a wheel, a classic thumb, a
+ *  keyboard scroll — while a step is in flight. Those write the same two properties a drag does, so
+ *  the next painted frame would yank them back to the step's own anchor: the rubber-band the drag
+ *  path closed, for the other writers of `scrollLeft` / `scrollTop`. Re-reading the anchor holds
+ *  what the user just put under the middle for the rest of the flight instead. The placement's own
+ *  writes are recognised by `lastPlacement` and ignored, so this cannot fight the tween either. */
+function onViewportScroll() {
+  const el = viewport.value;
+  if (!el || !zoomAnimating.value) return;
+  if (el.scrollLeft === lastPlacement.left && el.scrollTop === lastPlacement.top) return;
+  stepAnchor = centerFraction(el);
 }
 
 watch(
@@ -554,6 +573,7 @@ onBeforeUnmount(stopZoomAnim);
       @pointermove="onPanMove"
       @pointerup="endPan"
       @pointercancel="endPan"
+      @scroll="onViewportScroll"
     >
       <div class="pr-topo__stage">
         <svg

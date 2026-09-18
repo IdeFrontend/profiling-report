@@ -704,6 +704,60 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     expect(scale()).toBe(1.25);
   });
 
+  it('PR-MEMTOP-019: a wheel or a thumb during a step owns the offset too', async () => {
+    // The third and fourth writers of `scrollLeft` / `scrollTop`: a wheel and a classic thumb are
+    // the platform's own scroll, so unlike the drag there is no handler to hook — the box's `scroll`
+    // event is the only notice the panel gets, and it is what has to re-read the anchor.
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => queued.push(cb));
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]').element as HTMLElement;
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
+    const BOX = { w: 448, h: 540 };
+    Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => BOX.h * scale() });
+    const middle = () => ({
+      x: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
+      y: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+    });
+    /** A user scroll: the write is the platform's, and only the event says so. */
+    const userScroll = (left: number, top: number) => {
+      el.scrollLeft = left;
+      el.scrollTop = top;
+      el.dispatchEvent(new Event('scroll'));
+    };
+
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    queued.shift()!(performance.now() + 200);
+    await nextTick();
+    expect(scale()).toBeGreaterThan(1);
+
+    // A wheel moves the box; the event re-reads the anchor, so the frames after it hold the middle
+    // the wheel left rather than the one the step started with.
+    userScroll(80, 90);
+    const wheeled = middle();
+    queued.shift()!(performance.now() + 260);
+    await nextTick();
+    const held = middle();
+    expect(held.x).toBeCloseTo(wheeled.x, 4);
+    expect(held.y).toBeCloseTo(wheeled.y, 4);
+
+    // The placement's own writes are not mistaken for a pan: they raise `scroll` too, and the offset
+    // they leave is the one the anchor already asked for, so the step stays on it rather than
+    // drifting to whatever the clamped read-back happens to be.
+    queued.shift()!(performance.now() + 320);
+    await nextTick();
+    expect(middle().x).toBeCloseTo(wheeled.x, 4);
+
+    while (queued.length) queued.shift()!(performance.now() + 10_000);
+    await nextTick();
+    expect(scale()).toBe(1.25);
+  });
+
   it('PR-MEMTOP-017: a pointercancel ends the drag, as the platform sends one when it takes over', async () => {
     // Any platform takeover — a pen handed to the OS scroll, a browser gesture — cancels the
     // element's pointer, so the `grabbing` state must not survive it. (A finger never gets here:
