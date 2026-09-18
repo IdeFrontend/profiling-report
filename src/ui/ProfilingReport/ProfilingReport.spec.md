@@ -106,7 +106,7 @@ sequenceDiagram
     Renderer->>Renderer: dim non-matching events (25% alpha)
 ```
 
-The renderer applies event name filtering as a substring, case-insensitive match during draw. Events that match render at full opacity; non-matching events are dimmed to 25% alpha but remain visible and interactive (hover/select still work on dimmed events). Lanes with no matching events remain visible (empty lanes are not collapsed).
+The renderer applies event name filtering as a substring, case-insensitive match during draw. Events that match render at full opacity; non-matching events are dimmed to 25% opacity but remain visible and interactive (hover/select still work on dimmed events). Lanes with no matching events remain visible (empty lanes are not collapsed).
 
 ### Data loading
 
@@ -190,6 +190,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 15. **PR-ROOT-015** — Dock enter uses `height: 0` (no `translateY`) so the timeline shrinks with the visible panel; leave keeps `position: absolute` + `translateY` slide so flex space frees immediately while the panel is still on screen.
 16. **PR-ROOT-016** — Live `multi-select-preview` drives the dock (≥2 → MultiSelectSummary, 1 → DetailPanel; empty clears Detail/Summary) without host `select` / viewState commit; closed→drag keeps the footer hidden until coverage is non-empty; already-open keeps session height and shows nothing-selected on empty mid-drag; empty commit closes; Escape mid-drag does not `onSelect(null)` while `marqueeLive`; canvas `preview(null)` restores the pre-drag dock; the first ≥2 preview of a new gesture applies immediately even when a committed multi dock was already up.
 17. **PR-ROOT-017** — Single↔multi↔empty swaps fade content only (`pr-dock-content` out-in opacity) inside the persistent footer; shell height stays `--pr-dock-h` (no height animation on mode swap).
+18. **PR-ROOT-018** — A hover emit with the same event id does not clone `viewState` (tooltip position still follows the pointer).
 
 ## Edge Cases
 
@@ -221,6 +222,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-09-17** — Same-id hover does not clone `viewState`, so the open selection dock is not re-rendered every pointer pixel (`PR-ROOT-018`).
 - **2026-09-15** — Topology 全屏 now arrives from the diagram's own bar (`MemoryTopologyPanel` `showFullscreen` → `open-fullscreen` → StatsAside → root; PR-MEMTOP-014, PR-STATS-033). The overlay keeps the bar's zoom controls and omits 全屏, drops the bar strip, and fits the diagram into the remaining box rather than stretching it (the `:deep` `height: 100%` on `.pr-topo`; the old `svg` stretch override is gone, because the panel's stage already owns that box), and its fresh panel mount starts at 100% on its own (PR-ROOT-009).
 - **2026-09-14** — `roofline` is out of the current release and opt-in: the adapter no longer derives the capability from report data, the aside mounts the card only when the host passes it, and roofline points alone no longer make the aside available (PR-ROOT-004).
 - **2026-09-13** — Empty mid-drag shows nothing-selected (no stale rows); first ≥2 of a new gesture applies immediately over a committed multi (PR-ROOT-016).

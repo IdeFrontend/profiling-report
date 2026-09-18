@@ -102,7 +102,7 @@ defineExpose({ root });
   flex-direction: column;
   font-size: 11px;
   color: #b0b0b0;
-  overflow: auto;
+  overflow: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
   min-height: 0;

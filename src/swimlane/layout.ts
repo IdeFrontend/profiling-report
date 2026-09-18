@@ -1,6 +1,6 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
-import { filterCollapsedTree, walkVisibleRows } from '../domain/swimTree';
+import { buildFolderSummaryEvents, isFolderNode, walkVisibleRows } from '../domain/swimTree';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 export const LANE_HEIGHT = 22;
@@ -96,8 +96,11 @@ export interface FlatLane {
 
 /**
  * In-flight collapse/expand tween applied to a layout built from the **expanded**
- * model. `visible` = 1 fully expanded, 0 fully collapsed; `hiddenHeight` = px of
- * descendant content hidden at full collapse. Consumed by renderers + DOM gutter.
+ * model. `visible` = 1 fully expanded, 0 fully collapsed. `hiddenHeight` is the
+ * **net** px of descendant lane rows this tween hides (`collapseHiddenHeight` from
+ * the pre-toggle collapsed set to the post-toggle set) — not the full expanded
+ * subtree when a nested folder is already rest-collapsed. Consumed by renderers
+ * + DOM gutter.
  */
 export interface CollapseAnimState {
   groupId: string;
@@ -108,6 +111,21 @@ export interface CollapseAnimState {
    * while the expanded subtree fades with `visible` (dissolve / re-aggregate).
    */
   summaryEvents?: readonly SwimEvent[];
+}
+
+/** True when two tween payloads are the same fold (hover `sync` re-passes `null` every move). */
+export function sameCollapseAnim(
+  a: CollapseAnimState | null,
+  b: CollapseAnimState | null,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.groupId === b.groupId &&
+    a.visible === b.visible &&
+    a.hiddenHeight === b.hiddenHeight &&
+    a.summaryEvents === b.summaryEvents
+  );
 }
 
 /**
@@ -131,77 +149,278 @@ export function groupBottomY(layout: SwimlaneLayout, groupId: string): number {
 }
 
 /**
- * Per-frame collapse/expand transform, computed once per state from the expanded base
- * layout and applied inline in the paint loops (no per-frame layout materialization).
+ * One closed (or closing) group in content-space Y. Rest-collapsed folders use
+ * `visible: 0`; the in-flight tween uses `CollapseAnimState.visible`. Nested **rest**
+ * folds under a **rest** parent (and nested **anim** folds) are dropped — a Card
+ * collapse swallows nested Cores. Nested rest folds under an **animating** parent
+ * are kept so the inner shift/alpha stay continuous across the tween. The containing
+ * parent is the **innermost** fold (last match by `foldY`), so a rest-collapsed
+ * intermediate still swallows its own nested rest when an ancestor is animating.
  */
-export interface CollapseTransform {
-  active: boolean;
+export interface CollapseFold {
+  groupId: string;
   /** Fold line: content Y just below the group header/folder row. */
   foldY: number;
   /** Content Y of the group's top edge (header/folder row). */
   groupTop: number;
   /** Content Y just past the last subtree row at full expansion. */
   subtreeEnd: number;
-  /** 0..1 visibility of the collapsing subtree. */
+  /** 0..1 visibility of this fold's subtree. */
   visible: number;
-  /** Gap close amount for rows after the subtree (`hiddenHeight × (1 − visible)`). */
+  /** Gap close amount for rows after this subtree (`hiddenHeight × (1 − visible)`). */
   shift: number;
+  /** In-flight tween fold — nested rest folds are kept under this parent. */
+  animating?: boolean;
+}
+
+/**
+ * Per-frame collapse/expand transform, computed from the expanded base layout plus
+ * rest-collapsed ids. Applied inline in the paint loops (no per-frame event clone).
+ */
+export interface CollapseTransform {
+  active: boolean;
+  /** Closed / closing groups, sorted by `foldY`. Empty when idle. */
+  folds: readonly CollapseFold[];
 }
 
 export const IDLE_COLLAPSE: CollapseTransform = {
   active: false,
-  foldY: 0,
-  groupTop: 0,
-  subtreeEnd: 0,
-  visible: 1,
-  shift: 0,
+  folds: [],
 };
 
-/** Build the collapse transform for `state` (or IDLE when settled / group absent). */
+/** Content-space Y span of a Card/folder's descendant rows on the expanded layout. */
+export function groupSubtreeSpan(
+  layout: SwimlaneLayout,
+  groupId: string,
+): { top: number; foldY: number; subtreeEnd: number } | null {
+  const edges = groupEdges(layout, groupId);
+  if (!edges) return null;
+  const headerIdx = layout.headers.findIndex((h) => h.id === groupId);
+  if (headerIdx >= 0) {
+    const next = layout.headers[headerIdx + 1];
+    return {
+      top: edges.top,
+      foldY: edges.foldY,
+      subtreeEnd: next ? next.y : contentHeightFromLayout(layout),
+    };
+  }
+  const li = layout.lanes.findIndex((l) => l.thread.id === groupId);
+  if (li < 0) return null;
+  const folder = layout.lanes[li]!;
+  let end = edges.foldY;
+  if (folder.folder) {
+    for (let i = li + 1; i < layout.lanes.length; i++) {
+      const l = layout.lanes[i]!;
+      if (l.depth <= folder.depth) break;
+      end = l.y + l.rowCount * LANE_HEIGHT;
+    }
+  }
+  return { top: edges.top, foldY: edges.foldY, subtreeEnd: end };
+}
+
+function pruneNestedFolds(folds: CollapseFold[]): CollapseFold[] {
+  if (folds.length <= 1) return folds;
+  const sorted = folds
+    .slice()
+    .sort((a, b) => a.foldY - b.foldY || a.subtreeEnd - b.subtreeEnd);
+  const out: CollapseFold[] = [];
+  for (const f of sorted) {
+    // Innermost containing fold: `out` is foldY-sorted, so the last match wins.
+    let parent: CollapseFold | undefined;
+    for (let i = out.length - 1; i >= 0; i--) {
+      const p = out[i]!;
+      if (f.foldY >= p.foldY && f.subtreeEnd <= p.subtreeEnd) {
+        parent = p;
+        break;
+      }
+    }
+    if (parent) {
+      // Keep inner rest folds under the in-flight tween, including visible=0 last frame.
+      if (!(parent.animating && f.visible === 0 && !f.animating)) continue;
+    }
+    out.push(f);
+  }
+  return out;
+}
+
+function foldsFromSpans(
+  spanOf: (id: string) => { top: number; foldY: number; subtreeEnd: number } | null,
+  collapsedIds: readonly string[],
+  anim: CollapseAnimState | null,
+): CollapseTransform {
+  const folds: CollapseFold[] = [];
+  const animLive = anim && anim.hiddenHeight > 0 && anim.visible < 1 ? anim : null;
+  for (const id of collapsedIds) {
+    if (animLive && id === animLive.groupId) continue;
+    const span = spanOf(id);
+    if (!span) continue;
+    const hidden = span.subtreeEnd - span.foldY;
+    if (hidden <= 0) continue;
+    folds.push({
+      groupId: id,
+      foldY: span.foldY,
+      groupTop: span.top,
+      subtreeEnd: span.subtreeEnd,
+      visible: 0,
+      shift: hidden,
+    });
+  }
+  if (animLive) {
+    const span = spanOf(animLive.groupId);
+    if (span) {
+      folds.push({
+        groupId: animLive.groupId,
+        foldY: span.foldY,
+        groupTop: span.top,
+        // Real subtree end, not `foldY + hiddenHeight` (net). Kept nested rest
+        // folds sit inside this span; leftover rows must tuck/fade with the parent.
+        subtreeEnd: span.subtreeEnd,
+        visible: animLive.visible,
+        shift: animLive.hiddenHeight * (1 - animLive.visible),
+        animating: true,
+      });
+    }
+  }
+  const pruned = pruneNestedFolds(folds);
+  if (pruned.length === 0) return IDLE_COLLAPSE;
+  return { active: true, folds: pruned };
+}
+
+/** Rest-collapsed ids + in-flight tween as one multi-fold transform on the expanded layout. */
+export function collapseFoldsFromLayout(
+  layout: SwimlaneLayout,
+  collapsedIds: readonly string[],
+  anim: CollapseAnimState | null,
+): CollapseTransform {
+  return foldsFromSpans((id) => groupSubtreeSpan(layout, id), collapsedIds, anim);
+}
+
+/** Build the collapse transform for `state` only (or IDLE when settled / group absent). */
 export function collapseTransform(
   layout: SwimlaneLayout,
   state: CollapseAnimState | null,
 ): CollapseTransform {
-  if (!state || state.hiddenHeight <= 0 || state.visible >= 1) return IDLE_COLLAPSE;
-  const edges = groupEdges(layout, state.groupId);
-  if (!edges) return IDLE_COLLAPSE;
-  return {
-    active: true,
-    foldY: edges.foldY,
-    groupTop: edges.top,
-    subtreeEnd: edges.foldY + state.hiddenHeight,
-    visible: state.visible,
-    shift: state.hiddenHeight * (1 - state.visible),
-  };
+  return collapseFoldsFromLayout(layout, [], state);
+}
+
+interface GeoRow {
+  id: string;
+  y: number;
+  h: number;
+  kind: 'header' | 'folder' | 'leaf';
+  depth: number;
+}
+
+function modelGeometry(model: SwimlaneModel): { rows: GeoRow[]; height: number } {
+  const rows: GeoRow[] = [];
+  let y = 0;
+  const skipHeaders = model.skipCardHeaders === true;
+  for (const row of walkVisibleRows(model)) {
+    if (row.kind === 'header') {
+      if (skipHeaders) continue;
+      rows.push({ id: row.process.id, y, h: LANE_GROUP_HEADER_HEIGHT, kind: 'header', depth: -1 });
+      y += LANE_GROUP_HEADER_HEIGHT;
+      continue;
+    }
+    const h = (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
+    rows.push({ id: row.thread.id, y, h, kind: row.kind, depth: row.depth });
+    y += h;
+  }
+  return { rows, height: y };
+}
+
+function groupSubtreeFromGeo(
+  geo: { rows: GeoRow[]; height: number },
+  groupId: string,
+): { top: number; foldY: number; subtreeEnd: number } | null {
+  const i = geo.rows.findIndex((r) => r.id === groupId);
+  if (i < 0) return null;
+  const g = geo.rows[i]!;
+  const foldY = g.y + g.h;
+  if (g.kind === 'header') {
+    const next = geo.rows.find((r, j) => j > i && r.kind === 'header');
+    return { top: g.y, foldY, subtreeEnd: next ? next.y : geo.height };
+  }
+  if (g.kind !== 'folder') return { top: g.y, foldY, subtreeEnd: foldY };
+  let end = foldY;
+  for (let j = i + 1; j < geo.rows.length; j++) {
+    const r = geo.rows[j]!;
+    if (r.kind === 'header' || r.depth <= g.depth) break;
+    end = r.y + r.h;
+  }
+  return { top: g.y, foldY, subtreeEnd: end };
+}
+
+/** Same folds as `collapseFoldsFromLayout`, from the model row walk (no event layout). */
+export function collapseTransformFromModel(
+  model: SwimlaneModel | null,
+  collapsedIds: readonly string[] = [],
+  anim: CollapseAnimState | null = null,
+): CollapseTransform {
+  if (!model) return IDLE_COLLAPSE;
+  const geo = modelGeometry(model);
+  return foldsFromSpans((id) => groupSubtreeFromGeo(geo, id), collapsedIds, anim);
+}
+
+/** Sum of fold gap-closes — subtract from expanded content height for the visual sizer. */
+export function collapseClosedHeight(t: CollapseTransform): number {
+  if (!t.active) return 0;
+  let s = 0;
+  for (const f of t.folds) s += f.shift;
+  return s;
 }
 
 /**
- * Slide the collapse in two regions (see `applyCollapseAnim`): subtree rows tuck toward
- * the group's top edge; rows after the subtree shift up to close the gap.
+ * Slide the collapse in two regions per fold (see `applyCollapseAnim`): subtree rows tuck
+ * toward the group's top edge; rows after each subtree shift up to close that gap.
  */
-export function collapseShiftY(y: number, t: CollapseTransform): number {
-  if (!t.active) return y;
-  if (y < t.foldY) return y; // parent + above: untouched
-  if (y < t.subtreeEnd) return t.groupTop + (y - t.groupTop) * t.visible;
-  return y - t.shift;
+function shiftByFolds(y: number, folds: readonly CollapseFold[]): number {
+  let extraShift = 0;
+  for (let i = 0; i < folds.length; i++) {
+    const f = folds[i]!;
+    if (y < f.foldY) return y - extraShift;
+    if (y < f.subtreeEnd) {
+      const nested: CollapseFold[] = [];
+      for (let j = i + 1; j < folds.length; j++) {
+        const g = folds[j]!;
+        if (g.foldY >= f.foldY && g.subtreeEnd <= f.subtreeEnd) nested.push(g);
+      }
+      const inner = nested.length > 0 ? shiftByFolds(y, nested) : y;
+      return f.groupTop - extraShift + (inner - f.groupTop) * f.visible;
+    }
+    extraShift += f.shift;
+  }
+  return y - extraShift;
 }
 
-/** Fade the collapsing subtree; everything else stays opaque. */
+export function collapseShiftY(y: number, t: CollapseTransform): number {
+  if (!t.active || t.folds.length === 0) return y;
+  return shiftByFolds(y, t.folds);
+}
+
+/** Fade any fold's collapsing subtree; min over all containing folds so a nested rest stays hidden. */
 export function collapseAlpha(y: number, t: CollapseTransform): number {
   if (!t.active) return 1;
-  if (y < t.foldY || y >= t.subtreeEnd) return 1;
-  return Math.max(0, Math.min(1, t.visible));
+  let a = 1;
+  for (const f of t.folds) {
+    if (y >= f.foldY && y < f.subtreeEnd) a = Math.min(a, Math.max(0, Math.min(1, f.visible)));
+  }
+  return a;
 }
 
 /**
- * Slide + fade the collapse. Two regions, so a **nested** folder's rows tuck into the
+ * Slide + fade collapse. Per fold, two regions, so a **nested** folder's rows tuck into the
  * parent group lane (never past it into the lanes above) while only the rows *after*
  * the subtree close the gap:
- * - **Subtree rows** (`foldY ≤ y < foldY + hiddenHeight`): slide toward the group's
+ * - **Subtree rows** (`foldY ≤ y < subtreeEnd`): slide toward the group's
  *   top edge and fade to `visible` — they end exactly on the parent lane, then vanish.
- * - **Rows after the subtree** (`y ≥ foldY + hiddenHeight`): shift up by
- *   `hiddenHeight × (1 − visible)` to close the gap, staying opaque.
- * Pure — returns a new layout; renderers hold the expanded base and call this per frame.
+ *   An animating parent uses the group's real subtree end (not the net `hiddenHeight`),
+ *   so rows past a kept nested rest fold still tuck and fade.
+ * - **Rows after the subtree** (`y ≥ subtreeEnd`): shift up by the fold's `shift`
+ *   (`hiddenHeight × (1 − visible)` for the tween; full span when rest-collapsed),
+ *   staying opaque.
+ * Pure — returns a new layout with cloned events; renderers use `applyCollapseFolds`
+ * (lanes/headers + summary extras only) on the hot path.
  */
 export function applyCollapseTransform(
   layout: SwimlaneLayout,
@@ -211,9 +430,10 @@ export function applyCollapseTransform(
 
   const lanes = layout.lanes.map((l) => {
     const y = collapseShiftY(l.y, t);
-    if (y === l.y) return l; // parent + above, or no-op rows after subtree when shift 0
-    const next = { ...l, y };
-    if (l.y < t.subtreeEnd) next.alpha = collapseAlpha(l.y, t);
+    const alpha = collapseAlpha(l.y, t);
+    if (y === l.y && alpha === 1) return l;
+    const next: FlatLane = { ...l, y };
+    if (alpha < 1) next.alpha = alpha;
     return next;
   });
   const headers = layout.headers.map((h) => {
@@ -221,10 +441,9 @@ export function applyCollapseTransform(
     return y === h.y ? h : { ...h, y };
   });
 
-  // Events track their lane's animated Y (a lane's events all share that lane's `y`).
   const events = layout.events.map((e) => {
-    const lane = lanes[e.laneIndex];
-    return lane && e.y !== lane.y ? { ...e, y: lane.y } : e;
+    const y = collapseShiftY(e.y, t);
+    return y === e.y ? e : { ...e, y };
   });
   const eventsById = new Map(events.map((e) => [e.id, e]));
   const lanesByTid = new Map(lanes.map((l) => [l.thread.id, l]));
@@ -295,9 +514,161 @@ export function mergeCollapseSummaries(
 }
 
 /**
+ * Rest-collapsed folder summaries (α = 1) on the expanded layout; skips `skipGroupId`
+ * and folders whose fold was pruned as nested (those extras would tuck onto the
+ * parent row on top of that parent's own summaries).
+ */
+export function restFolderSummaries(
+  layout: SwimlaneLayout,
+  collapsedIds: readonly string[],
+  skipGroupId: string | null,
+  cache: Map<string, SwimEvent[]>,
+  collapse: CollapseTransform = IDLE_COLLAPSE,
+): LaidOutEvent[] {
+  const keep = collapse.active ? new Set(collapse.folds.map((f) => f.groupId)) : null;
+  const out: LaidOutEvent[] = [];
+  for (const id of collapsedIds) {
+    if (id === skipGroupId) continue;
+    if (keep && !keep.has(id)) continue;
+    const laneIndex = layout.lanes.findIndex((l) => l.thread.id === id);
+    if (laneIndex < 0) continue;
+    const lane = layout.lanes[laneIndex]!;
+    if (!lane.folder) continue;
+    let summaries = cache.get(id);
+    if (!summaries) {
+      summaries = buildFolderSummaryEvents(lane.thread);
+      cache.set(id, summaries);
+    }
+    if (summaries.length === 0) continue;
+    for (const ev of summaries) {
+      out.push({
+        id: ev.id,
+        event: ev,
+        laneIndex,
+        y: lane.y,
+        rowIndex: 0,
+        color: SUMMARY_EVENT_FILL,
+        summary: true,
+        alpha: 1,
+      });
+    }
+  }
+  return out;
+}
+
+/** Rest-collapsed summaries plus in-flight tween ghosts. */
+export function collectCollapseSummaries(
+  layout: SwimlaneLayout,
+  collapsedIds: readonly string[],
+  anim: CollapseAnimState | null,
+  cache: Map<string, SwimEvent[]>,
+  collapse: CollapseTransform = collapseFoldsFromLayout(layout, collapsedIds, anim),
+): LaidOutEvent[] {
+  const skip = anim && anim.hiddenHeight > 0 && anim.visible < 1 ? anim.groupId : null;
+  const rest = restFolderSummaries(layout, collapsedIds, skip, cache, collapse);
+  const ghosts = collapseGhostSummaries(layout, anim);
+  if (rest.length === 0) return ghosts;
+  if (ghosts.length === 0) return rest;
+  return rest.concat(ghosts);
+}
+
+/**
+ * Paint-path collapse: shift lanes/headers and splice summary extras onto folder
+ * `eventsByLane`. Does **not** clone `events` / `eventsById` (per-frame expand hitch).
+ * Hit-test / `eventScreenRect` apply `collapseShiftY` to the unshifted event Y.
+ */
+export function applyCollapseFolds(
+  layout: SwimlaneLayout,
+  t: CollapseTransform,
+  extras: readonly LaidOutEvent[] = [],
+): SwimlaneLayout {
+  if (!t.active && extras.length === 0) return layout;
+
+  const lanes = t.active
+    ? layout.lanes.map((l) => {
+        const y = collapseShiftY(l.y, t);
+        const alpha = collapseAlpha(l.y, t);
+        if (y === l.y && alpha === 1) return l;
+        const next: FlatLane = { ...l, y };
+        if (alpha < 1) next.alpha = alpha;
+        return next;
+      })
+    : layout.lanes;
+  const headers = t.active
+    ? layout.headers.map((h) => {
+        const y = collapseShiftY(h.y, t);
+        return y === h.y ? h : { ...h, y };
+      })
+    : layout.headers;
+  const lanesByTid = t.active ? new Map(lanes.map((l) => [l.thread.id, l])) : layout.lanesByTid;
+
+  let eventsByLane = layout.eventsByLane;
+  let summaryById: Map<string, LaidOutEvent> | undefined;
+  if (extras.length > 0) {
+    const byLane = new Map<number, LaidOutEvent[]>();
+    summaryById = new Map();
+    for (const e of extras) {
+      const list = byLane.get(e.laneIndex);
+      if (list) list.push(e);
+      else byLane.set(e.laneIndex, [e]);
+      summaryById.set(e.id, e);
+    }
+    eventsByLane = layout.eventsByLane.map((laneEvts, i) => {
+      const extra = byLane.get(i);
+      return extra ? laneEvts.concat(extra) : laneEvts;
+    });
+  }
+
+  return {
+    ...layout,
+    lanes,
+    headers,
+    lanesByTid,
+    eventsByLane,
+    collapse: t,
+    summaryExtras: extras,
+    summaryById,
+  };
+}
+
+/** Renderer hot path: folds + extras + hit layout, no event clone. */
+export function collapsePaintState(
+  layout: SwimlaneLayout,
+  collapsedIds: readonly string[],
+  anim: CollapseAnimState | null,
+  cache: Map<string, SwimEvent[]>,
+): { collapse: CollapseTransform; hitLayout: SwimlaneLayout } {
+  const collapse = collapseFoldsFromLayout(layout, collapsedIds, anim);
+  const extras = collectCollapseSummaries(layout, collapsedIds, anim, cache, collapse);
+  return { collapse, hitLayout: applyCollapseFolds(layout, collapse, extras) };
+}
+
+/**
+ * Visible non-header row height for a collapse set. Each folder/leaf counts as
+ * `LANE_HEIGHT` (same as the historical `filterCollapsedTree` + `walkVisibleRows`
+ * tween sizing — overlapping multi-row leaves are ignored here on purpose).
+ */
+function visibleLaneRowHeight(model: SwimlaneModel, collapsedIds: readonly string[]): number {
+  const collapsed = new Set(collapsedIds);
+  let h = 0;
+  const walk = (nodes: SwimThread[]): void => {
+    for (const n of nodes) {
+      h += LANE_HEIGHT;
+      if (isFolderNode(n) && !collapsed.has(n.id)) walk(n.children ?? []);
+    }
+  };
+  for (const p of model.processes) {
+    if (collapsed.has(p.id)) continue;
+    walk(p.threads);
+  }
+  return h;
+}
+
+/**
  * Exact px of lane rows hidden when `expandedIds` → `collapsedIds` (folder/Card subtree
- * rows only, no header bands, no `contentHeightFromModel` 120px floor). Used to size a
- * collapse/expand tween so the shift and the fade region line up with the true content.
+ * rows only, no header bands, no `contentHeightFromModel` 120px floor). Callers pass this
+ * **net** delta as `CollapseAnimState.hiddenHeight` so a parent tween does not double-count
+ * a nested folder that is already rest-collapsed.
  */
 export function collapseHiddenHeight(
   model: SwimlaneModel | null,
@@ -305,9 +676,7 @@ export function collapseHiddenHeight(
   collapsedIds: readonly string[],
 ): number {
   if (!model) return 0;
-  const rowHeight = (m: SwimlaneModel): number =>
-    walkVisibleRows(m).reduce((n, r) => n + (r.kind === 'header' ? 0 : LANE_HEIGHT), 0);
-  return Math.max(0, rowHeight(filterCollapsedTree(model, expandedIds)) - rowHeight(filterCollapsedTree(model, collapsedIds)));
+  return Math.max(0, visibleLaneRowHeight(model, expandedIds) - visibleLaneRowHeight(model, collapsedIds));
 }
 
 export interface GroupHeader {
@@ -337,8 +706,22 @@ export interface SwimlaneLayout {
   events: LaidOutEvent[];
   eventsById: Map<string, LaidOutEvent>;
   lanesByTid: Map<string, FlatLane>;
-  /** Events for each lane index (contiguous groups from rebuild); expanded folders are `[]`, collapsed folders hold their summary bars. */
+  /**
+   * Events for each lane index (contiguous groups from rebuild). The viewer hot path
+   * keeps the expanded base (folders are `[]` here); rest/ghost summaries are spliced
+   * on by `applyCollapseFolds`. Hosts that pre-filter the tree still put summary bars
+   * on collapsed folders in this array.
+   */
   eventsByLane: LaidOutEvent[][];
+  /**
+   * Paint-only collapse folds. When set, event `y` stays on the expanded base and
+   * hit-test / `eventScreenRect` apply `collapseShiftY` (see `applyCollapseFolds`).
+   */
+  collapse?: CollapseTransform;
+  /** Rest-collapsed + tween ghost summaries spliced onto folder `eventsByLane`. */
+  summaryExtras?: readonly LaidOutEvent[];
+  /** Id lookup for `summaryExtras` (not copied into `eventsById`). */
+  summaryById?: Map<string, LaidOutEvent>;
 }
 
 export const EMPTY_LAYOUT: SwimlaneLayout = {
@@ -459,6 +842,19 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
     h += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
   }
   return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
+}
+
+/** Expanded `contentHeightFromModel` minus rest + in-flight fold closes (same 120px body floor). */
+export function visualContentHeight(
+  model: SwimlaneModel | null,
+  collapsedIds: readonly string[] = [],
+  anim: CollapseAnimState | null = null,
+): number {
+  const full = contentHeightFromModel(model);
+  const closed = collapseClosedHeight(collapseTransformFromModel(model, collapsedIds, anim));
+  if (closed <= 0) return full;
+  const skip = model?.skipCardHeaders === true;
+  return Math.max(skip ? LANE_HEIGHT : 120, full - closed);
 }
 
 /**
@@ -603,11 +999,12 @@ export function eventScreenRect(
   view: SwimlaneViewWindow,
   widthDevice: number,
   dpr = 1,
+  collapse: CollapseTransform = IDLE_COLLAPSE,
 ): { x: number; y: number; w: number; h: number } {
   const span = Math.max(1, view.endTime - view.startTime);
   const x = ((item.event.startTime - view.startTime) / span) * widthDevice;
   const w = Math.max(2 * dpr, (item.event.duration / span) * widthDevice);
-  const m = eventBlockMetrics(item.y, view.scrollY);
+  const m = eventBlockMetrics(collapseShiftY(item.y, collapse), view.scrollY);
   return { x, y: m.y * dpr, w, h: m.h * dpr };
 }
 
@@ -673,14 +1070,16 @@ export function hitTestLayout(
   if (!hit) return null;
   const { index: laneIndex } = hit;
   const span = Math.max(1, view.endTime - view.startTime);
+  const fold = layout.collapse ?? IDLE_COLLAPSE;
   const candidates: { id: string; duration: number }[] = [];
   for (const item of layout.eventsByLane[laneIndex] ?? []) {
     if (item.alpha === 0) continue;
+    if (!item.summary && collapseAlpha(item.y, fold) <= 0) continue;
     const ev = item.event;
     if (ev.startTime + ev.duration < view.startTime || ev.startTime > view.endTime) continue;
     const ex = ((ev.startTime - view.startTime) / span) * widthDevice;
     const ew = Math.max(2 * dpr, (ev.duration / span) * widthDevice);
-    const m = eventBlockMetrics(item.y, view.scrollY);
+    const m = eventBlockMetrics(collapseShiftY(item.y, fold), view.scrollY);
     const ey = m.y * dpr;
     const eh = m.h * dpr;
     if (x >= ex && x <= ex + ew && y >= ey && y <= ey + eh) {
@@ -694,13 +1093,13 @@ export function hitTestLayout(
 
 /** Folder id a summary bar belongs to, or null when `eventId` is not a summary event. */
 export function summaryFolderId(layout: SwimlaneLayout, eventId: string): string | null {
-  const item = layout.eventsById.get(eventId);
+  const item = layout.summaryById?.get(eventId) ?? layout.eventsById.get(eventId);
   if (!item?.summary) return null;
   return layout.lanes[item.laneIndex]?.thread.id ?? null;
 }
 
 export function findLaidOutEvent(layout: SwimlaneLayout, id: string): LaidOutEvent | undefined {
-  return layout.eventsById.get(id);
+  return layout.summaryById?.get(id) ?? layout.eventsById.get(id);
 }
 
 /** Screen-space marquee rect (canvas CSS px); order-normalized by `eventsIntersectingRect`. */
@@ -714,6 +1113,8 @@ export interface MarqueeRect {
 /**
  * Leaf events whose drawn block intersects the marquee rect, in layout order.
  * Folder rows hold no events, so Card header strips the rect passes over contribute none.
+ * Paint-only collapse leaves `layout.events` expanded and unshifted; walk visible
+ * `eventsByLane` and apply `collapseShiftY` so the rect matches paint / hit-test.
  */
 export function eventsIntersectingRect(
   layout: SwimlaneLayout,
@@ -727,11 +1128,13 @@ export function eventsIntersectingRect(
   const bottom = Math.max(rect.y0, rect.y1);
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
+  const fold = layout.collapse ?? IDLE_COLLAPSE;
   const out: LaidOutEvent[] = [];
-  for (const item of layout.events) {
-    if (item.summary || item.alpha === 0) continue;
+  for (const item of iterLaidOutEvents(layout)) {
+    if (item.summary) continue;
+    if (collapseAlpha(item.y, fold) <= 0) continue;
     const ev = item.event;
-    const { y, h } = eventBlockMetrics(item.y, view.scrollY);
+    const { y, h } = eventBlockMetrics(collapseShiftY(item.y, fold), view.scrollY);
     if (y > bottom || y + h < top) continue;
     const x = ((ev.startTime - view.startTime) / span) * w;
     const ew = Math.max(2, (ev.duration / span) * w);
@@ -941,15 +1344,20 @@ export function computeAltMeasureGap(
   targetTime: number,
   targetEventId: string | null,
 ): AltMeasureGap | null {
-  const anchorItem = layout.eventsById.get(anchorId);
+  const anchorItem = findLaidOutEvent(layout, anchorId);
   if (!anchorItem) return null;
   const times = computeAltMeasureDelta(anchorItem.event, targetTime);
   if (!times) return null;
 
-  const targetItem = targetEventId ? layout.eventsById.get(targetEventId) : undefined;
+  const targetItem = targetEventId
+    ? findLaidOutEvent(layout, targetEventId)
+    : undefined;
+  const fold = layout.collapse ?? IDLE_COLLAPSE;
   const anchorIsLeft = times.anchorRefTime <= targetTime;
-  const leftLaneY = anchorIsLeft ? anchorItem.y : (targetItem?.y ?? anchorItem.y);
-  const rightLaneY = anchorIsLeft ? (targetItem?.y ?? anchorItem.y) : anchorItem.y;
+  const anchorY = collapseShiftY(anchorItem.y, fold);
+  const targetY = collapseShiftY(targetItem?.y ?? anchorItem.y, fold);
+  const leftLaneY = anchorIsLeft ? anchorY : targetY;
+  const rightLaneY = anchorIsLeft ? targetY : anchorY;
 
   return {
     deltaNs: times.deltaNs,
@@ -964,7 +1372,32 @@ export function computeAltMeasureGap(
   };
 }
 
-/** View-invariant: which event edges exactly equal a range bound (scan once per range/model). */
+/**
+ * Visible laid-out events only. `hitLayout.events` stays the expanded array
+ * (paint-only collapse does not clone it), so a full walk would rescan every
+ * rest-collapsed descendant on pointermove magnet marks and marquee collection.
+ */
+function* iterLaidOutEvents(layout: SwimlaneLayout): Iterable<LaidOutEvent> {
+  for (let i = 0; i < layout.lanes.length; i++) {
+    const lane = layout.lanes[i]!;
+    // `applyCollapseFolds` tucks hidden lanes and sets `alpha: 0` (do not re-run
+    // `collapseAlpha` on the already-shifted `lane.y`).
+    if ((lane.alpha ?? 1) <= 0) continue;
+    const laneEvts = layout.eventsByLane[i];
+    if (!laneEvts) continue;
+    for (const item of laneEvts) {
+      if (item.alpha === 0) continue;
+      yield item;
+    }
+  }
+}
+
+function exactEdgeLaneY(layout: SwimlaneLayout, item: LaidOutEvent): number | null {
+  const fold = layout.collapse ?? IDLE_COLLAPSE;
+  if (!item.summary && collapseAlpha(item.y, fold) <= 0) return null;
+  return collapseShiftY(item.y, fold);
+}
+
 export function findExactEdgeMatches(
   layout: SwimlaneLayout,
   rangeStart: number,
@@ -973,14 +1406,16 @@ export function findExactEdgeMatches(
   if (!(rangeEnd > rangeStart)) return [];
   const bounds = new Set([rangeStart, rangeEnd]);
   const out: ExactEdgeMatch[] = [];
-  for (const item of layout.events) {
+  for (const item of iterLaidOutEvents(layout)) {
+    const laneY = exactEdgeLaneY(layout, item);
+    if (laneY == null) continue;
     const ev = item.event;
     const end = ev.startTime + ev.duration;
     if (bounds.has(ev.startTime)) {
-      out.push({ eventId: item.id, edge: 'start', time: ev.startTime, laneY: item.y });
+      out.push({ eventId: item.id, edge: 'start', time: ev.startTime, laneY });
     }
     if (bounds.has(end)) {
-      out.push({ eventId: item.id, edge: 'end', time: end, laneY: item.y });
+      out.push({ eventId: item.id, edge: 'end', time: end, laneY });
     }
   }
   return out;
@@ -992,14 +1427,16 @@ export function findExactEdgeMatchesAt(
   time: number,
 ): ExactEdgeMatch[] {
   const out: ExactEdgeMatch[] = [];
-  for (const item of layout.events) {
+  for (const item of iterLaidOutEvents(layout)) {
+    const laneY = exactEdgeLaneY(layout, item);
+    if (laneY == null) continue;
     const ev = item.event;
     if (ev.startTime === time) {
-      out.push({ eventId: item.id, edge: 'start', time, laneY: item.y });
+      out.push({ eventId: item.id, edge: 'start', time, laneY });
     }
     const end = ev.startTime + ev.duration;
     if (end === time) {
-      out.push({ eventId: item.id, edge: 'end', time, laneY: item.y });
+      out.push({ eventId: item.id, edge: 'end', time, laneY });
     }
   }
   return out;

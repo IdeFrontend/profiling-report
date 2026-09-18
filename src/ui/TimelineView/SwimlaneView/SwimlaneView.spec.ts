@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
@@ -357,6 +358,85 @@ describe('SwimlaneView', () => {
     expect(canvas.props('multiSelectedIds')).toEqual(['e1', 'e2']);
   });
 
+  it('PR-SWIMVIEW-031: gutter wheel is forwarded to the canvas handleWheel', async () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const canvas = wrapper.findComponent(SwimlaneCanvas);
+    const exposed = (
+      canvas.vm as unknown as { $: { exposed: { handleWheel: (e: WheelEvent) => void } } }
+    ).$.exposed;
+    const spy = vi.spyOn(exposed, 'handleWheel');
+    await wrapper.get('[data-testid="lane-gutter"]').trigger('wheel', { deltaY: 40, deltaX: 0 });
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('PR-SWIMVIEW-032: gutter scrollTop follows canvas scroll-y in the same turn', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const threads = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      events: [] as { id: string; name: string; startTime: number; duration: number }[],
+    }));
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'c0', name: 'C0', threads }],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'c0',
+            name: 'C0',
+            lanes: threads.map((t) => ({ id: t.id, name: t.name, color: '#888' })),
+          },
+        ],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [{ id: 'c0', name: 'C0', threads }] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        preferRenderer: 'canvas',
+      },
+    });
+    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
+    await wrapper.get('[data-testid="lane-gutter"]').trigger('wheel', { deltaY: 80, deltaX: 0 });
+    expect(gutter.scrollTop).toBeGreaterThan(0);
+    expect(wrapper.emitted('update:scrollY')).toBeFalsy();
+    for (let i = 0; i < 40 && queued.length > 0; i++) {
+      const batch = queued.splice(0);
+      for (const cb of batch) cb(i);
+    }
+    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(gutter.scrollTop);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+  });
+
   it('PR-SWIMVIEW-008: overlays pin to used grid columns; track has non-zero floor', async () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(src).toMatch(
@@ -467,8 +547,9 @@ describe('SwimlaneView', () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     // Forwards the tween to the body canvas and the gutter.
     expect(src).toMatch(/:collapse-anim="collapseAnim"/);
-    // Card strips below a collapsing Card shift up by the same offset as the canvas.
-    expect(src).toMatch(/anim\.hiddenHeight \* \(1 - anim\.visible\)/);
+    // Card strips share the canvas fold transform (rest + in-flight).
+    expect(src).toMatch(/collapseTransformFromModel/);
+    expect(src).toMatch(/collapseShiftY\(h\.y,\s*fold\)/);
     expect(src).toMatch(/LANE_GROUP_HEADER_HEIGHT/);
   });
 
@@ -2110,5 +2191,69 @@ describe('SwimlaneView', () => {
     expect(document.querySelector('[data-testid="card-metric-option-utilization"]')?.textContent).toBe(
       'Utilization',
     );
+  });
+
+  it('PR-SWIMVIEW-033: collapse tween clamps liveScrollY to visual content height', async () => {
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const children = Array.from({ length: 20 }, (_, i) => ({
+      id: `p${i}`,
+      name: `P${i}`,
+      events: [{ id: `e${i}`, name: 'e', startTime: 0, duration: 10 }],
+    }));
+    const model = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [{ id: 'core', name: 'Core', events: [] as { id: string; name: string; startTime: number; duration: number }[], children }],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    view.scrollY = 10_000;
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card',
+            name: 'Card',
+            lanes: [{ id: 'core', name: 'Core', color: '#888' }, ...children.map((t) => ({ id: t.id, name: t.name, color: '#888' }))],
+          },
+        ],
+        collapsedIds: [],
+        model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+        preferRenderer: 'canvas',
+      },
+    });
+    await nextTick();
+    const strips = wrapper.get('[data-testid="card-strips"]');
+    const yBefore = Number(/translateY\((-?[\d.]+)px\)/.exec(strips.attributes('style') ?? '')?.[1] ?? 0);
+    expect(yBefore).toBe(-10_000);
+
+    await wrapper.setProps({
+      collapseAnim: { groupId: 'core', visible: 0.5, hiddenHeight: 20 * 22 },
+    });
+    await nextTick();
+    const yAfter = Number(/translateY\((-?[\d.]+)px\)/.exec(strips.attributes('style') ?? '')?.[1] ?? 0);
+    expect(-yAfter).toBeLessThan(10_000);
+    expect(-yAfter).toBeLessThan(800);
+
+    for (const cb of queued.splice(0)) cb(0);
+    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
+    gutter.scrollTop = -yAfter + 24;
+    await wrapper.get('[data-testid="lane-gutter"]').trigger('scroll');
+    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(-yAfter + 24);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
   });
 });

@@ -2872,4 +2872,186 @@ describe('SwimlaneCanvas', () => {
     });
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-103: collapsedIds before attach still setModels the live backend', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: eventModel,
+        preferRenderer: 'canvas' as const,
+        collapsedIds: [],
+      },
+      attachTo: document.body,
+    });
+    // Parent onMounted sets defaultCollapsedIds before this canvas's await-nextTick attach.
+    await wrapper.setProps({ collapsedIds: ['p-1'] });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    await fireAllDeviceRo();
+    const vm = wrapper.vm as {
+      renderer: () => { getLayout: () => { events: { id: string }[] } };
+    };
+    expect(vm.renderer().getLayout().events.some((e) => e.id === 'e1')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-104: vertical wheel eases scrollY toward the target (reduced-motion snaps)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const threads = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      events: [] as { id: string; name: string; startTime: number; duration: number }[],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'c0', name: 'C0', threads }],
+        },
+      },
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    await fireAllDeviceRo();
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+
+    await wrapper.get('[data-testid="swimlane-canvas"]').trigger('wheel', {
+      clientX: 40,
+      clientY: 40,
+      deltaX: 0,
+      deltaY: 120,
+    });
+    const first = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(120);
+
+    // Delayed parent view.scrollY must not cancel the ease or snap to a stale Y.
+    await wrapper.setProps({ view: { startTime: 0, endTime: 1000, scrollY: 8 } });
+    await nextTick();
+
+    for (let i = 0; i < 40 && queued.length > 0; i++) {
+      const batch = queued.splice(0);
+      for (const cb of batch) cb(i);
+    }
+    const last = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(last).toBe(120);
+    const lastView = setView.mock.calls.at(-1)![0] as { scrollY: number };
+    expect(lastView.scrollY).toBe(120);
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/overlay\.setLiveScroll/);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-105: pointermove does not paint every pixel; lane change does', async () => {
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      queued.push(cb);
+      return queued.length;
+    });
+    const model = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'c0',
+          name: 'C0',
+          threads: [
+            { id: 'a', name: 'A', events: [{ id: 'ea', name: 'ea', startTime: 0, duration: 50 }] },
+            { id: 'b', name: 'B', events: [{ id: 'eb', name: 'eb', startTime: 0, duration: 50 }] },
+          ],
+        },
+      ],
+    };
+    const setHoveredLane = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setHoveredLane');
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    await fireAllDeviceRo();
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+      configurable: true,
+    });
+    setHoveredLane.mockClear();
+    queued.length = 0;
+
+    await canvas.trigger('pointermove', { clientX: 40, clientY: 50, pointerId: 1 });
+    expect(wrapper.emitted('lane-hover')?.at(-1)?.[0]).toBe('a');
+    expect(setHoveredLane).toHaveBeenCalledWith('a');
+    const paintsAfterEnter = queued.length;
+
+    await canvas.trigger('pointermove', { clientX: 80, clientY: 52, pointerId: 1 });
+    expect(wrapper.emitted('lane-hover')?.at(-1)?.[0]).toBe('a');
+    expect(queued.length).toBe(paintsAfterEnter);
+
+    await canvas.trigger('pointermove', { clientX: 40, clientY: 80, pointerId: 1 });
+    expect(wrapper.emitted('lane-hover')?.at(-1)?.[0]).toBe('b');
+    expect(setHoveredLane).toHaveBeenLastCalledWith('b');
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-106: collapse tween clamps paint scrollY so bottom-scrolled rows stay put', async () => {
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+    const children = Array.from({ length: 20 }, (_, i) => ({
+      id: `p${i}`,
+      name: `P${i}`,
+      events: [{ id: `e${i}`, name: 'e', startTime: 0, duration: 10 }],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          minTime: 0,
+          maxTime: 100,
+          processes: [
+            {
+              id: 'card',
+              name: 'Card',
+              threads: [{ id: 'core', name: 'Core', events: [], children }],
+            },
+          ],
+        },
+        view: { startTime: 0, endTime: 100, scrollY: 10_000 },
+      },
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 80, configurable: true });
+    await fireAllDeviceRo();
+    setView.mockClear();
+
+    await wrapper.setProps({
+      collapseAnim: { groupId: 'core', visible: 0.5, hiddenHeight: 20 * 22 },
+    });
+    await nextTick();
+
+    const last = setView.mock.calls.at(-1)![0] as { scrollY: number };
+    expect(last.scrollY).toBeGreaterThanOrEqual(0);
+    expect(last.scrollY).toBeLessThan(800);
+    wrapper.unmount();
+  });
 });

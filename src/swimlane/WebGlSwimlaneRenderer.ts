@@ -9,11 +9,12 @@ import {
 } from '../domain/types';
 import {
   collapseAlpha,
+  collapseClosedHeight,
   collapseShiftY,
-  collapseTransform,
-  applyCollapseAnim,
+  collapsePaintState,
   EMPTY_LAYOUT,
   IDLE_COLLAPSE,
+  sameCollapseAnim,
   LANE_FILL,
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
@@ -431,17 +432,21 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private hitLayout: SwimlaneLayout = EMPTY_LAYOUT;
   private view: SwimlaneViewWindow = { startTime: 0, endTime: 1, scrollY: 0 };
   private collapse: CollapseTransform = IDLE_COLLAPSE;
+  private collapseState: CollapseAnimState | null = null;
+  private collapsedIds: readonly string[] = [];
+  private summaryCache = new Map<string, SwimEvent[]>();
   /** Subtracted from event times before float32 upload (model.minTime). */
   private timeBase = 0;
   private searchQuery = '';
   private selectedId: string | null = null;
-  private hoveredId: string | null = null;
   private hoveredLaneId: string | null = null;
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
   private paintDependencies = true;
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
+  /** Skip the ClearType label pass while lane-scroll is easing (fills still track scrollY). */
+  private liveScroll = false;
   private depLinks: DependencyLink[] = [];
   private width = 0;
   private height = 0;
@@ -511,6 +516,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.baseLayout = rebuildLayout(model);
     this.layout = this.baseLayout;
     this.hitLayout = this.baseLayout;
+    this.collapsedIds = [];
+    this.summaryCache.clear();
+    this.collapseState = null;
     this.collapse = IDLE_COLLAPSE;
     this.timeBase = model?.minTime ?? 0;
     this.refreshDepCache();
@@ -521,11 +529,30 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // bounds GPU memory; resize clears on dpr change (new fontPx).
   }
 
+  setCollapsedIds(ids: readonly string[]): void {
+    if (ids === this.collapsedIds || (ids.length === this.collapsedIds.length && ids.every((id, i) => id === this.collapsedIds[i]))) {
+      return;
+    }
+    this.collapsedIds = ids;
+    this.refreshCollapse();
+  }
+
   /** Per-frame collapse/expand transform applied inline in `render` (no mesh rebuild). */
   setCollapseAnim(state: CollapseAnimState | null): void {
-    this.collapse = collapseTransform(this.baseLayout, state);
-    this.hitLayout = state ? applyCollapseAnim(this.baseLayout, state) : this.baseLayout;
-    // Endpoint Y / visibility change with the tween — refresh instance buffer.
+    if (sameCollapseAnim(this.collapseState, state)) return;
+    this.collapseState = state;
+    this.refreshCollapse();
+  }
+
+  private refreshCollapse(): void {
+    const next = collapsePaintState(
+      this.baseLayout,
+      this.collapsedIds,
+      this.collapseState,
+      this.summaryCache,
+    );
+    this.collapse = next.collapse;
+    this.hitLayout = next.hitLayout;
     this.rebuildCurveInstances();
   }
 
@@ -533,17 +560,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.view = { ...view };
   }
 
-  setSelection(selectedId: string | null, hoveredId: string | null): void {
-    const selectionChanged = selectedId !== this.selectedId;
-    const hoverChanged = hoveredId !== this.hoveredId;
-    if (!selectionChanged && !hoverChanged) return;
-    this.hoveredId = hoveredId;
-    if (!selectionChanged) {
-      // Emphasis buckets include the hovered event while a selection is active; labels read it
-      // live during render, so the buckets must refresh too.
-      if (this.selectedId || this.multiIds.size > 0) this.rebuildEmphasisSplit();
-      return;
-    }
+  /** In-flight lane scroll: skip `drawEventLabels` (the pan-frame budget killer). */
+  setLiveScroll(on: boolean): void {
+    this.liveScroll = on;
+  }
+
+  /** Overlay owns hover lift; keep the arg so hover-only calls no-op on `selectedId`. */
+  setSelection(selectedId: string | null, _hoveredId: string | null): void {
+    if (selectedId === this.selectedId) return;
     this.selectedId = selectedId;
     this.refreshDepCache();
     this.rebuildEmphasisSplit();
@@ -594,13 +618,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   contentHeight(): number {
-    return contentHeightFromLayout(this.layout);
+    return Math.max(0, contentHeightFromLayout(this.baseLayout) - collapseClosedHeight(this.collapse));
   }
 
   eventScreenRect(eventId: string): { x: number; y: number; w: number; h: number } | null {
     const item = findLaidOutEvent(this.hitLayout, eventId);
     if (!item) return null;
-    return eventScreenRect(item, this.view, this.width, this.dpr);
+    return eventScreenRect(item, this.view, this.width, this.dpr, this.collapse);
   }
 
   hitTest(x: number, y: number): string | null {
@@ -679,10 +703,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
+      const alpha = collapseAlpha(lane.y, this.collapse);
+      if (alpha <= 0) continue;
       const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
       const laneH = lane.rowCount * LANE_HEIGHT * dpr;
       if (y + laneH < 0 || y > devH) continue;
-      const alpha = collapseAlpha(lane.y, this.collapse);
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
       this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg, alpha);
       this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider], alpha);
@@ -728,6 +753,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const meshes = this.laneMeshes[i];
       if (!lane || !meshes) continue;
       const laneAlpha = collapseAlpha(lane.y, this.collapse);
+      if (laneAlpha <= 0) continue;
 
       for (const row of meshes.rows) {
         const { y: topRaw, h: bandHRaw } = eventBlockMetrics(
@@ -779,10 +805,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    this.drawEventLabels();
+    if (!this.liveScroll) this.drawEventLabels();
 
     // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
-    if (this.paintDependencies) {
+    if (this.paintDependencies && !this.liveScroll) {
       gl.enable(gl.BLEND);
       this.drawDependencyCurves(gl);
     }
@@ -830,6 +856,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.layout = EMPTY_LAYOUT;
     this.hitLayout = EMPTY_LAYOUT;
     this.collapse = IDLE_COLLAPSE;
+    this.collapseState = null;
+    this.collapsedIds = [];
+    this.summaryCache.clear();
     this.neighborIds = new Set();
     this.multiIds = new Set();
     this.depLinks = [];
@@ -864,7 +893,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.uniform2f(prog.uTextPow, CLEARTYPE_TEXT_POW, 0);
     gl.enable(gl.SCISSOR_TEST);
 
-    for (const item of this.layout.events) {
+    for (let i = 0; i < this.layout.lanes.length; i++) {
+      const lane = this.layout.lanes[i];
+      if (!lane || collapseAlpha(lane.y, this.collapse) <= 0) continue;
+      for (const item of this.layout.eventsByLane[i] ?? []) {
       // Collapsed-folder summary bars carry their own dimmed "N tasks" label via the overlay
       // (`taskCountLabel` in `SUMMARY_LABEL_COLOR`); the ClearType pass must not rasterize `ev.name`
       // (empty for multi-task unions, the leaf title for a single-event union) over it with a
@@ -889,7 +921,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       if (!matches) continue;
       const { muted } = eventEmphasis(
         matches,
-        isKeepBright(item.id, bright, this.hoveredId, this.multiIds),
+        // Hover lift is the overlay (PR-RENDER-054); baking hoveredId here would stale
+        // when a hover-only update skips this GL pass.
+        isKeepBright(item.id, bright, null, this.multiIds),
         hasSearch,
         hasSelection || hasMulti,
       );
@@ -950,6 +984,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       gl.bindTexture(gl.TEXTURE_2D, glyph.texture);
       gl.bindVertexArray(quad.vao);
       gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
+      }
     }
     gl.bindVertexArray(null);
     gl.disable(gl.SCISSOR_TEST);
@@ -1059,7 +1094,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const matches = !hasSearch || item.event.name.toLowerCase().includes(q);
           const { alpha, muted } = eventEmphasis(
             matches,
-            isKeepBright(item.id, bright, this.hoveredId, multi),
+            isKeepBright(item.id, bright, null, multi),
             hasSearch,
             hasSelection || hasMulti,
           );
