@@ -902,94 +902,94 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         this.layout.maxLeafDuration,
       );
       for (let j = lo; j < hi; j++) {
-      const item = laneEvts[j]!;
-      // Collapsed-folder summary bars carry their own dimmed "N tasks" label via the overlay
-      // (`taskCountLabel` in `SUMMARY_LABEL_COLOR`); the ClearType pass must not rasterize `ev.name`
-      // (empty for multi-task unions, the leaf title for a single-event union) over it with a
-      // colored additive backdrop.
-      if (item.summary) continue;
-      const ev = item.event;
-      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
-        continue;
-      }
-      const x = ((ev.startTime - this.view.startTime) / span) * devW;
-      const w = Math.max(2, (ev.duration / span) * devW);
-      // Match interval fills: shift with the tween and skip fully-faded subtree rows so
-      // ClearType titles do not linger on the expanded-base Y while blocks slide away.
-      const labelAlpha = collapseAlpha(item.y, this.collapse);
-      if (labelAlpha <= 0) continue;
-      const m = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
-      const y = m.y * dpr;
-      const h = m.h * dpr;
-      if (y + h < 0 || y > devH) continue;
-      const r = eventPaintRect(x, y, w, h, dpr);
-      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      if (!matches) continue;
-      const { muted } = eventEmphasis(
-        matches,
-        // Hover lift is the overlay (PR-RENDER-054); baking hoveredId here would stale
-        // when a hover-only update skips this GL pass.
-        isKeepBright(item.id, bright, null, this.multiIds),
-        hasSearch,
-        hasSelection || hasMulti,
-      );
-      const anchor = eventLabelAnchor(r.x, r.w, devW);
-      if (!anchor) continue;
-      const glyph = atlas.get(gl, ev.name, fontPx, anchor.maxWidth);
-      if (!glyph) continue;
+        const item = laneEvts[j]!;
+        // Collapsed-folder summary bars carry their own dimmed "N tasks" label via the overlay
+        // (`taskCountLabel` in `SUMMARY_LABEL_COLOR`); the ClearType pass must not rasterize `ev.name`
+        // (empty for multi-task unions, the leaf title for a single-event union) over it with a
+        // colored additive backdrop.
+        if (item.summary) continue;
+        const ev = item.event;
+        if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+          continue;
+        }
+        const x = ((ev.startTime - this.view.startTime) / span) * devW;
+        const w = Math.max(2, (ev.duration / span) * devW);
+        // Match interval fills: shift with the tween and skip fully-faded subtree rows so
+        // ClearType titles do not linger on the expanded-base Y while blocks slide away.
+        const labelAlpha = collapseAlpha(item.y, this.collapse);
+        if (labelAlpha <= 0) continue;
+        const m = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
+        const y = m.y * dpr;
+        const h = m.h * dpr;
+        if (y + h < 0 || y > devH) continue;
+        const r = eventPaintRect(x, y, w, h, dpr);
+        const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+        if (!matches) continue;
+        const { muted } = eventEmphasis(
+          matches,
+          // Hover lift is the overlay (PR-RENDER-054); baking hoveredId here would stale
+          // when a hover-only update skips this GL pass.
+          isKeepBright(item.id, bright, null, this.multiIds),
+          hasSearch,
+          hasSelection || hasMulti,
+        );
+        const anchor = eventLabelAnchor(r.x, r.w, devW);
+        if (!anchor) continue;
+        const glyph = atlas.get(gl, ev.name, fontPx, anchor.maxWidth);
+        if (!glyph) continue;
 
-      const lane = this.layout.lanes[item.laneIndex];
-      if (!lane) continue;
-      // ClearType is opaque (alpha = 1), so bake the composited backdrop into uBgColor. The fill
-      // pass blends additively (ONE,ONE): a fully covered event pixel is `bg + rgb`, so the
-      // label's solid backdrop must use that same formula (clamped) to sit invisibly on the fill.
-      // `bg` is the hovered row's chrome when this event's lane is the hovered row; a muted
-      // (non-selected, non-neighbor) event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`.
-      const fill = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
-      const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
-      const [fr, fg, fb] = compositeLabelBackdrop(bg, fill, 1);
-      gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
-      if (muted) {
-        const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);
-        gl.uniform4f(prog.uColor, mr, mg, mb, labelAlpha);
-      } else {
-        gl.uniform4f(prog.uColor, 1, 1, 1, labelAlpha);
-      }
+        const lane = this.layout.lanes[item.laneIndex];
+        if (!lane) continue;
+        // ClearType is opaque (alpha = 1), so bake the composited backdrop into uBgColor. The fill
+        // pass blends additively (ONE,ONE): a fully covered event pixel is `bg + rgb`, so the
+        // label's solid backdrop must use that same formula (clamped) to sit invisibly on the fill.
+        // `bg` is the hovered row's chrome when this event's lane is the hovered row; a muted
+        // (non-selected, non-neighbor) event swaps in `SELECTION_MUTED_FILL`/`SELECTION_MUTED_LABEL`.
+        const fill = muted ? hexToRgb(SELECTION_MUTED_FILL) : hexToRgb(lane.color);
+        const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
+        const [fr, fg, fb] = compositeLabelBackdrop(bg, fill, 1);
+        gl.uniform4f(prog.uBgColor, fr, fg, fb, 1);
+        if (muted) {
+          const [mr, mg, mb] = hexToRgb(SELECTION_MUTED_LABEL);
+          gl.uniform4f(prog.uColor, mr, mg, mb, labelAlpha);
+        } else {
+          gl.uniform4f(prog.uColor, 1, 1, 1, labelAlpha);
+        }
 
-      if (labelAlpha < 1) {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      } else {
-        gl.disable(gl.BLEND);
-      }
+        if (labelAlpha < 1) {
+          gl.enable(gl.BLEND);
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        } else {
+          gl.disable(gl.BLEND);
+        }
 
-      const cy = r.y + r.h / 2;
-      // Snap the quad origin to device pixels: glyphs are drawn 1:1 with NEAREST sampling, so a
-      // half-pixel origin (odd visible width or the event's -0.5 optical nudge) shifts the baked
-      // ClearType subpixel RGB off the display grid and leaves the fringe colored/soft.
-      const gx = Math.round(anchor.cx - glyph.width / 2);
-      const gy = Math.round(cy - glyph.height / 2);
-      gl.uniform4f(
-        prog.uSizePos,
-        glyph.width / devW,
-        glyph.height / devH,
-        -1 + (2 * gx + glyph.width) / devW,
-        1 - (2 * gy + glyph.height) / devH,
-      );
-      // Clip the opaque label quad to its event's fill rect. WebGL scissor uses bottom-left
-      // origin; clamp to the viewport so out-of-range clipped events stay valid.
-      const sLeft = Math.max(0, Math.floor(r.x));
-      const sTop = Math.max(0, Math.floor(r.y));
-      const sRight = Math.min(devW, Math.ceil(r.x + r.w));
-      const sBottom = Math.min(devH, Math.ceil(r.y + r.h));
-      // An event that barely intersects the viewport can clamp to an empty box; scissor() would
-      // not be called, yet the draw below would still run with the previous event's (or the
-      // prior frame's) scissor, leaking a label into a different event. Skip the draw entirely.
-      if (sRight <= sLeft || sBottom <= sTop) continue;
-      gl.scissor(sLeft, devH - sBottom, sRight - sLeft, sBottom - sTop);
-      gl.bindTexture(gl.TEXTURE_2D, glyph.texture);
-      gl.bindVertexArray(quad.vao);
-      gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
+        const cy = r.y + r.h / 2;
+        // Snap the quad origin to device pixels: glyphs are drawn 1:1 with NEAREST sampling, so a
+        // half-pixel origin (odd visible width or the event's -0.5 optical nudge) shifts the baked
+        // ClearType subpixel RGB off the display grid and leaves the fringe colored/soft.
+        const gx = Math.round(anchor.cx - glyph.width / 2);
+        const gy = Math.round(cy - glyph.height / 2);
+        gl.uniform4f(
+          prog.uSizePos,
+          glyph.width / devW,
+          glyph.height / devH,
+          -1 + (2 * gx + glyph.width) / devW,
+          1 - (2 * gy + glyph.height) / devH,
+        );
+        // Clip the opaque label quad to its event's fill rect. WebGL scissor uses bottom-left
+        // origin; clamp to the viewport so out-of-range clipped events stay valid.
+        const sLeft = Math.max(0, Math.floor(r.x));
+        const sTop = Math.max(0, Math.floor(r.y));
+        const sRight = Math.min(devW, Math.ceil(r.x + r.w));
+        const sBottom = Math.min(devH, Math.ceil(r.y + r.h));
+        // An event that barely intersects the viewport can clamp to an empty box; scissor() would
+        // not be called, yet the draw below would still run with the previous event's (or the
+        // prior frame's) scissor, leaking a label into a different event. Skip the draw entirely.
+        if (sRight <= sLeft || sBottom <= sTop) continue;
+        gl.scissor(sLeft, devH - sBottom, sRight - sLeft, sBottom - sTop);
+        gl.bindTexture(gl.TEXTURE_2D, glyph.texture);
+        gl.bindVertexArray(quad.vao);
+        gl.drawElements(gl.TRIANGLES, quad.indexCount, gl.UNSIGNED_SHORT, 0);
       }
     }
     gl.bindVertexArray(null);

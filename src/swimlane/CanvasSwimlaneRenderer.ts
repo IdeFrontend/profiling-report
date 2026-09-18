@@ -449,8 +449,15 @@ export class SwimlaneOverlayPainter {
       return;
     }
 
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const canFit = eventLabelsCanFit(this.layout.maxLeafDuration, span, this.width);
+    // Fit-zoom: skip leaf lanes (bisect degenerates to the whole list). Folder summaries
+    // stay in this walk; lifted leaves are painted by id so hover/selection fill is not lost.
+    if (!canFit) this.paintLiftedLeaves(ctx);
+
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
+      if (!canFit && !lane.folder) continue;
       if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
       const laneEvts = this.layout.eventsByLane[i] ?? [];
       const [lo, hi] = laneEventRange(
@@ -757,73 +764,73 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         this.layout.maxLeafDuration,
       );
       for (let j = lo; j < hi; j++) {
-      const item = laneEvts[j]!;
-      const ev = item.event;
-      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
-        continue;
-      }
-      const x = ((ev.startTime - this.view.startTime) / span) * this.width;
-      const w = Math.max(2, (ev.duration / span) * this.width);
-      const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
-      const y = metrics.y * dpr;
-      const h = metrics.h * dpr;
-      if (y + h < 0 || y > this.height) continue;
-      const fr = eventPaintRect(x, y, w, h, dpr);
+        const item = laneEvts[j]!;
+        const ev = item.event;
+        if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+          continue;
+        }
+        const x = ((ev.startTime - this.view.startTime) / span) * this.width;
+        const w = Math.max(2, (ev.duration / span) * this.width);
+        const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
+        const y = metrics.y * dpr;
+        const h = metrics.h * dpr;
+        if (y + h < 0 || y > this.height) continue;
+        const fr = eventPaintRect(x, y, w, h, dpr);
 
-      // Summary bars: gray fill with a hover lift and a dimmed task-count label;
-      // never dimmed by search/selection or selected/ringed. Click-to-expand is the host's job.
-      if (item.summary) {
-        const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
-        const fill = eventFill(item.color, state);
-        ctx.globalAlpha = 1;
+        // Summary bars: gray fill with a hover lift and a dimmed task-count label;
+        // never dimmed by search/selection or selected/ringed. Click-to-expand is the host's job.
+        if (item.summary) {
+          const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+          const fill = eventFill(item.color, state);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = fill;
+          roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          drawEventLabel(
+            ctx,
+            taskCountLabel(ev.taskCount ?? 0),
+            fr.x,
+            fr.y,
+            fr.w,
+            fr.h,
+            this.width,
+            1,
+            SUMMARY_LABEL_COLOR,
+            dpr,
+          );
+          continue;
+        }
+
+        const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+        const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
+        const { alpha: emphAlpha, muted } = eventEmphasis(
+          matches,
+          keepBright,
+          hasSearch,
+          hasSelection || hasMulti,
+        );
+        const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
+        const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
+        const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
+        ctx.globalAlpha = alpha;
         ctx.fillStyle = fill;
         roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
         ctx.fill();
         ctx.globalAlpha = 1;
-        drawEventLabel(
-          ctx,
-          taskCountLabel(ev.taskCount ?? 0),
-          fr.x,
-          fr.y,
-          fr.w,
-          fr.h,
-          this.width,
-          1,
-          SUMMARY_LABEL_COLOR,
-          dpr,
-        );
-        continue;
-      }
-
-      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
-      const { alpha: emphAlpha, muted } = eventEmphasis(
-        matches,
-        keepBright,
-        hasSearch,
-        hasSelection || hasMulti,
-      );
-      const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
-      const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
-      const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = fill;
-      roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      if (labelsFit) {
-        visible.push({
-          item,
-          x: fr.x,
-          y: fr.y,
-          w: fr.w,
-          h: fr.h,
-          matches,
-          alpha,
-          muted,
-          fill,
-        });
-      }
+        if (labelsFit) {
+          visible.push({
+            item,
+            x: fr.x,
+            y: fr.y,
+            w: fr.w,
+            h: fr.h,
+            matches,
+            alpha,
+            muted,
+            fill,
+          });
+        }
       }
     }
 

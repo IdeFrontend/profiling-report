@@ -406,6 +406,77 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(webglSrc).toMatch(/eventLabelsCanFit\(this\.layout\.maxLeafDuration/);
     expect(webglSrc).toMatch(/overlappingLaneRange\(/);
     expect(webglSrc).toMatch(/lane\.folder/);
+
+    const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(overlaySrc).toMatch(/if \(!canFit && !lane\.folder\) continue/);
+    expect(overlaySrc).toMatch(/if \(!canFit\) this\.paintLiftedLeaves\(ctx\)/);
+
+    const tinyLeaf = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'e-tiny', name: 'tiny_leaf', startTime: 0, duration: 1 }],
+            },
+          ],
+        },
+      ],
+    };
+    const skipLabels = recordingCanvas();
+    const skipOverlay = new SwimlaneOverlayPainter();
+    skipOverlay.attach(skipLabels.canvas);
+    skipOverlay.resize(400, 120, 1);
+    skipOverlay.setLayout(rebuildLayout(tinyLeaf));
+    skipOverlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    skipOverlay.render();
+    expect(skipLabels.texts.has('tiny_leaf')).toBe(false);
+
+    const lift = recordingCanvas();
+    const liftOverlay = new SwimlaneOverlayPainter();
+    liftOverlay.attach(lift.canvas);
+    liftOverlay.resize(400, 120, 1);
+    const tinyLayout = rebuildLayout(tinyLeaf);
+    liftOverlay.setLayout(tinyLayout);
+    liftOverlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    liftOverlay.setSelection('e-tiny', null);
+    liftOverlay.render();
+    expect(lift.fills).toContain(eventFill(tinyLayout.events[0]!.color, 'selected'));
+
+    const summaryBars = recordingCanvas();
+    const summaryOverlay = new SwimlaneOverlayPainter();
+    summaryOverlay.attach(summaryBars.canvas);
+    summaryOverlay.resize(400, 120, 1);
+    summaryOverlay.setLayout(rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'PIPE',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 's0', name: '', startTime: 0, duration: 40, taskCount: 4 },
+              ],
+            },
+          ],
+        },
+      ],
+    }));
+    summaryOverlay.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    summaryOverlay.render();
+    expect(summaryBars.texts.has('4 tasks')).toBe(true);
   });
 
   it('PR-RENDER-042: assignEventRows greedy first-fit splits only overlaps', () => {
