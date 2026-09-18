@@ -460,7 +460,19 @@ function onUpdateMultiSelected(newIds: string[]) {
 }
 
 function onMultiSelectPreview(events: SwimEvent[] | null) {
-  livePreviewIds.value = events == null ? null : events.map((e) => e.id);
+  if (events == null) {
+    livePreviewIds.value = null;
+  } else {
+    const ids = events.map((e) => e.id);
+    const prev = livePreviewIds.value;
+    if (
+      prev == null ||
+      prev.length !== ids.length ||
+      prev.some((id, i) => id !== ids[i])
+    ) {
+      livePreviewIds.value = ids;
+    }
+  }
   emit('multi-select-preview', events);
 }
 

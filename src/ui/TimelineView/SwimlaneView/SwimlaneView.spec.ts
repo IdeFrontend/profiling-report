@@ -358,6 +358,41 @@ describe('SwimlaneView', () => {
     expect(canvas.props('multiSelectedIds')).toEqual(['e1', 'e2']);
   });
 
+  it('PR-SWIMVIEW-034: unchanged marquee coverage keeps livePreviewIds identity', async () => {
+    const events = [
+      { id: 'a', name: 'A', startTime: 0, duration: 10 },
+      { id: 'b', name: 'B', startTime: 20, duration: 10 },
+    ];
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        multiSelectedIds: [],
+        searchQuery: '',
+      },
+    });
+    const canvas = wrapper.findComponent(SwimlaneCanvas);
+    canvas.vm.$emit('multi-select-preview', events);
+    await nextTick();
+    const first = canvas.props('multiSelectedIds');
+    expect(first).toEqual(['a', 'b']);
+    canvas.vm.$emit(
+      'multi-select-preview',
+      events.map((event) => ({ ...event })),
+    );
+    await nextTick();
+    expect(canvas.props('multiSelectedIds')).toBe(first);
+  });
+
   it('PR-SWIMVIEW-031: gutter wheel is forwarded to the canvas handleWheel', async () => {
     const view = createViewState({
       minTime: 0,

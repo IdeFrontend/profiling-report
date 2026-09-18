@@ -8,7 +8,7 @@ The marquee multi-select summary dock. Mounted by ProfilingReport when a marquee
 
 ## Inputs
 
-**selectedEvents** — the multi-selection (`SwimEvent[]`), from a commit or a live marquee preview. **model** — the full `SwimlaneModel`, used to derive the average wall duration across the whole model (not just the selection). **locale** — UI language. **height** (optional) — the dock height in px, owned by the parent (default `DOCK_HEIGHT_COLLAPSED`).
+**selectedEvents** — the multi-selection (`SwimEvent[]`), from a commit or a live marquee preview. **model** — the full `SwimlaneModel`, used to derive the average wall duration across the whole model (not just the selection). **locale** — UI language. **height** (optional) — the dock height in px, owned by the parent (default `DOCK_HEIGHT_COLLAPSED`). **livePreview** — while the marquee is still in flight, the dock shows the header count only (no table body).
 
 ## Outputs
 
@@ -16,7 +16,7 @@ The marquee multi-select summary dock. Mounted by ProfilingReport when a marquee
 
 ## Behavior
 
-The dock shows a header with the selection count and the "Slices" tab label, a sortable four-column table (**Name**, **Wall Duration**, **Self time**, **Average Wall Duration**), and a × close button. The table body scrolls inside the dock (the dock itself does not grow with content). At most 1000 rows are rendered; a larger selection reports "Showing 1000 of N" while numeric bars still scale against the complete selection. Sorting starts as Wall Duration descending; clicking a header alternates ascending ↔ descending, every header carries the drawn sort arrows, and the active column is highlighted. A centred expander on the top edge toggles the dock between its two fixed heights (collapsed / expanded); there is no drag resize.
+The dock shows a header with the selection count and the "Slices" tab label, a sortable four-column table (**Name**, **Wall Duration**, **Self time**, **Average Wall Duration**), and a × close button. The table body scrolls inside the dock (the dock itself does not grow with content). At most 1000 events stay in the ranked data window; the table virtualizes to the visible viewport (plus a small overscan) rather than mounting 1000 `<tr>`s. A larger selection reports "Showing 1000 of N" while numeric bars still scale against the complete selection. **livePreview** hides the table so a live marquee can update the count without a 1000-row layout. Sorting starts as Wall Duration descending; clicking a header alternates ascending ↔ descending, every header carries the drawn sort arrows, and the active column is highlighted. A centred expander on the top edge toggles the dock between its two fixed heights (collapsed / expanded); there is no drag resize.
 
 ## Acceptance Criteria
 
@@ -27,10 +27,12 @@ The dock shows a header with the selection count and the "Slices" tab label, a s
 5. **PR-MSEL-005** — Clicking a name emits `select-single` with the full event.
 6. **PR-MSEL-006** — Header × emits `close`.
 7. **PR-MSEL-007** — The centred expander toggles the dock between its two sketch heights and carries `aria-expanded`; no resize handle exists.
-8. **PR-MSEL-008** — The table body scrolls, not the dock; large selections render 1000 rows with the visible count.
+8. **PR-MSEL-008** — The table body scrolls, not the dock; large selections keep 1000 ranked rows with the visible count, and the DOM window is the viewport.
+9. **PR-MSEL-009** — Live preview keeps the header count and omits the table.
 
 ## Changelog
 
+- **2026-09-18** — Committed table virtualizes the viewport; live preview is header-only (`PR-MSEL-008` / `PR-MSEL-009`).
 - **2026-09-12** — May also mount from a live marquee preview (≥2 events) before commit.
 - **2026-09-12** — Dock mounts only for commits of two or more events; a one-event marquee is demoted to DetailPanel by the root.
 - **2026-08-26** — Multi-select summary dock for the marquee commit path.
