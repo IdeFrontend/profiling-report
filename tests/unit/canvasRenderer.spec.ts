@@ -8,7 +8,10 @@ import {
   eventEmphasis,
   isKeepBright,
   eventLabelAnchor,
+  eventLabelsCanFit,
   eventPaintRect,
+  overlappingLaneRange,
+  laneEventRange,
   eventRadius,
   eventsIntersectingRect,
   findExactEdgeMatches,
@@ -312,6 +315,168 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(clippedLeft).toEqual({ cx: 25, maxWidth: 42 });
     const tooNarrow = eventLabelAnchor(-30, 50, 400);
     expect(tooNarrow).toBeNull();
+  });
+
+  it('PR-RENDER-057: overlappingLaneRange bisects leaves; folders walk in full', async () => {
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 2000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'a', name: 'a', startTime: 0, duration: 10 },
+                { id: 'b', name: 'b', startTime: 100, duration: 50 },
+                { id: 'c', name: 'c', startTime: 200, duration: 10 },
+                { id: 'd', name: 'd', startTime: 1000, duration: 10 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(layout.maxLeafDuration).toBe(50);
+    const laneEvts = layout.eventsByLane[0]!;
+    const ids = (lo: number, hi: number) => laneEvts.slice(lo, hi).map((e) => e.id);
+    expect(ids(...overlappingLaneRange(laneEvts, 90, 160, layout.maxLeafDuration))).toEqual(['b']);
+    expect(ids(...overlappingLaneRange(laneEvts, 0, 5, layout.maxLeafDuration))).toEqual(['a']);
+    expect(eventLabelsCanFit(50, 2000, 400)).toBe(false);
+    expect(eventLabelsCanFit(50, 100, 400)).toBe(true);
+
+    const spanLayout = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [
+                { id: 'long', name: 'long', startTime: 0, duration: 800 },
+                { id: 'late', name: 'late', startTime: 900, duration: 50 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const spanEvts = spanLayout.eventsByLane[0]!;
+    expect(spanEvts.slice(...overlappingLaneRange(spanEvts, 400, 500, spanLayout.maxLeafDuration)).map((e) => e.id)).toEqual([
+      'long',
+    ]);
+
+    const folderLayout = rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'PIPE',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 's1', name: '', startTime: 50, duration: 10, taskCount: 1 },
+                { id: 's0', name: '', startTime: 0, duration: 10, taskCount: 1 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const folder = folderLayout.lanes[0]!;
+    expect(folder.folder).toBe(true);
+    const folderEvts = folderLayout.eventsByLane[0]!;
+    expect(laneEventRange(folder, folderEvts, 40, 60, 10)).toEqual([0, folderEvts.length]);
+    expect(overlappingLaneRange(folderEvts, 40, 60, 10)[0]).toBeGreaterThan(0);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/eventLabelsCanFit\(this\.layout\.maxLeafDuration/);
+    expect(webglSrc).toMatch(/overlappingLaneRange\(/);
+    expect(webglSrc).toMatch(/lane\.folder/);
+
+    const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(overlaySrc).toMatch(/if \(!canFit && !lane\.folder\) continue/);
+    expect(overlaySrc).toMatch(/if \(!canFit\) this\.paintLiftedLeaves\(ctx\)/);
+
+    const tinyLeaf = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'T',
+              events: [{ id: 'e-tiny', name: 'tiny_leaf', startTime: 0, duration: 1 }],
+            },
+          ],
+        },
+      ],
+    };
+    const skipLabels = recordingCanvas();
+    const skipOverlay = new SwimlaneOverlayPainter();
+    skipOverlay.attach(skipLabels.canvas);
+    skipOverlay.resize(400, 120, 1);
+    skipOverlay.setLayout(rebuildLayout(tinyLeaf));
+    skipOverlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    skipOverlay.render();
+    expect(skipLabels.texts.has('tiny_leaf')).toBe(false);
+
+    const lift = recordingCanvas();
+    const liftOverlay = new SwimlaneOverlayPainter();
+    liftOverlay.attach(lift.canvas);
+    liftOverlay.resize(400, 120, 1);
+    const tinyLayout = rebuildLayout(tinyLeaf);
+    liftOverlay.setLayout(tinyLayout);
+    liftOverlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    liftOverlay.setSelection('e-tiny', null);
+    liftOverlay.render();
+    expect(lift.fills).toContain(eventFill(tinyLayout.events[0]!.color, 'selected'));
+
+    const summaryBars = recordingCanvas();
+    const summaryOverlay = new SwimlaneOverlayPainter();
+    summaryOverlay.attach(summaryBars.canvas);
+    summaryOverlay.resize(400, 120, 1);
+    summaryOverlay.setLayout(rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'PIPE',
+              events: [],
+              children: [],
+              summaryEvents: [
+                { id: 's0', name: '', startTime: 0, duration: 40, taskCount: 4 },
+              ],
+            },
+          ],
+        },
+      ],
+    }));
+    summaryOverlay.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    summaryOverlay.render();
+    expect(summaryBars.texts.has('4 tasks')).toBe(true);
   });
 
   it('PR-RENDER-042: assignEventRows greedy first-fit splits only overlaps', () => {
@@ -1079,6 +1244,49 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
   });
 
+  it('PR-RENDER-056: live-scroll frames still draw resting event labels', async () => {
+    const { canvas, texts } = recordingCanvas();
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setLiveScroll(true);
+    renderer.render();
+    expect(texts.has('PIPE_V_busy')).toBe(true);
+
+    const overlayPaint = recordingCanvas();
+    const overlay = new SwimlaneOverlayPainter();
+    overlay.attach(overlayPaint.canvas);
+    overlay.resize(400, 120, 1);
+    overlay.setLayout(rebuildLayout(tinyModel()));
+    overlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    overlay.render();
+    expect(overlayPaint.texts.has('PIPE_V_busy')).toBe(true);
+
+    const clearTypeOverlay = recordingCanvas();
+    const ct = new SwimlaneOverlayPainter();
+    ct.attach(clearTypeOverlay.canvas);
+    ct.resize(400, 120, 1);
+    ct.setLayout(rebuildLayout(tinyModel()));
+    ct.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    ct.setDrawEventLabels(false);
+    ct.render();
+    expect(clearTypeOverlay.texts.has('PIPE_V_busy')).toBe(false);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/this\.drawEventLabels\(\)/);
+    expect(webglSrc).not.toMatch(/\bliveScroll\b/);
+    expect(webglSrc).not.toMatch(/setLiveScroll/);
+    const renderBody = classMethodBody(webglSrc, 'render');
+    expect(renderBody).toMatch(/this\.drawDependencyCurves/);
+    expect(renderBody).not.toMatch(/liveScroll/);
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc).toMatch(/if \(this\.paintDependencies && !this\.liveScroll\)/);
+  });
+
   it('PR-RENDER-054: WebGL meshes ignore hover; ClearType overlay lifts by id', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
@@ -1087,6 +1295,8 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     expect(overlaySrc).toMatch(/private paintLiftedLeaves\(/);
     expect(overlaySrc).toMatch(/this\.layout\.eventsById\.get\(id\)/);
+    expect(overlaySrc).not.toMatch(/maxMulti/);
+    expect(overlaySrc).toMatch(/for \(const id of this\.multiIds\) paint\(id\)/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
@@ -1412,15 +1622,10 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     overlay.setLayout(rebuildLayout(model));
     overlay.setCollapsedIds(['folder']);
     overlay.setView({ startTime: 0, endTime: 100, scrollY: 0 });
-    overlay.setLiveScroll(true);
     overlay.render();
     expect(fills).toContain(SUMMARY_EVENT_FILL);
     expect(texts.get('1 task')).toBe(SUMMARY_LABEL_COLOR);
-    expect(texts.has('OPEN_LEAF')).toBe(false);
-    expect(texts.has('HIDDEN_LEAF')).toBe(false);
-
-    overlay.setLiveScroll(false);
-    overlay.render();
     expect(texts.has('OPEN_LEAF')).toBe(true);
+    expect(texts.has('HIDDEN_LEAF')).toBe(false);
   });
 });
