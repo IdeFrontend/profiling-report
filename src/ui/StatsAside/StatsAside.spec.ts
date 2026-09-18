@@ -454,6 +454,24 @@ describe('StatsAside', () => {
     expect(fullMeta).toContain('10');
   });
 
+  it('PR-STATS-007b: emulate omits meta row, 更多, and summary cards (DATA-47)', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          profile: 'emulate',
+          summary: { pid: '9', opType: 'mix', blockDim: 4, taskDurationUs: 1000, opName: 'k' },
+          pipeOccupancy: [{ id: 'cube', label: 'Cube', ratio: 0.5, colorKey: 'cube', side: 'cube' }],
+        }),
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-aside-meta"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-aside-more"]').exists()).toBe(false);
+    expect(wrapper.find('.pr-aside__meta').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-duration-card"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="cannbot-summary"]').exists()).toBe(false);
+  });
+
   it('PR-STATS-008: 更多 always visible on report shell; emits open-hardware-details', async () => {
     const bare = mount(StatsAside, {
       props: { report: report({}) },

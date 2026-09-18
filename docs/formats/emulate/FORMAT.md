@@ -73,7 +73,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 |--------------------------------|----------------|--------------|-------|
 | `manifest.json` | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog |
 | `PipeTrace.json` | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/interim/DATA.md#data-46)). When `PipeTrace.json` is absent, **all** native `core_*_tracing_report_*.json` (non–critical-path) are **merged** into one swimlane with remapped pids, ordered by numeric core index ([PR-ASIM-007](../../../specs/core/adapt-emulate.spec.md)). Absent both → null swimlane |
-| `KernelInfo.csv` | [Report statistics](../../views/report-summary.md) | `reportModel.summary*` | Thin identity / duration ([DATA-47a](../../context/decisions/interim/DATA.md)). Absent → hide cards |
+| `KernelInfo.csv` | _(not 报告统计 chrome)_ | optional `csvTexts` only | **Out** of summary cards / meta ([DATA-47](../../context/decisions/DATA.md)). May remain packed for catalog / export |
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
 | `ArchDiagramMetrics.csv` | [Architecture Diagram](../../views/arch-diagram.md) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
 
@@ -143,7 +143,7 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
-3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); thin `summary*` from KernelInfo; PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline/heatmap gaps ([DATA-30](../../context/decisions/DATA.md)).
+3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); **no** summary cards / meta from KernelInfo ([DATA-47](../../context/decisions/DATA.md)); PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline/heatmap gaps ([DATA-30](../../context/decisions/DATA.md)).
 4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 ---
@@ -161,9 +161,7 @@ Minimal viewer fixture (timeline + summary + PIPE): [`data/emulate-sample.npu-re
 | Item | Id |
 |------|-----|
 | Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
-| KernelInfo → summary cards | [DATA-47](../../context/questions/DATA.md) |
 | ArchDiagramMetrics → Architecture Diagram slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
 | Dedicated ArchDiagramModel / biprof chrome; heatmap deferral | [DATA-49](../../context/questions/DATA.md) |
-| Exact `tickToUs` default when freq unknown | [DATA-47](../../context/questions/DATA.md) / producer docs |
-| KernelInfo duration attrs (`exec_time_ns` vs `duration(us)`) for thin summary | [DATA-47](../../context/questions/DATA.md) |
+| Exact `tickToUs` default when freq unknown | producer docs |
 | Synthesizing PipeTrace from ExecutedInstructions / DispatchTime | Future — not required to open |

@@ -10,7 +10,6 @@ import type {
   PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
-  SummaryMetrics,
   SwimlaneModel,
 } from '../domain/types';
 import { hasDependencies } from '../domain/dependencies';
@@ -216,45 +215,6 @@ export function readEmulateManifest(
   return null;
 }
 
-/** Interim DATA-47a: KernelInfo attr/val rows → SummaryMetrics. */
-export function summaryFromKernelInfo(payload?: Uint8Array): SummaryMetrics {
-  if (!payload) return {};
-  const { rows } = parseCsv(decodeUtf8(payload));
-  if (rows.length === 0) return {};
-  const map = new Map<string, string>();
-  for (const row of rows) {
-    const attr = (row.KernelInfoAttr ?? row.Attr ?? row.key ?? Object.values(row)[0] ?? '')
-      .trim()
-      .toLowerCase();
-    const val = (row.KernelInfoVal ?? row.Val ?? row.value ?? Object.values(row)[1] ?? '').trim();
-    if (attr) map.set(attr, val);
-  }
-  const pick = (...keys: string[]) => {
-    for (const k of keys) {
-      const v = map.get(k.toLowerCase());
-      if (v != null && v !== '') return v;
-    }
-    return undefined;
-  };
-  const num = (v: string | undefined) => {
-    if (v == null) return undefined;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : undefined;
-  };
-  const summary: SummaryMetrics = {};
-  const opName = pick('op name', 'opname', 'kernel name', 'kernelname', 'name');
-  if (opName) summary.opName = opName;
-  const opType = pick('op type', 'optype', 'kernel type', 'type');
-  if (opType) summary.opType = opType;
-  const dur = num(pick('task duration(us)', 'taskdurationus', 'duration(us)', 'duration_us', 'duration'));
-  if (dur != null) summary.taskDurationUs = dur;
-  const pid = pick('pid', 'process id');
-  if (pid) summary.pid = pid;
-  const blockDim = pick('block dim', 'blockdim', 'block_dim');
-  if (blockDim) summary.blockDim = blockDim;
-  return summary;
-}
-
 const PIPE_NAME_MAP: { match: RegExp; id: string; label: string; colorKey: string; side: 'cube' | 'vector' }[] = [
   { match: /^cube$/i, id: 'cube', label: 'Cube', colorKey: 'cube', side: 'cube' },
   { match: /^vector$|^vec$|^simd$/i, id: 'vector', label: 'Vector', colorKey: 'vector', side: 'vector' },
@@ -445,7 +405,7 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
     );
   }
 
-  const summary = summaryFromKernelInfo(payloadByName(payloads, KERNEL_INFO_NAMES));
+  const summary = {};
 
   const histPipes = pipeOccupancyFromHist(payloadByName(payloads, PIPE_HIST_NAMES));
   const utilPipes = pipeOccupancyFromPipesUtilization(
@@ -505,6 +465,7 @@ export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedRepor
 
   const reportModel: ReportViewModel = {
     ...emptyReportViewModel(),
+    profile: 'emulate',
     summary,
     pipeOccupancy,
     computeTables,

@@ -174,11 +174,11 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-47a — Emulate KernelInfo → summary cards
 
-**Status:** `interim`
-**Question:** [DATA-47](../../questions/DATA.md)
-**Interim:** Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.
-**Implement / test as:** `summaryFromKernelInfo` in `adaptEmulate`; `PR-ASIM-003` + summary assertions
-**Superseded when:** Product locks DATA-47 field map
+**Status:** `interim` — **SUPERSEDED** 2026-09-18 by [DATA-47](../DATA.md)
+**Question:** [DATA-47](../DATA.md) *(resolved — removed from open list)*
+**Interim:** ~~Map when present: `KernelInfo.csv` rows `KernelInfoAttr`/`KernelInfoVal` with attrs matching `op name` / `kernel name` / `name` → `summary.opName`; `op type` / `type` → `opType`; `task duration(us)` / `duration(us)` / `duration` → `taskDurationUs`; `pid` → `pid`; `block dim` → `blockDim`. Unmapped → omit field (hide card chrome via DATA-30). Do **not** invent FLOPS/BW cards from emulate.~~ Product-final: [DATA-47](../DATA.md) — emulate does **not** map KernelInfo into summary cards or the meta/更多 header; `summary` stays empty and `profile: 'emulate'`.
+**Implement / test as:** ~~`summaryFromKernelInfo` in `adaptEmulate`; `PR-ASIM-003` + summary assertions~~ `profile: 'emulate'`; empty `summary`; PR-ASIM-005; PR-STATS-007b
+**Superseded when:** — already superseded by DATA-47
 
 
 ### DATA-48a — Emulate ArchDiagramMetrics → Architecture Diagram slots (interim chrome)

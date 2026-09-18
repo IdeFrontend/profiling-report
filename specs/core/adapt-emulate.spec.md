@@ -16,7 +16,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Swimlane.** When `PipeTrace.json` **or** one or more native `*_tracing_report_*.json` embeds are present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). Multiple native core reports are **merged** with remapped pids ([PR-ASIM-007](#acceptance-criteria)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
 
-**Thin summary.** When KernelInfo is present and mappable, fill `reportModel.summary` identity/duration fields (interim [DATA-47a](../../docs/context/decisions/interim/DATA.md)); otherwise leave summary empty/partial and let UI hide cards ([DATA-30](../../docs/context/decisions/DATA.md)).
+**Summary chrome.** Emulate does **not** populate `reportModel.summary` from KernelInfo (or any embed). Set `reportModel.profile: 'emulate'`. Aside omits summary cards and the pid / opType / Blocks / 更多 meta row ([DATA-47](../../docs/context/decisions/DATA.md)). KernelInfo may still be packed in `csvTexts` when present.
 
 **PIPE occupancy (Sept 30 / M4).** When `PipeUtilizationHist.csv` or `PipesUtilization.csv` is present, map into `pipeOccupancy` / `computeTables` without inventing `PipeUtilization.csv` ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)). Prefer hist `PipeName`+`Utilization`.
 
@@ -32,9 +32,9 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 1. **PR-ASIM-001** — `adaptEmulate` produces non-null `swimlaneModel` from valid emulate `PipeTrace.json` (µs).
 2. **PR-ASIM-002** — Without pipe util embeds, `pipeOccupancy` is empty and no synthetic `PipeUtilization.csv` is required; with `PipesUtilization` / hist, `pipeOccupancy` is non-empty.
-3. **PR-ASIM-003** — Missing KernelInfo yields AdaptedReport without hard error (timeline-only aside hide).
+3. **PR-ASIM-003** — Missing or present KernelInfo yields AdaptedReport without hard error; summary chrome stays empty.
 4. **PR-ASIM-004** — Does not invent compute-shaped metric CSV payloads ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
-5. **PR-ASIM-005** — Interim DATA-47a maps KernelInfo into `summary.opName` / `taskDurationUs` when attrs present.
+5. **PR-ASIM-005** — `reportModel.summary` is `{}` and `profile` is `'emulate'` even when KernelInfo attrs are present ([DATA-47](../../docs/context/decisions/DATA.md)).
 6. **PR-ASIM-006** — Missing Trace → `swimlaneModel === null` without throw; corrupt Trace JSON → throw.
 7. **PR-ASIM-007** — When `PipeTrace.json` is absent, every native `core_*_tracing_report_*.json` (non–critical-path) is merged into one swimlane; pids are remapped so cores that each use `pid: 0` stay distinct. Cores are ordered by numeric core index when the basename matches `core_<n>_…`.
 8. **PR-ASIM-008** — `ArchDiagramMetrics.csv` → drawable `memoryTopology` + capability **`archDiagram`**; empty/unmapped → omit (DATA-48a). Do not set `memoryDiagram` on emulate.
@@ -51,7 +51,6 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 ## Open
 
-DATA-47 — Product-final summary field mapping (interim DATA-47a).
 DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a).
 DATA-49 — Dedicated ArchDiagramModel / biprof chrome vs heatmap deferral.
 
@@ -62,3 +61,4 @@ DATA-49 — Dedicated ArchDiagramModel / biprof chrome vs heatmap deferral.
 - **2026-09-17** — M4 ArchDiagramMetrics → interim plated chrome (PR-ASIM-008 / DATA-48a).
 - **2026-09-17** — Product lock: capability `archDiagram` (not `memoryDiagram`); heatmap out (DATA-49).
 - **2026-09-17** — PR-ASIM-007: multi-core native tracing reports merged with remapped pids.
+- **2026-09-18** — DATA-47: no summary cards / meta for emulate; drop KernelInfo → summary map.

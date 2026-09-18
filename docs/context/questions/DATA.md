@@ -133,16 +133,6 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
 
-### DATA-47 — Emulate KernelInfo → summary cards
-
-**Status:** `open`
-
-**Question:** Which `KernelInfo.csv` attributes map to `ReportViewModel.summary` for emulate Sept 30 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
-
-**Context:** Thin summary from `KernelInfo.csv` ([emulate/FORMAT](../../formats/emulate/FORMAT.md)). No compute `OpBasicInfo.csv` remap ([DATA-45](../decisions/interim/DATA.md#data-45)). Coding uses interim [DATA-47a](../decisions/interim/DATA.md).
-
-**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [view-models](../../../specs/core/view-models.spec.md)
-
 ### DATA-48 — Emulate ArchDiagramMetrics → Architecture Diagram slots
 
 **Status:** `open`

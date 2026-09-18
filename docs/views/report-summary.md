@@ -7,7 +7,7 @@
 | **Capability** | _(none)_ |
 | **Phase** | M |
 | **Unification** | `adapt-mapper` |
-| **Sept 30 (emulate)** | **in** (thin identity/duration) |
+| **Sept 30 (emulate)** | **out** ([DATA-47](../context/decisions/DATA.md)) |
 
 ## Sketches
 
@@ -27,12 +27,13 @@ Aside summary cards and meta row (duration, compute/BW when present, process/op/
 | `summary.opName` / `opType` / `pid` / `blockDim` | Meta / secondary | Optional |
 | `computeCard` / `bandwidthCards` / parallel util | Extra cards | Optional — hide when absent |
 | `hardwareDetails` | 更多 overlay source | Optional |
+| `profile: 'emulate'` | Omits cards + meta/更多 | Emulate only |
 
-If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card group (PIPE may still show). Meta row is independent.
+If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card group (PIPE may still show). Meta row is independent on compute; emulate omits both ([DATA-47](../context/decisions/DATA.md)).
 
 ## Hide rule
 
-[DATA-30](../context/decisions/DATA.md): omit cards whose adapted fields are empty; do not invent values.
+[DATA-30](../context/decisions/DATA.md): omit cards whose adapted fields are empty; do not invent values. Emulate: omit the entire chrome regardless of KernelInfo ([DATA-47](../context/decisions/DATA.md)).
 
 ## Compute fill
 
@@ -46,7 +47,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `summary.opName` / `taskDurationUs` / … | `KernelInfo.csv` | Interim [DATA-47a](../context/decisions/interim/DATA.md) | `adapt-mapper` |
+| `summary.*` | — | Empty; `profile: 'emulate'` | **out** ([DATA-47](../context/decisions/DATA.md)) |
 | `computeCard` / `bandwidthCards` | — | No compute-equivalent pack promised | `gap` → hide |
 
 ## Adapter
@@ -54,7 +55,7 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `adaptPayloads` | Full summary path |
-| emulate | `adaptEmulate` | `summaryFromKernelInfo` |
+| emulate | `adaptEmulate` | Does not map KernelInfo → summary |
 
 ## Related
 
@@ -62,4 +63,4 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 - FEATURE_MATRIX: Right panel summary
 - Spec: StatsAside / StatsSummaryPanel (co-located when present)
 - Product docx §: 11.2.3
-- Open: [DATA-47](../context/questions/DATA.md); interim DATA-47a
+- Decision: [DATA-47](../context/decisions/DATA.md)

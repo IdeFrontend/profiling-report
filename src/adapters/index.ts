@@ -32,7 +32,6 @@ export {
   readEmulateManifest,
   pipeOccupancyFromPipesUtilization,
   pipeOccupancyFromHist,
-  summaryFromKernelInfo,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export { buildMemoryTopology, buildMemoryTopologyFromCategories } from './memoryTopology';

@@ -331,3 +331,14 @@ Format and statuses: [README.md](README.md).
 - **Specs:** [view-models](../../../specs/core/view-models.spec.md) PR-VM-011 / PR-VM-024, [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (`l2-l1-read` slot note), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.4
 - **Source:** Product (2026-09-15), answering the two items of the DATA-43 question. Row `24` placement evidence: the producer's numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png` (the `24` box OCRs at `(160, 236)` — the `l2-l1-read` slot — beside the grey `MTE2 -> …` link label). Row `32` corroboration: `OpInfoSummary.aicore_gm_write_bw` is the AIC **write** side ([DATA-8](./DATA.md)). Implemented as `EDGE_MAP` `l2-l1-read` → `Memory.csv` `aiv_gm_to_ub_bw(GB/s)`. A **third** row inconsistency found while processing this table — rows `21`/`22` label the Cube↔L0C pair in the opposite direction to rows `29`/`30` for the same two fields — is filed separately as [DATA-44](../questions/DATA.md); the shipped mapping follows rows `29`/`30` (and the `*_write_bw_cube` / `*_read_bw_cube` suffix rule) in the meantime.
 
+---
+
+## DATA-47
+
+- **Resolved:** 2026-09-18
+- **Was:** open question DATA-47 (Emulate KernelInfo → summary cards)
+- **Question:** Which `KernelInfo.csv` attributes map to `ReportViewModel.summary` for emulate Sept 30 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
+- **Decision:** Emulate does **not** drive summary cards or the pid / 算子类型 / Blocks / 更多 meta header. `adaptEmulate` leaves `reportModel.summary` empty and sets `profile: 'emulate'`; `StatsAside` omits the card group and meta row entirely (including summary CANNBot). KernelInfo may still be packed for catalog detection / `csvTexts`, but it does **not** map into summary chrome. Compute packs keep UI-30/31 **更多** and summary cards unchanged.
+- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-005, [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) PR-STATS-007b, [report-summary](../../views/report-summary.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [view-models](../../../specs/core/view-models.spec.md)
+- **Source:** Product (2026-09-18). Supersedes interim [`DATA-47a`](interim/DATA.md).
+
