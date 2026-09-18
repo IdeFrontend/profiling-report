@@ -1079,6 +1079,42 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(paint('e-long').get('PIPE_V_busy')).toBe(labelColorOn(eventFill(base, 'hover')));
   });
 
+  it('PR-RENDER-056: live-scroll frames still draw resting event labels', async () => {
+    const { canvas, texts } = recordingCanvas();
+    const renderer = new CanvasSwimlaneRenderer();
+    renderer.attach(canvas);
+    renderer.resize(400, 120, 1);
+    renderer.setModel(tinyModel());
+    renderer.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    renderer.setLiveScroll(true);
+    renderer.render();
+    expect(texts.has('PIPE_V_busy')).toBe(true);
+
+    const overlayPaint = recordingCanvas();
+    const overlay = new SwimlaneOverlayPainter();
+    overlay.attach(overlayPaint.canvas);
+    overlay.resize(400, 120, 1);
+    overlay.setLayout(rebuildLayout(tinyModel()));
+    overlay.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    overlay.render();
+    expect(overlayPaint.texts.has('PIPE_V_busy')).toBe(true);
+
+    const clearTypeOverlay = recordingCanvas();
+    const ct = new SwimlaneOverlayPainter();
+    ct.attach(clearTypeOverlay.canvas);
+    ct.resize(400, 120, 1);
+    ct.setLayout(rebuildLayout(tinyModel()));
+    ct.setView({ startTime: 0, endTime: 1000, scrollY: 0 });
+    ct.setDrawEventLabels(false);
+    ct.render();
+    expect(clearTypeOverlay.texts.has('PIPE_V_busy')).toBe(false);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/this\.drawEventLabels\(\)/);
+    expect(webglSrc).not.toMatch(/if\s*\(\s*!this\.liveScroll\s*\)\s*this\.drawEventLabels/);
+  });
+
   it('PR-RENDER-054: WebGL meshes ignore hover; ClearType overlay lifts by id', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
@@ -1412,15 +1448,10 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     overlay.setLayout(rebuildLayout(model));
     overlay.setCollapsedIds(['folder']);
     overlay.setView({ startTime: 0, endTime: 100, scrollY: 0 });
-    overlay.setLiveScroll(true);
     overlay.render();
     expect(fills).toContain(SUMMARY_EVENT_FILL);
     expect(texts.get('1 task')).toBe(SUMMARY_LABEL_COLOR);
-    expect(texts.has('OPEN_LEAF')).toBe(false);
-    expect(texts.has('HIDDEN_LEAF')).toBe(false);
-
-    overlay.setLiveScroll(false);
-    overlay.render();
     expect(texts.has('OPEN_LEAF')).toBe(true);
+    expect(texts.has('HIDDEN_LEAF')).toBe(false);
   });
 });

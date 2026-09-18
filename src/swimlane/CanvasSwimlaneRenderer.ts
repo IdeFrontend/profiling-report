@@ -205,7 +205,6 @@ export class SwimlaneOverlayPainter {
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
   private searchQuery = '';
-  private liveScroll = false;
   /** When false, skip selection gray-muting (tests / overlays that opt out). */
   private selectionMuted = true;
   /** When false, the WebGL backend owns event labels (ClearType); overlay skips them. */
@@ -270,14 +269,6 @@ export class SwimlaneOverlayPainter {
 
   setView(view: SwimlaneViewWindow): void {
     this.view = { ...view };
-  }
-
-  /**
-   * In-flight lane scroll: skip leaf labels / hover fills (ClearType + overlay walk).
-   * Collapsed-folder summary bars still paint — they exist only on this overlay.
-   */
-  setLiveScroll(on: boolean): void {
-    this.liveScroll = on;
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
@@ -442,23 +433,6 @@ export class SwimlaneOverlayPainter {
     ctx.clearRect(0, 0, this.width, this.height);
 
     const dpr = this.dpr;
-    if (this.liveScroll) {
-      paintCollapseSummaries(
-        ctx,
-        this.paintSummaries,
-        this.collapse,
-        this.view,
-        this.width,
-        this.height,
-        dpr,
-        this.selectedId,
-        this.hoveredId,
-      );
-      // By-id lifts track the easing Y without the O(events) overlay walk (PR-CANVAS-104).
-      this.paintLiftedLeaves(ctx, 32);
-      return;
-    }
-
     if (!this.drawEventLabels) {
       this.paintLiftedLeaves(ctx);
       paintCollapseSummaries(
@@ -758,7 +732,6 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       /** Carried from the fill pass so the label can pick its contrast off what was painted. */
       fill: string;
     }[] = [];
-    const collectLabels = !this.liveScroll;
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       if (collapseAlpha(this.layout.lanes[i]!.y, this.collapse) <= 0) continue;
@@ -816,19 +789,17 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
       ctx.fill();
       ctx.globalAlpha = 1;
-      if (collectLabels) {
-        visible.push({
-          item,
-          x: fr.x,
-          y: fr.y,
-          w: fr.w,
-          h: fr.h,
-          matches,
-          alpha,
-          muted,
-          fill,
-        });
-      }
+      visible.push({
+        item,
+        x: fr.x,
+        y: fr.y,
+        w: fr.w,
+        h: fr.h,
+        matches,
+        alpha,
+        muted,
+        fill,
+      });
       }
     }
 
@@ -844,22 +815,20 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       this.hoveredId,
     );
 
-    if (collectLabels) {
-      for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
-        if (matches) {
-          drawEventLabel(
-            ctx,
-            item.event.name,
-            x,
-            y,
-            w,
-            h,
-            this.width,
-            alpha,
-            muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
-            dpr,
-          );
-        }
+    for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
+      if (matches) {
+        drawEventLabel(
+          ctx,
+          item.event.name,
+          x,
+          y,
+          w,
+          h,
+          this.width,
+          alpha,
+          muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
+          dpr,
+        );
       }
     }
 

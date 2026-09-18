@@ -560,7 +560,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.view = { ...view };
   }
 
-  /** In-flight lane scroll: skip `drawEventLabels` (the pan-frame budget killer). */
+  /** In-flight lane scroll: skip dependency curves (labels still paint). */
   setLiveScroll(on: boolean): void {
     this.liveScroll = on;
   }
@@ -805,7 +805,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    if (!this.liveScroll) this.drawEventLabels();
+    this.drawEventLabels();
 
     // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
     if (this.paintDependencies && !this.liveScroll) {

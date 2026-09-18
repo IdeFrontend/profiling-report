@@ -496,7 +496,6 @@ function paintFrame(): void {
 function applyLiveScrollHint(on: boolean): void {
   if (backend instanceof WebGlSwimlaneRenderer) backend.setLiveScroll(on);
   else if (backend instanceof CanvasSwimlaneRenderer) backend.setLiveScroll(on);
-  overlay.setLiveScroll(on);
 }
 
 function applyViewState(forceModel = false): void {
