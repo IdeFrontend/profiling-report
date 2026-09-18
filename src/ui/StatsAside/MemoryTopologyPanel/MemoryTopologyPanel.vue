@@ -402,6 +402,11 @@ function onPanMove(e: PointerEvent) {
   }
   el.scrollLeft = dragFrom.left - (e.clientX - dragFrom.x);
   el.scrollTop = dragFrom.top - (e.clientY - dragFrom.y);
+  // A drag during a ladder step owns the offset (PR-MEMTOP-019): the placement stands down while
+  // `dragging` (below), and the anchor is re-read here so the flight's remaining frames hold what
+  // the pointer just put under the middle instead of yanking the diagram back to the middle the
+  // step started with — the two gestures meeting would otherwise rubber-band every frame.
+  if (zoomAnimating.value) stepAnchor = centerFraction(el);
 }
 
 function endPan() {
@@ -490,6 +495,11 @@ function setZoom(target: number) {
  *  `scrollWidth` / `scrollHeight` that the placement is read from — hence a `flush: 'post'` watch
  *  rather than a derived value. */
 function placeZoomStep() {
+  // A live drag owns the offset (PR-MEMTOP-019): its writes and these are the same two properties,
+  // so placing on a frame underneath the pointer would rubber-band the diagram back to the anchor
+  // mid-gesture. The drag re-anchors the step as it moves (`onPanMove`), so the frames after it
+  // ends carry on from where the pointer left the drawing rather than from where the step aimed.
+  if (dragging.value) return;
   // Landed at or below the fit: the box stops being scrollable there (`pannable`), so there is no
   // fraction left to keep and the offset goes home instead of resting at a corner the box can no
   // longer show (PR-MEMTOP-015). Mid-step the anchor still holds — only the landing frame resets.

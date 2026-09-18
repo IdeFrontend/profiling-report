@@ -534,15 +534,19 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => queued.push(cb));
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     const root = wrapper.get('[data-testid="memory-topology-panel"]');
+    const viewport = wrapper.get('[data-testid="topology-viewport"]');
     const scale = () =>
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.attributes('style') ?? '')?.[1] ?? 1);
 
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    // Committed on the click, so the readout, the ladder ends and `pannable` do not lag the tween.
+    // Committed on the click, so the readout and the ladder ends do not lag the tween — while
+    // `pannable` deliberately does: it reads the *painted* scale, because the box only becomes a
+    // scroll container once the drawing actually overflows it (PR-MEMTOP-013).
     expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
     expect(root.attributes('data-topo-zoom-animating')).toBe('true');
     // …while the painted scale is still the stop the step left, because no frame has run yet.
     expect(scale()).toBe(1);
+    expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
 
     // Half way (200 of the 400ms) the drawing is between the two stops — and the readout is not.
     queued.shift()!(performance.now() + 200);
@@ -550,6 +554,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     expect(scale()).toBeGreaterThan(1);
     expect(scale()).toBeLessThan(1.25);
     expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(viewport.classes()).toContain('pr-topo__viewport--pannable');
 
     // Landed: the painted scale *is* the committed stop, and the flag goes back down for the
     // browser tests that settle on it (PR-MEMTOP-019).
@@ -634,6 +639,69 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
     expect(el.scrollLeft).toBe(0);
     expect(el.scrollTop).toBe(0);
+  });
+
+  it('PR-MEMTOP-019: a drag during a step owns the offset, and the step re-anchors on it', async () => {
+    // Frames by hand, so the step is still in flight when the pointer moves — the file's gear lands
+    // every step inside the click, which is the one state this interaction cannot happen in.
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => queued.push(cb));
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]').element as HTMLElement;
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    // Laid out, and sized from the same scale the stage is (PR-MEMTOP-018's stand-in for jsdom),
+    // so the placement maths below is exercised rather than skipped on a zero-sized box.
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
+    const BOX = { w: 448, h: 540 };
+    Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => BOX.h * scale() });
+    /** The middle of the box as a fraction of what it can scroll — what PR-MEMTOP-018 holds. */
+    const middle = () => ({
+      x: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
+      y: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+    });
+
+    // Half way through a step up: the drawing overflows its box, so there is a pan to make.
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    queued.shift()!(performance.now() + 200);
+    await nextTick();
+    expect(scale()).toBeGreaterThan(1);
+    expect(scale()).toBeLessThan(1.25);
+    expect(el.scrollLeft).toBeGreaterThan(0);
+
+    // A drag from the middle takes the offset with it, 1:1, as it does outside a step.
+    const beforeDrag = { left: el.scrollLeft, top: el.scrollTop };
+    press(el, 'pointerdown', { button: 0, pointerId: 7, clientX: 200, clientY: 200 });
+    press(el, 'pointermove', { button: 0, buttons: 1, pointerId: 7, clientX: 160, clientY: 170 });
+    const dragged = middle();
+    expect(el.scrollLeft).toBeCloseTo(beforeDrag.left + 40, 6);
+    expect(el.scrollTop).toBeCloseTo(beforeDrag.top + 30, 6);
+    // The drag moved the middle off the step's own anchor, which is what the frames below judge.
+    expect(dragged.x).not.toBeCloseTo(0.5, 3);
+
+    // A frame lands under the live pointer: the placement stands down rather than rubber-banding
+    // the diagram back out from under the gesture (the offset the drag wrote is the offset kept).
+    queued.shift()!(performance.now() + 260);
+    await nextTick();
+    expect(el.scrollLeft).toBeCloseTo(beforeDrag.left + 40, 6);
+    expect(el.scrollTop).toBeCloseTo(beforeDrag.top + 30, 6);
+
+    // Released, the flight's remaining frames carry on from *that* middle — the arrow the pointer
+    // handed over — instead of yanking the drawing back to the middle the step aimed at.
+    press(el, 'pointerup', { button: 0, pointerId: 7, clientX: 160, clientY: 170 });
+    queued.shift()!(performance.now() + 320);
+    await nextTick();
+    const held = middle();
+    expect(held.x).toBeCloseTo(dragged.x, 4);
+    expect(held.y).toBeCloseTo(dragged.y, 4);
+
+    // And the step still lands on its committed stop.
+    while (queued.length) queued.shift()!(performance.now() + 10_000);
+    await nextTick();
+    expect(scale()).toBe(1.25);
   });
 
   it('PR-MEMTOP-017: a pointercancel ends the drag, as the platform sends one when it takes over', async () => {
