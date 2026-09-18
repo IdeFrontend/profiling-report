@@ -12,7 +12,6 @@ import {
   loadReportSource,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
-  summaryFromKernelInfo,
 } from '../../src/index';
 import { buildCannbotPayload } from '../../src/domain/cannbot';
 import {
@@ -205,19 +204,15 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(adapted.reportModel.overviewSeries).toEqual([]);
   });
 
-  it('PR-ASIM-005: interim DATA-47a maps KernelInfo into summary', () => {
+  it('PR-ASIM-005: emulate leaves summary empty (no KernelInfo → cards; DATA-47)', () => {
     const csv = 'KernelInfoAttr,KernelInfoVal\nOp Name,my_kernel\nTask Duration(us),12.5\n';
-    expect(summaryFromKernelInfo(enc.encode(csv))).toEqual({
-      opName: 'my_kernel',
-      taskDurationUs: 12.5,
-    });
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(minimalTraceUs()),
       'KernelInfo.csv': enc.encode(csv),
     });
-    expect(adapted.reportModel.summary.opName).toBe('my_kernel');
-    expect(adapted.reportModel.summary.taskDurationUs).toBe(12.5);
+    expect(adapted.reportModel.profile).toBe('emulate');
+    expect(adapted.reportModel.summary).toEqual({});
   });
 
   it('PR-ASIM-006: corrupt PipeTrace throws; absent PipeTrace does not', () => {
@@ -287,12 +282,14 @@ describe('npu-rep / loadReportSource profile routing', () => {
         },
       ]),
     );
-    expect(adapted.reportModel.summary.opName).toBe('routed');
+    expect(adapted.reportModel.profile).toBe('emulate');
+    // DATA-47: KernelInfo does not populate summary chrome
+    expect(adapted.reportModel.summary).toEqual({});
     // Would not come from compute OpBasicInfo path
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
   });
 
-  it('gelu.npu-rep opens as emulate with swimlane + summary + PIPE + ArchDiagram', () => {
+  it('gelu.npu-rep opens as emulate with swimlane + PIPE + ArchDiagram (no summary chrome)', () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(__dirname, '../../data/gelu.npu-rep')),
     );
@@ -300,22 +297,22 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
-    expect(adapted.reportModel.summary.opName).toBe('gelu_kernel');
-    expect(adapted.reportModel.summary.blockDim).toBe('1');
+    expect(adapted.reportModel.profile).toBe('emulate');
+    expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
     expect(adapted.capabilities).toContain('archDiagram');
     expect(adapted.reportModel.roofline).toBeUndefined();
   });
 
-  it('emulate-sample.npu-rep fills summary + PIPE + topology (M4)', () => {
+  it('emulate-sample.npu-rep fills PIPE + topology; summary chrome omitted (M4 / DATA-47)', () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(__dirname, '../../data/emulate-sample.npu-rep')),
     );
     const adapted = loadReportSource(bytes);
     expect(adapted.swimlaneModel).not.toBeNull();
-    expect(adapted.reportModel.summary.opName).toBeTruthy();
-    expect(adapted.reportModel.summary.taskDurationUs).toBeGreaterThan(0);
+    expect(adapted.reportModel.profile).toBe('emulate');
+    expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
     expect(adapted.capabilities).toContain('archDiagram');
@@ -323,7 +320,7 @@ describe('npu-rep / loadReportSource profile routing', () => {
     const summaryPayload = buildCannbotPayload('summary', adapted.reportModel, {
       name: 'emulate-sample.npu-rep',
     });
-    expect(summaryPayload.op_name).toBe(adapted.reportModel.summary.opName);
+    expect(summaryPayload.op_name).toBe('');
     expect((summaryPayload.data as { pipeOccupancy: unknown[] }).pipeOccupancy.length).toBeGreaterThan(
       0,
     );

@@ -209,5 +209,5 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | Item | Notes |
 | --- | --- |
 | Dedicated head `origin` for simulator | [PROC-9](../context/questions/PROC.md) |
-| KernelInfo → summary field map | [DATA-47](../context/questions/DATA.md) |
+| KernelInfo summary chrome | **out** — [DATA-47](../context/decisions/DATA.md) |
 | Hardware-only open items | [compute/FORMAT.md](compute/FORMAT.md) § Open / TBD |

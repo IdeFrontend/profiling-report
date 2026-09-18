@@ -47,7 +47,7 @@ flowchart LR
   Tree --> Rep[".npu-rep hardware → ProfilingReport"]
   Tree --> Sim[".npu-rep simulator → ProfilingReport"]
   Rep --> Diagnose["Overview + swimlane + PIPE"]
-  Sim --> DiagnoseSim["Timeline + thin summary (+ P2 sim panels)"]
+  Sim --> DiagnoseSim["Timeline + PIPE + ArchDiagram (+ P2 sim panels)"]
   Diagnose --> Write
   DiagnoseSim --> Write
 ```

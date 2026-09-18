@@ -152,7 +152,7 @@ Parsed `.rep` file table (name, type, origin, offset, length) before decoding pa
 
 ### `adaptEmulate` (M4 / Sept 30)
 
-Simulator leaf payloads (`manifest.json` + optional `PipeTrace.json` + KernelInfo + PipesUtilization/hist + `ArchDiagramMetrics`) → same `AdaptedReport`. Sept 30: Timeline + thin summary + PIPE + Architecture Diagram (`archDiagram`, interim plated chrome); no inventing compute CSVs ([DATA-45](../context/decisions/interim/DATA.md#data-45)). Delivery: [milestone-4](../process/roadmap/milestone-4.md).
+Simulator leaf payloads (`manifest.json` + optional `PipeTrace.json` + PipesUtilization/hist + `ArchDiagramMetrics`) → same `AdaptedReport`. Sept 30: Timeline + PIPE + Architecture Diagram (`archDiagram`, interim plated chrome); summary cards/meta **out** ([DATA-47](../context/decisions/DATA.md)); no inventing compute CSVs ([DATA-45](../context/decisions/interim/DATA.md#data-45)). Delivery: [milestone-4](../process/roadmap/milestone-4.md).
 
 **Why:** Same UI models; different sources ([emulate/FORMAT.md](../formats/emulate/FORMAT.md)).
 

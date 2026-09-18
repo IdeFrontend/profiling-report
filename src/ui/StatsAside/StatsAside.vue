@@ -57,7 +57,9 @@ const COLOR: Record<string, string> = {
   default: 'var(--pr-color-default)',
 };
 
-const hasDuration = computed(() => props.report?.summary.taskDurationUs != null);
+const hasDuration = computed(
+  () => props.report?.profile !== 'emulate' && props.report?.summary.taskDurationUs != null,
+);
 
 /** One block selector for every widget (DATA-19 / DATA-29): `''` = All, else that `block_id`. */
 const blockId = ref('');
@@ -108,7 +110,9 @@ const showComputePlaceholder = computed(() => hasDuration.value && !showComputeC
 const showAicoreCard = computed(() => hasDuration.value);
 const bandwidthUtilSides = computed(() => bandwidthUtilFromCards(bandwidthCards.value));
 const hasSummary = computed(
-  () => hasDuration.value || bandwidthUtilSides.value.length > 0,
+  () =>
+    props.report?.profile !== 'emulate' &&
+    (hasDuration.value || bandwidthUtilSides.value.length > 0),
 );
 const bandwidthView = computed(() =>
   bandwidthUtilSides.value.map((row) => ({
@@ -342,12 +346,15 @@ const durationSecondary = computed(() => {
 });
 
 const hasMeta = computed(() => {
+  if (props.report?.profile === 'emulate') return false;
   const s = summary.value;
   return Boolean(s && (s.pid || s.opType || (s.blockDim != null && s.blockDim !== '')));
 });
 
-/** UI-30, UI-31: 更多 is always available on the report shell. */
-const showMore = computed(() => asideSurface.value === 'report');
+/** UI-30, UI-31: 更多 always on compute report shell; omit for emulate (DATA-47). */
+const showMore = computed(
+  () => asideSurface.value === 'report' && props.report?.profile !== 'emulate',
+);
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
 const isMix = computed(() => opType.value.toUpperCase() === 'MIX');

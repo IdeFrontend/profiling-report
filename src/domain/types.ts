@@ -290,6 +290,11 @@ export interface ReportViewModel {
   memoryTopology?: MemoryTopologyModel;
   /** Product (NPU-Compute): summary.jsonl metric categories (block-mean) for the detail surface. */
   summaryCategories?: SummaryCategory[];
+  /**
+   * Source profile. Emulate omits summary cards + pid/optype/blocks/更多 meta (DATA-47).
+   * Omit or `'compute'` for hardware packs.
+   */
+  profile?: 'compute' | 'emulate';
 }
 
 export type ViewFullCsvPayload = {

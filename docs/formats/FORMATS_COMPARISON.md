@@ -29,7 +29,7 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 | Semantic area | Insight operator (`.bin`) | `.npu-rep` **hardware** | `.npu-rep` **simulator** | PyPTO swimlane |
 |---------------|---------------------------|-------------------------|--------------------------|----------------|
 | **Timeline grain** | Per-**instruction** Gantt on named pipes + SET_FLAG/WAIT_FLAG | Chrome Trace → process/thread lanes (sample: pipe busy/state; product may be richer — [DATA-31](../context/questions/DATA.md)) | Emulate Chrome Trace (instr/tick events) packed as `PipeTrace.json` (**µs**, [DATA-46](../context/decisions/interim/DATA.md#data-46)) | Process → thread → duration events; optional AICPU / counters |
-| **Op / block identity** | Details base info | `OpBasicInfo.csv` (+ `Summary.jsonl`) | `KernelInfo` (thin Phase 1; [DATA-47](../context/questions/DATA.md)) | Light names/args |
+| **Op / block identity** | Details base info | `OpBasicInfo.csv` (+ `Summary.jsonl`) | `KernelInfo` (not summary chrome; [DATA-47](../context/decisions/DATA.md)) | Light names/args |
 | **Pipe utilization aggregates** | Details compute workload % | `PipeUtilization.csv` (`aic_*` / `aiv_*`) | `PipesUtilization` / hist — **not** remapped to hardware CSV ([DATA-45](../context/decisions/interim/DATA.md#data-45)) | Event spans and/or `tilefwk_prof_pmu.csv` |
 | **Arithmetic / roofline** | Compute + Roofline | `ArithmeticUtilization.csv` + Memory | ArchDiagramMetrics + Functions + VectorUtilizations + SourceInstructions (ELF often required) | Side panels if metrics fed in |
 | **Memory paths** | Heatmap HBM/L2/L1/L0/UB | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | Per-access `MemoryRWAccesses` (heatmap); ArchDiagram bandwidth metrics | Not core swimlane |
@@ -96,4 +96,4 @@ Performance results tree file click
 - [ADAPTERS.md](ADAPTERS.md) — detect → adapt → view-models
 - [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — adapted VM hide rules
 - [DOMAIN_AND_USERS.md](../context/DOMAIN_AND_USERS.md)
-- [questions](../context/questions/) — PROC-9, DATA-47, …
+- [questions](../context/questions/) — PROC-9, DATA-48, …

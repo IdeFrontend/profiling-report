@@ -32,7 +32,6 @@ export {
   parseRep,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
-  summaryFromKernelInfo,
 } from './adapters';
 
 export type * from './domain/types';

@@ -91,7 +91,7 @@ Plus leaf JSON (not contract tables): `core_0_tracing_report_0.json`, `aicore_ut
 
 | Table / view | Kind | DB rows | In gelu pack? | Used for |
 |---|---|---:|---|---|
-| [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 | **yes** | Phase 1 thin summary / identity |
+| [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 | optional | Packed for catalog; **not** summary chrome ([DATA-47](../../context/decisions/DATA.md)) |
 | [`ExecutedInstructions`](SCHEMA.md#executedinstructions) | table | 6031 | yes | Hub; tracing; arch; roofline |
 | [`ArchDiagramMetrics`](SCHEMA.md#archdiagrammetrics) | table | 960 | yes | Architecture Diagram |
 | [`MemoryRWAccesses`](SCHEMA.md#memoryrwaccesses) | table | 34832 | yes | Memory heatmap (out of Sept 30 scope) |

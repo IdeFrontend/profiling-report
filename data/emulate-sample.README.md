@@ -15,7 +15,7 @@ Embeds:
 |------|------|
 | `manifest.json` | Thin `{ profile: "emulate", schemaVersion }` |
 | `PipeTrace.json` | Timeline (µs): AIC0 + AIV0 processes, Cube/MTE/Scalar/Vector lanes, ~185 µs span with SET_FLAG/WAIT_FLAG sync marks (aligned with `KernelInfo` Task Duration 200 µs and PIPE hist names) |
-| `KernelInfo.csv` | Thin report statistics (DATA-47a) |
+| `KernelInfo.csv` | Optional pack; **not** report-statistics chrome ([DATA-47](../docs/context/decisions/DATA.md)) |
 | `PipesUtilization.csv` / `PipeUtilizationHist.csv` | Compute-load PIPE bars |
 | `ArchDiagramMetrics.csv` | Architecture Diagram slots (DATA-48a; gelu-sourced values) |
 

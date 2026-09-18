@@ -10,7 +10,7 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 **Marker.** An emulate leaf MUST embed `manifest.json` that is either (1) thin marker with `profile` equal to `"emulate"` and integer `schemaVersion` ≥ 1, or (2) an export catalog with `objects[]` containing a hub name (`ExecutedInstructions` / `KernelInfo` / `AnalysisState`) ([PROC-8](../../docs/context/decisions/PROC.md)). Interim filenames such as `EmulateManifest.json` are not markers.
 
-**Sept 30 embeds.** `PipeTrace.json` (Chrome Trace Event format, µs) **SHOULD** be present for timeline; **absence MUST NOT** invalidate the leaf — viewer opens with `swimlaneModel: null` (metrics-only). `KernelInfo.csv` SHOULD be present for thin summary; absence yields empty summary cards per DATA-30. `PipesUtilization.csv` / `PipeUtilizationHist.csv` SHOULD be packed when PIPE UI is expected.
+**Sept 30 embeds.** `PipeTrace.json` (Chrome Trace Event format, µs) **SHOULD** be present for timeline; **absence MUST NOT** invalidate the leaf — viewer opens with `swimlaneModel: null` (metrics-only). `KernelInfo.csv` is optional and does **not** drive summary chrome ([DATA-47](../../docs/context/decisions/DATA.md)). `PipesUtilization.csv` / `PipeUtilizationHist.csv` SHOULD be packed when PIPE UI is expected.
 
 **Time unit.** When present, `PipeTrace.json` `ts` / `dur` MUST be in **microseconds** after producer tick→µs conversion ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). The viewer MUST NOT treat PipeTrace values as raw ticks.
 
@@ -39,7 +39,7 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 ## Open
 
-[DATA-47](../../docs/context/questions/DATA.md) — KernelInfo → summary field map.
+_(none for KernelInfo summary — [DATA-47](../../docs/context/decisions/DATA.md))_
 
 ## Changelog
 - **2026-09-14** — Initial spec (docs pass; tests todo).

@@ -36,7 +36,7 @@ Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisio
 | Capability / surface | View packet | Compute | Emulate Sept 30 |
 |----------------------|-------------|---------|-----------------|
 | Timeline | [timeline](../views/timeline.md) | PipeTrace / trace | PipeTrace (µs) when present; else null swimlane |
-| Summary cards | [report-summary](../views/report-summary.md) | OpBasicInfo + Summary.jsonl | KernelInfo **in** (thin) |
+| Summary cards | [report-summary](../views/report-summary.md) | OpBasicInfo + Summary.jsonl | **out** ([DATA-47](../context/decisions/DATA.md)) |
 | PIPE bars | [pipe-occupancy](../views/pipe-occupancy.md) | PipeUtilization | PipesUtilization / hist **in** |
 | Overview | [overview-charts](../views/overview-charts.md) | Sampling.json | **hide** (gap) |
 | `roofline` | [roofline](../views/roofline.md) | Arithmetic + Memory | **hide** (gap) |
