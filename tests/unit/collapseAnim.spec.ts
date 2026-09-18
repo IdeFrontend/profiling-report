@@ -274,16 +274,20 @@ describe('paint-only rest collapse (PR-RENDER-052)', () => {
 
     const pipe2Y = layout.lanes.find((l) => l.thread.id === 'pipe2')!.y;
     const mte1Y = layout.lanes.find((l) => l.thread.id === 'mte1')!.y;
+    const computeTop = layout.lanes.find((l) => l.thread.id === 'compute')!.y;
 
     const mid = collapseFoldsFromLayout(layout, ['core', 'compute'], {
       groupId: 'compute',
-      visible: 0.99,
+      visible: 0.5,
       hiddenHeight: net,
     });
     expect(mid.folds.map((f) => f.groupId)).toEqual(['compute', 'core']);
-    expect(collapseClosedHeight(mid)).toBeCloseTo(net * (1 - 0.99) + innerShift);
+    expect(collapseClosedHeight(mid)).toBeCloseTo(net * 0.5 + innerShift);
     expect(collapseAlpha(mte1Y, mid)).toBe(0);
-    expect(collapseShiftY(pipe2Y, mid)).toBeCloseTo(pipe2Y - collapseClosedHeight(mid));
+    expect(collapseShiftY(pipe2Y, mid)).toBeCloseTo(
+      computeTop + (pipe2Y - innerShift - computeTop) * 0.5,
+    );
+    expect(collapseAlpha(pipe2Y, mid)).toBe(0.5);
 
     const end = collapseFoldsFromLayout(layout, ['core', 'compute'], {
       groupId: 'compute',
@@ -292,7 +296,10 @@ describe('paint-only rest collapse (PR-RENDER-052)', () => {
     });
     const settled = collapseFoldsFromLayout(layout, ['core', 'compute'], null);
     expect(collapseClosedHeight(end)).toBe(collapseClosedHeight(settled));
-    expect(collapseAlpha(mte1Y, end)).toBe(0);
+    for (const lane of layout.lanes) {
+      expect(collapseShiftY(lane.y, end)).toBeCloseTo(collapseShiftY(lane.y, settled));
+      expect(collapseAlpha(lane.y, end)).toBe(collapseAlpha(lane.y, settled));
+    }
   });
 
   it('PR-RENDER-052: nested rest summaries do not stack on the parent folder row', () => {

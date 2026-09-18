@@ -262,7 +262,9 @@ function foldsFromSpans(
         groupId: animLive.groupId,
         foldY: span.foldY,
         groupTop: span.top,
-        subtreeEnd: span.foldY + animLive.hiddenHeight,
+        // Real subtree end, not `foldY + hiddenHeight` (net). Kept nested rest
+        // folds sit inside this span; leftover rows must tuck/fade with the parent.
+        subtreeEnd: span.subtreeEnd,
         visible: animLive.visible,
         shift: animLive.hiddenHeight * (1 - animLive.visible),
         animating: true,
@@ -400,10 +402,13 @@ export function collapseAlpha(y: number, t: CollapseTransform): number {
  * Slide + fade collapse. Per fold, two regions, so a **nested** folder's rows tuck into the
  * parent group lane (never past it into the lanes above) while only the rows *after*
  * the subtree close the gap:
- * - **Subtree rows** (`foldY ≤ y < foldY + hiddenHeight`): slide toward the group's
+ * - **Subtree rows** (`foldY ≤ y < subtreeEnd`): slide toward the group's
  *   top edge and fade to `visible` — they end exactly on the parent lane, then vanish.
- * - **Rows after the subtree** (`y ≥ foldY + hiddenHeight`): shift up by
- *   `hiddenHeight × (1 − visible)` to close the gap, staying opaque.
+ *   An animating parent uses the group's real subtree end (not the net `hiddenHeight`),
+ *   so rows past a kept nested rest fold still tuck and fade.
+ * - **Rows after the subtree** (`y ≥ subtreeEnd`): shift up by the fold's `shift`
+ *   (`hiddenHeight × (1 − visible)` for the tween; full span when rest-collapsed),
+ *   staying opaque.
  * Pure — returns a new layout with cloned events; renderers use `applyCollapseFolds`
  * (lanes/headers + summary extras only) on the hot path.
  */
