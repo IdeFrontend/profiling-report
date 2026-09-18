@@ -153,7 +153,9 @@ export function groupBottomY(layout: SwimlaneLayout, groupId: string): number {
  * `visible: 0`; the in-flight tween uses `CollapseAnimState.visible`. Nested **rest**
  * folds under a **rest** parent (and nested **anim** folds) are dropped — a Card
  * collapse swallows nested Cores. Nested rest folds under an **animating** parent
- * are kept so the inner shift/alpha stay continuous across the tween.
+ * are kept so the inner shift/alpha stay continuous across the tween. The containing
+ * parent is the **innermost** fold (last match by `foldY`), so a rest-collapsed
+ * intermediate still swallows its own nested rest when an ancestor is animating.
  */
 export interface CollapseFold {
   groupId: string;
@@ -223,7 +225,15 @@ function pruneNestedFolds(folds: CollapseFold[]): CollapseFold[] {
     .sort((a, b) => a.foldY - b.foldY || a.subtreeEnd - b.subtreeEnd);
   const out: CollapseFold[] = [];
   for (const f of sorted) {
-    const parent = out.find((p) => f.foldY >= p.foldY && f.subtreeEnd <= p.subtreeEnd);
+    // Innermost containing fold: `out` is foldY-sorted, so the last match wins.
+    let parent: CollapseFold | undefined;
+    for (let i = out.length - 1; i >= 0; i--) {
+      const p = out[i]!;
+      if (f.foldY >= p.foldY && f.subtreeEnd <= p.subtreeEnd) {
+        parent = p;
+        break;
+      }
+    }
     if (parent) {
       // Keep inner rest folds under the in-flight tween, including visible=0 last frame.
       if (!(parent.animating && f.visible === 0 && !f.animating)) continue;

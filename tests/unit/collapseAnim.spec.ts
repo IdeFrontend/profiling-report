@@ -302,6 +302,78 @@ describe('paint-only rest collapse (PR-RENDER-052)', () => {
     }
   });
 
+  it('PR-RENDER-055: innermost rest parent swallows nested rest under an animating ancestor', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'card',
+          name: 'Card',
+          threads: [
+            {
+              id: 'outer',
+              name: 'Outer',
+              events: [],
+              children: [
+                {
+                  id: 'compute',
+                  name: 'Compute',
+                  events: [],
+                  children: [
+                    {
+                      id: 'core',
+                      name: 'Core',
+                      events: [],
+                      children: [
+                        { id: 'm1', name: 'M1', events: [{ id: 'e1', name: 'a', startTime: 0, duration: 10 }] },
+                        { id: 'm2', name: 'M2', events: [{ id: 'e2', name: 'b', startTime: 10, duration: 10 }] },
+                      ],
+                    },
+                    { id: 'pipe1', name: 'P1', events: [{ id: 'p1', name: 'p1', startTime: 0, duration: 10 }] },
+                  ],
+                },
+                { id: 'other', name: 'Other', events: [{ id: 'o', name: 'o', startTime: 0, duration: 10 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const layout = rebuildLayout(model);
+    const restIds = ['core', 'compute'];
+    const allIds = ['core', 'compute', 'outer'];
+    const net = collapseHiddenHeight(model, restIds, allIds);
+    const rest = collapseFoldsFromLayout(layout, restIds, null);
+    const settled = collapseFoldsFromLayout(layout, allIds, null);
+    const outerTop = layout.lanes.find((l) => l.thread.id === 'outer')!.y;
+    const foldY = outerTop + LANE_HEIGHT;
+    const otherY = layout.lanes.find((l) => l.thread.id === 'other')!.y;
+
+    const mk = (visible: number) =>
+      collapseFoldsFromLayout(layout, restIds, { groupId: 'outer', visible, hiddenHeight: net });
+
+    const start = mk(1 - 1e-6);
+    expect(start.folds.map((f) => f.groupId)).toEqual(['outer', 'compute']);
+    expect(collapseClosedHeight(start)).toBeCloseTo(collapseClosedHeight(rest));
+    expect(collapseShiftY(otherY, start)).toBeCloseTo(collapseShiftY(otherY, rest));
+
+    const end = mk(0);
+    expect(collapseClosedHeight(end)).toBe(collapseClosedHeight(settled));
+    for (const lane of layout.lanes) {
+      expect(collapseShiftY(lane.y, end)).toBeCloseTo(collapseShiftY(lane.y, settled));
+      expect(collapseAlpha(lane.y, end)).toBe(collapseAlpha(lane.y, settled));
+    }
+
+    for (const v of [1 - 1e-6, 0.5, 1e-6]) {
+      const t = mk(v);
+      for (const lane of layout.lanes) {
+        if (lane.y < foldY) continue;
+        expect(collapseShiftY(lane.y, t)).toBeGreaterThanOrEqual(outerTop);
+      }
+    }
+  });
+
   it('PR-RENDER-052: nested rest summaries do not stack on the parent folder row', () => {
     const layout = rebuildLayout(folderModel());
     const extras = collectCollapseSummaries(layout, ['compute', 'core'], null, new Map());
