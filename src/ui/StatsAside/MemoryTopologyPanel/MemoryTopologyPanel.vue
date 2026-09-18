@@ -165,8 +165,9 @@ export function nextZoom(current: number, dir: 1 | -1): number {
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, watchEffect } from 'vue';
+import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
+import { animateProgress } from '../../TimelineView/animateViewWindow';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
  *  Its static labels stay outlined paths; the export's sample values were stripped in-repo.
  *  `?no-inline` keeps the 200 kB asset out of the JS bundle — lib mode inlines assets whatever
@@ -330,13 +331,26 @@ function fitStyle(key: string): { fontSize: string } | undefined {
 /** Bar state. Per panel instance — the stacked aside and the root overlay each keep their own
  *  zoom, so covering the report (a re-mount) starts the fullscreen diagram at 100%. */
 const viewport = ref<HTMLElement | null>(null);
+/** The ladder stop the bar has committed to: the readout, and the ends it disables (PR-MEMTOP-015).
+ *  It moves on the click, not over the tween, so a step is one ladder stop per click whatever the
+ *  frame rate — and every instance of the bar agrees with what the user asked for. */
 const zoom = ref(100);
+/** The scale actually **painted**: `zoom` at rest, an in-flight value during a step (PR-MEMTOP-019).
+ *  The stage is sized from this one, and so is everything read off the laid-out box. */
+const paintedZoom = ref(100);
 const zoomPct = computed(() => `${zoom.value}%`);
 const zoomMin = ZOOM_STEPS[0]!;
 const zoomMax = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
 
-/** Only a diagram larger than its own box has anywhere to scroll to (PR-MEMTOP-013). */
-const pannable = computed(() => zoom.value > 100);
+/** Only a diagram larger than its own box has anywhere to scroll to (PR-MEMTOP-013). Read off the
+ *  *painted* scale, so the box is a scroll container exactly while the drawing overflows it: a step
+ *  down to the fit hands the box back to the fitted rule on the frame it lands. */
+const pannable = computed(() => paintedZoom.value > 100);
+
+/** True for the length of a ladder step. The browser tests' settle hook, the way `ReportLayout`'s
+ *  `data-aside-track-animating` is one for the aside track — a probe of the fitted geometry is only
+ *  the committed one once the step has landed (PR-MEMTOP-019). */
+const zoomAnimating = ref(false);
 
 /** Drag the zoomed diagram (PR-MEMTOP-017). The box is already the scroll container, so a drag
  *  only writes `scrollLeft` / `scrollTop` — 1:1 with the pointer, no transform and no second copy
@@ -388,6 +402,11 @@ function onPanMove(e: PointerEvent) {
   }
   el.scrollLeft = dragFrom.left - (e.clientX - dragFrom.x);
   el.scrollTop = dragFrom.top - (e.clientY - dragFrom.y);
+  // A drag during a ladder step owns the offset (PR-MEMTOP-019): the placement stands down while
+  // `dragging` (below), and the anchor is re-read here so the flight's remaining frames hold what
+  // the pointer just put under the middle instead of yanking the diagram back to the middle the
+  // step started with — the two gestures meeting would otherwise rubber-band every frame.
+  if (zoomAnimating.value) stepAnchor = centerFraction(el);
 }
 
 function endPan() {
@@ -420,45 +439,126 @@ function centerFraction(el: HTMLElement): { x: number; y: number } | null {
   };
 }
 
+/** The anchor a running step holds on to: the middle fraction `centerFraction` measured when the
+ *  step began, re-applied on every frame of it. It is a property of the scale that was on screen
+ *  then, so it is *kept* rather than derived — the placement it drives needs the incoming scale's
+ *  own `scrollWidth`, a frame at a time. */
+let stepAnchor: { x: number; y: number } | null = null;
+let cancelZoomAnim: (() => void) | null = null;
+
+function stopZoomAnim() {
+  cancelZoomAnim?.();
+  cancelZoomAnim = null;
+  zoomAnimating.value = false;
+}
+
 function stepZoom(dir: 1 | -1) {
+  setZoom(nextZoom(zoom.value, dir));
+}
+
+/** A ladder step, tweened with the project's own motion (PR-MEMTOP-019): `animateProgress`, the
+ *  same 400ms ease-in-out cubic the timeline's zoom-to-fit rides — and, like it, instant when the
+ *  platform asks for reduced motion. The committed stop still moves on the click; only the painted
+ *  scale travels to it, so asking for 400% four times in quick succession is still four stops.
+ *
+ *  Mid-step, a new step cancels this one and takes a fresh measurement off whatever is painted, so
+ *  a re-click grows the drawing from where it currently is rather than from where it was aimed. */
+function setZoom(target: number) {
   const el = viewport.value;
-  // Measured before the step, applied after it: the anchor is what the *old* scale had under the
-  // middle, and the assignment needs the new scale's `scrollWidth` to place it again.
-  const held = el ? centerFraction(el) : null;
-  zoom.value = nextZoom(zoom.value, dir);
-  // Stepping back down to a fitted scale has to drop the offset too: the box stops being
-  // scrollable there (`pannable`), and a clip at a stale offset would cut the diagram's corner.
-  if (!pannable.value) {
+  const from = paintedZoom.value;
+  // Measured before the step, against the scale still on screen, and read back on every frame.
+  stepAnchor = el ? centerFraction(el) : null;
+  zoom.value = target;
+  stopZoomAnim();
+  if (from === target) {
+    // Already there (适应窗口 on a fitted diagram): land it without a tween.
+    stepAnchor = null;
+    if (paintedZoom.value <= 100) resetPan();
+    return;
+  }
+  zoomAnimating.value = true;
+  cancelZoomAnim = animateProgress({
+    from,
+    to: target,
+    onUpdate: (next) => {
+      paintedZoom.value = next;
+    },
+    onDone: () => {
+      cancelZoomAnim = null;
+      zoomAnimating.value = false;
+    },
+  });
+}
+
+/** The offset `placeZoomStep` wrote last, so its own scroll events can be told apart from a user's:
+ *  the placement writes `scrollLeft` / `scrollTop` too, and every one of those writes raises a
+ *  `scroll` event that is not a pan (PR-MEMTOP-019). */
+let lastPlacement = { left: 0, top: 0 };
+
+/** Put the held middle back under the middle of the box at the scale now painted (PR-MEMTOP-018).
+ *  Runs **after** the render that carries the new `--pr-topo-zoom`, because it is the stage's new
+ *  `scrollWidth` / `scrollHeight` that the placement is read from — hence a `flush: 'post'` watch
+ *  rather than a derived value. */
+function placeZoomStep() {
+  // A live drag owns the offset (PR-MEMTOP-019): its writes and these are the same two properties,
+  // so placing on a frame underneath the pointer would rubber-band the diagram back to the anchor
+  // mid-gesture. The drag re-anchors the step as it moves (`onPanMove`), so the frames after it
+  // ends carry on from where the pointer left the drawing rather than from where the step aimed.
+  if (dragging.value) return;
+  // Landed at or below the fit: the box stops being scrollable there (`pannable`), so there is no
+  // fraction left to keep and the offset goes home instead of resting at a corner the box can no
+  // longer show (PR-MEMTOP-015). Mid-step the anchor still holds — only the landing frame resets.
+  if (zoom.value <= 100 && paintedZoom.value <= 100) {
     resetPan();
     return;
   }
-  // The stage's new size arrives with the class and the custom property, i.e. a tick later, and it
-  // is `scrollWidth` that has to be read after it — hence a `nextTick` rather than a `watch`, so
-  // the correction lands in the same gesture as the click and never on a later render of its own.
-  if (el && held) {
-    void nextTick(() => {
-      const box = viewport.value;
-      if (!box) return;
-      box.scrollLeft = held.x * box.scrollWidth - box.clientWidth / 2;
-      box.scrollTop = held.y * box.scrollHeight - box.clientHeight / 2;
-    });
-  }
+  const el = viewport.value;
+  if (!el || !stepAnchor) return;
+  el.scrollLeft = stepAnchor.x * el.scrollWidth - el.clientWidth / 2;
+  el.scrollTop = stepAnchor.y * el.scrollHeight - el.clientHeight / 2;
+  lastPlacement = { left: el.scrollLeft, top: el.scrollTop };
 }
+
+/** The box was scrolled by something that is not the placement — a wheel, a classic thumb, a
+ *  keyboard scroll — while a step is in flight. Those write the same two properties a drag does, so
+ *  the next painted frame would yank them back to the step's own anchor: the rubber-band the drag
+ *  path closed, for the other writers of `scrollLeft` / `scrollTop`. Re-reading the anchor holds
+ *  what the user just put under the middle for the rest of the flight instead. The placement's own
+ *  writes are recognised by `lastPlacement` and ignored, so this cannot fight the tween either. */
+function onViewportScroll() {
+  const el = viewport.value;
+  if (!el || !zoomAnimating.value) return;
+  if (el.scrollLeft === lastPlacement.left && el.scrollTop === lastPlacement.top) return;
+  stepAnchor = centerFraction(el);
+}
+
+watch(
+  paintedZoom,
+  () => {
+    placeZoomStep();
+    // The anchor is only owed to a step in flight: once the painted scale *is* the committed one
+    // this placement was its last, and the next step takes its own measurement.
+    if (paintedZoom.value === zoom.value) stepAnchor = null;
+  },
+  { flush: 'post' },
+);
 
 /** **适应窗口** — back to the fitted scale, and back to the scroll origin so a diagram that was
  *  panned while zoomed in returns to its top-left corner rather than to a stale offset. */
 function fitZoom() {
-  zoom.value = 100;
-  resetPan();
+  setZoom(100);
 }
+
+onBeforeUnmount(stopZoomAnim);
 </script>
 
 <template>
   <div
     v-if="show"
     class="pr-topo"
-    :style="{ '--pr-topo-zoom': zoom / 100 }"
+    :style="{ '--pr-topo-zoom': paintedZoom / 100 }"
     data-testid="memory-topology-panel"
+    :data-topo-zoom-animating="zoomAnimating ? 'true' : 'false'"
     @contextmenu="onContextMenu"
   >
     <div
@@ -473,6 +573,7 @@ function fitZoom() {
       @pointermove="onPanMove"
       @pointerup="endPan"
       @pointercancel="endPan"
+      @scroll="onViewportScroll"
     >
       <div class="pr-topo__stage">
         <svg
