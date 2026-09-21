@@ -43,7 +43,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 1. Roadmap + FEATURE_MATRIX + COMPONENTS: document M4 Sept 30 scope (this file).
 2. Specs / view packets / ADAPTERS / UX S10: Architecture Diagram **in**; heatmap **out**; DATA-48 / DATA-48a / DATA-49.
 3. `topologyFromArchDiagramMetrics` + wire `adaptEmulate` (`memoryTopology` carrier, `archDiagram` capability).
-4. Refresh `data/emulate-sample.npu-rep` for playground smoke.
+4. Keep `data/gelu.npu-rep` current for playground / unit smoke (sole emulate fixture).
 5. Tests: mapper + `archDiagram` capability; cannbot scopes when packed.
 6. Performance hints dock: join hint CSVs into the 性能提示 table ([performance-hints](../../views/performance-hints.md)).
 

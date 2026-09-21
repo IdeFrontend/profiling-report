@@ -302,23 +302,11 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
     expect(adapted.capabilities).toContain('archDiagram');
+    expect(adapted.capabilities).not.toContain('memoryDiagram');
     expect(adapted.reportModel.roofline).toBeUndefined();
-  });
-
-  it('emulate-sample.npu-rep fills PIPE + topology; summary chrome omitted (M4 / DATA-47)', () => {
-    const bytes = new Uint8Array(
-      readFileSync(resolve(__dirname, '../../data/emulate-sample.npu-rep')),
-    );
-    const adapted = loadReportSource(bytes);
-    expect(adapted.swimlaneModel).not.toBeNull();
-    expect(adapted.reportModel.profile).toBe('emulate');
-    expect(adapted.reportModel.summary).toEqual({});
-    expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
-    expect(adapted.reportModel.memoryTopology).toBeDefined();
-    expect(adapted.capabilities).toContain('archDiagram');
 
     const summaryPayload = buildCannbotPayload('summary', adapted.reportModel, {
-      name: 'emulate-sample.npu-rep',
+      name: 'gelu.npu-rep',
     });
     expect(summaryPayload.op_name).toBe('');
     expect((summaryPayload.data as { pipeOccupancy: unknown[] }).pipeOccupancy.length).toBeGreaterThan(

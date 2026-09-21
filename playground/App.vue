@@ -17,7 +17,6 @@ const FILE_FIXTURES = {
   example: { name: 'example.rep', url: '/data/example.rep' },
   npu160: { name: 'example160.rep', url: '/data/example160.rep' },
   vector_muladd: { name: 'vector_muladd_plain.npu-rep', url: '/data/vector_muladd_plain.npu-rep' },
-  emulate: { name: 'emulate-sample.npu-rep', url: '/data/emulate-sample.npu-rep' },
   gelu: { name: 'gelu.npu-rep', url: '/data/gelu.npu-rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
@@ -272,10 +271,6 @@ onMounted(async () => {
           :href="fixtureHref('npu160')"
           data-testid="fixture-npu160"
         >example160.rep</a>
-        <a
-          :href="fixtureHref('emulate')"
-          data-testid="fixture-emulate"
-        >emulate-sample</a>
         <a
           :href="fixtureHref('gelu')"
           data-testid="fixture-gelu"

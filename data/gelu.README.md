@@ -1,10 +1,10 @@
 # gelu — npu_emulate export sample
 
-Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`). Timeline uses the producer basename `core_0_tracing_report_0.json` (adapter also accepts normative `PipeTrace.json`).
+Sole committed emulate fixture and playground sample. Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`). Timeline uses the producer basename `core_0_tracing_report_0.json` (adapter also accepts normative `PipeTrace.json`).
 
 | Item | Value |
 |------|--------|
-| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~7.7 MiB, **not** Git LFS — intentional demo fixture; slim leaf is [`emulate-sample.npu-rep`](emulate-sample.npu-rep)) |
+| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~7.7 MiB, **not** Git LFS — intentional demo fixture) |
 | SHA-256 | `b72c523faf3ac2984e98064f2759f87dcd3bb5afe77389bf97ec0903403a0efb` |
 | Exported | `2026-09-21T12:05:51.821657+00:00` |
 | Contract DB objects | 124 (101 tables + 23 views), 161314 rows total |
@@ -29,8 +29,6 @@ Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/con
 | `PipeUtilizationHist.csv` / `PipesUtilization.csv` | PIPE occupancy |
 | `ArchDiagramMetrics.csv` | Architecture Diagram (`archDiagram`, interim plated chrome [DATA-48a](../docs/context/decisions/interim/DATA.md)) |
 | `HintMessages.csv` / `HintTypes.csv` / `InstructionHints.csv` / `KernelHints.csv` / `SourceLineHints.csv` | Performance hints (packed CSVs; manifest `row_count` is 0 except `HintTypes`) |
-
-Full aside demo leaf (thin marker): [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
 
 ## Packed embeds (56)
 

@@ -60,8 +60,8 @@ Two shapes appear in the wild:
 
 | Shape | Example | Marker | Typical embeds |
 |-------|---------|--------|----------------|
-| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | All populated contract CSVs + timeline (`core_*_tracing_report_*.json` or normative `PipeTrace.json`) + optional `aicore_utilization.json` |
-| **Viewer leaf** (Sept 30+) | [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo + PIPE CSVs (± more contract CSVs) |
+| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) — sole committed sample | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | All populated contract CSVs + timeline (`core_*_tracing_report_*.json` or normative `PipeTrace.json`) + optional `aicore_utilization.json` |
+| **Thin viewer leaf** | unit-test fixtures (in-memory) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo + PIPE CSVs (± more contract CSVs) |
 
 gelu (2026-09-21) packs **every** `row_count > 0` object, including KernelInfo / PIPE / ArchDiagramMetrics, plus performance-hint CSVs whose manifest `row_count` is 0 (`HintMessages`, `InstructionHints`, `KernelHints`, `SourceLineHints`) — see [TABLES.md](TABLES.md) §1–3.
 
@@ -81,7 +81,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 
 **Planned (not lit):** [性能提示](../../views/performance-hints.md) from `HintMessages.csv`, `HintTypes.csv`, `InstructionHints.csv`, `KernelHints.csv`, `SourceLineHints.csv`.
 
-**Reference leaf with all five:** [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep). Roadmap: [milestone-4](../../process/roadmap/milestone-4.md). Per-surface detail: [`../../views/`](../../views/).
+**Reference leaf (committed):** [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) — playground + unit smoke. Roadmap: [milestone-4](../../process/roadmap/milestone-4.md). Per-surface detail: [`../../views/`](../../views/).
 
 ### 4.2 Not used for Sept 30 visualization (packed or not)
 
@@ -99,7 +99,7 @@ Optional: other contract CSVs may be packed unused for later phases. **Not requi
 
 ### 4.3 `manifest.json` (emulate marker)
 
-**Thin marker** (viewer leaf / `emulate-sample`):
+**Thin marker** (viewer leaf; unit tests — not a committed pack):
 
 ```json
 {
@@ -152,9 +152,7 @@ Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) 
 
 ## 7. Reference sample (gelu)
 
-Committed producer export: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep). Detected as emulate via export-catalog `manifest.json`; timeline from `core_0_tracing_report_0.json` (or normative `PipeTrace.json`). Table set: [TABLES.md](TABLES.md).
-
-Minimal viewer fixture (timeline + summary + PIPE): [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep).
+Sole committed emulate fixture: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (playground `?fixture=gelu`, unit smoke). Detected as emulate via export-catalog `manifest.json`; timeline from `core_0_tracing_report_0.json` (or normative `PipeTrace.json`). Table set: [TABLES.md](TABLES.md). Notes: [`data/gelu.README.md`](../../../data/gelu.README.md).
 
 ---
 

@@ -8,11 +8,7 @@ Descriptions marked *inferred* are guesses from column names and known product s
 
 Leaf pack / Phase 1 inventory: [TABLES.md](TABLES.md). Container + leaf rules: [FORMAT.md](FORMAT.md).
 
-Regenerate:
-
-```bash
-python3 data/scripts/gen_emulate_schema_md.py
-```
+When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page from its embedded `manifest.json` `objects[]` (no committed generator).
 
 ## Contents
 

@@ -53,5 +53,5 @@ Fill tables live in the view packets — do not duplicate them here.
 ## 3. Implementation notes
 
 - Code: `loadReportSource` → `isEmulateLeaf` ? `adaptEmulate` : `adaptPayloads`. `parseNpuRep160` requires `origin === 1`.
-- Sample emulate leaf: `data/emulate-sample.npu-rep`.
+- Sample emulate leaf: `data/gelu.npu-rep` (sole committed fixture / playground sample).
 - Packer (npu_emulate): emit `manifest.json`; convert ticks → µs for PipeTrace ([DATA-46](../context/decisions/interim/DATA.md#data-46)).
