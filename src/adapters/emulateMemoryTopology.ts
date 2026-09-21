@@ -8,6 +8,7 @@ import {
   hasDrawableTopology,
   MEMORY_TOPOLOGY_NODE_DEFS,
 } from './memoryTopology';
+import { parseCsv } from './parseCsv';
 
 type EdgeSpec = {
   id: string;
@@ -55,22 +56,6 @@ const ARCH_EDGE_MAP: EdgeSpec[] = [
 ];
 
 const L2_PEAK_PARAM = 'l2_cached_ratio';
-
-function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.length > 0);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = lines[0].split(',').map((h) => h.trim());
-  const rows: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',');
-    const row: Record<string, string> = {};
-    headers.forEach((h, j) => {
-      row[h] = (cols[j] ?? '').trim();
-    });
-    rows.push(row);
-  }
-  return { headers, rows };
-}
 
 function parseNumber(raw: string | undefined): number | undefined {
   if (raw == null || raw === '' || raw === 'NA') return undefined;

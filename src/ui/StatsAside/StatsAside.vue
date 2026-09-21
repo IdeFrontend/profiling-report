@@ -303,8 +303,6 @@ const topologyModel = computed(() => {
  */
 
 const showTopology = computed(() => hasDrawableTopology(topologyModel.value));
-/** Same section title as compute 内存负载分析 (DATA-48a UI unify). */
-const topologySectionTitle = computed(() => t('memoryAnalysis', props.locale));
 
 const csvOnly = computed(
   () =>
@@ -998,7 +996,7 @@ function backToReport() {
         :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
       >
         <div class="pr-stack-section__head">
-          <h4>{{ topologySectionTitle }}</h4>
+          <h4>{{ t('memoryAnalysis', locale) }}</h4>
           <div class="pr-pipe-head__actions">
             <button
               v-if="showMemory"

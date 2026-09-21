@@ -454,7 +454,7 @@ describe('StatsAside', () => {
     expect(fullMeta).toContain('10');
   });
 
-  it('PR-STATS-007b: emulate omits meta row, 更多, and summary cards (DATA-47)', () => {
+  it('PR-STATS-007: emulate omits meta row, 更多, and summary cards (DATA-47)', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({

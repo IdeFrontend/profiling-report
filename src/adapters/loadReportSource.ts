@@ -1,5 +1,5 @@
 import { adaptPayloads, adaptRep, emptyReportViewModel } from './adaptRep';
-import { adaptEmulate, isEmulateLeaf } from './adaptEmulate';
+import { adaptEmulate, readEmulateManifest } from './adaptEmulate';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { parseRep } from './parseRep';
 import { isNestedNpuArchive, isNpuRep, npuArchiveStem, parseNpuRep } from './parseNpuRep';
@@ -9,7 +9,8 @@ import type { AdaptedReport, ReportOperator } from '../domain/types';
 
 /** Dispatch leaf payloads to compute (`adaptPayloads`) or emulate (`adaptEmulate`). */
 function adaptLeafPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
-  return isEmulateLeaf(payloads) ? adaptEmulate(payloads) : adaptPayloads(payloads);
+  const manifest = readEmulateManifest(payloads);
+  return manifest ? adaptEmulate(payloads, manifest) : adaptPayloads(payloads);
 }
 
 const CANN_REP_MAGIC = 'cann-rep';

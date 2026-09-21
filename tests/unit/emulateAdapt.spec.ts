@@ -364,6 +364,26 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel!.processes.length).toBe(2);
     expect(adapted.swimlaneModel!.processes.map((p) => p.name)).toEqual(['AIC2', 'AIC10']);
   });
+
+  it('PR-ASIM-007: remaps numeric-string pids across native cores', () => {
+    const core = (pid: string, name: string) =>
+      JSON.stringify({
+        displayTimeUnit: 'ns',
+        traceEvents: [
+          { name: 'process_name', ph: 'M', pid, args: { name } },
+          { name: 'thread_name', ph: 'M', pid, tid: 1, args: { name: 'Cube' } },
+          { name: 'op', ph: 'X', pid, tid: 1, ts: 0, dur: 50 },
+        ],
+      });
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(exportCatalogManifest()),
+      'core_0_tracing_report_0.json': enc.encode(core('0', 'AIC0')),
+      'core_1_tracing_report_0.json': enc.encode(core('0', 'AIC1')),
+    });
+    expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.swimlaneModel!.processes.length).toBe(2);
+    expect(adapted.swimlaneModel!.processes.map((p) => p.name)).toEqual(['AIC0', 'AIC1']);
+  });
 });
 describe('emulate pipe mappers', () => {
   it('maps PipeUtilizationHist PipeName → occupancy', () => {

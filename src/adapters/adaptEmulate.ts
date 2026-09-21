@@ -13,10 +13,11 @@ import type {
   SwimlaneModel,
 } from '../domain/types';
 import { hasDependencies } from '../domain/dependencies';
-import { laneColorKey } from '../domain/laneColors';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
 import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
+import { parseCsv } from './parseCsv';
+import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
 
 /** Producer `manifest.json` only ([PROC-8]). */
 const MANIFEST_NAMES = ['manifest.json', 'Manifest.json'];
@@ -38,13 +39,8 @@ const EXPORT_CATALOG_HUBS = new Set(['ExecutedInstructions', 'KernelInfo', 'Anal
 function findEmulateTracePayload(
   payloads: Record<string, Uint8Array>,
 ): { bytes: Uint8Array; name: string } | undefined {
-  const preferred = payloadByName(payloads, PIPE_TRACE_NAMES);
-  if (preferred) {
-    const name =
-      Object.keys(payloads).find((k) => PIPE_TRACE_NAMES.some((n) => k.toLowerCase() === n.toLowerCase())) ??
-      'PipeTrace.json';
-    return { bytes: preferred, name };
-  }
+  const preferred = payloadEntry(payloads, PIPE_TRACE_NAMES);
+  if (preferred) return preferred;
   const native = Object.keys(payloads)
     .filter(
       (n) =>
@@ -62,6 +58,16 @@ function findEmulateTracePayload(
   if (native.length === 0) return undefined;
   if (native.length === 1) return { bytes: payloads[native[0]], name: native[0] };
   return { bytes: mergeNativeChromeTraces(payloads, native), name: native.join('+') };
+}
+
+/** Coerce Chrome Trace pid (number or numeric string) to a finite number. */
+function pidAsNumber(pid: unknown): number | undefined {
+  if (typeof pid === 'number' && Number.isFinite(pid)) return pid;
+  if (typeof pid === 'string' && pid.trim() !== '') {
+    const n = Number(pid);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
 }
 
 /** Concatenate Chrome Trace Event lists from several native core reports; remap pids to avoid collisions. */
@@ -97,9 +103,10 @@ function mergeNativeChromeTraces(
     for (const raw of events) {
       if (!raw || typeof raw !== 'object') continue;
       const e = { ...(raw as Record<string, unknown>) };
-      if (typeof e.pid === 'number' && Number.isFinite(e.pid)) {
-        localMaxPid = Math.max(localMaxPid, e.pid);
-        e.pid = e.pid + pidOffset;
+      const pid = pidAsNumber(e.pid);
+      if (pid != null) {
+        localMaxPid = Math.max(localMaxPid, pid);
+        e.pid = pid + pidOffset;
       }
       mergedEvents.push(e);
     }
@@ -110,45 +117,33 @@ function mergeNativeChromeTraces(
   return new TextEncoder().encode(JSON.stringify(out));
 }
 
+/** Detection marker only — no unused producer/tick fields (YAGNI). */
 export interface EmulateManifest {
   profile: string;
   schemaVersion: number;
-  producer?: string;
-  tickToUs?: number | null;
-  /** True when detection used export-catalog `objects[]` rather than thin profile marker. */
-  fromExportCatalog?: boolean;
 }
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder('utf-8').decode(bytes);
 }
 
-function payloadByName(
+function payloadEntry(
   payloads: Record<string, Uint8Array>,
   names: string[],
-): Uint8Array | undefined {
+): { bytes: Uint8Array; name: string } | undefined {
   for (const name of names) {
-    if (payloads[name]) return payloads[name];
+    if (payloads[name]) return { bytes: payloads[name], name };
     const found = Object.keys(payloads).find((k) => k.toLowerCase() === name.toLowerCase());
-    if (found) return payloads[found];
+    if (found) return { bytes: payloads[found], name: found };
   }
   return undefined;
 }
 
-function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.length > 0);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = lines[0].split(',').map((h) => h.trim());
-  const rows: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',');
-    const row: Record<string, string> = {};
-    headers.forEach((h, j) => {
-      row[h] = (cols[j] ?? '').trim();
-    });
-    rows.push(row);
-  }
-  return { headers, rows };
+function payloadByName(
+  payloads: Record<string, Uint8Array>,
+  names: string[],
+): Uint8Array | undefined {
+  return payloadEntry(payloads, names)?.bytes;
 }
 
 function isExportCatalog(obj: Record<string, unknown>): boolean {
@@ -190,26 +185,14 @@ export function readEmulateManifest(
     if (typeof obj.schemaVersion !== 'number' || !Number.isFinite(obj.schemaVersion)) {
       return null;
     }
-    return {
-      profile: 'emulate',
-      schemaVersion: obj.schemaVersion,
-      ...(typeof obj.producer === 'string' ? { producer: obj.producer } : {}),
-      tickToUs: (obj.tickToUs as number | null | undefined) ?? null,
-    };
+    return { profile: 'emulate', schemaVersion: obj.schemaVersion };
   }
 
   // profile present but not emulate → not our leaf (e.g. mistaken compute marker)
   if (typeof obj.profile === 'string') return null;
 
   if (isExportCatalog(obj)) {
-    return {
-      profile: 'emulate',
-      schemaVersion: 1,
-      fromExportCatalog: true,
-      ...(typeof obj.database === 'string' && /npu_emulate/i.test(obj.database)
-        ? { producer: 'npu_emulate' }
-        : {}),
-    };
+    return { profile: 'emulate', schemaVersion: 1 };
   }
 
   return null;
@@ -352,54 +335,24 @@ function csvTableFromPayload(
   payloads: Record<string, Uint8Array>,
   names: string[],
 ): CsvTableModel | undefined {
-  const payload = payloadByName(payloads, names);
-  if (!payload) return undefined;
-  const fileName =
-    Object.keys(payloads).find((k) => names.some((n) => k.toLowerCase() === n.toLowerCase())) ??
-    names[0];
-  const { headers, rows } = parseCsv(decodeUtf8(payload));
+  const entry = payloadEntry(payloads, names);
+  if (!entry) return undefined;
+  const { headers, rows } = parseCsv(decodeUtf8(entry.bytes));
   if (headers.length === 0) return undefined;
-  return { fileName, headers, rows, blockIds: [] };
-}
-
-function withPipeLaneUtilizations(
-  model: SwimlaneModel,
-  pipes: PipeOccupancyItem[],
-): SwimlaneModel {
-  if (pipes.length === 0) return model;
-  const collected = new Map<string, number[]>();
-  for (const p of pipes) {
-    if (p.id === 'icache' || p.colorKey === 'default') continue;
-    const list = collected.get(p.colorKey) ?? [];
-    list.push(p.ratio);
-    collected.set(p.colorKey, list);
-  }
-  const byKey = new Map<string, number>();
-  for (const [key, vals] of collected) {
-    byKey.set(key, vals.reduce((a, b) => a + b, 0) / vals.length);
-  }
-  return {
-    ...model,
-    processes: model.processes.map((proc) => ({
-      ...proc,
-      threads: proc.threads.map((t) => {
-        const key = laneColorKey(t.name);
-        if (key === 'default') return t;
-        const ratio = byKey.get(key);
-        if (ratio == null) return t;
-        return { ...t, utilization: ratio };
-      }),
-    })),
-  };
+  return { fileName: entry.name, headers, rows, blockIds: [] };
 }
 
 /**
  * Adapt an emulate-profile leaf (marker already validated or present).
  * Does not invent compute-shaped metric CSVs (DATA-45).
+ * Pass `manifest` from detection to avoid a second parse.
  */
-export function adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport {
-  const manifest = readEmulateManifest(payloads);
-  if (!manifest) {
+export function adaptEmulate(
+  payloads: Record<string, Uint8Array>,
+  manifest?: EmulateManifest | null,
+): AdaptedReport {
+  const resolved = manifest ?? readEmulateManifest(payloads);
+  if (!resolved) {
     throw new Error(
       '[profiling-report] adaptEmulate: manifest.json (emulate profile or export catalog) required',
     );
