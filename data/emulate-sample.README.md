@@ -1,13 +1,6 @@
 # Emulate sample leaf
 
-Minimal Sept 30 / M4 fixture payloads for a product `.npu-rep` emulate leaf.
-
-Pack:
-
-```bash
-rm -f data/emulate-sample.npu-rep
-python3 data/scripts/pack_rep.py data/emulate-sample data/emulate-sample.npu-rep
-```
+Minimal Sept 30 / M4 fixture: the committed pack [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
 
 Embeds:
 
