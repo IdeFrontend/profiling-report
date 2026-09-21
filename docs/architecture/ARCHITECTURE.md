@@ -20,7 +20,8 @@ MSTT and PyPTO both want a **pypto-like timeline UX**, but their on-disk semanti
 
 ```mermaid
 flowchart LR
-  Rep["npu-rep adapter"] --> Models["SwimlaneModel + ReportViewModel"]
+  HW["hardware adaptPayloads"] --> Models["SwimlaneModel + ReportViewModel"]
+  SIM["simulator adaptEmulate"] --> Models
   Pypto["PyPTO adapter later"] --> Models
   Models --> SharedUI["Shared Vue swimlane + panels"]
   SharedUI --> MsttHost["MSTT host"]
@@ -30,19 +31,20 @@ flowchart LR
 
 | Layer | Owns |
 |-------|------|
-| **Adapter** | Map raw bytes/files → `SwimlaneModel` and optional `ReportViewModel`; format-specific rules stay here |
+| **Adapter** | Map raw bytes/files → `SwimlaneModel` and optional `ReportViewModel`; **profile-specific** rules stay here ([ADAPTERS.md](../formats/ADAPTERS.md)) |
 | **Shared UI** | Swimlane chrome, panels, interactions; driven only by canonical models + capabilities |
-| **Host** | File I/O, VS Code APIs, theme/locale, navigation; no swimlane internals |
+| **Host** | File I/O, VS Code APIs, theme/locale, navigation; opens `.npu-rep` only — profile detection is in-library ([PROC-8](../context/decisions/PROC.md)) |
 | **Insight** | Legacy `.bin` (and system profiles) — **outside** this library |
 
-Adapters must not call `useViewServer()`, `window.vscode`, or host routers. Capabilities (e.g. `roofline`, `dependencies`, `aicpu`, `memoryDiagram`) hide UI the current format/host does not support.
+Adapters must not call `useViewServer()`, `window.vscode`, or host routers. Capabilities (e.g. `roofline`, `dependencies`, `memoryDiagram`, `archDiagram`, `memoryHeatmap`, `vfIpc`, `callStacks`) hide UI the current profile does not support.
 
 **Phasing**
 
-1. **v1:** `npu-rep` adapter + MSTT host only; copy PyPTO render algorithms as needed without changing pypto-tools. Classic `cann-rep` / sample `.rep` remain engineering fixtures.
-2. **Later (optional):** PyPTO adapter feeding the same models/UI if that host adopts the package — not required for MVP.
+1. **v1 hardware:** `npu-rep` hardware adapter + MSTT host; classic `cann-rep` / sample `.rep` remain engineering fixtures.
+2. **v1 simulator (M4 / Sept 30):** detect `manifest.json` → `adaptEmulate` (Timeline + PIPE + ArchDiagramMetrics Architecture Diagram + CANNBot compute/memory; summary chrome **out** per [DATA-47](../context/decisions/DATA.md)).
+3. **Later (optional):** PyPTO adapter; simulator Phase 2 capability panels (heatmap, dedicated arch chrome, VF IPC, …).
 
-**Explicit non-goal:** parsing or rendering MindStudio Insight `.bin` inside this library.
+**Explicit non-goal:** parsing or rendering MindStudio Insight `.bin` inside this library. **Do not** silently remap simulator CSVs into hardware embeds ([DATA-45](../context/decisions/interim/DATA.md#data-45)).
 
 ## Single package, internal modules
 

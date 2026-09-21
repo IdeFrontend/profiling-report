@@ -71,19 +71,19 @@ Root timeline document: `processes[]`, `minTime`, `maxTime` (**nanoseconds**), o
 
 ### `ReportViewModel` (M)
 
-OP-report analytics bundle: `summary`, optional `computeCard` (DATA-33h), optional `bandwidthCards[]` (DATA-8), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
+OP-report analytics bundle: `summary`, optional `computeCard` (DATA-33h), optional `bandwidthCards[]` (DATA-33g), `pipeOccupancy[]`, optional `overviewSeries[]`, and later optional sections for P2 panels.
 
 **Why:** Separates Ascend OP report chrome from the timeline. PyPTO-only hosts can omit it; the `npu-rep` adapter always fills what CSVs allow.
 
 ### `SummaryMetrics` (M)
 
-Op name/type, task duration, optional raw frequency / `coreCount` / meta fields, and AICore **并行使用率** / **负载均衡度** fractions (`parallelUtilization` / `parallelBalance`, **DATA-9 / DATA-10**). **Do not** put compute TFLOPS on `summary` — those live on `computeCard` (DATA-33h). I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-8](../context/decisions/DATA.md)), not `summary.ioBandwidth`.
+Op name/type, task duration, optional raw frequency / `coreCount` / meta fields, and AICore **并行使用率** / **负载均衡度** fractions (`parallelUtilization` / `parallelBalance`, **DATA-9 / DATA-10**). **Do not** put compute TFLOPS on `summary` — those live on `computeCard` (DATA-33h). I/O BW is `BandwidthCardModel[]` on `ReportViewModel` ([DATA-33g](../context/decisions/interim/DATA.md)), not `summary.ioBandwidth`.
 
-**Why:** `StatsSummaryPanel` must not invent formulas; adapter maps clear columns plus documented DATA-8 / DATA-33h / DATA-9–10 fields.
+**Why:** `StatsSummaryPanel` must not invent formulas; adapter maps clear columns plus documented DATA-33g / DATA-33h / DATA-9–10 fields.
 
-### `BandwidthCardModel` (M, DATA-8)
+### `BandwidthCardModel` (M, DATA-33g)
 
-`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Read / write = the producer's summed `OpInfoSummary.aicore_gm_read_bw` / `aicore_gm_write_bw` (arrives as one `aicore` side); the `Memory` per-side rows are the classic-`.rep` fallback. Peak = `aicore_gm_bw_theoretical(GB/s)` = SOL 1600 GB/s (DATA-5, DATA-6). UI displays GB/s (UI-34). Optional on `ReportViewModel` (omit when unused). UI collapses to one **带宽利用率** card with **读 \| 写** columns, score = measured ÷ peak ([DATA-8](../context/decisions/DATA.md)).
+`{ id: 'input' | 'output', sides: { side, measuredGBs, peakGBs }[] }`. Peak is the sketch 1600 GB/s constant until Product supplies a field. UI displays GB/s (UI-34). Optional on `ReportViewModel` (omit when unused). UI collapses to one **带宽利用率** card with **读 \| 写** (aggregation OPEN).
 
 **Why:** Hide-if-NA per side. Same card chrome as duration. Layout follows refreshed `summary-cards.png`.
 
@@ -127,8 +127,6 @@ Emit payload: `id`, `name`, `startTime`, `duration`, `endTime`, optional `args` 
 
 String union flags, e.g. `roofline` | `dependencies` | `memoryDiagram` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu`.
 
-Most flags describe data the adapter found and derives on its own. `roofline` is the exception: it is a Phase 2 surface outside the current release, so the adapter never advertises it and only a host that opts in with `capabilities: ['roofline']` mounts the card.
-
 **Why:** Feature gating without `if (format === 'pypto')` in components. Host/adapter declares what data exists.
 
 ### `RepManifest` / `RepEmbeddedFile` (M, adapter-internal)
@@ -146,17 +144,23 @@ Parsed `.rep` file table (name, type, origin, offset, length) before decoding pa
 
 ## Adapters and renderer (non-Vue)
 
-### `RepAdapter` (M)
+### `RepAdapter` / hardware path (M)
 
-`ArrayBuffer` → `{ swimlaneModel, reportModel, capabilities? }`.
+`ArrayBuffer` → `{ swimlaneModel, reportModel, capabilities? }` for **hardware** leaves (and classic fixtures). Entry: `loadReportSource` → `adaptPayloads`.
 
-**Why:** First and only v1 adapter; sole module that knows CSVs + embedded `trace.json`.
+**Why:** Sole module that knows hardware CSVs + `PipeTrace.json` / `trace.json`. Profile detection hub: [ADAPTERS.md](../formats/ADAPTERS.md).
+
+### `adaptEmulate` (M4 / Sept 30)
+
+Simulator leaf payloads (`manifest.json` + optional `PipeTrace.json` + PipesUtilization/hist + `ArchDiagramMetrics`) → same `AdaptedReport`. Sept 30: Timeline + PIPE + Architecture Diagram (`archDiagram`, interim plated chrome); summary cards/meta **out** ([DATA-47](../context/decisions/DATA.md)); no inventing compute CSVs ([DATA-45](../context/decisions/interim/DATA.md#data-45)). Delivery: [milestone-4](../process/roadmap/milestone-4.md).
+
+**Why:** Same UI models; different sources ([emulate/FORMAT.md](../formats/emulate/FORMAT.md)).
 
 ### `ChromeTraceToSwimlane` (M)
 
 Chrome Trace Event Format → `SwimlaneModel`.
 
-**Why:** Shared by `RepAdapter` and any later adapter that already has CTEF (including a thin PyPTO path).
+**Why:** Shared by hardware adapter, simulator adapter, and standalone CTEF (including a thin PyPTO path).
 
 ### `SwimlaneRenderer` interface (M)
 
@@ -249,7 +253,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth) — one tile per row below a 430px well, and tile labels wrap rather than crop when the aside is dragged narrow (PR-STATS-036) —, Roofline (M2 interim DATA-37*) only when the host passes the opt-in `roofline` capability, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with **详情** → memory CSV overlay and its own bar carrying **全屏** (the aside passes `showFullscreen`, re-emits the panel's `open-fullscreen` as `open-topology-fullscreen` for the root overlay). No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -271,17 +275,17 @@ Searchable field list with CSV tabs, optional block switcher, **查看全部** e
 
 **Why:** One reusable panel for all M1 CSV drill-downs; hide empty tabs.
 
-### `RooflinePanel` (M2 — not in the current release)
+### `RooflinePanel` (M2)
 
-Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until DATA-37f superseded. **Hidden in the current release:** the panel mounts on the StatsAside stacked report after the duration card only when the host passes the opt-in `roofline` capability, and stays hidden when the report has no points for the selected block. The code and interim math stay in place; no surface is deleted.
+Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops/Byte × TOps/s; roof polyline; GM point(s); op-mix labels; hover tooltip. No tabs until DATA-37f superseded. Mounted on the StatsAside stacked report after the duration card; hide when no points.
 
-**Why:** FEATURE_MATRIX / sketches; interim math unblocks the Phase 2 card while DATA-37 open.
+**Why:** FEATURE_MATRIX / sketches; interim math unblocks M2 while DATA-37 open.
 
 ### `MemoryTopologyPanel` (M2)
 
-Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5) and its own zoom / fullscreen bar. Mounted on the stacked 报告统计 below PIPE and again in the root **全屏** overlay; stacked **详情** / right-click open the memory CSV overlay; overlay right-click does not. The bar holds **缩小** / `%` readout / **放大** / **适应窗口** plus, only when the host passes `showFullscreen`, **全屏** — which the panel emits as `open-fullscreen` instead of opening the overlay itself (PR-MEMTOP-014). Zoom walks a discrete `50…400 %` ladder inside a 448:540 fit box, where 100% is *fitted* — the stacked aside and the overlay have different pixel budgets, so the same readout is right in both, and the box only becomes scrollable past that fit, so the fitted diagram shows no scrollbar and the pan past it covers the diagram's own overflow (PR-MEMTOP-015 / PR-MEMTOP-013); each step keeps the middle of the box on the same part of the drawing, so the fitted diagram zooms about its own middle and a panned one about what is on screen (PR-MEMTOP-018); a zoomed diagram is panned by dragging it as well as by its bars (PR-MEMTOP-017). The overlay drops the bar strip the aside keeps, per the export's fullscreen frame.
+Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE and again in the root **全屏** overlay; stacked **详情** / right-click open the memory CSV overlay; overlay right-click does not.
 
-**Why:** The official chrome (`memory-topology.svg`, Figma export of `v930/report-stats-scrolled`) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)). Hosts must serve `dist/memory-topology.svg` at the web root (`/memory-topology.svg`); the package exports it as `@huawei/profiling-report/memory-topology.svg` for copy/deploy. The bar's order, glyphs and colours come from the `v930-sim` (仿真 11.2.3.2) export; the export's fullscreen frame drops the 全屏 control, which is why it is host-gated rather than always drawn.
+**Why:** The official chrome (`memory-topology.svg`, Figma export of `v930/report-stats-scrolled`) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)). Hosts must serve `dist/memory-topology.svg` at the web root (`/memory-topology.svg`); the package exports it as `@huawei/profiling-report/memory-topology.svg` for copy/deploy.
 
 ### `HardwareDetailsPanel` (M1 interim DATA-34a)
 
@@ -297,7 +301,7 @@ Predecessor/successor Bezier curves on selection. Drawn by `WebGlSwimlaneRendere
 
 ### `ContextMenu` / `MultiSelectSummary` (P2)
 
-Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: an unmodified drag on `SwimlaneCanvas` commits a marquee (measure mode wins the gesture; pan moved to Shift+wheel / trackpad horizontal scroll). A single persistent `<footer class="pr-dock">` shell in `ProfilingReport` swaps `DetailPanel` and `MultiSelectSummary` content without remounting, so height survives mode switches. The axis Δt chrome follows the live drag and is cleared on commit. `ContextMenu` is implemented: Reset zoom, Show in event view, and Pin/Unpin row, with a scrim that blocks the rest of the UI while open.
+Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is implemented: an unmodified drag on `SwimlaneCanvas` commits a marquee (measure mode wins the gesture; pan moved to Shift+wheel / trackpad horizontal scroll). A single persistent `<footer class="pr-dock">` shell in `ProfilingReport` swaps `DetailPanel` and `MultiSelectSummary` content without remounting, so height survives mode switches. The axis Δt chrome follows the live drag and is cleared on commit. `ContextMenu` is still a stub.
 
 **Why:** Listed in FEATURE_MATRIX; not MVP.
 
@@ -318,9 +322,12 @@ Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is im
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — packaging and adapter strategy
 - [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md) — MVP vs P2 features
-- [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md) — per-view inputs
+- [views/README.md](../views/README.md) — per-view sketches + VM + fills
+- [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md) — legacy redirect + unextracted surfaces
 - [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md) — normative colors
 - [UX_SPEC.md](../ui/UX_SPEC.md) — scenarios and sync model
 - [INTERACTIONS.md](../ui/INTERACTIONS.md) — hover/select/zoom behavior
-- [METRICS_AND_TRACE.md](../formats/METRICS_AND_TRACE.md) — `.rep` embeds → report model fields
+- [METRICS_AND_TRACE.md](../formats/compute/METRICS_AND_TRACE.md) — compute embed column detail
+- [ADAPTERS.md](../formats/ADAPTERS.md) — profile detect → adapt
+- [formats/README.md](../formats/README.md) — container hub
 - [SWIMLANE_IMPLEMENTATIONS.md](../archive/research/SWIMLANE_IMPLEMENTATIONS.md) — Canvas vs WebGL

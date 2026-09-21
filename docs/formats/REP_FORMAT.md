@@ -16,7 +16,7 @@ Hosts open **`.npu-rep`** (and Chrome Trace `.json` per [PROC-3](../context/deci
 
 ### Product `npu-rep` container
 
-The shipping product container uses the **`npu-rep`** magic (36-byte head; product **160-byte** FileInfo or interim sample **164-byte** FileInfo) — see [INPUT_FORMATS §1.6](INPUT_FORMATS.md) and [npu-rep.spec](../../specs/core/npu-rep.spec.md). It can pack nested per-operator archives; `loadReportSource` detects it separately from the classic `cann-rep` packer below and adapts each operator. Nested leaf names inside the archive (e.g. `op1.npu.rep`) are FileInfo names, not the host file extension. This document's `cann-rep` layout remains the local sample packer (`data/pack_rep.py`).
+The shipping product container uses the **`npu-rep`** magic (36-byte head; product **160-byte** FileInfo or interim sample **164-byte** FileInfo) — **SSOT:** [README.md](README.md) §3 (hub) and [npu-rep.spec](../../specs/core/npu-rep.spec.md). Hardware leaf schemas: [compute/FORMAT.md](compute/FORMAT.md). Simulator leaf: [emulate/FORMAT.md](emulate/FORMAT.md). Nested leaf names inside the archive (e.g. `op1.npu.rep`) are FileInfo names, not the host file extension. **This document** describes the classic **`cann-rep`** engineering fixture / local sample packer (`data/pack_rep.py`) only.
 
 ## Byte order and packing
 

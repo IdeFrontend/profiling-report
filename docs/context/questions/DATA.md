@@ -132,3 +132,23 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Roots / evidence:** the producer's `DATA questions` doc § DATA-39 "Memory", rows `21`/`22` against rows `29`/`30`, and its numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png`; `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`cube-l0c` → `aic_l0c_write_bw_cube`, `l0c-cube` → `aic_l0c_read_bw_cube`); the `**Value slots**` table of [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
 
 **Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
+
+### DATA-48 — Emulate ArchDiagramMetrics → Architecture Diagram slots
+
+**Status:** `open`
+
+**Question:** Confirm the parameter-name → chrome slot map for emulate `ArchDiagramMetrics.csv` → **Architecture Diagram** (biprof §11.2.3.1; interim plated stand-in chrome). Are `hbm_to_l2_syn_gbs` / `l2_to_hbm_syn_gbs` / `aic_*` / `aiv*_` names authoritative? Dual AIV0/AIV1 plates: use both values or average? Which `*_gbs` / `l2_cached_ratio` are normative for Sept 30?
+
+**Context:** Sept 30 (M4) lights Architecture Diagram from ArchDiagramMetrics — **not** Memory Utilization Heatmap / `MemoryRWAccesses`. Data capability stays **`archDiagram`** (not compute `memoryDiagram`); interim UI reuses the plated Asc chrome titled **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** ([DATA-48a](../decisions/interim/DATA.md), [arch-diagram](../../views/arch-diagram.md)). Slot-map names below stay open for Product. Dedicated biprof chrome / richer model: [DATA-49](DATA.md).
+
+**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [arch-diagram](../../views/arch-diagram.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
+
+### DATA-49 — Emulate Architecture Diagram model / chrome vs heatmap
+
+**Status:** `open`
+
+**Question:** After Sept 30, keep the lossy `MemoryTopologyModel` projection of ArchDiagramMetrics onto Asc plated chrome, or introduce a dedicated `ArchDiagramModel` + biprof Architecture Diagram SVG for unit ratios / per-AIV / SIMT / counts? Confirm Memory Utilization Heatmap (`MemoryRWAccesses`) remains a separate deferred surface (capability `memoryHeatmap`), not folded into Architecture Diagram.
+
+**Context:** Product locked Sept 30 to Architecture Diagram only. Current mapper covers a GB/s subset of ~120 params ([FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md)). Heatmap is biprof §11.2.3.2.
+
+**Specs when answered:** [arch-diagram](../../views/arch-diagram.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)

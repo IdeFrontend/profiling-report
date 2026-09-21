@@ -1,5 +1,7 @@
 # Visualization View ↔ Data Mapping
 
+Container hub: [formats/README.md](../formats/README.md). Compute schemas: [compute/FORMAT.md](../formats/compute/FORMAT.md). Emulate: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Per-view packets (sketches + fills):** [views/](../views/).
+
 Clean specification of **UI sections**, **interactions**, and **display → field → source** mappings from product spec §11.2 可视化界面数据关联. Source mockups live under [`docs/ui/source/`](./source/) (``v930/`). Hierarchy: [`DESIGN_INDEX.md`](./DESIGN_INDEX.md).
 
 Input schemas: [INPUT_FORMATS.md](../formats/INPUT_FORMATS.md).
@@ -380,6 +382,41 @@ Full prioritized list for the product owner: [questions](../context/questions/).
 | Container magic `npu-rep` vs local `cann-rep` | See [INPUT_FORMATS §1](../formats/INPUT_FORMATS.md#1-report-container) |
 | `ResourceConflictRatio.csv` | In sample; no UI mapping |
 | Block-level aggregation for OP summary cards | **Closed:** one selector, `All` = `summary.jsonl` non-`NA` mean, a picked id = that block's CSV row ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). A picked block with no data blanks its widget — never the `All` aggregate under a block label |
+
+---
+
+## Mockup index
+
+| File | Section |
+| --- | --- |
+| [`entry-overview.png`](./source/v930/entry.jpeg) | Entry + overall timeline chrome |
+| [`npu-rep-layout.png`](./source/v930/entry.jpeg) | Container binary layout |
+| [`report-stats.png`](./source/v930/report-stats-open.jpeg) | Report statistics |
+| [`hardware-details.png`](./source/v930/hardware-more-detail.jpeg) | Hardware details |
+| [`roofline.png`](./source/v930/report-stats-open.jpeg) | Roofline |
+| [`pipe-occupancy.png`](./source/v930/compute-load.jpeg) | Pipe occupancy bars |
+| [`pipe-details.png`](./source/v930/compute-load-detail.jpeg) | Pipe details list |
+| [`memory-topology-annotated.png`](./source/v930/report-stats-scrolled.jpeg) | Memory topology SVG (nodes/edges) |
+| [`memory-load-heatmap.png`](./source/v930/report-stats-scrolled.jpeg) | Memory load with BW / peak % |
+| [`statistical-analysis.png`](./source/v930/entry.jpeg) | Cube/Vector statistical tracks |
+| [`kernel-block-timeline.png`](./source/v930/entry.jpeg) | Block timeline |
+| [`event-details.png`](./source/v930/detail-strip-raised.jpeg) | Event / Relevant details |
+
+
+## Emulate profile (MHTML §11.2.3)
+
+Same host file (`.npu-rep`); leaf detected via `manifest.json` ([PROC-8](../context/decisions/PROC.md)). Source schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md). **Fill + sketches:** [views catalog](../views/README.md) — [timeline](../views/timeline.md), [report-summary](../views/report-summary.md), [pipe-occupancy](../views/pipe-occupancy.md), [arch-diagram](../views/arch-diagram.md), [overview-charts](../views/overview-charts.md), [roofline](../views/roofline.md).
+
+| § | Feature | View packet | Sept 30 |
+| --- | --- | --- | --- |
+| — | Timeline swimlane | [timeline](../views/timeline.md) | **in** |
+| — | Thin report summary | [report-summary](../views/report-summary.md) | **in** |
+| 11.2.3.4 / .6 | PIPE occupancy | [pipe-occupancy](../views/pipe-occupancy.md) | **in** |
+| 11.2.3.1 | Architecture Diagram | [arch-diagram](../views/arch-diagram.md) | **in** (ArchDiagramMetrics; interim plated chrome) |
+| — | Overview charts | [overview-charts](../views/overview-charts.md) | **hide** |
+| 11.2.3.5 | Roofline | [roofline](../views/roofline.md) | **hide** |
+| 11.2.3.2 | Memory Utilization Heatmap | _(reserved)_ | **out** ([DATA-49](../context/questions/DATA.md)) |
+| 11.2.3.3,7–8 | AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
 
 ---
 

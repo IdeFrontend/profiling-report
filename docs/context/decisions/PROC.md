@@ -43,3 +43,33 @@ Format and statuses: [README.md](README.md).
 - **Question:** Cursor skills / agent rules location?
 - **Decision:** Shared rules in [`AGENTS.md`](../../../AGENTS.md) (+ nested `specs/AGENTS.md`, `specs/CLAUDE.md` → `@./AGENTS.md`), skills in `.agents/skills/`. Cursor-only: `.cursor/rules/code-review-post-github.mdc`. Root Claude: [`CLAUDE.md`](../../../CLAUDE.md) → `@AGENTS.md`.
 - **Specs:** [`AGENTS.md`](../../../AGENTS.md), [`CLAUDE.md`](../../../CLAUDE.md)
+
+---
+
+## PROC-6
+
+- **Resolved:** 2026-09-14
+- **Question:** Does npu_emulate / Ascend simulator profiling use the same host report extension as hardware OP profiling?
+- **Decision:** Yes. Emulate reports ship as **`.npu-rep`** (nested leaf per kernel/OP), same host open contract as npu-compute ([PROC-2](./PROC.md)). No second host extension.
+- **Specs:** [INPUT_FORMATS](../../formats/README.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [PROJECT_GOALS](../PROJECT_GOALS.md)
+- **Source:** Product MHTML npu-emulate 仿真 §11.2.1.2 (`report_<timestamp>_<rand id>.npu-rep`)
+
+---
+
+## PROC-7
+
+- **Resolved:** 2026-09-14
+- **Question:** Are compute and emulate payloads the same embed set inside `.npu-rep`?
+- **Decision:** No. Two **payload profiles** share the container binary: `compute` (npu-compute OpBasicInfo / PipeUtilization / Memory* / PipeTrace…) and `emulate` (npu_emulate contract CSVs / Chrome Trace / summary + `manifest.json`). Different adapters fill the same view-models.
+- **Specs:** [INPUT_FORMATS](../../formats/README.md), [compute/FORMAT](../../formats/compute/FORMAT.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md)
+- **Source:** Engineering + product emulate §11.2.3 (simulator CSV names, not hardware schemas)
+
+---
+
+## PROC-8
+
+- **Resolved:** 2026-09-14 (amended 2026-09-15; amended 2026-09-17)
+- **Question:** How does the viewer detect a emulate leaf vs a compute leaf?
+- **Decision:** Require embed **`manifest.json`** that is either (1) a thin marker with `"profile": "emulate"` and integer `schemaVersion`, or (2) an npu_emulate **CSV export catalog** (`objects[]` including a hub name among `ExecutedInstructions` / `KernelInfo` / `AnalysisState`). Absence → compute (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated emulate origin ([PROC-9](../questions/PROC.md)). Interim viewer-only filenames (`EmulateManifest.json` / earlier `SimulatorManifest.json`) are **not** accepted.
+- **Specs:** [INPUT_FORMATS](../../formats/README.md) §2.1, [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [load-report-source](../../../specs/core/load-report-source.spec.md)
+- **Source:** Engineering default for dual-profile detection without parser origin change; 2026-09-15 Product direction — detect producer `manifest.json` (gelu export catalog); 2026-09-17 drop interim `EmulateManifest.json` alias

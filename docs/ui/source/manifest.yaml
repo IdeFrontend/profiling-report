@@ -91,7 +91,7 @@ batches:
   # layout: the strip measures 112 device px ≈ 28 px against the implementation's 30 px bar, and the
   # readout's 36 px ink is a 12 px face — the size the panel uses.
   v930-sim:
-    label: "930 仿真 11.2.3.2（内存负载分析缩放 / 全屏）"
+    label: "930 仿真（内存负载分析缩放 / 全屏，性能提示）"
     files:
       - id: memory-topology-zoom
         path: v930-sim/memory-topology-zoom.jpeg
@@ -103,3 +103,8 @@ batches:
         original_name: "930版本-仿真_11.2.3.2_内存负载分析全屏.jpeg"
         scenes: [memory-load, memory-topology, fullscreen]
         components: [MemoryTopologyPanel]
+      - id: performance-hints
+        path: v930-sim/performance-hints.jpeg
+        original_name: "930版本-仿真_性能提示_报告面板-性能提示.jpeg"
+        scenes: [performance-hints, report-panel]
+        components: [StatsAside]

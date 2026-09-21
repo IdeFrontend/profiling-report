@@ -260,7 +260,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-07-31
 - **Question:** Lane hierarchy mapping?
 - **Decision:** Producer/stress fixed naming (A); no viewer heuristics inventing Card/Core from AIV pipes. Nested gutter renders explicit `children`.
-- **Specs:** [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md)
+- **Specs:** [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md)
 
 ---
 
@@ -270,7 +270,7 @@ Format and statuses: [README.md](README.md).
 - **Was:** open question DATA-39 (OverviewSeries producer)
 - **Question:** OverviewSeries producer for 统计分析 tracks?
 - **Decision:** Product embed = `Sampling.json` (case variants). Emit **one** `OverviewSeries` track for **every** distinct Chrome Trace `ph:"C"` counter `name` present (`id` = `label` = counter `name` as shipped — no rename / invent Vector or 通信). Points: `{ t: ts×1e3 (µs→canonical ns), v: args.value }` for events with a finite `args.value`; points sorted by `t`; series order = first-seen name order. No embed / no `ph:C` → `[]` → **hide** ([DATA-32](./DATA.md)). Do **not** invent series from `PipeUtilization`.
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §3, [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.7, [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-003, [OverviewCharts](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md)
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §3, [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.7, [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-003, [OverviewCharts](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md)
 - **Source:** Product (2026-09-08). Supersedes interim [`DATA-39a`](interim/DATA.md) and [`DATA-32a`](interim/DATA.md).
 
 ---
@@ -280,7 +280,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-14
 - **Question:** Card-header **时钟周期 / Clock Cycle** gutter bars — which file, fields, and formula? Cycle counts, pipe `*_time(us)`, or swimlane events?
 - **Decision:** Card-header dropdown offers **exactly two** modes: **利用率 / Utilization** (Product 耗时占比) and **时钟周期 / Clock Cycles**. **barWidth** is the **same** for both — event coverage over the model span `[minTime, maxTime]` (switching the dropdown changes **labels only**). Utilization label = `` `${barWidth}%` ``. Clock Cycles **label** = absolute pipe clock cycles from mapped `PipeUtilization.csv` `*_total_cycles` (column map in [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md)); **not** `*_time(us)` as the displayed quantity, **not** wall-time→cycles conversion, **not** event PMU `pmu_info['total cycle']`, **not** timeline CPU-clocks ([UI-45](./UI.md)). When a per-pipe `*_total_cycles` column is absent, **derive** that column as `mean(timeCol) × (mean(side_total_cycles)/mean(side_time(us)))` for the **matching** aic/aiv side, then mean across available columns for MIX keys. Multi-`block_id` aggregation for cycle labels follows [DATA-28](./DATA.md) (mean of non-`NA`). Leaf label = mapped key raw; **folders sum distinct** `laneColorKey` cycle raws among descendant leaves for the **label** only (same-key multi-core siblings count once; folder barWidth stays mean coverage). Concurrent-pipe **oversum** across **distinct** pipes (e.g. VECTOR+SCALAR) on folder labels is **accepted**; N-core copies of one pipe-family column are **not**. `cacheHit` / `task` stay withdrawn. Label units: [UI-46](./UI.md).
-- **Specs:** [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md), [METRICS_AND_TRACE](../../formats/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)
+- **Specs:** [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md), [METRICS_AND_TRACE](../../formats/compute/METRICS_AND_TRACE.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md)
 - **Source:** Product (2026-09-11) confirmed the two-mode selector (时钟周期 + 耗时占比). Product (2026-09-14) confirmed the full formula: absolute mapped `PipeUtilization.csv` `*_total_cycles` labels (per-column derive when missing), shared event-coverage **barWidth**, folder label **sum of distinct pipe keys** (concurrent-pipe oversum accepted; no N-core duplication), and bare cycle integers ([UI-46](./UI.md)). Supersedes interim [`DATA-38a`](interim/DATA.md).
 
 ---
@@ -330,3 +330,15 @@ Format and statuses: [README.md](README.md).
   2. **Main Write is the summed write sides**, exactly as shipped: `aic_main_mem_write_bw(GB/s)` + `aiv_main_mem_write_bw(GB/s)` ([DATA-40](./DATA.md)). The row-32 `read` column is a producer-doc slip.
 - **Specs:** [view-models](../../../specs/core/view-models.spec.md) PR-VM-011 / PR-VM-024, [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (`l2-l1-read` slot note), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.6, [INPUT_FORMATS](../../formats/INPUT_FORMATS.md) §3.4
 - **Source:** Product (2026-09-15), answering the two items of the DATA-43 question. Row `24` placement evidence: the producer's numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png` (the `24` box OCRs at `(160, 236)` — the `l2-l1-read` slot — beside the grey `MTE2 -> …` link label). Row `32` corroboration: `OpInfoSummary.aicore_gm_write_bw` is the AIC **write** side ([DATA-8](./DATA.md)). Implemented as `EDGE_MAP` `l2-l1-read` → `Memory.csv` `aiv_gm_to_ub_bw(GB/s)`. A **third** row inconsistency found while processing this table — rows `21`/`22` label the Cube↔L0C pair in the opposite direction to rows `29`/`30` for the same two fields — is filed separately as [DATA-44](../questions/DATA.md); the shipped mapping follows rows `29`/`30` (and the `*_write_bw_cube` / `*_read_bw_cube` suffix rule) in the meantime.
+
+---
+
+## DATA-47
+
+- **Resolved:** 2026-09-18
+- **Was:** open question DATA-47 (Emulate KernelInfo → summary cards)
+- **Question:** Which `KernelInfo.csv` attributes map to `ReportViewModel.summary` for emulate Sept 30 (op name, type, `taskDurationUs`, block dim, pid)? Exact formulas for ticks → `taskDurationUs` when frequency is absent?
+- **Decision:** Emulate does **not** drive summary cards or the pid / 算子类型 / Blocks / 更多 meta header. `adaptEmulate` leaves `reportModel.summary` empty and sets `profile: 'emulate'`; `StatsAside` omits the card group and meta row entirely (including summary CANNBot). KernelInfo may still be packed for catalog detection / `csvTexts`, but it does **not** map into summary chrome. Compute packs keep UI-30/31 **更多** and summary cards unchanged.
+- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-005, [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) PR-STATS-007, [report-summary](../../views/report-summary.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [view-models](../../../specs/core/view-models.spec.md)
+- **Source:** Product (2026-09-18). Supersedes interim [`DATA-47a`](interim/DATA.md).
+

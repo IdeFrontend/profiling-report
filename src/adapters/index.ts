@@ -24,6 +24,16 @@ export {
   rooflineFromRows,
   summaryCategoryRows,
 } from './adaptRep';
+/** Compute profile entry (alias of today's adaptPayloads). */
+export { adaptPayloads as adaptCompute } from './adaptRep';
+export {
+  adaptEmulate,
+  isEmulateLeaf,
+  readEmulateManifest,
+  pipeOccupancyFromPipesUtilization,
+  pipeOccupancyFromHist,
+} from './adaptEmulate';
+export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export { buildMemoryTopology, buildMemoryTopologyFromCategories } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';

@@ -18,7 +18,8 @@ import type {
   SummaryMetrics,
   SwimlaneModel,
 } from '../domain/types';
-import { laneColorKey } from '../domain/laneColors';
+import { parseCsv } from './parseCsv';
+import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
 import { hasDependencies } from '../domain/dependencies';
 import { nestCardTreeFromFlatCorePipes } from '../domain/swimTree';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
@@ -95,24 +96,6 @@ function normalizeFieldKey(key: string): string {
     .replace(/[\s-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
-}
-
-function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trimEnd())
-    .filter((l) => l.length > 0);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = lines[0].split(',').map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => {
-    const cols = line.split(',');
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      row[h] = (cols[i] ?? '').trim();
-    });
-    return row;
-  });
-  return { headers, rows };
 }
 
 function blockIdsFromRows(rows: Record<string, string>[]): string[] {
@@ -888,41 +871,6 @@ export function summaryCategoryRows(
 ): Record<string, string>[] {
   const category = categories?.find((c) => c.id === id);
   return category ? [categoryRow(category)] : [];
-}
-
-/**
- * Attach PipeUtilization ratios onto matching lanes (METRICS_AND_TRACE).
- * When both Cube and Vector sides contribute the same colorKey, use their mean.
- */
-function withPipeLaneUtilizations(
-  model: SwimlaneModel,
-  pipes: PipeOccupancyItem[],
-): SwimlaneModel {
-  if (pipes.length === 0) return model;
-  const collected = new Map<string, number[]>();
-  for (const p of pipes) {
-    if (p.id === 'icache' || p.colorKey === 'default') continue;
-    const list = collected.get(p.colorKey) ?? [];
-    list.push(p.ratio);
-    collected.set(p.colorKey, list);
-  }
-  const byKey = new Map<string, number>();
-  for (const [key, vals] of collected) {
-    byKey.set(key, vals.reduce((a, b) => a + b, 0) / vals.length);
-  }
-  return {
-    ...model,
-    processes: model.processes.map((p) => ({
-      ...p,
-      threads: p.threads.map((t) => {
-        const key = laneColorKey(t.name);
-        if (key === 'default') return t;
-        const ratio = byKey.get(key);
-        if (ratio == null) return t;
-        return { ...t, utilization: ratio };
-      }),
-    })),
-  };
 }
 
 /** Product Sampling.json `ts` is µs (same as PipeTrace); swimlane / overview use ns. */

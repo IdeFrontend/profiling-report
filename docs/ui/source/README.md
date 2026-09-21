@@ -8,6 +8,7 @@ Full-frame high-res design dumps. **Append-only** by batch; do not overwrite fil
 source/
   manifest.yaml     machine index (stable ids, original names, component hints)
   v930/             930 性能调优 dump (canonical)
+  v930-sim/         930 仿真 dump
 ```
 
 ## Naming
