@@ -139,7 +139,7 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Question:** Confirm the parameter-name → chrome slot map for emulate `ArchDiagramMetrics.csv` → **Architecture Diagram** (biprof §11.2.3.1; interim plated stand-in chrome). Are `hbm_to_l2_syn_gbs` / `l2_to_hbm_syn_gbs` / `aic_*` / `aiv*_` names authoritative? Dual AIV0/AIV1 plates: use both values or average? Which `*_gbs` / `l2_cached_ratio` are normative for Sept 30?
 
-**Context:** Sept 30 (M4) lights Architecture Diagram from ArchDiagramMetrics — **not** Memory Utilization Heatmap / `MemoryRWAccesses`, and **not** compute 内存负载命名 ([arch-diagram](../../views/arch-diagram.md)). Coding uses interim [DATA-48a](../decisions/interim/DATA.md). Dedicated biprof chrome / richer model: [DATA-49](DATA.md).
+**Context:** Sept 30 (M4) lights Architecture Diagram from ArchDiagramMetrics — **not** Memory Utilization Heatmap / `MemoryRWAccesses`. Data capability stays **`archDiagram`** (not compute `memoryDiagram`); interim UI reuses the plated Asc chrome titled **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** ([DATA-48a](../decisions/interim/DATA.md), [arch-diagram](../../views/arch-diagram.md)). Slot-map names below stay open for Product. Dedicated biprof chrome / richer model: [DATA-49](DATA.md).
 
 **Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [arch-diagram](../../views/arch-diagram.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
 

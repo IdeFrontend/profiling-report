@@ -77,7 +77,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
 | `ArchDiagramMetrics.csv` | [Architecture Diagram](../../views/arch-diagram.md) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
 
-**Also lit when the above mount:** StatsAside CANNBot scopes (summary / compute / memory) from the same adapted fields — no extra embeds.
+**Also lit when the above mount:** StatsAside CANNBot scopes (**compute / memory** only — summary scope omitted with meta, [DATA-47](../../context/decisions/DATA.md)) from the same adapted fields — no extra embeds.
 
 **Planned (not lit):** [性能提示](../../views/performance-hints.md) from `HintMessages.csv`, `HintTypes.csv`, `InstructionHints.csv`, `KernelHints.csv`, `SourceLineHints.csv`.
 
