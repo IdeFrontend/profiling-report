@@ -115,6 +115,6 @@ npm run playground # vite playground for manual checks
 
 ## Related specs
 
-- Formats: [REP_FORMAT](../formats/REP_FORMAT.md), [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md)
+- Formats: [REP_FORMAT](../formats/REP_FORMAT.md), [METRICS_AND_TRACE](../formats/compute/METRICS_AND_TRACE.md)
 - UI: [INTERACTIONS](../ui/INTERACTIONS.md), [FEATURE_MATRIX](../ui/FEATURE_MATRIX.md)
 - Architecture: [ARCHITECTURE](../architecture/ARCHITECTURE.md)

@@ -8,7 +8,11 @@ Official product memory-path topology chrome with **data-driven link values** (c
 
 ## Inputs
 
+**Data SSOT:** [docs/views/memory-topology.md](../../../../docs/views/memory-topology.md).
+
 **model** — `MemoryTopologyModel` (`nodes` + `edges`; each edge carries an optional data-driven `label`; the `l2` node may carry `peakPct`; optional `plates` for the in-box unit badges, UI-49). Optional **locale**. Optional **openDetailsOnContextmenu** (default true): stacked diagram keeps UI-35; the root fullscreen overlay passes `false`. Optional **showFullscreen** (default false): the bar renders its **全屏** control, so the stacked aside asks the host to cover the report; the root overlay is already full and leaves it off. Parent `StatsAside` owns block switching and rebuilds **model** via `buildMemoryTopology`, passing the Memory* CSVs **plus** `PipeUtilization.csv` (the badges' source).
+
+**Filled by:** compute — `Memory*.csv` / `L2Cache.csv` aggregates. Emulate — **gap / Sept 30 hide** (`MemoryRWAccesses` is heatmap, not topology plates). See [VIEW_DATA_REQUIREMENTS](../../../../docs/formats/VIEW_DATA_REQUIREMENTS.md) profile fill.
 
 ## Outputs
 

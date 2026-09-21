@@ -54,3 +54,5 @@ Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside*
 ## Dependencies
 
 [view-models](../../../../specs/core/view-models.spec.md) PR-VM-003, [UI_OVERVIEW](../../../../docs/ui/UI_OVERVIEW.md), [COMPONENTS](../../../../docs/architecture/COMPONENTS.md).
+
+**Data SSOT:** [docs/views/overview-charts.md](../../../../docs/views/overview-charts.md).

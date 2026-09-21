@@ -169,7 +169,9 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 
 [swimlane-renderer](../../../../../specs/core/swimlane-renderer.spec.md), [swimlane-model](../../../../../specs/core/swimlane-model.spec.md).
 
-**Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
+**Data SSOT:** [docs/views/timeline.md](../../../../../docs/views/timeline.md).
+
+**Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
 - **2026-09-18** — In-flight lane-scroll frames keep resting event labels (`PR-CANVAS-104` / `PR-RENDER-056`); WebGL curves stay on, Canvas 2D strokes skip (`PR-RENDER-056`).

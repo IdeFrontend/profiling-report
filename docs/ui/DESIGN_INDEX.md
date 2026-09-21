@@ -34,12 +34,13 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930/task-click-detail` | [`task-click-detail.jpeg`](./source/v930/task-click-detail.jpeg) | Task click → 详情 dock; other tasks 置灰; dep beziers |
 | `v930/change-log` | [`change-log.jpeg`](./source/v930/change-log.jpeg) | Version change notes: measure mode, Cube\|Vector toggle, detail tabs, block switcher + 查看全部, buffer links |
 
-## Source frames (`v930-sim` — 仿真 11.2.3.2)
+## Source frames (`v930-sim` — 仿真)
 
 | Id | File | Typical consumers |
 |----|------|-------------------|
 | `v930-sim/memory-topology-zoom` | [`memory-topology-zoom.jpeg`](./source/v930-sim/memory-topology-zoom.jpeg) | 内存负载分析 zoom bar in the stacked aside (缩小 / % / 放大 / 适应窗口 / 全屏) |
 | `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay: fit-window control only, no 全屏, no strip |
+| `v930-sim/performance-hints` | [`performance-hints.jpeg`](./source/v930-sim/performance-hints.jpeg) | 性能提示 / 性能分析 dock: hint message, source line, instruction address |
 
 ## Component visual packs
 

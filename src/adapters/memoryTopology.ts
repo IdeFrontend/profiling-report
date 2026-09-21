@@ -5,7 +5,8 @@ import type {
   SummaryCategory,
 } from '../domain/types';
 
-const NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
+/** Shared node scaffold for compute Memory* and emulate ArchDiagramMetrics mappers. */
+export const MEMORY_TOPOLOGY_NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number], 'peakPct'>[] = [
   { id: 'gm', label: 'GM' },
   { id: 'l2', label: 'L2 Cache' },
   { id: 'xn_imm', label: 'XN_IMM' },
@@ -324,7 +325,7 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
 
   // DATA-20: L2 Peak(%) = same hit-rate value as the `l2-hit` edge (DATA-21 interim order).
   const peakPct = edgeValues.get('l2-hit');
-  const nodes = NODE_DEFS.map((n) =>
+  const nodes = MEMORY_TOPOLOGY_NODE_DEFS.map((n) =>
     n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
   );
 

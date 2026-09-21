@@ -50,7 +50,7 @@ Implement in this order unless a blocking dependency forces a temporary exceptio
 
 1. **Tooling scaffold** (next milestone after these process docs) — Vite library package, Vitest, Playwright, playground app, empty failing smoke tests. **No feature code until this is green.**
 2. **Core parse** — [REP_FORMAT](../formats/REP_FORMAT.md) + golden [`data/out.rep`](../../data/out.rep)
-3. **View-models** — [METRICS_AND_TRACE](../formats/METRICS_AND_TRACE.md) (PIPE bars, report summary)
+3. **View-models** — [METRICS_AND_TRACE](../formats/compute/METRICS_AND_TRACE.md) / [ADAPTERS](../formats/ADAPTERS.md) (PIPE bars, report summary)
 4. **Swimlane model** — trace → `SwimlaneModel` ([ARCHITECTURE](../architecture/ARCHITECTURE.md))
 5. **UI shell** — panels + interactions ([UI_OVERVIEW](../ui/UI_OVERVIEW.md), [UX_SPEC](../ui/UX_SPEC.md), [INTERACTIONS](../ui/INTERACTIONS.md), [COMPONENTS](../architecture/COMPONENTS.md))
 6. **Renderer** — Canvas behind `SwimlaneRenderer`; keep hit-test/view contracts so WebGL can swap later ([SWIMLANE_IMPLEMENTATIONS](../archive/research/SWIMLANE_IMPLEMENTATIONS.md))
@@ -90,7 +90,7 @@ The open list is for **unanswered** items only: [questions](../context/questions
 
 When Product answers a question:
 
-1. **Convert to a spec requirement** in the owning docs/specs (INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, VIEW_DATA_REQUIREMENTS, format docs, co-located `*.spec.md`, etc.). Write normative product truth — not “open until Q*” / “blocked on Q*”.
+1. **Convert to a spec requirement** in the owning docs/specs (INTERACTIONS, UX_SPEC, FEATURE_MATRIX, COMPONENTS, [`docs/views/`](../views/), format docs, co-located `*.spec.md`, etc.). Write normative product truth — not “open until Q*” / “blocked on Q*”.
 2. **File the decision** in the matching `docs/context/decisions/<PREFIX>.md` (DATA/UI/PROC/PKG) — same bare id as the question, with `Was`, date, decision, specs, source — and **remove** the row from [questions](../context/questions/) in the **same change**. For open-question crops, drop the matching `docs/context/visual/questions` manifest entry and PNG. IDs are **permanent** — retire with a `WITHDRAWN` / `DEFERRED` marker, never delete or renumber.
 3. **Supersede interim guesses** — delete or strike the matching [decisions/interim/](../context/decisions/interim/) row and scrub “until Q*” wording elsewhere.
 4. **Tests** assert the decided behavior when the feature already exists; otherwise the new spec text is the DoR input for the next slice.
@@ -119,4 +119,6 @@ Do **not** leave a `resolved` row parked on the open-questions list. Agents: see
 
 **Delivery Milestone 2 (MSTT + selection + memory + measure) — near complete 2026-08-24.** Library exit criteria met on `master` (deps, detail dock, memory topology, interim roofline, measure mode). MSTT host **Ready** on branch [`feature/profiling-report`](https://github.com/IdeFrontend/mstt/tree/feature/profiling-report); smoke pending. Full progress report: [M2_PROGRESS.md](roadmap/M2_PROGRESS.md).
 
-**Next:** [Delivery Milestone 3](roadmap/milestone-3.md) — remaining full UI, target **2026-09-15**.
+**Delivery Milestone 3** — remaining full sketch UI, target **2026-09-15**: [milestone-3.md](roadmap/milestone-3.md).
+
+**Next:** [Delivery Milestone 4](roadmap/milestone-4.md) — simulator (emulate) Sept 30: compute-load PIPE, Memory load analysis, performance hints (性能提示), CANNBot — target **2026-09-30**.

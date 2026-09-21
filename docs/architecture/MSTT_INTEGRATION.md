@@ -9,7 +9,7 @@ How the profiling-report Vue library plugs into Huawei OP DevTools (`mstt`) besi
 | `.csv` | Existing `CsvEditorProvider` |
 | `.bin` | **MindStudio Insight** (`InsightDataViewerPanel` + `profiler_server`) — unchanged |
 | `.json` | **profiling-report** when the file is Chrome Trace (same swimlane path as embedded `trace.json`; analytics aside hidden without CSV pack). Non-trace JSON policy: host decides; default do not send opaque Insight JSON here. |
-| `.npu-rep` | **profiling-report** panel ([PROC-2](../context/decisions/PROC.md)) |
+| `.npu-rep` | **profiling-report** panel ([PROC-2](../context/decisions/PROC.md)). Hardware or **simulator** leaf — library detects via `manifest.json` ([PROC-8](../context/decisions/PROC.md)); host does **not** need a second extension ([PROC-6](../context/decisions/PROC.md)). |
 
 Do **not** inject the library into Insight iframes. Insight remains a sealed third-party shell.
 
