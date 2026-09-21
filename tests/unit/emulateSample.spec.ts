@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
 
 describe('emulate sample leaf', () => {
-  it('loads data/emulate-sample.npu-rep (timeline + summary + PIPE + archDiagram)', () => {
+  it('loads data/emulate-sample.npu-rep (timeline + PIPE + archDiagram; empty summary)', () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(__dirname, '../../data/emulate-sample.npu-rep')),
     );
@@ -20,7 +20,8 @@ describe('emulate sample leaf', () => {
     expect(laneNames).toEqual(
       expect.arrayContaining(['Cube', 'Vector', 'MTE1', 'MTE2', 'MTE3', 'Scalar']),
     );
-    expect(adapted.reportModel.summary.opName).toBe('emulate_demo_kernel');
+    expect(adapted.reportModel.profile).toBe('emulate');
+    expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
     expect(adapted.capabilities).toContain('archDiagram');
