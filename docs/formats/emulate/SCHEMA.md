@@ -2,7 +2,7 @@
 
 **Profile:** `emulate` (npu_emulate contract SQLite / CSV export).
 
-Normative **object names**, **column names**, and **SQL types** come from `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (exported `2026-09-17T13:53:46.122341+00:00`, `total_objects=122`, tables=100, views=22, rows=170378).
+Normative **object names**, **column names**, and **SQL types** come from `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (exported `2026-09-21T12:05:51.821657+00:00`, `total_objects=124`, tables=101, views=23, rows=161314).
 
 Descriptions marked *inferred* are guesses from column names and known product surfaces (MHTML §11.2.3 / Phase 1), **not** producer documentation. Empty export types are shown as `(unspecified)`.
 
@@ -16,11 +16,11 @@ python3 data/scripts/gen_emulate_schema_md.py
 
 ## Contents
 
-- [Tables (100)](#tables)
-- [Views (22)](#views)
+- [Tables (101)](#tables)
+- [Views (23)](#views)
 - [Naming / type notes](#naming--type-notes)
 
-## Tables (100) {#tables}
+## Tables (101) {#tables}
 
 - [`AnalysisState`](#analysisstate)
 - [`ArchDiagramMetrics`](#archdiagrammetrics)
@@ -62,6 +62,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 - [`InstructionHints`](#instructionhints)
 - [`IssueQueueUtilization`](#issuequeueutilization)
 - [`JumpsDescription`](#jumpsdescription)
+- [`KernelHints`](#kernelhints)
 - [`KernelInfo`](#kernelinfo)
 - [`LiveRegisters`](#liveregisters)
 - [`MemoryRWAccesses`](#memoryrwaccesses)
@@ -128,7 +129,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 33 |
+| Gelu rows | 31 |
 | CSV file | `AnalysisState.csv` |
 | Role | Which analyzers ran and whether each passed. |
 
@@ -142,7 +143,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 960 |
+| Gelu rows | 240 |
 | CSV file | `ArchDiagramMetrics.csv` |
 | Role | Architecture-diagram / bandwidth-style scalar parameters (MHTML §11.2.3.1). |
 
@@ -331,7 +332,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 76 |
+| Gelu rows | 0 |
 | CSV file | `CriticalPath.csv` |
 | Role | Critical-path event ↔ instruction links. |
 
@@ -623,7 +624,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | Kind | table |
 | Gelu rows | 0 |
 | CSV file | `HintMessages.csv` |
-| Role | Contract DB object from npu_emulate export. *inferred* |
+| Role | Performance-hint message text (packed CSV; gelu manifest row_count may be 0). |
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -637,7 +638,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | Kind | table |
 | Gelu rows | 10 |
 | CSV file | `HintTypes.csv` |
-| Role | Dictionary / enum lookup table. *inferred* |
+| Role | Dictionary of performance-hint type id → name and pass flag. |
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -749,7 +750,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | Kind | table |
 | Gelu rows | 0 |
 | CSV file | `InstructionHints.csv` |
-| Role | Contract DB object from npu_emulate export. *inferred* |
+| Role | Performance hints attached to an instruction PC. |
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -788,6 +789,21 @@ python3 data/scripts/gen_emulate_schema_md.py
 |--------|------|-------------|
 | `Src` | `INTEGER` | Geometry / addressing parameter. *inferred* |
 | `Dst` | `INTEGER` | Geometry / addressing parameter. *inferred* |
+
+### `KernelHints` {#kernelhints}
+
+| | |
+|--|--|
+| Kind | table |
+| Gelu rows | 0 |
+| CSV file | `KernelHints.csv` |
+| Role | Kernel-level performance hints. |
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `HintId` | `INTEGER` | Identifier for `Hint`. *inferred* |
+| `HintTypeId` | `INTEGER` | Identifier for `HintType`. *inferred* |
+| `HintMsgId` | `INTEGER` | Identifier for `HintMsg`. *inferred* |
 
 ### `KernelInfo` {#kernelinfo}
 
@@ -1220,7 +1236,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | table |
-| Gelu rows | 4133 |
+| Gelu rows | 0 |
 | CSV file | `ScalarIpcDynamic.csv` |
 | Role | Contract DB object from npu_emulate export. *inferred* |
 
@@ -1285,7 +1301,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | Kind | table |
 | Gelu rows | 0 |
 | CSV file | `SourceLineHints.csv` |
-| Role | Contract DB object from npu_emulate export. *inferred* |
+| Role | Performance hints attached to a source line. |
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -1771,7 +1787,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | `RegisterNum` | `INTEGER` | Register / SPR / predicate field. *inferred* |
 | `CodeSizeBytes` | `INTEGER` | Size in bytes (or related unit). *inferred* |
 
-## Views (22) {#views}
+## Views (23) {#views}
 
 - [`ActiveInstrTypes`](#activeinstrtypes)
 - [`AiCoreOccupancy`](#aicoreoccupancy)
@@ -1783,6 +1799,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 - [`InstrTypeHistClocks`](#instrtypehistclocks)
 - [`InstrTypeHistCount`](#instrtypehistcount)
 - [`InstructionHintsView`](#instructionhintsview)
+- [`KernelHintsView`](#kernelhintsview)
 - [`PipeUtilizationHist`](#pipeutilizationhist)
 - [`SIMTGMPatterns`](#simtgmpatterns)
 - [`SIMTSharedPatterns`](#simtsharedpatterns)
@@ -1900,7 +1917,7 @@ python3 data/scripts/gen_emulate_schema_md.py
 | | |
 |--|--|
 | Kind | view |
-| Gelu rows | 5381 |
+| Gelu rows | 1248 |
 | CSV file | `IPCAsmMetrics.csv` |
 | Role | Per-instruction IPC components for assembly views. |
 
@@ -1984,6 +2001,20 @@ python3 data/scripts/gen_emulate_schema_md.py
 | `FileId` | `INTEGER` | Identifier for `File`. *inferred* |
 | `LineId` | `INTEGER` | Identifier for `Line`. *inferred* |
 | `LineNum` | `INTEGER` | Source line number or id. *inferred* |
+| `HintMsgText` | `VARCHAR(500)` | Compiler / analyzer hint field. *inferred* |
+
+### `KernelHintsView` {#kernelhintsview}
+
+| | |
+|--|--|
+| Kind | view |
+| Gelu rows | 0 |
+| CSV file | `KernelHintsView.csv` |
+| Role | Derived view over base contract tables. *inferred* |
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `HintTypeId` | `INTEGER` | Identifier for `HintType`. *inferred* |
 | `HintMsgText` | `VARCHAR(500)` | Compiler / analyzer hint field. *inferred* |
 
 ### `PipeUtilizationHist` {#pipeutilizationhist}

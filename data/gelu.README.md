@@ -4,11 +4,11 @@ Real producer pack from npu_emulate (`0000_gelu_npu_emulated.db`). Timeline uses
 
 | Item | Value |
 |------|--------|
-| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~9.7 MiB, **not** Git LFS — intentional demo fixture; slim leaf is [`emulate-sample.npu-rep`](emulate-sample.npu-rep)) |
-| SHA-256 | `e9ee81ded874ddd456c17cf09470611ada11598d9b2b183a7d5fafae0f55a11b` |
-| Exported | `2026-09-17T13:53:46.122341+00:00` |
-| Contract DB objects | 122 (100 tables + 22 views), 170378 rows total |
-| Leaf embeds | `manifest.json` + **51** CSVs + `core_0_tracing_report_0.json` + `aicore_utilization.json` + `core_0_critical_path_report_0.json` |
+| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~7.7 MiB, **not** Git LFS — intentional demo fixture; slim leaf is [`emulate-sample.npu-rep`](emulate-sample.npu-rep)) |
+| SHA-256 | `b72c523faf3ac2984e98064f2759f87dcd3bb5afe77389bf97ec0903403a0efb` |
+| Exported | `2026-09-21T12:05:51.821657+00:00` |
+| Contract DB objects | 124 (101 tables + 23 views), 161314 rows total |
+| Leaf embeds | `manifest.json` + **53** CSVs + `core_0_tracing_report_0.json` + `aicore_utilization.json` |
 
 ## Unpack (local only — not committed)
 
@@ -28,13 +28,15 @@ Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/con
 | `KernelInfo.csv` | Packed when present; **not** used for summary chrome ([DATA-47](../docs/context/decisions/DATA.md)) |
 | `PipeUtilizationHist.csv` / `PipesUtilization.csv` | PIPE occupancy |
 | `ArchDiagramMetrics.csv` | Architecture Diagram (`archDiagram`, interim plated chrome [DATA-48a](../docs/context/decisions/interim/DATA.md)) |
+| `HintMessages.csv` / `HintTypes.csv` / `InstructionHints.csv` / `KernelHints.csv` / `SourceLineHints.csv` | Performance hints (packed CSVs; manifest `row_count` is 0 except `HintTypes`) |
 
 Full aside demo leaf (thin marker): [`emulate-sample.npu-rep`](emulate-sample.npu-rep).
 
-## Packed embeds (55)
+## Packed embeds (56)
 
-51 contract CSVs + `manifest.json`, plus:
+53 contract CSVs + `manifest.json`, plus:
 
 - `core_0_tracing_report_0.json` (Chrome Trace — timeline)
 - `aicore_utilization.json`
-- `core_0_critical_path_report_0.json`
+
+Performance-hint CSVs in the pack: `HintMessages.csv`, `HintTypes.csv`, `InstructionHints.csv`, `KernelHints.csv`, `SourceLineHints.csv`.

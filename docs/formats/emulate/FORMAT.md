@@ -63,7 +63,7 @@ Two shapes appear in the wild:
 | **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | All populated contract CSVs + timeline (`core_*_tracing_report_*.json` or normative `PipeTrace.json`) + optional `aicore_utilization.json` |
 | **Viewer leaf** (Sept 30+) | [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo + PIPE CSVs (± more contract CSVs) |
 
-gelu (2026-09-17) packs **every** `row_count > 0` object, including KernelInfo / PIPE / ArchDiagramMetrics — see [TABLES.md](TABLES.md) §1–3.
+gelu (2026-09-21) packs **every** `row_count > 0` object, including KernelInfo / PIPE / ArchDiagramMetrics, plus performance-hint CSVs whose manifest `row_count` is 0 (`HintMessages`, `InstructionHints`, `KernelHints`, `SourceLineHints`) — see [TABLES.md](TABLES.md) §1–3.
 
 ### 4.1 Embeds used by report visualization (Sept 30 / M4)
 

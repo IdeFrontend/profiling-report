@@ -60,6 +60,11 @@ ROLES: dict[str, str] = {
     "CoreTypes": "Dictionary of core type id → name.",
     "InstrTypes": "Dictionary of instruction type id → name.",
     "InstrQueueTypes": "Dictionary of instruction-queue / pipe type id → name.",
+    "HintTypes": "Dictionary of performance-hint type id → name and pass flag.",
+    "HintMessages": "Performance-hint message text (packed CSV; gelu manifest row_count may be 0).",
+    "InstructionHints": "Performance hints attached to an instruction PC.",
+    "KernelHints": "Kernel-level performance hints.",
+    "SourceLineHints": "Performance hints attached to a source line.",
 }
 
 # (object, column) → description (not marked inferred)
