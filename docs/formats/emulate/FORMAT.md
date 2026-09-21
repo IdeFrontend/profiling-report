@@ -79,6 +79,8 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 
 **Also lit when the above mount:** StatsAside CANNBot scopes (summary / compute / memory) from the same adapted fields — no extra embeds.
 
+**Planned (not lit):** [性能提示](../../views/performance-hints.md) from `HintMessages.csv`, `HintTypes.csv`, `InstructionHints.csv`, `KernelHints.csv`, `SourceLineHints.csv`.
+
 **Reference leaf with all five:** [`data/emulate-sample.npu-rep`](../../../data/emulate-sample.npu-rep). Roadmap: [milestone-4](../../process/roadmap/milestone-4.md). Per-surface detail: [`../../views/`](../../views/).
 
 ### 4.2 Not used for Sept 30 visualization (packed or not)
