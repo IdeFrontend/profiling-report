@@ -713,6 +713,8 @@ export interface SwimlaneLayout {
    * on collapsed folders in this array.
    */
   eventsByLane: LaidOutEvent[][];
+  /** Longest leaf (non-summary) duration; left-span for `overlappingLaneRange`. */
+  maxLeafDuration: number;
   /**
    * Paint-only collapse folds. When set, event `y` stays on the expanded base and
    * hit-test / `eventScreenRect` apply `collapseShiftY` (see `applyCollapseFolds`).
@@ -731,6 +733,7 @@ export const EMPTY_LAYOUT: SwimlaneLayout = {
   eventsById: new Map(),
   lanesByTid: new Map(),
   eventsByLane: [],
+  maxLeafDuration: 0,
 };
 
 /** event id → sub-row index (0-based). */
@@ -886,6 +889,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       eventsById: new Map(),
       lanesByTid: new Map(),
       eventsByLane: [],
+      maxLeafDuration: 0,
     };
   }
   const lanes: FlatLane[] = [];
@@ -894,6 +898,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   const eventsById = new Map<string, LaidOutEvent>();
   const lanesByTid = new Map<string, FlatLane>();
   const eventsByLane: LaidOutEvent[][] = [];
+  let maxLeafDuration = 0;
 
   let y = 0;
   /** Sticky pin strip: flat leaf rows only — no Card header chrome. */
@@ -958,11 +963,12 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       events.push(item);
       eventsById.set(ev.id, item);
       laneEvents.push(item);
+      if (ev.duration > maxLeafDuration) maxLeafDuration = ev.duration;
     }
     eventsByLane.push(laneEvents);
     y += rowCount * LANE_HEIGHT;
   }
-  return { lanes, headers, events, eventsById, lanesByTid, eventsByLane };
+  return { lanes, headers, events, eventsById, lanesByTid, eventsByLane, maxLeafDuration };
 }
 
 /** Event block height and Y, vertically centered in the lane between row dividers. */
@@ -975,6 +981,68 @@ export function eventBlockMetrics(laneY: number, scrollY: number): { y: number; 
 /** Content-space Y of an event block's vertical midpoint (pre-scroll). */
 export function eventLinkContentY(laneY: number): number {
   return laneY + LANE_HEIGHT / 2 - 0.5;
+}
+
+/** Visible-width gate for event titles (`eventLabelAnchor`); paint-space px. */
+export const EVENT_LABEL_MIN_VISIBLE_PX = 40;
+
+/** True when the longest leaf can exceed `EVENT_LABEL_MIN_VISIBLE_PX` in this view. */
+export function eventLabelsCanFit(maxDuration: number, span: number, viewW: number): boolean {
+  return maxDuration > 0 && maxDuration * Math.max(1, viewW) > EVENT_LABEL_MIN_VISIBLE_PX * span;
+}
+
+/** First index in start-sorted `events` with `startTime >= t`. */
+export function lowerBoundLaneStart(events: readonly LaidOutEvent[], t: number): number {
+  let lo = 0;
+  let hi = events.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (events[mid]!.event.startTime < t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** First index in start-sorted `events` with `startTime > t`. */
+export function upperBoundLaneStart(events: readonly LaidOutEvent[], t: number): number {
+  let lo = 0;
+  let hi = events.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (events[mid]!.event.startTime <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/**
+ * Index range of start-sorted leaf `eventsByLane` entries that can overlap `[startTime, endTime]`.
+ * Left-span uses `maxDuration` so a long event that started before the window is included.
+ * Folder lanes (spliced summaries) are not start-sorted — use `laneEventRange`.
+ */
+export function overlappingLaneRange(
+  events: readonly LaidOutEvent[],
+  startTime: number,
+  endTime: number,
+  maxDuration: number,
+): readonly [number, number] {
+  if (events.length === 0) return [0, 0];
+  const lo = lowerBoundLaneStart(events, startTime - maxDuration);
+  const hi = upperBoundLaneStart(events, endTime);
+  return [lo, hi];
+}
+
+/** `overlappingLaneRange` for leaves; folder lanes walk in full (concat extras are unsorted). */
+export function laneEventRange(
+  lane: FlatLane,
+  events: readonly LaidOutEvent[],
+  startTime: number,
+  endTime: number,
+  maxDuration: number,
+): readonly [number, number] {
+  if (events.length === 0) return [0, 0];
+  if (lane.folder) return [0, events.length];
+  return overlappingLaneRange(events, startTime, endTime, maxDuration);
 }
 
 /**
@@ -990,7 +1058,7 @@ export function eventLabelAnchor(
   const left = Math.max(0, x);
   const right = Math.min(viewW, x + w);
   const visibleW = right - left;
-  if (visibleW <= 40) return null;
+  if (visibleW <= EVENT_LABEL_MIN_VISIBLE_PX) return null;
   return { cx: (left + right) / 2, maxWidth: Math.max(8, visibleW - 8) };
 }
 

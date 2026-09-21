@@ -3043,7 +3043,8 @@ describe('SwimlaneCanvas', () => {
     const lastView = setView.mock.calls.at(-1)![0] as { scrollY: number };
     expect(lastView.scrollY).toBe(120);
     const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
-    expect(src).toMatch(/overlay\.setLiveScroll/);
+    expect(src).toMatch(/backend\.setLiveScroll/);
+    expect(src).not.toMatch(/WebGlSwimlaneRenderer\) backend\.setLiveScroll/);
     wrapper.unmount();
   });
 

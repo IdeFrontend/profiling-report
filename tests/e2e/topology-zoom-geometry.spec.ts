@@ -16,6 +16,21 @@ const CHROME_H = 540;
 const SLOP = 2;
 
 /**
+ * Every test here waits a tween out, so the suite pins the motion preference it is asserting: under
+ * `prefers-reduced-motion: reduce` `animateProgress` lands the step synchronously, the panel never
+ * paints `data-topo-zoom-animating="true"`, and the settle hook below has nothing to wait for — a
+ * machine (or CI image) with OS reduced-motion would time the suite out rather than run it. The
+ * reduce path itself is covered in jsdom (`PR-MEMTOP-019b`).
+ *
+ * Emulated on the page rather than asked for with `test.use`: a runner-level `reducedMotion` is
+ * recorded by Playwright but does not reach the page's `matchMedia` here (measured — the page still
+ * reports no reduce), and `matchMedia` is the reading the panel's own `prefersReducedMotion()` makes.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+});
+
+/**
  * The diagram's on-screen rectangle, mapped from chrome units (0,0)–(448,540) through the `svg`'s own
  * CTM — the *drawing*, not the `svg` element around it, which letterboxes under
  * `preserveAspectRatio` when the element and the viewBox disagree.
@@ -65,6 +80,22 @@ const barBackground = (panel: Locator) =>
     (root) => getComputedStyle(root.querySelector('.pr-topo__bar')!).backgroundColor,
   );
 
+/**
+ * A ladder step is tweened (PR-MEMTOP-019), so a probe of the diagram's geometry is only the
+ * committed one once the step has landed. The panel raises `data-topo-zoom-animating` for the
+ * length of the tween — the settle hook `ReportLayout` gives the aside track — so a step here is a
+ * click plus a wait, and no probe below has to know the duration.
+ *
+ * The wait is `false` *after* `true`: `false` is also the idle value, so waiting on it alone would
+ * resolve before the step had even started and let the probe below run mid-flight. Every call site
+ * steps the ladder (no call here is a no-op that would never raise the flag).
+ */
+async function stepZoom(panel: Locator, control: 'in' | 'out' | 'fit'): Promise<void> {
+  await panel.getByTestId(`topology-zoom-${control}`).click();
+  await expect(panel).toHaveAttribute('data-topo-zoom-animating', 'true');
+  await expect(panel).toHaveAttribute('data-topo-zoom-animating', 'false');
+}
+
 test('PR-MEMTOP-013: each host fits the diagram, and pans it by its own overflow', async ({
   page,
 }) => {
@@ -84,7 +115,7 @@ test('PR-MEMTOP-013: each host fits the diagram, and pans it by its own overflow
   expect(asideFitted.scrollY).toBe(0);
 
   // Past the fit, panning is the platform's scroll — and it covers the diagram, not a letterbox.
-  await aside.getByTestId('topology-zoom-in').click();
+  await stepZoom(aside, 'in');
   const asideZoomed = await probe(aside);
   expect(asideZoomed.inkRatio).toBeCloseTo(CHROME_W / CHROME_H, 2);
   expect(Math.abs(asideZoomed.scrollX - asideZoomed.panX)).toBeLessThanOrEqual(SLOP);
@@ -120,7 +151,7 @@ test('PR-MEMTOP-013: each host fits the diagram, and pans it by its own overflow
   expect(overlayFitted.scrollX).toBe(0);
   expect(overlayFitted.scrollY).toBe(0);
 
-  await overlay.getByTestId('topology-zoom-in').click();
+  await stepZoom(overlay, 'in');
   const overlayZoomed = await probe(overlay);
   expect(overlayZoomed.inkRatio).toBeCloseTo(CHROME_W / CHROME_H, 2);
   expect(Math.abs(overlayZoomed.scrollX - overlayZoomed.panX)).toBeLessThanOrEqual(SLOP);
@@ -182,7 +213,7 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   expect(fitted.x).toBeCloseTo(CHROME_W / 2, 0);
   expect(fitted.y).toBeCloseTo(CHROME_H / 2, 0);
 
-  await aside.getByTestId('topology-zoom-in').click();
+  await stepZoom(aside, 'in');
   const stepped = await middle();
   expect(Math.abs(stepped.x - fitted.x)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(stepped.y - fitted.y)).toBeLessThanOrEqual(SLOP);
@@ -197,12 +228,12 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   });
   const panned = await middle();
 
-  await aside.getByTestId('topology-zoom-in').click();
+  await stepZoom(aside, 'in');
   const deeper = await middle();
   expect(Math.abs(deeper.x - panned.x)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(deeper.y - panned.y)).toBeLessThanOrEqual(SLOP);
 
-  await aside.getByTestId('topology-zoom-out').click();
+  await stepZoom(aside, 'out');
   const back = await middle();
   expect(Math.abs(back.x - panned.x)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(back.y - panned.y)).toBeLessThanOrEqual(SLOP);
@@ -252,7 +283,7 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   // sixth click would land on a disabled 放大 and time out instead of failing on the line below.
   let crossed = false;
   for (let step = 0; step < 5 && !crossed; step++) {
-    await overlay.getByTestId('topology-zoom-in').click();
+    await stepZoom(overlay, 'in');
     const stepped = await overlayMiddle();
     expect(Math.abs(stepped.x - overlayFitted.x)).toBeLessThanOrEqual(SLOP);
     expect(Math.abs(stepped.y - overlayFitted.y)).toBeLessThanOrEqual(SLOP);
@@ -308,7 +339,7 @@ test('PR-MEMTOP-017: dragging the zoomed diagram pans it', async ({ page }) => {
   expect(await scroll()).toEqual({ x: 0, y: 0 });
 
   // 200%: the box has its own width and height of drawing to travel through, both axes.
-  for (let i = 0; i < 3; i++) await aside.getByTestId('topology-zoom-in').click();
+  for (let i = 0; i < 3; i++) await stepZoom(aside, 'in');
   // Back to the origin by hand: a zoom step now lands on the middle of the drawing (PR-MEMTOP-018),
   // and this test is about the drag's own 1:1 maths, whose expectations below are measured from a
   // known 0 rather than from wherever the last step happened to leave the offset.
@@ -335,7 +366,7 @@ test('PR-MEMTOP-017: dragging the zoomed diagram pans it', async ({ page }) => {
   expect(Math.abs(pannedAgain.y - 30)).toBeLessThanOrEqual(SLOP);
 
   // The native bars are still there, and 适应窗口 still returns to the origin.
-  await aside.getByTestId('topology-zoom-fit').click();
+  await stepZoom(aside, 'fit');
   expect(await scroll()).toEqual({ x: 0, y: 0 });
 });
 
@@ -353,7 +384,7 @@ test('PR-MEMTOP-017: a press on a reserved scrollbar gutter does not pan', async
   const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
   const viewport = aside.getByTestId('topology-viewport');
   await expect(viewport).toBeVisible();
-  for (let i = 0; i < 3; i++) await aside.getByTestId('topology-zoom-in').click();
+  for (let i = 0; i < 3; i++) await stepZoom(aside, 'in');
   await viewport.evaluate((el) => { el.scrollLeft = 60; el.scrollTop = 40; });
   await viewport.scrollIntoViewIfNeeded();
 
@@ -378,4 +409,68 @@ test('PR-MEMTOP-017: a press on a reserved scrollbar gutter does not pan', async
   // The drawing just inside it still drags — the same 1:1 pan the test above budgets for `SLOP`,
   // where Playwright's mouse coordinates and `scrollLeft` both round.
   expect(Math.abs((await dragFrom(box.x + box.width - gutter - 8)) - 90)).toBeLessThanOrEqual(SLOP);
+});
+
+/**
+ * PR-MEMTOP-019's tween, which the unit test can only see through a stubbed `requestAnimationFrame`:
+ * here the frames are the browser's own. A step is done in two halves — the bar commits its stop on
+ * the click (the readout moves at once) while the drawing travels to it over the following frames.
+ * That is also the invariant every other test in this file leans on, so it is asserted rather than
+ * assumed: the settle hook they wait on (`data-topo-zoom-animating`) does go up, and the drawing is
+ * really between the two stops while it is up. The flight is sampled in one page-side loop, so the
+ * flag and the height in each sample belong to the same frame.
+ */
+test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the drawing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample&renderer=canvas');
+
+  const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
+  const viewport = aside.getByTestId('topology-viewport');
+  await expect(viewport).toBeVisible();
+
+  const stageHeight = () =>
+    viewport.locator('.pr-topo__stage').evaluate((el) => el.getBoundingClientRect().height);
+  const fitted = await stageHeight();
+  expect(fitted).toBeGreaterThan(0);
+
+  await aside.getByTestId('topology-zoom-in').click();
+  // Committed on the click: the readout is the stop, not the frame's value.
+  await expect(aside.getByTestId('topology-zoom-percent')).toHaveText('125%');
+  // In flight: the tween is a real rAF one, and the stage has not reached the stop yet.
+  await expect(aside).toHaveAttribute('data-topo-zoom-animating', 'true');
+
+  // The flight is sampled *inside* the page, flag and height read together in the same frame: two
+  // round-trips can straddle the landing, and an upper bound alone (`< stop`) passes on a stage
+  // that never moved. The samples are what can be held to "between the two stops" — every one of
+  // them inside the pair, and at least one of them strictly between.
+  //
+  // Sampled until the step lands rather than for a fixed number of frames: six ticks is a frame
+  // *count*, and at 120Hz that is ~50ms of an ease-in-out cubic that has barely left the stop (the
+  // 511px stage below has moved ~1px by then, failing the "strictly between" sample for a tween that
+  // is running perfectly), while at 60Hz the same six ticks are ~100ms and clear it. The guard is
+  // wall-clock, past the 400ms tween, so a step that never lands fails here instead of hanging.
+  const samples = await aside.evaluate(async (root) => {
+    const stage = root.querySelector('.pr-topo__stage') as HTMLElement;
+    const out: { inFlight: boolean; h: number }[] = [];
+    const guard = performance.now() + 2000;
+    while (performance.now() < guard) {
+      await new Promise((done) => requestAnimationFrame(() => done(null)));
+      const inFlight = root.getAttribute('data-topo-zoom-animating') === 'true';
+      out.push({ inFlight, h: stage.getBoundingClientRect().height });
+      // Landed: this frame and everything after it is the stop itself, not the flight.
+      if (!inFlight && out.length > 1) break;
+    }
+    return out;
+  });
+  const inFlight = samples.filter((sample) => sample.inFlight).map((sample) => sample.h);
+  expect(inFlight.length).toBeGreaterThan(0);
+  expect(inFlight.every((h) => h >= fitted - SLOP && h <= fitted * 1.25 + SLOP)).toBe(true);
+  expect(inFlight.some((h) => h > fitted + SLOP && h < fitted * 1.25 - SLOP)).toBe(true);
+
+  // Landed: the stage is the stop's own size and the flag is down, which is what every other
+  // probe in this file waits for.
+  await expect(aside).toHaveAttribute('data-topo-zoom-animating', 'false');
+  expect(await stageHeight()).toBeCloseTo(fitted * 1.25, 0);
 });

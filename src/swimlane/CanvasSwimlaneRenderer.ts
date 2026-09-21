@@ -38,7 +38,9 @@ import {
   eventEmphasis,
   isKeepBright,
   eventLabelAnchor,
+  eventLabelsCanFit,
   eventScreenRect,
+  laneEventRange,
   findEvent,
   findLaidOutEvent,
   hitTestLayout,
@@ -208,7 +210,6 @@ export class SwimlaneOverlayPainter {
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
   private searchQuery = '';
-  private liveScroll = false;
   /** When false, skip selection gray-muting (tests / overlays that opt out). */
   private selectionMuted = true;
   /** When false, the WebGL backend owns event labels (ClearType); overlay skips them. */
@@ -273,14 +274,6 @@ export class SwimlaneOverlayPainter {
 
   setView(view: SwimlaneViewWindow): void {
     this.view = { ...view };
-  }
-
-  /**
-   * In-flight lane scroll: skip leaf labels / hover fills (ClearType + overlay walk).
-   * Collapsed-folder summary bars still paint — they exist only on this overlay.
-   */
-  setLiveScroll(on: boolean): void {
-    this.liveScroll = on;
   }
 
   setSelection(selectedId: string | null, hoveredId: string | null): void {
@@ -445,23 +438,6 @@ export class SwimlaneOverlayPainter {
     ctx.clearRect(0, 0, this.width, this.height);
 
     const dpr = this.dpr;
-    if (this.liveScroll) {
-      paintCollapseSummaries(
-        ctx,
-        this.paintSummaries,
-        this.collapse,
-        this.view,
-        this.width,
-        this.height,
-        dpr,
-        this.selectedId,
-        this.hoveredId,
-      );
-      // By-id lifts track the easing Y without the O(events) overlay walk (PR-CANVAS-104).
-      this.paintLiftedLeaves(ctx, OVERLAY_MULTI_LIFT_CAP);
-      return;
-    }
-
     if (!this.drawEventLabels) {
       this.paintLiftedLeaves(ctx);
       paintCollapseSummaries(
@@ -478,10 +454,26 @@ export class SwimlaneOverlayPainter {
       return;
     }
 
+    const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const canFit = eventLabelsCanFit(this.layout.maxLeafDuration, span, this.width);
+    // Fit-zoom: skip leaf lanes (bisect degenerates to the whole list). Folder summaries
+    // stay in this walk; lifted leaves are painted by id so hover/selection fill is not lost.
+    if (!canFit) this.paintLiftedLeaves(ctx);
+
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
+      if (!canFit && !lane.folder) continue;
       if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
-      for (const item of this.layout.eventsByLane[i] ?? []) {
+      const laneEvts = this.layout.eventsByLane[i] ?? [];
+      const [lo, hi] = laneEventRange(
+        lane,
+        laneEvts,
+        this.view.startTime,
+        this.view.endTime,
+        this.layout.maxLeafDuration,
+      );
+      for (let j = lo; j < hi; j++) {
+        const item = laneEvts[j]!;
         if (item.summary) {
           this.paintOverlaySummary(ctx, item);
           continue;
@@ -548,6 +540,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private collapsedIds: readonly string[] = [];
   private summaryCache = new Map<string, SwimEvent[]>();
   private paintSummaries: readonly LaidOutEvent[] = [];
+  /** Skip per-link Canvas strokes while lane-scroll is easing (fills and labels still paint). */
   private liveScroll = false;
 
   attach(canvas: HTMLCanvasElement): void {
@@ -611,6 +604,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.view = { ...view };
   }
 
+  /** In-flight lane scroll: skip per-link Canvas strokes (fills and labels still paint). */
   setLiveScroll(on: boolean): void {
     this.liveScroll = on;
   }
@@ -743,6 +737,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     }
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
+    const labelsFit = eventLabelsCanFit(this.layout.maxLeafDuration, span, this.width);
     const q = this.searchQuery;
     const hasSearch = q.length > 0;
     const hasSelection = this.selectedId != null;
@@ -761,77 +756,86 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       /** Carried from the fill pass so the label can pick its contrast off what was painted. */
       fill: string;
     }[] = [];
-    const collectLabels = !this.liveScroll;
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
-      if (collapseAlpha(this.layout.lanes[i]!.y, this.collapse) <= 0) continue;
-      for (const item of this.layout.eventsByLane[i] ?? []) {
-      const ev = item.event;
-      if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
-        continue;
-      }
-      const x = ((ev.startTime - this.view.startTime) / span) * this.width;
-      const w = Math.max(2, (ev.duration / span) * this.width);
-      const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
-      const y = metrics.y * dpr;
-      const h = metrics.h * dpr;
-      if (y + h < 0 || y > this.height) continue;
-      const fr = eventPaintRect(x, y, w, h, dpr);
+      const lane = this.layout.lanes[i]!;
+      if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
+      const laneEvts = this.layout.eventsByLane[i] ?? [];
+      const [lo, hi] = laneEventRange(
+        lane,
+        laneEvts,
+        this.view.startTime,
+        this.view.endTime,
+        this.layout.maxLeafDuration,
+      );
+      for (let j = lo; j < hi; j++) {
+        const item = laneEvts[j]!;
+        const ev = item.event;
+        if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
+          continue;
+        }
+        const x = ((ev.startTime - this.view.startTime) / span) * this.width;
+        const w = Math.max(2, (ev.duration / span) * this.width);
+        const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
+        const y = metrics.y * dpr;
+        const h = metrics.h * dpr;
+        if (y + h < 0 || y > this.height) continue;
+        const fr = eventPaintRect(x, y, w, h, dpr);
 
-      // Summary bars: gray fill with a hover lift and a dimmed task-count label;
-      // never dimmed by search/selection or selected/ringed. Click-to-expand is the host's job.
-      if (item.summary) {
-        const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
-        const fill = eventFill(item.color, state);
-        ctx.globalAlpha = 1;
+        // Summary bars: gray fill with a hover lift and a dimmed task-count label;
+        // never dimmed by search/selection or selected/ringed. Click-to-expand is the host's job.
+        if (item.summary) {
+          const state = eventStateOf(item.id, this.selectedId, this.hoveredId);
+          const fill = eventFill(item.color, state);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = fill;
+          roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          drawEventLabel(
+            ctx,
+            taskCountLabel(ev.taskCount ?? 0),
+            fr.x,
+            fr.y,
+            fr.w,
+            fr.h,
+            this.width,
+            1,
+            SUMMARY_LABEL_COLOR,
+            dpr,
+          );
+          continue;
+        }
+
+        const matches = !hasSearch || ev.name.toLowerCase().includes(q);
+        const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
+        const { alpha: emphAlpha, muted } = eventEmphasis(
+          matches,
+          keepBright,
+          hasSearch,
+          hasSelection || hasMulti,
+        );
+        const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
+        const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
+        const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
+        ctx.globalAlpha = alpha;
         ctx.fillStyle = fill;
         roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
         ctx.fill();
         ctx.globalAlpha = 1;
-        drawEventLabel(
-          ctx,
-          taskCountLabel(ev.taskCount ?? 0),
-          fr.x,
-          fr.y,
-          fr.w,
-          fr.h,
-          this.width,
-          1,
-          SUMMARY_LABEL_COLOR,
-          dpr,
-        );
-        continue;
-      }
-
-      const matches = !hasSearch || ev.name.toLowerCase().includes(q);
-      const keepBright = isKeepBright(item.id, bright, this.hoveredId, this.multiIds);
-      const { alpha: emphAlpha, muted } = eventEmphasis(
-        matches,
-        keepBright,
-        hasSearch,
-        hasSelection || hasMulti,
-      );
-      const alpha = emphAlpha * collapseAlpha(item.y, this.collapse);
-      const state = eventStateOf(item.id, this.selectedId, this.hoveredId, this.multiIds);
-      const fill = muted ? SELECTION_MUTED_FILL : eventFill(item.color, state);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = fill;
-      roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      if (collectLabels) {
-        visible.push({
-          item,
-          x: fr.x,
-          y: fr.y,
-          w: fr.w,
-          h: fr.h,
-          matches,
-          alpha,
-          muted,
-          fill,
-        });
-      }
+        if (labelsFit) {
+          visible.push({
+            item,
+            x: fr.x,
+            y: fr.y,
+            w: fr.w,
+            h: fr.h,
+            matches,
+            alpha,
+            muted,
+            fill,
+          });
+        }
       }
     }
 
@@ -847,22 +851,20 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       this.hoveredId,
     );
 
-    if (collectLabels) {
-      for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
-        if (matches) {
-          drawEventLabel(
-            ctx,
-            item.event.name,
-            x,
-            y,
-            w,
-            h,
-            this.width,
-            alpha,
-            muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
-            dpr,
-          );
-        }
+    for (const { item, x, y, w, h, matches, alpha, muted, fill } of visible) {
+      if (matches) {
+        drawEventLabel(
+          ctx,
+          item.event.name,
+          x,
+          y,
+          w,
+          h,
+          this.width,
+          alpha,
+          muted ? SELECTION_MUTED_LABEL : labelColorOn(fill),
+          dpr,
+        );
       }
     }
 
