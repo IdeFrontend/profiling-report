@@ -2,7 +2,7 @@
 
 **Profile:** `emulate` (npu_emulate contract SQLite / CSV export).
 
-Scoped catalog for profiling-report consumers. Full contract DB is **100 tables + 22 views** (`total_objects=122`). This doc lists **pack status** and Phase 1 / product surfaces.
+Scoped catalog for profiling-report consumers. Full contract DB is **101 tables + 23 views** (`total_objects=124`). This doc lists **pack status** and Phase 1 / product surfaces.
 
 **Column names, SQL types, and field descriptions:** see **[SCHEMA.md](SCHEMA.md)** (SSOT = `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep)).
 
