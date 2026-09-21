@@ -39,8 +39,12 @@ import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domai
 
 /** Brace-match a class method so a reorder cannot yield an empty slice that vacuously passes. */
 function classMethodBody(src: string, name: string): string {
-  const needle = `\n  ${name}(`;
-  const at = src.indexOf(needle);
+  const atPublic = src.indexOf(`\n  ${name}(`);
+  const atPrivate = src.indexOf(`\n  private ${name}(`);
+  const at =
+    atPublic >= 0 && (atPrivate < 0 || atPublic < atPrivate)
+      ? atPublic
+      : atPrivate;
   if (at < 0) throw new Error(`method ${name} not found`);
   const brace = src.indexOf('{', at);
   let depth = 0;
@@ -1314,6 +1318,20 @@ describe('PR-RENDER: lane chrome color', () => {
     );
   });
 
+  it('PR-RENDER-061: WebGL multi without search mutes base meshes and overlays keep-bright ids', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    const split = classMethodBody(webglSrc, 'rebuildEmphasisSplit');
+    expect(split).toMatch(/if \(!q\)/);
+    expect(split).toMatch(/this\.rebuildBrightOverlay\(\)/);
+    const overlay = classMethodBody(webglSrc, 'rebuildBrightOverlay');
+    expect(overlay).toMatch(/eventsById/);
+    expect(overlay).not.toMatch(/of this\.layout\.events/);
+    const renderBody = classMethodBody(webglSrc, 'render');
+    expect(renderBody).toMatch(/brightChunks/);
+    expect(renderBody).toMatch(/SELECTION_MUTED_FILL/);
+  });
+
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
@@ -1506,6 +1524,73 @@ describe('PR-RENDER: marquee hit collection', () => {
         y0: laneY + LANE_HEIGHT * 4,
         x1: 400,
         y1: laneY + LANE_HEIGHT * 6,
+      }),
+    ).toEqual([]);
+  });
+
+  it('PR-RENDER-060: skips lanes outside the rect Y band and bisects time', async () => {
+    const layoutSrc = (await import('../../src/swimlane/layout.ts?raw')).default as string;
+    const at = layoutSrc.indexOf('\nexport function eventsIntersectingRect(');
+    expect(at).toBeGreaterThan(0);
+    const brace = layoutSrc.indexOf('{', at);
+    let depth = 0;
+    let end = brace;
+    for (let i = brace; i < layoutSrc.length; i++) {
+      if (layoutSrc[i] === '{') depth++;
+      else if (layoutSrc[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    const body = layoutSrc.slice(brace, end + 1);
+    expect(body).toMatch(/laneEventRange/);
+    expect(body).toMatch(/lane\.y/);
+    expect(body).toMatch(/rowCount/);
+
+    const twoLane = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-a', name: 'A', events: [{ id: 'e-a', name: 'a', startTime: 0, duration: 100 }] },
+            { id: 't-b', name: 'B', events: [{ id: 'e-b', name: 'b', startTime: 500, duration: 100 }] },
+          ],
+        },
+      ],
+    });
+    const twoView = { startTime: 0, endTime: 1000, scrollY: 0 };
+    const ya = twoLane.eventsById.get('e-a')!.y;
+    const yb = twoLane.eventsById.get('e-b')!.y;
+    expect(yb).toBeGreaterThan(ya);
+    expect(
+      eventsIntersectingRect(twoLane, twoView, 400, {
+        x0: 0,
+        y0: ya,
+        x1: 400,
+        y1: ya + LANE_HEIGHT,
+      }).map((e) => e.id),
+    ).toEqual(['e-a']);
+    expect(
+      eventsIntersectingRect(twoLane, twoView, 400, {
+        x0: 0,
+        y0: yb,
+        x1: 400,
+        y1: yb + LANE_HEIGHT,
+      }).map((e) => e.id),
+    ).toEqual(['e-b']);
+    // Right half of the track misses e-a (t=0..100 → x=0..40).
+    expect(
+      eventsIntersectingRect(twoLane, twoView, 400, {
+        x0: 200,
+        y0: ya,
+        x1: 400,
+        y1: ya + LANE_HEIGHT,
       }),
     ).toEqual([]);
   });

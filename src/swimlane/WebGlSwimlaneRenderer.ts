@@ -113,8 +113,10 @@ interface SubRowMesh {
   /** Content-space Y of this sub-row's lane band (lane.y + rowIndex * LANE_HEIGHT). */
   y: number;
   chunks: MeshChunk[];
-  /** When search and/or selection is active: per-emphasis mesh layers (Canvas parity). */
+  /** When search is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
+  /** Keep-bright intervals drawn over a muted base mesh when search is empty. */
+  brightChunks: MeshChunk[] | null;
 }
 
 interface LaneMeshes {
@@ -741,6 +743,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       );
     if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
 
+    const muteRest =
+      this.searchQuery.length === 0 && (this.selectedId != null || this.multiIds.size > 0);
+    const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
+
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     // aPos times are relative to timeBase (see encodeIntervalPair).
     const sx = 2 / span;
@@ -793,7 +799,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
             drawChunks(layer.chunks, layer.rgb, layer.dim);
           }
         } else {
-          drawChunks(row.chunks, meshes.color, 1);
+          const mute = muteRest && !meshes.summary;
+          drawChunks(row.chunks, mute ? mutedRgb : meshes.color, 1);
+          if (row.brightChunks) {
+            // Src-over so keep-bright fills replace the muted bar (additive would double).
+            gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
+            drawChunks(row.brightChunks, meshes.color, 1);
+            gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
+            if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
+          }
         }
 
         if (meshes.summary) {
@@ -1052,6 +1067,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           y: lane.y + r * LANE_HEIGHT,
           chunks: createChunksFromPairs(gl, pairs),
           emphasisLayers: null,
+          brightChunks: null,
         });
       }
       // Folder lanes carry only summary bars — paint the whole mesh in the summary gray.
@@ -1070,10 +1086,17 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.emphasisSplitDirty = false;
     const gl = this.gl;
     this.disposeEmphasisSplit();
+    this.disposeBrightOverlay();
     const q = this.searchQuery;
     const sel = this.selectedId;
     const multi = this.multiIds;
     if (!gl || (!q && !sel && multi.size === 0)) return;
+    // Search dim is per-name; selection/multi without search mutes the existing
+    // lane meshes and uploads only keep-bright intervals (O(selected), not O(events)).
+    if (!q) {
+      this.rebuildBrightOverlay();
+      return;
+    }
 
     const hasSearch = q.length > 0;
     const hasSelection = sel != null;
@@ -1130,6 +1153,40 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     }
   }
 
+  /**
+   * Keep-bright overlay from `eventsById` (selected + dep neighbors + multi).
+   * Caller already disposed the previous overlay.
+   */
+  private rebuildBrightOverlay(): void {
+    const gl = this.gl;
+    if (!gl) return;
+    const ids = new Set(this.multiIds);
+    if (this.selectedId) {
+      ids.add(this.selectedId);
+      for (const id of this.neighborIds) ids.add(id);
+    }
+    const byRow = new Map<string, { laneIndex: number; rowIndex: number; items: LaidOutEvent[] }>();
+    for (const id of ids) {
+      const item = this.layout.eventsById.get(id) ?? this.layout.summaryById?.get(id);
+      if (!item || item.summary) continue;
+      const key = `${item.laneIndex}:${item.rowIndex}`;
+      const entry = byRow.get(key);
+      if (entry) entry.items.push(item);
+      else byRow.set(key, { laneIndex: item.laneIndex, rowIndex: item.rowIndex, items: [item] });
+    }
+    for (const { laneIndex, rowIndex, items } of byRow.values()) {
+      const row = this.laneMeshes[laneIndex]?.rows[rowIndex];
+      if (!row) continue;
+      items.sort((a, b) => a.event.startTime - b.event.startTime);
+      const pairs: number[] = [];
+      for (const item of items) {
+        const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+        pairs.push(a, b);
+      }
+      row.brightChunks = createChunksFromPairs(gl, pairs);
+    }
+  }
+
   private disposeEmphasisSplit(): void {
     for (const lane of this.laneMeshes) {
       for (const row of lane.rows) {
@@ -1143,8 +1200,20 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     }
   }
 
+  private disposeBrightOverlay(): void {
+    for (const lane of this.laneMeshes) {
+      for (const row of lane.rows) {
+        if (row.brightChunks) {
+          for (const c of row.brightChunks) this.deleteChunk(c);
+          row.brightChunks = null;
+        }
+      }
+    }
+  }
+
   private disposeMeshes(): void {
     this.disposeEmphasisSplit();
+    this.disposeBrightOverlay();
     for (const lane of this.laneMeshes) {
       for (const row of lane.rows) {
         for (const c of row.chunks) this.deleteChunk(c);
