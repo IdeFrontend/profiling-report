@@ -8,11 +8,13 @@ Official product memory-path topology chrome with **data-driven link values** (c
 
 ## Inputs
 
-**Data SSOT:** [docs/views/memory-topology.md](../../../../docs/views/memory-topology.md).
+**Data SSOT:** [docs/views/memory-topology.md](../../../../docs/views/memory-topology.md) · field tables [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
 
-**model** — `MemoryTopologyModel` (`nodes` + `edges`; each edge carries an optional data-driven `label`; the `l2` node may carry `peakPct`; optional `plates` for the in-box unit badges, UI-49). Optional **locale**. Optional **openDetailsOnContextmenu** (default true): stacked diagram keeps UI-35; the root fullscreen overlay passes `false`. Optional **showFullscreen** (default false): the bar renders its **全屏** control, so the stacked aside asks the host to cover the report; the root overlay is already full and leaves it off. Parent `StatsAside` owns block switching and rebuilds **model** via `buildMemoryTopology`, passing the Memory* CSVs **plus** `PipeUtilization.csv` (the badges' source).
+**Architecture:** one chrome (`memory-topology.svg`) + one `MemoryTopologyModel` carrier + this panel. Compute and emulate share them; only the **adapters** differ (`buildMemoryTopology*` vs `topologyFromArchDiagramMetrics`). No mode-specific chrome or second topology VM.
 
-**Filled by:** compute — `Memory*.csv` / `L2Cache.csv` aggregates. Emulate — **gap / Sept 30 hide** (`MemoryRWAccesses` is heatmap, not topology plates). See [VIEW_DATA_REQUIREMENTS](../../../../docs/formats/VIEW_DATA_REQUIREMENTS.md) profile fill.
+**model** — `MemoryTopologyModel` (`nodes` + `edges`; each edge carries an optional data-driven `label`; the `l2` node may carry `peakPct`; optional `plates` for the in-box unit badges, UI-49 — compute). Optional **locale**. Optional **openDetailsOnContextmenu** (default true): stacked diagram keeps UI-35; the root fullscreen overlay passes `false`. Optional **showFullscreen** (default false): the bar renders its **全屏** control, so the stacked aside asks the host to cover the report; the root overlay is already full and leaves it off. Parent `StatsAside` owns block switching and rebuilds **model** via `buildMemoryTopology` (compute), passing the Memory* CSVs **plus** `PipeUtilization.csv` (the badges' source); emulate fills the same model from ArchDiagramMetrics.
+
+**Filled by:** compute — `Memory*.csv` / `L2Cache.csv` / `PipeUtilization.csv`. Emulate — `ArchDiagramMetrics.csv` → same VM (DATA-48a); `MemoryRWAccesses` is heatmap, not topology plates ([DATA-49](../../../../docs/context/questions/DATA.md)).
 
 ## Outputs
 

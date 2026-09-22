@@ -263,6 +263,73 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(empty.reportModel.memoryTopology).toBeUndefined();
     expect(empty.capabilities).not.toContain('archDiagram');
   });
+
+  it('PR-ASIM-008b: ARCH_DIAGRAM_EDGE_MAP locks to plated slots + HTML inventory gaps', async () => {
+    const {
+      ARCH_DIAGRAM_EDGE_MAP,
+      ARCH_DIAGRAM_L2_PEAK_PARAM,
+      ARCH_DIAGRAM_UNPLATED_HTML_BASES,
+      ARCH_DIAGRAM_HTML_UTIL_RATIOS,
+      topologyFromArchDiagramMetrics,
+    } = await import('../../src/adapters/emulateMemoryTopology');
+    const { TOPOLOGY_SLOT_EDGE_IDS } = await import('../../src/adapters/memoryTopology');
+
+    // Every emulate plated edge id is a chrome slot (shared vocabulary with compute).
+    const slotIds = new Set<string>(TOPOLOGY_SLOT_EDGE_IDS);
+    expect(ARCH_DIAGRAM_EDGE_MAP.map((e) => e.id).sort()).toEqual([...slotIds].sort());
+    for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
+      expect(slotIds.has(spec.id), spec.id).toBe(true);
+    }
+
+    // Mapped *_gbs params must not be listed as intentionally unplated HTML bases.
+    const unplated = new Set(ARCH_DIAGRAM_UNPLATED_HTML_BASES);
+    for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
+      for (const p of spec.params) {
+        expect(p.endsWith('_gbs'), p).toBe(true);
+        const base = p.replace(/_gbs$/, '');
+        expect(unplated.has(base as (typeof ARCH_DIAGRAM_UNPLATED_HTML_BASES)[number]), p).toBe(
+          false,
+        );
+      }
+    }
+    expect(ARCH_DIAGRAM_L2_PEAK_PARAM).toBe('l2_cached_ratio');
+    expect(ARCH_DIAGRAM_HTML_UTIL_RATIOS).toContain(ARCH_DIAGRAM_L2_PEAK_PARAM);
+
+    // Full Bandwidth-per-operator fixture: every plated edge + L2 peak; AIV pairs average.
+    const expected = new Map<string, string>();
+    const rows = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      `0,${ARCH_DIAGRAM_L2_PEAK_PARAM},50`,
+    ];
+    let id = 1;
+    let solo = 1;
+    for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
+      if (spec.params.length === 1) {
+        const n = 10 + solo++;
+        rows.push(`${id++},${spec.params[0]},${n}`);
+        expected.set(spec.id, `${n.toFixed(2)} GB/s`);
+      } else {
+        rows.push(`${id++},${spec.params[0]},4`);
+        rows.push(`${id++},${spec.params[1]},6`);
+        expected.set(spec.id, '5.00 GB/s');
+      }
+    }
+    // Unplated HTML edge present in CSV must not create an extra edge id / steal a label.
+    rows.push(`${id++},aic_l0c_to_out_gbs,99`);
+    rows.push(`${id++},aic_cube_ratio,0.5`);
+
+    const model = topologyFromArchDiagramMetrics(rows.join('\n'));
+    expect(model).toBeDefined();
+    expect(model!.nodes.find((n) => n.id === 'l2')?.peakPct).toBe(50);
+    expect(model!.plates).toBeUndefined();
+    expect(model!.edges.map((e) => e.id).sort()).toEqual(
+      ARCH_DIAGRAM_EDGE_MAP.map((e) => e.id).sort(),
+    );
+    for (const [edgeId, label] of expected) {
+      expect(model!.edges.find((e) => e.id === edgeId)?.label, edgeId).toBe(label);
+    }
+    expect(model!.edges.some((e) => e.label === '99.00 GB/s')).toBe(false);
+  });
 });
 
 describe('npu-rep / loadReportSource profile routing', () => {

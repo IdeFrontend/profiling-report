@@ -4,10 +4,22 @@
 |--|--|
 | **Id** | `memory-topology` |
 | **Panel / component** | `MemoryTopologyPanel` → `src/ui/StatsAside/MemoryTopologyPanel/` |
-| **Capability** | `memoryDiagram` |
-| **Phase** | M2 |
-| **Unification** | `adapt-mapper` (compute); emulate uses this chrome as interim [arch-diagram](arch-diagram.md) stand-in |
+| **Capability** | `memoryDiagram` (compute); emulate uses this chrome under `archDiagram` — see [arch-diagram](arch-diagram.md) |
+| **Phase** | M2 (compute); M4 interim (emulate) |
+| **Unification** | **One chrome + one VM + two adapters** (below) |
 | **Sept 30 (emulate)** | **interim chrome** — data via `archDiagram`; **UI title** = 内存负载分析 (same as compute) |
+
+## Architecture (normative)
+
+| Piece | Rule |
+|-------|------|
+| **Chrome** | Exactly one SVG: `memory-topology.svg` (**448×423**). No compute-only / emulate-only chrome. |
+| **View model** | Exactly one carrier: `reportModel.memoryTopology` (`MemoryTopologyModel`). No separate emulate topology VM. |
+| **Panel** | Exactly one: `MemoryTopologyPanel` — profile-agnostic overlays on chrome slots. |
+| **Adapters** | Exactly two mappers: compute `buildMemoryTopology*` / `firstLabelledMemoryTopology`; emulate `topologyFromArchDiagramMetrics`. Shared node scaffold + plated edge ids; different CSV → field maps. |
+| **Capabilities** | Compute → `memoryDiagram`; emulate → `archDiagram`. Do not advertise emulate as `memoryDiagram`. |
+
+Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [arch-diagram § parameter-slot-map](arch-diagram.md#parameter-slot-map) (emulate).
 
 ## Sketches
 
@@ -17,14 +29,14 @@
 
 ## Purpose
 
-Fixed memory-path chrome (**448×423** simplified SVG: AIC above AIV × 2) with data-driven edge labels (BW / hit rate) for the selected block.
+Fixed memory-path chrome (**448×423** simplified SVG: AIC above AIV × 2) with data-driven edge labels (BW / hit rate / util) for the selected block (compute) or ArchDiagramMetrics report (emulate interim).
 
 ## View-model
 
 | Field | Role | Required? |
 |-------|------|-----------|
-| `reportModel.memoryTopology` | Nodes + edges with labels | **Required to show** |
-| capability `memoryDiagram` | Feature gate | Set when topology present |
+| `reportModel.memoryTopology` | Nodes + edges with labels; optional `peakPct` / `plates` | **Required to show** |
+| capability `memoryDiagram` | Compute feature gate | Set when topology present (compute) |
 
 ## Hide rule
 
@@ -34,7 +46,7 @@ No drawable labels / L2 plate → hide diagram ([DATA-30](../context/decisions/D
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `memoryTopology` | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv` | Edge / plate map below; `buildMemoryTopology` | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
+| `memoryTopology` | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv`, `PipeUtilization.csv` | Edge / plate map below; `buildMemoryTopology` | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
 
 The panel renders the official chrome [`memory-topology.svg`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) (**448×423** simplified Figma export: AIC row above a combined **AIV × 2** row; static labels/arrows intact, sample values stripped) and overlays **real values** on that chrome's value slots — the `summary.jsonl` category mean under `All`, that block's CSV row when a `block_id` is picked ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)).
 
@@ -91,10 +103,10 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 ### Visualization logic
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
-- Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
-- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (hit rate, DATA-20; sketch has no “Peak” word and no fill tint). **No other unit** carries a Peak(%): the export has no peak plate for one and the adapter no field ([DATA-20](../context/decisions/DATA.md)). The other in-box badges the sketch draws are **unit utilizations**, not peaks — AIV0/AIV1 **Scalar** and **Vec**, AIC **Cube** — printed `{ratio × 100}%` from `PipeUtilization` ([UI-49](../context/decisions/UI.md)); the four field-less positions stay blank.
+- Overlay **GB/s** (or KB) on edges from the mapping tables. Hide `NA`; show `0`.
+- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (compute: hit rate DATA-20; emulate: `l2_cached_ratio`). **No other unit** carries a Peak(%). Compute in-box badges are **unit utilizations** (UI-49); emulate interim leaves those blank.
 - **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
-- Labels are **block-scoped** via the same block switcher as memory details ([DATA-19](../context/decisions/DATA.md)).
+- Labels are **block-scoped** via the same block switcher as memory details ([DATA-19](../context/decisions/DATA.md)) on compute; emulate ArchDiagramMetrics is report-scoped.
 
 Component ACs that also own these rules: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
 
@@ -118,7 +130,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` (VM carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map on [arch-diagram](arch-diagram.md#parameter-slot-map) ([DATA-48a](../context/decisions/interim/DATA.md)); gelu HTML `*_gbs` id inventory is **evidence** toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
+| `memoryTopology` (same carrier) | `ArchDiagramMetrics.csv` | Parameter→slot + **gaps** on [arch-diagram](arch-diagram.md#parameter-slot-map) / [§ html-gaps](arch-diagram.md#html-gaps) ([DATA-48a](../context/decisions/interim/DATA.md)); gelu HTML `*_gbs` inventory = evidence toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
 | Heatmap | `MemoryRWAccesses.csv` | biprof §11.2.3.2 | **out** Sept 30 ([DATA-49](../context/questions/DATA.md)) |
 
 ## Adapter
@@ -126,7 +138,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | Capability `memoryDiagram` |
-| emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` | Capability **`archDiagram`**; interim use of this chrome |
+| emulate | `topologyFromArchDiagramMetrics` | Capability **`archDiagram`**; same chrome + VM |
 
 ## Related
 

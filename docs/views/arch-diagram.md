@@ -3,23 +3,27 @@
 | | |
 |--|--|
 | **Id** | `arch-diagram` |
-| **Panel / component** | Interim: `MemoryTopologyPanel` → `src/ui/StatsAside/MemoryTopologyPanel/` (plated stand-in until biprof SVG) |
+| **Panel / component** | Same as compute: `MemoryTopologyPanel` + `memory-topology.svg` (interim plated stand-in until biprof SVG — [DATA-49](../context/questions/DATA.md)) |
 | **Capability** | `archDiagram` |
 | **Phase** | M4 (emulate Sept 30) |
-| **Unification** | `adapt-mapper` (emulate) |
+| **Unification** | **One chrome + one `memoryTopology` VM + emulate adapter only** (compute uses [memory-topology](memory-topology.md) / `memoryDiagram`) |
 | **Sept 30 (emulate)** | **in** |
 
 ## Purpose
 
 Biprof **Architecture Diagram** (§11.2.3.1): path/unit bandwidth and related metrics from `ArchDiagramMetrics`.
 
-Sept 30 uses the Asc Toolkit plated topology chrome (**448×423** simplified export; AIC + AIV × 2) as an **interim stand-in** — same `reportModel.memoryTopology` carrier and UI title **内存负载分析** / Memory load analysis as compute. Capability remains **`archDiagram`** (data gate; not compute `memoryDiagram`). Full biprof chrome / richer model: [DATA-49](../context/questions/DATA.md).
+Sept 30 fills the Asc Toolkit plated topology chrome (**448×423**; AIC + AIV × 2) — the **same** asset and `reportModel.memoryTopology` carrier as compute 内存负载分析. Capability remains **`archDiagram`** (data gate; not compute `memoryDiagram`). UI title **内存负载分析** / Memory load analysis. Full biprof chrome / richer model: [DATA-49](../context/questions/DATA.md).
+
+## Architecture (normative)
+
+Do **not** introduce a second topology VM or a second chrome for emulate. Adapter: `topologyFromArchDiagramMetrics` only. Shared plated edge ids with compute (`TOPOLOGY_SLOT_EDGE_IDS`); field map is DATA-48a / `ARCH_DIAGRAM_EDGE_MAP`.
 
 ## View-model
 
 | Field | Role | Required? |
 |-------|------|-----------|
-| `reportModel.memoryTopology` | Interim plated nodes + edges | **Required to show** stand-in |
+| `reportModel.memoryTopology` | Same plated nodes + edges as compute | **Required to show** stand-in |
 | capability `archDiagram` | Feature gate (emulate) | Set when drawable |
 
 ## Hide rule
@@ -30,7 +34,7 @@ Nothing drawable → omit diagram ([DATA-30](../context/decisions/DATA.md)).
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` (carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map below ([DATA-48a](../context/decisions/interim/DATA.md)); gelu HTML `*_gbs` ids are **evidence** for [DATA-48](../context/questions/DATA.md) (still open — no Product stamp) | `adapt-mapper` |
+| `memoryTopology` | `ArchDiagramMetrics.csv` | Parameter→slot + **gaps** below ([DATA-48a](../context/decisions/interim/DATA.md)); SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES`; gelu HTML `*_gbs` ids are **evidence** for [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
 | Heatmap | `MemoryRWAccesses.csv` | Different surface (§11.2.3.2) | **out** Sept 30 |
 
 <a id="parameter-slot-map"></a>
@@ -67,7 +71,20 @@ Single embed, EAV rows — **no FK join**. Map `ArchDiagramParameterName` → sl
 | `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
 | L2 `peakPct` | `l2_cached_ratio` |
 
-Code: `topologyFromArchDiagramMetrics` in `emulateMemoryTopology.ts`.
+
+<a id="html-gaps"></a>
+
+### Explicit gaps (HTML inventory present, not plated)
+
+| Gap | Why out |
+|-----|---------|
+| HTML bases `aic_l0c_to_all_syn`, `aic_l0c_to_l1`, `aic_l0c_to_out`, `aic_l0c_to_ub0/1` | No Asc chrome plate (L0C→OUT / UB / all) |
+| `aiv{0,1}_ub_to_l1` | No UB→L1 plate |
+| `aiv{0,1}_out_to_simt` / `simt_to_out`, `ub_to_simt` / `simt_to_ub`, `cache_to_simt` / `simt_to_cache` | SIMT / DataCache corridors unplated (UI-38) |
+| Entire HTML `*_ratio` / `*_cnt` Bandwidth tabs (except L2 peak) | Per-request / count views; util ratios other than `l2_cached_ratio` not mapped to `plates` |
+| HTML util ratios `aic_cube_ratio`, `aic_*_scalar_ratio`, `aiv{0,1}_simd/simt/scalar_ratio` | Emulate interim paints no UI-49 badges from ArchDiagramMetrics |
+
+Code SSOT: `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES` / `ARCH_DIAGRAM_L2_PEAK_PARAM` in `emulateMemoryTopology.ts`; locked by `PR-ASIM-008` / `PR-ASIM-008b`.
 
 Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../context/questions/DATA.md)).
 
@@ -75,11 +92,11 @@ Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertis
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` | Capability `archDiagram` when drawable |
+| emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` / `emulateMemoryTopology.ts` | Capability `archDiagram` when drawable |
 | compute | — | Compute uses [memory-topology](memory-topology.md) / `memoryDiagram` |
 
 ## Related
 
 - Product: MHTML §11.2.3.1; delivery [milestone-4](../process/roadmap/milestone-4.md)
 - Open: [DATA-48](../context/questions/DATA.md), [DATA-49](../context/questions/DATA.md)
-- Interim chrome packet: [memory-topology](memory-topology.md)
+- Shared chrome packet: [memory-topology](memory-topology.md)

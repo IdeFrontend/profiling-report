@@ -185,7 +185,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-48](../../questions/DATA.md)
-**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **interim VM carrier** for plated Asc chrome (**448×423** AIC + AIV × 2; [arch-diagram](../../../views/arch-diagram.md)). Map plated edges (GB/s labels `{n} GB/s`) and L2 plate (SSOT: [arch-diagram § parameter-slot-map](../../../views/arch-diagram.md#parameter-slot-map)):
+**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **one shared VM carrier** for the **one** plated Asc chrome (**448×423** AIC + AIV × 2; [arch-diagram](../../../views/arch-diagram.md) / [memory-topology](../../../views/memory-topology.md)). Do **not** invent a second topology model or chrome. Map plated edges (GB/s labels `{n} GB/s`) and L2 plate — SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_L2_PEAK_PARAM` in [`emulateMemoryTopology.ts`](../../../../src/adapters/emulateMemoryTopology.ts); packet tables: [arch-diagram § parameter-slot-map](../../../views/arch-diagram.md#parameter-slot-map):
 
 | Slot / plate | Parameter |
 |--------------|-----------|
@@ -201,8 +201,10 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 | `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
 | L2 `peakPct` | `l2_cached_ratio` |
 
-Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the interim `memoryTopology` carrier. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
-**Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-008` + `archDiagram` assertions
+**Gaps (HTML Bandwidth-per-operator inventory present, not plated):** bases in `ARCH_DIAGRAM_UNPLATED_HTML_BASES` (L0C→all/OUT/UB, UB→L1, SIMT/DataCache corridors). HTML `*_ratio` / `*_cnt` tabs stay out except L2 peak; ArchDiagramMetrics util ratios other than `l2_cached_ratio` do **not** populate UI-49 `plates` (compute badges stay PipeUtilization-only). Full tables: [arch-diagram § parameter-slot-map](../../../views/arch-diagram.md#parameter-slot-map) / [memory-topology](../../../views/memory-topology.md).
+
+Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the shared `memoryTopology` carrier. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
+**Implement / test as:** `topologyFromArchDiagramMetrics`; `PR-ASIM-008` / `PR-ASIM-008b` (full map + HTML-gap drift lock)
 **Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model
 
 <a id="data-45"></a>
