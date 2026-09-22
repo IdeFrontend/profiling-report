@@ -17,7 +17,7 @@
 
 ## Purpose
 
-Fixed memory-path chrome with data-driven edge labels (BW / hit rate) for the selected block.
+Fixed memory-path chrome (**448×423** simplified SVG: AIC above AIV × 2) with data-driven edge labels (BW / hit rate) for the selected block.
 
 ## View-model
 
@@ -118,7 +118,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` (VM carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map on [arch-diagram](arch-diagram.md#parameter-slot-map) ([DATA-48a](../context/decisions/interim/DATA.md)) | `adapt-mapper` |
+| `memoryTopology` (VM carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map on [arch-diagram](arch-diagram.md#parameter-slot-map) ([DATA-48a](../context/decisions/interim/DATA.md)); gelu HTML `*_gbs` id inventory is **evidence** toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
 | Heatmap | `MemoryRWAccesses.csv` | biprof §11.2.3.2 | **out** Sept 30 ([DATA-49](../context/questions/DATA.md)) |
 
 ## Adapter

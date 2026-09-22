@@ -18,7 +18,10 @@ type EdgeSpec = {
   params: string[];
 };
 
-/** Plated GB/s edges + parameter names (DATA-48a). */
+/** Plated GB/s edges + parameter names (DATA-48a).
+ *  Names match gelu Architecture Diagram SVG `*_gbs` element ids (Bandwidth per operator) —
+ *  evidence toward DATA-48, not a Product stamp. Unplated HTML edges (SIMT/cache/L0C→OUT/…)
+ *  stay unmapped. */
 const ARCH_EDGE_MAP: EdgeSpec[] = [
   { id: 'gm-l2-read', from: 'gm', to: 'l2', params: ['hbm_to_l2_syn_gbs'] },
   { id: 'gm-l2-write', from: 'l2', to: 'gm', params: ['l2_to_hbm_syn_gbs'] },

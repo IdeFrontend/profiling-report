@@ -36,7 +36,7 @@ const model = {
   ],
 };
 
-/** Chrome geometry (448×540 units): GM x16–56, L2 x94–134, cluster rows x188–432. */
+/** Chrome geometry (448×423 units): GM x16–56, L2 x94–134, cluster rows x188–432. */
 const CHROME = { gmRight: 56, l2Left: 94, l2Right: 134, clusterLeft: 188 };
 
 /** Two panels in *one* app: the stacked aside and the fullscreen overlay render at the same time,
@@ -76,20 +76,19 @@ describe('MemoryTopologyPanel', () => {
     const chrome = wrapper.get('image');
     expect(chrome.attributes('href')).toContain('memory-topology.svg');
     expect(chrome.attributes('width')).toBe('448');
-    expect(chrome.attributes('height')).toBe('540');
+    expect(chrome.attributes('height')).toBe('423');
     expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(true);
-    expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 540');
+    expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 423');
   });
 
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');
-    // Two-slot edges get one element per slot (AIV0 + AIV1), and the slot index makes each
-    // testid unique — a bare `edge-vec-ub` twice was ambiguous for `getByTestId`-style queries.
+    // AIV × 2 chrome: one plate per UB↔SIMD edge (slot index still unique for getByTestId).
     expect(wrapper.find('[data-testid="edge-vec-ub-0"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="edge-vec-ub-1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-vec-ub-1"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="edge-ub-vec-0"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="edge-ub-vec-1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-ub-vec-1"]').exists()).toBe(false);
     for (const id of ['l1-l0a', 'l1-l0b', 'l0a-cube', 'l0b-cube', 'l0c-cube', 'cube-l0c']) {
       expect(wrapper.get(`[data-testid="edge-${id}-0"]`).text().length).toBeGreaterThan(0);
     }
@@ -162,12 +161,10 @@ describe('MemoryTopologyPanel', () => {
     // GM↔L2 labels sit between the GM pillar and the L2 pillar...
     expect(x('gm-l2-read')).toBeGreaterThan(CHROME.gmRight);
     expect(x('gm-l2-read')).toBeLessThan(CHROME.l2Left);
-    // ...and L2↔cluster labels between the L2 pillar and the row stack. The export draws
-    // these horizontally in the corridor (unlike the earlier redraw, which rotated them).
-    for (const id of ['l2-ub', 'l2-l1-read']) {
-      expect(x(id)).toBeGreaterThan(CHROME.l2Right);
-      expect(x(id)).toBeLessThan(CHROME.clusterLeft);
-    }
+    // AIC L2→L1 stays in the L2↔row corridor; AIV × 2 L2→UB plates sit on MTE chips inside the row.
+    expect(x('l2-l1-read')).toBeGreaterThan(CHROME.l2Right);
+    expect(x('l2-l1-read')).toBeLessThan(CHROME.clusterLeft);
+    expect(x('l2-ub')).toBeGreaterThan(CHROME.clusterLeft);
   });
 
   it('PR-MEMTOP-007: shows L2 Peak(%) when peakPct set', () => {
@@ -224,23 +221,22 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    // One element per slot: the AIV0/AIV1 pair shares the unit's one field (DATA-28), like the
-    // paired link values, and the slot index keeps each testid unique.
+    // One element per plated unit on the AIV × 2 chrome (DATA-28 one field → one badge).
     const scalar = wrapper.findAll('[data-testid^="plate-aiv_scalar-"]');
-    expect(scalar).toHaveLength(2);
+    expect(scalar).toHaveLength(1);
     expect(scalar.every((el) => el.text() === '57.90%')).toBe(true);
-    expect(wrapper.findAll('[data-testid^="plate-vec-"]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-testid^="plate-vec-"]')).toHaveLength(1);
     expect(wrapper.get('[data-testid="plate-vec-0"]').classes()).toContain('pr-topo__pct');
     // Cube / Scalar(AIC) / SIMT / FixP have no producer field (`NA`), so they carry no badge at
-    // all — 4 drawn, not 11.
-    expect(wrapper.findAll('[data-testid^="plate-"]')).toHaveLength(4);
+    // all — 2 drawn (scalar + vec), not 11.
+    expect(wrapper.findAll('[data-testid^="plate-"]')).toHaveLength(2);
 
     // The in-box badges join the text alternative, named once per unit.
     const id = wrapper.get('svg').attributes('aria-describedby')!;
     const summary = wrapper.get(`[id="${id}"]`);
-    expect(summary.text()).toContain('Scalar (AIV0, AIV1): 57.90%');
-    expect(summary.text()).toContain('Vec (AIV0, AIV1): 56.06%');
-    expect(summary.text().match(/Scalar \(AIV0, AIV1\)/g)).toHaveLength(1);
+    expect(summary.text()).toContain('Scalar: 57.90%');
+    expect(summary.text()).toContain('Vec: 56.06%');
+    expect(summary.text()).not.toContain('(AIV0, AIV1)');
   });
 
   it('PR-MEMTOP-008: right-click emits open-details', async () => {
@@ -298,9 +294,10 @@ describe('MemoryTopologyPanel', () => {
     expect(summary.classes()).toContain('pr-topo__sr');
     // Node labels from the model, so the numbers are not bare text.
     expect(summary.text()).toContain('GM → L2 Cache: 1.56 GB/s');
-    expect(summary.text()).toContain('L2 Cache → UB (AIV0, AIV1): 0.00 GB/s');
-    expect(summary.text()).toContain('UB → vec (AIV0, AIV1): 0.20 GB/s');
-    // Paired slots are named once — not the same string twice.
+    expect(summary.text()).toContain('L2 Cache → UB: 0.00 GB/s');
+    expect(summary.text()).toContain('UB → vec: 0.20 GB/s');
+    // AIV × 2 chrome: one slot per edge — not the dual AIV0/AIV1 pair wording.
+    expect(summary.text()).not.toContain('(AIV0, AIV1)');
     expect(summary.text().match(/L2 Cache → UB/g)).toHaveLength(1);
     // Only slots the diagram draws: `l0c-l1` / `l0c-l2` carry KB and have no plate.
     expect(summary.text()).not.toContain('KB');
@@ -439,7 +436,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const root = wrapper.get('[data-testid="memory-topology-panel"]');
     const viewport = wrapper.get('[data-testid="topology-viewport"]');
     const stage = viewport.get('.pr-topo__stage');
-    expect(stage.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 540');
+    expect(stage.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 423');
     const scale = () => root.attributes('style') ?? '';
     expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
@@ -491,7 +488,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
     const scale = () =>
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
-    const BOX = { w: 448, h: 540 };
+    const BOX = { w: 448, h: 423 };
     Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
     Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
     Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
@@ -500,18 +497,18 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     // Fitted: the stage is the box, so the middle is the drawing's own middle — half of it.
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
     expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
-    // 0.5 × 560 − 224 and 0.5 × 675 − 270, i.e. half of each step's own overflow.
+    // 0.5 × 560 − 224 and 0.5 × 528.75 − 211.5, i.e. half of each step's own overflow.
     expect(el.scrollLeft).toBeCloseTo(56, 6);
-    expect(el.scrollTop).toBeCloseTo(67.5, 6);
+    expect(el.scrollTop).toBeCloseTo(52.875, 6);
 
     // Panned by hand, then stepped up to 150%: the fraction under the middle is what is kept, not
-    // the offset — `(60 + 224) / 560` and `(100 + 270) / 675` of the new 672 × 810 stage.
+    // the offset — `(60 + 224) / 560` and `(100 + 211.5) / 528.75` of the new 672 × 634.5 stage.
     el.scrollLeft = 60;
     el.scrollTop = 100;
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
     expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     expect(el.scrollLeft).toBeCloseTo(116.8, 1);
-    expect(el.scrollTop).toBeCloseTo(174, 1);
+    expect(el.scrollTop).toBeCloseTo(162.3, 1);
   });
 
   it('PR-MEMTOP-018: a box with no layout is left alone rather than centred on nothing', async () => {
@@ -653,7 +650,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     // so the placement maths below is exercised rather than skipped on a zero-sized box.
     const scale = () =>
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
-    const BOX = { w: 448, h: 540 };
+    const BOX = { w: 448, h: 423 };
     Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
     Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
     Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
@@ -715,7 +712,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
     const scale = () =>
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
-    const BOX = { w: 448, h: 540 };
+    const BOX = { w: 448, h: 423 };
     Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
     Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
     Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
@@ -852,17 +849,17 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     // are much tighter than the pillars' and once shared a single (too generous) default.
     const CORRIDORS: Record<string, [number, number, number]> = {
       // slot: [left wall, slot centre, right wall]
-      'gm-l2-read': [55.75, 74.5, 94],
-      'gm-l2-write': [55.75, 75.3, 94],
-      'l2-ub': [133.75, 159.7, 188],
-      'ub-l2': [133.75, 160.4, 188],
-      'l2-l1-read': [133.75, 159.7, 188],
-      'ub-vec': [315, 338.2, 361],
-      'vec-ub': [315, 338.2, 361],
-      'l1-l0a': [217, 239.7, 262],
-      'l1-l0b': [217, 240.1, 262],
-      'l0a-cube': [282, 302.9, 322],
-      'l0b-cube': [282, 302.9, 322],
+      'gm-l2-read': [55.75, 75.0, 94],
+      'gm-l2-write': [55.75, 75.0, 94],
+      'l2-ub': [188, 218.0, 256],
+      'ub-l2': [188, 218.0, 256],
+      'l2-l1-read': [133.75, 158.5, 188],
+      'ub-vec': [315, 338.5, 361],
+      'vec-ub': [315, 338.5, 361],
+      'l1-l0a': [217, 238.1, 262],
+      'l1-l0b': [217, 238.1, 262],
+      'l0a-cube': [282, 302.8, 322],
+      'l0b-cube': [282, 302.8, 322],
       'cube-l0c': [353, 373.5, 394],
       'l0c-cube': [353, 373.5, 394],
       'l2-peak': [94, 113.8, 133.75],
@@ -878,12 +875,12 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
   it('keeps every in-box badge bound inside its own unit box', () => {
     // The sketch's nine in-box badges; only the plated three get a slot (UI-49), and each has to
     // stay inside its own box wall — these are box interiors, not the corridors between pillars.
-    // Walls measured off the export at each badge's height band: AIV0/AIV1 `Scalar` x266.5–297.5,
-    // AIV0/AIV1 `Vec` x361.5–382.5 (the narrow one), AIC `Cube` x322.5–353.5.
+    // Walls measured off the export at each badge's height band: AIV × 2 `Scalar` x256–308,
+    // AIV × 2 `Vec`/SIMD x361.5–382.5 (the narrow one), AIC `Cube` x322–354.
     const BOXES: Record<TopologyPlateNodeId, [number, number, number]> = {
-      aiv_scalar: [266.5, 282.1, 297.5],
+      aiv_scalar: [256, 282.0, 308],
       vec: [361.5, 372.0, 382.5],
-      cube: [322.5, 338.0, 353.5],
+      cube: [322, 338.0, 354],
     };
     expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());
     expect(Object.keys(PLATE_SLOTS).sort()).toEqual([...TOPOLOGY_PLATE_NODE_IDS].sort());

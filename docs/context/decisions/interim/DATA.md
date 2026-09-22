@@ -185,7 +185,7 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-48](../../questions/DATA.md)
-**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **interim VM carrier** for plated Asc chrome ([arch-diagram](../../../views/arch-diagram.md)). Map plated edges (GB/s labels `{n} GB/s`) and L2 plate (SSOT: [arch-diagram § parameter-slot-map](../../../views/arch-diagram.md#parameter-slot-map)):
+**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **interim VM carrier** for plated Asc chrome (**448×423** AIC + AIV × 2; [arch-diagram](../../../views/arch-diagram.md)). Map plated edges (GB/s labels `{n} GB/s`) and L2 plate (SSOT: [arch-diagram § parameter-slot-map](../../../views/arch-diagram.md#parameter-slot-map)):
 
 | Slot / plate | Parameter |
 |--------------|-----------|

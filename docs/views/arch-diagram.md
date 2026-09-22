@@ -13,7 +13,7 @@
 
 Biprof **Architecture Diagram** (§11.2.3.1): path/unit bandwidth and related metrics from `ArchDiagramMetrics`.
 
-Sept 30 uses the Asc Toolkit plated topology chrome as an **interim stand-in** — same `reportModel.memoryTopology` carrier and UI title **内存负载分析** / Memory load analysis as compute. Capability remains **`archDiagram`** (data gate; not compute `memoryDiagram`). Full biprof chrome / richer model: [DATA-49](../context/questions/DATA.md).
+Sept 30 uses the Asc Toolkit plated topology chrome (**448×423** simplified export; AIC + AIV × 2) as an **interim stand-in** — same `reportModel.memoryTopology` carrier and UI title **内存负载分析** / Memory load analysis as compute. Capability remains **`archDiagram`** (data gate; not compute `memoryDiagram`). Full biprof chrome / richer model: [DATA-49](../context/questions/DATA.md).
 
 ## View-model
 
@@ -30,7 +30,7 @@ Nothing drawable → omit diagram ([DATA-30](../context/decisions/DATA.md)).
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` (carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map below ([DATA-48a](../context/decisions/interim/DATA.md)) | `adapt-mapper` |
+| `memoryTopology` (carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map below ([DATA-48a](../context/decisions/interim/DATA.md)); gelu HTML `*_gbs` ids are **evidence** for [DATA-48](../context/questions/DATA.md) (still open — no Product stamp) | `adapt-mapper` |
 | Heatmap | `MemoryRWAccesses.csv` | Different surface (§11.2.3.2) | **out** Sept 30 |
 
 <a id="parameter-slot-map"></a>
