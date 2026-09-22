@@ -33,8 +33,7 @@ flowchart LR
 | `pipe-occupancy` | [pipe-occupancy.md](pipe-occupancy.md) | M | `adapt-mapper` | **in** | `compute-load.jpeg` |
 | `overview-charts` | [overview-charts.md](overview-charts.md) | M | `gap` | **hide** | OverviewCharts visual |
 | `roofline` | [roofline.md](roofline.md) | M2 | `gap` | **hide** | RooflinePanel visual |
-| `memory-topology` | [memory-topology.md](memory-topology.md) | M2 | `adapt-mapper` | compute **in**; emulate = interim chrome only | `report-stats-scrolled.jpeg` |
-| `arch-diagram` | [arch-diagram.md](arch-diagram.md) | M4 | `adapt-mapper` | **in** (emulate; interim plated chrome) | (same chrome until biprof SVG) |
+| `memory-topology` | [memory-topology.md](memory-topology.md) | M2 / M4 | `adapt-mapper` | compute **in** (`memoryDiagram`); emulate Architecture Diagram **in** on same chrome (`archDiagram`) | `report-stats-scrolled.jpeg` |
 | `performance-hints` | [performance-hints.md](performance-hints.md) | M4 | `adapt-mapper` | **planned** | `v930-sim` 性能提示 report panel |
 
 ### Stubs (second pass)

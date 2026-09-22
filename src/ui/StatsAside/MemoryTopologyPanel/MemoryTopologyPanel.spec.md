@@ -8,7 +8,7 @@ Official product memory-path topology chrome with **data-driven link values** (c
 
 ## Inputs
 
-**Data SSOT:** [docs/views/memory-topology.md](../../../../docs/views/memory-topology.md) · field tables [VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md).
+**Data SSOT:** [docs/views/memory-topology.md](../../../../docs/views/memory-topology.md).
 
 **Architecture:** one chrome (`memory-topology.svg`) + one `MemoryTopologyModel` carrier + this panel. Compute and emulate share them; only the **adapters** differ (`buildMemoryTopology*` vs `topologyFromArchDiagramMetrics`). No mode-specific chrome or second topology VM.
 

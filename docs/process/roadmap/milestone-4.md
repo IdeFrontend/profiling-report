@@ -12,7 +12,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 |-------------|------------------|--------------|
 | Report statistics（报告统计） cards + meta | [report-summary](../../views/report-summary.md) | **Out** ([DATA-47](../../context/decisions/DATA.md)) |
 | Compute load analysis（计算负载分析） | [pipe-occupancy](../../views/pipe-occupancy.md) + PIPE 详情 | `PipesUtilization` / `PipeUtilizationHist` |
-| Architecture Diagram data → **Memory load analysis** UI（架构图 metrics / biprof 11.2.3.1） | [arch-diagram](../../views/arch-diagram.md) (chrome: [memory-topology](../../views/memory-topology.md)) | `ArchDiagramMetrics` → plated slots via `memoryTopology` VM ([DATA-48a](../../context/decisions/interim/DATA.md)); capability `archDiagram`; **UI title** = 内存负载分析 (same as compute) |
+| Architecture Diagram data → **Memory load analysis** UI（架构图 metrics / biprof 11.2.3.1） | [memory-topology](../../views/memory-topology.md) | `ArchDiagramMetrics` → plated slots via `memoryTopology` VM ([DATA-48a](../../context/decisions/interim/DATA.md)); capability `archDiagram`; **UI title** = 内存负载分析 (same as compute) |
 | Tuning report prompt | StatsAside CANNBot | compute / memory scopes when sections mount |
 | Performance hints（性能提示） | [performance-hints](../../views/performance-hints.md) | **Planned.** Bottom dock table: hint message, source line, instruction address. CSVs: `HintMessages`, `HintTypes`, `InstructionHints`, `KernelHints`, `SourceLineHints` |
 | Timeline (supporting) | [timeline](../../views/timeline.md) | `PipeTrace.json` (µs) when present |
