@@ -1082,11 +1082,9 @@ function emitMarqueePreview(events: SwimEvent[] | null): void {
   emit('multi-select-preview', events);
 }
 
+/** Coverage compare in layout (or Shift-union insert) order — no Set alloc on the rAF path. */
 function sameIdSet(a: string[] | null, b: string[]): boolean {
-  if (!a || a.length !== b.length) return false;
-  if (a.length === 0) return true;
-  const ids = new Set(a);
-  return b.every((id) => ids.has(id));
+  return !!a && a.length === b.length && a.every((id, i) => id === b[i]);
 }
 
 function pinClientOrigin(): void {
@@ -2062,19 +2060,19 @@ function onPointerDown(e: PointerEvent): void {
 }
 
 function onPointerMove(e: PointerEvent): void {
+  lastPointerClientY = e.clientY;
+  // Live marquee: window drag owns coords. Skip getBoundingClientRect — preview
+  // emits dirty the dock/cursor and would force a sync reflow mid-drag.
+  if (marqueePressActive && !marqueePending) {
+    emit('hover', null, e.clientX, e.clientY);
+    return;
+  }
   const target = activeCanvas();
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   const w = Math.max(1, rect.width);
-  lastPointerClientY = e.clientY;
-
-  // Marquee owns the press: no magnet, no cursor move, no tooltip (spec: suppress hover).
-  if (marqueePressActive && !marqueePending) {
-    emit('hover', null, e.clientX, e.clientY);
-    return;
-  }
 
   const mag = magnetizeLocal(x, y);
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });

@@ -27,11 +27,12 @@ The dock shows a header with the selection count and the "Slices" tab label, a s
 5. **PR-MSEL-005** — Clicking a name emits `select-single` with the full event.
 6. **PR-MSEL-006** — Header × emits `close`.
 7. **PR-MSEL-007** — The centred expander toggles the dock between its two sketch heights and carries `aria-expanded`; no resize handle exists.
-8. **PR-MSEL-008** — The table body scrolls, not the dock; large selections keep 1000 ranked rows with the visible count, and the DOM window is the viewport.
+8. **PR-MSEL-008** — The table body scrolls, not the dock; large selections keep 1000 ranked rows with the visible count, and the DOM window is the viewport. Ranked-row cells are a fixed 29px (`box-sizing: border-box`) so `scrollTop / ROW_HEIGHT_PX` matches layout.
 9. **PR-MSEL-009** — Live preview keeps the header count and omits the table.
 
 ## Changelog
 
+- **2026-09-22** — Ranked-row cells are a fixed 29px so virtualizer math matches layout (`PR-MSEL-008`).
 - **2026-09-18** — Committed table virtualizes the viewport; live preview is header-only (`PR-MSEL-008` / `PR-MSEL-009`).
 - **2026-09-12** — May also mount from a live marquee preview (≥2 events) before commit.
 - **2026-09-12** — Dock mounts only for commits of two or more events; a one-event marquee is demoted to DetailPanel by the root.

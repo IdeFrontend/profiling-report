@@ -134,13 +134,13 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 98. **PR-CANVAS-098** — Hover-only `setSelection` does not rebuild WebGL emphasis buckets while a selection is active. The overlay paints the hover fill and matching contrast label over the muted interval (and ClearType label), so fill and label stay matched.
 99. **PR-CANVAS-099** — A multi-selected event keeps the `selected` fill lift (same `L+0.33`, `C×1.05` as the single selection), not just exemption from muting; it must not fall back to its resting colour and only brighten on hover.
 100. **PR-CANVAS-100** — A pending marquee press (click under the 4px gate) is visually a no-op for hover chrome: it does not emit `lane-hover` null and does not clear the hover-gap Δt overlay on `pointerdown` or under-threshold moves — gutter/header highlight and the gap arrow stay as they were under the pointer for the whole click (no disappear/reappear flicker).
-101. **PR-CANVAS-101** — Once a marquee is live (>4px), a coverage change emits `multi-select-preview` with the same event list commit will use (plain rect, or Shift union). Unchanged coverage does not re-emit. Escape, end-without-rect, and post-commit emit `null`. Commit emits `multi-select` before the clearing `null` preview.
+101. **PR-CANVAS-101** — Once a marquee is live (>4px), a coverage change emits `multi-select-preview` with the same event list commit will use (plain rect, or Shift union). Unchanged coverage does not re-emit (ordered id compare, no Set). Escape, end-without-rect, and post-commit emit `null`. Commit emits `multi-select` before the clearing `null` preview.
 102. **PR-CANVAS-102** — On marquee commit, `marqueePreviewIds` holds the committed id list through the sync `multi-select` emit and the immediate `sync()` so dim does not flash back to stale `props.multiSelectedIds`; the hold clears on the following `nextTick` once props have flushed.
 103. **PR-CANVAS-103** — Applying `collapsedIds` before canvas attach still `setModel`s on the live backend so event blocks paint.
 104. **PR-CANVAS-104** — Vertical wheel eases `scrollY` toward the stacked target (not a single jump); `prefers-reduced-motion: reduce` snaps. In-flight frames still draw resting event labels, selected/hovered lifts, and collapsed-folder summary bars (same paint as a settled frame). WebGL dependency curves stay on; Canvas 2D per-link strokes skip during the ease. The settle paint keeps the eased Y (does not snap to a stale parent `scrollY`). Gutter-forwarded wheel uses this same path.
 105. **PR-CANVAS-105** — Pointermove does not repaint the swim framebuffer while the hovered lane is unchanged; a hovered-event-only update paints the overlay (not a full GL pass). Lane-row tint paints only when the hovered lane changes.
 106. **PR-CANVAS-106** — While a collapse tween shrinks content, paint `scrollY` is clamped to the visual content height so a bottom-scrolled view does not send event rows up while the gutter stays bottom-pinned.
-107. **PR-CANVAS-107** — Live marquee moves after the 4px gate coalesce to the latest sample on animation frame (pointerup flushes); canvas client origin is cached for the gesture so dock layout cannot force `getBoundingClientRect` mid-drag.
+107. **PR-CANVAS-107** — Live marquee moves after the 4px gate coalesce to the latest sample on animation frame (pointerup flushes); canvas client origin is cached for the gesture so dock layout cannot force `getBoundingClientRect` mid-drag. After the gate, the canvas `pointermove` handler does not call `getBoundingClientRect`.
 108. **PR-CANVAS-108** — Window-only `setView` paint skips `setMultiSelection` when the id array identity is unchanged.
 
 ## Edge Cases
@@ -174,6 +174,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-22** — Live marquee canvas `pointermove` skips `getBoundingClientRect` after the 4px gate (`PR-CANVAS-107`); unchanged coverage is an ordered id compare (`PR-CANVAS-101`).
 - **2026-09-22** — Window-only paint skips `setMultiSelection` when the id array identity is unchanged (`PR-CANVAS-108`).
 - **2026-09-18** — Live marquee coalesces post-gate moves to rAF and caches the canvas client origin (`PR-CANVAS-107`); unchanged coverage does not re-emit preview (`PR-CANVAS-101`).
 - **2026-09-18** — In-flight lane-scroll frames keep resting event labels (`PR-CANVAS-104` / `PR-RENDER-056`); WebGL curves stay on, Canvas 2D strokes skip (`PR-RENDER-056`).

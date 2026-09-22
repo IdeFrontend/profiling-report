@@ -2406,6 +2406,10 @@ describe('SwimlaneCanvas', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterFirst);
 
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/a\.every\(\(id, i\) => id === b\[i\]\)/);
+    expect(src).not.toMatch(/new Set\(a\)/);
+
     window.dispatchEvent(
       new PointerEvent('pointerup', { clientX: rect.x + rect.w + 24, clientY: rect.y + rect.h + 6 }),
     );
@@ -2444,6 +2448,13 @@ describe('SwimlaneCanvas', () => {
       }),
     );
     expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterGate);
+    expect(gcr.mock.calls.length).toBe(gcrAfterGate);
+
+    await canvas.trigger('pointermove', {
+      clientX: rect.x + rect.w + 20,
+      clientY: rect.y + rect.h + 4,
+      buttons: 1,
+    });
     expect(gcr.mock.calls.length).toBe(gcrAfterGate);
 
     await flushMarqueeRaf();

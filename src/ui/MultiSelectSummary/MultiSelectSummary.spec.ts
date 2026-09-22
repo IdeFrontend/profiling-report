@@ -182,7 +182,7 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.find('.pr-multi-select__table').exists()).toBe(true);
   });
 
-  it('PR-MSEL-008: caps ranked rows but keeps the full selection count', () => {
+  it('PR-MSEL-008: caps ranked rows but keeps the full selection count', async () => {
     const largeSelection = Array.from({ length: 1001 }, (_, index) =>
       ev(`event-${index}`, `event-${index}`, index, index + 1),
     );
@@ -193,6 +193,9 @@ describe('MultiSelectSummary', () => {
     const domRows = wrapper.findAll('[data-testid^="multi-select-row-"]');
     expect(domRows.length).toBeGreaterThan(0);
     expect(domRows.length).toBeLessThan(100);
+    const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
+    expect(src).toMatch(/height:\s*var\(--pr-msel-row-h\)/);
+    expect(src).toMatch(/box-sizing:\s*border-box/);
   }, 15_000);
 
   it('PR-MSEL-009: live preview keeps the count and skips the table', () => {

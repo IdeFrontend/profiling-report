@@ -314,7 +314,11 @@ function toggleExpanded(): void {
       class="pr-multi-select__body"
       @scroll.passive="onBodyScroll"
     >
-      <table v-if="!livePreview" class="pr-multi-select__table">
+      <table
+        v-if="!livePreview"
+        class="pr-multi-select__table"
+        :style="{ '--pr-msel-row-h': `${ROW_HEIGHT_PX}px` }"
+      >
         <thead>
           <tr>
             <th scope="col" :aria-sort="sortState('name')">
@@ -536,10 +540,14 @@ function toggleExpanded(): void {
   border-bottom: 1px solid #3a3a3a;
 }
 
-.pr-multi-select__table td {
+.pr-multi-select__table td:not(.pr-multi-select__pad) {
+  box-sizing: border-box;
+  height: var(--pr-msel-row-h);
   padding: 4px 8px 4px 0;
   border-bottom: 1px solid #303030;
   min-width: 0;
+  line-height: 20px;
+  overflow: hidden;
 }
 
 .pr-multi-select__sort {
