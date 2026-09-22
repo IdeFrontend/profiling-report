@@ -20,6 +20,6 @@ crops:
 asset:
   memory-topology.svg:
     source: v930/report-stats-scrolled
-    region: "Official product chrome for the panel (448×423 units, simplified AIC + AIV × 2): static node boxes, arrows and empty value plates; labels overlaid at plate centres"
+    region: "Official product chrome for the panel (448×423 units, simplified AIC + AIV × 2): static node boxes, arrows and empty value plates (sample GB/s and util % glyphs stripped in-repo); labels overlaid at plate centres"
     used_by: src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue
 note: "v930/memory-load-detail is the CSV field-list after 详情 — see CsvFieldListPanel"

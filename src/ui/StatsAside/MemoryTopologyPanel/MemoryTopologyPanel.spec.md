@@ -113,6 +113,7 @@ A `100.00%` badge (31.1 units) therefore shrinks in all three boxes, the `Vec` o
 ## Acceptance Criteria
 
 1. **PR-MEMTOP-001** — Renders the chrome asset `memory-topology.svg` at 448×423 with the L2 node anchor.
+1b. **PR-MEMTOP-001b** — The chrome SVG has no baked sample GB/s glyphs (`rgb(249,183,102)` path fills) and no `<text>` nodes; values come only from panel overlays.
 2. **PR-MEMTOP-002** — Renders data-driven edge labels (GB/s) from `model.edges`; Vec↔UB on the AIV × 2 row; AIC L1/L0/Cube labels when present.
 2b. **PR-MEMTOP-002b** — Every drawn value carries a unique `data-testid` (`edge-{edge-id}-{slot}`), so a `getByTestId`-style query resolves to one element even for the AIV0/AIV1 pairs.
 3. **PR-MEMTOP-003** — Omits the label for an edge with no `label` (slot drawn, blank).

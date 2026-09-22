@@ -148,9 +148,10 @@ export function nextZoom(current: number, dir: 1 | -1): number {
 import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
-/** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
- *  Its static labels stay outlined paths; the export's sample values were stripped in-repo.
- *  `?no-inline` keeps the 200 kB asset out of the JS bundle — lib mode inlines assets whatever
+/** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
+ *  448×423). Static labels stay outlined paths; sample GB/s (`rgb(249,183,102)`) and in-plate /
+ *  under-word util `%` glyphs were stripped in-repo so panel overlays are not duplicated.
+ *  `?no-inline` keeps the asset out of the JS bundle — lib mode inlines assets whatever
  *  `assetsInlineLimit` says, and only this suffix is checked first — so it ships as
  *  `dist/memory-topology.svg`. The built reference is the web-root path `/memory-topology.svg`
  *  (hosts must serve that file at the site root, or copy it from the package export

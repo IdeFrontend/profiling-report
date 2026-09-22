@@ -81,6 +81,18 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 423');
   });
 
+  it('PR-MEMTOP-001b: chrome has no baked sample GB/s glyphs (overlay-only values)', async () => {
+    // The simplified export ships outlined sample values in amber (`rgb(249,183,102)`). Those must
+    // be stripped in-repo — otherwise panel overlays double-print on top of them (gelu.npu-rep).
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, join } = await import('node:path');
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const svg = readFileSync(join(dir, 'memory-topology.svg'), 'utf8');
+    expect(svg).not.toContain('rgb(249,183,102)');
+    expect(svg.toLowerCase()).not.toContain('<text');
+  });
+
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');
