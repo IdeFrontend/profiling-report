@@ -43,8 +43,8 @@ export const SLOT_MAX_W: Record<string, number> = {
  * UI-49 in-box `%` badge slots — centres under each unit's own word on the 448×423 chrome.
  * Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a newly plated unit without coordinates
  * fails typecheck. The simplified chrome draws one **AIV × 2** row (not separate AIV0/AIV1
- * stacks): `Scalar` (282.0, 315.0), `Vec`/SIMD (372.0, 362.0), AIC `Cube` (338.1, 95.3) —
- * the export's under-word util sample centre (CUBE word ≈ y84.6; box y54–123).
+ * stacks): `Scalar` (282.2, 321.0), `Vec`/SIMD (372.1, 367.8), AIC `Cube` (338.1, 95.3) —
+ * each is the export's under-word util sample centre (not the box centre / not the unit word).
  * AIV0/AIV1 still share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); one chrome slot is
  * enough for the combined row.
  *
@@ -53,8 +53,8 @@ export const SLOT_MAX_W: Record<string, number> = {
  * the `Vec` position the `Vec` rows fill, so it is painted rather than blank.
  */
 export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
-  aiv_scalar: [[282.0, 315.0]],
-  vec: [[372.0, 362.0]],
+  aiv_scalar: [[282.2, 321.0]],
+  vec: [[372.1, 367.8]],
   cube: [[338.1, 95.3]],
 };
 
@@ -596,8 +596,8 @@ onBeforeUnmount(stopZoomAnim);
                  element; the testid still tells the two sources apart. -->
             <text
               v-if="peakText"
-              x="113.8"
-              y="211.5"
+              x="114.1"
+              y="218.3"
               text-anchor="middle"
               dominant-baseline="middle"
               class="pr-topo__pct"

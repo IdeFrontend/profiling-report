@@ -11,7 +11,7 @@ import MemoryTopologyPanel, {
   fitFontSize,
 } from './MemoryTopologyPanel.vue';
 import { TOPOLOGY_PLATE_NODE_IDS, hasDrawableTopology } from '../../../adapters/memoryTopology';
-import type { TopologyPlateNodeId } from '../../../adapters/memoryTopology';
+import type { TopologyPlateNodeId, TopologySlotEdgeId } from '../../../adapters/memoryTopology';
 
 const model = {
   nodes: [
@@ -92,6 +92,36 @@ describe('MemoryTopologyPanel', () => {
     const svg = readFileSync(join(dir, 'memory-topology.svg'), 'utf8');
     expect(svg).not.toContain('rgb(249,183,102)');
     expect(svg.toLowerCase()).not.toContain('<text');
+
+    // Under-word util `%` samples were white path fills (same strip pass). Their centres must stay
+    // empty so overlays own the plate — not a leftover white `0.00%` under Scalar/Vec/Cube/L2.
+    const STRIPPED_UTIL: ReadonlyArray<readonly [string, number, number]> = [
+      ['L2 peak', 114.1, 218.3],
+      ['Cube util', 338.1, 95.3],
+      ['AIV Scalar util', 282.2, 321.0],
+      ['Vec util', 372.1, 367.8],
+    ];
+    const whiteCentres: Array<{ cx: number; cy: number }> = [];
+    for (const m of svg.matchAll(/<path\b([\s\S]*?)\/>/g)) {
+      const attrs = m[1] ?? '';
+      if (!attrs.includes('fill="rgb(255,255,255)"')) continue;
+      const d = /\bd="([^"]*)"/.exec(attrs)?.[1];
+      if (!d) continue;
+      const nums = [...d.matchAll(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g)].map((x) => Number(x[0]));
+      const xs = nums.filter((_, i) => i % 2 === 0);
+      const ys = nums.filter((_, i) => i % 2 === 1);
+      if (xs.length === 0 || ys.length === 0) continue;
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      if (maxY - minY > 10) continue;
+      whiteCentres.push({ cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
+    }
+    for (const [name, x, y] of STRIPPED_UTIL) {
+      const hit = whiteCentres.some((c) => Math.hypot(c.cx - x, c.cy - y) < 4);
+      expect(hit, `leftover white util glyph near ${name} (${x}, ${y})`).toBe(false);
+    }
   });
 
   it('PR-MEMTOP-001c: chrome keeps static box labels after the sample strip', async () => {
@@ -151,23 +181,52 @@ describe('MemoryTopologyPanel', () => {
     }
   });
 
-  it('PR-MEMTOP-001d: SLOTS never sit on orange MTE/FixPipe chip centres', () => {
+  it('PR-MEMTOP-001d: SLOTS never sit on orange MTE/FixPipe chip centres', async () => {
     // Remasuring onto white-under-orange chip rects put GB/s overlays on MTE labels.
-    const CHIPS: ReadonlyArray<readonly [number, number]> = [
-      [238.1, 58.7],
-      [238.1, 83.7],
-      [158.5, 97.7],
-      [238.1, 111.7],
-      [238.1, 136.7],
-      [404.3, 136.7],
-      [342.0, 271.7],
-      [218.0, 320.7],
-      [218.0, 335.7],
-      [218.0, 377.7],
+    // Chip centres come from the chrome's `#f69e39` / `rgb(246,158,57)` rects — not a hardcoded list.
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, join } = await import('node:path');
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const svg = readFileSync(join(dir, 'memory-topology.svg'), 'utf8');
+    const chips: Array<{ cx: number; cy: number }> = [];
+    for (const m of svg.matchAll(/<rect\b([\s\S]*?)\/>/g)) {
+      const attrs = m[1] ?? '';
+      if (!/rgb\(246,\s*158,\s*57\)|#f69e39/i.test(attrs)) continue;
+      const x = Number(/\bx="([^"]+)"/.exec(attrs)?.[1]);
+      const y = Number(/\by="([^"]+)"/.exec(attrs)?.[1]);
+      const w = Number(/\bwidth="([^"]+)"/.exec(attrs)?.[1]);
+      const h = Number(/\bheight="([^"]+)"/.exec(attrs)?.[1]);
+      if (![x, y, w, h].every(Number.isFinite)) continue;
+      chips.push({ cx: x + w / 2, cy: y + h / 2 });
+    }
+    expect(chips.length).toBeGreaterThanOrEqual(10);
+
+    // Amber corridor sample centres (remasure targets) — slots must stay near these, not chips.
+    const AMBER: ReadonlyArray<readonly [TopologySlotEdgeId, number, number]> = [
+      ['gm-l2-read', 75.1, 200.3],
+      ['gm-l2-write', 75.2, 219.3],
+      ['l2-ub', 159.7, 315.2],
+      ['ub-l2', 159.6, 331.2],
+      ['l2-l1-read', 160.1, 87.9],
+      ['ub-vec', 338.7, 351.8],
+      ['vec-ub', 338.6, 363.8],
+      ['l1-l0a', 239.1, 49.8],
+      ['l1-l0b', 239.1, 74.8],
+      ['l0a-cube', 300.9, 54.8],
+      ['l0b-cube', 300.9, 79.8],
+      ['cube-l0c', 373.6, 83.8],
     ];
+    for (const [edge, ax, ay] of AMBER) {
+      const slots = SLOTS[edge];
+      expect(slots.length, edge).toBe(1);
+      const [[sx, sy]] = slots;
+      expect(Math.hypot(sx - ax, sy - ay), `${edge} vs amber`).toBeLessThan(2.5);
+    }
+
     for (const [edge, slots] of Object.entries(SLOTS)) {
       for (const [sx, sy] of slots) {
-        for (const [cx, cy] of CHIPS) {
+        for (const { cx, cy } of chips) {
           const onChip = Math.hypot(sx - cx, sy - cy) < 6;
           expect(onChip, `${edge} slot (${sx}, ${sy}) on chip (${cx}, ${cy})`).toBe(false);
         }
@@ -224,6 +283,55 @@ describe('MemoryTopologyPanel', () => {
     expect(cubeGb).toHaveLength(1);
     expect(wrapper.get('[data-testid="plate-cube-0"]').text()).toBe('0.00%');
     expect(Number(wrapper.get('[data-testid="plate-cube-0"]').attributes('y'))).toBeCloseTo(95.3, 5);
+  });
+
+  it('PR-MEMTOP-016: unit badges sit on stripped util centres, clear of the unit word', () => {
+    // Unit-word white centres (chrome paths) vs under-word util sample centres used for overlays.
+    const WORDS: Record<TopologyPlateNodeId, readonly [number, number]> = {
+      aiv_scalar: [282.0, 309.07],
+      vec: [371.86, 359.07],
+      cube: [338.0, 84.57],
+    };
+    const UTIL: Record<TopologyPlateNodeId, readonly [number, number]> = {
+      aiv_scalar: [282.2, 321.0],
+      vec: [372.1, 367.8],
+      cube: [338.1, 95.3],
+    };
+    expect(PLATE_SLOTS.aiv_scalar).toEqual([UTIL.aiv_scalar]);
+    expect(PLATE_SLOTS.vec).toEqual([UTIL.vec]);
+    expect(PLATE_SLOTS.cube).toEqual([UTIL.cube]);
+    for (const node of TOPOLOGY_PLATE_NODE_IDS) {
+      const [[px, py]] = PLATE_SLOTS[node];
+      const [wx, wy] = WORDS[node];
+      // Half of BASE_FONT_PX (6.3) mid-baseline ≈ 3.15; require ≥6u so badge body clears the word.
+      expect(Math.hypot(px - wx, py - wy), `${node} plate vs word`).toBeGreaterThanOrEqual(6);
+    }
+
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          nodes: [
+            ...model.nodes.map((n) =>
+              n.id === 'l2' ? { ...n, peakPct: 12.5 } : n,
+            ),
+            { id: 'vec', label: 'Vec' },
+            { id: 'aiv_scalar', label: 'Scalar' },
+          ],
+          plates: [
+            { node: 'aiv_scalar', label: '57.90%' },
+            { node: 'vec', label: '2.18%' },
+            { node: 'cube', label: '0.00%' },
+          ],
+        },
+      },
+    });
+    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(321.0, 5);
+    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(367.8, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(218.3, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('x'))).toBeCloseTo(114.1, 5);
+    // L2 peak vs L2 word (114.2, 204.5) — must clear half-cap (~3.15); sample band is ~13.8u under.
+    expect(Math.hypot(114.1 - 114.2, 218.3 - 204.5)).toBeGreaterThanOrEqual(12);
   });
 
   it('PR-MEMTOP-002b: every drawn value has a unique testid', () => {
@@ -994,7 +1102,7 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       'l0a-cube': [282, 300.9, 322],
       'l0b-cube': [282, 300.9, 322],
       'cube-l0c': [353, 373.6, 394],
-      'l2-peak': [94, 113.8, 133.75],
+      'l2-peak': [94, 114.1, 133.75],
     };
     expect(Object.keys(SLOT_MAX_W).sort()).toEqual(Object.keys(CORRIDORS).sort());
     for (const [slot, [left, centre, right]] of Object.entries(CORRIDORS)) {
@@ -1010,8 +1118,8 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     // Walls measured off the export at each badge's height band: AIV × 2 `Scalar` x256–308,
     // AIV × 2 `Vec`/SIMD x361.5–382.5 (the narrow one), AIC `Cube` x322–354.
     const BOXES: Record<TopologyPlateNodeId, [number, number, number]> = {
-      aiv_scalar: [256, 282.0, 308],
-      vec: [361.5, 372.0, 382.5],
+      aiv_scalar: [256, 282.2, 308],
+      vec: [361.5, 372.1, 382.5],
       cube: [322, 338.1, 354],
     };
     expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());

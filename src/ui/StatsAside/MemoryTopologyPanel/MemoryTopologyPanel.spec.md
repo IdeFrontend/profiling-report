@@ -74,9 +74,9 @@ Pillars: GM x16–56, L2 x94–134; row stack x188–432 — AIC y16–200, AIV 
 | `l0b-cube` | (300.9, 79.8) | L0B → Cube |
 | `cube-l0c` | (373.6, 83.8) | Cube → L0C — **sole** overlay on the export's one Cube↔L0C corridor plate |
 | `l0c-cube` | _(no slot)_ | L0C → Cube — adapter id stays plated for drawable/详情; chrome has no second plate (PR-MEMTOP-002c) |
-| L2 plate | (113.8, 211.5) | in-box plate on the L2 pillar — `peakPct`, else `l2-hit` |
-| `aiv_scalar` plate | (282.0, 315.0) | in-box `Scalar` badge, AIV × 2 (one field) |
-| `vec` plate | (372.0, 362.0) | in-box `Vec`/SIMD badge, AIV × 2 (one field) |
+| L2 plate | (114.1, 218.3) | in-box plate on the L2 pillar — `peakPct`, else `l2-hit` |
+| `aiv_scalar` plate | (282.2, 321.0) | in-box `Scalar` badge, AIV × 2 (under-word util sample) |
+| `vec` plate | (372.1, 367.8) | in-box `Vec`/SIMD badge, AIV × 2 (under-word util sample) |
 | `cube` plate | (338.1, 95.3) | in-box `Cube` badge under CUBE word (export util sample centre) |
 
 `PLATE_SLOTS` is keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS` (`Record<TopologyPlateNodeId, …>`) — same drift-guard as `SLOTS`: a plated unit with no coordinates fails typecheck. The badge sits **below its unit's own word** inside the box (the sketch's layout), not on the box centre.
@@ -99,7 +99,7 @@ The export's slots were sized for its own 27.6-unit placeholders. Real values ar
 | `cube-l0c` | x≈353 … x≈394 | 37.5 |
 | L2 plate (`peakPct` / `l2-hit`) | x≈94 … x≈133.75 (the pillar) | 36 |
 
-**Every** slot carries its own bound (`SLOT_MAX_W`): the row stack's inner corridors are far tighter than the pillars' (L0B↔Cube is 34.7 against L2↔row's 49.9), so no single bound serves them all. A slot the table forgets falls back to the **tightest** bound (34.7) — a generous fallback would silently overflow a narrow corridor. A value whose natural width exceeds its bound is drawn at `bound / natural × 6.3px` — the same strokes, scaled down — so e.g. `504.00 GB/s` (43.2 units) lands at 5.17px inside the GM↔L2 link and at 5.06px inside L0B↔Cube. Widths come from the rendered label's own metrics (`getComputedTextLength`), so they follow the platform font; where metrics are unavailable — a non-browser DOM, or a mount inside a hidden container, where text has no layout and measures 0 — the panel keeps the base size.
+**Every** slot carries its own bound (`SLOT_MAX_W`): the row stack's inner corridors are far tighter than the pillars' (L0B↔Cube is 34.7 against L2↔row's 49.0), so no single bound serves them all. A slot the table forgets falls back to the **tightest** bound (34.7) — a generous fallback would silently overflow a narrow corridor. A value whose natural width exceeds its bound is drawn at `bound / natural × 6.3px` — the same strokes, scaled down — so e.g. `504.00 GB/s` (43.2 units) lands at 5.17px inside the GM↔L2 link and at 5.06px inside L0B↔Cube. Widths come from the rendered label's own metrics (`getComputedTextLength`), so they follow the platform font; where metrics are unavailable — a non-browser DOM, or a mount inside a hidden container, where text has no layout and measures 0 — the panel keeps the base size.
 
 **In-box badges** measure against their **box**, not a corridor (`PLATE_MAX_W`, passed as the bound table to the same `fitFontSize`): the `Scalar` and `Cube` boxes are ~30 units wide, the `Vec` box only ~22 — the sketch's own `2.18%` badge already fills 17 of them — so the bound is the box's inner width minus a small margin:
 
@@ -185,6 +185,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak, resolved), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, DATA-28 (unit ratios), DATA-40 (GM↔L2 plates = aic + aiv summed, resolved), DATA-41 (AIC-row link values, partial), DATA-42 (sketch stack with no export plate, resolved), DATA-43 (DATA-39 row 24 = the `l2-l1-read` plate's field, row 32 = the summed Main Write; resolved), DATA-44 (DATA-39 rows 21/22 Cube↔L0C direction, open), UI-35, UI-38, UI-48, UI-49 (in-box unit badges, resolved), [view-models](../../../../specs/core/view-models.spec.md), [memory-topology](../../../../docs/views/memory-topology.md#edge-field-source).
 
 ## Changelog
+- **2026-09-22** — Review follow-up: `PLATE_SLOTS.vec` / `aiv_scalar` and L2 peak remasured onto stripped under-word util centres (372.1, 367.8) / (282.2, 321.0) / (114.1, 218.3) so badges clear unit words; PR-MEMTOP-001b/001d hardened; `check-spec-coverage` gates lettered ACs (`001c`/`008b`).
 - **2026-09-22** — PR-MEMTOP-002c: Cube↔L0C shares one chrome plate — only `cube-l0c` overlays; `l0c-cube` has empty `SLOTS` (fixes double `0.00 GB/s`). `PLATE_SLOTS.cube` remasured to under-CUBE util sample (338.1, 95.3).
 - **2026-09-22** — PR-MEMTOP-001d: orange MTE/FixPipe chips keep `MTE_*` / `FixPipe` labels; `SLOTS` remasured to amber sample centres (not chip centres) so overlays no longer paint GB/s on top of MTE ink.
 - **2026-09-22** — PR-MEMTOP-001c: sample strip must keep static DCache/ICache/SS/L0*/FixPipe labels (over-strip had emptied those gray/blue boxes).
