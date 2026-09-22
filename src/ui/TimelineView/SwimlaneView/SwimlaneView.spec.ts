@@ -393,6 +393,43 @@ describe('SwimlaneView', () => {
     expect(canvas.props('multiSelectedIds')).toBe(first);
   });
 
+  it('PR-SWIMVIEW-035: body canvas view is the time window only', async () => {
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    view.multiSelectedIds = ['e1', 'e2'];
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [],
+        collapsedIds: [],
+        model: { minTime: 0, maxTime: 1000, processes: [] },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        multiSelectedIds: view.multiSelectedIds,
+        searchQuery: '',
+      },
+    });
+    const canvas = wrapper.findComponent(SwimlaneCanvas);
+    expect(canvas.props('view')).toEqual({
+      startTime: view.startTime,
+      endTime: view.endTime,
+      scrollY: view.scrollY,
+    });
+    expect(canvas.props('view')).not.toHaveProperty('multiSelectedIds');
+    const zoomed = { ...view, startTime: 10, endTime: 900 };
+    await wrapper.setProps({ view: zoomed });
+    expect(canvas.props('view')).toEqual({
+      startTime: 10,
+      endTime: 900,
+      scrollY: 0,
+    });
+    expect(canvas.props('view')).not.toHaveProperty('multiSelectedIds');
+    wrapper.unmount();
+  });
+
   it('PR-SWIMVIEW-031: gutter wheel is forwarded to the canvas handleWheel', async () => {
     const view = createViewState({
       minTime: 0,

@@ -206,6 +206,8 @@ export class SwimlaneOverlayPainter {
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
+  /** Last `setMultiSelection` array; same identity skips the membership walk. */
+  private multiIdsList: string[] | null = null;
   private searchQuery = '';
   /** When false, skip selection gray-muting (tests / overlays that opt out). */
   private selectionMuted = true;
@@ -302,6 +304,8 @@ export class SwimlaneOverlayPainter {
   }
 
   setMultiSelection(ids: string[]): void {
+    if (ids === this.multiIdsList) return;
+    this.multiIdsList = ids;
     if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
     this.multiIds = new Set(ids);
   }
@@ -503,6 +507,7 @@ export class SwimlaneOverlayPainter {
     this.paintSummaries = [];
     this.neighborIds = new Set();
     this.multiIds = new Set();
+    this.multiIdsList = null;
   }
 }
 
@@ -522,6 +527,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private hoveredLaneId: string | null = null;
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
+  /** Last `setMultiSelection` array; same identity skips the membership walk. */
+  private multiIdsList: string[] | null = null;
   private depLinks: DependencyLink[] = [];
   private depMode: DependencyMode = 'all';
   private depDepth = DEFAULT_DEPENDENCY_DEPTH;
@@ -640,6 +647,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setMultiSelection(ids: string[]): void {
+    if (ids === this.multiIdsList) return;
+    this.multiIdsList = ids;
     if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
     this.multiIds = new Set(ids);
   }
@@ -889,6 +898,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.paintSummaries = [];
     this.neighborIds = new Set();
     this.multiIds = new Set();
+    this.multiIdsList = null;
     this.depLinks = [];
   }
 }

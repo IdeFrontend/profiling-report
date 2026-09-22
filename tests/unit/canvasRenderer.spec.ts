@@ -1325,6 +1325,27 @@ describe('PR-RENDER: lane chrome color', () => {
     );
   });
 
+  it('PR-RENDER-062: setMultiSelection returns on the same array identity', async () => {
+    const ids = ['e-long', 'e-short'];
+    for (const renderer of [
+      new CanvasSwimlaneRenderer(),
+      new SwimlaneOverlayPainter(),
+      new WebGlSwimlaneRenderer(),
+    ]) {
+      renderer.setMultiSelection(ids);
+      const every = vi.spyOn(ids, 'every');
+      renderer.setMultiSelection(ids);
+      expect(every).not.toHaveBeenCalled();
+      every.mockRestore();
+    }
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(classMethodBody(webglSrc, 'setMultiSelection')).toMatch(/ids === this\.multiIdsList/);
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc.match(/ids === this\.multiIdsList/g)?.length).toBe(2);
+  });
+
   it('PR-RENDER-061: WebGL multi without search mutes base meshes and overlays keep-bright ids', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;

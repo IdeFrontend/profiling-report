@@ -452,6 +452,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private paintDependencies = true;
   private neighborIds = new Set<string>();
   private multiIds = new Set<string>();
+  /** Last `setMultiSelection` array; same identity skips the membership walk. */
+  private multiIdsList: string[] | null = null;
   /** Rebuild GPU mute/bright split in `render()`, not on every `setMultiSelection`. */
   private emphasisSplitDirty = false;
   private depLinks: DependencyLink[] = [];
@@ -614,6 +616,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setMultiSelection(ids: string[]): void {
+    if (ids === this.multiIdsList) return;
+    this.multiIdsList = ids;
     if (ids.length === this.multiIds.size && ids.every((id) => this.multiIds.has(id))) return;
     this.multiIds = new Set(ids);
     this.emphasisSplitDirty = true;
@@ -881,6 +885,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.summaryCache.clear();
     this.neighborIds = new Set();
     this.multiIds = new Set();
+    this.multiIdsList = null;
     this.depLinks = [];
   }
 

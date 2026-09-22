@@ -253,6 +253,9 @@ let marqueePressActive = false;
 let marqueeEscaped = false;
 /** Ids the live rect covers; overrides `multiSelectedIds` so the drag previews its own commit. */
 let marqueePreviewIds: string[] | null = null;
+const EMPTY_MULTI_IDS: string[] = [];
+/** Last id array pushed to the renderer; zoom/pan reuses the same ref and must not re-walk it. */
+let lastPushedMultiIds: readonly string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
 /** True if the marquee started with Shift held — the commit unions with the existing selection. */
 let marqueeShift = false;
@@ -534,7 +537,12 @@ function applyViewState(forceModel = false): void {
   backend.setSearchQuery(props.searchQuery);
   backend.setCollapsedIds?.(props.collapsedIds ?? []);
   backend.setCollapseAnim(props.collapseAnim ?? null);
-  backend.setMultiSelection?.(marqueePreviewIds ?? props.multiSelectedIds);
+  const ids = marqueePreviewIds ?? props.multiSelectedIds ?? EMPTY_MULTI_IDS;
+  if (ids !== lastPushedMultiIds) {
+    lastPushedMultiIds = ids;
+    backend.setMultiSelection?.(ids);
+    if (useWebGl.value) overlay.setMultiSelection(ids);
+  }
   if (useWebGl.value) {
     // Overlay paints with collapseShiftY against the expanded base — do not pass
     // getLayout() (already shifted for hit-test) or the tween would apply twice.
@@ -547,7 +555,6 @@ function applyViewState(forceModel = false): void {
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionMuted(true);
     overlay.setSearchQuery(props.searchQuery);
-    overlay.setMultiSelection(marqueePreviewIds ?? props.multiSelectedIds);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
   refreshSnapExactEdgeMarks();
@@ -917,7 +924,7 @@ watch(
   },
 );
 
-/** `props.view` fields (startTime/endTime/scrollY) mutate in place on some callers — keep deep. */
+/** Window is `{ startTime, endTime, scrollY }` — keep deep for in-place field mutation. */
 watch(
   () => props.view,
   () => {

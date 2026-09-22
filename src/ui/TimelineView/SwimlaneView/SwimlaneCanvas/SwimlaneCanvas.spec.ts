@@ -2460,6 +2460,24 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-108: window-only view paint does not re-push multi selection', async () => {
+    const ids = ['e1'];
+    const { wrapper } = await mountWithEventModel({
+      measureMode: false,
+      multiSelectedIds: ids,
+    });
+    const vm = wrapper.vm as {
+      renderer: () => { setMultiSelection: (next: string[]) => void };
+    };
+    const multiSpy = vi.spyOn(vm.renderer(), 'setMultiSelection');
+    await wrapper.setProps({ view: { startTime: 0, endTime: 2000, scrollY: 0 } });
+    await wrapper.vm.$nextTick();
+    expect(multiSpy).not.toHaveBeenCalled();
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/ids !== lastPushedMultiIds/);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-086: Shift+left-click on event toggles multi-selection (add)', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {

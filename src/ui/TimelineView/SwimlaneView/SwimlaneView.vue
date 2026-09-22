@@ -347,6 +347,12 @@ const pinnedView = computed(() => ({
   endTime: props.view.endTime,
   scrollY: 0,
 }));
+/** Body canvas gets the same slim window (with scrollY) so Vue does not deep-walk viewState. */
+const bodyView = computed(() => ({
+  startTime: props.view.startTime,
+  endTime: props.view.endTime,
+  scrollY: props.view.scrollY,
+}));
 
 /** Lane under canvas or gutter pointer — whole-row highlight (not pushpin). */
 const hoveredLaneId = ref<string | null>(null);
@@ -754,7 +760,7 @@ defineExpose({
       <SwimlaneCanvas
         ref="canvasRef"
         :model="model"
-        :view="view"
+        :view="bodyView"
         :content-top-pad="overviewContentPad"
         :selected-event-id="paintSelectedEventId"
         :hovered-event-id="hoveredEventId"

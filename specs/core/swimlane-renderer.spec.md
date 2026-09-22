@@ -48,7 +48,7 @@ Hover and selected sit on the same lightness. Earlier passes kept them `0.13` ap
 
 Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts as the pointer crosses its block**. That is accepted, not overlooked. An earlier revision held hover below the flip precisely to keep labels steady, and what it bought — a lift clipped to `≈ +0.09` — was too weak to notice, which is the defect that replaced it. Deriving the label from the painted fill rather than from the state is what makes the trade safe: however the lifts are retuned, a fill and its label cannot end up disagreeing about which side of the threshold they are on.
 
-**Marquee multi-selection.** `setMultiSelection(ids)` is the same emphasis machinery with a set instead of one id: a non-empty set counts as "there is a selection", the ids in it use the same OKLCH **selected** fill as a single click, and everything else uses the single-selection solid muted fill. An empty set clears the muting. No white stroke and no dependency curves — marquee is a bulk highlight, not a focus. The ClearType overlay 2D-lifts hover and the focused selection only; WebGL paints the multi-selected fill so a large set does not walk 2D roundRects. The method is **optional** on `SwimlaneRenderer` (like `setDependencyMode` / `setDependencyDepth`); `SwimlaneCanvas` calls it with `?.`.
+**Marquee multi-selection.** `setMultiSelection(ids)` is the same emphasis machinery with a set instead of one id: a non-empty set counts as "there is a selection", the ids in it use the same OKLCH **selected** fill as a single click, and everything else uses the single-selection solid muted fill. An empty set clears the muting. No white stroke and no dependency curves — marquee is a bulk highlight, not a focus. The ClearType overlay 2D-lifts hover and the focused selection only; WebGL paints the multi-selected fill so a large set does not walk 2D roundRects. The method is **optional** on `SwimlaneRenderer` (like `setDependencyMode` / `setDependencyDepth`); `SwimlaneCanvas` calls it with `?.`. Same-array identity returns before the membership walk.
 
 **Marquee hit collection.** `eventsIntersectingRect(layout, view, width, rect)` returns the laid-out leaf events whose drawn block intersects a screen-space rect, in layout order. Rect corners are order-normalized, so a drag in any direction collects the same set. Folder rows carry no events, so a rect crossing Card header strips contributes none. Paint-only collapse does not clone `layout.events` Y/alpha; the walk uses visible `eventsByLane` (skip `alpha === 0` and folder lanes) and `collapseShiftY` so a marquee cannot select hidden rest-collapsed descendants and still hits rows that painted after a fold. Lanes whose paint-space Y band misses the rect are skipped; each remaining leaf lane bisects start-sorted `eventsByLane` to the rect's time window (2px min block width, left-span `maxLeafDuration`).
 
@@ -123,6 +123,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-059**: WebGL `setMultiSelection` marks the emphasis split dirty; `rebuildEmphasisSplit` runs in `render()`, not in the setter.
 1. **PR-RENDER-060**: `eventsIntersectingRect` skips lanes whose paint Y band misses the rect and bisects each remaining leaf `eventsByLane` with `laneEventRange` (rect time window, 2px min width).
 1. **PR-RENDER-061**: WebGL selection/multi with empty search mutes existing lane meshes and uploads only keep-bright intervals from `eventsById`; `rebuildEmphasisSplit` does not walk `layout.events` on that path.
+1. **PR-RENDER-062**: `setMultiSelection` returns on the same array identity before walking ids (WebGL, overlay, Canvas fallback).
 
 ## Edge Cases
 
@@ -139,6 +140,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-22** — `setMultiSelection` returns on the same array identity before walking ids (`PR-RENDER-062`).
 - **2026-09-21** — Overlay 2D-lifts hover/focused selection only; WebGL paints the selected-state fill for multi ids (`PR-RENDER-058`). WebGL rebuilds the emphasis split in `render()` (`PR-RENDER-059`). Marquee hit-test skips non-overlapping lanes and bisects time (`PR-RENDER-060`); live dim mutes base meshes and overlays keep-bright ids (`PR-RENDER-061`).
 - **2026-09-18** — PR-RENDER-057: overlay (no-ClearType) skips leaf lanes when no label can fit, and still paints folder summaries plus selected/hovered lifts.
 - **2026-09-18** — PR-RENDER-057: resting labels bisect start-sorted leaf `eventsByLane` overlapping the view (`maxLeafDuration` left-span) and skip when no leaf can exceed 40 px; folder lanes stay on the overlay.
