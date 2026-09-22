@@ -93,6 +93,54 @@ describe('MemoryTopologyPanel', () => {
     expect(svg.toLowerCase()).not.toContain('<text');
   });
 
+  it('PR-MEMTOP-001c: chrome keeps static box labels after the sample strip', async () => {
+    // Over-stripping white sample glyphs also deleted DCache/ICache/SS/L0*/FixPipe outlined
+    // labels, leaving gray/blue/orange boxes empty. Required label centres (chrome units):
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, join } = await import('node:path');
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const svg = readFileSync(join(dir, 'memory-topology.svg'), 'utf8');
+
+    const REQUIRED: ReadonlyArray<readonly [string, number, number]> = [
+      ['DCache (AIC)', 215.2, 170.0],
+      ['ICache (AIC)', 213.2, 186.0],
+      ['DCache (AIV)', 215.2, 242.0],
+      ['ICache (AIV)', 213.2, 258.0],
+      ['SS', 309.9, 208.8],
+      ['L0A', 272.6, 59.4],
+      ['L0B', 272.5, 84.2],
+      ['BT', 272.6, 110.9],
+      ['FP', 272.6, 136.7],
+      ['FixPipe', 404.1, 137.4],
+    ];
+
+    // Figma paths are `id="" d="…" fill="…" />` — `\bd=` avoids matching the trailing
+    // `d=""` of `id=""`, and `[\s\S]*?` spans the multiline attribute block.
+    const whiteCentres: Array<{ cx: number; cy: number }> = [];
+    for (const m of svg.matchAll(/<path\b([\s\S]*?)\/>/g)) {
+      const attrs = m[1] ?? '';
+      if (!attrs.includes('fill="rgb(255,255,255)"')) continue;
+      const d = /\bd="([^"]*)"/.exec(attrs)?.[1];
+      if (!d) continue;
+      const nums = [...d.matchAll(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g)].map((x) => Number(x[0]));
+      const xs = nums.filter((_, i) => i % 2 === 0);
+      const ys = nums.filter((_, i) => i % 2 === 1);
+      if (xs.length === 0 || ys.length === 0) continue;
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      if (maxY - minY > 10) continue;
+      whiteCentres.push({ cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
+    }
+
+    for (const [name, x, y] of REQUIRED) {
+      const hit = whiteCentres.some((c) => Math.abs(c.cx - x) <= 3 && Math.abs(c.cy - y) <= 3);
+      expect(hit, `missing static label path for ${name} near (${x}, ${y})`).toBe(true);
+    }
+  });
+
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');
