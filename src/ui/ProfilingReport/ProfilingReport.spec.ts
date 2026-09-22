@@ -584,6 +584,36 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-016: ids-only live ≥2 mounts header without assigning events', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-ids',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const selectBefore = wrapper.emitted('select')?.length ?? 0;
+
+    timeline().vm.$emit('multi-select-preview', ['a', 'b']);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
+    const summary = wrapper.findComponent({ name: 'MultiSelectSummary' });
+    expect(summary.props('selectedEvents')).toEqual([]);
+    expect(summary.props('liveCount')).toBe(2);
+    expect(summary.props('livePreview')).toBe(true);
+    expect(vm.viewState.selectedEventId).toBeNull();
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
+
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-016: Escape mid-drag restores the pre-drag dock without host select', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {

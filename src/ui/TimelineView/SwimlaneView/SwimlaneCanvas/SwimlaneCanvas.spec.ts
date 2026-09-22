@@ -2348,8 +2348,8 @@ describe('SwimlaneCanvas', () => {
       }),
     );
     await wrapper.vm.$nextTick();
-    const preview = wrapper.emitted('multi-select-preview')!.at(-1)![0] as { id: string }[];
-    expect(preview.map((e) => e.id)).toEqual(['e1']);
+    const preview = wrapper.emitted('multi-select-preview')!.at(-1)![0];
+    expect(preview).toEqual(['e1']);
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await wrapper.vm.$nextTick();
@@ -2460,9 +2460,7 @@ describe('SwimlaneCanvas', () => {
     await flushMarqueeRaf();
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterGate + 1);
-    expect(
-      (wrapper.emitted('multi-select-preview')!.at(-1)![0] as { id: string }[]).map((e) => e.id),
-    ).toEqual(['e1']);
+    expect(wrapper.emitted('multi-select-preview')!.at(-1)![0]).toEqual(['e1']);
     expect(gcr.mock.calls.length).toBe(gcrAfterGate);
 
     window.dispatchEvent(
@@ -2601,6 +2599,8 @@ describe('SwimlaneCanvas', () => {
         buttons: 1,
       }),
     );
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.at(-1)![0]).toEqual(['foreign', 'e1']);
     window.dispatchEvent(
       new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
     );
@@ -2612,6 +2612,18 @@ describe('SwimlaneCanvas', () => {
     expect(ids).toContain('foreign');
     expect(ids).toContain('e1');
     wrapper.unmount();
+  });
+
+  it('PR-CANVAS-109: live preview does not resolve union events; commit uses layout then resolver', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    const live = src.slice(
+      src.indexOf('function applyMarqueeDragMove'),
+      src.indexOf('function onMarqueeDragEnd'),
+    );
+    expect(live).toMatch(/unionMarqueeIds/);
+    expect(live).not.toMatch(/eventsForMarqueeCommit/);
+    expect(live).not.toMatch(/findAltMeasureEvent/);
+    expect(src).toMatch(/backend\.findEvent\(id\) \?\? findAltMeasureEvent\(id\)/);
   });
 
   it('PR-CANVAS-090: Shift+left-click on selected event removes from multi-selection', async () => {

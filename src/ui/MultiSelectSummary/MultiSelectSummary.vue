@@ -28,11 +28,14 @@ const props = withDefaults(
     height?: number;
     /** Live marquee: header count only, no table body (avoids 1000-row layout mid-drag). */
     livePreview?: boolean;
+    /** Union size while live; used when `selectedEvents` is not the live set. */
+    liveCount?: number;
   }>(),
   {
     height: DOCK_HEIGHT_COLLAPSED,
     locale: undefined,
     livePreview: false,
+    liveCount: undefined,
   },
 );
 
@@ -75,7 +78,9 @@ interface Row {
   avgDuration: number;
 }
 
-const selectedCount = computed(() => props.selectedEvents.length);
+const selectedCount = computed(() =>
+  props.livePreview && props.liveCount != null ? props.liveCount : props.selectedEvents.length,
+);
 
 const rows = computed<Row[]>(() => {
   if (props.livePreview) return [];

@@ -381,14 +381,14 @@ describe('SwimlaneView', () => {
       },
     });
     const canvas = wrapper.findComponent(SwimlaneCanvas);
-    canvas.vm.$emit('multi-select-preview', events);
+    canvas.vm.$emit('multi-select-preview', ['a', 'b']);
     await nextTick();
     const first = canvas.props('multiSelectedIds');
     expect(first).toEqual(['a', 'b']);
-    canvas.vm.$emit(
-      'multi-select-preview',
-      events.map((event) => ({ ...event })),
-    );
+    canvas.vm.$emit('multi-select-preview', ['a', 'b']);
+    await nextTick();
+    expect(canvas.props('multiSelectedIds')).toBe(first);
+    canvas.vm.$emit('multi-select-preview', events);
     await nextTick();
     expect(canvas.props('multiSelectedIds')).toBe(first);
   });

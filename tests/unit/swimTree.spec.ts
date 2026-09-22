@@ -3,6 +3,7 @@ import {
   collectLeafEventsFromModel,
   countLeafThreads,
   filterCollapsedTree,
+  findEventInModel,
   isComputeCategory,
   isFolderNode,
   nestCardTreeFromFlatCorePipes,
@@ -187,6 +188,22 @@ describe('swimTree + nested layout', () => {
     expect(c2.summaryEvents).toEqual([
       { id: 'compute/summary/0', name: '', startTime: 0, duration: 10, taskCount: 2 },
     ]);
+  });
+
+  it('PR-SWIM-016: findEventInModel indexes leaves and summaryEvents once per model', async () => {
+    const model = nestedModel();
+    const leaf = findEventInModel(model, 'e1');
+    expect(leaf?.id).toBe('e1');
+    expect(findEventInModel(model, 'e1')).toBe(leaf);
+    expect(findEventInModel(model, 'missing')).toBeNull();
+
+    const collapsed = filterCollapsedTree(model, ['cube']);
+    expect(findEventInModel(collapsed, 'cube/summary/0')?.taskCount).toBe(1);
+    expect(findEventInModel(collapsed, 'e1')).toBeNull();
+
+    const src = (await import('../../src/domain/swimTree.ts?raw')).default as string;
+    expect(src).toMatch(/eventIndexByModel/);
+    expect(src).toMatch(/eventIndexFor\(model\)\.get\(id\)/);
   });
 
   it('nestCardTreeFromFlatCorePipes builds Card → 计算 → Core → pipe', () => {

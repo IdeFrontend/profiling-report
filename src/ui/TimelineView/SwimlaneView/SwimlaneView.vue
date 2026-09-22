@@ -115,7 +115,7 @@ const emit = defineEmits<{
   'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
   'multi-select': [events: SwimEvent[]];
-  'multi-select-preview': [events: SwimEvent[] | null];
+  'multi-select-preview': [ids: string[] | SwimEvent[] | null];
   'multi-select-span': [span: MeasureRange | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -465,11 +465,18 @@ function onUpdateMultiSelected(newIds: string[]) {
   localMultiSelectedIds.value = newIds;
 }
 
-function onMultiSelectPreview(events: SwimEvent[] | null) {
-  if (events == null) {
+function previewPayloadIds(payload: string[] | SwimEvent[]): string[] {
+  if (payload.length === 0) return [];
+  return typeof payload[0] === 'string'
+    ? (payload as string[])
+    : (payload as SwimEvent[]).map((e) => e.id);
+}
+
+function onMultiSelectPreview(payload: string[] | SwimEvent[] | null) {
+  if (payload == null) {
     livePreviewIds.value = null;
   } else {
-    const ids = events.map((e) => e.id);
+    const ids = previewPayloadIds(payload);
     const prev = livePreviewIds.value;
     if (
       prev == null ||
@@ -479,7 +486,7 @@ function onMultiSelectPreview(events: SwimEvent[] | null) {
       livePreviewIds.value = ids;
     }
   }
-  emit('multi-select-preview', events);
+  emit('multi-select-preview', payload);
 }
 
 function onGutterScroll(): void {

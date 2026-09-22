@@ -89,7 +89,7 @@ const emit = defineEmits<{
   'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
   'multi-select': [events: SwimEvent[]];
-  'multi-select-preview': [events: SwimEvent[] | null];
+  'multi-select-preview': [ids: string[] | SwimEvent[] | null];
   'multi-select-span': [span: MeasureRange | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];

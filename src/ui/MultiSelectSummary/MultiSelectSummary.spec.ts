@@ -204,6 +204,11 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (3)');
     expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
     expect(wrapper.find('[data-testid="multi-select-visible-count"]').exists()).toBe(false);
+
+    const idsOnly = mountPanel({ livePreview: true, selectedEvents: [], liveCount: 125000 });
+    expect(idsOnly.get('[data-testid="multi-select-count"]').text()).toContain('125000');
+    expect(idsOnly.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (125000)');
+    expect(idsOnly.find('.pr-multi-select__table').exists()).toBe(false);
   });
 
   it('handles a 125001-event marquee without a spread-argument overflow', () => {

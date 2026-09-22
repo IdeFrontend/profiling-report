@@ -135,8 +135,8 @@ const emit = defineEmits<{
   select: [event: SwimEvent | null];
   /** Marquee commit — every leaf event intersecting the rect. */
   'multi-select': [events: SwimEvent[]];
-  /** Live marquee coverage for the dock preview; null when the drag ends or cancels. */
-  'multi-select-preview': [events: SwimEvent[] | null];
+  /** Live marquee coverage (union ids); null when the drag ends or cancels. */
+  'multi-select-preview': [ids: string[] | null];
   /** Live marquee time extent for the axis Δt chrome; null when the drag ends or cancels. */
   'multi-select-span': [span: MeasureRange | null];
   /** Shift+left-click toggled a single event in/out of multi-selection. */
@@ -1060,26 +1060,32 @@ function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
   );
 }
 
-/** Same event list commit will use (plain rect, or Shift union with current selection). */
-function eventsForMarqueeCommit(rectEvents: SwimEvent[]): SwimEvent[] {
-  if (!marqueeShift) return rectEvents;
-  const ids = new Set<string>();
+/** Union ids for live dim / dock count. Does not resolve SwimEvent objects. */
+function unionMarqueeIds(rectEvents: SwimEvent[]): string[] {
+  if (!marqueeShift) return rectEvents.map((ev) => ev.id);
+  const seen = new Set<string>();
   const ordered: string[] = [];
   const addId = (id: string) => {
-    if (ids.has(id)) return;
-    ids.add(id);
+    if (seen.has(id)) return;
+    seen.add(id);
     ordered.push(id);
   };
   if (props.selectedEventId) addId(props.selectedEventId);
   (props.multiSelectedIds ?? []).forEach(addId);
   rectEvents.forEach((ev) => addId(ev.id));
-  return ordered
-    .map((id) => findAltMeasureEvent(id))
+  return ordered;
+}
+
+/** Resolve union objects on commit only. Layout map first; off-canvas ids use the shared resolver. */
+function eventsForMarqueeCommit(rectEvents: SwimEvent[]): SwimEvent[] {
+  if (!marqueeShift) return rectEvents;
+  return unionMarqueeIds(rectEvents)
+    .map((id) => backend.findEvent(id) ?? findAltMeasureEvent(id))
     .filter((ev): ev is SwimEvent => ev != null);
 }
 
-function emitMarqueePreview(events: SwimEvent[] | null): void {
-  emit('multi-select-preview', events);
+function emitMarqueePreview(ids: string[] | null): void {
+  emit('multi-select-preview', ids);
 }
 
 /** Coverage compare in layout (or Shift-union insert) order — no Set alloc on the rAF path. */
@@ -1169,17 +1175,10 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
   // Preview the commit: covered events stay bright, the rest dim through the shared path.
   // Shift+drag previews the union so the existing selection does not flicker dim.
   const rectEvents = eventsInMarquee(rect);
-  const previewIds = rectEvents.map((ev) => ev.id);
-  let nextIds = previewIds;
-  if (marqueeShift) {
-    const set = new Set<string>(props.multiSelectedIds ?? []);
-    if (props.selectedEventId) set.add(props.selectedEventId);
-    previewIds.forEach((id) => set.add(id));
-    nextIds = [...set];
-  }
+  const nextIds = unionMarqueeIds(rectEvents);
   if (sameIdSet(marqueePreviewIds, nextIds)) return;
   marqueePreviewIds = nextIds;
-  emitMarqueePreview(eventsForMarqueeCommit(rectEvents));
+  emitMarqueePreview(nextIds);
   sync();
 }
 
