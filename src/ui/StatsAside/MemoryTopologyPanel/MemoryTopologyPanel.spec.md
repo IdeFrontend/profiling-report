@@ -22,11 +22,7 @@ Official product memory-path topology chrome with **data-driven link values** (c
 
 ## Behavior
 
-<<<<<<< HEAD
-1. Render the official chrome asset `memory-topology.svg` (Figma export of `v930/report-stats-scrolled` 内存负载分析, 448×540 units) at full size. Everything static lives in the asset and is **not** drawn by this component: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV0/AIV1 (UB, SIMT/SIMD, Vec, Scalar, DCache, MTE1/2/3, FixPipe, BT/FB/SS), the `XN_IMM` / `Data Cache` nodes, boxes, arrows, dashes and the value plates ([memory-topology § edge-field-source](../../../../docs/views/memory-topology.md#edge-field-source)). Because the chrome owns the arrows, the panel renders no SVG `<marker>`s.
-=======
-1. Render the official chrome asset `memory-topology.svg` (Figma export of `v930/report-stats-scrolled` 内存负载分析, 448×423 units) at full size. Everything static lives in the asset and is **not** drawn by this component: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV0/AIV1 (UB, SIMT/SIMD, Vec, Scalar, DCache, MTE1/2/3, FixPipe, BT/FB/SS), the `XN_IMM` / `Data Cache` nodes, boxes, arrows, dashes and the value plates ([VIEW_DATA_MAPPING §11.2.6](../../../../docs/ui/VIEW_DATA_MAPPING.md)). Because the chrome owns the arrows, the panel renders no SVG `<marker>`s.
->>>>>>> 0d40602 (feat(memory-topology): swap chrome to 448x423 simplified AIC/AIV diagram)
+1. Render the official chrome asset `memory-topology.svg` (Figma export of `v930/report-stats-scrolled` 内存负载分析, **448×423** simplified AIC + AIV × 2) at full size. Everything static lives in the asset and is **not** drawn by this component: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV0/AIV1 (UB, SIMT/SIMD, Vec, Scalar, DCache, MTE1/2/3, FixPipe, BT/FB/SS), the `XN_IMM` / `Data Cache` nodes, boxes, arrows, dashes and the value plates ([memory-topology § edge-field-source](../../../../docs/views/memory-topology.md#edge-field-source)). Because the chrome owns the arrows, the panel renders no SVG `<marker>`s.
 2. Overlay the values from `model.edges` as SVG `<text>` at the **value slots** below — the centres of the placeholder values that were stripped from the export.
 3. One `<text>` per slot is always drawn, including when the edge has no `label` (empty content). The adapter hides `NA` and formats `0`, so an omitted value leaves a visibly blank plate rather than a missing node.
 4. Slot geometry is fixed; only the text is data-driven. A pair's upper slot rides the link whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).

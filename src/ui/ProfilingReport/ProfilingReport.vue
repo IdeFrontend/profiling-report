@@ -1788,7 +1788,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   box-sizing: border-box;
 }
 
-/* No `svg` override here: the panel's stage is already the diagram's box (448:540 at the current
+/* No `svg` override here: the panel's stage is already the diagram's box (448:423 at the current
  * zoom), and the panel sizes the `svg` to it. Sizing the `svg` to the leftover box instead — the
  * old `width/height: 100%` — fills the stage's *used* box rather than the chrome ratio, and only
  * agreed with it while the stage happened to be that ratio. */
