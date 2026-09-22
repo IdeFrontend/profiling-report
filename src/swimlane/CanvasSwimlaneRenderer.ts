@@ -55,9 +55,6 @@ import {
 } from './layout';
 import { EVENT_LABEL_FONT_CSS_PX, centeredTextBaseline, fitEventLabel } from './textAtlas';
 
-/** Overlay 2D lifts for multi-select; WebGL already painted the mute/bright split. */
-const OVERLAY_MULTI_LIFT_CAP = 32;
-
 function drawEventLabel(
   ctx: CanvasRenderingContext2D,
   name: string,
@@ -415,8 +412,8 @@ export class SwimlaneOverlayPainter {
     );
   }
 
-  /** ClearType path: only lifted leaves (lookup), not every event. */
-  private paintLiftedLeaves(ctx: CanvasRenderingContext2D, maxMulti = OVERLAY_MULTI_LIFT_CAP): void {
+  /** ClearType path: hover + focused selection only (lookup). Multi lifts are WebGL. */
+  private paintLiftedLeaves(ctx: CanvasRenderingContext2D): void {
     const seen = new Set<string>();
     const paint = (id: string | null) => {
       if (!id || seen.has(id)) return;
@@ -427,9 +424,6 @@ export class SwimlaneOverlayPainter {
     };
     paint(this.selectedId);
     paint(this.hoveredId);
-    if (this.multiIds.size <= maxMulti) {
-      for (const id of this.multiIds) paint(id);
-    }
   }
 
   render(): void {

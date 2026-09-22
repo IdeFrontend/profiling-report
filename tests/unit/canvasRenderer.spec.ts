@@ -1301,11 +1301,18 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(overlaySrc).toMatch(/this\.layout\.eventsById\.get\(id\)/);
   });
 
-  it('PR-RENDER-058: overlay skips multi lifts above the 32-id cap', async () => {
+  it('PR-RENDER-058: overlay 2D-lifts hover/selected only; WebGL paints multi selected-state fill', async () => {
     const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(overlaySrc).toMatch(/OVERLAY_MULTI_LIFT_CAP = 32/);
-    expect(overlaySrc).toMatch(/if \(this\.multiIds\.size <= maxMulti\)/);
+    expect(overlaySrc).not.toMatch(/OVERLAY_MULTI_LIFT_CAP/);
+    const lift = classMethodBody(overlaySrc, 'paintLiftedLeaves');
+    expect(lift).toMatch(/paint\(this\.selectedId\)/);
+    expect(lift).toMatch(/paint\(this\.hoveredId\)/);
+    expect(lift).not.toMatch(/this\.multiIds/);
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(classMethodBody(webglSrc, 'rebuildBrightOverlay')).toMatch(/liftChunks/);
+    expect(webglSrc).toMatch(/eventFill\([^,]+, 'selected'\)/);
   });
 
   it('PR-RENDER-059: WebGL setMultiSelection defers rebuildEmphasisSplit to render', async () => {
@@ -1329,6 +1336,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(overlay).not.toMatch(/of this\.layout\.events/);
     const renderBody = classMethodBody(webglSrc, 'render');
     expect(renderBody).toMatch(/brightChunks/);
+    expect(renderBody).toMatch(/liftChunks/);
     expect(renderBody).toMatch(/SELECTION_MUTED_FILL/);
   });
 
@@ -1478,7 +1486,7 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
   it('WebGL keeps search alpha and selection muting in separate layers', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toContain('const key = `${muted ? 1 : 0}|${alpha}`;');
+    expect(webglSrc).toContain('const key = `${muted ? 1 : 0}|${lifted ? 1 : 0}|${alpha}`;');
     expect(webglSrc).toMatch(/byKey\.get\(key\)/);
   });
 });
