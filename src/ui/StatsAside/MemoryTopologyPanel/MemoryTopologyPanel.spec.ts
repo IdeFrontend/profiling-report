@@ -183,9 +183,47 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.find('[data-testid="edge-vec-ub-1"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="edge-ub-vec-0"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="edge-ub-vec-1"]').exists()).toBe(false);
-    for (const id of ['l1-l0a', 'l1-l0b', 'l0a-cube', 'l0b-cube', 'l0c-cube', 'cube-l0c']) {
+    for (const id of ['l1-l0a', 'l1-l0b', 'l0a-cube', 'l0b-cube', 'cube-l0c']) {
       expect(wrapper.get(`[data-testid="edge-${id}-0"]`).text().length).toBeGreaterThan(0);
     }
+  });
+
+  it('PR-MEMTOP-002c: Cube↔L0C is one plate; Cube util sits under CUBE', () => {
+    // Simplified chrome: one corridor plate (~373.5, 85.5) and one under-CUBE util sample
+    // (~338.1, 95.3). Remasure must not stack cube-l0c + l0c-cube 5u apart (double GB/s) or
+    // park the Cube badge at y=100 (below the sample).
+    expect(SLOTS['cube-l0c']).toEqual([[373.6, 83.8]]);
+    expect(SLOTS['l0c-cube']).toEqual([]);
+    expect(PLATE_SLOTS.cube).toEqual([[338.1, 95.3]]);
+    // Cube box is x322–354, y54–123 — badge centre must sit inside it, under the word (~y85).
+    const [[cx, cy]] = PLATE_SLOTS.cube;
+    expect(cx).toBeGreaterThan(322);
+    expect(cx).toBeLessThan(354);
+    expect(cy).toBeGreaterThan(84);
+    expect(cy).toBeLessThan(110);
+
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          plates: [{ node: 'cube', label: '0.00%' }],
+          edges: model.edges.map((e) =>
+            e.id === 'cube-l0c' || e.id === 'l0c-cube'
+              ? { ...e, label: '0.00 GB/s' }
+              : e,
+          ),
+        },
+      },
+    });
+    expect(wrapper.find('[data-testid="edge-cube-l0c-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-cube-l0c-0"]').text()).toBe('0.00 GB/s');
+    expect(wrapper.find('[data-testid="edge-l0c-cube-0"]').exists()).toBe(false);
+    const cubeGb = wrapper
+      .findAll('text.pr-topo__edge')
+      .filter((el) => el.text() === '0.00 GB/s' && Number(el.attributes('x')) > 360);
+    expect(cubeGb).toHaveLength(1);
+    expect(wrapper.get('[data-testid="plate-cube-0"]').text()).toBe('0.00%');
+    expect(Number(wrapper.get('[data-testid="plate-cube-0"]').attributes('y'))).toBeCloseTo(95.3, 5);
   });
 
   it('PR-MEMTOP-002b: every drawn value has a unique testid', () => {
@@ -956,7 +994,6 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       'l0a-cube': [282, 300.9, 322],
       'l0b-cube': [282, 300.9, 322],
       'cube-l0c': [353, 373.6, 394],
-      'l0c-cube': [353, 373.6, 394],
       'l2-peak': [94, 113.8, 133.75],
     };
     expect(Object.keys(SLOT_MAX_W).sort()).toEqual(Object.keys(CORRIDORS).sort());
@@ -975,7 +1012,7 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     const BOXES: Record<TopologyPlateNodeId, [number, number, number]> = {
       aiv_scalar: [256, 282.0, 308],
       vec: [361.5, 372.0, 382.5],
-      cube: [322, 338.0, 354],
+      cube: [322, 338.1, 354],
     };
     expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());
     expect(Object.keys(PLATE_SLOTS).sort()).toEqual([...TOPOLOGY_PLATE_NODE_IDS].sort());

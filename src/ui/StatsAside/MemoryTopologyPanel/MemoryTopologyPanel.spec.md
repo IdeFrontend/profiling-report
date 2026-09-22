@@ -31,7 +31,7 @@ Official product memory-path topology chrome with **data-driven link values** (c
     - Remove the **lower** white glyph of each util-badge pair under a unit word (L2 peak, Cube, AIV Scalar, SIMD, SIMT, AIC Scalar) — the upper glyph is the unit name and stays.
     - **Keep** all other static outlined labels, including at least: **DCache** / **ICache** (AIC and AIV × 2), **SS**, **L0A** / **L0B** / **BT** / **FP**, **FixPipe**, **MTE_1** / **MTE_2** / **MTE_3** (white ink inside every orange chip), and the unit words (**CUBE**, **Scalar**, **SIMT**, **SIMD**, …). Gray boxes and orange chips must not render empty.
 1d. **Orange MTE / FixPipe chips (UI-38, PR-MEMTOP-001d):** each `#f69e39` chip keeps its static white label (`MTE_1` / `MTE_2` / `MTE_3` / `FixPipe`). Overlay `SLOTS` are the export's **amber sample glyph centres** (corridor GB/s placeholders), **never** orange-chip centres — painting a GB/s value on a chip centre hides the MTE label (the remasure bug that put `l1-l0a` / `l2-l1-read` / `l2-ub` / `ub-l2` on chips).
-2. Overlay the values from `model.edges` as SVG `<text>` at the **value slots** below — the centres of the placeholder values that were stripped from the export.
+2. Overlay the values from `model.edges` as SVG `<text>` at the **value slots** below — the centres of the placeholder values that were stripped from the export. An edge id in `TOPOLOGY_SLOT_EDGE_IDS` with an **empty** `SLOTS` list (Cube↔L0C reverse `l0c-cube` on the simplified chrome) draws **no** overlay — one chrome plate must not get two GB/s labels (PR-MEMTOP-002c).
 3. One `<text>` per slot is always drawn, including when the edge has no `label` (empty content). The adapter hides `NA` and formats `0`, so an omitted value leaves a visibly blank plate rather than a missing node.
 4. Slot geometry is fixed; only the text is data-driven. A pair's upper slot rides the link whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
 5. Values follow the **model** the parent passes; when the parent rebuilds for a new `block_id`, values update.
@@ -72,12 +72,12 @@ Pillars: GM x16–56, L2 x94–134; row stack x188–432 — AIC y16–200, AIV 
 | `l1-l0b` | (239.1, 74.8) | L1 → MTE1 → L0B (above the MTE_1 chip) |
 | `l0a-cube` | (300.9, 54.8) | L0A → Cube |
 | `l0b-cube` | (300.9, 79.8) | L0B → Cube |
-| `cube-l0c` | (373.6, 83.8) | Cube → L0C (stacked in one plate) |
-| `l0c-cube` | (373.6, 88.8) | L0C → Cube |
+| `cube-l0c` | (373.6, 83.8) | Cube → L0C — **sole** overlay on the export's one Cube↔L0C corridor plate |
+| `l0c-cube` | _(no slot)_ | L0C → Cube — adapter id stays plated for drawable/详情; chrome has no second plate (PR-MEMTOP-002c) |
 | L2 plate | (113.8, 211.5) | in-box plate on the L2 pillar — `peakPct`, else `l2-hit` |
 | `aiv_scalar` plate | (282.0, 315.0) | in-box `Scalar` badge, AIV × 2 (one field) |
 | `vec` plate | (372.0, 362.0) | in-box `Vec`/SIMD badge, AIV × 2 (one field) |
-| `cube` plate | (338.0, 100.0) | in-box `Cube` badge (AIC row) |
+| `cube` plate | (338.1, 95.3) | in-box `Cube` badge under CUBE word (export util sample centre) |
 
 `PLATE_SLOTS` is keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS` (`Record<TopologyPlateNodeId, …>`) — same drift-guard as `SLOTS`: a plated unit with no coordinates fails typecheck. The badge sits **below its unit's own word** inside the box (the sketch's layout), not on the box centre.
 
@@ -96,7 +96,7 @@ The export's slots were sized for its own 27.6-unit placeholders. Real values ar
 | `ub-vec` / `vec-ub` | x≈315 … x≈361 | 42.1 |
 | `l1-l0a` / `l1-l0b` | x≈217 … x≈262 | 41.1 / 40.3 |
 | `l0a-cube` / `l0b-cube` | x≈282 … x≈322 | 36.7 / 34.7 |
-| `cube-l0c` / `l0c-cube` | x≈353 … x≈394 | 37.5 |
+| `cube-l0c` | x≈353 … x≈394 | 37.5 |
 | L2 plate (`peakPct` / `l2-hit`) | x≈94 … x≈133.75 (the pillar) | 36 |
 
 **Every** slot carries its own bound (`SLOT_MAX_W`): the row stack's inner corridors are far tighter than the pillars' (L0B↔Cube is 34.7 against L2↔row's 49.9), so no single bound serves them all. A slot the table forgets falls back to the **tightest** bound (34.7) — a generous fallback would silently overflow a narrow corridor. A value whose natural width exceeds its bound is drawn at `bound / natural × 6.3px` — the same strokes, scaled down — so e.g. `504.00 GB/s` (43.2 units) lands at 5.17px inside the GM↔L2 link and at 5.06px inside L0B↔Cube. Widths come from the rendered label's own metrics (`getComputedTextLength`), so they follow the platform font; where metrics are unavailable — a non-browser DOM, or a mount inside a hidden container, where text has no layout and measures 0 — the panel keeps the base size.
@@ -125,6 +125,7 @@ A `100.00%` badge (31.1 units) therefore shrinks in all three boxes, the `Vec` o
 1d. **PR-MEMTOP-001d** — Every orange MTE / FixPipe chip keeps its white `MTE_1` / `MTE_2` / `MTE_3` / `FixPipe` label. No `SLOTS` centre coincides with an orange-chip centre (overlays never replace chip labels with GB/s).
 2. **PR-MEMTOP-002** — Renders data-driven edge labels (GB/s) from `model.edges`; Vec↔UB on the AIV × 2 row; AIC L1/L0/Cube labels when present.
 2b. **PR-MEMTOP-002b** — Every drawn value carries a unique `data-testid` (`edge-{edge-id}-{slot}`), so a `getByTestId`-style query resolves to one element even for the AIV0/AIV1 pairs.
+2c. **PR-MEMTOP-002c** — Cube↔L0C shares one chrome plate: only `cube-l0c` is overlaid; `l0c-cube` has an empty `SLOTS` list (no second GB/s). `PLATE_SLOTS.cube` is the under-CUBE util sample centre (~338.1, 95.3), inside the Cube box.
 3. **PR-MEMTOP-003** — Omits the label for an edge with no `label` (slot drawn, blank).
 4. **PR-MEMTOP-004** — Hides the diagram when `model` is null/empty, or when the only labelled edges have no chrome slot (and there is no L2 plate).
 5. **PR-MEMTOP-005** — Edge labels update when `model.edges` labels change.
@@ -184,6 +185,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak, resolved), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, DATA-28 (unit ratios), DATA-40 (GM↔L2 plates = aic + aiv summed, resolved), DATA-41 (AIC-row link values, partial), DATA-42 (sketch stack with no export plate, resolved), DATA-43 (DATA-39 row 24 = the `l2-l1-read` plate's field, row 32 = the summed Main Write; resolved), DATA-44 (DATA-39 rows 21/22 Cube↔L0C direction, open), UI-35, UI-38, UI-48, UI-49 (in-box unit badges, resolved), [view-models](../../../../specs/core/view-models.spec.md), [memory-topology](../../../../docs/views/memory-topology.md#edge-field-source).
 
 ## Changelog
+- **2026-09-22** — PR-MEMTOP-002c: Cube↔L0C shares one chrome plate — only `cube-l0c` overlays; `l0c-cube` has empty `SLOTS` (fixes double `0.00 GB/s`). `PLATE_SLOTS.cube` remasured to under-CUBE util sample (338.1, 95.3).
 - **2026-09-22** — PR-MEMTOP-001d: orange MTE/FixPipe chips keep `MTE_*` / `FixPipe` labels; `SLOTS` remasured to amber sample centres (not chip centres) so overlays no longer paint GB/s on top of MTE ink.
 - **2026-09-22** — PR-MEMTOP-001c: sample strip must keep static DCache/ICache/SS/L0*/FixPipe labels (over-strip had emptied those gray/blue boxes).
 - **2026-09-22** — Chrome swap to 448×423 simplified export (AIC top + AIV × 2); remasured `SLOTS` / `PLATE_SLOTS` / L2 peak from empty value-plate centres; dual AIV corridor/badge slots collapse to one plate each.

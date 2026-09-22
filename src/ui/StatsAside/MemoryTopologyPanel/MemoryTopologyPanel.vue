@@ -22,7 +22,7 @@ export const BASE_FONT_PX = 6.3;
  *  common bound. Measured walls at the value's own height band:
  *  `gm-l2-*` x≈55.75/x≈94; `l2-l1-read` / `l2-ub` / `ub-l2` x≈133.75/x≈188 (L2↔row corridor);
  *  `ub-vec`/`vec-ub` x≈315/x≈361; `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube`
- *  x≈282/x≈322; `cube-l0c`/`l0c-cube` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
+ *  x≈282/x≈322; `cube-l0c` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
 export const SLOT_MAX_W: Record<string, number> = {
   'gm-l2-read': 35.4,
   'gm-l2-write': 35.4,
@@ -36,7 +36,6 @@ export const SLOT_MAX_W: Record<string, number> = {
   'l0a-cube': 36.7,
   'l0b-cube': 34.7,
   'cube-l0c': 37.5,
-  'l0c-cube': 37.5,
   'l2-peak': 36,
 };
 
@@ -44,7 +43,8 @@ export const SLOT_MAX_W: Record<string, number> = {
  * UI-49 in-box `%` badge slots — centres under each unit's own word on the 448×423 chrome.
  * Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a newly plated unit without coordinates
  * fails typecheck. The simplified chrome draws one **AIV × 2** row (not separate AIV0/AIV1
- * stacks): `Scalar` (282.0, 315.0), `Vec`/SIMD (372.0, 362.0), AIC `Cube` (338.0, 100.0).
+ * stacks): `Scalar` (282.0, 315.0), `Vec`/SIMD (372.0, 362.0), AIC `Cube` (338.1, 95.3) —
+ * the export's under-word util sample centre (CUBE word ≈ y84.6; box y54–123).
  * AIV0/AIV1 still share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); one chrome slot is
  * enough for the combined row.
  *
@@ -55,7 +55,7 @@ export const SLOT_MAX_W: Record<string, number> = {
 export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
   aiv_scalar: [[282.0, 315.0]],
   vec: [[372.0, 362.0]],
-  cube: [[338.0, 100.0]],
+  cube: [[338.1, 95.3]],
 };
 
 /**
@@ -89,8 +89,10 @@ export const DEFAULT_MAX_W = 34.7;
  * Cube→L0C).
  *
  * The simplified chrome merges AIV0/AIV1 into one **AIV × 2** row, so former dual AIV corridor
- * slots (`l2-ub`, `ub-l2`, `ub-vec`, `vec-ub`) are single plates. Cube↔L0C keeps two edge ids
- * stacked in the one remaining plate.
+ * slots (`l2-ub`, `ub-l2`, `ub-vec`, `vec-ub`) are single plates. Cube↔L0C shares **one**
+ * corridor plate on the export — only `cube-l0c` (into L0C) is drawn there; `l0c-cube` keeps
+ * its adapter id / drawable gate but has **no** overlay slot (an empty `SLOTS` list), so the
+ * panel cannot double-paint two GB/s labels 5u apart on the same 11-unit plate.
  *
  * Chrome slots left blank (no adapter edge or Product unconfirmed — UI-48): AIV SIMT links,
  * UB→VEC run, AIV↔AIC trunks, AIC L1→MTE1#3→BT, FixP→rail / lower L2↔AIC FixP corridor
@@ -110,7 +112,8 @@ export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, numbe
   'l0a-cube': [[300.9, 54.8]],
   'l0b-cube': [[300.9, 79.8]],
   'cube-l0c': [[373.6, 83.8]],
-  'l0c-cube': [[373.6, 88.8]],
+  /** Shared plate with `cube-l0c` — no second overlay (PR-MEMTOP-002c). */
+  'l0c-cube': [],
 };
 
 /**
