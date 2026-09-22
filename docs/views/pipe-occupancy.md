@@ -37,6 +37,35 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 |---------------|-------|-----------------|-------------|
 | `pipeOccupancy` | `PipeUtilization.csv` | Mean non-`NA` `aic_*` / `aiv_*` ratios; `*_time(us)` absolute ([DATA-33b](../context/decisions/interim/DATA.md), DATA-33f) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
+**Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values. Use the column tables below — not a single combined bar list.
+
+<a id="cube-occupancy"></a>
+
+### Cube occupancy
+
+| # | Display | Field | Source |
+| --- | --- | --- | --- |
+| 1 | Cube | `aic_cube_ratio` | `PipeUtilization.csv` |
+| 2 | MTE2 | `aic_mte2_ratio` | `PipeUtilization.csv` |
+| 3 | MTE1 | `aic_mte1_ratio` | `PipeUtilization.csv` |
+| 4 | FIXP | `aic_fixpipe_ratio` | `PipeUtilization.csv` |
+| 5 | Scalar | `aic_scalar_ratio` | `PipeUtilization.csv` |
+| 6 | ICache Miss | `aic_icache_miss_rate` | `PipeUtilization.csv` |
+
+<a id="vector-occupancy"></a>
+
+### Vector occupancy
+
+| # | Display | Field | Source |
+| --- | --- | --- | --- |
+| 1 | Vector | `aiv_vec_ratio` | `PipeUtilization.csv` |
+| 2 | MTE2 | `aiv_mte2_ratio` | `PipeUtilization.csv` |
+| 3 | MTE3 | `aiv_mte3_ratio` | `PipeUtilization.csv` |
+| 4 | Scalar | `aiv_scalar_ratio` | `PipeUtilization.csv` |
+| 5 | ICache Miss | `aiv_icache_miss_rate` | `PipeUtilization.csv` |
+
+In-bar absolute (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent. Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
+
 ## Emulate fill
 
 | Adapted field | Embed | Columns / notes | Status |

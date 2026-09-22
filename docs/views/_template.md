@@ -73,9 +73,9 @@ When the surface is omitted ([DATA-30](../context/decisions/DATA.md)).
 | Purpose | yes | Full UX scenario prose |
 | View-model | yes | Raw CSV names as Required column |
 | Hide rule | yes | Profile-forked hide matrices |
-| Compute fill | yes | Paste full CSV dictionaries |
-| Emulate fill | yes | Invent compute CSV names ([DATA-45](../context/decisions/interim/DATA.md#data-45)) |
+| Compute fill | yes | Paste full CSV dictionaries (adapted **slot / edge / column** tables for this surface are OK) |
+| Emulate fill | yes | Invent compute CSV names ([DATA-45](../context/decisions/interim/DATA.md#data-45)); same slot/edge-table rule as Compute fill |
 | Adapter | yes | Duplicate ADAPTERS fill tables |
 | Related | yes | Duplicate component AC lists |
 
-**SSOT:** formats live under [`../formats/`](../formats/); this tree owns consumer surfaces only. See [README.md](README.md).
+**SSOT:** formats live under [`../formats/`](../formats/); this tree owns consumer surfaces **and** their display→field→source maps. See [README.md](README.md).

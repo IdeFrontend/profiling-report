@@ -30,8 +30,30 @@ Nothing drawable → omit diagram ([DATA-30](../context/decisions/DATA.md)).
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` (carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map [DATA-48a](../context/decisions/interim/DATA.md) | `adapt-mapper` |
+| `memoryTopology` (carrier) | `ArchDiagramMetrics.csv` | Parameter→slot map below ([DATA-48a](../context/decisions/interim/DATA.md)) | `adapt-mapper` |
 | Heatmap | `MemoryRWAccesses.csv` | Different surface (§11.2.3.2) | **out** Sept 30 |
+
+<a id="parameter-slot-map"></a>
+
+### ArchDiagramMetrics → slot (DATA-48a)
+
+Map plated edges (GB/s labels `{n} GB/s`) and L2 plate. Dual AIV0/AIV1 params: **average** when both present. Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`.
+
+| Slot / plate | Parameter |
+|--------------|-----------|
+| `gm-l2-read` | `hbm_to_l2_syn_gbs` |
+| `gm-l2-write` | `l2_to_hbm_syn_gbs` |
+| `l2-l1-read` | `aic_out_to_l1_gbs` |
+| `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` |
+| `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` |
+| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` |
+| `l2-ub` | `aiv0_out_to_ub_gbs` (AIV0), `aiv1_out_to_ub_gbs` (AIV1) — average when both present |
+| `ub-l2` | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` |
+| `ub-vec` | `aiv0_ub_to_simd_gbs` / `aiv1_ub_to_simd_gbs` |
+| `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
+| L2 `peakPct` | `l2_cached_ratio` |
+
+Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../context/questions/DATA.md)).
 
 ## Adapter
 

@@ -151,7 +151,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | User selects `report_*.npu-rep` packed by emulate (contains emulate `manifest.json`) |
 | **Steps** | Host opens `.npu-rep` → library detects emulate profile ([PROC-8](../context/decisions/PROC.md)) → Timeline from `PipeTrace.json`; **no** summary cards / pid·opType·Blocks·更多 meta ([DATA-47](../context/decisions/DATA.md)); PIPE when PipesUtilization/hist packed; Architecture Diagram when ArchDiagramMetrics maps ([DATA-48a](../context/decisions/interim/DATA.md), interim plated chrome); CANNBot on compute/memory sections when those mount; heatmap / roofline / overview / hardwareDetails **hidden** (gaps) |
 | **Success** | Swimlane usable; PIPE + arch diagram when CSVs present; no summary cards/meta; CANNBot compute/memory payloads emit; no hard error for missing compute CSVs; no invented OpBasicInfo/PipeUtilization ([DATA-45](../context/decisions/interim/DATA.md#data-45), [DATA-47](../context/decisions/DATA.md)) |
-| **Sketches** | Same Timeline chrome as S1; emulate surfaces per [VIEW_DATA_MAPPING § Emulate](VIEW_DATA_MAPPING.md) |
+| **Sketches** | Same Timeline chrome as S1; emulate surfaces per [views catalog](../views/README.md) / [VIEW_DATA_MAPPING emulate TOC](VIEW_DATA_MAPPING.md#emulate-profile) |
 
 ---
 

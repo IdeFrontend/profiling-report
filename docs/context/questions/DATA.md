@@ -117,9 +117,9 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 - **The 理论值 has no field.** Row `23` — `L0C -> UB + L0C->L1` — is `NA` / `NA`, so the producer defines no 理论值 column for **L0C → L1** or **L0C → L2/GM**: the two slotless KB edges ([DATA-24](../decisions/DATA.md) / [DATA-25](../decisions/DATA.md)) keep their `*_datas(KB)` volume and get no 100% reference. That closes the part inherited from [DATA-20](../decisions/DATA.md).
 - **(b) is still open:** no fixture with non-`NA` `MemoryL0.csv` values (`aic_l0a_read_bw` / `aic_l0b_read_bw` / `aic_l0a_write_bw` / `aic_l0b_write_bw` / `aic_l0c_read_bw_cube` / `aic_l0c_write_bw_cube`) has been offered, so the six L0/Cube plates still cannot be validated against the sketch. The corridor plate's field is settled and covered by `PR-VM-024`.
 
-**Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts); the edge table in [VIEW_DATA_MAPPING §11.2.6](../../ui/VIEW_DATA_MAPPING.md); the AIC-row plates of the exported chrome ([memory-topology.svg](../../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg)); the sketch's AIC row in [`v930/report-stats-scrolled.jpeg`](../../ui/source/v930/report-stats-scrolled.jpeg); the producer's numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png` (OCR-matched slot by slot).
+**Roots / evidence:** `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts); the edge table in [memory-topology](../../views/memory-topology.md#edge-field-source); the AIC-row plates of the exported chrome ([memory-topology.svg](../../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg)); the sketch's AIC row in [`v930/report-stats-scrolled.jpeg`](../../ui/source/v930/report-stats-scrolled.jpeg); the producer's numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png` (OCR-matched slot by slot).
 
-**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
+**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [memory-topology](../../views/memory-topology.md#edge-field-source), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
 
 ### DATA-44 — the DATA-39 table's Cube↔L0C direction slip
 
@@ -131,7 +131,7 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Roots / evidence:** the producer's `DATA questions` doc § DATA-39 "Memory", rows `21`/`22` against rows `29`/`30`, and its numbered figure `npu-compute/Questions/DATA questions/图片和附件/image 5.png`; `EDGE_MAP` in [memoryTopology.ts](../../../src/adapters/memoryTopology.ts) (`cube-l0c` → `aic_l0c_write_bw_cube`, `l0c-cube` → `aic_l0c_read_bw_cube`); the `**Value slots**` table of [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
 
-**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
+**Specs when answered:** [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), [view-models.spec.md](../../../specs/core/view-models.spec.md), [memory-topology](../../views/memory-topology.md#edge-field-source), [INPUT_FORMATS](../../formats/INPUT_FORMATS.md).
 
 ### DATA-48 — Emulate ArchDiagramMetrics → Architecture Diagram slots
 

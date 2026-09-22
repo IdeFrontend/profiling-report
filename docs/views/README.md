@@ -1,6 +1,6 @@
 # Views — consumer surface catalog
 
-Per-surface packets: **sketches + adapted view-model + compute/emulate fill**. Profile **on-disk** schemas stay under [`../formats/`](../formats/) (`compute/`, `emulate/`). Adapter dispatch: [`../formats/ADAPTERS.md`](../formats/ADAPTERS.md).
+Per-surface packets: **sketches + adapted view-model + compute/emulate fill** (including **column / slot / edge → view-model tables**). Profile **on-disk** schemas stay under [`../formats/`](../formats/) (`compute/`, `emulate/`). Adapter dispatch: [`../formats/ADAPTERS.md`](../formats/ADAPTERS.md). Product docx § → packet **index** lives under [`../ui/`](../ui/) (no column tables there).
 
 **New packet:** copy [`_template.md`](_template.md). Heading order is fixed (Sketches before View-model).
 
@@ -27,10 +27,11 @@ Surfaces still described in legacy [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA
 |---------|--------|
 | Container / profiles / detection | [`../formats/README.md`](../formats/README.md) |
 | Embed schemas | [`../formats/compute/`](../formats/compute/), [`../formats/emulate/`](../formats/emulate/) |
-| Per-surface VM + fill + sketches | **this tree** |
+| Per-surface VM + fill + sketches + **field/slot/edge tables** | **this tree** |
+| Docx § → packet index (TOC only; no column tables) | [`../ui/`](../ui/) visualization index |
 | UX scenarios / interactions | [`../ui/UX_SPEC.md`](../ui/UX_SPEC.md), [`../ui/INTERACTIONS.md`](../ui/INTERACTIONS.md) |
 | Component ACs | Co-located `src/ui/**/*.spec.md` — link here for data |
 
-Do **not** fork hide rules by raw CSV name. Do **not** invent compute-shaped embeds from emulate tables ([DATA-45](../context/decisions/interim/DATA.md#data-45)).
+Do **not** fork hide rules by raw CSV name. Do **not** invent compute-shaped embeds from emulate tables ([DATA-45](../context/decisions/interim/DATA.md#data-45)). Do **not** defer field/slot tables to the docx § index — own them in Compute/Emulate fill.
 
 **Emulate packer checklist (embed → Sept 30 view):** [emulate/FORMAT §4.1](../formats/emulate/FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).

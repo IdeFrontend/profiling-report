@@ -41,6 +41,20 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 |---------------|-------|-----------------|-------------|
 | `SwimlaneModel` | `PipeTrace.json` (µs) or `trace.json` (ns) | CTEF `ph:X` events | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
+<a id="sample-binding"></a>
+
+### Sample data binding (local)
+
+Docx field table is **empty**. Behavior from mockups + sample `trace.json`:
+
+| Need | Sample source |
+| --- | --- |
+| Lane identity | `thread_name` metadata (`AIV0/PIPE_FIX/status`, …) |
+| Intervals | `ph:"X"` events (`ts`, `dur`, `name`, `cat`, `args`) |
+| Pipe busy states | `args.state_PIPE_*` on pipe-state records |
+
+Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mockup exceed the sample trace richness — full binding remains TBD.
+
 ## Emulate fill
 
 | Adapted field | Embed | Columns / notes | Status |

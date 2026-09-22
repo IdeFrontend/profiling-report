@@ -122,7 +122,7 @@ profiling-report/
     ui/                                         UX narrative + design sources (v930/)
       source/                                   full-frame dumps + manifest.yaml
       DESIGN_INDEX.md                           source → visual packs
-      VIEW_DATA_MAPPING.md                      view ↔ field ↔ source mappings
+      VIEW_DATA_MAPPING.md                      docx § → view-packet index (tables in views/)
     formats/                                    format explainers (non-AC narrative)
     architecture/                               packaging / component catalog prose
 

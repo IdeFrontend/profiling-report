@@ -35,7 +35,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 1. **Deps (library):** Document interim DATA-36 encoding (e.g. `SwimEvent.dependencies: string[]` successor ids, or Chrome Trace `args` convention); add synthetic fixture with known edges; adapter fills model.
 2. **Deps UI:** draw curves in `WebGlSwimlaneRenderer` / `CanvasSwimlaneRenderer` on selection; toolbar mode/depth; spec + crops in `DependencyLinksLayer/`; tests.
 3. **Details panel:** Replace/extend `DetailPanel` → selection details (timing + in/current/out mini-graph + depth filters); wire to `selectedEventId`.
-4. **Memory graph:** Author/adapt static SVG topology asset; map Memory* CSV columns → edge label slots (document mapping table in VIEW_DATA_MAPPING); `MemoryTopologyPanel` in Memory aside with M1 field lists; tests on `out.rep`.
+4. **Memory graph:** Author/adapt static SVG topology asset; map Memory* CSV columns → edge label slots (document mapping table in docs/views/memory-topology.md); `MemoryTopologyPanel` in Memory aside with M1 field lists; tests on `out.rep`.
 5. **Roofline:** Spec interim point/ceiling mapping from `ArithmeticUtilization` (and peaks if present) while DATA-37 open; implement `RooflinePanel` (hover points, hide if empty); wire aside/capability; tests on `out.rep`.
 6. **Time-range measure:** Toolbar toggle + `measureMode` / `measureRange` in view-state; canvas overlay (band + Δt); pan suppressed while measuring; no aside recompute; tests.
 7. **MSTT host (separate repo):** workspace dep; scan `.npu-rep`; open dispatch; panel mount `<ProfilingReport>`; theme/locale; open 查看全部 CSV; smoke real OP + fixture.
