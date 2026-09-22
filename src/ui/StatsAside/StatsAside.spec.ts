@@ -2027,4 +2027,78 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
   });
+
+  it('performance-hints entry renders exactly once per branch (summary and csvOnly)', async () => {
+    const hintsReport = {
+      ...emptyReportViewModel(),
+      summary: { taskDurationUs: 1 },
+      performanceHints: [{ message: 'hint', origin: 'kernel' as const }],
+    };
+    // Non-csvOnly branch: the shared body renders the section; the csvOnly template stays closed.
+    const summary = mount(StatsAside, {
+      props: { capabilities: ['performanceHints'], report: hintsReport },
+    });
+    expect(summary.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(1);
+    expect(summary.findAll('[data-testid="performance-hints-trigger"]')).toHaveLength(1);
+
+    // csvOnly branch: only the csvOnly-branch block renders (the shared body one is gated).
+    const csvOnly = mount(StatsAside, {
+      props: { capabilities: ['performanceHints'], report: { ...csvOnlyEntryReport(), performanceHints: hintsReport.performanceHints } },
+    });
+    expect(csvOnly.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(1);
+    expect(csvOnly.findAll('[data-testid="performance-hints-trigger"]')).toHaveLength(1);
+
+    await csvOnly.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    expect(csvOnly.emitted('open-performance-hints')).toHaveLength(1);
+  });
+
+  it('performance-hints section renders first in both stack branches', () => {
+    const hints = [{ message: 'hint', origin: 'kernel' as const }];
+
+    // Summary branch: the hints section precedes the pipe occupancy section.
+    const summary = mount(StatsAside, {
+      props: {
+        capabilities: ['performanceHints'],
+        report: {
+          ...emptyReportViewModel(),
+          summary: { taskDurationUs: 1, opType: 'vector' },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          performanceHints: hints,
+        },
+      },
+    });
+    const summaryHints = summary.get('[data-testid="stats-performance-hints"]').element;
+    const pipeSection = summary.get('[data-testid="pipe-occupancy"]').element;
+    expect(
+      summaryHints.compareDocumentPosition(pipeSection) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // csvOnly branch: the hints section precedes the compute detail block.
+    const csvOnly = mount(StatsAside, {
+      props: {
+        capabilities: ['performanceHints'],
+        report: { ...csvOnlyEntryReport(), performanceHints: hints },
+      },
+    });
+    const csvHints = csvOnly.get('[data-testid="stats-performance-hints"]').element;
+    const computeSection = csvOnly.get('[data-testid="stats-compute"]').element;
+    expect(
+      csvHints.compareDocumentPosition(computeSection) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('performance-hints entry hidden without the capability (DATA-30 gate)', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: {
+          ...emptyReportViewModel(),
+          summary: { taskDurationUs: 1 },
+          performanceHints: [{ message: 'hint', origin: 'kernel' as const }],
+        },
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-performance-hints"]').exists()).toBe(false);
+  });
 });

@@ -59,6 +59,7 @@ import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '..
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
+import PerformanceHintsDock from '../PerformanceHintsDock/PerformanceHintsDock.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_COLLAPSED,
@@ -240,6 +241,8 @@ const dockDisplayHeight = computed(() => {
 });
 /** Session expand intent — drives the chevron even when live preview height is slack-capped. */
 const dockSessionExpanded = computed(() => dockHeight.value >= DOCK_HEIGHT_EXPANDED);
+/** M4 performance-hints dock: opened from the StatsAside 性能分析 trigger, closed via its own close button. */
+const hintsDockOpen = ref(false);
 
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
@@ -316,6 +319,11 @@ const nsPerPx = computed((): number | undefined => {
 const clockFreqMHz = computed(() => resolveClockFreqMHz(report.value?.summary));
 
 const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
+/** M4 performance-hints rows (adapter join); empty when absent (DATA-30). */
+const performanceHints = computed(() => report.value?.performanceHints ?? []);
+const hasPerformanceHints = computed(
+  () => caps.value.includes('performanceHints') && performanceHints.value.length > 0,
+);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
 const asideAvailable = computed(() => reportHasAsideContent(report.value, caps.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
@@ -516,6 +524,7 @@ function resetViewFromModel(
   marqueePreviewHeight.value = DOCK_HEIGHT_MARQUEE_PREVIEW;
   dockSnap = null;
   hovered.value = null;
+  hintsDockOpen.value = false;
   closeTopologyFullscreen();
   // Operator switches keep session gutter/aside preferences; fresh loads reset them.
   if (!opts?.preservePanelWidths) resetPanelWidthsToDefaults();
@@ -722,7 +731,8 @@ function onGutterMetricChange(payload: { cardId: string; metric: GutterMetric })
 
 /**
  * Aside has content when any of: duration card, I/O bandwidth cards,
- * pipe occupancy, compute/memory CSV tables, hardware details, or labelled topology is present.
+ * pipe occupancy, compute/memory CSV tables, hardware details, labelled topology,
+ * or joined performance hints is present.
  * Roofline counts only when the `roofline` capability opts it in (Phase 2, out of the current
  * release), so points alone never open the aside.
  * Name/type alone do not open the aside (DATA-33a). Must stay in sync with StatsAside.
@@ -743,6 +753,8 @@ function reportHasAsideContent(
     capabilities.includes('roofline') && (rm.roofline?.points?.length ?? 0) > 0;
   const hasHardware = (rm.hardwareDetails?.sections.length ?? 0) > 0;
   const hasTopology = (rm.memoryTopology?.edges.some((e) => e.label) ?? false);
+  const hasPerformanceHints =
+    capabilities.includes('performanceHints') && (rm.performanceHints?.length ?? 0) > 0;
   return (
     hasDuration ||
     hasBandwidth ||
@@ -753,7 +765,23 @@ function reportHasAsideContent(
     hasSummaryCategories ||
     hasRoofline ||
     hasHardware ||
-    hasTopology
+    hasTopology ||
+    hasPerformanceHints
+  );
+}
+
+/**
+ * DATA-33a: the aside auto-opens on load only for non-hint content. A
+ * hints-only emulate report keeps the aside closed, while the manual toolbar
+ * toggle stays available because `reportHasAsideContent` counts the hints.
+ */
+function reportAutoOpensAside(
+  rm: ReportViewModel | null | undefined,
+  capabilities: ReportCapability[] = [],
+): boolean {
+  return reportHasAsideContent(
+    rm,
+    capabilities.filter((c) => c !== 'performanceHints'),
   );
 }
 
@@ -764,7 +792,7 @@ function applyAdapted(adapted: AdaptedReport) {
   internalSwim.value = adapted.swimlaneModel;
   internalReport.value = adapted.reportModel;
   internalCapabilities.value = adapted.capabilities ?? null;
-  resetViewFromModel(adapted.swimlaneModel, reportHasAsideContent(adapted.reportModel, caps.value));
+  resetViewFromModel(adapted.swimlaneModel, reportAutoOpensAside(adapted.reportModel, caps.value));
   loadError.value = null;
   emit('ready');
 }
@@ -846,7 +874,10 @@ watch(
   () => props.swimlaneModel,
   (m) => {
     if (m && !props.source) {
-      resetViewFromModel(m, reportHasAsideContent(props.reportModel ?? report.value, caps.value));
+      resetViewFromModel(
+        m,
+        reportAutoOpensAside(props.reportModel ?? report.value, caps.value),
+      );
     }
   },
 );
@@ -876,7 +907,7 @@ onMounted(() => {
   if (props.swimlaneModel || props.reportModel) {
     resetViewFromModel(
       props.swimlaneModel ?? null,
-      reportHasAsideContent(props.reportModel, caps.value),
+      reportAutoOpensAside(props.reportModel, caps.value),
     );
     emit('ready');
   }
@@ -1409,6 +1440,11 @@ function onAside(visible: boolean) {
   viewState.value = { ...viewState.value, asideVisible: visible };
 }
 
+/** StatsAside 性能分析 trigger → mount the hints table in the bottom dock. */
+function onOpenPerformanceHints() {
+  hintsDockOpen.value = true;
+}
+
 function onCannbot(scope: CannbotScope) {
   emit('cannbot-request', buildCannbotPayload(scope, report.value, props.reportMeta));
 }
@@ -1618,6 +1654,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @open-pipe-details="emit('open-pipe-details')"
           @open-cannbot="onCannbot"
           @open-topology-fullscreen="onOpenTopologyFullscreen"
+          @open-performance-hints="onOpenPerformanceHints"
         />
       </template>
     </ReportLayout>
@@ -1628,9 +1665,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
          From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
-        v-if="showTimeline && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))"
+        v-if="(showTimeline && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints)"
         class="pr-dock"
-        :class="{ 'pr-dock--live': marqueeLive }"
+        :class="{
+          'pr-dock--live': marqueeLive,
+          'pr-dock--hints': hintsDockOpen && hasPerformanceHints,
+        }"
         data-testid="dock"
         :style="{ '--pr-dock-h': `${dockDisplayHeight}px` }"
       >
@@ -1666,6 +1706,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             @close="onSelect(null)"
             @update:height="dockHeight = $event"
             @update:dependency-mode="onDependencyMode"
+          />
+          <PerformanceHintsDock
+            v-else-if="hintsDockOpen && hasPerformanceHints"
+            key="hints"
+            :rows="performanceHints"
+            :locale="locale"
+            @close="hintsDockOpen = false"
           />
           <div
             v-else
@@ -1817,6 +1864,14 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
    tween would shrink the wrap mid-animation and re-feed the slack math. */
 .pr-dock--live.pr-dock-enter-active {
   transition: opacity 200ms ease;
+}
+
+.pr-dock--hints {
+  /* Figma: bottom panel 353px; 60vh clamp mirrors the shell rule and only kicks in on short windows. */
+  height: min(353px, 60vh);
+  background: rgba(31, 31, 31, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
 }
 
 .pr-dock > * {

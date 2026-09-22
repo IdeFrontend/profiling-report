@@ -277,6 +277,22 @@ export interface MemoryTopologyModel {
   plates?: MemoryTopologyPlate[];
 }
 
+/**
+ * M4 performance-hint row (docs/views/performance-hints.md) joined from the
+ * emulate hint CSVs. One item per joined row — CSV order preserved.
+ */
+export interface PerformanceHintItem {
+  /** `HintMessages.HintMsgText` (RFC-4180 quoted fields decoded by parseCsv). */
+  message: string;
+  /** `HintTypes.HintTypeName` via `HintTypeId`; omit when unresolved. */
+  typeName?: string;
+  /** `SourceLineHints.SourceLineId` — raw id string; no `SourceLines` on gelu. */
+  sourceLineId?: string;
+  /** `InstructionHints.PC` — exact decimal digits, never a JS number. */
+  pc?: string;
+  origin: 'instruction' | 'sourceLine' | 'kernel';
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
@@ -297,6 +313,8 @@ export interface ReportViewModel {
   hardwareDetails?: HardwareDetailsModel;
   /** M2 memory topology (change-log #5); omit when no label data. */
   memoryTopology?: MemoryTopologyModel;
+  /** M4 性能提示 dock; omit when no joined hint rows (DATA-30). */
+  performanceHints?: PerformanceHintItem[];
   /** Product (NPU-Compute): summary.jsonl metric categories (block-mean) for the detail surface. */
   summaryCategories?: SummaryCategory[];
   /**
@@ -317,6 +335,7 @@ export type ReportCapability =
   | 'memoryDiagram'
   | 'archDiagram'
   | 'hardwareDetails'
+  | 'performanceHints'
   | 'sourceTab'
   | 'cacheTab'
   | 'aicpu';

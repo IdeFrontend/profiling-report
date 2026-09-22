@@ -1068,6 +1068,50 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
   });
 
+  it('no timeline: the 性能分析 trigger still mounts the hints dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-no-timeline',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [
+            {
+              message:
+                'UB bank conflicts detected. Try to optimize local memory accesses, prefer sequential patterns instead of strided.',
+              typeName: 'shared_bank_conflicts',
+              origin: 'kernel',
+            },
+          ],
+        },
+        capabilities: ['performanceHints'],
+      },
+    });
+
+    // No swimlaneModel → timeline absent; DATA-33a keeps the hints-only aside closed.
+    expect(wrapper.find('[data-testid="no-timeline"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+    await nextTick(); // first render opens the aside (default state); onMounted's DATA-33a reset closes it.
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
+
+    // Manual toolbar toggle opens the aside; the hints entry renders once (non-csvOnly branch).
+    await wrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(1);
+
+    // The trigger mounts the dock even though showTimeline is false.
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    // The dock shell applies the hints modifier only while the hints table is its content.
+    expect(wrapper.get('[data-testid="dock"]').classes()).toContain('pr-dock--hints');
+
+    // The dock's own close button dismisses it again (modifier goes with it).
+    await wrapper.get('[data-testid="performance-hints-close"]').trigger('click');
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+    expect(wrapper.find('.pr-dock--hints').exists()).toBe(false);
+  });
+
   it('toolbar lives in main column only (not full-width above aside)', () => {
     const wrapper = mount(ProfilingReport, {
       props: {

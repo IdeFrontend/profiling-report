@@ -56,6 +56,7 @@ const emit = defineEmits<{
   'open-topology-fullscreen': [model: MemoryTopologyModel];
   'open-cannbot': [scope: CannbotScope];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
+  'open-performance-hints': [];
 }>();
 
 type PipeSide = PipeOccupancySide;
@@ -240,6 +241,12 @@ const showRoofline = computed(
 );
 const hasHardwareDetails = computed(
   () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
+);
+/** M4 性能提示 entry: capability + joined rows ([DATA-30]) — reachable from both body branches. */
+const hasPerformanceHints = computed(
+  () =>
+    (props.capabilities ?? []).includes('performanceHints') &&
+    (props.report?.performanceHints?.length ?? 0) > 0,
 );
 
 const asideSurface = ref<AsideSurface>('report');
@@ -670,6 +677,26 @@ const detailTestId = computed(() => {
       class="pr-aside__body"
     >
       <div
+        v-if="hasPerformanceHints && !csvOnly"
+        class="pr-stack-section"
+        data-testid="stats-performance-hints"
+      >
+        <div class="pr-stack-section__head">
+          <h4>{{ t('performanceAnalysis', locale) }}</h4>
+          <div class="pr-pipe-head__actions">
+            <button
+              type="button"
+              class="pr-pipe-details"
+              data-testid="performance-hints-trigger"
+              @click="emit('open-performance-hints')"
+            >
+              {{ t('details', locale) }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
         v-if="hasSummary"
         class="pr-cards"
         data-testid="stats-summary"
@@ -1050,6 +1077,25 @@ const detailTestId = computed(() => {
       </div>
 
       <template v-if="csvOnly">
+        <div
+          v-if="hasPerformanceHints"
+          class="pr-stack-section"
+          data-testid="stats-performance-hints"
+        >
+          <div class="pr-stack-section__head">
+            <h4>{{ t('performanceAnalysis', locale) }}</h4>
+            <div class="pr-pipe-head__actions">
+              <button
+                type="button"
+                class="pr-pipe-details"
+                data-testid="performance-hints-trigger"
+                @click="emit('open-performance-hints')"
+              >
+                {{ t('details', locale) }}
+              </button>
+            </div>
+          </div>
+        </div>
         <div
           v-if="showCompute"
           data-testid="stats-compute"
