@@ -20,14 +20,14 @@ export const BASE_FONT_PX = 6.3;
  *  Every slot is listed because the clearance differs per slot — the row stack's inner corridors
  *  (L1↔L0A/B, L0A/B↔Cube, Cube↔L0C, UB↔SIMD) are far tighter than the pillars' and have no
  *  common bound. Measured walls at the value's own height band:
- *  `gm-l2-*` x≈55.75/x≈94; `l2-l1-read` x≈133.75/x≈188; `l2-ub`/`ub-l2` x≈188/x≈248;
+ *  `gm-l2-*` x≈55.75/x≈94; `l2-l1-read` / `l2-ub` / `ub-l2` x≈133.75/x≈188 (L2↔row corridor);
  *  `ub-vec`/`vec-ub` x≈315/x≈361; `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube`
  *  x≈282/x≈322; `cube-l0c`/`l0c-cube` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
 export const SLOT_MAX_W: Record<string, number> = {
   'gm-l2-read': 35.4,
   'gm-l2-write': 35.4,
-  'l2-ub': 49.9,
-  'ub-l2': 49.9,
+  'l2-ub': 49.0,
+  'ub-l2': 49.0,
   'l2-l1-read': 49.0,
   'ub-vec': 42.1,
   'vec-ub': 42.1,
@@ -81,10 +81,12 @@ export const DEFAULT_MAX_W = 34.7;
  * Value slots of the chrome (`memory-topology.svg`, 448×423 units), keyed by the adapter's
  * `TOPOLOGY_SLOT_EDGE_IDS` — the `Record` type keeps the two lists identical, so a newly plated
  * edge without coordinates fails typecheck instead of silently drawing nothing.
- * Coordinates are centres of the export's empty value-plate rects (white fills; orange MTE
- * chips are not slots). Pillars: GM x16–56, L2 x94–134; rows x188–432 — AIC y16–200,
- * AIV × 2 y218–402. Ordering follows link direction: the upper label of a pair rides the
- * link whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
+ * Coordinates are centres of the export's **amber sample GB/s glyphs** (corridor value
+ * plates), never orange MTE / FixPipe chip centres — those chips keep static `MTE_*` /
+ * `FixPipe` labels (UI-38 / PR-MEMTOP-001d). Pillars: GM x16–56, L2 x94–134; rows x188–432 —
+ * AIC y16–200, AIV × 2 y218–402. Ordering follows link direction: the upper label of a pair
+ * rides the link whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD,
+ * Cube→L0C).
  *
  * The simplified chrome merges AIV0/AIV1 into one **AIV × 2** row, so former dual AIV corridor
  * slots (`l2-ub`, `ub-l2`, `ub-vec`, `vec-ub`) are single plates. Cube↔L0C keeps two edge ids
@@ -96,19 +98,19 @@ export const DEFAULT_MAX_W = 34.7;
  * badge positions stay blank.
  */
 export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, number])[]> = {
-  'gm-l2-read': [[75.0, 202.0]],
-  'gm-l2-write': [[75.0, 221.0]],
-  'l2-ub': [[218.0, 320.7]],
-  'ub-l2': [[218.0, 335.7]],
-  'l2-l1-read': [[158.5, 97.7]],
-  'ub-vec': [[338.5, 353.5]],
-  'vec-ub': [[338.5, 365.5]],
-  'l1-l0a': [[238.1, 58.7]],
-  'l1-l0b': [[238.1, 83.7]],
-  'l0a-cube': [[302.8, 59.0]],
-  'l0b-cube': [[302.8, 84.0]],
-  'cube-l0c': [[373.5, 83.0]],
-  'l0c-cube': [[373.5, 88.0]],
+  'gm-l2-read': [[75.1, 200.3]],
+  'gm-l2-write': [[75.2, 219.3]],
+  'l2-ub': [[159.7, 315.2]],
+  'ub-l2': [[159.6, 331.2]],
+  'l2-l1-read': [[160.1, 87.9]],
+  'ub-vec': [[338.7, 351.8]],
+  'vec-ub': [[338.6, 363.8]],
+  'l1-l0a': [[239.1, 49.8]],
+  'l1-l0b': [[239.1, 74.8]],
+  'l0a-cube': [[300.9, 54.8]],
+  'l0b-cube': [[300.9, 79.8]],
+  'cube-l0c': [[373.6, 83.8]],
+  'l0c-cube': [[373.6, 88.8]],
 };
 
 /**
@@ -149,8 +151,10 @@ import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
- *  448×423). Static labels stay outlined paths; sample GB/s (`rgb(249,183,102)`) and in-plate /
- *  under-word util `%` glyphs were stripped in-repo so panel overlays are not duplicated.
+ *  448×423). Static labels stay outlined paths (including white `MTE_*` / `FixPipe` ink on
+ *  orange chips). Sample corridor GB/s (`rgb(249,183,102)`) and under-word util `%` glyphs
+ *  were stripped in-repo so panel overlays are not duplicated; chip labels must not be
+ *  stripped with those samples (PR-MEMTOP-001c / 001d).
  *  `?no-inline` keeps the asset out of the JS bundle — lib mode inlines assets whatever
  *  `assetsInlineLimit` says, and only this suffix is checked first — so it ships as
  *  `dist/memory-topology.svg`. The built reference is the web-root path `/memory-topology.svg`

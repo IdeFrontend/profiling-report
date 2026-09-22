@@ -6,6 +6,7 @@ import MemoryTopologyPanel, {
   PLATE_MAX_W,
   PLATE_SLOTS,
   SLOT_MAX_W,
+  SLOTS,
   ZOOM_STEPS,
   fitFontSize,
 } from './MemoryTopologyPanel.vue';
@@ -112,7 +113,16 @@ describe('MemoryTopologyPanel', () => {
       ['L0B', 272.5, 84.2],
       ['BT', 272.6, 110.9],
       ['FP', 272.6, 136.7],
-      ['FixPipe', 404.1, 137.4],
+      ['FixPipe (L0C)', 404.1, 137.4],
+      ['FixPipe (L1→FP)', 237.9, 137.4],
+      ['MTE_1 L1→L0A', 237.6, 59.4],
+      ['MTE_1 L1→L0B', 237.6, 84.4],
+      ['MTE_1 L1→BT', 237.6, 112.4],
+      ['MTE_2 L2→L1', 158.4, 98.4],
+      ['MTE_3 AIV mid', 341.8, 272.4],
+      ['MTE_2 L2→UB', 217.9, 321.4],
+      ['MTE_3 UB→L2', 217.8, 336.4],
+      ['MTE_2 bottom', 217.9, 378.4],
     ];
 
     // Figma paths are `id="" d="…" fill="…" />` — `\bd=` avoids matching the trailing
@@ -138,6 +148,30 @@ describe('MemoryTopologyPanel', () => {
     for (const [name, x, y] of REQUIRED) {
       const hit = whiteCentres.some((c) => Math.abs(c.cx - x) <= 3 && Math.abs(c.cy - y) <= 3);
       expect(hit, `missing static label path for ${name} near (${x}, ${y})`).toBe(true);
+    }
+  });
+
+  it('PR-MEMTOP-001d: SLOTS never sit on orange MTE/FixPipe chip centres', () => {
+    // Remasuring onto white-under-orange chip rects put GB/s overlays on MTE labels.
+    const CHIPS: ReadonlyArray<readonly [number, number]> = [
+      [238.1, 58.7],
+      [238.1, 83.7],
+      [158.5, 97.7],
+      [238.1, 111.7],
+      [238.1, 136.7],
+      [404.3, 136.7],
+      [342.0, 271.7],
+      [218.0, 320.7],
+      [218.0, 335.7],
+      [218.0, 377.7],
+    ];
+    for (const [edge, slots] of Object.entries(SLOTS)) {
+      for (const [sx, sy] of slots) {
+        for (const [cx, cy] of CHIPS) {
+          const onChip = Math.hypot(sx - cx, sy - cy) < 6;
+          expect(onChip, `${edge} slot (${sx}, ${sy}) on chip (${cx}, ${cy})`).toBe(false);
+        }
+      }
     }
   });
 
@@ -221,10 +255,11 @@ describe('MemoryTopologyPanel', () => {
     // GM↔L2 labels sit between the GM pillar and the L2 pillar...
     expect(x('gm-l2-read')).toBeGreaterThan(CHROME.gmRight);
     expect(x('gm-l2-read')).toBeLessThan(CHROME.l2Left);
-    // AIC L2→L1 stays in the L2↔row corridor; AIV × 2 L2→UB plates sit on MTE chips inside the row.
+    // L2→L1 and L2→UB sit in the L2↔row corridor (amber sample centres), not on MTE chips.
     expect(x('l2-l1-read')).toBeGreaterThan(CHROME.l2Right);
     expect(x('l2-l1-read')).toBeLessThan(CHROME.clusterLeft);
-    expect(x('l2-ub')).toBeGreaterThan(CHROME.clusterLeft);
+    expect(x('l2-ub')).toBeGreaterThan(CHROME.l2Right);
+    expect(x('l2-ub')).toBeLessThan(CHROME.clusterLeft);
   });
 
   it('PR-MEMTOP-007: shows L2 Peak(%) when peakPct set', () => {
@@ -909,19 +944,19 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     // are much tighter than the pillars' and once shared a single (too generous) default.
     const CORRIDORS: Record<string, [number, number, number]> = {
       // slot: [left wall, slot centre, right wall]
-      'gm-l2-read': [55.75, 75.0, 94],
-      'gm-l2-write': [55.75, 75.0, 94],
-      'l2-ub': [188, 218.0, 256],
-      'ub-l2': [188, 218.0, 256],
-      'l2-l1-read': [133.75, 158.5, 188],
-      'ub-vec': [315, 338.5, 361],
-      'vec-ub': [315, 338.5, 361],
-      'l1-l0a': [217, 238.1, 262],
-      'l1-l0b': [217, 238.1, 262],
-      'l0a-cube': [282, 302.8, 322],
-      'l0b-cube': [282, 302.8, 322],
-      'cube-l0c': [353, 373.5, 394],
-      'l0c-cube': [353, 373.5, 394],
+      'gm-l2-read': [55.75, 75.1, 94],
+      'gm-l2-write': [55.75, 75.2, 94],
+      'l2-ub': [133.75, 159.7, 188],
+      'ub-l2': [133.75, 159.6, 188],
+      'l2-l1-read': [133.75, 160.1, 188],
+      'ub-vec': [315, 338.7, 361],
+      'vec-ub': [315, 338.6, 361],
+      'l1-l0a': [217, 239.1, 262],
+      'l1-l0b': [217, 239.1, 262],
+      'l0a-cube': [282, 300.9, 322],
+      'l0b-cube': [282, 300.9, 322],
+      'cube-l0c': [353, 373.6, 394],
+      'l0c-cube': [353, 373.6, 394],
       'l2-peak': [94, 113.8, 133.75],
     };
     expect(Object.keys(SLOT_MAX_W).sort()).toEqual(Object.keys(CORRIDORS).sort());

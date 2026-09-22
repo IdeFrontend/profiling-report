@@ -23,11 +23,12 @@ Official product memory-path topology chrome with **data-driven link values** (c
 ## Behavior
 
 1. Render the official chrome asset `memory-topology.svg` (Figma export of `v930/report-stats-scrolled` 内存负载分析, **448×423** simplified AIC + AIV × 2) at full size. Everything static lives in the asset and is **not** drawn by this component: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar, **DCache**, **ICache**, **SS**) and AIV × 2 (UB, SIMT/SIMD, Vec, Scalar, **DCache**, **ICache**, ND-DNA Cache, MTE1/2/3, FixPipe, BT/FB), boxes, arrows, dashes and the empty value plates ([memory-topology § edge-field-source](../../../../docs/views/memory-topology.md#edge-field-source)). Because the chrome owns the arrows, the panel renders no SVG `<marker>`s.
-1b. **Chrome glyph strip (PR-MEMTOP-001b / PR-MEMTOP-001c):** the simplified export outlines sample corridor GB/s and under-word util `%` as path fills. Those samples are stripped **in-repo** so panel overlays do not double-print. The strip **must**:
+1b. **Chrome glyph strip (PR-MEMTOP-001b / PR-MEMTOP-001c / PR-MEMTOP-001d):** the simplified export outlines sample corridor GB/s and under-word util `%` as path fills. Those samples are stripped **in-repo** so panel overlays do not double-print. The strip **must**:
     - Remove every path with fill `rgb(249,183,102)` (export sample GB/s ink, same colour as `.pr-topo__edge`).
-    - Remove white sample glyphs that sit on corridor/MTE value plates (centres of `SLOTS` / companion whites within ~10u of an amber sample).
+    - Remove white sample glyphs whose centres sit on corridor **value plates** (centres of `SLOTS` / companion whites within ~10u of an amber sample). Orange **MTE / FixPipe chips are not value plates** — see 1d.
     - Remove the **lower** white glyph of each util-badge pair under a unit word (L2 peak, Cube, AIV Scalar, SIMD, SIMT, AIC Scalar) — the upper glyph is the unit name and stays.
-    - **Keep** all other static outlined labels, including at least: **DCache** / **ICache** (AIC and AIV × 2), **SS**, **L0A** / **L0B** / **BT** / **FP**, **FixPipe**, and the unit words (**CUBE**, **Scalar**, **SIMT**, **SIMD**, …). Gray boxes for DCache/ICache/SS must not render empty.
+    - **Keep** all other static outlined labels, including at least: **DCache** / **ICache** (AIC and AIV × 2), **SS**, **L0A** / **L0B** / **BT** / **FP**, **FixPipe**, **MTE_1** / **MTE_2** / **MTE_3** (white ink inside every orange chip), and the unit words (**CUBE**, **Scalar**, **SIMT**, **SIMD**, …). Gray boxes and orange chips must not render empty.
+1d. **Orange MTE / FixPipe chips (UI-38, PR-MEMTOP-001d):** each `#f69e39` chip keeps its static white label (`MTE_1` / `MTE_2` / `MTE_3` / `FixPipe`). Overlay `SLOTS` are the export's **amber sample glyph centres** (corridor GB/s placeholders), **never** orange-chip centres — painting a GB/s value on a chip centre hides the MTE label (the remasure bug that put `l1-l0a` / `l2-l1-read` / `l2-ub` / `ub-l2` on chips).
 2. Overlay the values from `model.edges` as SVG `<text>` at the **value slots** below — the centres of the placeholder values that were stripped from the export.
 3. One `<text>` per slot is always drawn, including when the edge has no `label` (empty content). The adapter hides `NA` and formats `0`, so an omitted value leaves a visibly blank plate rather than a missing node.
 4. Slot geometry is fixed; only the text is data-driven. A pair's upper slot rides the link whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
@@ -58,19 +59,19 @@ Pillars: GM x16–56, L2 x94–134; row stack x188–432 — AIC y16–200, AIV 
 
 | Edge | Slots | Link |
 |------|-------|------|
-| `gm-l2-read` | (75.0, 202.0) | GM → L2 |
-| `gm-l2-write` | (75.0, 221.0) | L2 → GM |
-| `l2-ub` | (218.0, 320.7) | L2 → UB (AIV × 2 row; adapter still averages aiv0+aiv1) |
-| `ub-l2` | (218.0, 335.7) | UB → L2 (AIV × 2) |
-| `l2-l1-read` | (158.5, 97.7) | L2 → MTE2 → L1 (AIC) — plate carries the producer's `GM -> UB` field (DATA-43) |
-| `ub-vec` | (338.5, 353.5) | UB → SIMD (AIV × 2) |
-| `vec-ub` | (338.5, 365.5) | SIMD → UB (AIV × 2) |
-| `l1-l0a` | (238.1, 58.7) | L1 → MTE1 → L0A |
-| `l1-l0b` | (238.1, 83.7) | L1 → MTE1 → L0B |
-| `l0a-cube` | (302.8, 59.0) | L0A → Cube |
-| `l0b-cube` | (302.8, 84.0) | L0B → Cube |
-| `cube-l0c` | (373.5, 83.0) | Cube → L0C (stacked in one plate) |
-| `l0c-cube` | (373.5, 88.0) | L0C → Cube |
+| `gm-l2-read` | (75.1, 200.3) | GM → L2 |
+| `gm-l2-write` | (75.2, 219.3) | L2 → GM |
+| `l2-ub` | (159.7, 315.2) | L2 → UB (AIV × 2; L2↔row corridor — **not** the MTE_2 chip at x≈218) |
+| `ub-l2` | (159.6, 331.2) | UB → L2 (AIV × 2; L2↔row corridor — **not** the MTE_3 chip) |
+| `l2-l1-read` | (160.1, 87.9) | L2 → MTE2 → L1 (AIC) — plate beside the MTE_2 chip; field is DATA-43 `GM -> UB` |
+| `ub-vec` | (338.7, 351.8) | UB → SIMD (AIV × 2) |
+| `vec-ub` | (338.6, 363.8) | SIMD → UB (AIV × 2) |
+| `l1-l0a` | (239.1, 49.8) | L1 → MTE1 → L0A (above the MTE_1 chip; chip keeps `MTE_1`) |
+| `l1-l0b` | (239.1, 74.8) | L1 → MTE1 → L0B (above the MTE_1 chip) |
+| `l0a-cube` | (300.9, 54.8) | L0A → Cube |
+| `l0b-cube` | (300.9, 79.8) | L0B → Cube |
+| `cube-l0c` | (373.6, 83.8) | Cube → L0C (stacked in one plate) |
+| `l0c-cube` | (373.6, 88.8) | L0C → Cube |
 | L2 plate | (113.8, 211.5) | in-box plate on the L2 pillar — `peakPct`, else `l2-hit` |
 | `aiv_scalar` plate | (282.0, 315.0) | in-box `Scalar` badge, AIV × 2 (one field) |
 | `vec` plate | (372.0, 362.0) | in-box `Vec`/SIMD badge, AIV × 2 (one field) |
@@ -89,8 +90,7 @@ The export's slots were sized for its own 27.6-unit placeholders. Real values ar
 | Slot | Corridor (walls, chrome units) | Bound |
 |------|-------------------------------|-------|
 | `gm-l2-read` / `gm-l2-write` | x≈55.75 … x≈94 | 35.4 |
-| `l2-l1-read` | x≈133.75 … x≈188 | 49.0 |
-| `l2-ub` / `ub-l2` | x≈188 … x≈256 (AIV × 2 MTE band) | 49.9 |
+| `l2-l1-read` / `l2-ub` / `ub-l2` | x≈133.75 … x≈188 (L2↔row corridor) | 49.0 |
 | `ub-vec` / `vec-ub` | x≈315 … x≈361 | 42.1 |
 | `l1-l0a` / `l1-l0b` | x≈217 … x≈262 | 41.1 / 40.3 |
 | `l0a-cube` / `l0b-cube` | x≈282 … x≈322 | 36.7 / 34.7 |
@@ -120,6 +120,7 @@ A `100.00%` badge (31.1 units) therefore shrinks in all three boxes, the `Vec` o
 1. **PR-MEMTOP-001** — Renders the chrome asset `memory-topology.svg` at 448×423 with the L2 node anchor.
 1b. **PR-MEMTOP-001b** — The chrome SVG has no baked sample GB/s glyphs (`rgb(249,183,102)` path fills) and no `<text>` nodes; values come only from panel overlays.
 1c. **PR-MEMTOP-001c** — After the sample strip, static chrome labels remain as outlined white paths at their box centres: AIC/AIV **DCache** + **ICache**, **SS**, **L0A** / **L0B** / **BT** / **FP**, and **FixPipe**. Those gray/blue/orange boxes must not render empty.
+1d. **PR-MEMTOP-001d** — Every orange MTE / FixPipe chip keeps its white `MTE_1` / `MTE_2` / `MTE_3` / `FixPipe` label. No `SLOTS` centre coincides with an orange-chip centre (overlays never replace chip labels with GB/s).
 2. **PR-MEMTOP-002** — Renders data-driven edge labels (GB/s) from `model.edges`; Vec↔UB on the AIV × 2 row; AIC L1/L0/Cube labels when present.
 2b. **PR-MEMTOP-002b** — Every drawn value carries a unique `data-testid` (`edge-{edge-id}-{slot}`), so a `getByTestId`-style query resolves to one element even for the AIV0/AIV1 pairs.
 3. **PR-MEMTOP-003** — Omits the label for an edge with no `label` (slot drawn, blank).
@@ -181,6 +182,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak, resolved), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, DATA-28 (unit ratios), DATA-40 (GM↔L2 plates = aic + aiv summed, resolved), DATA-41 (AIC-row link values, partial), DATA-42 (sketch stack with no export plate, resolved), DATA-43 (DATA-39 row 24 = the `l2-l1-read` plate's field, row 32 = the summed Main Write; resolved), DATA-44 (DATA-39 rows 21/22 Cube↔L0C direction, open), UI-35, UI-38, UI-48, UI-49 (in-box unit badges, resolved), [view-models](../../../../specs/core/view-models.spec.md), [memory-topology](../../../../docs/views/memory-topology.md#edge-field-source).
 
 ## Changelog
+- **2026-09-22** — PR-MEMTOP-001d: orange MTE/FixPipe chips keep `MTE_*` / `FixPipe` labels; `SLOTS` remasured to amber sample centres (not chip centres) so overlays no longer paint GB/s on top of MTE ink.
 - **2026-09-22** — PR-MEMTOP-001c: sample strip must keep static DCache/ICache/SS/L0*/FixPipe labels (over-strip had emptied those gray/blue boxes).
 - **2026-09-22** — Chrome swap to 448×423 simplified export (AIC top + AIV × 2); remasured `SLOTS` / `PLATE_SLOTS` / L2 peak from empty value-plate centres; dual AIV corridor/badge slots collapse to one plate each.
 - **2026-09-18** — Review follow-ups (second round) on the tween. (a) The platform's own writers of `scrollLeft` / `scrollTop` — a wheel, a classic thumb, a keyboard scroll — rubber-banded exactly as the drag did, because the drag fix only stood the placement down for `dragging`; the box's `scroll` event now re-reads the anchor for any offset the placement did not itself write (its own writes leave precisely the offset it asked for, so they are recognised and ignored, and the tween cannot fight itself). (b) The flight probe sampled a fixed six `requestAnimationFrame` ticks, which is a frame *count* rather than a duration: measured on this machine at ~8.5ms a frame (~120Hz), six ticks reach ~50ms of an ease-in-out cubic that has barely left the stop — the 511px stage is at 512px against a 513px bar, so the "strictly between the two stops" sample failed for a tween that was running perfectly. The sample now runs until the step lands, on a wall-clock guard, so it is the same test at any refresh rate.
