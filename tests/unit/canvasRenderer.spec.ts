@@ -1354,11 +1354,22 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(split).toMatch(/this\.rebuildBrightOverlay\(\)/);
     const overlay = classMethodBody(webglSrc, 'rebuildBrightOverlay');
     expect(overlay).toMatch(/eventsById/);
-    expect(overlay).not.toMatch(/of this\.layout\.events/);
+    expect(overlay).not.toMatch(/of this\.layout\.events(?!ByLane)/);
     const renderBody = classMethodBody(webglSrc, 'render');
     expect(renderBody).toMatch(/brightChunks/);
     expect(renderBody).toMatch(/liftChunks/);
     expect(renderBody).toMatch(/SELECTION_MUTED_FILL/);
+  });
+
+  it('PR-RENDER-063: keep-bright overlay chunks read gaps from the full sub-row pairs', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    const overlay = classMethodBody(webglSrc, 'rebuildBrightOverlay');
+    expect(overlay).toMatch(/createChunksFromIndices/);
+    expect(overlay).not.toMatch(/createChunksFromPairs/);
+    expect(webglSrc).toMatch(
+      /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!\)/,
+    );
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {

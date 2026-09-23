@@ -266,6 +266,7 @@ let clientOrigin: { left: number; top: number } | null = null;
 let clientOriginPinned = false;
 let marqueeMoveRaf = 0;
 let pendingMarqueeClient: { x: number; y: number } | null = null;
+let lastMarqueeHitFp = '';
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
@@ -1045,6 +1046,7 @@ function endMarquee(): void {
   marqueeShift = false;
   marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   marqueePreviewIds = null;
+  lastMarqueeHitFp = '';
   unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
@@ -1103,9 +1105,21 @@ function emitMarqueePreview(ids: string[] | null): void {
   emit('multi-select-preview', ids);
 }
 
-/** Coverage compare in layout (or Shift-union insert) order — no Set alloc on the rAF path. */
+/**
+ * Coverage compare without walking 125k ids. Layout-order lists that share length
+ * and first/mid/last are treated as equal.
+ * ponytail: a same-length swap away from those samples could skip one preview emit.
+ * Upgrade: ordered `every()` or a hash of all ids.
+ */
 function sameIdSet(a: string[] | null, b: string[]): boolean {
-  return !!a && a.length === b.length && a.every((id, i) => id === b[i]);
+  if (!a || a.length !== b.length) return false;
+  const n = a.length;
+  if (n === 0) return true;
+  return a[0] === b[0] && a[n >> 1] === b[n >> 1] && a[n - 1] === b[n - 1];
+}
+
+function marqueeHitFingerprint(rect: MarqueeRect): string {
+  return `${Math.round(rect.x0)},${Math.round(rect.y0)},${Math.round(rect.x1)},${Math.round(rect.y1)}`;
 }
 
 function pinClientOrigin(): void {
@@ -1187,6 +1201,9 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
   const w = syncTrackWidth();
   emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
   emitLaneHover(null);
+  const hitFp = marqueeHitFingerprint(rect);
+  if (hitFp === lastMarqueeHitFp) return;
+  lastMarqueeHitFp = hitFp;
   // Shift+drag previews the union with the pointerdown snapshot so reversing
   // the rect can drop events that are no longer covered.
   const rectEvents = eventsInMarquee(rect);
@@ -1215,6 +1232,7 @@ function onMarqueeDragEnd(): void {
   marqueeRect.value = null;
   if (!rect) {
     marqueePreviewIds = null;
+    lastMarqueeHitFp = '';
     emitMarqueePreview(null);
     sync();
     return;
@@ -1233,6 +1251,7 @@ function onMarqueeDragEnd(): void {
   sync();
   marqueeShift = false;
   marqueeShiftBaseIds = EMPTY_MULTI_IDS;
+  lastMarqueeHitFp = '';
   void nextTick(() => {
     marqueePreviewIds = null;
     sync();
@@ -1272,6 +1291,7 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueeShift = false;
   marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   marqueePreviewIds = null;
+  lastMarqueeHitFp = '';
   unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;

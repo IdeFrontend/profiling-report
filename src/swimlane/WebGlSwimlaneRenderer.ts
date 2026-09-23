@@ -275,12 +275,13 @@ function createChunk(
   pairs: number[],
   off: number,
   pairCount: number,
+  indexAt: (i: number) => number = (i) => off + i,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
   const vb = new Float32Array(numSquares * 24);
   const ib = new Uint16Array(numSquares * 6);
   for (let i = 0; i < numSquares; i++) {
-    const gi = off + i;
+    const gi = indexAt(i);
     setVbSquareWithGaps(
       i * 24,
       pairs[gi * 2]!,
@@ -360,6 +361,21 @@ function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): Mes
   for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
     chunks.push(createChunk(gl, pairs, off, count));
+  }
+  return chunks;
+}
+
+/** Sparse subsequence of `pairs`; gaps still use each event's **global** lane index. */
+function createChunksFromIndices(
+  gl: WebGL2RenderingContext,
+  pairs: number[],
+  indices: number[],
+): MeshChunk[] {
+  const chunks: MeshChunk[] = [];
+  const total = indices.length;
+  for (let off = 0; off < total; off += MAX_QUADS_PER_MESH) {
+    const count = Math.min(MAX_QUADS_PER_MESH, total - off);
+    chunks.push(createChunk(gl, pairs, off, count, (i) => indices[off + i]!));
   }
   return chunks;
 }
@@ -1207,21 +1223,41 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
       (liftIds.has(id) ? entry.lift : entry.rest).push(item);
     }
-    const toChunks = (items: LaidOutEvent[]): MeshChunk[] | null => {
-      if (items.length === 0) return null;
-      items.sort((a, b) => a.event.startTime - b.event.startTime);
+    const rowIntervalPairs = (
+      laneIndex: number,
+      rowIndex: number,
+    ): { pairs: number[]; giById: Map<string, number> } => {
       const pairs: number[] = [];
-      for (const item of items) {
+      const giById = new Map<string, number>();
+      for (const item of this.layout.eventsByLane[laneIndex] ?? []) {
+        if (item.summary || item.rowIndex !== rowIndex) continue;
+        giById.set(item.id, pairs.length / 2);
         const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
         pairs.push(a, b);
       }
-      return createChunksFromPairs(gl, pairs);
+      return { pairs, giById };
+    };
+    const toChunks = (
+      items: LaidOutEvent[],
+      pairs: number[],
+      giById: Map<string, number>,
+    ): MeshChunk[] | null => {
+      if (items.length === 0) return null;
+      const indices: number[] = [];
+      for (const item of items) {
+        const gi = giById.get(item.id);
+        if (gi != null) indices.push(gi);
+      }
+      if (indices.length === 0) return null;
+      indices.sort((a, b) => a - b);
+      return createChunksFromIndices(gl, pairs, indices);
     };
     for (const { laneIndex, rowIndex, rest, lift } of byRow.values()) {
       const row = this.laneMeshes[laneIndex]?.rows[rowIndex];
       if (!row) continue;
-      row.brightChunks = toChunks(rest);
-      row.liftChunks = toChunks(lift);
+      const { pairs, giById } = rowIntervalPairs(laneIndex, rowIndex);
+      row.brightChunks = toChunks(rest, pairs, giById);
+      row.liftChunks = toChunks(lift, pairs, giById);
     }
   }
 

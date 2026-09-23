@@ -2407,7 +2407,7 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterFirst);
 
     const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
-    expect(src).toMatch(/a\.every\(\(id, i\) => id === b\[i\]\)/);
+    expect(src).toMatch(/a\[n >> 1\] === b\[n >> 1\]/);
     expect(src).not.toMatch(/new Set\(a\)/);
 
     window.dispatchEvent(
@@ -2699,6 +2699,17 @@ describe('SwimlaneCanvas', () => {
     expect(live).not.toMatch(/eventsForMarqueeCommit/);
     expect(live).not.toMatch(/findAltMeasureEvent/);
     expect(src).toMatch(/backend\.findEvent\(id\) \?\? findAltMeasureEvent\(id\)/);
+  });
+
+  it('PR-CANVAS-111: live marquee skips hit-test when the rounded CSS rect is unchanged', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    const live = src.slice(
+      src.indexOf('function applyMarqueeDragMove'),
+      src.indexOf('function onMarqueeDragEnd'),
+    );
+    expect(live).toMatch(/marqueeHitFingerprint/);
+    expect(live.indexOf('marqueeHitFingerprint')).toBeLessThan(live.indexOf('eventsInMarquee'));
+    expect(src).toMatch(/Math\.round\(rect\.x0\)/);
   });
 
   it('PR-CANVAS-090: Shift+left-click on selected event removes from multi-selection', async () => {

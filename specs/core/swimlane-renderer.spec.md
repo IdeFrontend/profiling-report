@@ -124,6 +124,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-060**: `eventsIntersectingRect` skips lanes whose paint Y band misses the rect and bisects each remaining leaf `eventsByLane` with `laneEventRange` (rect time window, 2px min width).
 1. **PR-RENDER-061**: WebGL selection/multi with empty search mutes existing lane meshes and uploads only keep-bright intervals from `eventsById`; `rebuildEmphasisSplit` does not walk `layout.events` on that path.
 1. **PR-RENDER-062**: `setMultiSelection` returns on the same array identity before walking ids (WebGL, overlay, Canvas fallback).
+1. **PR-RENDER-063**: WebGL keep-bright overlay chunks (`brightChunks` / `liftChunks`) pack from the sub-row's full interval pairs by global index so `gapPrev` / `gapNext` match muted neighbors.
 
 ## Edge Cases
 
@@ -140,6 +141,7 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-09-23** — Keep-bright overlay quads read gaps from the full sub-row pairs (`PR-RENDER-063`).
 - **2026-09-22** — `setMultiSelection` returns on the same array identity before walking ids (`PR-RENDER-062`).
 - **2026-09-21** — Overlay 2D-lifts hover/focused selection only; WebGL paints the selected-state fill for multi ids (`PR-RENDER-058`). WebGL rebuilds the emphasis split in `render()` (`PR-RENDER-059`). Marquee hit-test skips non-overlapping lanes and bisects time (`PR-RENDER-060`); live dim mutes base meshes and overlays keep-bright ids (`PR-RENDER-061`).
 - **2026-09-18** — PR-RENDER-057: overlay (no-ClearType) skips leaf lanes when no label can fit, and still paints folder summaries plus selected/hovered lifts.
