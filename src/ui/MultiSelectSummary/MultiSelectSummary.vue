@@ -600,10 +600,18 @@ th[aria-sort='descending'] .pr-multi-select__sort {
   grid-template-columns: minmax(0, 1fr) 56px;
   align-items: center;
   gap: 8px;
+  min-height: 0;
+  height: 20px;
 }
 
+/* Table-cell `height` is a minimum; overflow on `td` does not shrink min-content.
+   Chip must fit the 20px content box (ROW_HEIGHT_PX − padding − border) or
+   scrollTop / ROW_HEIGHT_PX drifts. */
 .pr-multi-select__value {
+  box-sizing: border-box;
+  height: 20px;
   padding: 2px 6px;
+  line-height: 16px;
   border-radius: 3px;
   background: #3c3c3c;
   color: #e2e2e2;

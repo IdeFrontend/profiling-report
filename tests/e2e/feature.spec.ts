@@ -419,6 +419,11 @@ test.describe('PR-E2E feature paths', () => {
     expect(count).toBeGreaterThan(0);
     expect(count).toBeLessThanOrEqual(selected);
 
+    // Table-cell `height` is a CSS minimum; the metric chip must still fit 29px
+    // or the ranked-window scrollTop / ROW_HEIGHT_PX math drifts.
+    const rowHeight = await rows.first().evaluate((el) => el.getBoundingClientRect().height);
+    expect(rowHeight).toBe(29);
+
     // Bars are laid out by the real engine: the longest row fills its track.
     const widths = await page.evaluate(() =>
       [...document.querySelectorAll('.pr-multi-select__bar-fill')].map((el) => {

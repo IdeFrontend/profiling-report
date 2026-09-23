@@ -196,6 +196,11 @@ describe('MultiSelectSummary', () => {
     const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
     expect(src).toMatch(/height:\s*var\(--pr-msel-row-h\)/);
     expect(src).toMatch(/box-sizing:\s*border-box/);
+    // The metric chip is a grid item: 2px padding on a 20px line box is 24px, which
+    // blows the 20px content box and makes table-row height a min of ~32.5px.
+    expect(src).toMatch(/\.pr-multi-select__value\s*\{[^}]*height:\s*20px/);
+    expect(src).toMatch(/\.pr-multi-select__value\s*\{[^}]*line-height:\s*16px/);
+    expect(src).toMatch(/\.pr-multi-select__value\s*\{[^}]*box-sizing:\s*border-box/);
   }, 15_000);
 
   it('PR-MSEL-009: live preview keeps the count and skips the table', () => {
