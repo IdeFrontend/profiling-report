@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Id** | `event-details` |
-| **Panel / component** | Bottom detail strip / EventTooltip — `src/ui/` (tooltip + detail strip; Relevant graph P2) |
+| **Panel / component** | **DetailPanel** (`src/ui/DetailPanel/`) + **EventTooltip** (`src/ui/EventTooltip/`); Relevant graph P2 |
 | **Capability** | _(none)_ — selection-driven; deps optional |
 | **Phase** | M (summary strip); Relevant graph **P2** |
 | **Unification** | `gap` (richer fields not in sample CTEF) |
@@ -15,7 +15,7 @@
 
 ## Purpose
 
-Bottom **详情** strip (and hover tooltip) for the selected / hovered timeline block: task identity, timing, optional parameters, and a **Relevant** local dependency graph.
+Raised bottom **详情** dock (**DetailPanel**) and hover **EventTooltip** for the selected / hovered timeline block: task identity, timing, optional parameters, and a **Relevant** local dependency graph.
 
 ## View-model
 
@@ -27,7 +27,7 @@ Bottom **详情** strip (and hover tooltip) for the selected / hovered timeline 
 
 ## Hide rule
 
-No single selection → hide or empty the detail strip (timeline still valid). Missing optional parameter / Relevant fields → omit those regions; do not invent ([DATA-30](../context/decisions/DATA.md)).
+No single selection → **unmount** the 详情 dock ([DetailPanel.spec.md](../../src/ui/DetailPanel/DetailPanel.spec.md): parent clears selection → dock unmounts; close emits `close` **PR-DPANEL-002**). Do **not** leave empty chrome. Missing optional parameter / Relevant fields → omit those regions; do not invent ([DATA-30](../context/decisions/DATA.md); Relevant column gated per **PR-DPANEL-003**).
 
 ## Compute fill
 
@@ -75,7 +75,7 @@ Docx §11.2.8.1 field table is **empty**. Layout from mockup:
 ## Related
 
 - Shell: [timeline](timeline.md)
-- Specs: [EventTooltip.spec.md](../../src/ui/EventTooltip/EventTooltip.spec.md); [SwimlaneCanvas](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md)
+- Specs: [DetailPanel.spec.md](../../src/ui/DetailPanel/DetailPanel.spec.md) (详情 dock; unmount on clear selection **PR-DPANEL-002**); [EventTooltip.spec.md](../../src/ui/EventTooltip/EventTooltip.spec.md); [SwimlaneCanvas](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md)
 - Product docx §: 11.2.8.1
 - Open questions: [context/questions/](../context/questions/)
 - Catalog: [README](README.md)
