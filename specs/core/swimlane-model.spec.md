@@ -78,6 +78,7 @@ interface SwimEvent    {
 1. **PR-SWIM-013**: Touching X intervals (`end === next.start`) are siblings, not nested.
 1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals, each carrying `taskCount` = merged task count; a single-event union also keeps the leaf `name`, source `laneName`, and `sourceEvent`); an expanded folder omits `summaryEvents`.
 1. **PR-SWIM-015**: Producer `nestCardTree: true` is recorded in `metadata`; absent → no nest flag (adaptRep does not invent Card nesting).
+1. **PR-SWIM-016**: `findEventInModel` indexes leaf `events` and collapsed-folder `summaryEvents` once per model identity, then looks up by id in O(1).
 
 ## Edge Cases
 
@@ -93,6 +94,7 @@ interface SwimEvent    {
 DATA-35 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-09-22** — `findEventInModel` is a one-walk-per-model index (`PR-SWIM-016`).
 - **2026-09-08** — Ordering: converter and multi-row layout share `startTime` asc / longest-`duration` first; `rebuildLayout` trusts that order (no defensive re-sort) and throws if a leaf is out of order. Document `sample.lite.rep` as a demo-only exclusivity exception.
 - **2026-09-03** — Ordering drops the "longest `duration` first on ties" tie-break: intra-lane exclusivity makes equal `startTime` within a lane impossible, so it is dead. `rebuildLayout` sorts by `startTime` only; `hitTestLayout` (not rebuildLayout) prefers the shorter nested event in the Chrome-trace overlap path. — superseded 2026-09-08 (multi-row layout + converter share longest-first; layout no longer re-sorts).
 - **2026-09-03** — Drop producer `bands`/`SwimlaneBand`; collapsed folders expose viewer-built `summaryEvents` (disjoint union). PR-SWIM-014.

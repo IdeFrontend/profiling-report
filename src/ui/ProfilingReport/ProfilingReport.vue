@@ -157,6 +157,8 @@ const multiSelectSpan = ref<MeasureRange | null>(null);
  * the pre-drag dock.
  */
 const marqueeLive = ref(false);
+/** Header count for ids-only live ≥2 preview (no 125k SwimEvent[] assign). */
+const livePreviewCount = ref(0);
 type DockSnap = {
   selected: SelectedEvent | null;
   selectedEvent: SwimEvent | null;
@@ -1002,21 +1004,36 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
   }
   dockSnap = null;
   marqueeLive.value = false;
+  livePreviewCount.value = 0;
   marqueeFromClosed.value = false;
   previewMultiApplied = false;
 }
 
+function previewPayloadIds(payload: string[] | SwimEvent[]): string[] {
+  if (payload.length === 0) return [];
+  return typeof payload[0] === 'string'
+    ? (payload as string[])
+    : (payload as SwimEvent[]).map((e) => e.id);
+}
+
+function previewPayloadEvents(payload: string[] | SwimEvent[]): SwimEvent[] | null {
+  if (payload.length === 0) return [];
+  return typeof payload[0] === 'string' ? null : (payload as SwimEvent[]);
+}
+
 /**
  * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
+ * Canvas emits union **ids**; tests may still emit `SwimEvent[]`. ≥2 ids-only updates
+ * the header count without resolving objects (table stays hidden until commit).
  * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
  * clears Detail/Summary. When the dock was already open at drag start, the footer stays
  * mounted with a nothing-selected message; when it opened from closed, the footer stays
  * hidden until coverage is non-empty (no empty-state flash).
- * Skips unchanged membership; throttles further ≥2 remaps after the first of the gesture
- * so op2-scale marquees do not re-sort 150k rows on every pointermove.
+ * Skips unchanged membership; throttles further ≥2 `SwimEvent[]` remaps after the first
+ * of the gesture so op2-scale marquees do not re-sort 150k rows on every pointermove.
  */
-function onMultiSelectPreview(events: SwimEvent[] | null): void {
-  if (events == null) {
+function onMultiSelectPreview(payload: string[] | SwimEvent[] | null): void {
+  if (payload == null) {
     // Escape / cancel. Commit clears marqueeLive before this emit arrives.
     if (marqueeLive.value) clearMarqueeLive({ restore: true });
     return;
@@ -1025,19 +1042,33 @@ function onMultiSelectPreview(events: SwimEvent[] | null): void {
   // even for an empty-only live rect over a committed multi dock.
   snapshotDockIfNeeded();
   marqueeLive.value = true;
-  if (events.length === 0) {
+  const ids = previewPayloadIds(payload);
+  if (ids.length === 0) {
     clearPreviewDockTimer();
     selected.value = null;
     selectedEvent.value = null;
     multiSelected.value = [];
+    livePreviewCount.value = 0;
     previewMultiApplied = false;
     return;
   }
 
   // Single-event DetailPanel is cheap — apply immediately.
-  if (events.length < 2) {
+  if (ids.length < 2) {
     clearPreviewDockTimer();
-    applyLivePreviewDock(events);
+    livePreviewCount.value = 0;
+    const events = previewPayloadEvents(payload);
+    const ev = events?.[0] ?? findEventInModel(swim.value, ids[0]!);
+    if (ev) applyLivePreviewDock([ev]);
+    return;
+  }
+
+  livePreviewCount.value = ids.length;
+  selected.value = null;
+  selectedEvent.value = null;
+  const events = previewPayloadEvents(payload);
+  if (!events) {
+    previewMultiApplied = true;
     return;
   }
 
@@ -1467,7 +1498,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
          From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
-        v-if="showTimeline && (selected || multiSelected.length || (marqueeLive && !marqueeFromClosed))"
+        v-if="showTimeline && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
@@ -1475,12 +1506,14 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       >
         <Transition name="pr-dock-content" mode="out-in">
           <MultiSelectSummary
-            v-if="multiSelected.length"
+            v-if="(marqueeLive && livePreviewCount >= 2) || (!marqueeLive && multiSelected.length) || (marqueeLive && multiSelected.length >= 2)"
             key="multi"
             :selected-events="multiSelected"
             :model="swim"
             :locale="locale"
             :height="dockHeight"
+            :live-preview="marqueeLive"
+            :live-count="marqueeLive ? livePreviewCount : undefined"
             @close="onSelect(null)"
             @select-single="onSelect"
             @update:height="dockHeight = $event"

@@ -39,8 +39,12 @@ import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domai
 
 /** Brace-match a class method so a reorder cannot yield an empty slice that vacuously passes. */
 function classMethodBody(src: string, name: string): string {
-  const needle = `\n  ${name}(`;
-  const at = src.indexOf(needle);
+  const atPublic = src.indexOf(`\n  ${name}(`);
+  const atPrivate = src.indexOf(`\n  private ${name}(`);
+  const at =
+    atPublic >= 0 && (atPrivate < 0 || atPublic < atPrivate)
+      ? atPublic
+      : atPrivate;
   if (at < 0) throw new Error(`method ${name} not found`);
   const brace = src.indexOf('{', at);
   let depth = 0;
@@ -1295,8 +1299,77 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     expect(overlaySrc).toMatch(/private paintLiftedLeaves\(/);
     expect(overlaySrc).toMatch(/this\.layout\.eventsById\.get\(id\)/);
-    expect(overlaySrc).not.toMatch(/maxMulti/);
-    expect(overlaySrc).toMatch(/for \(const id of this\.multiIds\) paint\(id\)/);
+  });
+
+  it('PR-RENDER-058: overlay 2D-lifts hover/selected only; WebGL paints multi selected-state fill', async () => {
+    const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(overlaySrc).not.toMatch(/OVERLAY_MULTI_LIFT_CAP/);
+    const lift = classMethodBody(overlaySrc, 'paintLiftedLeaves');
+    expect(lift).toMatch(/paint\(this\.selectedId\)/);
+    expect(lift).toMatch(/paint\(this\.hoveredId\)/);
+    expect(lift).not.toMatch(/this\.multiIds/);
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(classMethodBody(webglSrc, 'rebuildBrightOverlay')).toMatch(/liftChunks/);
+    expect(webglSrc).toMatch(/eventFill\([^,]+, 'selected'\)/);
+  });
+
+  it('PR-RENDER-059: WebGL setMultiSelection defers rebuildEmphasisSplit to render', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(classMethodBody(webglSrc, 'setMultiSelection')).toMatch(/this\.emphasisSplitDirty = true/);
+    expect(classMethodBody(webglSrc, 'setMultiSelection')).not.toMatch(/this\.rebuildEmphasisSplit\(\)/);
+    expect(classMethodBody(webglSrc, 'render')).toMatch(
+      /if \(this\.emphasisSplitDirty\) this\.rebuildEmphasisSplit\(\)/,
+    );
+  });
+
+  it('PR-RENDER-062: setMultiSelection returns on the same array identity', async () => {
+    const ids = ['e-long', 'e-short'];
+    for (const renderer of [
+      new CanvasSwimlaneRenderer(),
+      new SwimlaneOverlayPainter(),
+      new WebGlSwimlaneRenderer(),
+    ]) {
+      renderer.setMultiSelection(ids);
+      const every = vi.spyOn(ids, 'every');
+      renderer.setMultiSelection(ids);
+      expect(every).not.toHaveBeenCalled();
+      every.mockRestore();
+    }
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(classMethodBody(webglSrc, 'setMultiSelection')).toMatch(/ids === this\.multiIdsList/);
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc.match(/ids === this\.multiIdsList/g)?.length).toBe(2);
+  });
+
+  it('PR-RENDER-061: WebGL multi without search mutes base meshes and overlays keep-bright ids', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    const split = classMethodBody(webglSrc, 'rebuildEmphasisSplit');
+    expect(split).toMatch(/if \(!q\)/);
+    expect(split).toMatch(/this\.rebuildBrightOverlay\(\)/);
+    const overlay = classMethodBody(webglSrc, 'rebuildBrightOverlay');
+    expect(overlay).toMatch(/eventsById/);
+    expect(overlay).not.toMatch(/of this\.layout\.events(?!ByLane)/);
+    const renderBody = classMethodBody(webglSrc, 'render');
+    expect(renderBody).toMatch(/brightChunks/);
+    expect(renderBody).toMatch(/liftChunks/);
+    expect(renderBody).toMatch(/SELECTION_MUTED_FILL/);
+  });
+
+  it('PR-RENDER-063: keep-bright overlay chunks read gaps from the full sub-row pairs', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    const overlay = classMethodBody(webglSrc, 'rebuildBrightOverlay');
+    expect(overlay).toMatch(/createChunksFromIndices/);
+    expect(overlay).not.toMatch(/createChunksFromPairs/);
+    expect(webglSrc).toMatch(
+      /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!\)/,
+    );
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
@@ -1445,7 +1518,7 @@ describe('PR-RENDER: SwimlaneRenderer surface', () => {
   it('WebGL keeps search alpha and selection muting in separate layers', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toContain('const key = `${muted ? 1 : 0}|${alpha}`;');
+    expect(webglSrc).toContain('const key = `${muted ? 1 : 0}|${lifted ? 1 : 0}|${alpha}`;');
     expect(webglSrc).toMatch(/byKey\.get\(key\)/);
   });
 });
@@ -1491,6 +1564,73 @@ describe('PR-RENDER: marquee hit collection', () => {
         y0: laneY + LANE_HEIGHT * 4,
         x1: 400,
         y1: laneY + LANE_HEIGHT * 6,
+      }),
+    ).toEqual([]);
+  });
+
+  it('PR-RENDER-060: skips lanes outside the rect Y band and bisects time', async () => {
+    const layoutSrc = (await import('../../src/swimlane/layout.ts?raw')).default as string;
+    const at = layoutSrc.indexOf('\nexport function eventsIntersectingRect(');
+    expect(at).toBeGreaterThan(0);
+    const brace = layoutSrc.indexOf('{', at);
+    let depth = 0;
+    let end = brace;
+    for (let i = brace; i < layoutSrc.length; i++) {
+      if (layoutSrc[i] === '{') depth++;
+      else if (layoutSrc[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    const body = layoutSrc.slice(brace, end + 1);
+    expect(body).toMatch(/laneEventRange/);
+    expect(body).toMatch(/lane\.y/);
+    expect(body).toMatch(/rowCount/);
+
+    const twoLane = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-a', name: 'A', events: [{ id: 'e-a', name: 'a', startTime: 0, duration: 100 }] },
+            { id: 't-b', name: 'B', events: [{ id: 'e-b', name: 'b', startTime: 500, duration: 100 }] },
+          ],
+        },
+      ],
+    });
+    const twoView = { startTime: 0, endTime: 1000, scrollY: 0 };
+    const ya = twoLane.eventsById.get('e-a')!.y;
+    const yb = twoLane.eventsById.get('e-b')!.y;
+    expect(yb).toBeGreaterThan(ya);
+    expect(
+      eventsIntersectingRect(twoLane, twoView, 400, {
+        x0: 0,
+        y0: ya,
+        x1: 400,
+        y1: ya + LANE_HEIGHT,
+      }).map((e) => e.id),
+    ).toEqual(['e-a']);
+    expect(
+      eventsIntersectingRect(twoLane, twoView, 400, {
+        x0: 0,
+        y0: yb,
+        x1: 400,
+        y1: yb + LANE_HEIGHT,
+      }).map((e) => e.id),
+    ).toEqual(['e-b']);
+    // Right half of the track misses e-a (t=0..100 → x=0..40).
+    expect(
+      eventsIntersectingRect(twoLane, twoView, 400, {
+        x0: 200,
+        y0: ya,
+        x1: 400,
+        y1: ya + LANE_HEIGHT,
       }),
     ).toEqual([]);
   });

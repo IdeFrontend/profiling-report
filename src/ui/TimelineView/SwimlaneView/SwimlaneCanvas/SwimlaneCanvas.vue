@@ -135,8 +135,8 @@ const emit = defineEmits<{
   select: [event: SwimEvent | null];
   /** Marquee commit — every leaf event intersecting the rect. */
   'multi-select': [events: SwimEvent[]];
-  /** Live marquee coverage for the dock preview; null when the drag ends or cancels. */
-  'multi-select-preview': [events: SwimEvent[] | null];
+  /** Live marquee coverage (union ids); null when the drag ends or cancels. */
+  'multi-select-preview': [ids: string[] | null];
   /** Live marquee time extent for the axis Δt chrome; null when the drag ends or cancels. */
   'multi-select-span': [span: MeasureRange | null];
   /** Shift+left-click toggled a single event in/out of multi-selection. */
@@ -253,9 +253,20 @@ let marqueePressActive = false;
 let marqueeEscaped = false;
 /** Ids the live rect covers; overrides `multiSelectedIds` so the drag previews its own commit. */
 let marqueePreviewIds: string[] | null = null;
+const EMPTY_MULTI_IDS: string[] = [];
+/** Last id array pushed to the renderer; zoom/pan reuses the same ref and must not re-walk it. */
+let lastPushedMultiIds: readonly string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
 /** True if the marquee started with Shift held — the commit unions with the existing selection. */
 let marqueeShift = false;
+/** Committed ids at Shift+pointerdown; live preview must not feed back into the union. */
+let marqueeShiftBaseIds: readonly string[] = EMPTY_MULTI_IDS;
+/** Canvas client origin cached for the gesture so dock layout cannot force a reflow mid-drag. */
+let clientOrigin: { left: number; top: number } | null = null;
+let clientOriginPinned = false;
+let marqueeMoveRaf = 0;
+let pendingMarqueeClient: { x: number; y: number } | null = null;
+let lastMarqueeHitFp = '';
 /** Magnet snap to nearest in-lane event start/end. */
 const EVENT_EDGE_MAGNET_PX = 10;
 /** Fast snap when clicking an event while a prior measure range exists. */
@@ -529,7 +540,12 @@ function applyViewState(forceModel = false): void {
   backend.setSearchQuery(props.searchQuery);
   backend.setCollapsedIds?.(props.collapsedIds ?? []);
   backend.setCollapseAnim(props.collapseAnim ?? null);
-  backend.setMultiSelection?.(marqueePreviewIds ?? props.multiSelectedIds);
+  const ids = marqueePreviewIds ?? props.multiSelectedIds ?? EMPTY_MULTI_IDS;
+  if (ids !== lastPushedMultiIds) {
+    lastPushedMultiIds = ids;
+    backend.setMultiSelection?.(ids);
+    if (useWebGl.value) overlay.setMultiSelection(ids);
+  }
   if (useWebGl.value) {
     // Overlay paints with collapseShiftY against the expanded base — do not pass
     // getLayout() (already shifted for hit-test) or the tween would apply twice.
@@ -542,7 +558,6 @@ function applyViewState(forceModel = false): void {
     overlay.setNeighborIds(backend.getNeighborIds());
     overlay.setSelectionMuted(true);
     overlay.setSearchQuery(props.searchQuery);
-    overlay.setMultiSelection(marqueePreviewIds ?? props.multiSelectedIds);
   }
   refreshMeasureExactEdgeMarks(modelChanged);
   refreshSnapExactEdgeMarks();
@@ -912,7 +927,7 @@ watch(
   },
 );
 
-/** `props.view` fields (startTime/endTime/scrollY) mutate in place on some callers — keep deep. */
+/** Window is `{ startTime, endTime, scrollY }` — keep deep for in-place field mutation. */
 watch(
   () => props.view,
   () => {
@@ -928,10 +943,12 @@ watch(
 );
 
 /** Identity-only: a marquee/Shift-toggle commit replaces the whole array, never mutates it in
- * place, so a shallow watch avoids deep-traversing a selection that can hold 125k+ ids. */
+ * place, so a shallow watch avoids deep-traversing a selection that can hold 125k+ ids.
+ * Live preview already called `sync()` with `marqueePreviewIds`; skip the echo from the parent. */
 watch(
   () => props.multiSelectedIds,
   () => {
+    if (marqueePreviewIds != null) return;
     sync();
   },
 );
@@ -1014,10 +1031,12 @@ function endMeasureCreate(): void {
   measureCreatePending = false;
   measurePressActive = false;
   suppressMeasurePreview.value = false;
+  if (!marqueePressActive) unpinClientOrigin();
 }
 
 /** Drop the marquee gesture without committing (Escape, unmount, pointerup). */
 function endMarquee(): void {
+  cancelPendingMarqueeMove();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   marqueeAnchor = null;
@@ -1025,7 +1044,10 @@ function endMarquee(): void {
   marqueePressActive = false;
   marqueeEscaped = false;
   marqueeShift = false;
+  marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   marqueePreviewIds = null;
+  lastMarqueeHitFp = '';
+  unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
@@ -1043,29 +1065,117 @@ function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
   );
 }
 
-/** Same event list commit will use (plain rect, or Shift union with current selection). */
-function eventsForMarqueeCommit(rectEvents: SwimEvent[]): SwimEvent[] {
-  if (!marqueeShift) return rectEvents;
-  const ids = new Set<string>();
+function snapshotShiftBaseIds(): string[] {
+  const seen = new Set<string>();
   const ordered: string[] = [];
   const addId = (id: string) => {
-    if (ids.has(id)) return;
-    ids.add(id);
+    if (seen.has(id)) return;
+    seen.add(id);
     ordered.push(id);
   };
   if (props.selectedEventId) addId(props.selectedEventId);
   (props.multiSelectedIds ?? []).forEach(addId);
+  return ordered;
+}
+
+/** Union ids for live dim / dock count. Does not resolve SwimEvent objects. */
+function unionMarqueeIds(rectEvents: SwimEvent[]): string[] {
+  if (!marqueeShift) return rectEvents.map((ev) => ev.id);
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  const addId = (id: string) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    ordered.push(id);
+  };
+  marqueeShiftBaseIds.forEach(addId);
   rectEvents.forEach((ev) => addId(ev.id));
-  return ordered
-    .map((id) => findAltMeasureEvent(id))
+  return ordered;
+}
+
+/** Resolve union objects on commit only. Layout map first; off-canvas ids use the shared resolver. */
+function eventsForMarqueeCommit(rectEvents: SwimEvent[]): SwimEvent[] {
+  if (!marqueeShift) return rectEvents;
+  return unionMarqueeIds(rectEvents)
+    .map((id) => backend.findEvent(id) ?? findAltMeasureEvent(id))
     .filter((ev): ev is SwimEvent => ev != null);
 }
 
-function emitMarqueePreview(events: SwimEvent[] | null): void {
-  emit('multi-select-preview', events);
+function emitMarqueePreview(ids: string[] | null): void {
+  emit('multi-select-preview', ids);
+}
+
+/**
+ * Coverage compare without walking 125k ids. Layout-order lists that share length
+ * and first/mid/last are treated as equal.
+ * ponytail: a same-length swap away from those samples could skip one preview emit.
+ * Upgrade: ordered `every()` or a hash of all ids.
+ */
+function sameIdSet(a: string[] | null, b: string[]): boolean {
+  if (!a || a.length !== b.length) return false;
+  const n = a.length;
+  if (n === 0) return true;
+  return a[0] === b[0] && a[n >> 1] === b[n >> 1] && a[n - 1] === b[n - 1];
+}
+
+function marqueeHitFingerprint(rect: MarqueeRect): string {
+  return `${Math.round(rect.x0)},${Math.round(rect.y0)},${Math.round(rect.x1)},${Math.round(rect.y1)}`;
+}
+
+function pinClientOrigin(): void {
+  refreshClientOrigin();
+  clientOriginPinned = true;
+}
+
+function unpinClientOrigin(): void {
+  clientOriginPinned = false;
+  clientOrigin = null;
+}
+
+function refreshClientOrigin(): { left: number; top: number } | null {
+  const target = activeCanvas() ?? wrapRef.value;
+  if (!target) {
+    clientOrigin = null;
+    return null;
+  }
+  const rect = target.getBoundingClientRect();
+  clientOrigin = { left: rect.left, top: rect.top };
+  return clientOrigin;
+}
+
+function cancelPendingMarqueeMove(): void {
+  if (marqueeMoveRaf) {
+    cancelAnimationFrame(marqueeMoveRaf);
+    marqueeMoveRaf = 0;
+  }
+  pendingMarqueeClient = null;
+}
+
+function flushPendingMarqueeMove(): void {
+  if (marqueeMoveRaf) {
+    cancelAnimationFrame(marqueeMoveRaf);
+    marqueeMoveRaf = 0;
+  }
+  const pending = pendingMarqueeClient;
+  pendingMarqueeClient = null;
+  if (pending) applyMarqueeDragMove(pending.x, pending.y);
 }
 
 function onMarqueeDragMove(clientX: number, clientY: number): void {
+  pendingMarqueeClient = { x: clientX, y: clientY };
+  // Gate check stays sync so click-vs-drag tests and the 4px threshold do not wait a frame.
+  if (marqueePending) {
+    flushPendingMarqueeMove();
+    return;
+  }
+  if (marqueeMoveRaf) return;
+  marqueeMoveRaf = requestAnimationFrame(() => {
+    marqueeMoveRaf = 0;
+    flushPendingMarqueeMove();
+  });
+}
+
+function applyMarqueeDragMove(clientX: number, clientY: number): void {
   const local = localFromClient(clientX, clientY);
   if (!local || !marqueeAnchor) return;
   if (marqueePending) {
@@ -1088,23 +1198,19 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
   };
   marqueeRect.value = rect;
   emit('multi-select-span', marqueeSpan(rect));
-  // Preview the commit: covered events stay bright, the rest dim through the shared path.
-  // Shift+drag previews the union so the existing selection does not flicker dim.
-  const rectEvents = eventsInMarquee(rect);
-  const previewIds = rectEvents.map((ev) => ev.id);
-  if (marqueeShift) {
-    const set = new Set<string>(props.multiSelectedIds ?? []);
-    if (props.selectedEventId) set.add(props.selectedEventId);
-    previewIds.forEach((id) => set.add(id));
-    marqueePreviewIds = [...set];
-  } else {
-    marqueePreviewIds = previewIds;
-  }
-  emitMarqueePreview(eventsForMarqueeCommit(rectEvents));
-  // Keep the timestamp label following the cursor (unsnapped) while the rect is live.
   const w = syncTrackWidth();
   emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
   emitLaneHover(null);
+  const hitFp = marqueeHitFingerprint(rect);
+  if (hitFp === lastMarqueeHitFp) return;
+  lastMarqueeHitFp = hitFp;
+  // Shift+drag previews the union with the pointerdown snapshot so reversing
+  // the rect can drop events that are no longer covered.
+  const rectEvents = eventsInMarquee(rect);
+  const nextIds = unionMarqueeIds(rectEvents);
+  if (sameIdSet(marqueePreviewIds, nextIds)) return;
+  marqueePreviewIds = nextIds;
+  emitMarqueePreview(nextIds);
   sync();
 }
 
@@ -1113,8 +1219,10 @@ function onMarqueeDragMove(clientX: number, clientY: number): void {
  * press that never crossed the 4px gate — that is a click) commits nothing.
  */
 function onMarqueeDragEnd(): void {
+  flushPendingMarqueeMove();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
+  unpinClientOrigin();
   const rect = marqueeRect.value;
   marqueeAnchor = null;
   marqueePending = false;
@@ -1124,6 +1232,7 @@ function onMarqueeDragEnd(): void {
   marqueeRect.value = null;
   if (!rect) {
     marqueePreviewIds = null;
+    lastMarqueeHitFp = '';
     emitMarqueePreview(null);
     sync();
     return;
@@ -1141,6 +1250,8 @@ function onMarqueeDragEnd(): void {
   emitMarqueePreview(null);
   sync();
   marqueeShift = false;
+  marqueeShiftBaseIds = EMPTY_MULTI_IDS;
+  lastMarqueeHitFp = '';
   void nextTick(() => {
     marqueePreviewIds = null;
     sync();
@@ -1152,9 +1263,11 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   endMeasureResize();
   endMarquee();
   marqueeShift = shiftKey;
+  marqueeShiftBaseIds = shiftKey ? snapshotShiftBaseIds() : EMPTY_MULTI_IDS;
   marqueeAnchor = { x: localX, y: localY };
   marqueePending = true;
   marqueePressActive = true;
+  pinClientOrigin();
   // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.
   // Clear them (and force an unsnapped cursor) only once the drag crosses 4px.
   unbindMarqueeDrag = bindWindowPointerDrag({
@@ -1166,6 +1279,7 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
 /** Escape during the drag cancels without committing; the press flag survives until pointerup. */
 function onMarqueeKeydown(e: KeyboardEvent): void {
   if (e.key !== 'Escape' || !marqueePressActive) return;
+  cancelPendingMarqueeMove();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   marqueeAnchor = null;
@@ -1175,7 +1289,10 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   // the leftover release (PR-CANVAS-082). Cleared on that pointerup.
   marqueeEscaped = true;
   marqueeShift = false;
+  marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   marqueePreviewIds = null;
+  lastMarqueeHitFp = '';
+  unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);
   marqueeRect.value = null;
   emitMarqueePreview(null);
@@ -1538,10 +1655,10 @@ function summaryGroupIdFor(eventId: string | null): string | null {
 }
 
 function localFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
-  const target = activeCanvas() ?? wrapRef.value;
-  if (!target) return null;
-  const rect = target.getBoundingClientRect();
-  return { x: clientX - rect.left, y: clientY - rect.top };
+  const origin =
+    clientOriginPinned && clientOrigin ? clientOrigin : refreshClientOrigin();
+  if (!origin) return null;
+  return { x: clientX - origin.left, y: clientY - origin.top };
 }
 
 /** Local magnet only — used by SwimlaneView router (avoids override recursion). */
@@ -1960,6 +2077,7 @@ function onPointerDown(e: PointerEvent): void {
     measurePressActive = true;
     measureCreatePending = true;
     measureGestureActive = false;
+    pinClientOrigin();
     unbindCreateDrag = bindWindowPointerDrag({
       onMove: onCreateDragMove,
       onEnd: onCreateDragEnd,
@@ -1979,19 +2097,19 @@ function onPointerDown(e: PointerEvent): void {
 }
 
 function onPointerMove(e: PointerEvent): void {
+  lastPointerClientY = e.clientY;
+  // Live marquee: window drag owns coords. Skip getBoundingClientRect — preview
+  // emits dirty the dock/cursor and would force a sync reflow mid-drag.
+  if (marqueePressActive && !marqueePending) {
+    emit('hover', null, e.clientX, e.clientY);
+    return;
+  }
   const target = activeCanvas();
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   const w = Math.max(1, rect.width);
-  lastPointerClientY = e.clientY;
-
-  // Marquee owns the press: no magnet, no cursor move, no tooltip (spec: suppress hover).
-  if (marqueePressActive && !marqueePending) {
-    emit('hover', null, e.clientX, e.clientY);
-    return;
-  }
 
   const mag = magnetizeLocal(x, y);
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });

@@ -10,7 +10,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 ## Inputs
 
-**groups**, **collapsedIds**, **model**, and **view** drive gutter + canvas layout as today. **gutterMetricByCard** (optional `Record<string, GutterMetric>`) holds the selected metric per Card id; parent owns defaults and persistence. **gutterMetricOptionsByCard** (optional `Record<string, GutterMetric[]>`) lists available modes per Card (see [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md)); omit entries to hide the selector on that Card.
+**groups**, **collapsedIds**, **model**, and **view** drive gutter + canvas layout as today. Body and pin `SwimlaneCanvas` instances receive only `{ startTime, endTime, scrollY }` (pin `scrollY` is 0), not the rest of viewState. **gutterMetricByCard** (optional `Record<string, GutterMetric>`) holds the selected metric per Card id; parent owns defaults and persistence. **gutterMetricOptionsByCard** (optional `Record<string, GutterMetric[]>`) lists available modes per Card (see [gutter-metrics.spec.md](../../../specs/core/gutter-metrics.spec.md)); omit entries to hide the selector on that Card.
 
 ## Outputs
 
@@ -87,6 +87,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 31. **PR-SWIMVIEW-031** — Wheel over the lane gutter is forwarded to the body canvas `handleWheel` (native gutter overflow does not scroll independently).
 32. **PR-SWIMVIEW-032** — Gutter `scrollTop` follows each canvas `scroll-y` emit in the same turn (eased wheel frames included). Parent `view.scrollY` updates after the ease settles so in-flight frames do not clone report view-state.
 33. **PR-SWIMVIEW-033** — A collapse tween that shrinks content while scrolled to the bottom clamps live `scrollY` / gutter `scrollTop` to the visual content height so Card strips and gutter stay aligned with the canvas. A native gutter `scrollTop` clamp emits a settled `update:scrollY` so the parent window is not left stale.
+34. **PR-SWIMVIEW-034** — Unchanged live marquee coverage does not replace `livePreviewIds` (no extra canvas `multiSelectedIds` sync).
+35. **PR-SWIMVIEW-035** — Body canvas `view` is `{ startTime, endTime, scrollY }` only.
 
 ## Visual
 
@@ -112,6 +114,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-09-22** — Body canvas `view` is the time window only (`PR-SWIMVIEW-035`).
+- **2026-09-18** — Unchanged live marquee coverage keeps `livePreviewIds` identity (`PR-SWIMVIEW-034`).
 - **2026-09-17** — PR-SWIMVIEW-033: collapse at max scroll clamps live `scrollY`; gutter clamp emits settled `update:scrollY`.
 - **2026-09-16** — PR-SWIMVIEW-032: gutter `scrollTop` tracks eased canvas `scroll-y` in the same turn.
 - **2026-09-16** — PR-SWIMVIEW-031: gutter wheel uses canvas `handleWheel` so labels stay row-aligned with event rects.

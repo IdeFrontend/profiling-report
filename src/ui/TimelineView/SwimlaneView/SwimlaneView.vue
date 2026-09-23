@@ -115,7 +115,7 @@ const emit = defineEmits<{
   'unpin-overview': [seriesId: string];
   select: [event: SwimEvent | null];
   'multi-select': [events: SwimEvent[]];
-  'multi-select-preview': [events: SwimEvent[] | null];
+  'multi-select-preview': [ids: string[] | SwimEvent[] | null];
   'multi-select-span': [span: MeasureRange | null];
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
@@ -347,6 +347,12 @@ const pinnedView = computed(() => ({
   endTime: props.view.endTime,
   scrollY: 0,
 }));
+/** Body canvas gets the same slim window (with scrollY) so Vue does not deep-walk viewState. */
+const bodyView = computed(() => ({
+  startTime: props.view.startTime,
+  endTime: props.view.endTime,
+  scrollY: props.view.scrollY,
+}));
 
 /** Lane under canvas or gutter pointer — whole-row highlight (not pushpin). */
 const hoveredLaneId = ref<string | null>(null);
@@ -459,9 +465,28 @@ function onUpdateMultiSelected(newIds: string[]) {
   localMultiSelectedIds.value = newIds;
 }
 
-function onMultiSelectPreview(events: SwimEvent[] | null) {
-  livePreviewIds.value = events == null ? null : events.map((e) => e.id);
-  emit('multi-select-preview', events);
+function previewPayloadIds(payload: string[] | SwimEvent[]): string[] {
+  if (payload.length === 0) return [];
+  return typeof payload[0] === 'string'
+    ? (payload as string[])
+    : (payload as SwimEvent[]).map((e) => e.id);
+}
+
+function onMultiSelectPreview(payload: string[] | SwimEvent[] | null) {
+  if (payload == null) {
+    livePreviewIds.value = null;
+  } else {
+    const ids = previewPayloadIds(payload);
+    const prev = livePreviewIds.value;
+    if (
+      prev == null ||
+      prev.length !== ids.length ||
+      prev.some((id, i) => id !== ids[i])
+    ) {
+      livePreviewIds.value = ids;
+    }
+  }
+  emit('multi-select-preview', payload);
 }
 
 function onGutterScroll(): void {
@@ -742,7 +767,7 @@ defineExpose({
       <SwimlaneCanvas
         ref="canvasRef"
         :model="model"
-        :view="view"
+        :view="bodyView"
         :content-top-pad="overviewContentPad"
         :selected-event-id="paintSelectedEventId"
         :hovered-event-id="hoveredEventId"
