@@ -535,7 +535,8 @@ describe('emulate pipe mappers', () => {
     );
     expect(items.find((i) => i.id === 'scalar')?.ratio).toBe(0.5);
     expect(items.find((i) => i.id === 'mte2')?.ratio).toBe(0.4);
-    expect(items.find((i) => i.id === 'mte2')?.side).toBe('cube'); // pipe family side from map
+    expect(items.find((i) => i.id === 'scalar')?.side).toBe('aic'); // CoreTypes AIC
+    expect(items.find((i) => i.id === 'mte2')?.side).toBe('aiv0'); // CoreTypes AIV0 (UI-54)
     expect(items.some((i) => /q99|Queue/.test(i.id) || /q99|Queue/.test(i.label))).toBe(false);
   });
 });
