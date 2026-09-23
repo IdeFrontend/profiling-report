@@ -17,7 +17,7 @@ Hub for profiling-report **on-disk inputs** (shared **`.npu-rep` container**, pa
 | [ADAPTERS.md](ADAPTERS.md) | Detect profile → adapt → view-models |
 | [REP_FORMAT.md](REP_FORMAT.md) | Classic `cann-rep` engineering fixtures only |
 
-Related: [../views/](../views/) · [VIEW_DATA_MAPPING.md](../ui/VIEW_DATA_MAPPING.md) (docx/sketch index). Decisions: [PROC-6](../context/decisions/PROC.md) … [PROC-8](../context/decisions/PROC.md), [DATA-45](../context/decisions/interim/DATA.md#data-45), [DATA-46](../context/decisions/interim/DATA.md#data-46).
+Related: [../views/](../views/) · [product-sections.md](../views/product-sections.md) (product § indexes). Decisions: [PROC-6](../context/decisions/PROC.md) … [PROC-8](../context/decisions/PROC.md), [DATA-45](../context/decisions/interim/DATA.md#data-45), [DATA-46](../context/decisions/interim/DATA.md#data-46).
 
 ---
 

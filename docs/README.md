@@ -25,7 +25,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 18. **[formats/VIEW_DATA_REQUIREMENTS.md](formats/VIEW_DATA_REQUIREMENTS.md)** — legacy redirect + unextracted surfaces
 19. **[ui/DESIGN_INDEX.md](ui/DESIGN_INDEX.md)** — design image hierarchy (sources → screens → component crops)
 20. **[ui/UI_OVERVIEW.md](ui/UI_OVERVIEW.md)** — layout regions mapped to design sketches
-21. **[ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md)** — docx § index → views (field/slot tables live in view packets)
+21. **[views/product-sections.md](views/product-sections.md)** — product § → view-packet indexes (field/slot tables in packets)
 22. **[ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md)** — normative colors from sketches
 23. **[ui/LOCALIZATION.md](ui/LOCALIZATION.md)** — zh-CN / en catalog, host `locale`, lane `categoryKey`
 24. **[ui/UX_SPEC.md](ui/UX_SPEC.md)** — complete UX: scenarios (incl. S10 emulate), static vs interactive, sync model
@@ -62,7 +62,7 @@ Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README
 |-----|------|
 | [ui/UX_SPEC.md](ui/UX_SPEC.md) | Scenarios S1–S10, static vs interactive, sync |
 | [ui/FEATURE_MATRIX.md](ui/FEATURE_MATRIX.md) | MVP vs Phase 2+ checklist |
-| [ui/VIEW_DATA_MAPPING.md](ui/VIEW_DATA_MAPPING.md) | Docx § → view-packet index (tables in [`views/`](views/)) |
+| [views/product-sections.md](views/product-sections.md) | Product § → view-packet indexes (tables in packets) |
 | [ui/COLOR_TOKENS.md](ui/COLOR_TOKENS.md) | Normative sketch color tokens |
 | [ui/LOCALIZATION.md](ui/LOCALIZATION.md) | zh-CN / en catalog; host `locale`; lane `categoryKey` |
 | [formats/README.md](formats/README.md) | Container hub + profiles |

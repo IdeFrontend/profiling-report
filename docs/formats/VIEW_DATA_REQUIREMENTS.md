@@ -15,7 +15,7 @@ Extracted surfaces (sketches + VM + compute/emulate fill):
 
 **Still on this page until a second extract pass** (same hide policy [DATA-30](../context/decisions/DATA.md)): time axis, lane gutter, swimlane canvas, event tooltip/detail strip, compute/memory CSV tabs, hardware details, measure mode, secondary tabs — see historical sections below or [views README stubs](../views/README.md).
 
-Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). Docx/sketch index: [`../ui/VIEW_DATA_MAPPING.md`](../ui/VIEW_DATA_MAPPING.md).
+Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). Product § indexes: [`../views/product-sections.md`](../views/product-sections.md); catalog: [`../views/README.md`](../views/README.md).
 
 ---
 
