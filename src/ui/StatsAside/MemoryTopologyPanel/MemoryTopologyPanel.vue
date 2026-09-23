@@ -91,8 +91,10 @@ export const DEFAULT_MAX_W = 34.7;
  * The simplified chrome merges AIV0/AIV1 into one **AIV × 2** row, so former dual AIV corridor
  * slots (`l2-ub`, `ub-l2`, `ub-vec`, `vec-ub`) are single plates. Cube↔L0C shares **one**
  * corridor plate on the export — only `cube-l0c` (into L0C) is drawn there; `l0c-cube` keeps
- * its adapter id / drawable gate but has **no** overlay slot (an empty `SLOTS` list), so the
- * panel cannot double-paint two GB/s labels 5u apart on the same 11-unit plate.
+ * its adapter / EDGE_MAP id for 详情 typing but is excluded from `hasDrawableTopology` via
+ * `TOPOLOGY_NO_OVERLAY_EDGE_IDS` (empty `SLOTS` list — PR-MEMTOP-004), so the panel cannot
+ * double-paint two GB/s labels 5u apart on the same 11-unit plate. Adapters fold reverse onto
+ * `cube-l0c` before the panel sees the model (PR-MEMTOP-002c).
  *
  * Chrome slots left blank (no adapter edge or Product unconfirmed — UI-48): AIV SIMT links,
  * UB→VEC run, AIV↔AIC trunks, AIC L1→MTE1#3→BT, FixP→rail / lower L2↔AIC FixP corridor
