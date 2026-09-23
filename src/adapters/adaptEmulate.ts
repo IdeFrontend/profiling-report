@@ -7,7 +7,6 @@
 import type {
   AdaptedReport,
   CsvTableModel,
-  PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
   SwimlaneModel,
@@ -17,7 +16,17 @@ import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
 import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 import { parseCsv } from './parseCsv';
+import {
+  csvTableFromPipeUtilizationHist,
+  pipeOccupancyFromHist,
+  pipeOccupancyFromPipesUtilization,
+} from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
+
+export {
+  pipeOccupancyFromHist,
+  pipeOccupancyFromPipesUtilization,
+} from './pipeOccupancyEmulate';
 
 /** Producer `manifest.json` only ([PROC-8]). */
 const MANIFEST_NAMES = ['manifest.json', 'Manifest.json'];
@@ -198,139 +207,6 @@ export function readEmulateManifest(
   return null;
 }
 
-const PIPE_NAME_MAP: { match: RegExp; id: string; label: string; colorKey: string; side: 'cube' | 'vector' }[] = [
-  { match: /^cube$/i, id: 'cube', label: 'Cube', colorKey: 'cube', side: 'cube' },
-  { match: /^vector$|^vec$|^simd$/i, id: 'vector', label: 'Vector', colorKey: 'vector', side: 'vector' },
-  { match: /^simt$/i, id: 'simt', label: 'SIMT', colorKey: 'default', side: 'vector' },
-  { match: /^mte1$/i, id: 'mte1', label: 'MTE1', colorKey: 'mte1', side: 'cube' },
-  { match: /^mte2$/i, id: 'mte2', label: 'MTE2', colorKey: 'mte2', side: 'cube' },
-  { match: /^mte3$/i, id: 'mte3', label: 'MTE3', colorKey: 'mte3', side: 'cube' },
-  { match: /^fixp$|^fixpipe$/i, id: 'fixp', label: 'FixP', colorKey: 'fixp', side: 'cube' },
-  { match: /^scalar$/i, id: 'scalar', label: 'Scalar', colorKey: 'scalar', side: 'cube' },
-  { match: /^icache/i, id: 'icache', label: 'ICache Miss', colorKey: 'default', side: 'cube' },
-];
-
-function normalizeRatio(raw: number): number | null {
-  if (!Number.isFinite(raw)) return null;
-  if (raw < 0) return null;
-  // Accept 0..1 or 0..100 (%)
-  if (raw > 1 && raw <= 100) return raw / 100;
-  if (raw > 100) return null;
-  return raw;
-}
-
-function mapPipeName(name: string): (typeof PIPE_NAME_MAP)[number] | null {
-  const trimmed = name.trim();
-  for (const entry of PIPE_NAME_MAP) {
-    if (entry.match.test(trimmed)) return entry;
-  }
-  return null;
-}
-
-/** Map PipeUtilizationHist.csv (PipeName, Utilization) → pipeOccupancy. */
-export function pipeOccupancyFromHist(payload?: Uint8Array): PipeOccupancyItem[] {
-  if (!payload) return [];
-  const { rows } = parseCsv(decodeUtf8(payload));
-  const acc = new Map<string, { item: PipeOccupancyItem; sum: number; n: number }>();
-  for (const row of rows) {
-    const name = row.PipeName ?? row.pipeName ?? '';
-    const mapped = mapPipeName(name);
-    if (!mapped) continue;
-    const ratio = normalizeRatio(Number(row.Utilization ?? row.utilization ?? row.PipeUtilization));
-    if (ratio == null) continue;
-    const key = `${mapped.side}:${mapped.id}`;
-    const prev = acc.get(key);
-    if (prev) {
-      prev.sum += ratio;
-      prev.n += 1;
-      prev.item.ratio = prev.sum / prev.n;
-    } else {
-      acc.set(key, {
-        sum: ratio,
-        n: 1,
-        item: {
-          id: mapped.id,
-          label: mapped.label,
-          ratio,
-          colorKey: mapped.colorKey,
-          side: mapped.side,
-        },
-      });
-    }
-  }
-  return [...acc.values()].map((v) => v.item);
-}
-
-/**
- * Map PipesUtilization.csv (CoreId, CoreTypeId, InstrQueueTypeId, PipeUtilization).
- * Producer packs INTEGER FKs — join `InstrQueueTypes` / `CoreTypes` when present.
- * Unmapped integer ids are skipped (no synthetic `Queue N` bars). String labels
- * (demo fixtures) still map via `mapPipeName`. Prefer `PipeUtilizationHist` when both exist.
- */
-export function pipeOccupancyFromPipesUtilization(
-  payload?: Uint8Array,
-  dicts?: { queueTypes?: Uint8Array; coreTypes?: Uint8Array },
-): PipeOccupancyItem[] {
-  if (!payload) return [];
-  const queueNames = idNameMap(dicts?.queueTypes, [
-    'InstrQueueTypeId',
-    'InstrQueueTypeName',
-  ]);
-  const coreNames = idNameMap(dicts?.coreTypes, ['CoreTypeId', 'CoreTypeName']);
-  const { rows } = parseCsv(decodeUtf8(payload));
-  const acc = new Map<string, { item: PipeOccupancyItem; sum: number; n: number }>();
-  for (const row of rows) {
-    const queueRaw = (row.InstrQueueTypeId ?? row.PipeName ?? '').trim();
-    if (!queueRaw) continue;
-    const queueLabel = queueNames.get(queueRaw) ?? queueRaw;
-    const mapped = mapPipeName(queueLabel);
-    // Skip bare integer FKs that did not resolve to a known pipe family.
-    if (!mapped && /^\d+$/.test(queueRaw) && !queueNames.has(queueRaw)) continue;
-    if (!mapped && /^\d+$/.test(queueLabel)) continue;
-
-    const coreRaw = (row.CoreTypeId ?? '').trim();
-    const coreLabel = (coreNames.get(coreRaw) ?? coreRaw).toLowerCase();
-    const side: 'cube' | 'vector' =
-      mapped?.side ??
-      (coreLabel.includes('aiv') || coreLabel.includes('vector') ? 'vector' : 'cube');
-    const id = mapped?.id ?? `q${queueLabel}`;
-    const label = mapped?.label ?? queueLabel;
-    const colorKey = mapped?.colorKey ?? 'default';
-    const ratio = normalizeRatio(Number(row.PipeUtilization ?? row.Utilization));
-    if (ratio == null) continue;
-    const key = `${side}:${id}`;
-    const prev = acc.get(key);
-    if (prev) {
-      prev.sum += ratio;
-      prev.n += 1;
-      prev.item.ratio = prev.sum / prev.n;
-    } else {
-      acc.set(key, {
-        sum: ratio,
-        n: 1,
-        item: { id, label, ratio, colorKey, side },
-      });
-    }
-  }
-  return [...acc.values()].map((v) => v.item);
-}
-
-/** Build id→name map from a two-column dictionary CSV. */
-function idNameMap(
-  payload: Uint8Array | undefined,
-  [idCol, nameCol]: [string, string],
-): Map<string, string> {
-  const out = new Map<string, string>();
-  if (!payload) return out;
-  const { rows } = parseCsv(decodeUtf8(payload));
-  for (const row of rows) {
-    const id = (row[idCol] ?? Object.values(row)[0] ?? '').trim();
-    const name = (row[nameCol] ?? Object.values(row)[1] ?? '').trim();
-    if (id && name) out.set(id, name);
-  }
-  return out;
-}
-
 function csvTableFromPayload(
   payloads: Record<string, Uint8Array>,
   names: string[],
@@ -390,11 +266,16 @@ export function adaptEmulate(
     );
   }
 
+  // UI-55: prefer projected hist (aic_/aiv0_/aiv1_ *_ratio); omit raw PipesUtilization when hist exists.
   const computeTables: CsvTableModel[] = [];
-  const pipesTable = csvTableFromPayload(payloads, PIPES_UTIL_NAMES);
-  if (pipesTable) computeTables.push(pipesTable);
-  const histTable = csvTableFromPayload(payloads, PIPE_HIST_NAMES);
-  if (histTable) computeTables.push(histTable);
+  const histPayload = payloadByName(payloads, PIPE_HIST_NAMES);
+  const histTable = csvTableFromPipeUtilizationHist(histPayload);
+  if (histTable) {
+    computeTables.push(histTable);
+  } else {
+    const pipesTable = csvTableFromPayload(payloads, PIPES_UTIL_NAMES);
+    if (pipesTable) computeTables.push(pipesTable);
+  }
 
   const memoryTables: CsvTableModel[] = [];
   const archTable = csvTableFromPayload(payloads, ARCH_DIAGRAM_NAMES);

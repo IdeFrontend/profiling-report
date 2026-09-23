@@ -30,8 +30,6 @@ export {
   adaptEmulate,
   isEmulateLeaf,
   readEmulateManifest,
-  pipeOccupancyFromPipesUtilization,
-  pipeOccupancyFromHist,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export type { ArchDiagramMetricMode } from './emulateMemoryTopology';
