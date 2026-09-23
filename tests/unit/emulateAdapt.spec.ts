@@ -269,10 +269,23 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       ARCH_DIAGRAM_EDGE_MAP,
       ARCH_DIAGRAM_L2_PEAK_PARAM,
       ARCH_DIAGRAM_UNPLATED_HTML_BASES,
-      ARCH_DIAGRAM_HTML_UTIL_RATIOS,
       topologyFromArchDiagramMetrics,
     } = await import('../../src/adapters/emulateMemoryTopology');
     const { TOPOLOGY_SLOT_EDGE_IDS } = await import('../../src/adapters/memoryTopology');
+
+    // Test-local HTML util inventory (not exported from the adapter — only L2 peak is plated).
+    const ARCH_DIAGRAM_HTML_UTIL_RATIOS = [
+      'aic_cube_ratio',
+      'aic_fixp_ratio',
+      'aic_scalar_ratio',
+      'aiv0_simd_ratio',
+      'aiv0_simt_ratio',
+      'aiv0_scalar_ratio',
+      'aiv1_simd_ratio',
+      'aiv1_simt_ratio',
+      'aiv1_scalar_ratio',
+      'l2_cached_ratio',
+    ] as const;
 
     // Every emulate plated edge id is a chrome slot (shared vocabulary with compute).
     const slotIds = new Set<string>(TOPOLOGY_SLOT_EDGE_IDS);

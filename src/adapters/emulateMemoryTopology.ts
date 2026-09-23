@@ -89,26 +89,8 @@ export const ARCH_DIAGRAM_UNPLATED_HTML_BASES = [
   'aiv1_simt_to_cache',
 ] as const;
 
-/**
- * HTML util `*_ratio` ids present on all biprof Architecture Diagram tabs.
- * Emulate interim paints **only** `l2_cached_ratio` as L2 Peak(%); the rest are not `plates`
- * (compute UI-49 badges come from PipeUtilization, not ArchDiagramMetrics).
- */
-export const ARCH_DIAGRAM_HTML_UTIL_RATIOS = [
-  'aic_cube_ratio',
-  'aic_fixp_ratio',
-  'aic_scalar_ratio',
-  'aiv0_simd_ratio',
-  'aiv0_simt_ratio',
-  'aiv0_scalar_ratio',
-  'aiv1_simd_ratio',
-  'aiv1_simt_ratio',
-  'aiv1_scalar_ratio',
-  'l2_cached_ratio',
-] as const;
-
-const ARCH_EDGE_MAP = ARCH_DIAGRAM_EDGE_MAP;
-const L2_PEAK_PARAM = ARCH_DIAGRAM_L2_PEAK_PARAM;
+/** Emulate interim paints **only** `ARCH_DIAGRAM_L2_PEAK_PARAM` as L2 Peak(%); other HTML
+ *  `*_ratio` ids stay unplated (compute UI-49 badges come from PipeUtilization). */
 
 function parseNumber(raw: string | undefined): number | undefined {
   if (raw == null || raw === '' || raw === 'NA') return undefined;
@@ -157,7 +139,7 @@ export function topologyFromArchDiagramMetrics(
   if (values.size === 0) return undefined;
 
   const edges: MemoryTopologyModel['edges'] = [];
-  for (const spec of ARCH_EDGE_MAP) {
+  for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
     const value = pickValue(values, spec.params);
     edges.push({
       id: spec.id,
@@ -167,7 +149,7 @@ export function topologyFromArchDiagramMetrics(
     });
   }
 
-  const peakPct = values.get(L2_PEAK_PARAM);
+  const peakPct = values.get(ARCH_DIAGRAM_L2_PEAK_PARAM);
   const nodes = MEMORY_TOPOLOGY_NODE_DEFS.map((n) =>
     n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
   );

@@ -270,6 +270,11 @@ const PLATE_MAP: { node: TopologyPlateNodeId; file: string; columns: string[] }[
  * (synthesizing that edge if the caller omitted it) so reverse-only BW is visible. Clear the
  * `l0c-cube` label afterward — CSV 详情 still has the source columns; the chrome has one plate
  * (PR-MEMTOP-002c).
+ *
+ * ponytail: prefer-forward drops reverse whenever forward is present-and-nonempty — including a
+ * real "show 0" (`0.00 GB/s`). Ceiling: non-zero reverse BW is invisible on the plate when forward
+ * is labelled (DATA-44 / single chrome plate). Upgrade: Product dual-direction chrome, or a
+ * prefer-nonzero / max policy if reverse must surface while forward stays 0.
  */
 export function foldCubeL0cCorridorEdges(
   edges: MemoryTopologyModel['edges'],
