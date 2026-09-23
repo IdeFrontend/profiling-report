@@ -10,6 +10,7 @@ import {
 import {
   buildMemoryTopology,
   firstLabelledMemoryTopology,
+  foldCubeL0cCorridorEdges,
   hasDrawableTopology,
 } from '../../src/adapters/memoryTopology';
 import { loadOutRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
@@ -660,6 +661,71 @@ describe('PR-VM: report view-models (interim)', () => {
       },
     ];
     expect(firstLabelledMemoryTopology(slotlessOnlyEverywhere)).toBeUndefined();
+  });
+
+  it('PR-VM-018 / PR-MEMTOP-002c: fold l0c-cube onto cube-l0c; empty-slot alone not drawable', () => {
+    // Unfolded reverse-only: chrome has no overlay for l0c-cube → not drawable.
+    expect(
+      hasDrawableTopology({
+        nodes: [{ id: 'l2', label: 'L2' }],
+        edges: [{ id: 'l0c-cube', from: 'l0c', to: 'cube', label: '5.00 GB/s' }],
+      }),
+    ).toBe(false);
+
+    // Prefer forward when both labelled; clear reverse so one plate paints.
+    const both = foldCubeL0cCorridorEdges([
+      { id: 'cube-l0c', from: 'cube', to: 'l0c', label: '1.00 GB/s' },
+      { id: 'l0c-cube', from: 'l0c', to: 'cube', label: '9.00 GB/s' },
+    ]);
+    expect(both.find((e) => e.id === 'cube-l0c')?.label).toBe('1.00 GB/s');
+    expect(both.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
+
+    // Reverse-only: copy onto cube-l0c so BW is visible.
+    const reverseOnly = foldCubeL0cCorridorEdges([
+      { id: 'cube-l0c', from: 'cube', to: 'l0c' },
+      { id: 'l0c-cube', from: 'l0c', to: 'cube', label: '5.00 GB/s' },
+    ]);
+    expect(reverseOnly.find((e) => e.id === 'cube-l0c')?.label).toBe('5.00 GB/s');
+    expect(reverseOnly.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
+    expect(
+      hasDrawableTopology({
+        nodes: [{ id: 'l2', label: 'L2' }],
+        edges: reverseOnly,
+      }),
+    ).toBe(true);
+
+    // Reverse with no forward edge at all: synthesize cube-l0c (exported helper contract).
+    const reverseAlone = foldCubeL0cCorridorEdges([
+      { id: 'l0c-cube', from: 'l0c', to: 'cube', label: '3.00 GB/s' },
+    ]);
+    expect(reverseAlone.find((e) => e.id === 'cube-l0c')).toEqual({
+      id: 'cube-l0c',
+      from: 'cube',
+      to: 'l0c',
+      label: '3.00 GB/s',
+    });
+    expect(reverseAlone.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
+    expect(
+      hasDrawableTopology({
+        nodes: [{ id: 'l2', label: 'L2' }],
+        edges: reverseAlone,
+      }),
+    ).toBe(true);
+
+    // Adapter path: MemoryL0 reverse-only → folded model is drawable on cube-l0c.
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'MemoryL0.csv',
+        headers: ['block_id', 'aic_l0c_read_bw_cube(GB/s)'],
+        rows: [{ block_id: '0', 'aic_l0c_read_bw_cube(GB/s)': '5.5' }],
+        blockIds: ['0'],
+      },
+    ];
+    const model = buildMemoryTopology(tables, '0');
+    expect(model?.edges.find((e) => e.id === 'cube-l0c')?.label).toBe('5.50 GB/s');
+    expect(model?.edges.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
+    expect(hasDrawableTopology(model)).toBe(true);
+    expect(firstLabelledMemoryTopology(tables)?.blockId).toBe('0');
   });
 
   it('PR-VM-012b: L2 Peak(%) from first non-NA hit-rate column (DATA-20 / DATA-21)', () => {

@@ -6,11 +6,12 @@ import MemoryTopologyPanel, {
   PLATE_MAX_W,
   PLATE_SLOTS,
   SLOT_MAX_W,
+  SLOTS,
   ZOOM_STEPS,
   fitFontSize,
 } from './MemoryTopologyPanel.vue';
 import { TOPOLOGY_PLATE_NODE_IDS, hasDrawableTopology } from '../../../adapters/memoryTopology';
-import type { TopologyPlateNodeId } from '../../../adapters/memoryTopology';
+import type { TopologyPlateNodeId, TopologySlotEdgeId } from '../../../adapters/memoryTopology';
 
 const model = {
   nodes: [
@@ -36,7 +37,7 @@ const model = {
   ],
 };
 
-/** Chrome geometry (448×540 units): GM x16–56, L2 x94–134, cluster rows x188–432. */
+/** Chrome geometry (448×423 units): GM x16–56, L2 x94–134, cluster rows x188–432. */
 const CHROME = { gmRight: 56, l2Left: 94, l2Right: 134, clusterLeft: 188 };
 
 /** Two panels in *one* app: the stacked aside and the fullscreen overlay render at the same time,
@@ -76,23 +77,261 @@ describe('MemoryTopologyPanel', () => {
     const chrome = wrapper.get('image');
     expect(chrome.attributes('href')).toContain('memory-topology.svg');
     expect(chrome.attributes('width')).toBe('448');
-    expect(chrome.attributes('height')).toBe('540');
+    expect(chrome.attributes('height')).toBe('423');
     expect(wrapper.find('[data-testid="node-l2"]').exists()).toBe(true);
-    expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 540');
+    expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 423');
+  });
+
+  it('PR-MEMTOP-001b: chrome has no baked sample GB/s glyphs (overlay-only values)', async () => {
+    // The simplified export ships outlined sample values in amber (`rgb(249,183,102)`). Those must
+    // be stripped in-repo — otherwise panel overlays double-print on top of them (gelu.npu-rep).
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, join } = await import('node:path');
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const svg = readFileSync(join(dir, 'memory-topology.svg'), 'utf8');
+    expect(svg).not.toContain('rgb(249,183,102)');
+    expect(svg.toLowerCase()).not.toContain('<text');
+
+    // Under-word util `%` samples were white path fills (same strip pass). Their centres must stay
+    // empty so overlays own the plate — not a leftover white `0.00%` under Scalar/Vec/Cube/L2.
+    const STRIPPED_UTIL: ReadonlyArray<readonly [string, number, number]> = [
+      ['L2 peak', 114.1, 218.3],
+      ['Cube util', 338.1, 95.3],
+      ['AIV Scalar util', 282.2, 321.0],
+      ['Vec util', 372.1, 367.8],
+    ];
+    const whiteCentres: Array<{ cx: number; cy: number }> = [];
+    for (const m of svg.matchAll(/<path\b([\s\S]*?)\/>/g)) {
+      const attrs = m[1] ?? '';
+      if (!attrs.includes('fill="rgb(255,255,255)"')) continue;
+      const d = /\bd="([^"]*)"/.exec(attrs)?.[1];
+      if (!d) continue;
+      const nums = [...d.matchAll(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g)].map((x) => Number(x[0]));
+      const xs = nums.filter((_, i) => i % 2 === 0);
+      const ys = nums.filter((_, i) => i % 2 === 1);
+      if (xs.length === 0 || ys.length === 0) continue;
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      if (maxY - minY > 10) continue;
+      whiteCentres.push({ cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
+    }
+    for (const [name, x, y] of STRIPPED_UTIL) {
+      const hit = whiteCentres.some((c) => Math.hypot(c.cx - x, c.cy - y) < 4);
+      expect(hit, `leftover white util glyph near ${name} (${x}, ${y})`).toBe(false);
+    }
+  });
+
+  it('PR-MEMTOP-001c: chrome keeps static box labels after the sample strip', async () => {
+    // Over-stripping white sample glyphs also deleted DCache/ICache/SS/L0*/FixPipe outlined
+    // labels, leaving gray/blue/orange boxes empty. Required label centres (chrome units):
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, join } = await import('node:path');
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const svg = readFileSync(join(dir, 'memory-topology.svg'), 'utf8');
+
+    const REQUIRED: ReadonlyArray<readonly [string, number, number]> = [
+      ['DCache (AIC)', 215.2, 170.0],
+      ['ICache (AIC)', 213.2, 186.0],
+      ['DCache (AIV)', 215.2, 242.0],
+      ['ICache (AIV)', 213.2, 258.0],
+      ['SS', 309.9, 208.8],
+      ['L0A', 272.6, 59.4],
+      ['L0B', 272.5, 84.2],
+      ['BT', 272.6, 110.9],
+      ['FP', 272.6, 136.7],
+      ['FixPipe (L0C)', 404.1, 137.4],
+      ['FixPipe (L1→FP)', 237.9, 137.4],
+      ['MTE_1 L1→L0A', 237.6, 59.4],
+      ['MTE_1 L1→L0B', 237.6, 84.4],
+      ['MTE_1 L1→BT', 237.6, 112.4],
+      ['MTE_2 L2→L1', 158.4, 98.4],
+      ['MTE_3 AIV mid', 341.8, 272.4],
+      ['MTE_2 L2→UB', 217.9, 321.4],
+      ['MTE_3 UB→L2', 217.8, 336.4],
+      ['MTE_2 bottom', 217.9, 378.4],
+    ];
+
+    // Figma paths are `id="" d="…" fill="…" />` — `\bd=` avoids matching the trailing
+    // `d=""` of `id=""`, and `[\s\S]*?` spans the multiline attribute block.
+    const whiteCentres: Array<{ cx: number; cy: number }> = [];
+    for (const m of svg.matchAll(/<path\b([\s\S]*?)\/>/g)) {
+      const attrs = m[1] ?? '';
+      if (!attrs.includes('fill="rgb(255,255,255)"')) continue;
+      const d = /\bd="([^"]*)"/.exec(attrs)?.[1];
+      if (!d) continue;
+      const nums = [...d.matchAll(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g)].map((x) => Number(x[0]));
+      const xs = nums.filter((_, i) => i % 2 === 0);
+      const ys = nums.filter((_, i) => i % 2 === 1);
+      if (xs.length === 0 || ys.length === 0) continue;
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      if (maxY - minY > 10) continue;
+      whiteCentres.push({ cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 });
+    }
+
+    for (const [name, x, y] of REQUIRED) {
+      const hit = whiteCentres.some((c) => Math.abs(c.cx - x) <= 3 && Math.abs(c.cy - y) <= 3);
+      expect(hit, `missing static label path for ${name} near (${x}, ${y})`).toBe(true);
+    }
+  });
+
+  it('PR-MEMTOP-001d: SLOTS never sit on orange MTE/FixPipe chip centres', async () => {
+    // Remasuring onto white-under-orange chip rects put GB/s overlays on MTE labels.
+    // Chip centres come from the chrome's `#f69e39` / `rgb(246,158,57)` rects — not a hardcoded list.
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, join } = await import('node:path');
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const svg = readFileSync(join(dir, 'memory-topology.svg'), 'utf8');
+    const chips: Array<{ cx: number; cy: number }> = [];
+    for (const m of svg.matchAll(/<rect\b([\s\S]*?)\/>/g)) {
+      const attrs = m[1] ?? '';
+      if (!/rgb\(246,\s*158,\s*57\)|#f69e39/i.test(attrs)) continue;
+      const x = Number(/\bx="([^"]+)"/.exec(attrs)?.[1]);
+      const y = Number(/\by="([^"]+)"/.exec(attrs)?.[1]);
+      const w = Number(/\bwidth="([^"]+)"/.exec(attrs)?.[1]);
+      const h = Number(/\bheight="([^"]+)"/.exec(attrs)?.[1]);
+      if (![x, y, w, h].every(Number.isFinite)) continue;
+      chips.push({ cx: x + w / 2, cy: y + h / 2 });
+    }
+    expect(chips.length).toBeGreaterThanOrEqual(10);
+
+    // Amber corridor sample centres (remasure targets) — slots must stay near these, not chips.
+    const AMBER: ReadonlyArray<readonly [TopologySlotEdgeId, number, number]> = [
+      ['gm-l2-read', 75.1, 200.3],
+      ['gm-l2-write', 75.2, 219.3],
+      ['l2-ub', 159.7, 315.2],
+      ['ub-l2', 159.6, 331.2],
+      ['l2-l1-read', 160.1, 87.9],
+      ['ub-vec', 338.7, 351.8],
+      ['vec-ub', 338.6, 363.8],
+      ['l1-l0a', 239.1, 49.8],
+      ['l1-l0b', 239.1, 74.8],
+      ['l0a-cube', 300.9, 54.8],
+      ['l0b-cube', 300.9, 79.8],
+      ['cube-l0c', 373.6, 83.8],
+    ];
+    for (const [edge, ax, ay] of AMBER) {
+      const slots = SLOTS[edge];
+      expect(slots.length, edge).toBe(1);
+      const [[sx, sy]] = slots;
+      expect(Math.hypot(sx - ax, sy - ay), `${edge} vs amber`).toBeLessThan(2.5);
+    }
+
+    for (const [edge, slots] of Object.entries(SLOTS)) {
+      for (const [sx, sy] of slots) {
+        for (const { cx, cy } of chips) {
+          const onChip = Math.hypot(sx - cx, sy - cy) < 6;
+          expect(onChip, `${edge} slot (${sx}, ${sy}) on chip (${cx}, ${cy})`).toBe(false);
+        }
+      }
+    }
   });
 
   it('PR-MEMTOP-002: renders data-driven edge labels', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');
-    // Two-slot edges get one element per slot (AIV0 + AIV1), and the slot index makes each
-    // testid unique — a bare `edge-vec-ub` twice was ambiguous for `getByTestId`-style queries.
+    // AIV × 2 chrome: one plate per UB↔SIMD edge (slot index still unique for getByTestId).
     expect(wrapper.find('[data-testid="edge-vec-ub-0"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="edge-vec-ub-1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-vec-ub-1"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="edge-ub-vec-0"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="edge-ub-vec-1"]').exists()).toBe(true);
-    for (const id of ['l1-l0a', 'l1-l0b', 'l0a-cube', 'l0b-cube', 'l0c-cube', 'cube-l0c']) {
+    expect(wrapper.find('[data-testid="edge-ub-vec-1"]').exists()).toBe(false);
+    for (const id of ['l1-l0a', 'l1-l0b', 'l0a-cube', 'l0b-cube', 'cube-l0c']) {
       expect(wrapper.get(`[data-testid="edge-${id}-0"]`).text().length).toBeGreaterThan(0);
     }
+  });
+
+  it('PR-MEMTOP-002c: Cube↔L0C is one plate; Cube util sits under CUBE', () => {
+    // Simplified chrome: one corridor plate (~373.5, 85.5) and one under-CUBE util sample
+    // (~338.1, 95.3). Remasure must not stack cube-l0c + l0c-cube 5u apart (double GB/s) or
+    // park the Cube badge at y=100 (below the sample).
+    expect(SLOTS['cube-l0c']).toEqual([[373.6, 83.8]]);
+    expect(SLOTS['l0c-cube']).toEqual([]);
+    expect(PLATE_SLOTS.cube).toEqual([[338.1, 95.3]]);
+    // Cube box is x322–354, y54–123 — badge centre must sit inside it, under the word (~y85).
+    const [[cx, cy]] = PLATE_SLOTS.cube;
+    expect(cx).toBeGreaterThan(322);
+    expect(cx).toBeLessThan(354);
+    expect(cy).toBeGreaterThan(84);
+    expect(cy).toBeLessThan(110);
+
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          plates: [{ node: 'cube', label: '0.00%' }],
+          edges: model.edges.map((e) =>
+            e.id === 'cube-l0c' || e.id === 'l0c-cube'
+              ? { ...e, label: '0.00 GB/s' }
+              : e,
+          ),
+        },
+      },
+    });
+    expect(wrapper.find('[data-testid="edge-cube-l0c-0"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="edge-cube-l0c-0"]').text()).toBe('0.00 GB/s');
+    expect(wrapper.find('[data-testid="edge-l0c-cube-0"]').exists()).toBe(false);
+    const cubeGb = wrapper
+      .findAll('text.pr-topo__edge')
+      .filter((el) => el.text() === '0.00 GB/s' && Number(el.attributes('x')) > 360);
+    expect(cubeGb).toHaveLength(1);
+    expect(wrapper.get('[data-testid="plate-cube-0"]').text()).toBe('0.00%');
+    expect(Number(wrapper.get('[data-testid="plate-cube-0"]').attributes('y'))).toBeCloseTo(95.3, 5);
+  });
+
+  it('PR-MEMTOP-016: unit badges sit on stripped util centres, clear of the unit word', () => {
+    // Unit-word white centres (chrome paths) vs under-word util sample centres used for overlays.
+    const WORDS: Record<TopologyPlateNodeId, readonly [number, number]> = {
+      aiv_scalar: [282.0, 309.07],
+      vec: [371.86, 359.07],
+      cube: [338.0, 84.57],
+    };
+    const UTIL: Record<TopologyPlateNodeId, readonly [number, number]> = {
+      aiv_scalar: [282.2, 321.0],
+      vec: [372.1, 367.8],
+      cube: [338.1, 95.3],
+    };
+    expect(PLATE_SLOTS.aiv_scalar).toEqual([UTIL.aiv_scalar]);
+    expect(PLATE_SLOTS.vec).toEqual([UTIL.vec]);
+    expect(PLATE_SLOTS.cube).toEqual([UTIL.cube]);
+    for (const node of TOPOLOGY_PLATE_NODE_IDS) {
+      const [[px, py]] = PLATE_SLOTS[node];
+      const [wx, wy] = WORDS[node];
+      // Half of BASE_FONT_PX (6.3) mid-baseline ≈ 3.15; require ≥6u so badge body clears the word.
+      expect(Math.hypot(px - wx, py - wy), `${node} plate vs word`).toBeGreaterThanOrEqual(6);
+    }
+
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...model,
+          nodes: [
+            ...model.nodes.map((n) =>
+              n.id === 'l2' ? { ...n, peakPct: 12.5 } : n,
+            ),
+            { id: 'vec', label: 'Vec' },
+            { id: 'aiv_scalar', label: 'Scalar' },
+          ],
+          plates: [
+            { node: 'aiv_scalar', label: '57.90%' },
+            { node: 'vec', label: '2.18%' },
+            { node: 'cube', label: '0.00%' },
+          ],
+        },
+      },
+    });
+    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(321.0, 5);
+    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(367.8, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(218.3, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('x'))).toBeCloseTo(114.1, 5);
+    // L2 peak vs L2 word (114.2, 204.5) — must clear half-cap (~3.15); sample band is ~13.8u under.
+    expect(Math.hypot(114.1 - 114.2, 218.3 - 204.5)).toBeGreaterThanOrEqual(12);
   });
 
   it('PR-MEMTOP-002b: every drawn value has a unique testid', () => {
@@ -130,6 +369,16 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
   });
 
+  it('PR-MEMTOP-004: empty-slot l0c-cube alone is not drawable (before fold)', () => {
+    const reverseOnly = {
+      nodes: model.nodes,
+      edges: [{ id: 'l0c-cube', from: 'l0c', to: 'cube', label: '5.00 GB/s' }],
+    };
+    expect(hasDrawableTopology(reverseOnly)).toBe(false);
+    const wrapper = mount(MemoryTopologyPanel, { props: { model: reverseOnly } });
+    expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+  });
+
   it('PR-MEMTOP-005: edge labels update when model changes', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');
@@ -162,12 +411,11 @@ describe('MemoryTopologyPanel', () => {
     // GM↔L2 labels sit between the GM pillar and the L2 pillar...
     expect(x('gm-l2-read')).toBeGreaterThan(CHROME.gmRight);
     expect(x('gm-l2-read')).toBeLessThan(CHROME.l2Left);
-    // ...and L2↔cluster labels between the L2 pillar and the row stack. The export draws
-    // these horizontally in the corridor (unlike the earlier redraw, which rotated them).
-    for (const id of ['l2-ub', 'l2-l1-read']) {
-      expect(x(id)).toBeGreaterThan(CHROME.l2Right);
-      expect(x(id)).toBeLessThan(CHROME.clusterLeft);
-    }
+    // L2→L1 and L2→UB sit in the L2↔row corridor (amber sample centres), not on MTE chips.
+    expect(x('l2-l1-read')).toBeGreaterThan(CHROME.l2Right);
+    expect(x('l2-l1-read')).toBeLessThan(CHROME.clusterLeft);
+    expect(x('l2-ub')).toBeGreaterThan(CHROME.l2Right);
+    expect(x('l2-ub')).toBeLessThan(CHROME.clusterLeft);
   });
 
   it('PR-MEMTOP-007: shows L2 Peak(%) when peakPct set', () => {
@@ -224,23 +472,22 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    // One element per slot: the AIV0/AIV1 pair shares the unit's one field (DATA-28), like the
-    // paired link values, and the slot index keeps each testid unique.
+    // One element per plated unit on the AIV × 2 chrome (DATA-28 one field → one badge).
     const scalar = wrapper.findAll('[data-testid^="plate-aiv_scalar-"]');
-    expect(scalar).toHaveLength(2);
+    expect(scalar).toHaveLength(1);
     expect(scalar.every((el) => el.text() === '57.90%')).toBe(true);
-    expect(wrapper.findAll('[data-testid^="plate-vec-"]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-testid^="plate-vec-"]')).toHaveLength(1);
     expect(wrapper.get('[data-testid="plate-vec-0"]').classes()).toContain('pr-topo__pct');
     // Cube / Scalar(AIC) / SIMT / FixP have no producer field (`NA`), so they carry no badge at
-    // all — 4 drawn, not 11.
-    expect(wrapper.findAll('[data-testid^="plate-"]')).toHaveLength(4);
+    // all — 2 drawn (scalar + vec), not 11.
+    expect(wrapper.findAll('[data-testid^="plate-"]')).toHaveLength(2);
 
     // The in-box badges join the text alternative, named once per unit.
     const id = wrapper.get('svg').attributes('aria-describedby')!;
     const summary = wrapper.get(`[id="${id}"]`);
-    expect(summary.text()).toContain('Scalar (AIV0, AIV1): 57.90%');
-    expect(summary.text()).toContain('Vec (AIV0, AIV1): 56.06%');
-    expect(summary.text().match(/Scalar \(AIV0, AIV1\)/g)).toHaveLength(1);
+    expect(summary.text()).toContain('Scalar: 57.90%');
+    expect(summary.text()).toContain('Vec: 56.06%');
+    expect(summary.text()).not.toContain('(AIV0, AIV1)');
   });
 
   it('PR-MEMTOP-008: right-click emits open-details', async () => {
@@ -298,9 +545,10 @@ describe('MemoryTopologyPanel', () => {
     expect(summary.classes()).toContain('pr-topo__sr');
     // Node labels from the model, so the numbers are not bare text.
     expect(summary.text()).toContain('GM → L2 Cache: 1.56 GB/s');
-    expect(summary.text()).toContain('L2 Cache → UB (AIV0, AIV1): 0.00 GB/s');
-    expect(summary.text()).toContain('UB → vec (AIV0, AIV1): 0.20 GB/s');
-    // Paired slots are named once — not the same string twice.
+    expect(summary.text()).toContain('L2 Cache → UB: 0.00 GB/s');
+    expect(summary.text()).toContain('UB → vec: 0.20 GB/s');
+    // AIV × 2 chrome: one slot per edge — not the dual AIV0/AIV1 pair wording.
+    expect(summary.text()).not.toContain('(AIV0, AIV1)');
     expect(summary.text().match(/L2 Cache → UB/g)).toHaveLength(1);
     // Only slots the diagram draws: `l0c-l1` / `l0c-l2` carry KB and have no plate.
     expect(summary.text()).not.toContain('KB');
@@ -439,7 +687,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const root = wrapper.get('[data-testid="memory-topology-panel"]');
     const viewport = wrapper.get('[data-testid="topology-viewport"]');
     const stage = viewport.get('.pr-topo__stage');
-    expect(stage.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 540');
+    expect(stage.get('svg[role="img"]').attributes('viewBox')).toBe('0 0 448 423');
     const scale = () => root.attributes('style') ?? '';
     expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
@@ -491,7 +739,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
     const scale = () =>
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
-    const BOX = { w: 448, h: 540 };
+    const BOX = { w: 448, h: 423 };
     Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
     Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
     Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
@@ -500,18 +748,18 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     // Fitted: the stage is the box, so the middle is the drawing's own middle — half of it.
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
     expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
-    // 0.5 × 560 − 224 and 0.5 × 675 − 270, i.e. half of each step's own overflow.
+    // 0.5 × 560 − 224 and 0.5 × 528.75 − 211.5, i.e. half of each step's own overflow.
     expect(el.scrollLeft).toBeCloseTo(56, 6);
-    expect(el.scrollTop).toBeCloseTo(67.5, 6);
+    expect(el.scrollTop).toBeCloseTo(52.875, 6);
 
     // Panned by hand, then stepped up to 150%: the fraction under the middle is what is kept, not
-    // the offset — `(60 + 224) / 560` and `(100 + 270) / 675` of the new 672 × 810 stage.
+    // the offset — `(60 + 224) / 560` and `(100 + 211.5) / 528.75` of the new 672 × 634.5 stage.
     el.scrollLeft = 60;
     el.scrollTop = 100;
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
     expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     expect(el.scrollLeft).toBeCloseTo(116.8, 1);
-    expect(el.scrollTop).toBeCloseTo(174, 1);
+    expect(el.scrollTop).toBeCloseTo(162.3, 1);
   });
 
   it('PR-MEMTOP-018: a box with no layout is left alone rather than centred on nothing', async () => {
@@ -653,7 +901,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     // so the placement maths below is exercised rather than skipped on a zero-sized box.
     const scale = () =>
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
-    const BOX = { w: 448, h: 540 };
+    const BOX = { w: 448, h: 423 };
     Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
     Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
     Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
@@ -715,7 +963,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
     const scale = () =>
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
-    const BOX = { w: 448, h: 540 };
+    const BOX = { w: 448, h: 423 };
     Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
     Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
     Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
@@ -852,20 +1100,19 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     // are much tighter than the pillars' and once shared a single (too generous) default.
     const CORRIDORS: Record<string, [number, number, number]> = {
       // slot: [left wall, slot centre, right wall]
-      'gm-l2-read': [55.75, 74.5, 94],
-      'gm-l2-write': [55.75, 75.3, 94],
+      'gm-l2-read': [55.75, 75.1, 94],
+      'gm-l2-write': [55.75, 75.2, 94],
       'l2-ub': [133.75, 159.7, 188],
-      'ub-l2': [133.75, 160.4, 188],
-      'l2-l1-read': [133.75, 159.7, 188],
-      'ub-vec': [315, 338.2, 361],
-      'vec-ub': [315, 338.2, 361],
-      'l1-l0a': [217, 239.7, 262],
-      'l1-l0b': [217, 240.1, 262],
-      'l0a-cube': [282, 302.9, 322],
-      'l0b-cube': [282, 302.9, 322],
-      'cube-l0c': [353, 373.5, 394],
-      'l0c-cube': [353, 373.5, 394],
-      'l2-peak': [94, 113.8, 133.75],
+      'ub-l2': [133.75, 159.6, 188],
+      'l2-l1-read': [133.75, 160.1, 188],
+      'ub-vec': [315, 338.7, 361],
+      'vec-ub': [315, 338.6, 361],
+      'l1-l0a': [217, 239.1, 262],
+      'l1-l0b': [217, 239.1, 262],
+      'l0a-cube': [282, 300.9, 322],
+      'l0b-cube': [282, 300.9, 322],
+      'cube-l0c': [353, 373.6, 394],
+      'l2-peak': [94, 114.1, 133.75],
     };
     expect(Object.keys(SLOT_MAX_W).sort()).toEqual(Object.keys(CORRIDORS).sort());
     for (const [slot, [left, centre, right]] of Object.entries(CORRIDORS)) {
@@ -878,12 +1125,12 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
   it('keeps every in-box badge bound inside its own unit box', () => {
     // The sketch's nine in-box badges; only the plated three get a slot (UI-49), and each has to
     // stay inside its own box wall — these are box interiors, not the corridors between pillars.
-    // Walls measured off the export at each badge's height band: AIV0/AIV1 `Scalar` x266.5–297.5,
-    // AIV0/AIV1 `Vec` x361.5–382.5 (the narrow one), AIC `Cube` x322.5–353.5.
+    // Walls measured off the export at each badge's height band: AIV × 2 `Scalar` x256–308,
+    // AIV × 2 `Vec`/SIMD x361.5–382.5 (the narrow one), AIC `Cube` x322–354.
     const BOXES: Record<TopologyPlateNodeId, [number, number, number]> = {
-      aiv_scalar: [266.5, 282.1, 297.5],
-      vec: [361.5, 372.0, 382.5],
-      cube: [322.5, 338.0, 353.5],
+      aiv_scalar: [256, 282.2, 308],
+      vec: [361.5, 372.1, 382.5],
+      cube: [322, 338.1, 354],
     };
     expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());
     expect(Object.keys(PLATE_SLOTS).sort()).toEqual([...TOPOLOGY_PLATE_NODE_IDS].sort());

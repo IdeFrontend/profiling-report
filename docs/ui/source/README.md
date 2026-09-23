@@ -9,6 +9,7 @@ source/
   manifest.yaml     machine index (stable ids, original names, component hints)
   v930/             930 性能调优 dump (canonical)
   v930-sim/         930 仿真 dump
+  v930-chrome/      930 内存拓扑 official SVG chrome (448×423)
 ```
 
 ## Naming

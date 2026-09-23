@@ -20,15 +20,15 @@ export const BASE_FONT_PX = 6.3;
  *  Every slot is listed because the clearance differs per slot — the row stack's inner corridors
  *  (L1↔L0A/B, L0A/B↔Cube, Cube↔L0C, UB↔SIMD) are far tighter than the pillars' and have no
  *  common bound. Measured walls at the value's own height band:
- *  `gm-l2-*` x≈55.75/x≈94; `l2-*`/`ub-l2` x≈133.75/x≈188; `ub-vec`/`vec-ub` x≈315/x≈361;
- *  `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube` x≈282/x≈322;
- *  `cube-l0c`/`l0c-cube` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
+ *  `gm-l2-*` x≈55.75/x≈94; `l2-l1-read` / `l2-ub` / `ub-l2` x≈133.75/x≈188 (L2↔row corridor);
+ *  `ub-vec`/`vec-ub` x≈315/x≈361; `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube`
+ *  x≈282/x≈322; `cube-l0c` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
 export const SLOT_MAX_W: Record<string, number> = {
   'gm-l2-read': 35.4,
   'gm-l2-write': 35.4,
-  'l2-ub': 49.9,
-  'ub-l2': 49.9,
-  'l2-l1-read': 49.9,
+  'l2-ub': 49.0,
+  'ub-l2': 49.0,
+  'l2-l1-read': 49.0,
   'ub-vec': 42.1,
   'vec-ub': 42.1,
   'l1-l0a': 41.1,
@@ -36,34 +36,26 @@ export const SLOT_MAX_W: Record<string, number> = {
   'l0a-cube': 36.7,
   'l0b-cube': 34.7,
   'cube-l0c': 37.5,
-  'l0c-cube': 37.5,
   'l2-peak': 36,
 };
 
 /**
- * UI-49 in-box `%` badge slots — the centres of the sketch's unit-utilization badges, which the
- * export stripped like the link values. Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a
- * newly plated unit without coordinates fails typecheck; measured off the sketch
- * (`visual/memory-topology.png`) on the same chrome-unit mapping as `SLOTS`, each badge sitting
- * under its own box's word: AIV0/AIV1 `Scalar` (282.1, 58.6) / (282.1, 378.6), AIV0/AIV1 `Vec`
- * (372.0, 168.6) / (372.0, 488.6), `Cube` (338.0, 248.1). AIV0 and AIV1 share one field
- * (`aiv_scalar_ratio` / `aiv_vec_ratio`), so both slots of a pair carry the same string.
+ * UI-49 in-box `%` badge slots — centres under each unit's own word on the 448×423 chrome.
+ * Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a newly plated unit without coordinates
+ * fails typecheck. The simplified chrome draws one **AIV × 2** row (not separate AIV0/AIV1
+ * stacks): `Scalar` (282.2, 321.0), `Vec`/SIMD (372.1, 367.8), AIC `Cube` (338.1, 95.3) —
+ * each is the export's under-word util sample centre (not the box centre / not the unit word).
+ * AIV0/AIV1 still share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); one chrome slot is
+ * enough for the combined row.
  *
- * The other four in-box badges of the sketch — AIC `Scalar`, AIV0/AIV1 `SIMT`, `FixP` — are the
- * producer's `NA` rows and carry no slot (UI-49). The producer also marks the AIV0/AIV1
- * `SIMD VF` rows `NA`, but those describe the `Vec` position, which the `Vec` rows (`6'`/`7'`)
- * fill, so it is painted rather than blank.
+ * The other in-box badges — AIC `Scalar`, AIV `SIMT`, `FixP` — are the producer's `NA` rows
+ * and carry no slot (UI-49). The producer also marks `SIMD VF` rows `NA`, but those describe
+ * the `Vec` position the `Vec` rows fill, so it is painted rather than blank.
  */
 export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
-  aiv_scalar: [
-    [282.1, 58.6],
-    [282.1, 378.6],
-  ],
-  vec: [
-    [372.0, 168.6],
-    [372.0, 488.6],
-  ],
-  cube: [[338.0, 248.1]],
+  aiv_scalar: [[282.2, 321.0]],
+  vec: [[372.1, 367.8]],
+  cube: [[338.1, 95.3]],
 };
 
 /**
@@ -86,49 +78,44 @@ export const PLATE_MAX_W: Record<TopologyPlateNodeId, number> = {
 export const DEFAULT_MAX_W = 34.7;
 
 /**
- * Value slots of the chrome (`memory-topology.svg`, 448×540 units), keyed by the adapter's
+ * Value slots of the chrome (`memory-topology.svg`, 448×423 units), keyed by the adapter's
  * `TOPOLOGY_SLOT_EDGE_IDS` — the `Record` type keeps the two lists identical, so a newly plated
  * edge without coordinates fails typecheck instead of silently drawing nothing.
- * Coordinates are the centres of the values stripped from the export, so an overlaid
- * label lands on the same link (and inside the same plate) the design filled.
- * Pillars: GM x16–56, L2 x94–134; rows x188–432 — AIV0 y17–197, AIC y201–339, AIV1 y343–523.
- * Ordering follows the export's link direction: the upper label of a pair rides the link
- * whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
+ * Coordinates are centres of the export's **amber sample GB/s glyphs** (corridor value
+ * plates), never orange MTE / FixPipe chip centres — those chips keep static `MTE_*` /
+ * `FixPipe` labels (UI-38 / PR-MEMTOP-001d). Pillars: GM x16–56, L2 x94–134; rows x188–432 —
+ * AIC y16–200, AIV × 2 y218–402. Ordering follows link direction: the upper label of a pair
+ * rides the link whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD,
+ * Cube→L0C).
  *
- * Chrome slots we intentionally leave blank because the adapter computes no such edge, or
- * Product has not confirmed the assignment (UI-48): the AIV0/AIV1 SIMT in/out pair and the
- * four in-row SIMT links, the UB→VEC run, the two rotated AIV↔AIC trunk labels, AIC
- * L1→MTE1#3→BT, FixP→rail, and the lower L2↔AIC corridor that the export routes onto FixP
- * (`l2-l1-write` / `aic_l1_write_bw`). The in-box `%` plates split the same way: the L2 plate is
- * DATA-20 `peakPct`, five unit badges are painted (UI-49, `PLATE_SLOTS`), and the four badge
- * positions with no producer field stay blank.
+ * The simplified chrome merges AIV0/AIV1 into one **AIV × 2** row, so former dual AIV corridor
+ * slots (`l2-ub`, `ub-l2`, `ub-vec`, `vec-ub`) are single plates. Cube↔L0C shares **one**
+ * corridor plate on the export — only `cube-l0c` (into L0C) is drawn there; `l0c-cube` keeps
+ * its adapter / EDGE_MAP id for 详情 typing but is excluded from `hasDrawableTopology` via
+ * `TOPOLOGY_NO_OVERLAY_EDGE_IDS` (empty `SLOTS` list — PR-MEMTOP-004), so the panel cannot
+ * double-paint two GB/s labels 5u apart on the same 11-unit plate. Adapters fold reverse onto
+ * `cube-l0c` before the panel sees the model (PR-MEMTOP-002c).
+ *
+ * Chrome slots left blank (no adapter edge or Product unconfirmed — UI-48): AIV SIMT links,
+ * UB→VEC run, AIV↔AIC trunks, AIC L1→MTE1#3→BT, FixP→rail / lower L2↔AIC FixP corridor
+ * (`l2-l1-write`). In-box `%`: L2 plate = DATA-20 `peakPct`; three unit badges (UI-49); field-less
+ * badge positions stay blank.
  */
 export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, number])[]> = {
-  'gm-l2-read': [[74.5, 255.9]],
-  'gm-l2-write': [[75.3, 277.8]],
-  'l2-ub': [
-    [159.7, 106.4],
-    [159.7, 426.6],
-  ],
-  'ub-l2': [
-    [160.4, 121.3],
-    [159.7, 441.5],
-  ],
-  'l2-l1-read': [[159.7, 235.5]],
-  'ub-vec': [
-    [338.2, 153.4],
-    [338.2, 473.3],
-  ],
-  'vec-ub': [
-    [338.2, 165.2],
-    [338.2, 485.4],
-  ],
-  'l1-l0a': [[239.7, 221.7]],
-  'l1-l0b': [[240.1, 234.3]],
-  'l0a-cube': [[302.9, 222.5]],
-  'l0b-cube': [[302.9, 235.5]],
-  'cube-l0c': [[373.5, 229.2]],
-  'l0c-cube': [[373.5, 244.5]],
+  'gm-l2-read': [[75.1, 200.3]],
+  'gm-l2-write': [[75.2, 219.3]],
+  'l2-ub': [[159.7, 315.2]],
+  'ub-l2': [[159.6, 331.2]],
+  'l2-l1-read': [[160.1, 87.9]],
+  'ub-vec': [[338.7, 351.8]],
+  'vec-ub': [[338.6, 363.8]],
+  'l1-l0a': [[239.1, 49.8]],
+  'l1-l0b': [[239.1, 74.8]],
+  'l0a-cube': [[300.9, 54.8]],
+  'l0b-cube': [[300.9, 79.8]],
+  'cube-l0c': [[373.6, 83.8]],
+  /** Shared plate with `cube-l0c` — no second overlay (PR-MEMTOP-002c). */
+  'l0c-cube': [],
 };
 
 /**
@@ -168,9 +155,12 @@ export function nextZoom(current: number, dir: 1 | -1): number {
 import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
-/** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
- *  Its static labels stay outlined paths; the export's sample values were stripped in-repo.
- *  `?no-inline` keeps the 200 kB asset out of the JS bundle — lib mode inlines assets whatever
+/** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
+ *  448×423). Static labels stay outlined paths (including white `MTE_*` / `FixPipe` ink on
+ *  orange chips). Sample corridor GB/s (`rgb(249,183,102)`) and under-word util `%` glyphs
+ *  were stripped in-repo so panel overlays are not duplicated; chip labels must not be
+ *  stripped with those samples (PR-MEMTOP-001c / 001d).
+ *  `?no-inline` keeps the asset out of the JS bundle — lib mode inlines assets whatever
  *  `assetsInlineLimit` says, and only this suffix is checked first — so it ships as
  *  `dist/memory-topology.svg`. The built reference is the web-root path `/memory-topology.svg`
  *  (hosts must serve that file at the site root, or copy it from the package export
@@ -261,8 +251,7 @@ const summaryId = useId();
  * Accessible text alternative (PR-MEMTOP-011). `role="img"` exposes the diagram as a single
  * image, so its `<text>` values never reach the a11y tree on their own. This spells out the
  * same slots as `from → to: value`, read from the model — so it lists exactly what the diagram
- * draws: blank slots and slotless edges stay out. Paired AIV0/AIV1 slots share one aggregate
- * value, so the description names both rows once instead of repeating the same string.
+ * draws: blank slots and slotless edges stay out.
  */
 const summary = computed(() => {
   const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
@@ -275,22 +264,20 @@ const summary = computed(() => {
     const edge = props.model?.edges.find((e) => e.id === v.id);
     const from = (edge && names.get(edge.from)) ?? edge?.from ?? '';
     const to = (edge && names.get(edge.to)) ?? edge?.to ?? '';
-    const pair = SLOTS[v.id].length > 1 ? ' (AIV0, AIV1)' : '';
-    parts.push(from && to ? `${from} → ${to}${pair}: ${v.text}` : v.text);
+    parts.push(from && to ? `${from} → ${to}: ${v.text}` : v.text);
   }
-  // UI-49 in-box badges: one entry per unit, not per slot (the AIV0/AIV1 pair shares a value).
+  // UI-49 in-box badges: one entry per plated unit (AIV × 2 chrome has one slot each).
   for (const p of plates.value) {
     if (seen.has(p.node)) continue;
     seen.add(p.node);
-    const pair = PLATE_SLOTS[p.node].length > 1 ? ' (AIV0, AIV1)' : '';
-    parts.push(`${names.get(p.node) ?? p.node}${pair}: ${p.text}`);
+    parts.push(`${names.get(p.node) ?? p.node}: ${p.text}`);
   }
   return parts.join('; ');
 });
 
 /**
  * Measurement twin: an unpainted `<text>` carrying the same class, so `getComputedTextLength`
- * reports the label's natural width in chrome units (the viewBox is 448×540 px at 1:1).
+ * reports the label's natural width in chrome units (the viewBox is 448×423 px at 1:1).
  * jsdom has no SVG text metrics — the fit then stays at the base size.
  */
 const measureTwin = ref<SVGTextElement | null>(null);
@@ -578,7 +565,7 @@ onBeforeUnmount(stopZoomAnim);
       <div class="pr-topo__stage">
         <svg
           class="pr-topo__svg"
-          viewBox="0 0 448 540"
+          viewBox="0 0 448 423"
           role="img"
           :aria-label="t('memoryTopology', locale)"
           :aria-describedby="chromeFailed ? undefined : summaryId"
@@ -588,7 +575,7 @@ onBeforeUnmount(stopZoomAnim);
             x="0"
             y="0"
             width="448"
-            height="540"
+            height="423"
             @error="onChromeError"
           />
 
@@ -600,7 +587,7 @@ onBeforeUnmount(stopZoomAnim);
               x="94"
               y="16"
               width="40"
-              height="508"
+              height="391"
             />
 
             <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
@@ -608,8 +595,8 @@ onBeforeUnmount(stopZoomAnim);
                  element; the testid still tells the two sources apart. -->
             <text
               v-if="peakText"
-              x="113.8"
-              y="277.1"
+              x="114.1"
+              y="218.3"
               text-anchor="middle"
               dominant-baseline="middle"
               class="pr-topo__pct"
@@ -812,7 +799,7 @@ onBeforeUnmount(stopZoomAnim);
   padding: 6px;
 }
 
-/* Fit box for the diagram (PR-MEMTOP-013). `aspect-ratio` is the chrome's own 448×540, so at the
+/* Fit box for the diagram (PR-MEMTOP-013). `aspect-ratio` is the chrome's own 448×423, so at the
  * 100% zoom the box is exactly as tall as the diagram was when the `svg` was width-driven.
  *
  * `hidden`, not `auto`: the box height comes from `aspect-ratio` while the diagram's comes from
@@ -829,7 +816,7 @@ onBeforeUnmount(stopZoomAnim);
   display: grid;
   place-items: center;
   min-width: 0;
-  aspect-ratio: 448 / 540;
+  aspect-ratio: 448 / 423;
   overflow: hidden;
 }
 
@@ -864,7 +851,7 @@ onBeforeUnmount(stopZoomAnim);
  * scroll origin is the diagram's own left edge rather than a letterbox. */
 .pr-topo__stage {
   height: calc(100% * var(--pr-topo-zoom, 1));
-  aspect-ratio: 448 / 540;
+  aspect-ratio: 448 / 423;
   margin-inline: auto;
 }
 

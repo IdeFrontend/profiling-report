@@ -19,7 +19,7 @@ batches:
         path: v930/report-stats-scrolled.jpeg
         original_name: "930版本-性能调优_报告统计-滚动到底部.jpeg"
         scenes: [report-stats, aside-scroll]
-        components: [StatsAside, MemoryTopologyPanel]
+        components: [StatsAside]
       - id: search-highlight
         path: v930/search-highlight.jpeg
         original_name: "930版本-性能调优_搜索高亮显示.jpeg"
@@ -108,3 +108,14 @@ batches:
         original_name: "930版本-仿真_性能提示_报告面板-性能提示.jpeg"
         scenes: [performance-hints, report-panel]
         components: [StatsAside]
+
+  # Official Asc 内存拓扑 chrome export (448×423, AIC + one AIV × 2). Append-only copy of the
+  # runtime panel asset — do not overwrite; bump a new batch if the Figma export changes again.
+  v930-chrome:
+    label: "930 内存拓扑 chrome（448×423 SVG）"
+    files:
+      - id: memory-topology
+        path: v930-chrome/memory-topology.svg
+        original_name: "memory-topology.svg"
+        scenes: [memory-load, memory-topology]
+        components: [MemoryTopologyPanel]

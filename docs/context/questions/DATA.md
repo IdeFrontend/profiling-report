@@ -139,9 +139,9 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Question:** Confirm the parameter-name → chrome slot map for emulate `ArchDiagramMetrics.csv` → **Architecture Diagram** (biprof §11.2.3.1; interim plated stand-in chrome). Are `hbm_to_l2_syn_gbs` / `l2_to_hbm_syn_gbs` / `aic_*` / `aiv*_` names authoritative? Dual AIV0/AIV1 plates: use both values or average? Which `*_gbs` / `l2_cached_ratio` are normative for Sept 30?
 
-**Context:** Sept 30 (M4) lights Architecture Diagram from ArchDiagramMetrics — **not** Memory Utilization Heatmap / `MemoryRWAccesses`. Data capability stays **`archDiagram`** (not compute `memoryDiagram`); interim UI reuses the plated Asc chrome titled **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** ([DATA-48a](../decisions/interim/DATA.md), [arch-diagram](../../views/arch-diagram.md)). Slot-map names below stay open for Product. Dedicated biprof chrome / richer model: [DATA-49](DATA.md).
+**Context:** Sept 30 (M4) lights Architecture Diagram from ArchDiagramMetrics — **not** Memory Utilization Heatmap / `MemoryRWAccesses`. Data capability stays **`archDiagram`** (not compute `memoryDiagram`); interim UI reuses the plated Asc chrome (**448×423**, AIC + AIV × 2) titled **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** ([DATA-48a](../decisions/interim/DATA.md), [memory-topology](../../views/memory-topology.md)). Slot-map names below stay open for Product. **Evidence (not a resolution):** gelu `source_assembly_report.html` Architecture Diagram SVG element ids on the Bandwidth-per-operator tab match the interim `*_gbs` / `l2_cached_ratio` names in DATA-48a / `ARCH_EDGE_MAP` (plus a larger inventory of unplated SIMT/cache/L0C→OUT edges). Dedicated biprof chrome / richer model: [DATA-49](DATA.md).
 
-**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [arch-diagram](../../views/arch-diagram.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
+**Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [memory-topology](../../views/memory-topology.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
 
 ### DATA-49 — Emulate Architecture Diagram model / chrome vs heatmap
 
@@ -151,4 +151,4 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Context:** Product locked Sept 30 to Architecture Diagram only. Current mapper covers a GB/s subset of ~120 params ([FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md)). Heatmap is biprof §11.2.3.2.
 
-**Specs when answered:** [arch-diagram](../../views/arch-diagram.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
+**Specs when answered:** [memory-topology](../../views/memory-topology.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
