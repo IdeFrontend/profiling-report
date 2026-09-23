@@ -279,14 +279,15 @@ export function foldCubeL0cCorridorEdges(
   const forward = edges.find((e) => e.id === 'cube-l0c');
   const forwardLabel = forward?.label;
   const keepForward = forwardLabel != null && forwardLabel !== '';
-  const folded = edges.map((e) => {
+  const folded: MemoryTopologyModel['edges'] = edges.map((e) => {
     if (e.id === 'cube-l0c') {
       if (keepForward) return e;
       return { ...e, label: reverseLabel };
     }
     if (e.id === 'l0c-cube') {
-      const { label: _drop, ...rest } = e;
-      return rest;
+      // Rebuild without `label` — omit/`...rest` narrows the mapped array to `{id,from,to}` and
+      // then `push({…, label})` fails typecheck (TS2353).
+      return { id: e.id, from: e.from, to: e.to };
     }
     return e;
   });
