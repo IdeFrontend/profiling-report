@@ -561,7 +561,9 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
-    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
+    // The table stays mounted (dimmed) while the marquee grows instead of unmounting.
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table--dimmed').exists()).toBe(true);
     expect(vm.viewState.selectedEventId).toBe('a');
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
@@ -602,11 +604,14 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
-    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
+    // Ids-only preview does not resolve events: the table stays mounted but empty + dimmed.
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table--dimmed').exists()).toBe(true);
     const summary = wrapper.findComponent({ name: 'MultiSelectSummary' });
     expect(summary.props('selectedEvents')).toEqual([]);
     expect(summary.props('liveCount')).toBe(2);
     expect(summary.props('livePreview')).toBe(true);
+    expect(summary.props('dimmed')).toBe(true);
     expect(vm.viewState.selectedEventId).toBeNull();
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
@@ -723,7 +728,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: first ≥2 of a new gesture applies immediately over a committed multi', async () => {
+  it('PR-ROOT-016: a growing marquee dims the stale table, then recalculates after the settle window', async () => {
     vi.useFakeTimers();
     const model = depsModel();
     model.processes[0]!.threads[0]!.events.push({
@@ -746,18 +751,28 @@ describe('ProfilingReport scaffold', () => {
     timeline().vm.$emit('multi-select', [events[0]!, events[1]!]);
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table--dimmed').exists()).toBe(false);
 
-    // New gesture over a different ≥2 set must not wait for the 100ms throttle.
+    // New gesture over a different ≥2 set: table stays stale + dimmed (no immediate recalc).
     timeline().vm.$emit('multi-select-preview', [events[1]!, events[2]!]);
     await nextTick();
-    const summary = wrapper.findComponent({ name: 'MultiSelectSummary' });
-    expect(summary.exists()).toBe(true);
-    expect((summary.props('selectedEvents') as { id: string }[]).map((e) => e.id)).toEqual([
-      'b',
-      'c',
-    ]);
-    expect(summary.props('livePreview')).toBe(true);
-    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
+    const summary = () => wrapper.findComponent({ name: 'MultiSelectSummary' });
+    expect(summary().exists()).toBe(true);
+    expect(
+      (summary().props('selectedEvents') as { id: string }[]).map((e) => e.id),
+    ).toEqual(['a', 'b']);
+    expect(summary().props('livePreview')).toBe(true);
+    expect(summary().props('dimmed')).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table--dimmed').exists()).toBe(true);
+
+    // After the 200ms settle, the root resolves the live ids and recalculates.
+    vi.advanceTimersByTime(200);
+    await nextTick();
+    expect(
+      (summary().props('selectedEvents') as { id: string }[]).map((e) => e.id),
+    ).toEqual(['b', 'c']);
+    expect(summary().props('dimmed')).toBe(false);
+    expect(wrapper.find('.pr-multi-select__table--dimmed').exists()).toBe(false);
 
     vi.useRealTimers();
     wrapper.unmount();

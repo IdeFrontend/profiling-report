@@ -159,6 +159,10 @@ const multiSelectSpan = ref<MeasureRange | null>(null);
 const marqueeLive = ref(false);
 /** Header count for ids-only live ≥2 preview (no 125k SwimEvent[] assign). */
 const livePreviewCount = ref(0);
+/** Live union ids of the in-flight marquee; resolved to events at settle / commit. */
+const livePreviewIds = shallowRef<string[]>([]);
+/** True while a live marquee is still growing (< MULTI_SELECT_SETTLE_MS since the last change). */
+const multiSelectDimmed = ref(false);
 type DockSnap = {
   selected: SelectedEvent | null;
   selectedEvent: SwimEvent | null;
@@ -170,15 +174,9 @@ type DockSnap = {
 let dockSnap: DockSnap | null = null;
 /** Reactive: live marquee started over an already-open dock (keeps shell for empty state). */
 const marqueeFromClosed = ref(false);
-/** Coalesce live ≥2 dock remaps during a growing marquee (op2-scale). */
-const PREVIEW_DOCK_THROTTLE_MS = 100;
-let previewDockTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingPreviewEvents: SwimEvent[] | null = null;
-/**
- * True after this gesture has applied a ≥2 preview dock. Reset per gesture so the
- * first ≥2 over a committed multi (or after empty/single) is not throttled 100ms.
- */
-let previewMultiApplied = false;
+/** Recompute the multi-select table this long after the last live selection change. */
+const MULTI_SELECT_SETTLE_MS = 200;
+let multiSelectDimTimer: ReturnType<typeof setTimeout> | null = null;
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
@@ -427,8 +425,9 @@ function resetViewFromModel(
   multiSelectSpan.value = null;
   marqueeLive.value = false;
   marqueeFromClosed.value = false;
-  previewMultiApplied = false;
-  clearPreviewDockTimer();
+  clearMultiSelectDimTimer();
+  multiSelectDimmed.value = false;
+  livePreviewIds.value = [];
   dockSnap = null;
   hovered.value = null;
   closeTopologyFullscreen();
@@ -803,6 +802,7 @@ onBeforeUnmount(() => {
   collapseAnim.value = null;
   animGroupId.value = null;
   pendingCollapseTarget = null;
+  clearMultiSelectDimTimer();
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onRootKeydown);
 });
@@ -951,38 +951,26 @@ function snapshotDockIfNeeded(): void {
     wasOpen,
   };
   marqueeFromClosed.value = !wasOpen;
-  previewMultiApplied = false;
 }
 
-function sameEventIdSet(a: SwimEvent[], b: SwimEvent[]): boolean {
+/** Ordered-id equality on length + first/mid/last — the canvas already dedupes coverage. */
+function sameIdDigest(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   if (a.length === 0) return true;
-  const ids = new Set(b.map((e) => e.id));
-  return a.every((e) => ids.has(e.id));
+  return (
+    a[0] === b[0] && a[a.length >> 1] === b[b.length >> 1] && a[a.length - 1] === b[b.length - 1]
+  );
 }
 
-function clearPreviewDockTimer(): void {
-  if (previewDockTimer != null) {
-    clearTimeout(previewDockTimer);
-    previewDockTimer = null;
+function clearMultiSelectDimTimer(): void {
+  if (multiSelectDimTimer != null) {
+    clearTimeout(multiSelectDimTimer);
+    multiSelectDimTimer = null;
   }
-  pendingPreviewEvents = null;
 }
 
-function applyLivePreviewDock(events: SwimEvent[]): void {
-  if (events.length >= 2) {
-    selected.value = null;
-    selectedEvent.value = null;
-    if (sameEventIdSet(events, multiSelected.value)) {
-      previewMultiApplied = true;
-      return;
-    }
-    multiSelected.value = events;
-    previewMultiApplied = true;
-    return;
-  }
-  previewMultiApplied = false;
-  const ev = events[0]!;
+/** Single-event live preview → DetailPanel (cheap, no settle). */
+function applySingleLivePreview(ev: SwimEvent): void {
   if (
     multiSelected.value.length === 0 &&
     selectedEvent.value?.id === ev.id &&
@@ -995,8 +983,34 @@ function applyLivePreviewDock(events: SwimEvent[]): void {
   selected.value = selectedPayloadFromEvent(ev);
 }
 
+/** Resolve the live union ids to model events and refresh the summary table. */
+function resolveLiveSelection(): void {
+  const ids = livePreviewIds.value;
+  const events =
+    ids.length === 0
+      ? []
+      : ids
+          .map((id) => findEventInModel(swim.value, id))
+          .filter((ev): ev is SwimEvent => ev != null);
+  multiSelected.value = events;
+  multiSelectDimmed.value = false;
+}
+
+/** Dim the table now, then recalculate once the marquee has settled (no change for 200ms). */
+function scheduleMultiSelectSettle(): void {
+  multiSelectDimmed.value = true;
+  clearMultiSelectDimTimer();
+  multiSelectDimTimer = setTimeout(() => {
+    multiSelectDimTimer = null;
+    if (!marqueeLive.value) return;
+    resolveLiveSelection();
+  }, MULTI_SELECT_SETTLE_MS);
+}
+
 function clearMarqueeLive(opts?: { restore?: boolean }): void {
-  clearPreviewDockTimer();
+  clearMultiSelectDimTimer();
+  multiSelectDimmed.value = false;
+  livePreviewIds.value = [];
   if (opts?.restore && dockSnap) {
     selected.value = dockSnap.selected;
     selectedEvent.value = dockSnap.selectedEvent;
@@ -1006,7 +1020,6 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
   marqueeLive.value = false;
   livePreviewCount.value = 0;
   marqueeFromClosed.value = false;
-  previewMultiApplied = false;
 }
 
 function previewPayloadIds(payload: string[] | SwimEvent[]): string[] {
@@ -1023,14 +1036,14 @@ function previewPayloadEvents(payload: string[] | SwimEvent[]): SwimEvent[] | nu
 
 /**
  * Live marquee coverage for the dock only. Does not touch viewState or host `select`.
- * Canvas emits union **ids**; tests may still emit `SwimEvent[]`. ≥2 ids-only updates
- * the header count without resolving objects (table stays hidden until commit).
- * Any post-gate preview (including `[]`) arms `marqueeLive` for Escape. Empty mid-drag
- * clears Detail/Summary. When the dock was already open at drag start, the footer stays
- * mounted with a nothing-selected message; when it opened from closed, the footer stays
- * hidden until coverage is non-empty (no empty-state flash).
- * Skips unchanged membership; throttles further ≥2 `SwimEvent[]` remaps after the first
- * of the gesture so op2-scale marquees do not re-sort 150k rows on every pointermove.
+ * Canvas emits union **ids**; tests may still emit `SwimEvent[]`. ≥2 updates the header
+ * count immediately but keeps the table dimmed and stale while the marquee is still
+ * growing; after MULTI_SELECT_SETTLE_MS without a change (or on commit) the root resolves
+ * the ids and recalculates the table. Any post-gate preview (including `[]`) arms
+ * `marqueeLive` for Escape. Empty mid-drag clears Detail/Summary. When the dock was
+ * already open at drag start, the footer stays mounted with a nothing-selected message;
+ * when it opened from closed, the footer stays hidden until coverage is non-empty
+ * (no empty-state flash). Unchanged coverage does not restart the settle timer.
  */
 function onMultiSelectPreview(payload: string[] | SwimEvent[] | null): void {
   if (payload == null) {
@@ -1044,54 +1057,37 @@ function onMultiSelectPreview(payload: string[] | SwimEvent[] | null): void {
   marqueeLive.value = true;
   const ids = previewPayloadIds(payload);
   if (ids.length === 0) {
-    clearPreviewDockTimer();
+    clearMultiSelectDimTimer();
+    multiSelectDimmed.value = false;
+    livePreviewIds.value = [];
     selected.value = null;
     selectedEvent.value = null;
     multiSelected.value = [];
     livePreviewCount.value = 0;
-    previewMultiApplied = false;
     return;
   }
 
   // Single-event DetailPanel is cheap — apply immediately.
   if (ids.length < 2) {
-    clearPreviewDockTimer();
+    clearMultiSelectDimTimer();
+    multiSelectDimmed.value = false;
+    livePreviewIds.value = [];
     livePreviewCount.value = 0;
     const events = previewPayloadEvents(payload);
     const ev = events?.[0] ?? findEventInModel(swim.value, ids[0]!);
-    if (ev) applyLivePreviewDock([ev]);
+    if (ev) applySingleLivePreview(ev);
     return;
   }
 
   livePreviewCount.value = ids.length;
   selected.value = null;
   selectedEvent.value = null;
-  const events = previewPayloadEvents(payload);
-  if (!events) {
-    previewMultiApplied = true;
-    return;
-  }
 
-  if (sameEventIdSet(events, multiSelected.value)) {
-    previewMultiApplied = true;
-    return;
-  }
+  // Unchanged coverage: the settle timer is already pending — do not restart it.
+  if (sameIdDigest(ids, livePreviewIds.value)) return;
 
-  // First ≥2 of this gesture mounts the summary dock immediately; further growth is coalesced.
-  if (!previewMultiApplied) {
-    clearPreviewDockTimer();
-    applyLivePreviewDock(events);
-    return;
-  }
-
-  pendingPreviewEvents = events;
-  if (previewDockTimer != null) return;
-  previewDockTimer = setTimeout(() => {
-    previewDockTimer = null;
-    const pending = pendingPreviewEvents;
-    pendingPreviewEvents = null;
-    if (pending && marqueeLive.value) applyLivePreviewDock(pending);
-  }, PREVIEW_DOCK_THROTTLE_MS);
+  livePreviewIds.value = ids;
+  scheduleMultiSelectSettle();
 }
 
 /**
@@ -1514,6 +1510,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :height="dockHeight"
             :live-preview="marqueeLive"
             :live-count="marqueeLive ? livePreviewCount : undefined"
+            :dimmed="multiSelectDimmed"
             @close="onSelect(null)"
             @select-single="onSelect"
             @update:height="dockHeight = $event"

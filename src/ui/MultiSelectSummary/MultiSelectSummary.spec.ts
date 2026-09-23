@@ -203,17 +203,34 @@ describe('MultiSelectSummary', () => {
     expect(src).toMatch(/\.pr-multi-select__value\s*\{[^}]*box-sizing:\s*border-box/);
   }, 15_000);
 
-  it('PR-MSEL-009: live preview keeps the count and skips the table', () => {
+  it('PR-MSEL-009: live preview keeps the count and omits the visible-row note', () => {
     const wrapper = mountPanel({ livePreview: true });
     expect(wrapper.get('[data-testid="multi-select-count"]').text()).toContain('3');
     expect(wrapper.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (3)');
-    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
     expect(wrapper.find('[data-testid="multi-select-visible-count"]').exists()).toBe(false);
 
     const idsOnly = mountPanel({ livePreview: true, selectedEvents: [], liveCount: 125000 });
     expect(idsOnly.get('[data-testid="multi-select-count"]').text()).toContain('125000');
     expect(idsOnly.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (125000)');
-    expect(idsOnly.find('.pr-multi-select__table').exists()).toBe(false);
+  });
+
+  it('PR-MSEL-010: dimmed keeps the stale table mounted, dimmed and non-interactive', async () => {
+    const wrapper = mountPanel({ dimmed: true });
+    const table = wrapper.find('.pr-multi-select__table');
+    expect(table.exists()).toBe(true);
+    expect(table.classes()).toContain('pr-multi-select__table--dimmed');
+    // Stale rows are still laid out while dimmed (selection is mid-flight).
+    expect(wrapper.findAll('[data-testid^="multi-select-row-"]')).toHaveLength(3);
+
+    const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-multi-select__table--dimmed\s*\{/);
+    expect(src).toMatch(/opacity:\s*0\.4/);
+    expect(src).toMatch(/pointer-events:\s*none/);
+
+    const fresh = mountPanel({ dimmed: false });
+    expect(fresh.find('.pr-multi-select__table').classes()).not.toContain(
+      'pr-multi-select__table--dimmed',
+    );
   });
 
   it('handles a 125001-event marquee without a spread-argument overflow', () => {

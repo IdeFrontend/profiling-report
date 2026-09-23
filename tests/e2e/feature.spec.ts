@@ -395,10 +395,12 @@ test.describe('PR-E2E feature paths', () => {
     // Mid-drag the rect must be visible; the tooltip must not.
     await expect(page.getByTestId('marquee-rect')).toBeVisible();
     await expect(page.getByTestId('event-tooltip')).toHaveCount(0);
-    // Live dock follows coverage before commit (≥2 events → summary).
+    // Live dock follows coverage before commit (≥2 events → summary). The table stays
+    // mounted but dimmed while the marquee is still growing (recalculated on settle/commit).
     await expect(page.getByTestId('dock')).toBeVisible();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
-    await expect(page.locator('.pr-multi-select__table')).toHaveCount(0);
+    await expect(page.locator('.pr-multi-select__table')).toHaveCount(1);
+    await expect(page.locator('.pr-multi-select__table--dimmed')).toHaveCount(1);
     // Δt chrome tracks the live rect (measure parity), with measure mode off.
     await expect(page.getByTestId('measure-arrow')).toBeVisible();
     await page.mouse.up();
