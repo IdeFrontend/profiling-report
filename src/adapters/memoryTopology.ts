@@ -266,19 +266,22 @@ const PLATE_MAP: { node: TopologyPlateNodeId; file: string; columns: string[] }[
 
 /**
  * Fold Cube↔L0C reverse (`l0c-cube`) onto the sole corridor plate edge (`cube-l0c`).
- * Prefer the forward label when both are present; otherwise copy reverse onto `cube-l0c` so
- * reverse-only BW is visible. Clear the `l0c-cube` label afterward — CSV 详情 still has the
- * source columns; the chrome has one plate (PR-MEMTOP-002c).
+ * Prefer the forward label when both are present; otherwise copy reverse onto `cube-l0c`
+ * (synthesizing that edge if the caller omitted it) so reverse-only BW is visible. Clear the
+ * `l0c-cube` label afterward — CSV 详情 still has the source columns; the chrome has one plate
+ * (PR-MEMTOP-002c).
  */
 export function foldCubeL0cCorridorEdges(
   edges: MemoryTopologyModel['edges'],
 ): MemoryTopologyModel['edges'] {
   const reverseLabel = edges.find((e) => e.id === 'l0c-cube')?.label;
   if (reverseLabel == null || reverseLabel === '') return edges;
-  const forwardLabel = edges.find((e) => e.id === 'cube-l0c')?.label;
-  return edges.map((e) => {
+  const forward = edges.find((e) => e.id === 'cube-l0c');
+  const forwardLabel = forward?.label;
+  const keepForward = forwardLabel != null && forwardLabel !== '';
+  const folded = edges.map((e) => {
     if (e.id === 'cube-l0c') {
-      if (forwardLabel != null && forwardLabel !== '') return e;
+      if (keepForward) return e;
       return { ...e, label: reverseLabel };
     }
     if (e.id === 'l0c-cube') {
@@ -287,6 +290,11 @@ export function foldCubeL0cCorridorEdges(
     }
     return e;
   });
+  // Callers that omit the forward edge entirely still need a plate target (latent without EDGE_MAP).
+  if (!forward) {
+    folded.push({ id: 'cube-l0c', from: 'cube', to: 'l0c', label: reverseLabel });
+  }
+  return folded;
 }
 
 /**

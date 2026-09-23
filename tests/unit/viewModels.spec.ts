@@ -694,6 +694,24 @@ describe('PR-VM: report view-models (interim)', () => {
       }),
     ).toBe(true);
 
+    // Reverse with no forward edge at all: synthesize cube-l0c (exported helper contract).
+    const reverseAlone = foldCubeL0cCorridorEdges([
+      { id: 'l0c-cube', from: 'l0c', to: 'cube', label: '3.00 GB/s' },
+    ]);
+    expect(reverseAlone.find((e) => e.id === 'cube-l0c')).toEqual({
+      id: 'cube-l0c',
+      from: 'cube',
+      to: 'l0c',
+      label: '3.00 GB/s',
+    });
+    expect(reverseAlone.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
+    expect(
+      hasDrawableTopology({
+        nodes: [{ id: 'l2', label: 'L2' }],
+        edges: reverseAlone,
+      }),
+    ).toBe(true);
+
     // Adapter path: MemoryL0 reverse-only → folded model is drawable on cube-l0c.
     const tables: CsvTableModel[] = [
       {
