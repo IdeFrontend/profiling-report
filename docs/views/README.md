@@ -9,7 +9,7 @@ Per-surface packets: **sketches + adapted view-model + compute/emulate fill** (i
 | Id | File | Phase | Unification | Sept 30 | Sketch (primary) |
 |----|------|-------|-------------|---------|------------------|
 | `timeline` | [timeline.md](timeline.md) | M | `same-path` | **in** | `entry.jpeg` / task-* |
-| `report-summary` | [report-summary.md](report-summary.md) | M | `adapt-mapper` | **in** (thin) | `report-stats-open.jpeg` |
+| `report-summary` | [report-summary.md](report-summary.md) | M | `adapt-mapper` | **out** ([DATA-47](../context/decisions/DATA.md)) | `report-stats-open.jpeg` |
 | `pipe-occupancy` | [pipe-occupancy.md](pipe-occupancy.md) | M | `adapt-mapper` | **in** | `compute-load.jpeg` |
 | `overview-charts` | [overview-charts.md](overview-charts.md) | M | `gap` | **hide** | OverviewCharts visual |
 | `roofline` | [roofline.md](roofline.md) | M2 | `gap` | **hide** | RooflinePanel visual |

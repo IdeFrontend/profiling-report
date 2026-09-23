@@ -35,16 +35,16 @@ flowchart LR
 | Docx § | Feature | View packet | Phase / notes |
 | --- | --- | --- | --- |
 | 11.2.2 | Entry / OP selector | _(shell — see [timeline](../views/timeline.md))_ | Report open + OP dropdown drives all aside views |
-| 11.2.3 | Report statistics | [report-summary](../views/report-summary.md) | Field map + DATA-33h / DATA-8 slots in **Compute fill** |
-| 11.2.3.1 | Hardware details | _(stub — no packet yet)_ | Overlay from 更多; see [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
+| 11.2.3 | Report statistics | [report-summary](../views/report-summary.md) | Field map + viz logic + DATA-33h / DATA-8 slots in **Compute fill** |
+| 11.2.3.1 | Hardware details | _(stub — body below)_ | Overlay from 更多; [§ Hardware details](#stub-hardware-details) |
 | 11.2.4 | Roofline | [roofline](../views/roofline.md) | Tabs→fields + DATA-37 interim in **Compute fill** |
 | 11.2.5 | PIPE occupancy | [pipe-occupancy](../views/pipe-occupancy.md) | Cube / Vector column tables in **Compute fill** |
-| 11.2.5.1 | Compute-load CSV details | _(stub — no packet yet)_ | Tabs over PipeUtilization / Arithmetic / ResourceConflict |
+| 11.2.5.1 | Compute-load CSV details | _(stub — body below)_ | [§ Compute-load details](#stub-compute-load-details) |
 | 11.2.6 | Memory load analysis | [memory-topology](../views/memory-topology.md) | Edge / plate map in **Compute fill** |
-| 11.2.6.1 | Memory CSV details | _(stub — no packet yet)_ | Memory / L2Cache / L0 / UB (+ PipeUtilization when CSV-only) |
-| 11.2.7 | Statistical analysis | [overview-charts](../views/overview-charts.md) | Sampling.json counters; no docx column table |
+| 11.2.6.1 | Memory CSV details | _(stub — body below)_ | [§ Memory load details](#stub-memory-load-details) |
+| 11.2.7 | Statistical analysis | [overview-charts](../views/overview-charts.md) | Sampling.json + viz geometry in **Compute fill** |
 | 11.2.8 | Kernel block timeline | [timeline](../views/timeline.md) | Sample CTEF binding in **Compute fill** |
-| 11.2.8.1 | Event / Relevant details | _(stub — no packet yet)_ | Bottom detail strip; richer payload TBD |
+| 11.2.8.1 | Event / Relevant details | _(stub — body below)_ | [§ Event details](#stub-event-details) |
 
 <a id="emulate-profile"></a>
 
@@ -67,14 +67,77 @@ Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decis
 
 ## Stub surfaces (no packet yet)
 
-Do **not** invent packets in this index. Until extracted:
+Do **not** invent packets in this index. Bodies below are kept here until extracted into view packets. (VDR does **not** own hardware section/field lists.)
 
-| Surface | Sketch / source | Interim home |
-| --- | --- | --- |
-| Hardware details | [`hardware-more-detail.jpeg`](./source/v930/hardware-more-detail.jpeg) | [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md), StatsAside 更多 |
-| Pipe / compute CSV detail tabs | [`compute-load-detail.jpeg`](./source/v930/compute-load-detail.jpeg) | Same + PipeOccupancy 详情 |
-| Memory CSV detail tabs | [`memory-load-detail.jpeg`](./source/v930/memory-load-detail.jpeg) | Same + MemoryTopology 详情 |
-| Event details + Relevant | [`detail-strip-raised.jpeg`](./source/v930/detail-strip-raised.jpeg) | Timeline selection / EventTooltip |
+<a id="stub-hardware-details"></a>
+
+### Hardware details（硬件信息详情）— §11.2.3.1
+
+![Hardware details](./source/v930/hardware-more-detail.jpeg)
+
+**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. **更多** always opens the overlay (UI-30, UI-31): show sections when `hardwareDetails` is present; else **缺少 hardware info**. Adapter may still fall back to OpBasicInfo columns when jsonl is absent (DATA-34a). `data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
+
+| Section (UI) | Typical fields |
+| --- | --- |
+| Host Info | Cpu Info (optional), Cpu Physical/Logical Count, Memory Total Size (MB), Disk Total Size (GB) |
+| Device Info | NPU Count, Chip Info, Arch Info |
+| CPU Information | Control / AI CPU count and frequency (MHZ) |
+| AI Core Information | AI Core / Cube / Vector counts, AI Core Frequency (MHZ) list |
+| Memory Information | HBM Total / Used (MB), HBM Frequency (MHZ) |
+
+**Interaction:** opened from 报告统计 → 更多; dismiss with close control. Label left / value right layout.
+
+<a id="stub-compute-load-details"></a>
+
+### Compute-load details（计算负载分析详情）— §11.2.5.1
+
+![Pipe details](./source/v930/compute-load-detail.jpeg)
+
+Detail surface uses **tabs** ([`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg)):
+
+| Tab | Source CSV |
+| --- | --- |
+| `PipeUtilization` | `PipeUtilization.csv` |
+| `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
+| `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
+
+Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
+
+- AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
+- AIV group: same pattern; display `NA` when absent.
+- Hide a tab when its CSV is missing from the report.
+
+<a id="stub-memory-load-details"></a>
+
+### Memory load details — §11.2.6.1
+
+Memory detail controls ([`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg)):
+
+| Control | Behavior |
+| --- | --- |
+| Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent. On the CSV field-list rendering, also `PipeUtilization` when present — the only source of the chrome's MTE utilizations (UI-38); when memory summary categories exist the surface lists those categories instead |
+| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); `All` shows the `summary.jsonl` category list, a picked id scopes the field list to that block's row |
+| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/decisions/interim/DATA.md)) |
+
+Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
+
+<a id="stub-event-details"></a>
+
+### Pipeline / event details（流水中详情 / 详情）— §11.2.8.1
+
+![Event details](./source/v930/detail-strip-raised.jpeg)
+
+Docx table empty. Mockup layout:
+
+| Region | Content |
+| --- | --- |
+| Summary | Task name, subtype/tag, Start (ns) → Duration (ns) |
+| Parameters | `Code` (source paths), `Detail` (register/memory string), `Pc_addr`, `Process_bytes` |
+| Relevant | Local dependency graph: Incoming → Current → Outgoing; connection level control; optional edge badge (counts/latency) |
+
+**Interaction:** activated by clicking a timeline block (callout in mockup: 点击之后出现底部【详情】页面).
+
+**Gap:** these detail fields are not in sample `trace.json`; require a richer event payload or side table not defined in the docx.
 
 Open product questions: [context/questions/](../context/questions/).
 

@@ -123,7 +123,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-11
 - **Question:** A CSV holds one row per `block_id`. On the summary PIPE bars, do we average all blocks? On the 详情 overlays, only the selected block? Does picking a block scope **only PIPE** or every summary widget?
 - **Decision:** **One block selector, one scope.** Every surface carries a block selector with options **All | 0 | 1 | 2 …** (one per `block_id`), default **All**. **`All`** reads the aggregate from `summary.jsonl` (`category: PipeUtilization`); a specific id reads **that block's row** from the per-block CSV (`PipeUtilization.csv`). The selector scopes **every** summary and detail widget — not PIPE alone. The aggregation used for `All` is [DATA-28](../decisions/DATA.md); the shared per-widget rule is [DATA-29](../decisions/DATA.md).
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §8.1, [view-models](../../../specs/core/view-models.spec.md), [views/](../../views/)
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §8.1, [report-summary](../../views/report-summary.md), [pipe-occupancy](../../views/pipe-occupancy.md), [memory-topology](../../views/memory-topology.md), [roofline](../../views/roofline.md), [view-models](../../../specs/core/view-models.spec.md)
 - **Source:** `npu-tools` `Questions/DATA questions/DATA questions.md` DATA-19 (2026-09-11).
 
 ---
@@ -213,7 +213,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-11
 - **Question:** Does one aggregation rule apply to **every** widget (cards, PIPE, Roofline, memory diagram), or are there per-surface exceptions?
 - **Decision:** **One consistent rule, no exceptions.** Every widget uses the same block selector (**All | 0 | 1 | 2 …**, default **All**): `All` sources `summary.jsonl`, a specific id sources that block's CSV row ([DATA-19](../decisions/DATA.md)), with the `All` aggregation of [DATA-28](../decisions/DATA.md). This replaces the earlier split ("summary stays mean-across-blocks, detail is block-scoped").
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §8.1, [views/](../../views/), [view-models](../../../specs/core/view-models.spec.md)
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §8.1, [report-summary](../../views/report-summary.md), [pipe-occupancy](../../views/pipe-occupancy.md), [memory-topology](../../views/memory-topology.md), [roofline](../../views/roofline.md), [view-models](../../../specs/core/view-models.spec.md)
 - **Source:** `npu-tools` `Questions/DATA questions/DATA questions.md` DATA-29 (2026-09-11).
 
 ---
@@ -251,7 +251,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-20
 - **Question:** Hardware details sidebar source?
 - **Decision:** **`HardwareInfo.jsonl`** is the details source. Not required to open Timeline; **更多** always opens the overlay — show `hardwareDetails` when present, else **缺少 hardware info**. Aside meta is **进程** / **算子类型** / **Blocks**.
-- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) (hardware stub), [decisions/interim/](../decisions/interim/) `DATA-34a`
+- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING § Hardware details](../../ui/VIEW_DATA_MAPPING.md#stub-hardware-details), [decisions/interim/](../decisions/interim/) `DATA-34a`
 
 ---
 

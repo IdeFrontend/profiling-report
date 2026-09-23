@@ -35,6 +35,17 @@ No `OverviewSeries` → **hide** the chart region entirely ([DATA-32](../context
 |---------------|-------|-----------------|-------------|
 | `overviewSeries` | `Sampling.json` `ph:"C"` | One series per counter `name`; µs→ns ([DATA-39](../context/decisions/DATA.md)) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
+<a id="visualization-logic"></a>
+
+### Visualization logic (docx §11.2.7)
+
+Docx placeholder samples (`{"category":"Cube",1:1,2:2}` / Vector) are illustrative only (invalid JSON / stub series).
+
+- Collapsible **统计分析** section **above** the Kernel swimlane (under the time axis), with synchronized area charts over time (one track per `OverviewSeries`).
+- Shared time axis with the swimlane viewport; gutter column width matches lane gutter.
+- **Geometry (v930):** track height **16px**; **8px** margin between tracks; bright stroke + darker fill (see [`OverviewCharts/visual/`](../../src/ui/TimelineView/OverviewCharts/visual/)).
+- **Producer ([DATA-39](../context/decisions/DATA.md)):** product `Sampling.json` `ph:"C"` counters → `OverviewSeries` (**one track per counter `name` present**; hide if empty — [DATA-32](../context/decisions/DATA.md)).
+
 ## Emulate fill
 
 | Adapted field | Embed | Columns / notes | Status |

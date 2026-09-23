@@ -13,7 +13,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** Must every report include `HardwareInfo.jsonl`?
 - **Decision:** **Yes** — every report is expected to include `HardwareInfo.jsonl`. If absent, **更多** still opens and shows **缺少 hardware info**.
-- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) (hardware stub)
+- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING § Hardware details](../../ui/VIEW_DATA_MAPPING.md#stub-hardware-details)
 - **Source:** Product answer doc (2026-08-31); implemented in `StatsAside.vue`.
 
 ---
@@ -23,7 +23,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** If `HardwareInfo.jsonl` is missing, what happens to **更多** / 硬件信息详情?
 - **Decision:** Do **not** hide **更多**. Open overlay and show **缺少 hardware info**.
-- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) (hardware stub)
+- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING § Hardware details](../../ui/VIEW_DATA_MAPPING.md#stub-hardware-details)
 - **Source:** Product answer doc (2026-08-31); implemented in `StatsAside.vue`.
 
 ---
@@ -63,7 +63,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** Right-click on the memory diagram — extra details? Which fields?
 - **Decision:** **Yes.** Show full CSV tables: **Memory**, **L2Cache**, **MemoryUB**, **MemoryL0** (block-scoped).
-- **Specs:** [memory-topology](../../views/memory-topology.md), [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) (CSV detail stub), [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (PR-MEMTOP-008), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-017b)
+- **Specs:** [memory-topology](../../views/memory-topology.md), [VIEW_DATA_MAPPING § Memory load details](../../ui/VIEW_DATA_MAPPING.md#stub-memory-load-details), [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (PR-MEMTOP-008), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-017b)
 - **Source:** Product answer doc (2026-08-31).
 
 ---

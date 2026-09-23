@@ -57,6 +57,21 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | 6 | 带宽利用率 | measured / peak read \| write BW | `summary.jsonl` `OpInfoSummary` (+ `category: Memory` fallback) | Sketch: one card **读 \| 写**. Measured read / write = the producer's summed sides `aicore_gm_read_bw` / `aicore_gm_write_bw`; peak SOL **1600 GB/s** shared by both sides; each direction's score = measured ÷ peak ([DATA-8](../context/decisions/DATA.md)). One block selector for the aggregation ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Source is **not** `Report.csv`. |
 | 7 | AICore 并行使用率 | `aicore_parallel_utilization` / `aicore_parallel_balance` | `summary.jsonl` | **DATA-9 / DATA-10**. Sketch: **并行使用率** \| **负载均衡度** |
 
+<a id="visualization-logic"></a>
+
+### Visualization logic (from mockup)
+
+| Element | Behavior |
+| --- | --- |
+| Header shell | Title **报告统计** + decorative chart icon + close (X). Close clears `asideVisible`. |
+| Meta row | **进程** / **算子类型** / **Blocks** / **更多** / CANNBot. `OpBasicInfo.csv` → `Pid` (also `PID`) / `Op Type` / `Block Dim`. Hide a segment when unset. Meta row stays visible on the report shell so **更多** is always reachable (UI-30, UI-31). Not 核数, aic频率, or NPU ARCH. `Current Freq` / `Rated Freq` stay off this shell (hardware overlay / OpBasicInfo dump). Overlay `chip_info` / `arch_info` are Device Info names, not a header ARCH value. |
+| 更多 | **Always** on the report shell (UI-30, UI-31). Opens hardware overlay and emits `open-hardware-details`. Render `HardwareDetailsPanel` when `hardwareDetails` is present (`HardwareInfo.jsonl` preferred; OpBasicInfo fallback per DATA-34a); else show **缺少 hardware info** / Missing hardware info. |
+| Grid | Sketch **2×2**: top 整体耗时 \| AICore 并行使用率; bottom 算力情况 \| 带宽利用率 |
+| 整体耗时 card | Large duration (always **2 decimal places**; full value in hover `title`) + progress bar = `min(100%, Block Dim / core_count × 100%)` when adapter sets `summary.coreCount` (UI-32); else decorative ~15% fill (DATA-33e). Secondary: `{blockDim} / {coreCount}` iterations/core when both set (DATA-1); else `blockDim` only; else `opName`; else omit. No standalone op-type card. |
+| 算力情况 card | **Cube \| Vector** columns (UI-33): large score (no `%`), bar = `round(measured/peak×100)` %, subtitle `measured / peak` with `TFLOPS` on the next line — **DATA-33h** (DATA-2..4). Omit side without both measured + peak; **N/A** placeholder when duration present but `computeCard` absent. |
+| 带宽利用率 card | **读 \| 写** columns: large score **with** `%`, bar = score% of track, `measured / peak` — **DATA-8** / UI-34 GB/s (sketch TB/s). Same card chrome as 整体耗时. |
+| AICore 并行使用率 card | Dual **并行使用率** \| **负载均衡度** from `summary.parallelUtilization` / `parallelBalance` (**DATA-9 / DATA-10**): 2dp `%` scores, bars = clamped score % of track ([0, 100]), unrounded percent in value `title`. Hide a column when its field is absent; **title + `N/A`** when duration present but both absent. |
+
 Compute uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formulas still partial). Bandwidth **measured / peak / 读写** are product-confirmed ([DATA-8](../context/decisions/DATA.md)). AICore parallel fields are product-confirmed (**DATA-9 / DATA-10**).
 
 <a id="data-33h"></a>

@@ -71,6 +71,18 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
 
+<a id="visualization-logic"></a>
+
+### Visualization logic
+
+- Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
+- Overlay **GB/s** (or KB) on edges from the mapping table. Hide `NA`; show `0`.
+- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (hit rate, DATA-20; sketch has no “Peak” word and no fill tint). **No other unit** carries a Peak(%): the export has no peak plate for one and the adapter no field ([DATA-20](../context/decisions/DATA.md)). The other in-box badges the sketch draws are **unit utilizations**, not peaks — AIV0/AIV1 **Scalar** and **Vec**, AIC **Cube** — printed `{ratio × 100}%` from `PipeUtilization` ([UI-49](../context/decisions/UI.md)); the four field-less positions stay blank.
+- **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
+- Labels are **block-scoped** via the same block switcher as memory details ([DATA-19](../context/decisions/DATA.md)).
+
+Component ACs that also own these rules: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
+
 ## Emulate fill (interim Architecture Diagram stand-in)
 
 | Adapted field | Embed | Columns / notes | Status |
