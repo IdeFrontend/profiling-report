@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import SortIcon from '../SortIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import { formatTimePartsAuto } from '../../domain/formatTime';
@@ -12,6 +12,11 @@ import {
 } from '../panelResize';
 
 const MAX_RENDERED_ROWS = 1000;
+/** Ranked-window row height used to virtualize the tbody (padding + label + border). */
+const ROW_HEIGHT_PX = 29;
+const ROW_OVERSCAN = 4;
+/** jsdom / unmeasured body: enough rows for collapsed dock tests without 1000 DOM nodes. */
+const FALLBACK_VIEWPORT_ROWS = 24;
 
 const props = withDefaults(
   defineProps<{
@@ -21,10 +26,16 @@ const props = withDefaults(
     model: SwimlaneModel | null;
     locale?: string;
     height?: number;
+    /** Live marquee: header count only, no table body (avoids 1000-row layout mid-drag). */
+    livePreview?: boolean;
+    /** Union size while live; used when `selectedEvents` is not the live set. */
+    liveCount?: number;
   }>(),
   {
     height: DOCK_HEIGHT_COLLAPSED,
     locale: undefined,
+    livePreview: false,
+    liveCount: undefined,
   },
 );
 
@@ -67,8 +78,13 @@ interface Row {
   avgDuration: number;
 }
 
-const rows = computed<Row[]>(() =>
-  props.selectedEvents.map((event) => ({
+const selectedCount = computed(() =>
+  props.livePreview && props.liveCount != null ? props.liveCount : props.selectedEvents.length,
+);
+
+const rows = computed<Row[]>(() => {
+  if (props.livePreview) return [];
+  return props.selectedEvents.map((event) => ({
     id: event.id,
     event,
     name: event.name,
@@ -77,8 +93,8 @@ const rows = computed<Row[]>(() =>
     selfTime: event.duration,
     // Selection-only fallback when the event is not in the model (host-built list).
     avgDuration: averageByName.value.get(event.name) ?? event.duration,
-  })),
-);
+  }));
+});
 
 /**
  * Keep only the visible window sorted. Full `rows` still drive the header count and
@@ -118,7 +134,7 @@ function selectTopRows(
   return best;
 }
 
-const visibleRows = computed<Row[]>(() => {
+const rankedRows = computed<Row[]>(() => {
   const key = sortKey.value;
   const sign = sortDirection.value === 'asc' ? 1 : -1;
   const cmp = (a: Row, b: Row) => {
@@ -126,6 +142,72 @@ const visibleRows = computed<Row[]>(() => {
     return sign * (a[key] - b[key]);
   };
   return selectTopRows(rows.value, MAX_RENDERED_ROWS, cmp);
+});
+
+const bodyRef = ref<HTMLElement | null>(null);
+const scrollTop = ref(0);
+const viewportHeight = ref(0);
+let bodyRo: ResizeObserver | null = null;
+
+function onBodyScroll(e: Event): void {
+  scrollTop.value = (e.currentTarget as HTMLElement).scrollTop;
+}
+
+onMounted(() => {
+  const el = bodyRef.value;
+  if (!el || typeof ResizeObserver === 'undefined') return;
+  bodyRo = new ResizeObserver(() => {
+    viewportHeight.value = el.clientHeight;
+  });
+  bodyRo.observe(el);
+  viewportHeight.value = el.clientHeight;
+});
+
+onBeforeUnmount(() => {
+  bodyRo?.disconnect();
+  bodyRo = null;
+});
+
+watch(
+  () => props.selectedEvents,
+  () => {
+    scrollTop.value = 0;
+    if (bodyRef.value) bodyRef.value.scrollTop = 0;
+  },
+);
+
+const windowStart = computed(() => {
+  const ranked = rankedRows.value.length;
+  if (ranked === 0) return 0;
+  const raw = Math.floor(scrollTop.value / ROW_HEIGHT_PX) - ROW_OVERSCAN;
+  return Math.max(0, Math.min(raw, ranked - 1));
+});
+
+const windowRows = computed<Row[]>(() => {
+  const ranked = rankedRows.value;
+  if (ranked.length === 0) return [];
+  const measured = viewportHeight.value > 0 ? Math.ceil(viewportHeight.value / ROW_HEIGHT_PX) : 0;
+  const vp = Math.max(FALLBACK_VIEWPORT_ROWS, measured);
+  const start = windowStart.value;
+  const count = Math.min(ranked.length - start, vp + ROW_OVERSCAN * 2);
+  return ranked.slice(start, start + count);
+});
+
+const topPadPx = computed(() => windowStart.value * ROW_HEIGHT_PX);
+const bottomPadPx = computed(() =>
+  Math.max(0, (rankedRows.value.length - windowStart.value - windowRows.value.length) * ROW_HEIGHT_PX),
+);
+
+type CellView = { text: string; percent: number };
+
+const windowCells = computed(() => {
+  const max = columnMax.value;
+  return windowRows.value.map((row) => ({
+    row,
+    duration: formatCell(row, 'duration', max.duration),
+    selfTime: formatCell(row, 'selfTime', max.selfTime),
+    avgDuration: formatCell(row, 'avgDuration', max.avgDuration),
+  }));
 });
 
 /** Column maxima drive the inline bars; guard against an all-zero column. */
@@ -147,12 +229,14 @@ const NUMERIC_COLUMNS = [
   { key: 'avgDuration', label: 'avgWallDuration' },
 ] as const;
 
-function cell(row: Row, key: 'duration' | 'selfTime' | 'avgDuration') {
+function formatCell(
+  row: Row,
+  key: 'duration' | 'selfTime' | 'avgDuration',
+  max: number,
+): CellView {
   const parts = formatTimePartsAuto(row[key]);
-  const max = columnMax.value[key];
   return {
     text: `${parts.value} ${parts.unit}`,
-    // All-equal (or all-zero) columns fill completely, per the spec's edge case.
     percent: max > 0 ? (row[key] / max) * 100 : 100,
   };
 }
@@ -212,16 +296,16 @@ function toggleExpanded(): void {
       <span
         class="pr-multi-select__count"
         data-testid="multi-select-count"
-      >{{ t('itemsSelected', locale).replace('{n}', String(rows.length)) }}</span>
+      >{{ t('itemsSelected', locale).replace('{n}', String(selectedCount)) }}</span>
       <span
         class="pr-multi-select__tab"
         data-testid="multi-select-tab"
-      >{{ t('slices', locale) }} ({{ rows.length }})</span>
+      >{{ t('slices', locale) }} ({{ selectedCount }})</span>
       <span
-        v-if="rows.length > visibleRows.length"
+        v-if="!livePreview && selectedCount > rankedRows.length"
         class="pr-multi-select__visible-count"
         data-testid="multi-select-visible-count"
-      >{{ t('showingRows', locale).replace('{shown}', String(visibleRows.length)).replace('{total}', String(rows.length)) }}</span>
+      >{{ t('showingRows', locale).replace('{shown}', String(rankedRows.length)).replace('{total}', String(selectedCount)) }}</span>
       <CloseButton
         class="pr-multi-select__close"
         data-testid="multi-select-close"
@@ -230,8 +314,16 @@ function toggleExpanded(): void {
       />
     </header>
 
-    <div class="pr-multi-select__body">
-      <table class="pr-multi-select__table">
+    <div
+      ref="bodyRef"
+      class="pr-multi-select__body"
+      @scroll.passive="onBodyScroll"
+    >
+      <table
+        v-if="!livePreview"
+        class="pr-multi-select__table"
+        :style="{ '--pr-msel-row-h': `${ROW_HEIGHT_PX}px` }"
+      >
         <thead>
           <tr>
             <th scope="col" :aria-sort="sortState('name')">
@@ -266,42 +358,56 @@ function toggleExpanded(): void {
           </tr>
         </thead>
         <tbody>
+          <tr v-if="topPadPx > 0" aria-hidden="true">
+            <td
+              colspan="4"
+              class="pr-multi-select__pad"
+              :style="{ height: `${topPadPx}px` }"
+            />
+          </tr>
           <tr
-            v-for="row in visibleRows"
-            :key="row.id"
-            :data-testid="`multi-select-row-${row.id}`"
+            v-for="entry in windowCells"
+            :key="entry.row.id"
+            :data-testid="`multi-select-row-${entry.row.id}`"
           >
             <td>
               <button
                 type="button"
                 class="pr-multi-select__name"
-                :data-testid="`multi-select-name-${row.id}`"
-                :title="row.name"
-                @click="emit('select-single', row.event)"
+                :data-testid="`multi-select-name-${entry.row.id}`"
+                :title="entry.row.name"
+                @click="emit('select-single', entry.row.event)"
               >
-                {{ row.name }}
+                {{ entry.row.name }}
               </button>
             </td>
             <td
               v-for="col in NUMERIC_COLUMNS"
               :key="col.key"
-              :data-testid="`multi-select-${col.key}-${row.id}`"
+              :data-testid="`multi-select-${col.key}-${entry.row.id}`"
             >
               <span class="pr-multi-select__metric">
                 <span
                   class="pr-multi-select__value"
-                  :title="cell(row, col.key).text"
-                >{{ cell(row, col.key).text }}</span>
+                  :title="entry[col.key].text"
+                >{{ entry[col.key].text }}</span>
                 <span
                   class="pr-multi-select__bar"
                   data-testid="multi-select-bar"
                   aria-hidden="true"
                 ><span
                   class="pr-multi-select__bar-fill"
-                  :style="{ width: `${cell(row, col.key).percent}%` }"
+                  :style="{ width: `${entry[col.key].percent}%` }"
                 /></span>
               </span>
             </td>
+          </tr>
+          <tr v-if="bottomPadPx > 0" aria-hidden="true">
+            <td
+              colspan="4"
+              class="pr-multi-select__pad"
+              :style="{ height: `${bottomPadPx}px` }"
+            />
           </tr>
         </tbody>
       </table>
@@ -409,6 +515,11 @@ function toggleExpanded(): void {
   color: #f0f0f0;
 }
 
+.pr-multi-select__pad {
+  padding: 0;
+  border: 0;
+}
+
 .pr-multi-select__body {
   /* Claim the dock's height so the table — not the panel — is what scrolls. */
   flex: 1 1 auto;
@@ -434,10 +545,14 @@ function toggleExpanded(): void {
   border-bottom: 1px solid #3a3a3a;
 }
 
-.pr-multi-select__table td {
+.pr-multi-select__table td:not(.pr-multi-select__pad) {
+  box-sizing: border-box;
+  height: var(--pr-msel-row-h);
   padding: 4px 8px 4px 0;
   border-bottom: 1px solid #303030;
   min-width: 0;
+  line-height: 20px;
+  overflow: hidden;
 }
 
 .pr-multi-select__sort {
@@ -485,10 +600,18 @@ th[aria-sort='descending'] .pr-multi-select__sort {
   grid-template-columns: minmax(0, 1fr) 56px;
   align-items: center;
   gap: 8px;
+  min-height: 0;
+  height: 20px;
 }
 
+/* Table-cell `height` is a minimum; overflow on `td` does not shrink min-content.
+   Chip must fit the 20px content box (ROW_HEIGHT_PX − padding − border) or
+   scrollTop / ROW_HEIGHT_PX drifts. */
 .pr-multi-select__value {
+  box-sizing: border-box;
+  height: 20px;
   padding: 2px 6px;
+  line-height: 16px;
   border-radius: 3px;
   background: #3c3c3c;
   color: #e2e2e2;

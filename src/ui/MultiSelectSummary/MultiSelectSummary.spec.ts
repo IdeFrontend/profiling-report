@@ -42,7 +42,7 @@ function mountPanel(props: Partial<Record<string, unknown>> = {}) {
 /** Row ids in render order, so sort assertions read as a sequence. */
 function rowOrder(wrapper: ReturnType<typeof mountPanel>): string[] {
   return wrapper
-    .findAll('tbody tr')
+    .findAll('[data-testid^="multi-select-row-"]')
     .map((r) => r.attributes('data-testid')?.replace('multi-select-row-', '') ?? '');
 }
 
@@ -56,7 +56,7 @@ describe('MultiSelectSummary', () => {
 
   it('PR-MSEL-002: table lists every selected event across four columns', () => {
     const wrapper = mountPanel({ locale: 'en' });
-    expect(wrapper.findAll('tbody tr')).toHaveLength(3);
+    expect(wrapper.findAll('[data-testid^="multi-select-row-"]')).toHaveLength(3);
     expect(wrapper.findAll('thead th')).toHaveLength(4);
 
     const headers = wrapper.findAll('thead th').map((h) => h.text());
@@ -182,7 +182,7 @@ describe('MultiSelectSummary', () => {
     expect(wrapper.find('.pr-multi-select__table').exists()).toBe(true);
   });
 
-  it('PR-MSEL-008: caps rendered rows but keeps the full selection count', () => {
+  it('PR-MSEL-008: caps ranked rows but keeps the full selection count', async () => {
     const largeSelection = Array.from({ length: 1001 }, (_, index) =>
       ev(`event-${index}`, `event-${index}`, index, index + 1),
     );
@@ -190,8 +190,31 @@ describe('MultiSelectSummary', () => {
 
     expect(wrapper.get('[data-testid="multi-select-count"]').text()).toContain('1001');
     expect(wrapper.get('[data-testid="multi-select-visible-count"]').text()).toContain('1000 of 1001');
-    expect(wrapper.findAll('tbody tr')).toHaveLength(1000);
+    const domRows = wrapper.findAll('[data-testid^="multi-select-row-"]');
+    expect(domRows.length).toBeGreaterThan(0);
+    expect(domRows.length).toBeLessThan(100);
+    const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
+    expect(src).toMatch(/height:\s*var\(--pr-msel-row-h\)/);
+    expect(src).toMatch(/box-sizing:\s*border-box/);
+    // The metric chip is a grid item: 2px padding on a 20px line box is 24px, which
+    // blows the 20px content box and makes table-row height a min of ~32.5px.
+    expect(src).toMatch(/\.pr-multi-select__value\s*\{[^}]*height:\s*20px/);
+    expect(src).toMatch(/\.pr-multi-select__value\s*\{[^}]*line-height:\s*16px/);
+    expect(src).toMatch(/\.pr-multi-select__value\s*\{[^}]*box-sizing:\s*border-box/);
   }, 15_000);
+
+  it('PR-MSEL-009: live preview keeps the count and skips the table', () => {
+    const wrapper = mountPanel({ livePreview: true });
+    expect(wrapper.get('[data-testid="multi-select-count"]').text()).toContain('3');
+    expect(wrapper.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (3)');
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="multi-select-visible-count"]').exists()).toBe(false);
+
+    const idsOnly = mountPanel({ livePreview: true, selectedEvents: [], liveCount: 125000 });
+    expect(idsOnly.get('[data-testid="multi-select-count"]').text()).toContain('125000');
+    expect(idsOnly.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (125000)');
+    expect(idsOnly.find('.pr-multi-select__table').exists()).toBe(false);
+  });
 
   it('handles a 125001-event marquee without a spread-argument overflow', () => {
     const largeSelection = Array.from({ length: 125001 }, (_, index) =>
@@ -200,12 +223,14 @@ describe('MultiSelectSummary', () => {
     const wrapper = mountPanel({ selectedEvents: largeSelection, model: null });
 
     expect(wrapper.get('[data-testid="multi-select-visible-count"]').text()).toContain('1000 of 125001');
-    expect(wrapper.findAll('tbody tr')).toHaveLength(1000);
+    const domRows = wrapper.findAll('[data-testid^="multi-select-row-"]');
+    expect(domRows.length).toBeGreaterThan(0);
+    expect(domRows.length).toBeLessThan(100);
   }, 15_000);
 
   it('single marquee hit still renders a one-row table (spec edge case)', () => {
     const wrapper = mountPanel({ selectedEvents: [selectedEvents[0]] });
-    expect(wrapper.findAll('tbody tr')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid^="multi-select-row-"]')).toHaveLength(1);
     expect(wrapper.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (1)');
   });
 

@@ -398,6 +398,7 @@ test.describe('PR-E2E feature paths', () => {
     // Live dock follows coverage before commit (≥2 events → summary).
     await expect(page.getByTestId('dock')).toBeVisible();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
+    await expect(page.locator('.pr-multi-select__table')).toHaveCount(0);
     // Δt chrome tracks the live rect (measure parity), with measure mode off.
     await expect(page.getByTestId('measure-arrow')).toBeVisible();
     await page.mouse.up();
@@ -410,10 +411,18 @@ test.describe('PR-E2E feature paths', () => {
     // The shared dock shell shows multi-select content; single-select DetailPanel is hidden.
     await expect(page.getByTestId('detail-panel')).toHaveCount(0);
 
+    const tabText = await page.getByTestId('multi-select-tab').textContent();
+    const selected = Number(/Slices \((\d+)\)/.exec(tabText ?? '')?.[1]);
+    expect(selected).toBeGreaterThan(0);
     const rows = page.locator('[data-testid^="multi-select-row-"]');
     const count = await rows.count();
     expect(count).toBeGreaterThan(0);
-    await expect(page.getByTestId('multi-select-tab')).toHaveText(`Slices (${count})`);
+    expect(count).toBeLessThanOrEqual(selected);
+
+    // Table-cell `height` is a CSS minimum; the metric chip must still fit 29px
+    // or the ranked-window scrollTop / ROW_HEIGHT_PX math drifts.
+    const rowHeight = await rows.first().evaluate((el) => el.getBoundingClientRect().height);
+    expect(rowHeight).toBe(29);
 
     // Bars are laid out by the real engine: the longest row fills its track.
     const widths = await page.evaluate(() =>

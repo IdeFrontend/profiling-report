@@ -561,6 +561,7 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
     expect(vm.viewState.selectedEventId).toBe('a');
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
@@ -576,8 +577,39 @@ describe('ProfilingReport scaffold', () => {
     timeline().vm.$emit('multi-select', events);
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(true);
     expect(vm.viewState.multiSelectedIds).toEqual(['a', 'b']);
     expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-016: ids-only live ≥2 mounts header without assigning events', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-ids',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const selectBefore = wrapper.emitted('select')?.length ?? 0;
+
+    timeline().vm.$emit('multi-select-preview', ['a', 'b']);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
+    const summary = wrapper.findComponent({ name: 'MultiSelectSummary' });
+    expect(summary.props('selectedEvents')).toEqual([]);
+    expect(summary.props('liveCount')).toBe(2);
+    expect(summary.props('livePreview')).toBe(true);
+    expect(vm.viewState.selectedEventId).toBeNull();
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selectBefore);
 
     wrapper.unmount();
   });
@@ -724,6 +756,8 @@ describe('ProfilingReport scaffold', () => {
       'b',
       'c',
     ]);
+    expect(summary.props('livePreview')).toBe(true);
+    expect(wrapper.find('.pr-multi-select__table').exists()).toBe(false);
 
     vi.useRealTimers();
     wrapper.unmount();

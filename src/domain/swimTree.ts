@@ -152,29 +152,34 @@ export function findThreadById(model: SwimlaneModel, id: string): SwimThread | n
   return null;
 }
 
+/** One walk per model identity (PR-ROOT-012: replace the model ref to refresh). */
+const eventIndexByModel = new WeakMap<SwimlaneModel, Map<string, SwimEvent>>();
+
+function eventIndexFor(model: SwimlaneModel): Map<string, SwimEvent> {
+  const cached = eventIndexByModel.get(model);
+  if (cached) return cached;
+  const index = new Map<string, SwimEvent>();
+  const walk = (nodes: SwimThread[]): void => {
+    for (const n of nodes) {
+      for (const e of n.events) index.set(e.id, e);
+      if (n.summaryEvents) for (const e of n.summaryEvents) index.set(e.id, e);
+      if (n.children) walk(n.children);
+    }
+  };
+  for (const p of model.processes) walk(p.threads);
+  eventIndexByModel.set(model, index);
+  return index;
+}
+
 /**
- * Depth-first event lookup by id across every thread's leaf `events` **and** any
+ * Event lookup by id across every thread's leaf `events` **and** any
  * collapsed-folder `summaryEvents` (folder-thread ghost bars). Callers that only need
  * leaf events (never summaries) should use `collectLeafEventsFromModel` instead.
+ * Indexed once per model object so Shift-union / Alt-measure is O(1) after the first walk.
  */
 export function findEventInModel(model: SwimlaneModel | null | undefined, id: string): SwimEvent | null {
   if (!model) return null;
-  const walk = (nodes: SwimThread[]): SwimEvent | null => {
-    for (const n of nodes) {
-      const ev = n.events.find((e) => e.id === id) ?? n.summaryEvents?.find((e) => e.id === id);
-      if (ev) return ev;
-      if (n.children) {
-        const hit = walk(n.children);
-        if (hit) return hit;
-      }
-    }
-    return null;
-  };
-  for (const p of model.processes) {
-    const hit = walk(p.threads);
-    if (hit) return hit;
-  }
-  return null;
+  return eventIndexFor(model).get(id) ?? null;
 }
 
 /**

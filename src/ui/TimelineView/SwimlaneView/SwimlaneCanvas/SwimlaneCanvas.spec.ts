@@ -1182,6 +1182,12 @@ describe('SwimlaneCanvas', () => {
     return mountWithEventModel({ measureMode: false });
   }
 
+  function flushMarqueeRaf(): Promise<void> {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  }
+
   it('PR-CANVAS-078: unmodified drag past 4px draws the marquee and commits intersecting events', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const rect = (
@@ -2276,6 +2282,7 @@ describe('SwimlaneCanvas', () => {
         buttons: 1,
       }),
     );
+    await flushMarqueeRaf();
     await wrapper.vm.$nextTick();
     expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
     expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
@@ -2341,8 +2348,8 @@ describe('SwimlaneCanvas', () => {
       }),
     );
     await wrapper.vm.$nextTick();
-    const preview = wrapper.emitted('multi-select-preview')!.at(-1)![0] as { id: string }[];
-    expect(preview.map((e) => e.id)).toEqual(['e1']);
+    const preview = wrapper.emitted('multi-select-preview')!.at(-1)![0];
+    expect(preview).toEqual(['e1']);
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await wrapper.vm.$nextTick();
@@ -2367,6 +2374,116 @@ describe('SwimlaneCanvas', () => {
     // Commit lands before the clearing null preview.
     expect(multi.at(-1)![0]).toEqual(expect.any(Array));
     expect(emits.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-101: unchanged coverage does not re-emit multi-select-preview', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+    const afterFirst = wrapper.emitted('multi-select-preview')!.length;
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 24,
+        clientY: rect.y + rect.h + 6,
+        buttons: 1,
+      }),
+    );
+    await flushMarqueeRaf();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterFirst);
+
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/a\[n >> 1\] === b\[n >> 1\]/);
+    expect(src).not.toMatch(/new Set\(a\)/);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 24, clientY: rect.y + rect.h + 6 }),
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-107: live marquee coalesces post-gate moves and caches client origin', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    const gcr = vi.spyOn(Element.prototype, 'getBoundingClientRect');
+
+    await canvas.trigger('pointerdown', { clientX: rect.x - 20, clientY: rect.y - 4, pointerId: 1 });
+    // Cross the gate with empty coverage (sync while pending).
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: rect.x - 10, clientY: rect.y - 4, buttons: 1 }),
+    );
+    await wrapper.vm.$nextTick();
+    const afterGate = wrapper.emitted('multi-select-preview')!.length;
+    const gcrAfterGate = gcr.mock.calls.length;
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 10,
+        clientY: rect.y + rect.h + 2,
+        buttons: 1,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: rect.x + rect.w + 20,
+        clientY: rect.y + rect.h + 4,
+        buttons: 1,
+      }),
+    );
+    expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterGate);
+    expect(gcr.mock.calls.length).toBe(gcrAfterGate);
+
+    await canvas.trigger('pointermove', {
+      clientX: rect.x + rect.w + 20,
+      clientY: rect.y + rect.h + 4,
+      buttons: 1,
+    });
+    expect(gcr.mock.calls.length).toBe(gcrAfterGate);
+
+    await flushMarqueeRaf();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.length).toBe(afterGate + 1);
+    expect(wrapper.emitted('multi-select-preview')!.at(-1)![0]).toEqual(['e1']);
+    expect(gcr.mock.calls.length).toBe(gcrAfterGate);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-108: window-only view paint does not re-push multi selection', async () => {
+    const ids = ['e1'];
+    const { wrapper } = await mountWithEventModel({
+      measureMode: false,
+      multiSelectedIds: ids,
+    });
+    const vm = wrapper.vm as {
+      renderer: () => { setMultiSelection: (next: string[]) => void };
+    };
+    const multiSpy = vi.spyOn(vm.renderer(), 'setMultiSelection');
+    await wrapper.setProps({ view: { startTime: 0, endTime: 2000, scrollY: 0 } });
+    await wrapper.vm.$nextTick();
+    expect(multiSpy).not.toHaveBeenCalled();
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    expect(src).toMatch(/ids !== lastPushedMultiIds/);
     wrapper.unmount();
   });
 
@@ -2450,6 +2567,81 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-110: Shift+union live preview drops events the rect no longer covers', async () => {
+    const twoEvents = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'e1', name: 'a', startTime: 200, duration: 100 },
+                { id: 'e2', name: 'b', startTime: 350, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    await wrapper.setProps({
+      model: twoEvents,
+      multiSelectedIds: ['e1'],
+    });
+    await wrapper.vm.$nextTick();
+    const r1 = vm.eventScreenRect('e1')!;
+    const r2 = vm.eventScreenRect('e2')!;
+    const betweenX = (r1.x + r1.w + r2.x) / 2;
+
+    await canvas.trigger('pointerdown', {
+      clientX: betweenX,
+      clientY: r2.y - 4,
+      pointerId: 1,
+      shiftKey: true,
+    });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: r2.x + r2.w + 20,
+        clientY: r2.y + r2.h + 4,
+        buttons: 1,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+    const grown = wrapper.emitted('multi-select-preview')!.at(-1)![0] as string[];
+    expect(grown).toEqual(['e1', 'e2']);
+    // SwimlaneView paints live preview ids back as multiSelectedIds.
+    await wrapper.setProps({ multiSelectedIds: grown });
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: betweenX - 1,
+        clientY: r2.y + r2.h + 4,
+        buttons: 1,
+      }),
+    );
+    await flushMarqueeRaf();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.at(-1)![0]).toEqual(['e1']);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: betweenX - 1, clientY: r2.y + r2.h + 4 }),
+    );
+    await wrapper.vm.$nextTick();
+    const committed = (wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[]).map(
+      (e) => e.id,
+    );
+    expect(committed).toEqual(['e1']);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-097: Shift+drag union resolves ids via the shared resolver, not the local model', async () => {
     // Simulates the pinned-strip instance: its own `backend` only knows about pinned-lane
     // events, but a seeded selection can reference an id from the (unpinned) body. The
@@ -2482,6 +2674,8 @@ describe('SwimlaneCanvas', () => {
         buttons: 1,
       }),
     );
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.at(-1)![0]).toEqual(['foreign', 'e1']);
     window.dispatchEvent(
       new PointerEvent('pointerup', { clientX: rect.x + rect.w + 20, clientY: rect.y + rect.h + 4 }),
     );
@@ -2493,6 +2687,29 @@ describe('SwimlaneCanvas', () => {
     expect(ids).toContain('foreign');
     expect(ids).toContain('e1');
     wrapper.unmount();
+  });
+
+  it('PR-CANVAS-109: live preview does not resolve union events; commit uses layout then resolver', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    const live = src.slice(
+      src.indexOf('function applyMarqueeDragMove'),
+      src.indexOf('function onMarqueeDragEnd'),
+    );
+    expect(live).toMatch(/unionMarqueeIds/);
+    expect(live).not.toMatch(/eventsForMarqueeCommit/);
+    expect(live).not.toMatch(/findAltMeasureEvent/);
+    expect(src).toMatch(/backend\.findEvent\(id\) \?\? findAltMeasureEvent\(id\)/);
+  });
+
+  it('PR-CANVAS-111: live marquee skips hit-test when the rounded CSS rect is unchanged', async () => {
+    const src = (await import('./SwimlaneCanvas.vue?raw')).default as string;
+    const live = src.slice(
+      src.indexOf('function applyMarqueeDragMove'),
+      src.indexOf('function onMarqueeDragEnd'),
+    );
+    expect(live).toMatch(/marqueeHitFingerprint/);
+    expect(live.indexOf('marqueeHitFingerprint')).toBeLessThan(live.indexOf('eventsInMarquee'));
+    expect(src).toMatch(/Math\.round\(rect\.x0\)/);
   });
 
   it('PR-CANVAS-090: Shift+left-click on selected event removes from multi-selection', async () => {

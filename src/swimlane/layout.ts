@@ -1182,7 +1182,10 @@ export interface MarqueeRect {
  * Leaf events whose drawn block intersects the marquee rect, in layout order.
  * Folder rows hold no events, so Card header strips the rect passes over contribute none.
  * Paint-only collapse leaves `layout.events` expanded and unshifted; walk visible
- * `eventsByLane` and apply `collapseShiftY` so the rect matches paint / hit-test.
+ * `eventsByLane` (skip `alpha === 0` and folder lanes) and apply `collapseShiftY`
+ * so the rect matches paint / hit-test. Only Y-overlapping lanes are scanned;
+ * each of those bisects start-sorted events to the rect's time window (2px min
+ * block width, left-span `maxLeafDuration`).
  */
 export function eventsIntersectingRect(
   layout: SwimlaneLayout,
@@ -1197,17 +1200,34 @@ export function eventsIntersectingRect(
   const span = Math.max(1, view.endTime - view.startTime);
   const w = Math.max(1, width);
   const fold = layout.collapse ?? IDLE_COLLAPSE;
+  // 2px min painted width: a zero-duration mark at `left - 2` still clips the rect.
+  const t0 = view.startTime + ((left - 2) / w) * span;
+  const t1 = view.startTime + (right / w) * span;
   const out: LaidOutEvent[] = [];
-  for (const item of iterLaidOutEvents(layout)) {
-    if (item.summary) continue;
-    if (collapseAlpha(item.y, fold) <= 0) continue;
-    const ev = item.event;
-    const { y, h } = eventBlockMetrics(collapseShiftY(item.y, fold), view.scrollY);
-    if (y > bottom || y + h < top) continue;
-    const x = ((ev.startTime - view.startTime) / span) * w;
-    const ew = Math.max(2, (ev.duration / span) * w);
-    if (x > right || x + ew < left) continue;
-    out.push(item);
+  for (let i = 0; i < layout.lanes.length; i++) {
+    const lane = layout.lanes[i]!;
+    // Folds already baked into `lane.y` / `lane.alpha` on hitLayout — do not
+    // re-shift. Event items stay on the expanded Y and use `collapseShiftY`.
+    if ((lane.alpha ?? 1) <= 0) continue;
+    if (lane.folder) continue;
+    const laneTop = lane.y - view.scrollY;
+    const laneH = lane.rowCount * LANE_HEIGHT;
+    if (laneTop + laneH < top - 1 || laneTop > bottom + 1) continue;
+    const laneEvts = layout.eventsByLane[i];
+    if (!laneEvts?.length) continue;
+    const [lo, hi] = laneEventRange(lane, laneEvts, t0, t1, layout.maxLeafDuration);
+    for (let j = lo; j < hi; j++) {
+      const item = laneEvts[j]!;
+      if (item.summary) continue;
+      if (collapseAlpha(item.y, fold) <= 0) continue;
+      const ev = item.event;
+      const { y, h } = eventBlockMetrics(collapseShiftY(item.y, fold), view.scrollY);
+      if (y > bottom || y + h < top) continue;
+      const x = ((ev.startTime - view.startTime) / span) * w;
+      const ew = Math.max(2, (ev.duration / span) * w);
+      if (x > right || x + ew < left) continue;
+      out.push(item);
+    }
   }
   return out;
 }
