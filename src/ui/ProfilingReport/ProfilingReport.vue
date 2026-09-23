@@ -953,7 +953,13 @@ function snapshotDockIfNeeded(): void {
   marqueeFromClosed.value = !wasOpen;
 }
 
-/** Ordered-id equality on length + first/mid/last — the canvas already dedupes coverage. */
+/**
+ * Ordered-id change detection on length + first/mid/last — the same digest as the canvas's
+ * `sameIdSet`, so unchanged coverage does not restart the settle timer on every pointermove.
+ * ponytail: a same-length interior swap can read as unchanged, leaving `livePreviewIds`
+ * stale so the settle resolves the old ids — bounded to the live drag, since commit always
+ * re-applies the authoritative list. Upgrade: ordered `every()` or a hash of all ids.
+ */
 function sameIdDigest(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   if (a.length === 0) return true;
@@ -991,18 +997,24 @@ function resolveLiveSelection(): void {
       ? []
       : ids
           .map((id) => findEventInModel(swim.value, id))
+          // Stale/unresolvable ids (e.g. the digest ceiling above) are expected to drop;
+          // commit re-applies the authoritative list, so the row count can only lag
+          // `livePreviewCount` transiently during the live drag.
           .filter((ev): ev is SwimEvent => ev != null);
   multiSelected.value = events;
   multiSelectDimmed.value = false;
 }
 
-/** Dim the table now, then recalculate once the marquee has settled (no change for 200ms). */
+/**
+ * Dim the table now, then recalculate once the marquee has settled (no change for 200ms).
+ * Every path that clears `marqueeLive` also clears this timer (`clearMarqueeLive`,
+ * `resetViewFromModel`), so the callback only ever fires while the marquee is still live.
+ */
 function scheduleMultiSelectSettle(): void {
   multiSelectDimmed.value = true;
   clearMultiSelectDimTimer();
   multiSelectDimTimer = setTimeout(() => {
     multiSelectDimTimer = null;
-    if (!marqueeLive.value) return;
     resolveLiveSelection();
   }, MULTI_SELECT_SETTLE_MS);
 }
