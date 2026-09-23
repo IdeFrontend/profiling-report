@@ -122,7 +122,10 @@ profiling-report/
     ui/                                         UX narrative + design sources (v930/)
       source/                                   full-frame dumps + manifest.yaml
       DESIGN_INDEX.md                           source → visual packs
-      VIEW_DATA_MAPPING.md                      view ↔ field ↔ source mappings
+    views/                                      per-surface packets + product § indexes
+      README.md                                 catalog, overview diagram, mockup index
+      product-sections.md                       docx / emulate § → view-packet TOC
+      _template.md                              packet template
     formats/                                    format explainers (non-AC narrative)
     architecture/                               packaging / component catalog prose
 

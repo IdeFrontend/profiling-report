@@ -137,7 +137,7 @@ Product maps Biprof features → Asc Toolkit using **simulator CSV names** (not 
 | 11.2.3.7 | SIMD/SIMT VF IPC | `VfIPC`, `VfSimtIPC` |
 | 11.2.3.8 | Call Stacks | CallGraph*, CallStacks*, CallFunctions (ELF) |
 
-Display ↔ field detail: [VIEW_DATA_MAPPING.md](../../ui/VIEW_DATA_MAPPING.md) § Simulator. Hide rules (adapted VM): [VIEW_DATA_REQUIREMENTS.md](../VIEW_DATA_REQUIREMENTS.md).
+Display ↔ field detail: [views catalog](../../views/README.md) (per-packet fills); product § indexes: [product-sections.md](../../views/product-sections.md). Hide rules (adapted VM): [VIEW_DATA_REQUIREMENTS.md](../VIEW_DATA_REQUIREMENTS.md).
 
 ---
 

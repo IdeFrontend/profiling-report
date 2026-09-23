@@ -724,7 +724,7 @@ function summaryWithHardwareCoreCount(
   return coreCount == null ? summary : { ...summary, coreCount };
 }
 
-/** Pipe family → side-specific CSV columns (VIEW_DATA_MAPPING Cube/Vector tables). */
+/** Pipe family → side-specific CSV columns (docs/views/pipe-occupancy.md Cube/Vector tables). */
 const PIPE_COLUMNS: {
   id: string;
   label: string;
