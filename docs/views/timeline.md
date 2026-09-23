@@ -21,6 +21,25 @@
 
 Primary Gantt / swimlane of OP execution over time. Opens from `.npu-rep` or standalone Chrome Trace; aside analytics are independent.
 
+<a id="entry-op-shell"></a>
+
+## Entry / OP selector (docx §11.2.2)
+
+![Entry overview](../ui/source/v930/entry.jpeg)
+
+| # | UI | Behavior / data |
+| --- | --- | --- |
+| 1 | Report file | Open `report_<timestamp>_<rand id>.npu-rep` (product). Clicking the report opens the visualization pane. |
+| 2 | OP 算子 selector | Choose among operators / kernels packaged in the report (docx: “npu-rep 中包含的 … 文件个数的选择”). Drives which metric rows / nested payloads feed all downstream views. |
+
+**Rendering rules**
+
+- Left explorer shows profiling run folders; selecting the report file loads the viewer.
+- Top dropdown filters the active OP / kernel name.
+- Main chrome includes tabs such as 时间线 / 源码 / 详情 / 缓存 (exact tab set follows product design; timeline is the primary swimlane surface).
+
+Owning root ACs: [ProfilingReport.spec.md](../../src/ui/ProfilingReport/ProfilingReport.spec.md) (multi-op OP selector **PR-ROOT-005**).
+
 ## View-model
 
 | Field | Role | Required? |
@@ -40,6 +59,17 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
 | `SwimlaneModel` | Prefer `trace.json` (ns); else `PipeTrace.json` (µs→ns ×1000) | CTEF `ph:X` events | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+
+<a id="structure"></a>
+
+### Structure (docx §11.2.8)
+
+| UI region | Content |
+| --- | --- |
+| Left tree | Hierarchical **Card** → 通信 / 计算 / 储存HBM → `CoreN.Cube` / `CoreN.Vec*` → pipes (`ALL`, `SCALAR`, `FLOWCTRL`, `MTE1/2/3`, `CUBE`, `FIXP`, `CACHEMISS`, …) with utilization % bars. Only Card is a group header; nested folders are lane-style expandable rows |
+| Main pane | Gantt / swimlane blocks on a time or **时钟周期** axis |
+| Selection | Click block → bottom **详情** ([event-details](event-details.md) §11.2.8.1) |
+| Dependencies | Curved connectors between related blocks |
 
 <a id="vm-derivation"></a>
 
@@ -100,5 +130,5 @@ Code: `adaptEmulate` + `findEmulateTracePayload`.
 - UX: [UX_SPEC](../ui/UX_SPEC.md) S1, S10
 - FEATURE_MATRIX: Timeline / open `.npu-rep`
 - Specs: [ProfilingReport.spec.md](../../src/ui/ProfilingReport/ProfilingReport.spec.md), [SwimlaneCanvas.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md)
-- Product docx §: 11.2.8
+- Product docx §: 11.2.2 (entry / OP), 11.2.8 (structure + binding)
 - Decisions: [DATA-46](../context/decisions/interim/DATA.md#data-46), [PROC-3](../context/decisions/PROC.md), [PROC-8](../context/decisions/PROC.md)

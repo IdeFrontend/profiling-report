@@ -14,7 +14,7 @@ Design reference (docx): [HDesign mock](https://octo-g.hdesign.huawei.com/develo
 
 | Docx § | Feature | View packet | Phase / notes |
 | --- | --- | --- | --- |
-| 11.2.2 | Entry / OP selector | _(shell — see [timeline](timeline.md))_ | Report open + OP dropdown drives all aside views |
+| 11.2.2 | Entry / OP selector | _(shell — see [timeline § entry/OP](timeline.md#entry-op-shell))_ | Report open + OP dropdown drives all aside views |
 | 11.2.3 | Report statistics | [report-summary](report-summary.md) | Field map + viz logic + DATA-33h / DATA-8 slots in **Compute fill** |
 | 11.2.3.1 | Hardware details | [hardware-details](hardware-details.md) | Section/field table in **Compute fill** |
 | 11.2.4 | Roofline | [roofline](roofline.md) | Tabs→fields + DATA-37 interim in **Compute fill** |
@@ -23,7 +23,7 @@ Design reference (docx): [HDesign mock](https://octo-g.hdesign.huawei.com/develo
 | 11.2.6 | Memory load analysis | [memory-topology](memory-topology.md) | Edge / plate map in **Compute fill** |
 | 11.2.6.1 | Memory CSV details | [memory-topology § Details](memory-topology.md#memory-load-details) | Tabs / block / 查看全部 (same packet) |
 | 11.2.7 | Statistical analysis | [overview-charts](overview-charts.md) | Sampling.json + viz geometry in **Compute fill** |
-| 11.2.8 | Kernel block timeline | [timeline](timeline.md) | Sample CTEF binding in **Compute fill** |
+| 11.2.8 | Kernel block timeline | [timeline](timeline.md#structure) | Structure + sample CTEF binding in **Compute fill** |
 | 11.2.8.1 | Event / Relevant details | [event-details](event-details.md) | Mockup regions + CTEF gaps in **Compute fill** |
 
 <a id="emulate-profile"></a>

@@ -21,13 +21,22 @@ Raised bottom **详情** dock (**DetailPanel**) and hover **EventTooltip** for t
 
 | Field | Role | Required? |
 |-------|------|-----------|
-| Selected / hovered `SwimEvent` | Name + timing for strip / tooltip | **Required** to show strip content |
+| Selected / hovered `SwimEvent` | Name + timing for dock / tooltip | **Required** to show dock content |
 | Parameter fields (`Code`, `Detail`, `Pc_addr`, `Process_bytes`) | Parameter region | Optional — **gap** in sample CTEF |
 | Relevant graph (Incoming → Current → Outgoing) | Dependency mini-graph | Optional — P2 |
 
 ## Hide rule
 
-No single selection → **unmount** the 详情 dock ([DetailPanel.spec.md](../../src/ui/DetailPanel/DetailPanel.spec.md): parent clears selection → dock unmounts; close emits `close` **PR-DPANEL-002**). Do **not** leave empty chrome. Missing optional parameter / Relevant fields → omit those regions; do not invent ([DATA-30](../context/decisions/DATA.md); Relevant column gated per **PR-DPANEL-003**).
+Dock routing ([ProfilingReport.spec.md](../../src/ui/ProfilingReport/ProfilingReport.spec.md)):
+
+| State | Dock content |
+|-------|----------------|
+| Single selection (`selectedEventId`) | Mounts **DetailPanel** |
+| Multi-select (`multiSelectedIds` ≥ 2) | Same dock shell; mounts **MultiSelectSummary** |
+| Live empty marquee (already-open dock, mid-drag empty coverage) | Keeps dock shell + `dock-empty` / nothing-selected (**PR-ROOT-016**) |
+| No selection, no live marquee | Footer unmounts (`v-if`) |
+
+**PR-DPANEL-002** — DetailPanel close emits `close` only; parent clears selection → unmounts **DetailPanel** ([DetailPanel.spec.md](../../src/ui/DetailPanel/DetailPanel.spec.md)). Missing optional parameter / Relevant fields → omit those regions; do not invent ([DATA-30](../context/decisions/DATA.md); Relevant column gated per **PR-DPANEL-003**).
 
 ## Compute fill
 
@@ -69,13 +78,13 @@ Docx §11.2.8.1 field table is **empty**. Layout from mockup:
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | `chromeTraceToSwimlane` + selection state | Strip reads selected `SwimEvent`; no dedicated event-details mapper yet |
+| compute | `chromeTraceToSwimlane` + selection state | DetailPanel reads selected `SwimEvent`; no dedicated event-details mapper yet |
 | emulate | same CTEF path via `adaptEmulate` | Same gaps |
 
 ## Related
 
 - Shell: [timeline](timeline.md)
-- Specs: [DetailPanel.spec.md](../../src/ui/DetailPanel/DetailPanel.spec.md) (详情 dock; unmount on clear selection **PR-DPANEL-002**); [EventTooltip.spec.md](../../src/ui/EventTooltip/EventTooltip.spec.md); [SwimlaneCanvas](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md)
+- Specs: [DetailPanel.spec.md](../../src/ui/DetailPanel/DetailPanel.spec.md) (**PR-DPANEL-002** close emit; **PR-DPANEL-003** Relevant omit); [ProfilingReport.spec.md](../../src/ui/ProfilingReport/ProfilingReport.spec.md) (dock routing / **PR-ROOT-016**); [MultiSelectSummary.spec.md](../../src/ui/MultiSelectSummary/MultiSelectSummary.spec.md); [EventTooltip.spec.md](../../src/ui/EventTooltip/EventTooltip.spec.md); [SwimlaneCanvas](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md)
 - Product docx §: 11.2.8.1
 - Open questions: [context/questions/](../context/questions/)
 - Catalog: [README](README.md)
