@@ -49,6 +49,7 @@ export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';
 export {
   coreNameToPipeSide,
+  csvTableFromPipeUtilizationHist,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
 } from './pipeOccupancyEmulate';

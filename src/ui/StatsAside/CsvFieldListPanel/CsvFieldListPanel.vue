@@ -76,6 +76,7 @@ const showActions = computed(() => showBlocks.value || showViewAllButton.value);
 function tabLabel(fileName: string): string {
   const map: Record<string, string> = {
     'PipeUtilization.csv': 'PipeUtilization',
+    'PipeUtilizationHist.csv': 'PipeUtilizationHist',
     'ArithmeticUtilization.csv': 'ArithmeticUtilization',
     'ResourceConflictRatio.csv': 'ResourceConflictRatio',
     'MemoryL0.csv': 'MemoryL0',

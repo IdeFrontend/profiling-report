@@ -25,6 +25,7 @@ import { nestCardTreeFromFlatCorePipes } from '../domain/swimTree';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { buildMemoryTopologyFromCategories, firstLabelledMemoryTopology } from './memoryTopology';
 import {
+  csvTableFromPipeUtilizationHist,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
 } from './pipeOccupancyEmulate';
@@ -932,7 +933,17 @@ export function overviewSeriesFromSampling(payload: Uint8Array | undefined): Ove
 }
 
 function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportViewModel {
-  const compute = collectCsvTables(payloads, COMPUTE_CSV_FILES);
+  // UI-55: when PipeUtilizationHist is present, flatten it for 详情 and omit PipeUtilization.csv.
+  const histPayload = payloadByName(payloads, ['PipeUtilizationHist.csv']);
+  const histTable = csvTableFromPipeUtilizationHist(histPayload);
+  const computeFileNames = histTable
+    ? COMPUTE_CSV_FILES.filter((n) => n !== 'PipeUtilization.csv')
+    : COMPUTE_CSV_FILES;
+  const compute = collectCsvTables(payloads, computeFileNames);
+  if (histTable && histPayload) {
+    compute.tables.unshift(histTable);
+    compute.texts['PipeUtilizationHist.csv'] = decodeUtf8(histPayload);
+  }
   const memory = collectCsvTables(payloads, MEMORY_CSV_FILES);
   const hardwareDetails = hardwareDetailsFromPayloads(payloads);
   const summaryJsonl = payloadByName(payloads, ['summary.jsonl', 'Summary.jsonl', 'SUMMARY.jsonl']);

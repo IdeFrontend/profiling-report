@@ -196,4 +196,30 @@ describe('CsvFieldListPanel', () => {
     });
     expect(wide.find('[data-testid="csv-view-all"]').exists()).toBe(true);
   });
+
+  it('PR-CSV-009: PipeUtilizationHist tab label and PipeName_CoreName fields (UI-55)', () => {
+    const histTables: CsvTableModel[] = [
+      {
+        fileName: 'PipeUtilizationHist.csv',
+        headers: ['SCALAR_AIC', 'SCALAR_AIV0'],
+        rows: [{ SCALAR_AIC: '50.522', SCALAR_AIV0: '48.385' }],
+        blockIds: [],
+      },
+    ];
+    const wrapper = mount(CsvFieldListPanel, {
+      props: {
+        tables: histTables,
+        csvTexts: { 'PipeUtilizationHist.csv': 'PipeName,CoreName,Utilization\n' },
+        showBlockSwitcher: false,
+        showViewAll: false,
+      },
+    });
+
+    expect(wrapper.get('[data-testid="csv-tab-PipeUtilizationHist.csv"]').text()).toBe(
+      'PipeUtilizationHist',
+    );
+    expect(wrapper.text()).toContain('SCALAR_AIC');
+    expect(wrapper.text()).toContain('50.522');
+    expect(wrapper.text()).toContain('SCALAR_AIV0');
+  });
 });

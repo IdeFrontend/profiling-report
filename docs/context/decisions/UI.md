@@ -184,3 +184,13 @@ Format and statuses: [README.md](README.md).
 - **Decision:** Cube|Vector stays the **compute** MIX control (`aic_*` vs `aiv_*`). For **emulate**, show an **AIC | AIV0 | AIV1** segmented control (same chrome), one bar list per active core. Map hist/`CoreTypes` `CoreName` → `pipeOccupancy.side` (`aic` / `aiv0` / `aiv1`); **never** average AIV0 with AIV1 into a single Vector series.
 - **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-036`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
 - **Source:** Product choice in chat (2026-09-23): 3-way toggle, not grouped bars.
+
+---
+
+## UI-55
+
+- **Resolved:** 2026-09-23
+- **Question:** When emulate packs `PipeUtilizationHist.csv`, how should compute-load **详情** present pipe util — and should `PipeUtilization.csv` still appear?
+- **Decision:** Prefer **`PipeUtilizationHist`**: flatten each hist row into a key→value field with key `` `{PipeName}_{CoreName}` `` (e.g. `SCALAR_AIC`) and value = `Utilization` (file order; duplicate keys last-wins). Put that as one synthetic wide row in `computeTables`. When hist is present, **omit** `PipeUtilization.csv` from compute 详情. ArithmeticUtilization / ResourceConflictRatio tabs unchanged when those embeds exist.
+- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.5.1, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §9, [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-007`), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
+- **Source:** Product request in chat (2026-09-23): hist-only pipe tab with PipeName_CoreName KV.

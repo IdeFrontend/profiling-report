@@ -18,6 +18,7 @@ export {
   adaptRep,
   chromeTraceToSwimlane,
   coreNameToPipeSide,
+  csvTableFromPipeUtilizationHist,
   emptyReportViewModel,
   isEmulateLeaf,
   isNpuRep,

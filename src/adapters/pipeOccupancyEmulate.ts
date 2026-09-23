@@ -1,9 +1,10 @@
 /**
  * Emulate PIPE occupancy mappers — PipeUtilizationHist / PipesUtilization → pipeOccupancy.
  * CoreName drives side (aic|aiv0|aiv1); never average across AIV cores ([UI-54](../../docs/context/decisions/UI.md)).
+ * Hist 详情: flatten to PipeName_CoreName key→value ([UI-55](../../docs/context/decisions/UI.md)).
  */
 
-import type { PipeOccupancyItem, PipeOccupancySide } from '../domain/types';
+import type { CsvTableModel, PipeOccupancyItem, PipeOccupancySide } from '../domain/types';
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder('utf-8').decode(bytes);
@@ -117,6 +118,35 @@ export function pipeOccupancyFromHist(payload?: Uint8Array): PipeOccupancyItem[]
     });
   }
   return [...acc.values()].map((v) => v.item);
+}
+
+/**
+ * Flatten `PipeUtilizationHist.csv` into one wide row for compute 详情 KV list (UI-55).
+ * Header = `{PipeName}_{CoreName}` (producer casing); file order; duplicate keys last-wins.
+ */
+export function csvTableFromPipeUtilizationHist(
+  payload?: Uint8Array,
+): CsvTableModel | null {
+  if (!payload || payload.byteLength === 0) return null;
+  const { rows } = parseCsv(decodeUtf8(payload));
+  const headers: string[] = [];
+  const wide: Record<string, string> = {};
+  for (const row of rows) {
+    const pipe = (row.PipeName ?? row.pipeName ?? '').trim();
+    const core = (row.CoreName ?? row.coreName ?? '').trim();
+    if (!pipe || !core) continue;
+    const key = `${pipe}_${core}`;
+    const value = (row.Utilization ?? row.utilization ?? row.PipeUtilization ?? '').trim();
+    if (!(key in wide)) headers.push(key);
+    wide[key] = value;
+  }
+  if (headers.length === 0) return null;
+  return {
+    fileName: 'PipeUtilizationHist.csv',
+    headers,
+    rows: [wide],
+    blockIds: [],
+  };
 }
 
 /** Build id→name map from a two-column dictionary CSV. */
