@@ -100,10 +100,29 @@ function isArchDiagramEav(table: CsvTableModel): boolean {
   );
 }
 
+function highlightParts(text: string, query: string): { text: string; match: boolean }[] {
+  if (!query) return [{ text, match: false }];
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  const parts: { text: string; match: boolean }[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const j = lower.indexOf(q, i);
+    if (j === -1) {
+      parts.push({ text: text.slice(i), match: false });
+      break;
+    }
+    if (j > i) parts.push({ text: text.slice(i, j), match: false });
+    parts.push({ text: text.slice(j, j + q.length), match: true });
+    i = j + q.length;
+  }
+  return parts;
+}
+
 function eavParamValueFields(
   table: CsvTableModel,
   query: string,
-): { header: string; value: string }[] {
+): { header: string; value: string; parts: { text: string; match: boolean }[] }[] {
   const nameKey = table.headers.find((h) => h.toLowerCase() === 'archdiagramparametername');
   const valKey = table.headers.find((h) => h.toLowerCase() === 'archdiagramparametervalue');
   if (!nameKey || !valKey) return [];
@@ -113,11 +132,15 @@ function eavParamValueFields(
     const name = (row[nameKey] ?? '').trim();
     if (name) byName.set(name, row[valKey] ?? '');
   }
-  const q = query.trim().toLowerCase();
-  const entries = [...byName.entries()]
-    .filter(([name]) => !q || name.toLowerCase().includes(q))
-    .map(([header, value]) => ({ header, value }));
-  return entries;
+  const q = query.trim();
+  const qLower = q.toLowerCase();
+  return [...byName.entries()]
+    .filter(([name]) => !qLower || name.toLowerCase().includes(qLower))
+    .map(([header, value]) => ({
+      header,
+      value,
+      parts: highlightParts(header, q),
+    }));
 }
 
 const fields = computed(() => {
@@ -133,6 +156,7 @@ const fields = computed(() => {
   return headers.map((h) => ({
     header: h,
     value: row[h] ?? '',
+    parts: highlightParts(h, q),
   }));
 });
 
@@ -259,7 +283,14 @@ function onViewAll() {
         :key="field.header"
         class="pr-csv__field"
       >
-        <span class="pr-csv__field-name">{{ field.header }}</span>
+        <span class="pr-csv__field-name">
+          <span
+            v-for="(part, i) in field.parts"
+            :key="i"
+            :class="{ 'pr-csv__field-match': part.match }"
+            :data-testid="part.match ? 'csv-field-match' : undefined"
+          >{{ part.text }}</span>
+        </span>
         <span class="pr-csv__field-value">{{ field.value }}</span>
       </li>
     </ul>
@@ -441,6 +472,14 @@ function onViewAll() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pr-csv__field-match {
+  color: #688aec;
+  background: #1d283c;
+  border-radius: 3px;
+  padding: 0;
+  font-weight: 600;
 }
 
 .pr-csv__field-value {

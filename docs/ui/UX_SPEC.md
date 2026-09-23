@@ -205,9 +205,9 @@ Interactivity classes:
 | Lane gutter | interactive | Expand/collapse; wheel scroll sync | Row set + `scrollY` | M |
 | Event tooltip | interactive (transient) | Hover | Shows timing | M |
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
-| Pipe field list + search | interactive | Type filter, scroll | Filtered rows (no highlight, UI-43) | M1 |
+| Pipe field list + search | interactive | Type filter, scroll | Filtered rows + substring highlight chip (UI-43) | M1 |
 | Memory topology | semi / interactive | Zoom bar (缩小 / 放大 / 适应窗口) on the diagram; click nodes P2 | Field highlight | M2 |
-| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows (no highlight, UI-43) | M1 |
+| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows + substring highlight chip (UI-43) | M1 |
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
 | Context menu | interactive | Right-click | Pin / actions | P2 |
@@ -282,7 +282,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S5 (M1)
 
 1. MVP: read PIPE bars in aside.
-2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows (no substring highlight, [UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
+2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the matching substring ([UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
 
 ### Flow S6–S9
 

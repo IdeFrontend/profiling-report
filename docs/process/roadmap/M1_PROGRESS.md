@@ -207,7 +207,7 @@ Default locale is zh-CN per interim decision PKG-2.
 
 - **PR-CSV-001**: Tabs render and switch the visible field list
 - **PR-CSV-002**: Block switcher filters rows by block_id
-- **PR-CSV-003**: Search filters field labels (case-insensitive substring)
+- **PR-CSV-003**: Search filters and highlights field labels (case-insensitive substring chip)
 - **PR-CSV-004**: 查看全部 emits view-full-csv with fileName + text
 
 #### Integration (`tests/component/ProfilingReport.feature.spec.ts`)
