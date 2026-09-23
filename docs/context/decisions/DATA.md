@@ -251,7 +251,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-20
 - **Question:** Hardware details sidebar source?
 - **Decision:** **`HardwareInfo.jsonl`** is the details source. Not required to open Timeline; **更多** always opens the overlay — show `hardwareDetails` when present, else **缺少 hardware info**. Aside meta is **进程** / **算子类型** / **Blocks**.
-- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING § Hardware details](../../ui/VIEW_DATA_MAPPING.md#stub-hardware-details), [decisions/interim/](../decisions/interim/) `DATA-34a`
+- **Specs:** [hardware-details](../../views/hardware-details.md#section-fields), [report-summary](../../views/report-summary.md), [decisions/interim/](../decisions/interim/) `DATA-34a`
 
 ---
 

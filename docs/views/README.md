@@ -10,6 +10,7 @@ Per-surface packets: **sketches + adapted view-model + compute/emulate fill** (i
 |----|------|-------|-------------|---------|------------------|
 | `timeline` | [timeline.md](timeline.md) | M | `same-path` | **in** | `entry.jpeg` / task-* |
 | `report-summary` | [report-summary.md](report-summary.md) | M | `adapt-mapper` | **out** ([DATA-47](../context/decisions/DATA.md)) | `report-stats-open.jpeg` |
+| `hardware-details` | [hardware-details.md](hardware-details.md) | M1 | `adapt-mapper` | **out** with summary ([DATA-47](../context/decisions/DATA.md)) | `hardware-more-detail.jpeg` |
 | `pipe-occupancy` | [pipe-occupancy.md](pipe-occupancy.md) | M | `adapt-mapper` | **in** | `compute-load.jpeg` |
 | `overview-charts` | [overview-charts.md](overview-charts.md) | M | `gap` | **hide** | OverviewCharts visual |
 | `roofline` | [roofline.md](roofline.md) | M2 | `gap` | **hide** | RooflinePanel visual |
@@ -19,7 +20,7 @@ Per-surface packets: **sketches + adapted view-model + compute/emulate fill** (i
 
 ### Stubs (second pass)
 
-Surfaces still described in legacy [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) until extracted: time axis, lane gutter, swimlane canvas, event tooltip, compute/memory CSV tabs, hardware details, measure mode, secondary tabs. Intended sketches when known: `task-hover.jpeg`, `task-measure-mode.jpeg`, `compute-load-detail.jpeg`, `memory-load-detail.jpeg`, `hardware-more-detail.jpeg`.
+Surfaces still described in legacy [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) / docx § index until extracted: time axis, lane gutter, swimlane canvas, event tooltip / Relevant details, measure mode, secondary tabs. Intended sketches when known: `task-hover.jpeg`, `task-measure-mode.jpeg`, `detail-strip-raised.jpeg`.
 
 ## SSOT rules
 

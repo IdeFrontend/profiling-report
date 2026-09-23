@@ -36,7 +36,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | 11.2.2 | Entry / OP selector | _(shell — see [timeline](../views/timeline.md))_ | Report open + OP dropdown drives all aside views |
 | 11.2.3 | Report statistics | [report-summary](../views/report-summary.md) | Field map + viz logic + DATA-33h / DATA-8 slots in **Compute fill** |
-| 11.2.3.1 | Hardware details | _(stub — body below)_ | Overlay from 更多; [§ Hardware details](#stub-hardware-details) |
+| 11.2.3.1 | Hardware details | [hardware-details](../views/hardware-details.md) | Section/field table in **Compute fill** |
 | 11.2.4 | Roofline | [roofline](../views/roofline.md) | Tabs→fields + DATA-37 interim in **Compute fill** |
 | 11.2.5 | PIPE occupancy | [pipe-occupancy](../views/pipe-occupancy.md) | Cube / Vector column tables in **Compute fill** |
 | 11.2.5.1 | Compute-load CSV details | [pipe-occupancy § Details](../views/pipe-occupancy.md#compute-load-details) | Tabs / CSV field list (same packet) |
@@ -67,25 +67,7 @@ Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decis
 
 ## Stub surfaces (no packet yet)
 
-Do **not** invent packets in this index. Bodies below are kept here until extracted into view packets. (VDR does **not** own hardware section/field lists.) Compute-load CSV details (§11.2.5.1) and memory CSV details (§11.2.6.1) live in [pipe-occupancy](../views/pipe-occupancy.md#compute-load-details) and [memory-topology](../views/memory-topology.md#memory-load-details).
-
-<a id="stub-hardware-details"></a>
-
-### Hardware details（硬件信息详情）— §11.2.3.1
-
-![Hardware details](./source/v930/hardware-more-detail.jpeg)
-
-**Source (confirmed):** `HardwareInfo.jsonl` (one object per line, `category` discriminator). Not required to open Timeline. **更多** always opens the overlay (UI-30, UI-31): show sections when `hardwareDetails` is present; else **缺少 hardware info**. Adapter may still fall back to OpBasicInfo columns when jsonl is absent (DATA-34a). `data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
-
-| Section (UI) | Typical fields |
-| --- | --- |
-| Host Info | Cpu Info (optional), Cpu Physical/Logical Count, Memory Total Size (MB), Disk Total Size (GB) |
-| Device Info | NPU Count, Chip Info, Arch Info |
-| CPU Information | Control / AI CPU count and frequency (MHZ) |
-| AI Core Information | AI Core / Cube / Vector counts, AI Core Frequency (MHZ) list |
-| Memory Information | HBM Total / Used (MB), HBM Frequency (MHZ) |
-
-**Interaction:** opened from 报告统计 → 更多; dismiss with close control. Label left / value right layout.
+Do **not** invent packets in this index. Bodies below are kept here until extracted into view packets. Hardware details (§11.2.3.1) live in [hardware-details](../views/hardware-details.md); compute/memory CSV details in [pipe-occupancy](../views/pipe-occupancy.md#compute-load-details) / [memory-topology](../views/memory-topology.md#memory-load-details).
 
 <a id="stub-event-details"></a>
 

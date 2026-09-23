@@ -13,7 +13,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** Must every report include `HardwareInfo.jsonl`?
 - **Decision:** **Yes** — every report is expected to include `HardwareInfo.jsonl`. If absent, **更多** still opens and shows **缺少 hardware info**.
-- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING § Hardware details](../../ui/VIEW_DATA_MAPPING.md#stub-hardware-details)
+- **Specs:** [hardware-details](../../views/hardware-details.md#section-fields), [report-summary](../../views/report-summary.md)
 - **Source:** Product answer doc (2026-08-31); implemented in `StatsAside.vue`.
 
 ---
@@ -23,7 +23,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** If `HardwareInfo.jsonl` is missing, what happens to **更多** / 硬件信息详情?
 - **Decision:** Do **not** hide **更多**. Open overlay and show **缺少 hardware info**.
-- **Specs:** [report-summary](../../views/report-summary.md), [VIEW_DATA_MAPPING § Hardware details](../../ui/VIEW_DATA_MAPPING.md#stub-hardware-details)
+- **Specs:** [hardware-details](../../views/hardware-details.md#section-fields), [report-summary](../../views/report-summary.md)
 - **Source:** Product answer doc (2026-08-31); implemented in `StatsAside.vue`.
 
 ---
