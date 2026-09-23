@@ -93,7 +93,7 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/com
 | Tab | Source CSV |
 | --- | --- |
 | `PipeUtilization` | `PipeUtilization.csv` (compute; omitted when hist is present — [UI-55](../context/decisions/UI.md)) |
-| `PipeUtilizationHist` | `PipeUtilizationHist.csv` — preferred when present; sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys from Utilization ([UI-55](../context/decisions/UI.md)) |
+| `Pipe Utilization` | `PipeUtilizationHist.csv` — preferred when present; sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys from Utilization ([UI-55](../context/decisions/UI.md)) |
 | `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
 | `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
 

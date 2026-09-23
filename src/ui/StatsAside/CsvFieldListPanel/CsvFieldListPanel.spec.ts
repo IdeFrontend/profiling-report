@@ -197,7 +197,7 @@ describe('CsvFieldListPanel', () => {
     expect(wide.find('[data-testid="csv-view-all"]').exists()).toBe(true);
   });
 
-  it('PR-CSV-009: PipeUtilizationHist tab label and aic_/aiv0_ ratio fields (UI-55)', () => {
+  it('PR-CSV-009: Pipe Utilization tab label and aic_/aiv0_ ratio fields (UI-55)', () => {
     const histTables: CsvTableModel[] = [
       {
         fileName: 'PipeUtilizationHist.csv',
@@ -216,7 +216,7 @@ describe('CsvFieldListPanel', () => {
     });
 
     expect(wrapper.get('[data-testid="csv-tab-PipeUtilizationHist.csv"]').text()).toBe(
-      'PipeUtilizationHist',
+      'Pipe Utilization',
     );
     expect(wrapper.text()).toContain('aic_scalar_ratio');
     expect(wrapper.text()).toContain('0.50522');
