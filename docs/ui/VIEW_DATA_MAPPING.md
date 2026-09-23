@@ -39,9 +39,9 @@ flowchart LR
 | 11.2.3.1 | Hardware details | _(stub — body below)_ | Overlay from 更多; [§ Hardware details](#stub-hardware-details) |
 | 11.2.4 | Roofline | [roofline](../views/roofline.md) | Tabs→fields + DATA-37 interim in **Compute fill** |
 | 11.2.5 | PIPE occupancy | [pipe-occupancy](../views/pipe-occupancy.md) | Cube / Vector column tables in **Compute fill** |
-| 11.2.5.1 | Compute-load CSV details | _(stub — body below)_ | [§ Compute-load details](#stub-compute-load-details) |
+| 11.2.5.1 | Compute-load CSV details | [pipe-occupancy § Details](../views/pipe-occupancy.md#compute-load-details) | Tabs / CSV field list (same packet) |
 | 11.2.6 | Memory load analysis | [memory-topology](../views/memory-topology.md) | Edge / plate map in **Compute fill** |
-| 11.2.6.1 | Memory CSV details | _(stub — body below)_ | [§ Memory load details](#stub-memory-load-details) |
+| 11.2.6.1 | Memory CSV details | [memory-topology § Details](../views/memory-topology.md#memory-load-details) | Tabs / block / 查看全部 (same packet) |
 | 11.2.7 | Statistical analysis | [overview-charts](../views/overview-charts.md) | Sampling.json + viz geometry in **Compute fill** |
 | 11.2.8 | Kernel block timeline | [timeline](../views/timeline.md) | Sample CTEF binding in **Compute fill** |
 | 11.2.8.1 | Event / Relevant details | _(stub — body below)_ | [§ Event details](#stub-event-details) |
@@ -67,7 +67,7 @@ Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decis
 
 ## Stub surfaces (no packet yet)
 
-Do **not** invent packets in this index. Bodies below are kept here until extracted into view packets. (VDR does **not** own hardware section/field lists.)
+Do **not** invent packets in this index. Bodies below are kept here until extracted into view packets. (VDR does **not** own hardware section/field lists.) Compute-load CSV details (§11.2.5.1) and memory CSV details (§11.2.6.1) live in [pipe-occupancy](../views/pipe-occupancy.md#compute-load-details) and [memory-topology](../views/memory-topology.md#memory-load-details).
 
 <a id="stub-hardware-details"></a>
 
@@ -86,40 +86,6 @@ Do **not** invent packets in this index. Bodies below are kept here until extrac
 | Memory Information | HBM Total / Used (MB), HBM Frequency (MHZ) |
 
 **Interaction:** opened from 报告统计 → 更多; dismiss with close control. Label left / value right layout.
-
-<a id="stub-compute-load-details"></a>
-
-### Compute-load details（计算负载分析详情）— §11.2.5.1
-
-![Pipe details](./source/v930/compute-load-detail.jpeg)
-
-Detail surface uses **tabs** ([`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg)):
-
-| Tab | Source CSV |
-| --- | --- |
-| `PipeUtilization` | `PipeUtilization.csv` |
-| `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
-| `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
-
-Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
-
-- AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
-- AIV group: same pattern; display `NA` when absent.
-- Hide a tab when its CSV is missing from the report.
-
-<a id="stub-memory-load-details"></a>
-
-### Memory load details — §11.2.6.1
-
-Memory detail controls ([`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg)):
-
-| Control | Behavior |
-| --- | --- |
-| Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent. On the CSV field-list rendering, also `PipeUtilization` when present — the only source of the chrome's MTE utilizations (UI-38); when memory summary categories exist the surface lists those categories instead |
-| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); `All` shows the `summary.jsonl` category list, a picked id scopes the field list to that block's row |
-| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/decisions/interim/DATA.md)) |
-
-Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
 
 <a id="stub-event-details"></a>
 

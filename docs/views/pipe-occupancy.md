@@ -66,6 +66,26 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 
 In-bar absolute (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)): mean non-`NA` matching `*_time(us)` for that family/side; omit when absent. Include **ICache Miss** rows when the corresponding `*_icache_miss_rate` mean is present (no time column → no absolute).
 
+<a id="compute-load-details"></a>
+
+### Details / CSV tabs（计算负载分析详情）— §11.2.5.1
+
+![Pipe details](../ui/source/v930/compute-load-detail.jpeg)
+
+Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg)):
+
+| Tab | Source CSV |
+| --- | --- |
+| `PipeUtilization` | `PipeUtilization.csv` |
+| `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
+| `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
+
+Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
+
+- AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
+- AIV group: same pattern; display `NA` when absent.
+- Hide a tab when its CSV is missing from the report.
+
 ## Emulate fill
 
 | Adapted field | Embed | Columns / notes | Status |
@@ -84,6 +104,6 @@ In-bar absolute (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)): mea
 
 - UX: [UX_SPEC](../ui/UX_SPEC.md)
 - FEATURE_MATRIX: PIPE occupancy bars
-- Product docx §: 11.2.5 / emulate 11.2.3.4–6
+- Product docx §: 11.2.5 / 11.2.5.1 / emulate 11.2.3.4–6
 - Interim: [DATA-33b](../context/decisions/interim/DATA.md)
 - View catalog: [README](README.md)

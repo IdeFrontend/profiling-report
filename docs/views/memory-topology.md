@@ -83,6 +83,22 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 Component ACs that also own these rules: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md).
 
+<a id="memory-load-details"></a>
+
+### Details / CSV tabs（内存负载分析详情）— §11.2.6.1
+
+Memory detail controls ([`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg)):
+
+![Memory load details](../ui/source/v930/memory-load-detail.jpeg)
+
+| Control | Behavior |
+| --- | --- |
+| Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent. On the CSV field-list rendering, also `PipeUtilization` when present — the only source of the chrome's MTE utilizations (UI-38); when memory summary categories exist the surface lists those categories instead |
+| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); `All` shows the `summary.jsonl` category list, a picked id scopes the field list to that block's row |
+| 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/decisions/interim/DATA.md)) |
+
+Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
+
 ## Emulate fill (interim Architecture Diagram stand-in)
 
 | Adapted field | Embed | Columns / notes | Status |
@@ -100,5 +116,5 @@ Component ACs that also own these rules: [MemoryTopologyPanel.spec.md](../../src
 ## Related
 
 - Spec: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)
-- Product: compute §11.2.6; emulate Architecture Diagram §11.2.3.1 ([arch-diagram](arch-diagram.md)); heatmap §11.2.3.2 out Sept 30
+- Product: compute §11.2.6 / §11.2.6.1; emulate Architecture Diagram §11.2.3.1 ([arch-diagram](arch-diagram.md)); heatmap §11.2.3.2 out Sept 30
 - Catalog: [README](README.md)

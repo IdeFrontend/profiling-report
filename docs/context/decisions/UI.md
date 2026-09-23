@@ -63,7 +63,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-08-31
 - **Question:** Right-click on the memory diagram — extra details? Which fields?
 - **Decision:** **Yes.** Show full CSV tables: **Memory**, **L2Cache**, **MemoryUB**, **MemoryL0** (block-scoped).
-- **Specs:** [memory-topology](../../views/memory-topology.md), [VIEW_DATA_MAPPING § Memory load details](../../ui/VIEW_DATA_MAPPING.md#stub-memory-load-details), [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (PR-MEMTOP-008), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-017b)
+- **Specs:** [memory-topology](../../views/memory-topology.md#memory-load-details), [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (PR-MEMTOP-008), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-017b)
 - **Source:** Product answer doc (2026-08-31).
 
 ---
