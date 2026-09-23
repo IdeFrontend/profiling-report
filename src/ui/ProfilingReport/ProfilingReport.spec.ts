@@ -778,6 +778,47 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-016: a late settle never wipes the committed selection', async () => {
+    vi.useFakeTimers();
+    const model = depsModel();
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-settle-commit',
+        swimlaneModel: model,
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const summary = () => wrapper.findComponent({ name: 'MultiSelectSummary' });
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(summary().props('dimmed')).toBe(true);
+
+    // Commit before the settle fires: clearMarqueeLive cancels the pending timer, and the
+    // `marqueeLive` guard in the settle callback covers the fired-but-queued window.
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect((summary().props('selectedEvents') as { id: string }[]).map((e) => e.id)).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(summary().props('dimmed')).toBe(false);
+
+    // Any late settle must be a no-op on the committed rows.
+    vi.advanceTimersByTime(200);
+    await nextTick();
+    expect((summary().props('selectedEvents') as { id: string }[]).map((e) => e.id)).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(summary().props('dimmed')).toBe(false);
+
+    vi.useRealTimers();
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-017: mode swap keeps the dock shell mounted and defines content fade CSS', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {

@@ -214,7 +214,7 @@ describe('MultiSelectSummary', () => {
     expect(idsOnly.get('[data-testid="multi-select-tab"]').text()).toBe('Slices (125000)');
   });
 
-  it('PR-MSEL-010: dimmed keeps the stale table mounted, dimmed and non-interactive', async () => {
+  it('PR-MSEL-010: dimmed keeps the stale table mounted with reduced opacity', async () => {
     const wrapper = mountPanel({ dimmed: true });
     const table = wrapper.find('.pr-multi-select__table');
     expect(table.exists()).toBe(true);
@@ -225,11 +225,29 @@ describe('MultiSelectSummary', () => {
     const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-multi-select__table--dimmed\s*\{/);
     expect(src).toMatch(/opacity:\s*0\.4/);
-    expect(src).toMatch(/pointer-events:\s*none/);
 
     const fresh = mountPanel({ dimmed: false });
     expect(fresh.find('.pr-multi-select__table').classes()).not.toContain(
       'pr-multi-select__table--dimmed',
+    );
+  });
+
+  it('PR-MSEL-011: livePreview keeps the table inert for the whole gesture', async () => {
+    const wrapper = mountPanel({ livePreview: true });
+    const table = wrapper.find('.pr-multi-select__table');
+    expect(table.exists()).toBe(true);
+    expect(table.classes()).toContain('pr-multi-select__table--inert');
+    // Inert is the whole live gesture; dim is only the stale window before settle.
+    expect(table.classes()).not.toContain('pr-multi-select__table--dimmed');
+
+    const src = (await import('./MultiSelectSummary.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-multi-select__table--inert\s*\{/);
+    expect(src).toMatch(/pointer-events:\s*none/);
+
+    // Committed (no live preview) is interactive — no inert class.
+    const committed = mountPanel({ livePreview: false });
+    expect(committed.find('.pr-multi-select__table').classes()).not.toContain(
+      'pr-multi-select__table--inert',
     );
   });
 

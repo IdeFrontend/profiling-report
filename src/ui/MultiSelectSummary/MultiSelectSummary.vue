@@ -323,7 +323,10 @@ function toggleExpanded(): void {
     >
       <table
         class="pr-multi-select__table"
-        :class="{ 'pr-multi-select__table--dimmed': dimmed }"
+        :class="{
+          'pr-multi-select__table--dimmed': dimmed,
+          'pr-multi-select__table--inert': livePreview,
+        }"
         :style="{ '--pr-msel-row-h': `${ROW_HEIGHT_PX}px` }"
       >
         <thead>
@@ -537,10 +540,16 @@ function toggleExpanded(): void {
   transition: opacity 150ms ease;
 }
 
-/* Active marquee inside the 200ms settle window: the table stays mounted (stale rows)
-   but dimmed and non-interactive until the selection settles and is recalculated. */
+/* Active marquee inside the 200ms settle window: the table stays mounted but dimmed
+   (stale rows) until the selection settles and is recalculated. */
 .pr-multi-select__table--dimmed {
   opacity: 0.4;
+}
+
+/* A live marquee keeps the table non-interactive for the whole gesture — name clicks
+   (select-single) and column sort must not fire mid-drag, even after the settle has
+   resolved the stale rows and cleared the dim. */
+.pr-multi-select__table--inert {
   pointer-events: none;
 }
 

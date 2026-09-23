@@ -1007,14 +1007,22 @@ function resolveLiveSelection(): void {
 
 /**
  * Dim the table now, then recalculate once the marquee has settled (no change for 200ms).
- * Every path that clears `marqueeLive` also clears this timer (`clearMarqueeLive`,
- * `resetViewFromModel`), so the callback only ever fires while the marquee is still live.
+ * ponytail: settling mid-drag re-runs the ranked-window / virtualizer path for the full
+ * union on every ≥200ms pause — fine for typical selections, but a 100k-event marquee
+ * that the pointer hesitates over pays one remap per pause. Upgrade: resolve only on
+ * commit (keep dimmed for the whole live preview) or cap the settle remap when
+ * `livePreviewCount` exceeds the ranked window.
  */
 function scheduleMultiSelectSettle(): void {
   multiSelectDimmed.value = true;
   clearMultiSelectDimTimer();
   multiSelectDimTimer = setTimeout(() => {
     multiSelectDimTimer = null;
+    // A fired-but-not-yet-run timer is not dequeued by `clearTimeout`: commit can land
+    // between the timer firing and this callback running, having already cleared
+    // `livePreviewIds` and set `marqueeLive` false. Guard so a stale settle never
+    // resolves `[]` over the just-committed selection.
+    if (!marqueeLive.value) return;
     resolveLiveSelection();
   }, MULTI_SELECT_SETTLE_MS);
 }
