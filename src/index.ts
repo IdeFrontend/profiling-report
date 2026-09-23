@@ -17,6 +17,7 @@ export {
   adaptPayloads,
   adaptRep,
   chromeTraceToSwimlane,
+  coreNameToPipeSide,
   emptyReportViewModel,
   isEmulateLeaf,
   isNpuRep,

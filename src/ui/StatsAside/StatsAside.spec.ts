@@ -312,6 +312,8 @@ describe('StatsAside', () => {
 
     await mix.get('[data-testid="pipe-occupancy"]');
     expect(mix.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
+    expect(mix.find('[data-testid="pipe-side-cube"]').exists()).toBe(true);
+    expect(mix.find('[data-testid="pipe-side-vector"]').exists()).toBe(true);
     let rows = mix.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Cube');
     expect(rows).toContain('MTE2');
@@ -338,6 +340,50 @@ describe('StatsAside', () => {
     expect(vectorRows).toContain('Vector');
     expect(vectorRows).toContain('MTE2');
     expect(vectorRows).not.toContain('Cube');
+  });
+
+  it('PR-STATS-036: emulate AIC|AIV0|AIV1 toggle filters by core (UI-54)', async () => {
+    const pipes = [
+      { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.264, colorKey: 'mte3', side: 'aiv1' as const },
+      { id: 'scalar', label: 'Scalar', ratio: 0.505, colorKey: 'scalar', side: 'aic' as const },
+      { id: 'scalar', label: 'Scalar', ratio: 0.484, colorKey: 'scalar', side: 'aiv0' as const },
+      { id: 'scalar', label: 'Scalar', ratio: 0.489, colorKey: 'scalar', side: 'aiv1' as const },
+    ];
+
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: pipes,
+        }),
+      },
+    });
+
+    await wrapper.get('[data-testid="pipe-occupancy"]');
+    expect(wrapper.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="pipe-side-aic"]').text()).toBe('AIC');
+    expect(wrapper.find('[data-testid="pipe-side-aiv0"]').text()).toBe('AIV0');
+    expect(wrapper.find('[data-testid="pipe-side-aiv1"]').text()).toBe('AIV1');
+
+    let rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('Scalar');
+    expect(rows).toContain('51'); // round(0.505*100)
+    expect(rows).not.toContain('19'); // aiv0 MTE3 ~19%
+    expect(rows).not.toContain('26'); // aiv1 MTE3
+
+    await wrapper.get('[data-testid="pipe-side-aiv0"]').trigger('click');
+    rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('MTE3');
+    expect(rows).toContain('19'); // round(0.1856*100)
+    expect(rows).not.toContain('26');
+    expect(rows).not.toContain('51');
+
+    await wrapper.get('[data-testid="pipe-side-aiv1"]').trigger('click');
+    rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('26'); // round(0.264*100)
+    expect(rows).not.toContain('19');
   });
 
   it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {

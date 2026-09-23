@@ -1,0 +1,176 @@
+/**
+ * Emulate PIPE occupancy mappers — PipeUtilizationHist / PipesUtilization → pipeOccupancy.
+ * CoreName drives side (aic|aiv0|aiv1); never average across AIV cores ([UI-54](../../docs/context/decisions/UI.md)).
+ */
+
+import type { PipeOccupancyItem, PipeOccupancySide } from '../domain/types';
+
+function decodeUtf8(bytes: Uint8Array): string {
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+/** Naive CSV split (no quoted-field support); strips BOM; trims cells. */
+function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .map((l) => l.trimEnd())
+    .filter((l) => l.length > 0);
+  if (lines.length === 0) return { headers: [], rows: [] };
+  const headers = lines[0].split(',').map((h) => h.trim());
+  const rows = lines.slice(1).map((line) => {
+    const cols = line.split(',');
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => {
+      row[h] = (cols[i] ?? '').trim();
+    });
+    return row;
+  });
+  return { headers, rows };
+}
+
+const PIPE_NAME_MAP: {
+  match: RegExp;
+  id: string;
+  label: string;
+  colorKey: string;
+}[] = [
+  { match: /^cube$/i, id: 'cube', label: 'Cube', colorKey: 'cube' },
+  { match: /^vector$|^vec$|^simd$/i, id: 'vector', label: 'Vector', colorKey: 'vector' },
+  { match: /^simt$/i, id: 'simt', label: 'SIMT', colorKey: 'default' },
+  { match: /^mte1$/i, id: 'mte1', label: 'MTE1', colorKey: 'mte1' },
+  { match: /^mte2$/i, id: 'mte2', label: 'MTE2', colorKey: 'mte2' },
+  { match: /^mte3$/i, id: 'mte3', label: 'MTE3', colorKey: 'mte3' },
+  { match: /^fixp$|^fixpipe$/i, id: 'fixp', label: 'FixP', colorKey: 'fixp' },
+  { match: /^scalar$/i, id: 'scalar', label: 'Scalar', colorKey: 'scalar' },
+  { match: /^icache/i, id: 'icache', label: 'ICache Miss', colorKey: 'default' },
+];
+
+function normalizeRatio(raw: number): number | null {
+  if (!Number.isFinite(raw)) return null;
+  if (raw < 0) return null;
+  // Accept 0..1 or 0..100 (%)
+  if (raw > 1 && raw <= 100) return raw / 100;
+  if (raw > 100) return null;
+  return raw;
+}
+
+function mapPipeName(name: string): (typeof PIPE_NAME_MAP)[number] | null {
+  const trimmed = name.trim();
+  for (const entry of PIPE_NAME_MAP) {
+    if (entry.match.test(trimmed)) return entry;
+  }
+  return null;
+}
+
+/** Map CoreName / CoreTypes label → emulate PIPE side (UI-54). */
+export function coreNameToPipeSide(raw: string): PipeOccupancySide | null {
+  const v = raw.trim().toLowerCase();
+  if (!v) return null;
+  if (v === 'aic' || v === 'cube') return 'aic';
+  if (v === 'aiv0' || v === 'vector0' || v === 'vec0') return 'aiv0';
+  if (v === 'aiv1' || v === 'vector1' || v === 'vec1') return 'aiv1';
+  if (v.includes('aiv0')) return 'aiv0';
+  if (v.includes('aiv1')) return 'aiv1';
+  if (v === 'aiv' || v.includes('vector')) return 'aiv0';
+  if (v.includes('aic') || v.includes('cube')) return 'aic';
+  return null;
+}
+
+function accumulate(
+  acc: Map<string, { item: PipeOccupancyItem; sum: number; n: number }>,
+  item: PipeOccupancyItem,
+): void {
+  const key = `${item.side ?? 'x'}:${item.id}`;
+  const prev = acc.get(key);
+  if (prev) {
+    prev.sum += item.ratio;
+    prev.n += 1;
+    prev.item.ratio = prev.sum / prev.n;
+  } else {
+    acc.set(key, { sum: item.ratio, n: 1, item: { ...item } });
+  }
+}
+
+/**
+ * Map `PipeUtilizationHist.csv` (PipeName, CoreName, Utilization) → pipeOccupancy.
+ * Acc key = `${coreSide}:${pipeId}` — AIV0 and AIV1 stay separate (UI-54).
+ */
+export function pipeOccupancyFromHist(payload?: Uint8Array): PipeOccupancyItem[] {
+  if (!payload) return [];
+  const { rows } = parseCsv(decodeUtf8(payload));
+  const acc = new Map<string, { item: PipeOccupancyItem; sum: number; n: number }>();
+  for (const row of rows) {
+    const name = row.PipeName ?? row.pipeName ?? '';
+    const mapped = mapPipeName(name);
+    if (!mapped) continue;
+    const side = coreNameToPipeSide(row.CoreName ?? row.coreName ?? '');
+    if (side == null) continue;
+    const ratio = normalizeRatio(Number(row.Utilization ?? row.utilization ?? row.PipeUtilization));
+    if (ratio == null) continue;
+    accumulate(acc, {
+      id: mapped.id,
+      label: mapped.label,
+      ratio,
+      colorKey: mapped.colorKey,
+      side,
+    });
+  }
+  return [...acc.values()].map((v) => v.item);
+}
+
+/** Build id→name map from a two-column dictionary CSV. */
+function idNameMap(
+  payload: Uint8Array | undefined,
+  [idCol, nameCol]: [string, string],
+): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!payload) return out;
+  const { rows } = parseCsv(decodeUtf8(payload));
+  for (const row of rows) {
+    const id = (row[idCol] ?? Object.values(row)[0] ?? '').trim();
+    const name = (row[nameCol] ?? Object.values(row)[1] ?? '').trim();
+    if (id && name) out.set(id, name);
+  }
+  return out;
+}
+
+/**
+ * Map `PipesUtilization.csv` (CoreId, CoreTypeId, InstrQueueTypeId, PipeUtilization).
+ * Join `InstrQueueTypes` / `CoreTypes` when present. Prefer hist when both exist.
+ */
+export function pipeOccupancyFromPipesUtilization(
+  payload?: Uint8Array,
+  dicts?: { queueTypes?: Uint8Array; coreTypes?: Uint8Array },
+): PipeOccupancyItem[] {
+  if (!payload) return [];
+  const queueNames = idNameMap(dicts?.queueTypes, [
+    'InstrQueueTypeId',
+    'InstrQueueTypeName',
+  ]);
+  const coreNames = idNameMap(dicts?.coreTypes, ['CoreTypeId', 'CoreTypeName']);
+  const { rows } = parseCsv(decodeUtf8(payload));
+  const acc = new Map<string, { item: PipeOccupancyItem; sum: number; n: number }>();
+  for (const row of rows) {
+    const queueRaw = (row.InstrQueueTypeId ?? row.PipeName ?? '').trim();
+    if (!queueRaw) continue;
+    const queueLabel = queueNames.get(queueRaw) ?? queueRaw;
+    const mapped = mapPipeName(queueLabel);
+    // Skip bare integer FKs that did not resolve to a known pipe family.
+    if (!mapped && /^\d+$/.test(queueRaw) && !queueNames.has(queueRaw)) continue;
+    if (!mapped && /^\d+$/.test(queueLabel)) continue;
+
+    const coreRaw = (row.CoreTypeId ?? row.CoreName ?? '').trim();
+    const coreLabel = coreNames.get(coreRaw) ?? coreRaw;
+    const side = coreNameToPipeSide(coreLabel);
+    if (side == null) continue;
+
+    const id = mapped?.id ?? `q${queueLabel}`;
+    const label = mapped?.label ?? queueLabel;
+    const colorKey = mapped?.colorKey ?? 'default';
+    const ratio = normalizeRatio(Number(row.PipeUtilization ?? row.Utilization));
+    if (ratio == null) continue;
+    accumulate(acc, { id, label, ratio, colorKey, side });
+  }
+  return [...acc.values()].map((v) => v.item);
+}

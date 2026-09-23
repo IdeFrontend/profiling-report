@@ -57,8 +57,18 @@ const emit = defineEmits<{
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
 }>();
 
-type PipeSide = 'cube' | 'vector';
+type PipeSide = 'cube' | 'vector' | 'aic' | 'aiv0' | 'aiv1';
 type AsideSurface = 'report' | 'compute' | 'memory' | 'hardware';
+
+const PIPE_SIDE_ORDER: PipeSide[] = ['cube', 'vector', 'aic', 'aiv0', 'aiv1'];
+const EMULATE_PIPE_SIDES: PipeSide[] = ['aic', 'aiv0', 'aiv1'];
+const PIPE_SIDE_LABEL: Record<PipeSide, string> = {
+  cube: 'Cube',
+  vector: 'Vector',
+  aic: 'AIC',
+  aiv0: 'AIV0',
+  aiv1: 'AIV1',
+};
 
 const COLOR: Record<string, string> = {
   cube: 'var(--pr-color-cube)',
@@ -411,11 +421,37 @@ function resolveKnownSide(raw: string): PipeSide | null {
 const knownSide = computed(() => resolveKnownSide(opType.value));
 const pipeSide = ref<PipeSide>('cube');
 
+/** Distinct sides present in scoped PIPE rows, stable order (UI-54). */
+const pipeSideOptions = computed((): PipeSide[] => {
+  const present = new Set<PipeSide>();
+  for (const p of scopedPipeOccupancy.value) {
+    if (p.side && (PIPE_SIDE_ORDER as string[]).includes(p.side)) {
+      present.add(p.side as PipeSide);
+    }
+  }
+  return PIPE_SIDE_ORDER.filter((s) => present.has(s));
+});
+
+/** Emulate multi-core: ≥2 of aic|aiv0|aiv1 — show AIC|AIV0|AIV1 toggle (UI-54). */
+const isEmulatePipeCores = computed(() => {
+  const n = pipeSideOptions.value.filter((s) => EMULATE_PIPE_SIDES.includes(s)).length;
+  return n >= 2;
+});
+
+const showPipeSideToggle = computed(() => isMix.value || isEmulatePipeCores.value);
+
 watch(
-  () => [isMix.value, knownSide.value] as const,
-  ([mix, side]) => {
-    if (mix) pipeSide.value = 'cube';
-    else if (side) pipeSide.value = side;
+  () =>
+    [isMix.value, knownSide.value, isEmulatePipeCores.value, pipeSideOptions.value] as const,
+  ([mix, side, emulateCores, options]) => {
+    if (mix) {
+      pipeSide.value = options.includes('cube') ? 'cube' : (options[0] ?? 'cube');
+    } else if (emulateCores) {
+      const preferred = EMULATE_PIPE_SIDES.find((s) => options.includes(s));
+      pipeSide.value = preferred ?? options[0] ?? 'aic';
+    } else if (side) {
+      pipeSide.value = side;
+    }
   },
   { immediate: true },
 );
@@ -426,7 +462,9 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
 
 const visiblePipes = computed(() => {
   const all = scopedPipeOccupancy.value;
-  if (isMix.value) return all.filter((p) => matchesSide(p, pipeSide.value));
+  if (isMix.value || isEmulatePipeCores.value) {
+    return all.filter((p) => matchesSide(p, pipeSide.value));
+  }
   if (knownSide.value == null) return all;
   return all.filter((p) => matchesSide(p, knownSide.value!));
 });
@@ -959,29 +997,22 @@ function backToReport() {
             />
           </div>
           <div
-            v-if="isMix"
+            v-if="showPipeSideToggle"
             class="pr-pipe-toggle"
             data-testid="pipe-side-toggle"
             role="group"
             :aria-label="t('pipeSide', locale)"
           >
             <button
+              v-for="side in pipeSideOptions"
+              :key="side"
               type="button"
               class="pr-pipe-toggle__btn"
-              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'cube' }"
-              data-testid="pipe-side-cube"
-              @click="pipeSide = 'cube'"
+              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === side }"
+              :data-testid="`pipe-side-${side}`"
+              @click="pipeSide = side"
             >
-              Cube
-            </button>
-            <button
-              type="button"
-              class="pr-pipe-toggle__btn"
-              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === 'vector' }"
-              data-testid="pipe-side-vector"
-              @click="pipeSide = 'vector'"
-            >
-              Vector
+              {{ PIPE_SIDE_LABEL[side] }}
             </button>
           </div>
           <div class="pr-pipe-chart">

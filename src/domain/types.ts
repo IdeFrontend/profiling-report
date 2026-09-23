@@ -158,16 +158,20 @@ export interface ComputeCardModel {
   sides: ComputeSideRow[];
 }
 
+/** PIPE bar toggle group: compute Cube|Vector, or emulate AIC|AIV0|AIV1 ([UI-54](../../docs/context/decisions/UI.md)). */
+export type PipeOccupancySide = 'cube' | 'vector' | 'aic' | 'aiv0' | 'aiv1';
+
 export interface PipeOccupancyItem {
   id: string;
   label: string;
   ratio: number;
   colorKey: string;
   /**
-   * M1 Cube|Vector toggle grouping (`v930/compute-load`).
-   * Cube uses `aic_*` columns; Vector uses `aiv_*` — never blend across sides.
+   * Toggle grouping (`v930/compute-load` / UI-54).
+   * Compute: Cube = `aic_*`, Vector = `aiv_*` — never blend across sides.
+   * Emulate: `aic` / `aiv0` / `aiv1` from hist `CoreName` — never average AIV cores.
    */
-  side?: 'cube' | 'vector';
+  side?: PipeOccupancySide;
   /** Mean non-NA `*_time(us)` for this family (DATA-33f); omit when all NA. */
   absoluteValue?: number;
 }

@@ -47,3 +47,8 @@ export {
 export { buildMemoryTopology, buildMemoryTopologyFromCategories } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';
+export {
+  coreNameToPipeSide,
+  pipeOccupancyFromHist,
+  pipeOccupancyFromPipesUtilization,
+} from './pipeOccupancyEmulate';
