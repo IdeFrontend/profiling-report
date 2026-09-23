@@ -189,8 +189,8 @@ Format and statuses: [README.md](README.md).
 
 ## UI-55
 
-- **Resolved:** 2026-09-23
+- **Resolved:** 2026-09-23 (amended same day)
 - **Question:** When emulate packs `PipeUtilizationHist.csv`, how should compute-load **详情** present pipe util — and should `PipeUtilization.csv` still appear?
-- **Decision:** Prefer **`PipeUtilizationHist`**: flatten each hist row into a key→value field with key `` `{PipeName}_{CoreName}` `` (e.g. `SCALAR_AIC`) and value = `Utilization` (file order; duplicate keys last-wins). Put that as one synthetic wide row in `computeTables`. When hist is present, **omit** `PipeUtilization.csv` from compute 详情. ArithmeticUtilization / ResourceConflictRatio tabs unchanged when those embeds exist.
-- **Specs:** [VIEW_DATA_MAPPING](../../ui/VIEW_DATA_MAPPING.md) §11.2.5.1, [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md) §9, [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-007`), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
-- **Source:** Product request in chat (2026-09-23): hist-only pipe tab with PipeName_CoreName KV.
+- **Decision:** Prefer **`PipeUtilizationHist`**. Project each hist row onto a sparse compute-like **`*_ratio`** key: prefix from `CoreName` (`AIC`→`aic_`, `AIV0`→`aiv0_`, `AIV1`→`aiv1_` — **never** average AIV cores into `aiv_*`); stem from `PipeName` (`CUBE`→`cube_ratio`, `SCALAR`→`scalar_ratio`, `FIXP`→`fixpipe_ratio`, `MTE1`/`MTE2`/`MTE3`→`mte*_ratio`, `SIMD`→`vec_ratio`, `SIMT`→`simt_ratio`). Value = Utilization as a **0..1** fraction. One synthetic wide row in `computeTables` (file order; duplicate keys last-wins). Do **not** invent times/cycles/stalls/BW. When hist is present, **omit** `PipeUtilization.csv` from compute 详情. ArithmeticUtilization / ResourceConflictRatio unchanged when present. PIPE bars stay [UI-54](./UI.md).
+- **Specs:** [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-007`), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
+- **Source:** Product request in chat (2026-09-23): compute-style keys with separate `aiv0_` / `aiv1_` prefixes (not `PipeName_CoreName`; not mean into `aiv_*`).

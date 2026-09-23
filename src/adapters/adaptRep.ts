@@ -933,7 +933,8 @@ export function overviewSeriesFromSampling(payload: Uint8Array | undefined): Ove
 }
 
 function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportViewModel {
-  // UI-55: when PipeUtilizationHist is present, flatten it for 详情 and omit PipeUtilization.csv.
+  // UI-55: when PipeUtilizationHist is present, project sparse aic_/aiv0_/aiv1_ *_ratio keys
+  // for 详情 and omit PipeUtilization.csv.
   const histPayload = payloadByName(payloads, ['PipeUtilizationHist.csv']);
   const histTable = csvTableFromPipeUtilizationHist(histPayload);
   const computeFileNames = histTable

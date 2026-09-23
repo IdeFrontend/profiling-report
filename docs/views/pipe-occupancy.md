@@ -93,14 +93,14 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/com
 | Tab | Source CSV |
 | --- | --- |
 | `PipeUtilization` | `PipeUtilization.csv` (compute; omitted when hist is present — [UI-55](../context/decisions/UI.md)) |
-| `PipeUtilizationHist` | `PipeUtilizationHist.csv` — preferred when present; fields are `` `{PipeName}_{CoreName}` `` → `Utilization` ([UI-55](../context/decisions/UI.md)) |
+| `PipeUtilizationHist` | `PipeUtilizationHist.csv` — preferred when present; sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys from Utilization ([UI-55](../context/decisions/UI.md)) |
 | `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
 | `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
 
 Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
 
 - Compute `PipeUtilization`: AIC group cycles / `*_time(us)` / `*_ratio` / …; AIV group same; display `NA` when absent.
-- Emulate hist ([UI-55](../context/decisions/UI.md)): one synthetic row whose headers are `PipeName_CoreName` (e.g. `SCALAR_AIC`, `MTE3_AIV0`) in file order.
+- Emulate hist ([UI-55](../context/decisions/UI.md)): one synthetic row of projected ratio keys (e.g. `aic_scalar_ratio`, `aiv0_vec_ratio`, `aiv1_mte3_ratio`) in file order; values 0..1; no times/cycles.
 - Hide a tab when its CSV is missing from the report.
 
 ## Emulate fill

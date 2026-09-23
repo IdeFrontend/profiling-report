@@ -130,6 +130,7 @@ describe('CsvFieldListPanel', () => {
     expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
   });
 
+<<<<<<< HEAD
   it('PR-CSV-007: ArchDiagramMetrics EAV pivots to parameterName → value (deduped)', () => {
     const archTables: CsvTableModel[] = [
       {
@@ -197,12 +198,12 @@ describe('CsvFieldListPanel', () => {
     expect(wide.find('[data-testid="csv-view-all"]').exists()).toBe(true);
   });
 
-  it('PR-CSV-009: PipeUtilizationHist tab label and PipeName_CoreName fields (UI-55)', () => {
+  it('PR-CSV-009: PipeUtilizationHist tab label and aic_/aiv0_ ratio fields (UI-55)', () => {
     const histTables: CsvTableModel[] = [
       {
         fileName: 'PipeUtilizationHist.csv',
-        headers: ['SCALAR_AIC', 'SCALAR_AIV0'],
-        rows: [{ SCALAR_AIC: '50.522', SCALAR_AIV0: '48.385' }],
+        headers: ['aic_scalar_ratio', 'aiv0_scalar_ratio'],
+        rows: [{ aic_scalar_ratio: '0.50522', aiv0_scalar_ratio: '0.48385' }],
         blockIds: [],
       },
     ];
@@ -218,8 +219,8 @@ describe('CsvFieldListPanel', () => {
     expect(wrapper.get('[data-testid="csv-tab-PipeUtilizationHist.csv"]').text()).toBe(
       'PipeUtilizationHist',
     );
-    expect(wrapper.text()).toContain('SCALAR_AIC');
-    expect(wrapper.text()).toContain('50.522');
-    expect(wrapper.text()).toContain('SCALAR_AIV0');
+    expect(wrapper.text()).toContain('aic_scalar_ratio');
+    expect(wrapper.text()).toContain('0.50522');
+    expect(wrapper.text()).toContain('aiv0_scalar_ratio');
   });
 });

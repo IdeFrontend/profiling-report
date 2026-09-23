@@ -1,7 +1,7 @@
 /**
  * Emulate PIPE occupancy mappers — PipeUtilizationHist / PipesUtilization → pipeOccupancy.
  * CoreName drives side (aic|aiv0|aiv1); never average across AIV cores ([UI-54](../../docs/context/decisions/UI.md)).
- * Hist 详情: flatten to PipeName_CoreName key→value ([UI-55](../../docs/context/decisions/UI.md)).
+ * Hist 详情: project Utilization onto sparse aic_/aiv0_/aiv1_ *_ratio keys ([UI-55](../../docs/context/decisions/UI.md)).
  */
 
 import type { CsvTableModel, PipeOccupancyItem, PipeOccupancySide } from '../domain/types';
@@ -121,8 +121,8 @@ export function pipeOccupancyFromHist(payload?: Uint8Array): PipeOccupancyItem[]
 }
 
 /**
- * Flatten `PipeUtilizationHist.csv` into one wide row for compute 详情 KV list (UI-55).
- * Header = `{PipeName}_{CoreName}` (producer casing); file order; duplicate keys last-wins.
+ * Project `PipeUtilizationHist.csv` into one wide row of compute-like `*_ratio` keys (UI-55).
+ * Prefix from CoreName (`aic` / `aiv0` / `aiv1`); stem from PipeName; values 0..1.
  */
 export function csvTableFromPipeUtilizationHist(
   payload?: Uint8Array,
@@ -134,11 +134,16 @@ export function csvTableFromPipeUtilizationHist(
   for (const row of rows) {
     const pipe = (row.PipeName ?? row.pipeName ?? '').trim();
     const core = (row.CoreName ?? row.coreName ?? '').trim();
-    if (!pipe || !core) continue;
-    const key = `${pipe}_${core}`;
-    const value = (row.Utilization ?? row.utilization ?? row.PipeUtilization ?? '').trim();
+    const prefix = corePrefix(core);
+    const stem = pipeRatioStem(pipe);
+    if (prefix == null || stem == null) continue;
+    const ratio = normalizeRatio(
+      Number(row.Utilization ?? row.utilization ?? row.PipeUtilization),
+    );
+    if (ratio == null) continue;
+    const key = `${prefix}_${stem}`;
     if (!(key in wide)) headers.push(key);
-    wide[key] = value;
+    wide[key] = String(ratio);
   }
   if (headers.length === 0) return null;
   return {
@@ -147,6 +152,31 @@ export function csvTableFromPipeUtilizationHist(
     rows: [wide],
     blockIds: [],
   };
+}
+
+/** CoreName → key prefix (UI-55); never collapse AIV0/AIV1 into `aiv`. */
+function corePrefix(raw: string): 'aic' | 'aiv0' | 'aiv1' | null {
+  const v = raw.trim().toLowerCase();
+  if (!v) return null;
+  if (v === 'aic' || v === 'cube') return 'aic';
+  if (v === 'aiv0' || v === 'vector0' || v === 'vec0' || v.includes('aiv0')) return 'aiv0';
+  if (v === 'aiv1' || v === 'vector1' || v === 'vec1' || v.includes('aiv1')) return 'aiv1';
+  if (v.includes('aic') || v.includes('cube')) return 'aic';
+  return null;
+}
+
+/** PipeName → ratio stem aligned with compute PIPE_COLUMNS naming (UI-55). */
+function pipeRatioStem(raw: string): string | null {
+  const v = raw.trim().toLowerCase();
+  if (v === 'cube') return 'cube_ratio';
+  if (v === 'scalar') return 'scalar_ratio';
+  if (v === 'fixp' || v === 'fixpipe') return 'fixpipe_ratio';
+  if (v === 'mte1') return 'mte1_ratio';
+  if (v === 'mte2') return 'mte2_ratio';
+  if (v === 'mte3') return 'mte3_ratio';
+  if (v === 'simd' || v === 'vector' || v === 'vec') return 'vec_ratio';
+  if (v === 'simt') return 'simt_ratio';
+  return null;
 }
 
 /** Build id→name map from a two-column dictionary CSV. */

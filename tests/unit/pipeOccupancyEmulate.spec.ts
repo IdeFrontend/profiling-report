@@ -1,5 +1,5 @@
 /**
- * Emulate PIPE occupancy mappers (UI-54) + hist 详情 KV flatten (UI-55).
+ * Emulate PIPE occupancy mappers (UI-54) + hist 详情 compute-style ratio keys (UI-55).
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -41,22 +41,30 @@ describe('pipeOccupancyEmulate', () => {
     expect(aiv0?.ratio).not.toBeCloseTo((0.1856037341849896 + 0.2639724849527085) / 2, 5);
   });
 
-  it('csvTableFromPipeUtilizationHist flattens PipeName_CoreName KV in file order', () => {
+  it('csvTableFromPipeUtilizationHist projects aic_/aiv0_/aiv1_ *_ratio keys (UI-55)', () => {
     const csv = [
       'PipeName,CoreName,Utilization',
       'SCALAR,AIC,50.522',
       'SCALAR,AIV0,48.385',
+      'MTE3,AIV0,18.560',
       'MTE3,AIV1,26.397',
+      'SIMD,AIV0,17.295',
     ].join('\n');
     const table = csvTableFromPipeUtilizationHist(enc.encode(csv));
     expect(table?.fileName).toBe('PipeUtilizationHist.csv');
-    expect(table?.headers).toEqual(['SCALAR_AIC', 'SCALAR_AIV0', 'MTE3_AIV1']);
+    expect(table?.headers).toEqual([
+      'aic_scalar_ratio',
+      'aiv0_scalar_ratio',
+      'aiv0_mte3_ratio',
+      'aiv1_mte3_ratio',
+      'aiv0_vec_ratio',
+    ]);
     expect(table?.rows).toHaveLength(1);
-    expect(table?.rows[0]).toEqual({
-      SCALAR_AIC: '50.522',
-      SCALAR_AIV0: '48.385',
-      MTE3_AIV1: '26.397',
-    });
+    expect(Number(table?.rows[0].aic_scalar_ratio)).toBeCloseTo(0.50522, 5);
+    expect(Number(table?.rows[0].aiv0_mte3_ratio)).toBeCloseTo(0.1856, 4);
+    expect(Number(table?.rows[0].aiv1_mte3_ratio)).toBeCloseTo(0.26397, 4);
+    expect(table?.rows[0].aiv_mte3_ratio).toBeUndefined();
+    expect(table?.headers.some((h) => h.includes('SCALAR_AIC'))).toBe(false);
     expect(table?.blockIds).toEqual([]);
   });
 
@@ -79,7 +87,7 @@ describe('pipeOccupancyEmulate', () => {
     expect(mte3.find((p) => p.side === 'aiv1')?.ratio).toBeCloseTo(0.264, 4);
   });
 
-  it('adaptPayloads: hist only → computeTables hist KV, no PipeUtilization.csv', () => {
+  it('adaptPayloads: hist only → computeTables projected ratios, no PipeUtilization.csv', () => {
     const hist = [
       'PipeName,CoreName,Utilization',
       'SCALAR,AIC,50.0',
@@ -99,8 +107,12 @@ describe('pipeOccupancyEmulate', () => {
     const histTab = adapted.reportModel.computeTables.find(
       (t) => t.fileName === 'PipeUtilizationHist.csv',
     );
-    expect(histTab?.headers).toEqual(['SCALAR_AIC', 'SCALAR_AIV0', 'SCALAR_AIV1']);
-    expect(histTab?.rows[0]?.SCALAR_AIC).toBe('50.0');
+    expect(histTab?.headers).toEqual([
+      'aic_scalar_ratio',
+      'aiv0_scalar_ratio',
+      'aiv1_scalar_ratio',
+    ]);
+    expect(Number(histTab?.rows[0]?.aic_scalar_ratio)).toBeCloseTo(0.5, 10);
     expect(adapted.reportModel.csvTexts['PipeUtilizationHist.csv']).toContain('SCALAR,AIC,50.0');
   });
 
@@ -113,7 +125,7 @@ describe('pipeOccupancyEmulate', () => {
     });
     const names = adapted.reportModel.computeTables.map((t) => t.fileName);
     expect(names).toEqual(['PipeUtilizationHist.csv']);
-    expect(adapted.reportModel.computeTables[0].headers).toEqual(['SCALAR_AIC']);
+    expect(adapted.reportModel.computeTables[0].headers).toEqual(['aic_scalar_ratio']);
   });
 
   it('adaptPayloads: PipeUtilization.csv only → unchanged compute tab', () => {
