@@ -7,15 +7,19 @@ Extracted surfaces (sketches + VM + compute/emulate fill):
 | Id | Packet |
 |----|--------|
 | `timeline` | [../views/timeline.md](../views/timeline.md) |
+| `event-details` | [../views/event-details.md](../views/event-details.md) |
 | `report-summary` | [../views/report-summary.md](../views/report-summary.md) |
+| `hardware-details` | [../views/hardware-details.md](../views/hardware-details.md) |
 | `pipe-occupancy` | [../views/pipe-occupancy.md](../views/pipe-occupancy.md) |
 | `overview-charts` | [../views/overview-charts.md](../views/overview-charts.md) |
 | `roofline` | [../views/roofline.md](../views/roofline.md) |
 | `memory-topology` | [../views/memory-topology.md](../views/memory-topology.md) |
+| `arch-diagram` | [../views/arch-diagram.md](../views/arch-diagram.md) |
+| `performance-hints` | [../views/performance-hints.md](../views/performance-hints.md) |
 
-**Still on this page until a second extract pass** (same hide policy [DATA-30](../context/decisions/DATA.md)): time axis, lane gutter, swimlane canvas, event tooltip/detail strip, compute/memory CSV tabs, hardware details, measure mode, secondary tabs — see historical sections below or [views README stubs](../views/README.md).
+**Still on this page until a second extract pass** (same hide policy [DATA-30](../context/decisions/DATA.md)): time axis, lane gutter, swimlane canvas, measure mode, secondary tabs — see historical sections below or [views README stubs](../views/README.md). (Hardware, CSV tabs, and event/Relevant details are in view packets.)
 
-Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). Docx/sketch index: [`../ui/VIEW_DATA_MAPPING.md`](../ui/VIEW_DATA_MAPPING.md).
+Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). Product § indexes: [`../views/product-sections.md`](../views/product-sections.md); catalog: [`../views/README.md`](../views/README.md).
 
 ---
 
@@ -52,37 +56,9 @@ Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). D
 | `SwimEvent` | **Required** (empty trace → empty lanes) |
 | `dependencies` | **Optional** — P2 |
 
-### 6. Event tooltip + detail strip
-
-| Input | Requirement |
-|-------|-------------|
-| Hovered/selected event name + timing | **Required** for tooltip |
-| Source paths / PC / dep mini-graph | **Optional** — P2 |
-
-### 9. Compute-load detail tabs — M1
-
-| Input | Requirement |
-|-------|-------------|
-| Tabs | Compute: `PipeUtilization` / Arithmetic / ResourceConflict; emulate: `PipesUtilization` / hist when packed |
-| Hide | Missing CSV → hide tab |
-
-### 12. Memory detail tabs — M1
-
-| Input | Requirement |
-|-------|-------------|
-| Tabs | Memory L1 / L2Cache / L0 / UB |
-| Emulate | **hide** Sept 30 (gap) |
-
 ### 13. Timeline time-range measure — M2
 
 See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
-
-### 14. Hardware details — M1
-
-| Input | Requirement |
-|-------|-------------|
-| `hardwareDetails` | HardwareInfo.jsonl or OpBasicInfo fallback |
-| Emulate | usually **omit** |
 
 ### 15. Secondary tabs
 

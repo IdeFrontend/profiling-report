@@ -50,7 +50,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Dependencies
 
-[view-models](../../../../specs/core/view-models.spec.md), DATA-37a–f, [VIEW_DATA_MAPPING §11.2.4](../../../../docs/ui/VIEW_DATA_MAPPING.md).
+[view-models](../../../../specs/core/view-models.spec.md), DATA-37a–f, [roofline](../../../../docs/views/roofline.md#tabs-fields).
 
 ## Changelog
 

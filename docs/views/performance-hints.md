@@ -23,8 +23,11 @@ List simulator performance hints for the open emulate kernel: advice text, the s
 
 | Field | Role | Required? |
 |-------|------|-----------|
-| Hint rows | Message text, optional source line, optional instruction address | **Required to show** |
-| Kernel-only rows | Message with no line and no address | Optional |
+| `hintRows[]` (planned) | Rows for the 性能分析 table | **Required to show** |
+| `hintRows[].message` | Hint Message column | Required per row |
+| `hintRows[].sourceLine` | Source Line column | Optional |
+| `hintRows[].instructionAddress` | Instruction Address column | Optional |
+| `hintRows[].kind` | `instruction` \| `sourceLine` \| `kernel` | Optional (for grouping) |
 
 ## Hide rule
 
@@ -32,32 +35,79 @@ No joined hint rows → **hide** the panel ([DATA-30](../context/decisions/DATA.
 
 ## Compute fill
 
-| Adapted field | Embed | Columns / notes | Schema SSOT |
-|---------------|-------|-----------------|-------------|
-| — | — | No compute equivalent | — |
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| — | — | — | No compute equivalent |
 
 ## Emulate fill
 
-Join on gelu ([TABLES](../formats/emulate/TABLES.md)):
+Schemas: [SCHEMA](../formats/emulate/SCHEMA.md) (`HintMessages`, `HintTypes`, `InstructionHints`, `KernelHints`, `SourceLineHints`, `SourceLines`). Pack status: [TABLES](../formats/emulate/TABLES.md). **Mapper not wired yet** — joins below are the planned contract for `adaptEmulate`.
 
-| Adapted field | Embed | Columns / notes | Status |
-|---------------|-------|-----------------|--------|
-| Message | `HintMessages.csv` + `HintTypes.csv` | `HintMsgId` → `HintMsgText`; `HintTypeId` → `HintTypeName` | `adapt-mapper` (planned) |
-| Instruction address | `InstructionHints.csv` | `PC` + `HintMsgId` / `HintTypeId` | `adapt-mapper` (planned) |
-| Source line | `SourceLineHints.csv` | `SourceLineId` + message; line number needs `SourceLines` when that table is packed | `gap` on gelu — `SourceLines` is empty |
-| Kernel hints | `KernelHints.csv` | Message only (no PC, no source line) | `adapt-mapper` (planned) |
+### Embeds involved
 
-`HintMessages`, `InstructionHints`, `KernelHints`, and `SourceLineHints` are packed on `gelu.npu-rep` even though the export catalog records `row_count` 0.
+| Embed | Role |
+|-------|------|
+| `HintMessages.csv` | Message dictionary (`HintMsgId` → `HintMsgText`) |
+| `HintTypes.csv` | Type dictionary (`HintTypeId` → `HintTypeName`, `HintPassed`) |
+| `InstructionHints.csv` | Fact: hint per PC |
+| `SourceLineHints.csv` | Fact: hint per source-line id |
+| `KernelHints.csv` | Fact: kernel-level hint (no PC, no line) |
+| `SourceLines.csv` | Line display text (`SourceLineId` → `SourceLine`) — often empty without `--object-file` |
+
+Optional pre-joined producer views (`InstructionHintsView`, `SourceLineHintsView`, `KernelHintsView`) may already carry `HintMsgText`; prefer raw tables + joins unless a packed view is present and complete.
+
+### Join graph
+
+```text
+InstructionHints ──HintMsgId──► HintMessages.HintMsgText
+       │
+       ├──HintTypeId──► HintTypes.HintTypeName
+       └──PC (display as instruction address; no further join)
+
+SourceLineHints ──HintMsgId──► HintMessages.HintMsgText
+       │
+       ├──HintTypeId──► HintTypes.HintTypeName
+       └──SourceLineId──► SourceLines.SourceLine   ← gap when SourceLines empty
+
+KernelHints ──HintMsgId──► HintMessages.HintMsgText
+       └──HintTypeId──► HintTypes.HintTypeName
+```
+
+### Join keys (normative)
+
+| From embed | Key column | To embed | To column | Result column |
+|------------|------------|----------|-----------|---------------|
+| `InstructionHints` / `SourceLineHints` / `KernelHints` | `HintMsgId` | `HintMessages` | `HintMsgId` | `HintMsgText` |
+| same fact tables | `HintTypeId` | `HintTypes` | `HintTypeId` | `HintTypeName` (optional UI) |
+| `SourceLineHints` | `SourceLineId` | `SourceLines` | `SourceLineId` | `SourceLine` |
+| `InstructionHints` | `PC` | _(none)_ | — | display as instruction address |
+
+Equality join on integer ids. Drop a fact row if `HintMsgId` does not resolve (no message text). Missing `HintTypeId` is OK (message still shows). Missing `SourceLines` row → leave `sourceLine` empty (do not invent).
+
+### VM field ← source (derivation)
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| `hintRows[].message` | fact + `HintMessages` | `HintMsgId` | `HintMsgText`; optionally prefix/suffix with `HintTypeName` when `HintTypeId` resolves |
+| `hintRows[].instructionAddress` | `InstructionHints` | — | `PC` (format TBD in UI; raw integer until product specifies hex) |
+| `hintRows[].sourceLine` | `SourceLineHints` + `SourceLines` | `SourceLineId` | `SourceLines.SourceLine`; **gap** when `SourceLines` is empty / unpacked |
+| `hintRows[].kind` | which fact table produced the row | — | `instruction` from `InstructionHints`; `sourceLine` from `SourceLineHints`; `kernel` from `KernelHints` |
+| kernel-only row | `KernelHints` + `HintMessages` | `HintMsgId` | Message only; `sourceLine` and `instructionAddress` omitted |
+
+Union all three fact kinds into one `hintRows[]` (stable order: instruction → sourceLine → kernel, or product-defined). Deduping by `(kind, HintId)` if the same hint appears twice.
+
+`HintMessages`, `InstructionHints`, `KernelHints`, and `SourceLineHints` may be packed even when the export catalog records `row_count` 0.
 
 ## Adapter
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | — | Out of scope |
-| emulate | `adaptEmulate` | Not wired yet |
+| emulate | `adaptEmulate` (planned) | Not wired — no hint CSVs read today |
 
 ## Related
 
 - Plan: [milestone-4](../process/roadmap/milestone-4.md)
-- Schema: [SCHEMA](../formats/emulate/SCHEMA.md) `HintMessages`, `HintTypes`, `InstructionHints`, `KernelHints`, `SourceLineHints`
+- Schema: [SCHEMA](../formats/emulate/SCHEMA.md) hint tables
 - Sketch index: [DESIGN_INDEX](../ui/DESIGN_INDEX.md)
+- Catalog: [README](README.md)

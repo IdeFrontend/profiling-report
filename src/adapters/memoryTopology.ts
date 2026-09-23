@@ -41,7 +41,8 @@ const L2_HIT_RATE_COLUMNS = [
 
 type Unit = 'GB/s' | 'KB' | '%';
 
-/** VIEW_DATA_MAPPING §11.2.6 — first present non-NA candidate wins, unless `aggregate` says otherwise.
+/** memory-topology edge map — first present non-NA candidate wins, unless `aggregate` says otherwise.
+ * @see docs/views/memory-topology.md#edge-field-source
  *  Bare `*_read_bw` = leaving the named resource; `*_write_bw` = arriving there.
  *  Counterparty-suffix columns (`_bw_gm` / `_vector` / `_cube`) already name the other end. */
 const EDGE_MAP: {
@@ -339,7 +340,7 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
 }
 
 /**
- * Block-scoped memory topology from Memory* CSV tables (§11.2.6).
+ * Block-scoped memory topology from Memory* CSV tables (docs/views/memory-topology.md).
  * Product: hide `NA`; show 0. Omit the whole diagram when no edge has a label.
  */
 export function buildMemoryTopology(
