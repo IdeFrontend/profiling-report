@@ -39,7 +39,7 @@ flowchart LR
 
 ### Stubs (second pass)
 
-Surfaces still described in legacy [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) / [product-sections](product-sections.md#stub-event-details) until extracted: time axis, lane gutter, swimlane canvas, event tooltip / Relevant details, measure mode, secondary tabs. Intended sketches when known: `task-hover.jpeg`, `task-measure-mode.jpeg`, `detail-strip-raised.jpeg`.
+Surfaces still described in legacy [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) until extracted: time axis, lane gutter, swimlane canvas, measure mode, secondary tabs. Intended sketches when known: `task-hover.jpeg`, `task-measure-mode.jpeg`.
 
 ## Mockup index
 
