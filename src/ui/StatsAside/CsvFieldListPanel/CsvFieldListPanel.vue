@@ -228,7 +228,7 @@ function onViewAll() {
           :placeholder="t('searchPlaceholder', locale)"
         >
         <button
-          v-if="search.length > 0"
+          v-if="search.trim().length > 0"
           type="button"
           class="pr-csv__search-clear"
           data-testid="csv-search-clear"

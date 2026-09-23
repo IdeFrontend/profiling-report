@@ -71,6 +71,8 @@ describe('SummaryCategoryList', () => {
 
     await wrapper.get('[data-testid="summary-search"]').setValue('mte2');
     await wrapper.get('[data-testid="summary-category-tab-ArithmeticUtilization"]').trigger('click');
+    await wrapper.setProps({ activeId: 'ArithmeticUtilization' });
     expect(wrapper.get('[data-testid="summary-search"]').element).toHaveProperty('value', 'mte2');
+    expect(wrapper.find('[data-testid="summary-category-fields"]').findAll('li')).toHaveLength(0);
   });
 });

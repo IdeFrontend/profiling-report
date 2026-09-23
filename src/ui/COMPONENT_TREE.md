@@ -31,6 +31,7 @@ flowchart TB
   aside --> summary[StatsSummaryPanel]
   aside --> pipe[PipeOccupancyPanel]
   aside --> csv[CsvFieldListPanel]
+  aside --> summ[SummaryCategoryList]
   aside --> roof[RooflinePanel]
   aside --> mem[MemoryTopologyPanel]
   aside --> hw[HardwareDetailsPanel]
@@ -63,6 +64,7 @@ src/ui/
     StatsSummaryPanel/             ✓  v930/report-stats-open
     PipeOccupancyPanel/            ✓  v930/compute-load
     CsvFieldListPanel/             ✓  v930/compute-load-detail, memory-load-detail
+    SummaryCategoryList/           ✓  All-scope summary.jsonl detail (search + chips)
     RooflinePanel/                 ✓  v930/report-stats-open
     MemoryTopologyPanel/           ✓  v930/report-stats-scrolled (+ zoom/全屏 bar: v930-sim)
     HardwareDetailsPanel/          ✓  v930/hardware-more-detail

@@ -30,6 +30,7 @@ ProfilingReport
 │     ├─ StatsSummaryPanel
 │     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
 │     ├─ CsvFieldListPanel (compute + memory detail tabs M1)
+│     ├─ SummaryCategoryList (All-scope summary.jsonl detail M1)
 │     ├─ RooflinePanel (M2)
 │     ├─ MemoryTopologyPanel (M2)
 │     └─ HardwareDetailsPanel (M1 interim DATA-34a)

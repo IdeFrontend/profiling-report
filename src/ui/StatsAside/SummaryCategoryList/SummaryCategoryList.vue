@@ -126,7 +126,7 @@ const fields = computed(() => {
           :placeholder="t('searchPlaceholder', locale)"
         >
         <button
-          v-if="search.length > 0"
+          v-if="search.trim().length > 0"
           type="button"
           class="pr-summ__search-clear"
           data-testid="summary-search-clear"

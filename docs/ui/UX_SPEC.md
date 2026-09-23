@@ -98,7 +98,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter field labels; open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
 | **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
-| **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
+| **Components** | `PipeOccupancyPanel`; `SummaryCategoryList` (All); `CsvFieldListPanel` (picked block) — see [COMPONENTS](../architecture/COMPONENTS.md) |
 
 ### S6 — Analyze memory paths (M2)
 
@@ -324,7 +324,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | S2 navigate | Zoom/pan, time axis | `ReportToolbar`, `TimeAxis`, `SwimlaneCanvas` | `swimlane`, `general` |
 | S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailPanel` | `v930/task-hover`, `v930/detail-strip-raised` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
-| S5 pipe drill | PIPE bars M; compute/memory field lists M1 | `PipeOccupancyPanel`, `CsvFieldListPanel` | `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` |
+| S5 pipe drill | PIPE bars M; compute/memory field lists M1 | `PipeOccupancyPanel`, `SummaryCategoryList`, `CsvFieldListPanel` | `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` |
 | S6 memory | Memory topology M2 (zoom bar + 全屏) | `MemoryTopologyPanel` | `v930-sim/memory-topology-zoom`, `v930-sim/memory-topology-fullscreen` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
 | S8 deps / multi | Deps, multiselect, context menu P2 | `SwimlaneCanvas` (dep curves in renderer), etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
