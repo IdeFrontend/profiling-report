@@ -2599,7 +2599,6 @@ describe('SwimlaneCanvas', () => {
     await wrapper.vm.$nextTick();
     const r1 = vm.eventScreenRect('e1')!;
     const r2 = vm.eventScreenRect('e2')!;
-    const y = r2.y + r2.h / 2;
     const betweenX = (r1.x + r1.w + r2.x) / 2;
 
     await canvas.trigger('pointerdown', {
