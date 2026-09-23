@@ -30,7 +30,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Swimlane model.** Extracts the timeline via `chromeTraceToSwimlane`: `trace.json` with `sourceTimeUnit: 'ns'` (classic `.rep`), or `PipeTrace.json` with `sourceTimeUnit: 'us'` (product `npu-rep`; its `displayTimeUnit: "ns"` label is misleading — ts/dur are microseconds).
 
-**Overview series.** From product `Sampling.json` Chrome Trace `ph:"C"` counters ([DATA-39](../../docs/context/decisions/DATA.md)): one `OverviewSeries` per distinct counter `name` present (`id`/`label` = `name`); `points[{t,v}]` from `ts` (µs→canonical ns) and finite `args.value`. Empty when Sampling absent or no counters — hide UI ([DATA-32](../context/decisions/DATA.md)). Do not invent from `PipeUtilization`.
+**Overview series.** From product `Sampling.json` Chrome Trace `ph:"C"` counters ([DATA-39](../../docs/context/decisions/DATA.md)): one `OverviewSeries` per distinct counter `name` present (`id`/`label` = `name`); `points[{t,v}]` from `ts` (µs→canonical ns) and finite `args.value`. Empty when Sampling absent or no counters — hide UI ([DATA-32](../../docs/context/decisions/DATA.md)). Do not invent from `PipeUtilization`.
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3).
 
