@@ -20,7 +20,7 @@
     "dist"
   ],
   "bin": {
-    "npu-rep-html": "./scripts/generate-html-report.mjs"
+    "npu-rep-html": "./dist/npu-rep-html.mjs"
   },
   "scripts": {
     "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
@@ -32,7 +32,7 @@
     "prebuild:demo": "npm run sync:demo-fixtures",
     "build:demo": "vite build --config playground/vite.config.ts",
     "preview:demo": "vite preview --config playground/vite.config.ts --host 127.0.0.1 --port 4173",
-    "build:report-shell": "vite build --config report-shell/vite.config.ts && node scripts/inline-report-shell.mjs",
+    "build:report-shell": "vite build --config report-shell/vite.config.ts && node scripts/inline-report-shell.mjs && node scripts/pack-npu-rep-html.mjs",
     "generate:html-report": "node scripts/generate-html-report.mjs",
     "check:html-report": "node scripts/check-html-report.mjs",
     "typecheck": "vue-tsc -p tsconfig.lib.json --noEmit && vue-tsc -p tsconfig.app.json --noEmit",

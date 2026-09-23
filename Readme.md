@@ -47,20 +47,33 @@ Self-contained interactive HTML for local share-out and CI artifacts (not the MS
 npm run build:report-shell
 npm run generate:html-report -- path/to/report.npu-rep -o report.html
 # or: node scripts/generate-html-report.mjs path/to/report.npu-rep -o report.html
-# or (after npm link / npx): npu-rep-html path/to/report.npu-rep -o report.html
+# or (after build:report-shell + npm link): npu-rep-html path/to/report.npu-rep -o report.html
 ```
 
 Open `report.html` in a browser (`file://` works). Rebuild the shell when viewer code changes; the generate step only embeds report bytes into the prebuilt template.
 
-CI:
+### Zero-dep distribution
+
+`npm run build:report-shell` also writes **`dist/npu-rep-html.mjs`** (~1 MB): generator + embedded viewer shell in one ESM file. Copy that single file into CI or share it; consumers need only **Node ≥ 20** (no `npm install`, no sidecar template):
+
+```bash
+node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html
+# or anywhere after copying the file:
+node npu-rep-html.mjs path/to/report.npu-rep -o report.html
+```
+
+The standalone script is build output under `dist/` (gitignored), not committed.
+
+CI (in-repo):
 
 ```bash
 npm ci
 npm run build:report-shell
 npm run generate:html-report -- "$REPORT_PATH" -o artifacts/profiling-report.html
+# or: node dist/npu-rep-html.mjs "$REPORT_PATH" -o artifacts/profiling-report.html
 ```
 
-Smoke: `npm run check:html-report` (needs a prior `build:report-shell`).
+Smoke: `npm run check:html-report` (needs a prior `build:report-shell`; checks both the in-repo generator and `dist/npu-rep-html.mjs`).
 
 ## Demo (playground)
 
