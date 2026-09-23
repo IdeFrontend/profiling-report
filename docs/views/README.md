@@ -27,6 +27,7 @@ flowchart LR
 | Id | File | Phase | Unification | Sept 30 | Sketch (primary) |
 |----|------|-------|-------------|---------|------------------|
 | `timeline` | [timeline.md](timeline.md) | M | `same-path` | **in** | `entry.jpeg` / task-* |
+| `event-details` | [event-details.md](event-details.md) | M (+ Relevant P2) | `gap` | **thin** (CTEF strip) | `detail-strip-raised.jpeg` |
 | `report-summary` | [report-summary.md](report-summary.md) | M | `adapt-mapper` | **out** ([DATA-47](../context/decisions/DATA.md)) | `report-stats-open.jpeg` |
 | `hardware-details` | [hardware-details.md](hardware-details.md) | M1 | `adapt-mapper` | **out** with summary ([DATA-47](../context/decisions/DATA.md)) | `hardware-more-detail.jpeg` |
 | `pipe-occupancy` | [pipe-occupancy.md](pipe-occupancy.md) | M | `adapt-mapper` | **in** | `compute-load.jpeg` |

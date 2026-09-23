@@ -24,7 +24,7 @@ Design reference (docx): [HDesign mock](https://octo-g.hdesign.huawei.com/develo
 | 11.2.6.1 | Memory CSV details | [memory-topology § Details](memory-topology.md#memory-load-details) | Tabs / block / 查看全部 (same packet) |
 | 11.2.7 | Statistical analysis | [overview-charts](overview-charts.md) | Sampling.json + viz geometry in **Compute fill** |
 | 11.2.8 | Kernel block timeline | [timeline](timeline.md) | Sample CTEF binding in **Compute fill** |
-| 11.2.8.1 | Event / Relevant details | _(stub — [§ Event details](#stub-event-details))_ | No packet until Product defines payload |
+| 11.2.8.1 | Event / Relevant details | [event-details](event-details.md) | Mockup regions + CTEF gaps in **Compute fill** |
 
 <a id="emulate-profile"></a>
 
@@ -42,30 +42,6 @@ Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decis
 | 11.2.3.5 | Roofline | [roofline](roofline.md) | **hide** |
 | 11.2.3.2 | Memory Utilization Heatmap | _(reserved)_ | **out** ([DATA-49](../context/questions/DATA.md)) |
 | 11.2.3.3,7–8 | AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
-
----
-
-<a id="stub-event-details"></a>
-
-## Stub: Event / Relevant details — §11.2.8.1
-
-Only this surface still lacks a view packet. Hardware and compute/memory CSV details are in packets (see TOC above). Do **not** invent an Event packet until Product defines the payload.
-
-![Event details](../ui/source/v930/detail-strip-raised.jpeg)
-
-Docx table empty. Mockup layout:
-
-| Region | Content |
-| --- | --- |
-| Summary | Task name, subtype/tag, Start (ns) → Duration (ns) |
-| Parameters | `Code` (source paths), `Detail` (register/memory string), `Pc_addr`, `Process_bytes` |
-| Relevant | Local dependency graph: Incoming → Current → Outgoing; connection level control; optional edge badge (counts/latency) |
-
-**Interaction:** activated by clicking a timeline block (callout in mockup: 点击之后出现底部【详情】页面).
-
-**Gap:** these detail fields are not in sample `trace.json`; require a richer event payload or side table not defined in the docx.
-
-Open product questions: [context/questions/](../context/questions/).
 
 ## Related
 

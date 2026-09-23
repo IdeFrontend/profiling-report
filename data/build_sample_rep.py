@@ -141,7 +141,7 @@ def _x(pid, tid, name, ts, dur, event_id=None, deps=None, extra=None):
     return ev
 
 
-# Sketch Parameter column fields (product-sections §11.2.8.1 Event stub). op2 omits Code
+# Sketch Parameter column fields (event-details §11.2.8.1). op2 omits Code
 # paths so the ~150k-event fixture stays near ~30 MB.
 CODE_PATHS = [
     "/opt/ascend/tikcpp/impl/cube_op.cpp",

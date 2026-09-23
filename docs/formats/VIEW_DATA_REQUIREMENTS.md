@@ -7,6 +7,7 @@ Extracted surfaces (sketches + VM + compute/emulate fill):
 | Id | Packet |
 |----|--------|
 | `timeline` | [../views/timeline.md](../views/timeline.md) |
+| `event-details` | [../views/event-details.md](../views/event-details.md) |
 | `report-summary` | [../views/report-summary.md](../views/report-summary.md) |
 | `hardware-details` | [../views/hardware-details.md](../views/hardware-details.md) |
 | `pipe-occupancy` | [../views/pipe-occupancy.md](../views/pipe-occupancy.md) |
