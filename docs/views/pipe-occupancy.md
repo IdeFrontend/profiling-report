@@ -39,7 +39,7 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 
 **Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values. Use the column tables below — not a single combined bar list.
 
-**Emulate ([UI-54](../context/decisions/UI.md)):** when `pipeOccupancy` carries ≥2 of `side` `aic` / `aiv0` / `aiv1` (from `PipeUtilizationHist.csv` `CoreName` or `PipesUtilization` + `CoreTypes`), show **AIC | AIV0 | AIV1** with the same segmented-control chrome and filter bars by the active core. Do **not** average AIV0 with AIV1 into Vector. Cube|Vector remains compute-only.
+**Emulate ([UI-54](../context/decisions/UI.md)):** when `pipeOccupancy` carries ≥2 of `side` `aic` / `aiv0` / `aiv1` (from `PipeUtilizationHist.csv` `CoreName` or `PipesUtilization` + `CoreTypes`), show **Cube | Vector 0 | Vector 1** with the same segmented-control chrome and filter bars by the active core. Do **not** average AIV0 with AIV1 into Vector. Compute MIX Cube|Vector remains unchanged.
 
 <a id="vm-derivation"></a>
 

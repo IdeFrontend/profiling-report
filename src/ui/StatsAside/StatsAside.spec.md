@@ -58,7 +58,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 **Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized **and** occupancy is compute-shaped (`cube`/`vector` only): no toggle; show all PIPE bars (do not default-filter to vector).
 
-**AIC | AIV0 | AIV1 toggle ([UI-54](../../../docs/context/decisions/UI.md)).** When `pipeOccupancy` includes ≥2 of `side` `aic` / `aiv0` / `aiv1` (emulate hist/cores), show the same segmented-control chrome labeled **AIC | AIV0 | AIV1** and filter bars by the active core. Default active side = first present in order `aic`, `aiv0`, `aiv1`. Compute MIX Cube|Vector is unchanged and mutually exclusive with this emulate path in practice (sides do not mix).
+**Cube | Vector 0 | Vector 1 toggle ([UI-54](../../../docs/context/decisions/UI.md)).** When `pipeOccupancy` includes ≥2 of `side` `aic` / `aiv0` / `aiv1` (emulate hist/cores), show the same segmented-control chrome labeled **Cube | Vector 0 | Vector 1** and filter bars by the active core. Default active side = first present in order `aic`, `aiv0`, `aiv1`. Compute MIX Cube|Vector is unchanged and mutually exclusive with this emulate path in practice (sides do not mix).
 
 **Roofline (M2 interim — not in the current release).** The card is flag-gated: it mounts on the stack after the summary cards only when the host passes the opt-in `roofline` capability **and** the current points are non-empty (`report.roofline.points` under **All**, `rooflineFromRows` for a picked block) — DATA-37a–f. Without the capability the card never renders, points or not; the panel code and interim math stay in place. Hide on overlays and when absent. No tabs until DATA-37f superseded.
 
@@ -77,7 +77,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 1. **PR-STATS-001** — Renders summary stats.
 2. **PR-STATS-002** — Renders PIPE bars with correct colors.
 3. **PR-STATS-003** — Cube|Vector toggle appears only for MIX; filters bars by side.
-3b. **PR-STATS-036** — Emulate AIC|AIV0|AIV1 toggle when ≥2 core sides present; filters bars by core; does not appear for blank `opType` with only `cube`/`vector` sides ([UI-54](../../../docs/context/decisions/UI.md)).
+3b. **PR-STATS-036** — Emulate Cube|Vector 0|Vector 1 toggle when ≥2 core sides present; filters bars by core; does not appear for blank `opType` with only `cube`/`vector` sides ([UI-54](../../../docs/context/decisions/UI.md)).
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides (compute-shaped occupancy).
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
@@ -137,7 +137,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 | Empty pipeOccupancy | No bars; summary still visible if present |
 | Non-MIX known opType | No Cube|Vector toggle; side-filtered bars |
 | Blank/unrecognized opType (cube/vector sides) | Show all PIPE bars |
-| Emulate ≥2 of aic/aiv0/aiv1 | AIC\|AIV0\|AIV1 toggle; filter by active core |
+| Emulate ≥2 of aic/aiv0/aiv1 | Cube\|Vector 0\|Vector 1 toggle; filter by active core |
 | Missing compute / AICore-parallel fields | With duration: compute **N/A** when `computeCard` absent; AICore **N/A** when both parallel fields absent; BW-only: placeholders omitted |
 | AICore one field only | Single 并行使用率 or 负载均衡度 column |
 | `computeCard` with one side | Single Cube or Vector column; no **N/A** chrome |

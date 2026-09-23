@@ -130,7 +130,6 @@ describe('CsvFieldListPanel', () => {
     expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
   });
 
-<<<<<<< HEAD
   it('PR-CSV-007: ArchDiagramMetrics EAV pivots to parameterName → value (deduped)', () => {
     const archTables: CsvTableModel[] = [
       {

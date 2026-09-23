@@ -342,7 +342,7 @@ describe('StatsAside', () => {
     expect(vectorRows).not.toContain('Cube');
   });
 
-  it('PR-STATS-036: emulate AIC|AIV0|AIV1 toggle filters by core (UI-54)', async () => {
+  it('PR-STATS-036: emulate Cube|Vector 0|Vector 1 toggle filters by core (UI-54)', async () => {
     const pipes = [
       { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
       { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },
@@ -363,9 +363,9 @@ describe('StatsAside', () => {
 
     await wrapper.get('[data-testid="pipe-occupancy"]');
     expect(wrapper.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="pipe-side-aic"]').text()).toBe('AIC');
-    expect(wrapper.find('[data-testid="pipe-side-aiv0"]').text()).toBe('AIV0');
-    expect(wrapper.find('[data-testid="pipe-side-aiv1"]').text()).toBe('AIV1');
+    expect(wrapper.find('[data-testid="pipe-side-aic"]').text()).toBe('Cube');
+    expect(wrapper.find('[data-testid="pipe-side-aiv0"]').text()).toBe('Vector 0');
+    expect(wrapper.find('[data-testid="pipe-side-aiv1"]').text()).toBe('Vector 1');
 
     let rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');

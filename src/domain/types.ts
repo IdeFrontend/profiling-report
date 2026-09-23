@@ -158,7 +158,7 @@ export interface ComputeCardModel {
   sides: ComputeSideRow[];
 }
 
-/** PIPE bar toggle group: compute Cube|Vector, or emulate AIC|AIV0|AIV1 ([UI-54](../../docs/context/decisions/UI.md)). */
+/** PIPE bar toggle group: compute Cube|Vector, or emulate Cube|Vector 0|Vector 1 ([UI-54](../../docs/context/decisions/UI.md)). */
 export type PipeOccupancySide = 'cube' | 'vector' | 'aic' | 'aiv0' | 'aiv1';
 
 export interface PipeOccupancyItem {

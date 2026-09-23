@@ -65,9 +65,9 @@ const EMULATE_PIPE_SIDES: PipeSide[] = ['aic', 'aiv0', 'aiv1'];
 const PIPE_SIDE_LABEL: Record<PipeSide, string> = {
   cube: 'Cube',
   vector: 'Vector',
-  aic: 'AIC',
-  aiv0: 'AIV0',
-  aiv1: 'AIV1',
+  aic: 'Cube',
+  aiv0: 'Vector 0',
+  aiv1: 'Vector 1',
 };
 
 const COLOR: Record<string, string> = {
@@ -432,7 +432,7 @@ const pipeSideOptions = computed((): PipeSide[] => {
   return PIPE_SIDE_ORDER.filter((s) => present.has(s));
 });
 
-/** Emulate multi-core: ≥2 of aic|aiv0|aiv1 — show AIC|AIV0|AIV1 toggle (UI-54). */
+/** Emulate multi-core: ≥2 of aic|aiv0|aiv1 — show Cube|Vector 0|Vector 1 toggle (UI-54). */
 const isEmulatePipeCores = computed(() => {
   const n = pipeSideOptions.value.filter((s) => EMULATE_PIPE_SIDES.includes(s)).length;
   return n >= 2;
