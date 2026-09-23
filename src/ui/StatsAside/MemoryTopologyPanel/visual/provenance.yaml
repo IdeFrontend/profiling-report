@@ -1,13 +1,12 @@
 component: MemoryTopologyPanel
-source_primary: v930/report-stats-scrolled
+source_primary: v930-chrome/memory-topology
 crops:
   memory-topology.png:
-    source: v930/report-stats-scrolled
-    region: "内存负载分析 panel: title + static SVG topology (nodes/edges + GB/s); not Memory.csv 详情"
-    box: { x: 5680, y: 1860, w: 2000, h: 2000 }
+    source: v930-chrome/memory-topology
+    region: "Official 448×423 chrome (AIC + one AIV × 2): static boxes/arrows and empty value plates (sample GB/s and util % glyphs stripped); raster of the runtime SVG"
   buffer-links.png:
     source: v930/change-log
-    region: "内存负载分析 topology with real buffer-link GB/s data (GM / L2 Cache / XN_IMM)"
+    region: "Historical dual-AIV 内存负载分析 with real buffer-link GB/s data (GM / L2 Cache / XN_IMM) — kept for DATA-27 evidence, not current chrome"
     box: { x: 3376, y: 3188, w: 1044, h: 1095 }
   zoom-bar.png:
     source: v930-sim/memory-topology-zoom
@@ -19,7 +18,7 @@ crops:
     box: { x: 6880, y: 3960, w: 760, h: 170 }
 asset:
   memory-topology.svg:
-    source: v930/report-stats-scrolled
-    region: "Official product chrome for the panel (448×423 units, simplified AIC + AIV × 2): static node boxes, arrows and empty value plates (sample GB/s and util % glyphs stripped in-repo); labels overlaid at plate centres"
+    source: v930-chrome/memory-topology
+    region: "Official product chrome for the panel (448×423 units, AIC + one AIV × 2): static node boxes, arrows and empty value plates; labels overlaid at plate centres"
     used_by: src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue
-note: "v930/memory-load-detail is the CSV field-list after 详情 — see CsvFieldListPanel"
+note: "v930/memory-load-detail is the CSV field-list after 详情 — see CsvFieldListPanel. v930/report-stats-scrolled is the historical dual-AIV dump (aside shell only)."

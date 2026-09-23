@@ -24,7 +24,7 @@ Official product memory-path topology chrome with **data-driven link values** (c
 
 ## Behavior
 
-1. Render the official chrome asset `memory-topology.svg` (Figma export of `v930/report-stats-scrolled` 内存负载分析, **448×423** simplified AIC + AIV × 2) at full size. Everything static lives in the asset and is **not** drawn by this component: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar, **DCache**, **ICache**, **SS**) and AIV × 2 (UB, SIMT/SIMD, Vec, Scalar, **DCache**, **ICache**, ND-DNA Cache, MTE1/2/3, FixPipe, BT/FB), boxes, arrows, dashes and the empty value plates ([memory-topology § edge-field-source](../../../../docs/views/memory-topology.md#edge-field-source)). Because the chrome owns the arrows, the panel renders no SVG `<marker>`s.
+1. Render the official chrome asset `memory-topology.svg` (`v930-chrome/memory-topology`, **448×423** AIC + one AIV × 2) at full size. Everything static lives in the asset and is **not** drawn by this component: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar, **DCache**, **ICache**, **SS**) and AIV × 2 (UB, SIMT/SIMD, Vec, Scalar, **DCache**, **ICache**, ND-DNA Cache, MTE1/2/3, FixPipe, BT/FB), boxes, arrows, dashes and the empty value plates ([memory-topology § edge-field-source](../../../../docs/views/memory-topology.md#edge-field-source)). Because the chrome owns the arrows, the panel renders no SVG `<marker>`s.
 1b. **Chrome glyph strip (PR-MEMTOP-001b / PR-MEMTOP-001c / PR-MEMTOP-001d):** the simplified export outlines sample corridor GB/s and under-word util `%` as path fills. Those samples are stripped **in-repo** so panel overlays do not double-print. The strip **must**:
     - Remove every path with fill `rgb(249,183,102)` (export sample GB/s ink, same colour as `.pr-topo__edge`).
     - Remove white sample glyphs whose centres sit on corridor **value plates** (centres of `SLOTS` / companion whites within ~10u of an amber sample). Orange **MTE / FixPipe chips are not value plates** — see 1d.
@@ -170,13 +170,14 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 
 ## Design sketches
 
-- [`memory-topology.svg`](./memory-topology.svg) — official product export, `v930/report-stats-scrolled` 内存负载分析
-- [buffer-links](./visual/buffer-links.png) — from `v930/change-log` (#5)
-- [memory-topology](./visual/memory-topology.png) — from `v930/report-stats-scrolled`
+- [`memory-topology.svg`](./memory-topology.svg) — official product export (`v930-chrome/memory-topology`, 448×423 AIC + AIV × 2)
+- [memory-topology](./visual/memory-topology.png) — raster of that SVG
+- [buffer-links](./visual/buffer-links.png) — historical dual-AIV crop from `v930/change-log` (#5; DATA-27 evidence, not current chrome)
 - [zoom-bar](./visual/zoom-bar.png) — the bar on its `#313131` strip, stacked aside, from `v930-sim/memory-topology-zoom`
 - [fullscreen-bar](./visual/fullscreen-bar.png) — the same bar in the fullscreen overlay (no 全屏 control, no strip), from `v930-sim/memory-topology-fullscreen`
-- [change-log](../../../../docs/ui/source/v930/change-log.jpeg) — full frame
-- [report-stats-scrolled](../../../../docs/ui/source/v930/report-stats-scrolled.jpeg) — full frame
+- [v930-chrome/memory-topology](../../../../docs/ui/source/v930-chrome/memory-topology.svg) — design-source batch copy
+- [change-log](../../../../docs/ui/source/v930/change-log.jpeg) — full frame (historical)
+- [report-stats-scrolled](../../../../docs/ui/source/v930/report-stats-scrolled.jpeg) — historical dual-AIV dump / aside shell
 - [memory-topology-zoom](../../../../docs/ui/source/v930-sim/memory-topology-zoom.jpeg) — full frame, 缩放+全屏
 - [memory-topology-fullscreen](../../../../docs/ui/source/v930-sim/memory-topology-fullscreen.jpeg) — full frame, 全屏
 
@@ -185,6 +186,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 DATA-20 (L2 Peak, resolved), DATA-21, DATA-22, DATA-23, DATA-24, DATA-25, DATA-28 (unit ratios), DATA-40 (GM↔L2 plates = aic + aiv summed, resolved), DATA-41 (AIC-row link values, partial), DATA-42 (sketch stack with no export plate, resolved), DATA-43 (DATA-39 row 24 = the `l2-l1-read` plate's field, row 32 = the summed Main Write; resolved), DATA-44 (DATA-39 rows 21/22 Cube↔L0C direction, open), UI-35, UI-38, UI-48, UI-49 (in-box unit badges, resolved), [view-models](../../../../specs/core/view-models.spec.md), [memory-topology](../../../../docs/views/memory-topology.md#edge-field-source).
 
 ## Changelog
+- **2026-09-23** — Sketches / design source: primary chrome is `v930-chrome/memory-topology` (448×423 SVG); `visual/memory-topology.png` re-rasterized from that SVG; historical dual-AIV JPEG/crops demoted.
 - **2026-09-23** — PR-MEMTOP-002c / 004: fold `l0c-cube` onto `cube-l0c` in adapters; empty-slot ids excluded from `hasDrawableTopology`. AIV × 2 a11y no longer mentions dual-row pairs.
 - **2026-09-22** — Review follow-up: `PLATE_SLOTS.vec` / `aiv_scalar` and L2 peak remasured onto stripped under-word util centres (372.1, 367.8) / (282.2, 321.0) / (114.1, 218.3) so badges clear unit words; PR-MEMTOP-001b/001d hardened; `check-spec-coverage` gates lettered ACs (`001c`/`008b`).
 - **2026-09-22** — PR-MEMTOP-002c: Cube↔L0C shares one chrome plate — only `cube-l0c` overlays; `l0c-cube` has empty `SLOTS` (fixes double `0.00 GB/s`). `PLATE_SLOTS.cube` remasured to under-CUBE util sample (338.1, 95.3).

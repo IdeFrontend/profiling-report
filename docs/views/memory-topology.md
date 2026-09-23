@@ -23,9 +23,11 @@ Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [§ p
 
 ## Sketches
 
-![Memory load / topology chrome](../ui/source/v930/report-stats-scrolled.jpeg)
+![Memory topology chrome (448×423, AIC + AIV × 2)](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg)
 
-**Component crops:** ![Memory topology](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) · ![Buffer links](../../src/ui/StatsAside/MemoryTopologyPanel/visual/buffer-links.png)
+**AIV × 2** is one subblock. Corridor labels are **not** AIV0+AIV1 sums: compute paints a single `aiv_*` field per plate; emulate averages `aiv0_*` / `aiv1_*` when both are present ([DATA-48a](../context/decisions/interim/DATA.md)). Do not change that fill. (GM↔L2 Main Read/Write remains aic+aiv **sum** — [DATA-40](../context/decisions/DATA.md) — a different axis.)
+
+**Component crop:** ![Memory topology](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) (raster of the runtime SVG / `v930-chrome/memory-topology`). Historical dual-AIV product dump: [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) (link only — not the current chrome).
 
 ## Purpose
 
