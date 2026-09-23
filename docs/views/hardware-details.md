@@ -26,7 +26,7 @@ Overlay opened from 报告统计 → **更多**: host / device / AI Core / HBM s
 
 ## Hide rule
 
-**更多** always opens the overlay on the compute report shell ([UI-30](../context/decisions/UI.md), [UI-31](../context/decisions/UI.md)): show `HardwareDetailsPanel` when `hardwareDetails` is present; else **缺少 hardware info** / Missing hardware info. Emulate omits meta/更多 with summary ([DATA-47](../context/decisions/DATA.md)). Not required to open Timeline ([DATA-30](../context/decisions/DATA.md)).
+**更多** always opens the overlay on the compute report shell ([UI-30](../context/decisions/UI.md), [UI-31](../context/decisions/UI.md)): show `HardwareDetailsPanel` when `hardwareDetails` is present; else **缺少 hardware info** / Missing hardware info. Emulate omits meta/更多 with summary ([DATA-47](../context/decisions/DATA.md)). Not required to open Timeline ([DATA-34](../context/decisions/DATA.md)).
 
 ## Compute fill
 
