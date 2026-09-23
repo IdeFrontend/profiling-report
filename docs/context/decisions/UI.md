@@ -182,7 +182,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-23
 - **Question:** Emulate `PipeUtilizationHist` supplies three values per pipe (AIC / AIV0 / AIV1). Does the PIPE Cube|Vector toggle mean AIC|AIV, and should the UI show three cores?
 - **Decision:** Cube|Vector stays the **compute** MIX control (`aic_*` vs `aiv_*`). For **emulate**, show a **Cube | Vector 0 | Vector 1** segmented control (same chrome; labels match compute naming), one bar list per active core. Map hist/`CoreTypes` `CoreName` → `pipeOccupancy.side` (`aic` / `aiv0` / `aiv1`); **never** average AIV0 with AIV1 into a single Vector series.
-- **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-036`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
+- **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-037`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
 - **Source:** Product choice in chat (2026-09-23): 3-way toggle, not grouped bars; labels amended same day to Cube | Vector 0 | Vector 1.
 
 ---

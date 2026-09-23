@@ -20,6 +20,21 @@ describe('pipeOccupancyEmulate', () => {
     expect(coreNameToPipeSide('')).toBeNull();
   });
 
+  it('csvTableFromPipeUtilizationHist aligns bare AIV/vector with occupancy sides', () => {
+    // coreNameToPipeSide('AIV'|'vector') → aiv0; 详情 must not drop those rows.
+    const csv = [
+      'PipeName,CoreName,Utilization',
+      'SCALAR,AIV,48.0',
+      'SCALAR,vector,40.0',
+    ].join('\n');
+    const items = pipeOccupancyFromHist(enc.encode(csv));
+    expect(items.every((p) => p.side === 'aiv0')).toBe(true);
+    const table = csvTableFromPipeUtilizationHist(enc.encode(csv));
+    expect(table?.headers).toEqual(['aiv0_scalar_ratio']);
+    // last-wins for duplicate keys
+    expect(Number(table?.rows[0].aiv0_scalar_ratio)).toBeCloseTo(0.4, 10);
+  });
+
   it('pipeOccupancyFromHist keeps AIV0 and AIV1 separate (no average)', () => {
     const csv = [
       'PipeName,CoreName,Utilization',

@@ -342,7 +342,7 @@ describe('StatsAside', () => {
     expect(vectorRows).not.toContain('Cube');
   });
 
-  it('PR-STATS-036: emulate Cube|Vector 0|Vector 1 toggle filters by core (UI-54)', async () => {
+  it('PR-STATS-037: emulate Cube|Vector 0|Vector 1 toggle filters by core (UI-54)', async () => {
     const pipes = [
       { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
       { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },
@@ -384,6 +384,20 @@ describe('StatsAside', () => {
     rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('26'); // round(0.264*100)
     expect(rows).not.toContain('19');
+
+    // Re-passing an equivalent report must not wipe Vector 1 back to Cube (aic).
+    await wrapper.setProps({
+      report: report({
+        summary: { taskDurationUs: 1 },
+        pipeOccupancy: [...pipes],
+      }),
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="pipe-side-aiv1"]').classes()).toContain(
+      'pr-pipe-toggle__btn--active',
+    );
+    rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('26');
   });
 
   it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {

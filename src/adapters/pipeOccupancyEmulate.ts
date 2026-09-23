@@ -154,15 +154,10 @@ export function csvTableFromPipeUtilizationHist(
   };
 }
 
-/** CoreName → key prefix (UI-55); never collapse AIV0/AIV1 into `aiv`. */
+/** CoreName → key prefix (UI-55); same rules as `coreNameToPipeSide` (never invent a divergent map). */
 function corePrefix(raw: string): 'aic' | 'aiv0' | 'aiv1' | null {
-  const v = raw.trim().toLowerCase();
-  if (!v) return null;
-  if (v === 'aic' || v === 'cube') return 'aic';
-  if (v === 'aiv0' || v === 'vector0' || v === 'vec0' || v.includes('aiv0')) return 'aiv0';
-  if (v === 'aiv1' || v === 'vector1' || v === 'vec1' || v.includes('aiv1')) return 'aiv1';
-  if (v.includes('aic') || v.includes('cube')) return 'aic';
-  return null;
+  const side = coreNameToPipeSide(raw);
+  return side === 'aic' || side === 'aiv0' || side === 'aiv1' ? side : null;
 }
 
 /** PipeName → ratio stem aligned with compute PIPE_COLUMNS naming (UI-55). */

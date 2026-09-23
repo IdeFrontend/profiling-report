@@ -444,11 +444,15 @@ watch(
   () =>
     [isMix.value, knownSide.value, isEmulatePipeCores.value, pipeSideOptions.value] as const,
   ([mix, side, emulateCores, options]) => {
-    if (mix) {
-      pipeSide.value = options.includes('cube') ? 'cube' : (options[0] ?? 'cube');
-    } else if (emulateCores) {
-      const preferred = EMULATE_PIPE_SIDES.find((s) => options.includes(s));
-      pipeSide.value = preferred ?? options[0] ?? 'aic';
+    // Keep the user's pick across option-array recomputes; only default when absent.
+    if (mix || emulateCores) {
+      if (options.includes(pipeSide.value)) return;
+      if (mix) {
+        pipeSide.value = options.includes('cube') ? 'cube' : (options[0] ?? 'cube');
+      } else {
+        const preferred = EMULATE_PIPE_SIDES.find((s) => options.includes(s));
+        pipeSide.value = preferred ?? options[0] ?? 'aic';
+      }
     } else if (side) {
       pipeSide.value = side;
     }
