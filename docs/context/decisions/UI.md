@@ -182,7 +182,7 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-23
 - **Question:** Emulate `PipeUtilizationHist` supplies three values per pipe (AIC / AIV0 / AIV1). Does the PIPE Cube|Vector toggle mean AIC|AIV, and should the UI show three cores?
 - **Decision:** Cube|Vector stays the **compute** MIX control (`aic_*` vs `aiv_*`). For **emulate**, show a **Cube | Vector 0 | Vector 1** segmented control (same chrome; labels match compute naming), one bar list per active core. Map hist/`CoreTypes` `CoreName` → `pipeOccupancy.side` (`aic` / `aiv0` / `aiv1`); **never** average AIV0 with AIV1 into a single Vector series.
-- **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-037`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
+- **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-038`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
 - **Source:** Product choice in chat (2026-09-23): 3-way toggle, not grouped bars; labels amended same day to Cube | Vector 0 | Vector 1.
 
 ---
@@ -192,5 +192,5 @@ Format and statuses: [README.md](README.md).
 - **Resolved:** 2026-09-23 (amended same day)
 - **Question:** When emulate packs `PipeUtilizationHist.csv`, how should compute-load **详情** present pipe util — and should `PipeUtilization.csv` still appear?
 - **Decision:** Prefer **`PipeUtilizationHist`**. Project each hist row onto a sparse compute-like **`*_ratio`** key: prefix from `CoreName` (`AIC`→`aic_`, `AIV0`→`aiv0_`, `AIV1`→`aiv1_` — **never** average AIV cores into `aiv_*`); stem from `PipeName` (`CUBE`→`cube_ratio`, `SCALAR`→`scalar_ratio`, `FIXP`→`fixpipe_ratio`, `MTE1`/`MTE2`/`MTE3`→`mte*_ratio`, `SIMD`→`vec_ratio`, `SIMT`→`simt_ratio`). Value = Utilization as a **0..1** fraction. One synthetic wide row in `computeTables` (file order; duplicate keys last-wins). Do **not** invent times/cycles/stalls/BW. When hist is present, **omit** `PipeUtilization.csv` from compute 详情. ArithmeticUtilization / ResourceConflictRatio unchanged when present. PIPE bars stay [UI-54](./UI.md).
-- **Specs:** [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-007`), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
+- **Specs:** [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-009`), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
 - **Source:** Product request in chat (2026-09-23): compute-style keys with separate `aiv0_` / `aiv1_` prefixes (not `PipeName_CoreName`; not mean into `aiv_*`).

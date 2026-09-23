@@ -5,29 +5,10 @@
  */
 
 import type { CsvTableModel, PipeOccupancyItem, PipeOccupancySide } from '../domain/types';
+import { parseCsv } from './parseCsv';
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder('utf-8').decode(bytes);
-}
-
-/** Naive CSV split (no quoted-field support); strips BOM; trims cells. */
-function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text
-    .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
-    .map((l) => l.trimEnd())
-    .filter((l) => l.length > 0);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = lines[0].split(',').map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => {
-    const cols = line.split(',');
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      row[h] = (cols[i] ?? '').trim();
-    });
-    return row;
-  });
-  return { headers, rows };
 }
 
 const PIPE_NAME_MAP: {

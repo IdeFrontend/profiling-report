@@ -131,7 +131,7 @@ describe('pipeOccupancyEmulate', () => {
     expect(adapted.reportModel.csvTexts['PipeUtilizationHist.csv']).toContain('SCALAR,AIC,50.0');
   });
 
-  it('adaptPayloads: hist + PipeUtilization.csv → omit PipeUtilization from computeTables', () => {
+  it('adaptPayloads: hist + PipeUtilization.csv → omit PipeUtilization; occupancy from hist (UI-55)', () => {
     const hist = 'PipeName,CoreName,Utilization\nSCALAR,AIC,50.0\n';
     const pipe = 'block_id,aiv_vec_ratio\n0,0.5\n';
     const adapted = adaptPayloads({
@@ -141,6 +141,12 @@ describe('pipeOccupancyEmulate', () => {
     const names = adapted.reportModel.computeTables.map((t) => t.fileName);
     expect(names).toEqual(['PipeUtilizationHist.csv']);
     expect(adapted.reportModel.computeTables[0].headers).toEqual(['aic_scalar_ratio']);
+    // Bars must match 详情 sides (aic), not compute csv cube/vector from aiv_vec_ratio.
+    const scalars = adapted.reportModel.pipeOccupancy.filter((p) => p.id === 'scalar');
+    expect(scalars).toHaveLength(1);
+    expect(scalars[0]?.side).toBe('aic');
+    expect(scalars[0]?.ratio).toBeCloseTo(0.5, 10);
+    expect(adapted.reportModel.pipeOccupancy.some((p) => p.side === 'vector')).toBe(false);
   });
 
   it('adaptPayloads: PipeUtilization.csv only → unchanged compute tab', () => {

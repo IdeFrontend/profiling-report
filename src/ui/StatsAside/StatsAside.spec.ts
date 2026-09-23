@@ -342,7 +342,7 @@ describe('StatsAside', () => {
     expect(vectorRows).not.toContain('Cube');
   });
 
-  it('PR-STATS-037: emulate Cube|Vector 0|Vector 1 toggle filters by core (UI-54)', async () => {
+  it('PR-STATS-038: emulate Cube|Vector 0|Vector 1 toggle filters by core (UI-54)', async () => {
     const pipes = [
       { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
       { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },

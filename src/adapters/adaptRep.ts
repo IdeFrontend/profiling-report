@@ -1006,17 +1006,23 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     pipeOccupancy: (() => {
       // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` is the producer's
       // non-NA mean across `block_id`; the CSV mean stays as the classic-`.rep` fallback.
-      // Emulate hist / PipesUtilization when compute PipeUtilization.csv is absent (UI-54).
+      // UI-55: when hist projects for 详情, occupancy prefers hist too (skip PipeUtilization.csv) —
+      // same order as adaptEmulate (UI-54).
       const fromSummary = pipeOccupancyFromRows(
         summaryCategoryRows(summaryCategories, 'PipeUtilization'),
       );
       if (fromSummary.length > 0) return fromSummary;
-      const fromCsv = pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv']));
-      if (fromCsv.length > 0) return fromCsv;
-      const fromHist = pipeOccupancyFromHist(
-        payloadByName(payloads, ['PipeUtilizationHist.csv']),
-      );
-      if (fromHist.length > 0) return fromHist;
+      if (histTable) {
+        const fromHist = pipeOccupancyFromHist(histPayload);
+        if (fromHist.length > 0) return fromHist;
+      } else {
+        const fromCsv = pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv']));
+        if (fromCsv.length > 0) return fromCsv;
+        const fromHist = pipeOccupancyFromHist(
+          payloadByName(payloads, ['PipeUtilizationHist.csv']),
+        );
+        if (fromHist.length > 0) return fromHist;
+      }
       return pipeOccupancyFromPipesUtilization(
         payloadByName(payloads, ['PipesUtilization.csv']),
         {
