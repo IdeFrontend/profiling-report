@@ -91,7 +91,7 @@ Code: `adaptEmulate` + `findEmulateTracePayload`.
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | `adaptCompute` / `adaptPayloads` | Prefers PipeTrace over trace |
+| compute | `adaptCompute` / `adaptPayloads` | Prefers `trace.json` (ns); else `PipeTrace.json` (µs) — `swimlaneFromPayloads` |
 | emulate | `adaptEmulate` | Requires `manifest.json`; PipeTrace optional (absent → null swimlane) |
 | CTEF-only | `adaptChromeTrace` | Empty report model ([PROC-3](../context/decisions/PROC.md)) |
 

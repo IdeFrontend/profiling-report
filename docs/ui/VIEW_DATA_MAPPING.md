@@ -65,9 +65,9 @@ Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decis
 
 ---
 
-## Stub surfaces (no packet yet)
+## Stub surface (Event / Relevant — no packet yet)
 
-Do **not** invent packets in this index. Bodies below are kept here until extracted into view packets. Hardware details (§11.2.3.1) live in [hardware-details](../views/hardware-details.md); compute/memory CSV details in [pipe-occupancy](../views/pipe-occupancy.md#compute-load-details) / [memory-topology](../views/memory-topology.md#memory-load-details).
+Only **§11.2.8.1** remains here. Hardware details and compute/memory CSV details live in view packets: [hardware-details](../views/hardware-details.md), [pipe-occupancy § Details](../views/pipe-occupancy.md#compute-load-details), [memory-topology § Details](../views/memory-topology.md#memory-load-details). Do **not** invent a new packet for Event/Relevant until Product defines the payload.
 
 <a id="stub-event-details"></a>
 
