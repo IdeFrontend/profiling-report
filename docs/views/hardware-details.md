@@ -35,7 +35,19 @@ Overlay opened from 报告统计 → **更多**: host / device / AI Core / HBM s
 | `hardwareDetails` | `HardwareInfo.jsonl` (preferred) | Category sections below; one object per line, `category` discriminator | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
 | fallback | `OpBasicInfo.csv` | Non-empty columns when jsonl absent ([DATA-34a](../context/decisions/interim/DATA.md)) | Same |
 
-`data/out.rep` omits jsonl; the toolkit `example.rep` pack includes it (not in git).
+Some sample packs omit jsonl; OpBasicInfo fallback still applies ([DATA-34a](../context/decisions/interim/DATA.md)).
+
+<a id="vm-derivation"></a>
+
+### VM field ← source (join / derivation)
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| `hardwareDetails.sections[]` (preferred) | `HardwareInfo.jsonl` | _(none)_ — one section per JSONL line | `id` = slug(`category`); `fields` = all keys except `category` |
+| `hardwareDetails.sections[]` (fallback) | `OpBasicInfo.csv` | _(none)_ — row 0 | Single section `opBasicInfo` from non-empty headers |
+| capability `hardwareDetails` | — | — | Set when model present |
+
+Code: `hardwareDetailsFromPayloads` / `hardwareSectionsFromJsonl` in `adaptRep.ts`.
 
 <a id="section-fields"></a>
 

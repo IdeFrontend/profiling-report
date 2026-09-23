@@ -38,11 +38,21 @@ When the surface is omitted ([DATA-30](../context/decisions/DATA.md)).
 
 ## Compute fill
 
+Prefer a normative derivation table (required when more than one embed contributes, or any join is involved):
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| … | `Foo.csv`, `Bar.csv` | `Foo.Id` = `Bar.FooId` | formula / column / mean / first-non-NA |
+
+Also OK: short adapted-field overview + slot/edge tables for this surface. Exemplar: [performance-hints.md](performance-hints.md).
+
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
 | … | … | … | [compute/…](../formats/compute/…) |
 
 ## Emulate fill
+
+Same **VM field \| embed(s) \| join key(s) \| derivation** shape as Compute fill. Status column optional.
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
@@ -73,8 +83,8 @@ When the surface is omitted ([DATA-30](../context/decisions/DATA.md)).
 | Purpose | yes | Full UX scenario prose |
 | View-model | yes | Raw CSV names as Required column |
 | Hide rule | yes | Profile-forked hide matrices |
-| Compute fill | yes | Paste full CSV dictionaries (adapted **slot / edge / column** tables for this surface are OK) |
-| Emulate fill | yes | Invent compute CSV names ([DATA-45](../context/decisions/interim/DATA.md#data-45)); same slot/edge-table rule as Compute fill |
+| Compute fill | yes | Paste full CSV dictionaries (adapted **slot / edge / column** tables OK). When fills join embeds, document **join keys** and **per-field derivation** (see performance-hints exemplar) |
+| Emulate fill | yes | Invent compute CSV names ([DATA-45](../context/decisions/interim/DATA.md#data-45)); same slot/edge + join/key/derivation rule as Compute fill |
 | Adapter | yes | Duplicate ADAPTERS fill tables |
 | Related | yes | Duplicate component AC lists |
 

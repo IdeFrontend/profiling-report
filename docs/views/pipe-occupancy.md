@@ -35,9 +35,23 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `pipeOccupancy` | `PipeUtilization.csv` | Mean non-`NA` `aic_*` / `aiv_*` ratios; `*_time(us)` absolute ([DATA-33b](../context/decisions/interim/DATA.md), DATA-33f) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `pipeOccupancy` | `PipeUtilization.csv` / `summary.jsonl` `PipeUtilization` | Mean non-`NA` `aic_*` / `aiv_*` ratios; `*_time(us)` absolute ([DATA-33b](../context/decisions/interim/DATA.md), DATA-33f) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
 **Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values. Use the column tables below — not a single combined bar list.
+
+<a id="vm-derivation"></a>
+
+### VM field ← source (join / derivation)
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| `pipeOccupancy[]` (All) | `summary.jsonl` category `PipeUtilization` | category id (no row FK) | `pipeOccupancyFromRows` on category columns |
+| `pipeOccupancy[]` (block) | `PipeUtilization.csv` | `block_id` = selected id | Same column map on that row |
+| `pipeOccupancy[].ratio` | same | — | Mean non-`NA` of side-prefixed ratio cols (`PIPE_COLUMNS` in `adaptRep.ts`); Cube `aic_*` and Vector `aiv_*` never blended |
+| `pipeOccupancy[].absoluteValue` | same | — | Mean matching `*_time(us)` when present (DATA-33f); omit if absent |
+| `pipeOccupancy[].side` / `id` / `label` | — | — | Fixed map: see Cube / Vector tables below |
+
+Code: `pipeOccupancyFromRows` / `pipeOccupancyFromCsv` in `adaptRep.ts`.
 
 <a id="cube-occupancy"></a>
 
@@ -92,6 +106,20 @@ Render a searchable key–value (or table) list of all columns for the **selecte
 |---------------|-------|-----------------|--------|
 | `pipeOccupancy` | `PipeUtilizationHist.csv` (prefer) or `PipesUtilization.csv` | Keep emulate basenames — **do not** invent `PipeUtilization.csv` ([DATA-45](../context/decisions/interim/DATA.md#data-45)) | `adapt-mapper` |
 | PIPE CSV tab | same embeds → `computeTables` | | `adapt-mapper` |
+
+<a id="emulate-vm-derivation"></a>
+
+### Emulate VM field ← source (join / derivation)
+
+Prefer `PipeUtilizationHist.csv`. Else `PipesUtilization.csv` + dictionaries.
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| `pipeOccupancy[]` (hist) | `PipeUtilizationHist.csv` | _(none)_ — match `PipeName` via `PIPE_NAME_MAP` regex | Acc key `` `${side}:${id}` ``; `ratio` = mean `Utilization` (`normalizeRatio` 0..1 or 0..100%) |
+| `pipeOccupancy[]` (util) | `PipesUtilization.csv` + `InstrQueueTypes.csv` + `CoreTypes.csv` | `InstrQueueTypeId` → `InstrQueueTypes.InstrQueueTypeName`; `CoreTypeId` → `CoreTypes.CoreTypeName` | Resolve queue label → `mapPipeName`; side from mapped pipe or core name (`aiv`/`vector` → vector, else cube). Skip bare integer FKs that do not resolve |
+| lane `utilization` | same pipe rows + swimlane threads | pipe `colorKey` ↔ `laneColorKey(thread.name)` | `withPipeLaneUtilizations` — mean ratio onto matching lanes |
+
+Code: `pipeOccupancyFromHist` / `pipeOccupancyFromPipesUtilization` in `adaptEmulate.ts`.
 
 ## Adapter
 

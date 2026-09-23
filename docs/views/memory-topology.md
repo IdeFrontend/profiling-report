@@ -38,6 +38,21 @@ No drawable labels / L2 plate → hide diagram ([DATA-30](../context/decisions/D
 
 The panel renders the official chrome [`memory-topology.svg`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) and overlays **real values** on that chrome's value slots — the `summary.jsonl` category mean under `All`, that block's CSV row when a `block_id` is picked ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)).
 
+<a id="vm-derivation"></a>
+
+### VM field ← source (join / derivation)
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| topology (All) | `summary.jsonl` categories via `FILE_CATEGORY` | category name ↔ Memory / MemoryL0 / MemoryUB / L2Cache / PipeUtilization | `buildMemoryTopologyFromCategories` |
+| topology (block) | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv`, `PipeUtilization.csv` | `block_id` = selected id on each CSV | `buildMemoryTopology(tables, blockId)` |
+| `edges[].label` | per [EDGE_MAP](#edge-field-source) | _(column pick, not FK)_ | First present non-`NA` source column, except GM↔L2 Main Read/Write = **sum** aic+aiv; format `{n} GB/s` / KB / `%` |
+| `nodes[l2].peakPct` | `L2Cache` hit-rate cols | _(same as `l2-hit` edge)_ | DATA-21 column order |
+| `plates` (in-box utils) | `PipeUtilization` | _(none)_ | `aiv_scalar_ratio` / `aiv_vec_ratio` / `aic_cube_ratio` → `{ratio×100}%` on nodes `aiv_scalar` / `vec` / `cube` (UI-49) |
+| show / hide | — | — | `hasDrawableTopology`: plated label or L2 peak required (PR-VM-018) |
+
+Code: `memoryTopology.ts` (`EDGE_MAP`, `PLATE_MAP`, `buildMemoryTopology*`).
+
 <a id="edge-field-source"></a>
 
 ### Edge → field → source

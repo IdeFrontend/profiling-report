@@ -35,7 +35,25 @@ No usable GM point → hide panel ([DATA-30](../context/decisions/DATA.md)). Tab
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `roofline` | `ArithmeticUtilization.csv` + `Memory.csv` | Interim DATA-37a–e GM point | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
+| `roofline` | `ArithmeticUtilization.csv` + `Memory.csv` (or `summary.jsonl` those categories) | Interim DATA-37a–e GM point | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
+
+<a id="vm-derivation"></a>
+
+### VM field ← source (join / derivation)
+
+No FK join — pick Arithmetic + Memory rows for the same block scope (All = summary categories; block = matching `block_id`), then combine fops with GM bytes.
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| side pick | `ArithmeticUtilization` | _(same scope as Memory)_ | Prefer vector if `aiv_vec_fops`+`aiv_time(us)` >0; else cube `aic_*` |
+| `points[].performance` (Y) | Arithmetic | — | `fops / timeUs / 1e6` TOps/s (DATA-37a) |
+| `points[].intensity` (X GM) | Arithmetic + Memory | same block / All scope | `fops / ((read_KB+write_KB)×1024)` from `read/write_main_memory_datas(KB)` (DATA-37b) |
+| `points[].series` | — | — | Single solid `gm` (“GM Read + Write”); L2 omitted (DATA-37c) |
+| `mixLabels` | Arithmetic dtype ratio cols | — | Normalize positive Vector/Cube mix ratios to % (DATA-37e) |
+| `peakBandwidthGBs` | Memory main-mem BW cols | — | max of those cols, else 100 |
+| `peakComputeTops` | — | — | constant `1` (interim DATA-37d) |
+
+Omit panel if no GM point. Tabs from docx table are **not** used (DATA-37f). Code: `rooflineFromRows` in `adaptRep.ts`. Capability `roofline` is host opt-in (not auto-derived).
 
 <a id="tabs-fields"></a>
 

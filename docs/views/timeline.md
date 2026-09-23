@@ -39,7 +39,21 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `SwimlaneModel` | `PipeTrace.json` (µs) or `trace.json` (ns) | CTEF `ph:X` events | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `SwimlaneModel` | Prefer `trace.json` (ns); else `PipeTrace.json` (µs→ns ×1000) | CTEF `ph:X` events | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+
+<a id="vm-derivation"></a>
+
+### VM field ← source (join / derivation)
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| processes / threads | CTEF `ph:M` metadata | `pid` / `tid` | `process_name` / `thread_name`; else `Process {pid}` / `tid-{tid}` |
+| events | CTEF `ph:X` | _(none)_ | `ts`+`dur` → `startTime`/`duration` in ns |
+| event `id` | `args.event_id` if unique | — | else synthetic `e-<seq>` |
+| dependencies | `args.dependencies`; async `ph:s`/`f` | pair by id | successor refs on events |
+| lane `utilization` | pipe occupancy + thread names | pipe `colorKey` ↔ `laneColorKey(thread.name)` | `withPipeLaneUtilizations` mean ratio |
+
+Code: `swimlaneFromPayloads` → `chromeTraceToSwimlane` → `withPipeLaneUtilizations`.
 
 <a id="sample-binding"></a>
 
@@ -59,7 +73,19 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `SwimlaneModel` | `PipeTrace.json` (µs) | Producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)) | `same-path` |
+| `SwimlaneModel` | Prefer `PipeTrace.json` (µs); else `*_tracing_report_*.json` (not critical_path) | Producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)) | `same-path` |
+
+<a id="emulate-vm-derivation"></a>
+
+### Emulate VM field ← source (join / derivation)
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| `SwimlaneModel` | `PipeTrace.json` or native tracing JSON | _(same CTEF path)_ | `sourceTimeUnit: 'us'`; multi-file traces → `mergeNativeChromeTraces` (remap pids) |
+| events / lanes | same as compute CTEF | — | `chromeTraceToSwimlane` |
+| null swimlane | — | — | No trace embed → metrics-only report (no hard error) |
+
+Code: `adaptEmulate` + `findEmulateTracePayload`.
 
 ## Adapter
 

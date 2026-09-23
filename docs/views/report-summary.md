@@ -43,6 +43,24 @@ If no `taskDurationUs` and no `bandwidthCards` → **hide** the summary card gro
 | `computeCard` | Arithmetic + HardwareInfo / summary.jsonl | DATA-33h | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 | `bandwidthCards` | Memory / summary.jsonl | DATA-8 | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
+<a id="vm-derivation"></a>
+
+### VM field ← source (join / derivation)
+
+Block scope ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)): **All** = `summary.jsonl` category aggregates; picked `block_id` = that CSV row (UI recompute). Identity is **not** an FK join — prefer OpBasicInfo row 0 when present, overlay OpInfoSummary metrics.
+
+| VM field | Source embed(s) | Join key(s) | Derivation |
+|----------|-----------------|-------------|------------|
+| `summary.opName` / `opType` / `pid` / `blockDim` / `taskDurationUs` | `OpBasicInfo.csv` or `Summary.jsonl` `OpInfoSummary` | _(none — single row / first OpInfoSummary)_ | Prefer OpBasicInfo columns when present; else OpInfoSummary JSON keys (`Op Name`, `Op Type`, `Pid`/`PID`, `Block Dim`, `Task Duration(us)`) |
+| `summary.aicFlops` / `aivFlops` / theoretical | `Summary.jsonl` `OpInfoSummary` | _(none)_ | `aic_flops` / `aiv_flops` / `*_theoretical` overlay even when identity came from OpBasicInfo |
+| `summary.parallelUtilization` / `parallelBalance` | `Summary.jsonl` `OpInfoSummary` | _(none)_ | `aicore_parallel_utilization` / `aicore_parallel_balance` |
+| `summary.coreCount` | `HardwareInfo.jsonl` + `summary.opType` | _(match by op type, not FK)_ | `coreCountForOpType`: mix→`ai_core_count`; vector→`ai_vector_count`; cube→`ai_cube_count` (alt names accepted) |
+| `computeCard` (measured) | Prefer OpInfoSummary; else `ArithmeticUtilization.csv` | All: category; block: `block_id` | Prefer summary FLOPS; else mean(`aic_cube_fops`\|`aiv_vec_fops`) / mean(`*_time(us)`) / 1e6 → TFLOPS ([DATA-33h](#data-33h)) |
+| `computeCard` (peak) | `HardwareInfo.jsonl` (+ OpBasicInfo freq fallback) | _(none)_ | Peak formulas in [DATA-33h](#data-33h); cores×freq×dtype |
+| `bandwidthCards` | Prefer OpInfoSummary; else `Memory.csv` | All: category; block: `block_id` | Measured `aicore_gm_read_bw` / `aicore_gm_write_bw` (or mean Memory main-mem sides); peak `aicore_gm_bw_theoretical` or **1600** ([DATA-8](#data-8-bandwidth)) |
+
+Code: `reportModelFromPayloads` / `summaryFrom*` / `computeCard*` / `bandwidthCards*` in `adaptRep.ts`.
+
 <a id="field-mapping"></a>
 
 ### Field mapping (docx §11.2.3)
@@ -108,6 +126,8 @@ Compute uses interim [DATA-33h](../context/decisions/interim/DATA.md) (MFU formu
 |---------------|-------|-----------------|--------|
 | `summary.*` | — | Empty; `profile: 'emulate'` | **out** ([DATA-47](../context/decisions/DATA.md)) |
 | `computeCard` / `bandwidthCards` | — | No compute-equivalent pack promised | `gap` → hide |
+
+No joins — `adaptEmulate` leaves `reportModel.summary` empty and does not map KernelInfo into summary chrome.
 
 ## Adapter
 
