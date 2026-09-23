@@ -25,7 +25,7 @@ Searchable `summary.jsonl` category field list used under **All** block scope in
 ## Acceptance Criteria
 
 1. **PR-SUMM-001** — Renders a tab per category; switching tabs changes visible fields.
-2. **PR-SUMM-002** — Search filters and highlights matching keys (same chip tokens as PR-CSV-003 / UI-43).
+2. **PR-SUMM-002** — Search filters and highlights matching keys (same chip tokens as CsvFieldListPanel / UI-43).
 3. **PR-SUMM-003** — Zero matches leave an empty list; query survives tab switch.
 
 ## Visual

@@ -92,7 +92,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 15. **PR-STATS-013** — Absolute time is a track sibling.
 16. **PR-STATS-014** — Details emit open-pipe-details.
 16b. **PR-STATS-014b** — One block switcher (**All \| every `block_id` in the report**, compute ∪ memory in fixture order) when >1 block; scopes PIPE, topology, BW, compute and roofline: `All` = the `summary.jsonl` aggregate, a picked id = that block's CSV row; report change resets to `All` (DATA-19 / DATA-28 / DATA-29).
-16c. **PR-STATS-014c** — 详情 follows the same selector: under **All** the `summary.jsonl` category list is the default (with search, PR-SUMM-002), with a block picked the CSV field list replaces it and shows that block's row (DATA-19 / DATA-29).
+16c. **PR-STATS-014c** — 详情 follows the same selector: under **All** the `summary.jsonl` category list is the default (with search), with a block picked the CSV field list replaces it and shows that block's row (DATA-19 / DATA-29).
 16d. **PR-STATS-014d** — A picked block with no data blanks its widget instead of repeating the **All** value: BW card and roofline hidden, compute card **N/A**, empty PIPE rows; the switcher stays reachable so **All** can be restored.
 17. **PR-STATS-015** — Roofline section when `roofline.points` present **and** the `roofline` capability is passed; hidden without the capability (even with points) and when absent.
 18. **PR-STATS-016** — PIPE 详情 opens compute overlay when compute tables exist and emits open-pipe-details.

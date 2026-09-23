@@ -31,6 +31,9 @@ describe('SummaryCategoryList', () => {
 
     await wrapper.get('[data-testid="summary-category-tab-ArithmeticUtilization"]').trigger('click');
     expect(wrapper.emitted('update:activeId')?.[0]?.[0]).toBe('ArithmeticUtilization');
+    await wrapper.setProps({ activeId: 'ArithmeticUtilization' });
+    expect(wrapper.text()).toContain('aic_cube_ratio');
+    expect(wrapper.text()).not.toContain('aiv_vec_ratio');
   });
 
   it('PR-SUMM-002: search filters and highlights matching keys', async () => {

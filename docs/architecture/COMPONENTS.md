@@ -271,9 +271,15 @@ Horizontal bars from `PipeOccupancyItem[]`. **M1:** Cube | Vector segmented cont
 
 ### `CsvFieldListPanel` (M1)
 
-Searchable field list with CSV tabs, optional block switcher, **查看全部** emit (`view-full-csv`). Search hides non-matching headers and paints the matching substring as a flush navy chip. Used for compute-load details (#3) and memory details (#4).
+Searchable field list with CSV tabs, optional block switcher, **查看全部** emit (`view-full-csv`). Search hides non-matching headers and paints the matching substring as a flush navy chip. Used for compute-load details (#3) and memory details (#4) when a block is picked.
 
 **Why:** One reusable panel for all M1 CSV drill-downs; hide empty tabs.
+
+### `SummaryCategoryList` (M1)
+
+Searchable `summary.jsonl` category tabs + field list for **All** block scope in compute/memory 详情. Same search filter + navy match chip as `CsvFieldListPanel` (UI-43).
+
+**Why:** Product reports default to summary categories under **All**; without this panel's search, 详情 looked search-less until a block was picked.
 
 ### `RooflinePanel` (M2)
 
