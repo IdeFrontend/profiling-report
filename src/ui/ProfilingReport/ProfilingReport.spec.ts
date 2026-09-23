@@ -1112,6 +1112,66 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('.pr-dock--hints').exists()).toBe(false);
   });
 
+  it('PR-ROOT-019: the 性能分析 trigger clears the selection so the hints pane owns the dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-over-selection',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          summary: { opName: 'gelu', opType: 'vector', taskDurationUs: 120 },
+          performanceHints: [
+            {
+              message: 'Low warp occupancy detected (32.5%).',
+              typeName: 'warp_occupancy_hint',
+              pc: '624191680372',
+              origin: 'instruction',
+            },
+          ],
+        },
+        capabilities: ['performanceHints'],
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+
+    // The duration card auto-opens the aside, so its 性能分析 trigger is on screen.
+    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(true);
+
+    // Selection first: DetailPanel owns the dock slot, so the pane would be swallowed.
+    vm.selectEventById('a');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(vm.viewState.selectedEventId).toBeNull();
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').classes()).toContain('pr-dock--hints');
+
+    // A committed marquee is the other branch that used to win the slot. The shell keeps
+    // its hints chrome only while the pane is the content.
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').classes()).toContain('pr-dock--hints');
+
+    wrapper.unmount();
+  });
+
   it('toolbar lives in main column only (not full-width above aside)', () => {
     const wrapper = mount(ProfilingReport, {
       props: {

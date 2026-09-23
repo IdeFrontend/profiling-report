@@ -324,6 +324,19 @@ const performanceHints = computed(() => report.value?.performanceHints ?? []);
 const hasPerformanceHints = computed(
   () => caps.value.includes('performanceHints') && performanceHints.value.length > 0,
 );
+/**
+ * Mirrors the dock content chain's hints branch exactly: the pane renders only while the
+ * dock is open, the capability carries rows, and no multi/single selection owns the slot.
+ * Drives both that branch and the `pr-dock--hints` shell chrome, so the shell can never
+ * claim hints chrome for another pane's content.
+ */
+const hintsDockShown = computed(
+  () =>
+    hintsDockOpen.value &&
+    hasPerformanceHints.value &&
+    multiSelected.value.length === 0 &&
+    selected.value == null,
+);
 /** Toolbar toggle + initial asideVisible share this gate (includes CSV-only reports). */
 const asideAvailable = computed(() => reportHasAsideContent(report.value, caps.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
@@ -1440,8 +1453,19 @@ function onAside(visible: boolean) {
   viewState.value = { ...viewState.value, asideVisible: visible };
 }
 
-/** StatsAside 性能分析 trigger → mount the hints table in the bottom dock. */
+/**
+ * StatsAside 性能分析 trigger → mount the hints table in the bottom dock.
+ *
+ * The pane is the dock content chain's last branch, so an open DetailPanel /
+ * MultiSelectSummary would swallow the trigger. Release the live marquee first
+ * (`clearMarqueeLive` drops dockSnap, the marquee flags and the preview throttle), then
+ * the committed selection through `onSelect(null)` — the same path the canvas uses; it
+ * clears selected / multiSelected / the Δt span / viewState and notifies the host
+ * `select(null)` ("no single selection").
+ */
 function onOpenPerformanceHints() {
+  clearMarqueeLive();
+  onSelect(null);
   hintsDockOpen.value = true;
 }
 
@@ -1669,7 +1693,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         class="pr-dock"
         :class="{
           'pr-dock--live': marqueeLive,
-          'pr-dock--hints': hintsDockOpen && hasPerformanceHints,
+          'pr-dock--hints': hintsDockShown,
         }"
         data-testid="dock"
         :style="{ '--pr-dock-h': `${dockDisplayHeight}px` }"
@@ -1708,7 +1732,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             @update:dependency-mode="onDependencyMode"
           />
           <PerformanceHintsDock
-            v-else-if="hintsDockOpen && hasPerformanceHints"
+            v-else-if="hintsDockShown"
             key="hints"
             :rows="performanceHints"
             :locale="locale"

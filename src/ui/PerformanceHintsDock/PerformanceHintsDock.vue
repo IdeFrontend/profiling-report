@@ -12,6 +12,22 @@ defineProps<{
 const emit = defineEmits<{
   close: [];
 }>();
+
+/**
+ * Instruction-address cell. `pc` keeps its exact decimal digits (the adapter never turns
+ * it into a JS number), so the sketch's `0x` form needs a BigInt round-trip; a row with
+ * no address shows the "Not specified" copy. Anything BigInt rejects — a host-supplied
+ * hex string, a malformed CSV cell — has no decimal value to convert, so it is echoed
+ * verbatim rather than blanking the column.
+ */
+function formatPc(pc: PerformanceHintItem['pc'] | null, locale?: string): string {
+  if (pc == null) return t('notSpecified', locale);
+  try {
+    return `0x${BigInt(pc).toString(16)}`;
+  } catch {
+    return String(pc);
+  }
+}
 </script>
 
 <template>
@@ -86,11 +102,7 @@ const emit = defineEmits<{
               role="cell"
               data-testid="performance-hints-pc"
             >
-              {{
-                row.pc !== undefined
-                  ? '0x' + BigInt(row.pc).toString(16)
-                  : t('notSpecified', locale)
-              }}
+              {{ formatPc(row.pc, locale) }}
             </div>
           </div>
         </div>
