@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { t } from '../../../i18n';
 import type { CsvTableModel } from '../../../domain/types';
+import { highlightParts } from '../../searchHighlight';
 
 const props = withDefaults(
   defineProps<{
@@ -100,25 +101,6 @@ function isArchDiagramEav(table: CsvTableModel): boolean {
   );
 }
 
-function highlightParts(text: string, query: string): { text: string; match: boolean }[] {
-  if (!query) return [{ text, match: false }];
-  const lower = text.toLowerCase();
-  const q = query.toLowerCase();
-  const parts: { text: string; match: boolean }[] = [];
-  let i = 0;
-  while (i < text.length) {
-    const j = lower.indexOf(q, i);
-    if (j === -1) {
-      parts.push({ text: text.slice(i), match: false });
-      break;
-    }
-    if (j > i) parts.push({ text: text.slice(i, j), match: false });
-    parts.push({ text: text.slice(j, j + q.length), match: true });
-    i = j + q.length;
-  }
-  return parts;
-}
-
 function eavParamValueFields(
   table: CsvTableModel,
   query: string,
@@ -193,11 +175,11 @@ function onViewAll() {
       </button>
     </div>
 
-    <div class="pr-csv__toolbar">
-      <label class="pr-csv__search">
-        <span class="pr-csv__sr">{{ t('searchLabel', locale) }}</span>
+    <div class="pr-field-toolbar">
+      <label class="pr-field-search">
+        <span class="pr-field-sr">{{ t('searchLabel', locale) }}</span>
         <span
-          class="pr-csv__search-icon"
+          class="pr-field-search-icon"
           aria-hidden="true"
         >
           <svg
@@ -230,7 +212,7 @@ function onViewAll() {
         <button
           v-if="search.trim().length > 0"
           type="button"
-          class="pr-csv__search-clear"
+          class="pr-field-search-clear"
           data-testid="csv-search-clear"
           :aria-label="t('searchClear', locale)"
           @click.stop="search = ''"
@@ -287,7 +269,7 @@ function onViewAll() {
           <span
             v-for="(part, i) in field.parts"
             :key="i"
-            :class="{ 'pr-csv__field-match': part.match }"
+            :class="{ 'pr-field-match': part.match }"
             :data-testid="part.match ? 'csv-field-match' : undefined"
           >{{ part.text }}</span>
         </span>
@@ -340,72 +322,6 @@ function onViewAll() {
 .pr-csv__tab--active {
   color: #ffffff;
   border-bottom-color: #ffffff;
-}
-
-.pr-csv__toolbar {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 0;
-  flex-shrink: 0;
-}
-
-.pr-csv__search {
-  position: relative;
-  display: block;
-  flex: 1 1 140px;
-  min-width: 0;
-}
-
-.pr-csv__search-icon {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9a9a9a;
-  font-size: 12px;
-  pointer-events: none;
-}
-
-.pr-csv__search input {
-  width: 100%;
-  box-sizing: border-box;
-  background: #262626;
-  border: 1px solid #3a3a3a;
-  color: #e0e0e0;
-  font-size: 11px;
-  padding: 5px 24px 5px 26px;
-  border-radius: 4px;
-}
-
-.pr-csv__search input:focus {
-  outline: none;
-  border-color: #3078f0;
-}
-
-.pr-csv__search input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-}
-
-.pr-csv__search-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: #9a9a9a;
-  font-size: 14px;
-  line-height: 1;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-
-.pr-csv__search-clear:hover {
-  color: #d0d0d0;
 }
 
 .pr-csv__actions {
@@ -474,29 +390,10 @@ function onViewAll() {
   white-space: nowrap;
 }
 
-.pr-csv__field-match {
-  color: #688aec;
-  background: #1d283c;
-  border-radius: 3px;
-  padding: 0;
-  font-weight: 600;
-}
-
 .pr-csv__field-value {
   color: #e6e6e6;
   font-variant-numeric: tabular-nums;
   text-align: right;
   word-break: break-all;
-}
-
-.pr-csv__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
 }
 </style>

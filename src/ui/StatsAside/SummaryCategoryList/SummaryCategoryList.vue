@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { t } from '../../../i18n';
 import type { SummaryCategory } from '../../../domain/types';
+import { highlightParts } from '../../searchHighlight';
 
 const props = defineProps<{
   categories: SummaryCategory[];
@@ -30,25 +31,6 @@ function tabLabel(category: SummaryCategory): string {
     'MemoryUB': 'MemoryUB',
   };
   return map[category.id] ?? category.title;
-}
-
-function highlightParts(text: string, query: string): { text: string; match: boolean }[] {
-  if (!query) return [{ text, match: false }];
-  const lower = text.toLowerCase();
-  const q = query.toLowerCase();
-  const parts: { text: string; match: boolean }[] = [];
-  let i = 0;
-  while (i < text.length) {
-    const j = lower.indexOf(q, i);
-    if (j === -1) {
-      parts.push({ text: text.slice(i), match: false });
-      break;
-    }
-    if (j > i) parts.push({ text: text.slice(i, j), match: false });
-    parts.push({ text: text.slice(j, j + q.length), match: true });
-    i = j + q.length;
-  }
-  return parts;
 }
 
 const fields = computed(() => {
@@ -91,11 +73,11 @@ const fields = computed(() => {
       </button>
     </div>
 
-    <div class="pr-summ__toolbar">
-      <label class="pr-summ__search">
-        <span class="pr-summ__sr">{{ t('searchLabel', locale) }}</span>
+    <div class="pr-field-toolbar">
+      <label class="pr-field-search">
+        <span class="pr-field-sr">{{ t('searchLabel', locale) }}</span>
         <span
-          class="pr-summ__search-icon"
+          class="pr-field-search-icon"
           aria-hidden="true"
         >
           <svg
@@ -128,7 +110,7 @@ const fields = computed(() => {
         <button
           v-if="search.trim().length > 0"
           type="button"
-          class="pr-summ__search-clear"
+          class="pr-field-search-clear"
           data-testid="summary-search-clear"
           :aria-label="t('searchClear', locale)"
           @click.stop="search = ''"
@@ -152,7 +134,7 @@ const fields = computed(() => {
           <span
             v-for="(part, i) in field.parts"
             :key="i"
-            :class="{ 'pr-summ__field-match': part.match }"
+            :class="{ 'pr-field-match': part.match }"
             :data-testid="part.match ? 'summary-field-match' : undefined"
           >{{ part.text }}</span>
         </span>
@@ -207,72 +189,6 @@ const fields = computed(() => {
   border-bottom-color: #ffffff;
 }
 
-.pr-summ__toolbar {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 0;
-  flex-shrink: 0;
-}
-
-.pr-summ__search {
-  position: relative;
-  display: block;
-  flex: 1 1 140px;
-  min-width: 0;
-}
-
-.pr-summ__search-icon {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9a9a9a;
-  font-size: 12px;
-  pointer-events: none;
-}
-
-.pr-summ__search input {
-  width: 100%;
-  box-sizing: border-box;
-  background: #262626;
-  border: 1px solid #3a3a3a;
-  color: #e0e0e0;
-  font-size: 11px;
-  padding: 5px 24px 5px 26px;
-  border-radius: 4px;
-}
-
-.pr-summ__search input:focus {
-  outline: none;
-  border-color: #3078f0;
-}
-
-.pr-summ__search input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-}
-
-.pr-summ__search-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: #9a9a9a;
-  font-size: 14px;
-  line-height: 1;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-
-.pr-summ__search-clear:hover {
-  color: #d0d0d0;
-}
-
 .pr-summ__fields {
   list-style: none;
   margin: 0;
@@ -304,29 +220,10 @@ const fields = computed(() => {
   white-space: nowrap;
 }
 
-.pr-summ__field-match {
-  color: #688aec;
-  background: #1d283c;
-  border-radius: 3px;
-  padding: 0;
-  font-weight: 600;
-}
-
 .pr-summ__field-value {
   color: #e6e6e6;
   font-variant-numeric: tabular-nums;
   text-align: right;
   word-break: break-all;
-}
-
-.pr-summ__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
 }
 </style>

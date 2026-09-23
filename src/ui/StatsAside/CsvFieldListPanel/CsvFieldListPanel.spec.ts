@@ -65,8 +65,10 @@ describe('CsvFieldListPanel', () => {
     const marks = wrapper.findAll('[data-testid="csv-field-match"]');
     expect(marks).toHaveLength(1);
     expect(marks[0].text()).toBe('mte2');
-    const src = (await import('./CsvFieldListPanel.vue?raw')).default as string;
-    const rule = src.match(/\.pr-csv__field-match\s*\{([^}]*)\}/)?.[1] ?? '';
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, '../../tokens.css'), 'utf8');
+    const rule = src.match(/\.pr-field-match\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rule).toMatch(/background:\s*#1d283c/);
     expect(rule).toMatch(/color:\s*#688aec/);
     expect(rule).toMatch(/font-weight:\s*600/);
