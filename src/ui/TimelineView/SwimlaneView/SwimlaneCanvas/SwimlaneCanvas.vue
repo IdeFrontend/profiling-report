@@ -259,6 +259,8 @@ let lastPushedMultiIds: readonly string[] | null = null;
 let unbindMarqueeDrag: (() => void) | null = null;
 /** True if the marquee started with Shift held — the commit unions with the existing selection. */
 let marqueeShift = false;
+/** Committed ids at Shift+pointerdown; live preview must not feed back into the union. */
+let marqueeShiftBaseIds: readonly string[] = EMPTY_MULTI_IDS;
 /** Canvas client origin cached for the gesture so dock layout cannot force a reflow mid-drag. */
 let clientOrigin: { left: number; top: number } | null = null;
 let clientOriginPinned = false;
@@ -1041,6 +1043,7 @@ function endMarquee(): void {
   marqueePressActive = false;
   marqueeEscaped = false;
   marqueeShift = false;
+  marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   marqueePreviewIds = null;
   unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);
@@ -1060,6 +1063,19 @@ function eventsInMarquee(rect: MarqueeRect): SwimEvent[] {
   );
 }
 
+function snapshotShiftBaseIds(): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  const addId = (id: string) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    ordered.push(id);
+  };
+  if (props.selectedEventId) addId(props.selectedEventId);
+  (props.multiSelectedIds ?? []).forEach(addId);
+  return ordered;
+}
+
 /** Union ids for live dim / dock count. Does not resolve SwimEvent objects. */
 function unionMarqueeIds(rectEvents: SwimEvent[]): string[] {
   if (!marqueeShift) return rectEvents.map((ev) => ev.id);
@@ -1070,8 +1086,7 @@ function unionMarqueeIds(rectEvents: SwimEvent[]): string[] {
     seen.add(id);
     ordered.push(id);
   };
-  if (props.selectedEventId) addId(props.selectedEventId);
-  (props.multiSelectedIds ?? []).forEach(addId);
+  marqueeShiftBaseIds.forEach(addId);
   rectEvents.forEach((ev) => addId(ev.id));
   return ordered;
 }
@@ -1172,8 +1187,8 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
   const w = syncTrackWidth();
   emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
   emitLaneHover(null);
-  // Preview the commit: covered events stay bright, the rest dim through the shared path.
-  // Shift+drag previews the union so the existing selection does not flicker dim.
+  // Shift+drag previews the union with the pointerdown snapshot so reversing
+  // the rect can drop events that are no longer covered.
   const rectEvents = eventsInMarquee(rect);
   const nextIds = unionMarqueeIds(rectEvents);
   if (sameIdSet(marqueePreviewIds, nextIds)) return;
@@ -1217,6 +1232,7 @@ function onMarqueeDragEnd(): void {
   emitMarqueePreview(null);
   sync();
   marqueeShift = false;
+  marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   void nextTick(() => {
     marqueePreviewIds = null;
     sync();
@@ -1228,6 +1244,7 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   endMeasureResize();
   endMarquee();
   marqueeShift = shiftKey;
+  marqueeShiftBaseIds = shiftKey ? snapshotShiftBaseIds() : EMPTY_MULTI_IDS;
   marqueeAnchor = { x: localX, y: localY };
   marqueePending = true;
   marqueePressActive = true;
@@ -1253,6 +1270,7 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   // the leftover release (PR-CANVAS-082). Cleared on that pointerup.
   marqueeEscaped = true;
   marqueeShift = false;
+  marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   marqueePreviewIds = null;
   unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);

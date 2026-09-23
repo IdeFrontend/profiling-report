@@ -2567,6 +2567,82 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-110: Shift+union live preview drops events the rect no longer covers', async () => {
+    const twoEvents = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            {
+              id: 't-1',
+              name: 'T',
+              events: [
+                { id: 'e1', name: 'a', startTime: 200, duration: 100 },
+                { id: 'e2', name: 'b', startTime: 350, duration: 100 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    await wrapper.setProps({
+      model: twoEvents,
+      multiSelectedIds: ['e1'],
+    });
+    await wrapper.vm.$nextTick();
+    const r1 = vm.eventScreenRect('e1')!;
+    const r2 = vm.eventScreenRect('e2')!;
+    const y = r2.y + r2.h / 2;
+    const betweenX = (r1.x + r1.w + r2.x) / 2;
+
+    await canvas.trigger('pointerdown', {
+      clientX: betweenX,
+      clientY: r2.y - 4,
+      pointerId: 1,
+      shiftKey: true,
+    });
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: r2.x + r2.w + 20,
+        clientY: r2.y + r2.h + 4,
+        buttons: 1,
+      }),
+    );
+    await wrapper.vm.$nextTick();
+    const grown = wrapper.emitted('multi-select-preview')!.at(-1)![0] as string[];
+    expect(grown).toEqual(['e1', 'e2']);
+    // SwimlaneView paints live preview ids back as multiSelectedIds.
+    await wrapper.setProps({ multiSelectedIds: grown });
+
+    window.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: betweenX - 1,
+        clientY: r2.y + r2.h + 4,
+        buttons: 1,
+      }),
+    );
+    await flushMarqueeRaf();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select-preview')!.at(-1)![0]).toEqual(['e1']);
+
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { clientX: betweenX - 1, clientY: r2.y + r2.h + 4 }),
+    );
+    await wrapper.vm.$nextTick();
+    const committed = (wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[]).map(
+      (e) => e.id,
+    );
+    expect(committed).toEqual(['e1']);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-097: Shift+drag union resolves ids via the shared resolver, not the local model', async () => {
     // Simulates the pinned-strip instance: its own `backend` only knows about pinned-lane
     // events, but a seeded selection can reference an id from the (unpinned) body. The
