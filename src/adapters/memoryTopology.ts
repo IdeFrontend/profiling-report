@@ -225,6 +225,14 @@ export const TOPOLOGY_SLOT_EDGE_IDS = [
 
 export type TopologySlotEdgeId = (typeof TOPOLOGY_SLOT_EDGE_IDS)[number];
 
+/**
+ * Edge ids kept in `TOPOLOGY_SLOT_EDGE_IDS` / EDGE_MAP for typing and 详情, but the simplified
+ * 448×423 chrome has **no overlay plate** for them (`SLOTS[id] = []`, PR-MEMTOP-002c). A label
+ * on these alone must not make the diagram drawable (PR-MEMTOP-004 / PR-VM-018) — adapters fold
+ * Cube↔L0C reverse onto `cube-l0c` via `foldCubeL0cCorridorEdges` first.
+ */
+export const TOPOLOGY_NO_OVERLAY_EDGE_IDS = ['l0c-cube'] as const;
+
 /** DATA-20 L2 Peak(%): plate on the L2 pillar, not a link slot (`unit: '%'`). */
 export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
 
@@ -232,7 +240,8 @@ export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
  * UI-49 / DATA-39: units whose **in-box** badge is a pipe-utilization ratio, not a peak percent.
  * The panel types its `PLATE_SLOTS` against this tuple, so a newly plated unit without
  * coordinates fails typecheck instead of silently drawing nothing (same rule as the link slots).
- * AIV0/AIV1 share one field and one plate entry — the panel paints it in both AIV rows.
+ * AIV0/AIV1 share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); the simplified AIV × 2 chrome
+ * paints one badge each at `PLATE_SLOTS` (PR-MEMTOP-016).
  * `satisfies` keeps the tuple in step with the domain union: a unit that is not a
  * `MemoryTopologyPlateNodeId` cannot be listed here.
  */
@@ -256,19 +265,46 @@ const PLATE_MAP: { node: TopologyPlateNodeId; file: string; columns: string[] }[
 ];
 
 /**
- * True when the chrome can paint something: a plated link value, the L2 plate (`peakPct` or a
- * `l2-hit` label), or both. A model whose only labels are slotless (`l0c-l1` / `l0c-l2` /
- * `l2-l1-write`) is not drawable — mounting the chrome with every overlay blank is worse than
- * hiding it (PR-MEMTOP-009 / PR-MEMTOP-012). Shared by the panel's `show` gate and the default
- * block pick below, so both agree on what "the diagram exists" means.
+ * Fold Cube↔L0C reverse (`l0c-cube`) onto the sole corridor plate edge (`cube-l0c`).
+ * Prefer the forward label when both are present; otherwise copy reverse onto `cube-l0c` so
+ * reverse-only BW is visible. Clear the `l0c-cube` label afterward — CSV 详情 still has the
+ * source columns; the chrome has one plate (PR-MEMTOP-002c).
+ */
+export function foldCubeL0cCorridorEdges(
+  edges: MemoryTopologyModel['edges'],
+): MemoryTopologyModel['edges'] {
+  const reverseLabel = edges.find((e) => e.id === 'l0c-cube')?.label;
+  if (reverseLabel == null || reverseLabel === '') return edges;
+  const forwardLabel = edges.find((e) => e.id === 'cube-l0c')?.label;
+  return edges.map((e) => {
+    if (e.id === 'cube-l0c') {
+      if (forwardLabel != null && forwardLabel !== '') return e;
+      return { ...e, label: reverseLabel };
+    }
+    if (e.id === 'l0c-cube') {
+      const { label: _drop, ...rest } = e;
+      return rest;
+    }
+    return e;
+  });
+}
+
+/**
+ * True when the chrome can paint something: a plated link value with a chrome overlay slot, the
+ * L2 plate (`peakPct` or a `l2-hit` label), or both. Labels on plated-less edges (`l0c-l1` /
+ * `l0c-l2` / `l2-l1-write`) or on empty-`SLOTS` ids (`l0c-cube` — PR-MEMTOP-002c) alone do not
+ * count (PR-MEMTOP-004 / PR-MEMTOP-009). Shared by the panel's `show` gate and the default block
+ * pick below, so both agree on what "the diagram exists" means.
  */
 export function hasDrawableTopology(model: MemoryTopologyModel | null | undefined): boolean {
   if (!model || model.nodes.length === 0) return false;
   if (model.nodes.some((n) => n.id === 'l2' && n.peakPct != null)) return true;
+  const noOverlay = TOPOLOGY_NO_OVERLAY_EDGE_IDS as readonly string[];
   return model.edges.some(
     (e) =>
       e.label != null &&
       e.label !== '' &&
+      !noOverlay.includes(e.id) &&
       ((TOPOLOGY_SLOT_EDGE_IDS as readonly string[]).includes(e.id) ||
         e.id === TOPOLOGY_PEAK_PLATE_EDGE_ID),
   );
@@ -336,7 +372,11 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
     return ratio == null ? [] : [{ node: p.node, label: formatLabel(ratio * 100, '%') }];
   });
 
-  return { nodes, edges, ...(plates.length > 0 ? { plates } : {}) };
+  return {
+    nodes,
+    edges: foldCubeL0cCorridorEdges(edges),
+    ...(plates.length > 0 ? { plates } : {}),
+  };
 }
 
 /**

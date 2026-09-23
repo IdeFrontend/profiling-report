@@ -249,8 +249,7 @@ const summaryId = useId();
  * Accessible text alternative (PR-MEMTOP-011). `role="img"` exposes the diagram as a single
  * image, so its `<text>` values never reach the a11y tree on their own. This spells out the
  * same slots as `from → to: value`, read from the model — so it lists exactly what the diagram
- * draws: blank slots and slotless edges stay out. Paired AIV0/AIV1 slots share one aggregate
- * value, so the description names both rows once instead of repeating the same string.
+ * draws: blank slots and slotless edges stay out.
  */
 const summary = computed(() => {
   const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
@@ -263,15 +262,13 @@ const summary = computed(() => {
     const edge = props.model?.edges.find((e) => e.id === v.id);
     const from = (edge && names.get(edge.from)) ?? edge?.from ?? '';
     const to = (edge && names.get(edge.to)) ?? edge?.to ?? '';
-    const pair = SLOTS[v.id].length > 1 ? ' (AIV0, AIV1)' : '';
-    parts.push(from && to ? `${from} → ${to}${pair}: ${v.text}` : v.text);
+    parts.push(from && to ? `${from} → ${to}: ${v.text}` : v.text);
   }
-  // UI-49 in-box badges: one entry per unit, not per slot (the AIV0/AIV1 pair shares a value).
+  // UI-49 in-box badges: one entry per plated unit (AIV × 2 chrome has one slot each).
   for (const p of plates.value) {
     if (seen.has(p.node)) continue;
     seen.add(p.node);
-    const pair = PLATE_SLOTS[p.node].length > 1 ? ' (AIV0, AIV1)' : '';
-    parts.push(`${names.get(p.node) ?? p.node}${pair}: ${p.text}`);
+    parts.push(`${names.get(p.node) ?? p.node}: ${p.text}`);
   }
   return parts.join('; ');
 });

@@ -369,6 +369,16 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
   });
 
+  it('PR-MEMTOP-004: empty-slot l0c-cube alone is not drawable (before fold)', () => {
+    const reverseOnly = {
+      nodes: model.nodes,
+      edges: [{ id: 'l0c-cube', from: 'l0c', to: 'cube', label: '5.00 GB/s' }],
+    };
+    expect(hasDrawableTopology(reverseOnly)).toBe(false);
+    const wrapper = mount(MemoryTopologyPanel, { props: { model: reverseOnly } });
+    expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+  });
+
   it('PR-MEMTOP-005: edge labels update when model changes', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.text()).toContain('1.56 GB/s');

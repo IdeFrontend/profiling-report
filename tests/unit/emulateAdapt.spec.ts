@@ -326,9 +326,29 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       ARCH_DIAGRAM_EDGE_MAP.map((e) => e.id).sort(),
     );
     for (const [edgeId, label] of expected) {
+      // PR-MEMTOP-002c: reverse Cube↔L0C folds onto cube-l0c (prefer forward); l0c-cube cleared.
+      if (edgeId === 'l0c-cube') {
+        expect(model!.edges.find((e) => e.id === edgeId)?.label, edgeId).toBeUndefined();
+        continue;
+      }
       expect(model!.edges.find((e) => e.id === edgeId)?.label, edgeId).toBe(label);
     }
     expect(model!.edges.some((e) => e.label === '99.00 GB/s')).toBe(false);
+  });
+
+  it('PR-ASIM-008c: reverse-only Cube↔L0C folds onto cube-l0c plate', async () => {
+    const { topologyFromArchDiagramMetrics } = await import(
+      '../../src/adapters/emulateMemoryTopology'
+    );
+    const model = topologyFromArchDiagramMetrics(
+      [
+        'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+        '1,aic_l0c_to_cube_gbs,7.25',
+      ].join('\n'),
+    );
+    expect(model).toBeDefined();
+    expect(model!.edges.find((e) => e.id === 'cube-l0c')?.label).toBe('7.25 GB/s');
+    expect(model!.edges.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
   });
 });
 

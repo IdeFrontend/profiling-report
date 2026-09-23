@@ -5,6 +5,7 @@
  */
 import type { MemoryTopologyModel } from '../domain/types';
 import {
+  foldCubeL0cCorridorEdges,
   hasDrawableTopology,
   MEMORY_TOPOLOGY_NODE_DEFS,
 } from './memoryTopology';
@@ -171,6 +172,6 @@ export function topologyFromArchDiagramMetrics(
     n.id === 'l2' && peakPct != null ? { ...n, peakPct } : { ...n },
   );
 
-  const model: MemoryTopologyModel = { nodes, edges };
+  const model: MemoryTopologyModel = { nodes, edges: foldCubeL0cCorridorEdges(edges) };
   return hasDrawableTopology(model) ? model : undefined;
 }

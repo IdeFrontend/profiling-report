@@ -150,7 +150,7 @@ Single embed, EAV rows — **no FK join**. Map `ArchDiagramParameterName` → sl
 | `edges[l2-l1-read].label` | same | `aic_out_to_l1_gbs` | `{n} GB/s` |
 | `edges[l1-l0a]` / `[l1-l0b]` | same | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` | `{n} GB/s` |
 | `edges[l0a-cube]` / `[l0b-cube]` | same | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` | `{n} GB/s` |
-| `edges[cube-l0c]` / `[l0c-cube]` | same | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` | `{n} GB/s` |
+| `edges[cube-l0c]` / `[l0c-cube]` | same | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` | `{n} GB/s` on sole plate `cube-l0c` — reverse folds onto forward (prefer forward); `l0c-cube` label cleared after fold |
 | `edges[l2-ub]` | same | `aiv0_out_to_ub_gbs`, `aiv1_out_to_ub_gbs` | average when both present |
 | `edges[ub-l2]` | same | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` | average |
 | `edges[ub-vec]` / `[vec-ub]` | same | `aiv*_ub_to_simd_gbs` / `aiv*_simd_to_ub_gbs` | average |
@@ -164,7 +164,7 @@ Single embed, EAV rows — **no FK join**. Map `ArchDiagramParameterName` → sl
 | `l2-l1-read` | `aic_out_to_l1_gbs` |
 | `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` |
 | `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` |
-| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` |
+| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` — fold reverse onto `cube-l0c` |
 | `l2-ub` | `aiv0_out_to_ub_gbs` (AIV0), `aiv1_out_to_ub_gbs` (AIV1) — average when both present |
 | `ub-l2` | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` |
 | `ub-vec` | `aiv0_ub_to_simd_gbs` / `aiv1_ub_to_simd_gbs` |
