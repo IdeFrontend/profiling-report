@@ -39,6 +39,29 @@ Start here: **[docs/README.md](docs/README.md)**
 python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 ```
 
+## Offline HTML report (CLI)
+
+Self-contained interactive HTML for local share-out and CI artifacts (not the MSTT packaging form — that remains the Vue library).
+
+```bash
+npm run build:report-shell
+npm run generate:html-report -- path/to/report.npu-rep -o report.html
+# or: node scripts/generate-html-report.mjs path/to/report.npu-rep -o report.html
+# or (after npm link / npx): npu-rep-html path/to/report.npu-rep -o report.html
+```
+
+Open `report.html` in a browser (`file://` works). Rebuild the shell when viewer code changes; the generate step only embeds report bytes into the prebuilt template.
+
+CI:
+
+```bash
+npm ci
+npm run build:report-shell
+npm run generate:html-report -- "$REPORT_PATH" -o artifacts/profiling-report.html
+```
+
+Smoke: `npm run check:html-report` (needs a prior `build:report-shell`).
+
 ## Demo (playground)
 
 Static playground demo is what Vercel deploys (`vercel.json` → `npm run build:demo` → `playground/dist`).

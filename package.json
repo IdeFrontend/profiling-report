@@ -19,6 +19,9 @@
   "files": [
     "dist"
   ],
+  "bin": {
+    "npu-rep-html": "./scripts/generate-html-report.mjs"
+  },
   "scripts": {
     "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
     "build:sample": "python3 data/build_sample_rep.py && node -e \"const {createHash}=require('crypto');const {readFileSync,writeFileSync}=require('fs');const h=createHash('sha256').update(readFileSync('data/sample.lite.rep')).digest('hex');writeFileSync('data/sample.lite.rep.sha256',h+'\\n');console.log('[build:sample] sha256',h)\" && npm run sync:demo-fixtures",
@@ -29,6 +32,9 @@
     "prebuild:demo": "npm run sync:demo-fixtures",
     "build:demo": "vite build --config playground/vite.config.ts",
     "preview:demo": "vite preview --config playground/vite.config.ts --host 127.0.0.1 --port 4173",
+    "build:report-shell": "vite build --config report-shell/vite.config.ts && node scripts/inline-report-shell.mjs",
+    "generate:html-report": "node scripts/generate-html-report.mjs",
+    "check:html-report": "node scripts/check-html-report.mjs",
     "typecheck": "vue-tsc -p tsconfig.lib.json --noEmit && vue-tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
