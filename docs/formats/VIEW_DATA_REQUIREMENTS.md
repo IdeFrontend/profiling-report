@@ -62,30 +62,9 @@ Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). P
 | Hovered/selected event name + timing | **Required** for tooltip |
 | Source paths / PC / dep mini-graph | **Optional** — P2 |
 
-### 9. Compute-load detail tabs — M1
-
-| Input | Requirement |
-|-------|-------------|
-| Tabs | Compute: `PipeUtilization` / Arithmetic / ResourceConflict; emulate: `PipesUtilization` / hist when packed |
-| Hide | Missing CSV → hide tab |
-
-### 12. Memory detail tabs — M1
-
-| Input | Requirement |
-|-------|-------------|
-| Tabs | Memory L1 / L2Cache / L0 / UB |
-| Emulate | **hide** Sept 30 (gap) |
-
 ### 13. Timeline time-range measure — M2
 
 See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
-
-### 14. Hardware details — M1
-
-| Input | Requirement |
-|-------|-------------|
-| `hardwareDetails` | HardwareInfo.jsonl or OpBasicInfo fallback |
-| Emulate | usually **omit** |
 
 ### 15. Secondary tabs
 
