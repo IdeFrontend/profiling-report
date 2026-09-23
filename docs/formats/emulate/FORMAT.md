@@ -75,7 +75,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 | `PipeTrace.json` | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/interim/DATA.md#data-46)). When `PipeTrace.json` is absent, **all** native `core_*_tracing_report_*.json` (non–critical-path) are **merged** into one swimlane with remapped pids, ordered by numeric core index ([PR-ASIM-007](../../../specs/core/adapt-emulate.spec.md)). Absent both → null swimlane |
 | `KernelInfo.csv` | _(not 报告统计 chrome)_ | optional `csvTexts` only | **Out** of summary cards / meta ([DATA-47](../../context/decisions/DATA.md)). May remain packed for catalog / export |
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
-| `ArchDiagramMetrics.csv` | [Architecture Diagram](../../views/arch-diagram.md) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
+| `ArchDiagramMetrics.csv` | [memory-topology](../../views/memory-topology.md) (Architecture Diagram fill) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
 
 **Also lit when the above mount:** StatsAside CANNBot scopes (**compute / memory** only — summary scope omitted with meta, [DATA-47](../../context/decisions/DATA.md)) from the same adapted fields — no extra embeds.
 

@@ -33,8 +33,7 @@ flowchart LR
 | `pipe-occupancy` | [pipe-occupancy.md](pipe-occupancy.md) | M | `adapt-mapper` | **in** | `compute-load.jpeg` |
 | `overview-charts` | [overview-charts.md](overview-charts.md) | M | `gap` | **hide** | OverviewCharts visual |
 | `roofline` | [roofline.md](roofline.md) | M2 | `gap` | **hide** | RooflinePanel visual |
-| `memory-topology` | [memory-topology.md](memory-topology.md) | M2 | `adapt-mapper` | compute **in**; emulate = interim chrome only | `report-stats-scrolled.jpeg` |
-| `arch-diagram` | [arch-diagram.md](arch-diagram.md) | M4 | `adapt-mapper` | **in** (emulate; interim plated chrome) | (same chrome until biprof SVG) |
+| `memory-topology` | [memory-topology.md](memory-topology.md) | M2 / M4 | `adapt-mapper` | compute **in** (`memoryDiagram`); emulate Architecture Diagram **in** on same chrome (`archDiagram`) | `memory-topology.svg` (`v930-chrome`) |
 | `performance-hints` | [performance-hints.md](performance-hints.md) | M4 | `adapt-mapper` | **planned** | `v930-sim` 性能提示 report panel |
 
 ### Stubs (second pass)
@@ -54,8 +53,8 @@ Source files under [`../ui/source/v930/`](../ui/source/v930/). Full design hiera
 | [`roofline.png`](../ui/source/v930/report-stats-open.jpeg) | Roofline |
 | [`pipe-occupancy.png`](../ui/source/v930/compute-load.jpeg) | Pipe occupancy bars |
 | [`pipe-details.png`](../ui/source/v930/compute-load-detail.jpeg) | Pipe details list |
-| [`memory-topology-annotated.png`](../ui/source/v930/report-stats-scrolled.jpeg) | Memory topology SVG (nodes/edges) |
-| [`memory-load-heatmap.png`](../ui/source/v930/report-stats-scrolled.jpeg) | Memory load with BW / peak % |
+| [`memory-topology-annotated.png`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) | Memory topology SVG (448×423, AIC + AIV × 2) |
+| [`memory-load-heatmap.png`](../ui/source/v930/report-stats-scrolled.jpeg) | Historical dual-AIV memory-load dump (not current chrome) |
 | [`statistical-analysis.png`](../ui/source/v930/entry.jpeg) | Cube/Vector statistical tracks |
 | [`kernel-block-timeline.png`](../ui/source/v930/entry.jpeg) | Block timeline |
 | [`event-details.png`](../ui/source/v930/detail-strip-raised.jpeg) | Event / Relevant details |

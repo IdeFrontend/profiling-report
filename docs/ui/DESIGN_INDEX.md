@@ -10,7 +10,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 
 | Layer | Path | Role |
 |-------|------|------|
-| A – sources | [`source/v930/`](./source/v930/) + [`source/v930-sim/`](./source/v930-sim/) + [`manifest.yaml`](./source/manifest.yaml) | Full-frame dumps (append-only) |
+| A – sources | [`source/v930/`](./source/v930/) + [`source/v930-sim/`](./source/v930-sim/) + [`source/v930-chrome/`](./source/v930-chrome/) + [`manifest.yaml`](./source/manifest.yaml) | Full-frame dumps (append-only) |
 | C – visual packs | nested under `src/ui/{Region}/…/{Component}/visual/` | Crops + `provenance.yaml` next to implementation |
 
 ## Source frames (`v930`)
@@ -19,7 +19,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 |----|------|-------------------|
 | `v930/entry` | [`entry.jpeg`](./source/v930/entry.jpeg) | Toolbar, overview, gutter, swimlane, overview charts, axis |
 | `v930/report-stats-open` | [`report-stats-open.jpeg`](./source/v930/report-stats-open.jpeg) | Stats summary, roofline |
-| `v930/report-stats-scrolled` | [`report-stats-scrolled.jpeg`](./source/v930/report-stats-scrolled.jpeg) | Aside shell scroll |
+| `v930/report-stats-scrolled` | [`report-stats-scrolled.jpeg`](./source/v930/report-stats-scrolled.jpeg) | Aside shell scroll (historical dual-AIV topology dump — not current chrome) |
 | `v930/search-highlight` | [`search-highlight.jpeg`](./source/v930/search-highlight.jpeg) | Search highlight, cursor timestamp |
 | `v930/detail-strip-raised` | [`detail-strip-raised.jpeg`](./source/v930/detail-strip-raised.jpeg) | Detail panel columns |
 | `v930/compute-load` | [`compute-load.jpeg`](./source/v930/compute-load.jpeg) | PIPE occupancy |
@@ -42,6 +42,12 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay: fit-window control only, no 全屏, no strip |
 | `v930-sim/performance-hints` | [`performance-hints.jpeg`](./source/v930-sim/performance-hints.jpeg) | 性能提示 / 性能分析 dock: hint message, source line, instruction address |
 
+## Source frames (`v930-chrome` — official topology SVG)
+
+| Id | File | Typical consumers |
+|----|------|-------------------|
+| `v930-chrome/memory-topology` | [`memory-topology.svg`](./source/v930-chrome/memory-topology.svg) | Memory topology chrome (448×423, AIC + one AIV × 2); same asset as the runtime panel SVG |
+
 ## Component visual packs
 
 | Component | Visual pack | Primary source |
@@ -60,7 +66,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | [`PipeOccupancyPanel`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/) | PIPE bars, Cube\|Vector tabs | `v930/compute-load` |
 | [`CsvFieldListPanel`](../../src/ui/StatsAside/CsvFieldListPanel/visual/) | tabs, fields, block switcher | `v930/compute-load-detail`, `memory-load-detail` |
 | [`RooflinePanel`](../../src/ui/StatsAside/RooflinePanel/visual/) | roofline chart | `v930/report-stats-open` |
-| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology chrome (nodes/edges) + value slots; zoom / fullscreen bar | `v930/report-stats-scrolled`; official chrome `memory-topology.svg`; bar → `v930-sim/*` |
+| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology chrome (nodes/edges) + value slots; zoom / fullscreen bar | `v930-chrome/memory-topology` (SVG); bar → `v930-sim/*` |
 | [`HardwareDetailsPanel`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/) | Host/Device info | `v930/hardware-more-detail` |
 | [`DetailPanel`](../../src/ui/DetailPanel/visual/) | dock chrome | `v930/detail-strip-raised` |
 | [`DetailSummary`](../../src/ui/DetailPanel/DetailSummary/visual/) | identity card | `v930/detail-strip-raised` |

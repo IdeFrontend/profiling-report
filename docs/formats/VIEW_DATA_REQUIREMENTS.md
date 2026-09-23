@@ -14,7 +14,6 @@ Extracted surfaces (sketches + VM + compute/emulate fill):
 | `overview-charts` | [../views/overview-charts.md](../views/overview-charts.md) |
 | `roofline` | [../views/roofline.md](../views/roofline.md) |
 | `memory-topology` | [../views/memory-topology.md](../views/memory-topology.md) |
-| `arch-diagram` | [../views/arch-diagram.md](../views/arch-diagram.md) |
 | `performance-hints` | [../views/performance-hints.md](../views/performance-hints.md) |
 
 **Still on this page until a second extract pass** (same hide policy [DATA-30](../context/decisions/DATA.md)): time axis, lane gutter, swimlane canvas, measure mode, secondary tabs — see historical sections below or [views README stubs](../views/README.md). (Hardware, CSV tabs, and event/Relevant details are in view packets.)

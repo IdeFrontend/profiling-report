@@ -37,7 +37,7 @@ Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decis
 | — | Timeline swimlane | [timeline](timeline.md) | **in** |
 | — | Thin report summary | [report-summary](report-summary.md) | **out** ([DATA-47](../context/decisions/DATA.md)) |
 | 11.2.3.4 / .6 | PIPE occupancy | [pipe-occupancy](pipe-occupancy.md) | **in** |
-| 11.2.3.1 | Architecture Diagram | [arch-diagram](arch-diagram.md) | **in** (ArchDiagramMetrics→slot in **Emulate fill**; interim plated chrome) |
+| 11.2.3.1 | Architecture Diagram | [memory-topology](memory-topology.md) (capability `archDiagram`) | **in** (ArchDiagramMetrics→slot in **Emulate fill**; same chrome as compute) |
 | — | Overview charts | [overview-charts](overview-charts.md) | **hide** |
 | 11.2.3.5 | Roofline | [roofline](roofline.md) | **hide** |
 | 11.2.3.2 | Memory Utilization Heatmap | _(reserved)_ | **out** ([DATA-49](../context/questions/DATA.md)) |

@@ -6,12 +6,12 @@ import { test, expect, type Locator } from '@playwright/test';
  *
  * The panel renders in two hosts with different pixel budgets — the stacked aside (a box that
  * already has the chrome's ratio) and the wide fullscreen overlay — and the invariant has to hold in
- * both: the *drawing* keeps 448:540, the fitted scale fills the box it was given, and the scroll
+ * both: the *drawing* keeps 448:423, the fitted scale fills the box it was given, and the scroll
  * range covers exactly the diagram's own overflow rather than empty stage.
  */
 
 const CHROME_W = 448;
-const CHROME_H = 540;
+const CHROME_H = 423;
 /** `scrollWidth` reports an integer, and the diagram's own edges land on fractions. */
 const SLOP = 2;
 
@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
- * The diagram's on-screen rectangle, mapped from chrome units (0,0)–(448,540) through the `svg`'s own
+ * The diagram's on-screen rectangle, mapped from chrome units (0,0)–(448,423) through the `svg`'s own
  * CTM — the *drawing*, not the `svg` element around it, which letterboxes under
  * `preserveAspectRatio` when the element and the viewBox disagree.
  */
@@ -192,7 +192,7 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   const viewport = aside.getByTestId('topology-viewport');
   await expect(viewport).toBeVisible();
 
-  /** The drawing's own point under the middle of the visible box, in the chrome's 448×540 units.
+  /** The drawing's own point under the middle of the visible box, in the chrome's 448×423 units.
    *  Measured from the box's `clientWidth` because that is the visible width on a platform whose
    *  bars reserve a gutter, while the border box also counts the band they reserved. */
   const middle = () =>
