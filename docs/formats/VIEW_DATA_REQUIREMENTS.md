@@ -56,10 +56,6 @@ Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). P
 | `SwimEvent` | **Required** (empty trace → empty lanes) |
 | `dependencies` | **Optional** — P2 |
 
-### 6. Event tooltip + detail strip
-
-**Extracted** → [event-details](../views/event-details.md).
-
 ### 13. Timeline time-range measure — M2
 
 See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
