@@ -508,6 +508,16 @@ function applyLiveScrollHint(on: boolean): void {
   if (backend instanceof CanvasSwimlaneRenderer) backend.setLiveScroll(on);
 }
 
+/**
+ * Selection id to paint while a marquee is live. A rect covering exactly one event
+ * demotes to single-select (dependency curves draw), matching the dock's DetailPanel
+ * preview; zero or ≥2 covered events paint no single selection (PR-CANVAS-085).
+ */
+function livePaintSelectedId(): string | null {
+  if (marqueePreviewIds == null) return props.selectedEventId;
+  return marqueePreviewIds.length === 1 ? marqueePreviewIds[0]! : null;
+}
+
 function applyViewState(forceModel = false): void {
   // Dummy pre-attach backend must not steal `attachedModel` — parent onMounted can
   // push defaultCollapsedIds before this canvas's `await nextTick()` attach.
@@ -534,8 +544,9 @@ function applyViewState(forceModel = false): void {
   backend.setDependencyDepth?.(props.dependencyDepth);
   backend.setPaintDependencies?.(props.showDependencies !== false);
   // Live marquee preview owns brightness via setMultiSelection. Clear selectedId so
-  // dependencyGraph / eventStateOf do not keep the pre-drag selection unmuted (PR-CANVAS-085).
-  const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
+  // dependencyGraph / eventStateOf do not keep the pre-drag selection unmuted
+  // (PR-CANVAS-085) — except a single covered event, which demotes to single-select.
+  const paintSelectedId = livePaintSelectedId();
   backend.setSelection(paintSelectedId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   backend.setCollapsedIds?.(props.collapsedIds ?? []);
@@ -903,7 +914,7 @@ function applyHoverPaint(): void {
   if (!attached || !props.model) return;
   if (laneScrollEasing || scrollRaf) return;
   if (lastDeviceW < 1 || lastDeviceH < 1) return;
-  const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
+  const paintSelectedId = livePaintSelectedId();
   backend.setSelection(paintSelectedId, props.hoveredEventId);
   if (useWebGl.value) {
     overlay.setSelection(paintSelectedId, props.hoveredEventId);

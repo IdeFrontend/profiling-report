@@ -2285,7 +2285,8 @@ describe('SwimlaneCanvas', () => {
     await flushMarqueeRaf();
     await wrapper.vm.$nextTick();
     expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
-    expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
+    // A single covered event demotes to single-select: its dependency curves draw.
+    expect(selSpy.mock.calls.at(-1)![0]).toBe('e1');
 
     // Commit holds preview ids through the sync emit (PR-CANVAS-102); dim does not
     // flash to stale props. After nextTick the hold drops back to props.
