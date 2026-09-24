@@ -312,6 +312,8 @@ describe('StatsAside', () => {
 
     await mix.get('[data-testid="pipe-occupancy"]');
     expect(mix.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
+    expect(mix.find('[data-testid="pipe-side-cube"]').exists()).toBe(true);
+    expect(mix.find('[data-testid="pipe-side-vector"]').exists()).toBe(true);
     let rows = mix.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Cube');
     expect(rows).toContain('MTE2');
@@ -338,6 +340,106 @@ describe('StatsAside', () => {
     expect(vectorRows).toContain('Vector');
     expect(vectorRows).toContain('MTE2');
     expect(vectorRows).not.toContain('Cube');
+  });
+
+  it('PR-STATS-038: emulate Cube|Vector 0|Vector 1 toggle filters by core (UI-54)', async () => {
+    const pipes = [
+      { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.264, colorKey: 'mte3', side: 'aiv1' as const },
+      { id: 'scalar', label: 'Scalar', ratio: 0.505, colorKey: 'scalar', side: 'aic' as const },
+      { id: 'scalar', label: 'Scalar', ratio: 0.484, colorKey: 'scalar', side: 'aiv0' as const },
+      { id: 'scalar', label: 'Scalar', ratio: 0.489, colorKey: 'scalar', side: 'aiv1' as const },
+    ];
+
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: pipes,
+        }),
+      },
+    });
+
+    await wrapper.get('[data-testid="pipe-occupancy"]');
+    expect(wrapper.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="pipe-side-aic"]').text()).toBe('Cube');
+    expect(wrapper.find('[data-testid="pipe-side-aiv0"]').text()).toBe('Vector 0');
+    expect(wrapper.find('[data-testid="pipe-side-aiv1"]').text()).toBe('Vector 1');
+
+    let rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('Scalar');
+    expect(rows).toContain('51'); // round(0.505*100)
+    expect(rows).not.toContain('19'); // aiv0 MTE3 ~19%
+    expect(rows).not.toContain('26'); // aiv1 MTE3
+
+    await wrapper.get('[data-testid="pipe-side-aiv0"]').trigger('click');
+    rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('MTE3');
+    expect(rows).toContain('19'); // round(0.1856*100)
+    expect(rows).not.toContain('26');
+    expect(rows).not.toContain('51');
+
+    await wrapper.get('[data-testid="pipe-side-aiv1"]').trigger('click');
+    rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('26'); // round(0.264*100)
+    expect(rows).not.toContain('19');
+
+    // Re-passing an equivalent report must not wipe Vector 1 back to Cube (aic).
+    await wrapper.setProps({
+      report: report({
+        summary: { taskDurationUs: 1 },
+        pipeOccupancy: [...pipes],
+      }),
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="pipe-side-aiv1"]').classes()).toContain(
+      'pr-pipe-toggle__btn--active',
+    );
+    rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('26');
+  });
+
+  it('PR-STATS-038: single emulate core keeps bars with opType AIC/AIV (UI-54)', async () => {
+    // After UI-54 drops unresolved cores, a pack may have only side aic (or only aiv0).
+    // Must not fall through to knownSide (aic→cube / aiv→vector) and blank the list.
+    const aicOnly = [
+      { id: 'scalar', label: 'Scalar', ratio: 0.505, colorKey: 'scalar', side: 'aic' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
+    ];
+    const aic = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1, opType: 'AIC' },
+          pipeOccupancy: aicOnly,
+        }),
+      },
+    });
+    await aic.get('[data-testid="pipe-occupancy"]');
+    expect(aic.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
+    let rows = aic.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('Scalar');
+    expect(rows).toContain('51');
+    expect(rows).toContain('MTE3');
+
+    const aivOnly = [
+      { id: 'scalar', label: 'Scalar', ratio: 0.484, colorKey: 'scalar', side: 'aiv0' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },
+    ];
+    const aiv = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1, opType: 'AIV' },
+          pipeOccupancy: aivOnly,
+        }),
+      },
+    });
+    await aiv.get('[data-testid="pipe-occupancy"]');
+    expect(aiv.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
+    rows = aiv.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('Scalar');
+    expect(rows).toContain('48');
+    expect(rows).toContain('19');
   });
 
   it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {

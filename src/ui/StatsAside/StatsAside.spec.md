@@ -56,7 +56,9 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 **PIPE.** Matches [`pipe-bars.png`](./PipeOccupancyPanel/visual/pipe-bars.png). Values are per-family means of non-NA ratios: `All` reads `summary.jsonl` `PipeUtilization` (the producer's non-`NA` mean across `block_id`), a picked id reads that block's `PipeUtilization.csv` row — one block selector (**All \| id**, default **All**) for the whole aside ([DATA-19](../../../docs/context/decisions/DATA.md) / [DATA-28](../../../docs/context/decisions/DATA.md) / [DATA-29](../../../docs/context/decisions/DATA.md)). The same selection scopes the memory topology, the BW cards, the compute card, the roofline and the 详情 lists; picking an id updates every one of them, and **All** returns them all to the `summary.jsonl` aggregate. Without `summary.jsonl` (classic `.rep`) `All` falls back to the CSV data. `HardwareInfo` / `OpInfoSummary`-only fields (AI Core 并行使用率 / 负载均衡度) are op-level and do not change with the selection. Switcher ids are every `block_id` in the report (compute ∪ memory, fixture order), so the aside switcher and the memory overlay switcher share one option list and cannot disagree. Bar colors match COLOR_TOKENS. Section title **计算负载分析**. **详情** opens the compute CSV overlay when tables exist and emits **open-pipe-details**. A picked block never renders the **All** aggregate under its own label: a widget with no data for that id blanks (BW card / roofline hidden, compute card **N/A**, PIPE rows empty, topology unlabelled) while the switcher stays reachable. A 0%–100% scale with 20/40/60/80 grid overlays sits above the rows — 0% left-aligned to the track start, 100% right-aligned to the end, 20/40/60/80 centered on those marks. Each row: label (ellipsis if wider than the column), track with solid fill for ratio and a `colorKey`-tinted hatched remainder to 100%, optional in-bar absolute from `absoluteValue` (DATA-33f) that may paint over the hatch when the fill is narrower than the digits, and a right-aligned percent inside the track.
 
-**Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized: no toggle; show all PIPE bars (do not default-filter to vector).
+**Cube | Vector toggle.** When `summary.opType` is MIX (case-insensitive), show a Cube|Vector segmented control and filter `pipeOccupancy` by `side` (`cube` / `vector`). Each bar uses only that side’s CSV columns (`aic_*` vs `aiv_*`). Non-MIX with a known side (cube/aic or vector/aiv/vec): no toggle; show pipes for that side only. When `opType` is blank or unrecognized **and** occupancy is compute-shaped (`cube`/`vector` only): no toggle; show all PIPE bars (do not default-filter to vector).
+
+**Cube | Vector 0 | Vector 1 toggle ([UI-54](../../../docs/context/decisions/UI.md)).** When `pipeOccupancy` includes ≥2 of `side` `aic` / `aiv0` / `aiv1` (emulate hist/cores), show the same segmented-control chrome labeled **Cube | Vector 0 | Vector 1** and filter bars by the active core. Default active side = first present in order `aic`, `aiv0`, `aiv1`. A **single** emulate core side still shows that core's bars (no toggle) and must **not** fall through to compute `knownSide` (`aic`→cube / `aiv*`→vector), which would blank the list. Compute MIX Cube|Vector is unchanged and mutually exclusive with this emulate path in practice (sides do not mix).
 
 **Roofline (M2 interim — not in the current release).** The card is flag-gated: it mounts on the stack after the summary cards only when the host passes the opt-in `roofline` capability **and** the current points are non-empty (`report.roofline.points` under **All**, `rooflineFromRows` for a picked block) — DATA-37a–f. Without the capability the card never renders, points or not; the panel code and interim math stay in place. Hide on overlays and when absent. No tabs until DATA-37f superseded.
 
@@ -64,7 +66,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 **CSV-only fallback.** If duration, bandwidth, PIPE, roofline, and topology are all absent but compute/memory tables exist, show those CSV lists on the stack (no overlay required).
 
-**Compute / Memory overlays.** Hosts `SummaryCategoryList` (All / `summary.jsonl`) or `CsvFieldListPanel` (picked block). Both surfaces show tabs + search + match chips (UI-43). Compute CSV path (`v930/compute-load-detail`, `v930/search-highlight`): no block picker, no 查看全部. Memory CSV path (`v930/memory-load-detail`): tabs, search, block switcher, 查看全部. Overlay body fills the column under the header; the field list scrolls (no inner max-height cap). **Scope (DATA-19 / DATA-29):** under **All** the product `summary.jsonl` category list is the default and the CSV list falls back to the first `block_id` (a CSV list has no aggregate row); with a block picked the CSV field list **replaces** the category list and shows that block's row.
+**Compute / Memory overlays.** Hosts `SummaryCategoryList` (All / `summary.jsonl`) or `CsvFieldListPanel` (picked block). Both surfaces show tabs + search + match chips (UI-43). Compute CSV path (`v930/compute-load-detail`, `v930/search-highlight`): no block picker, no 查看全部. When `PipeUtilizationHist.csv` is present, the adapter projects Utilization onto sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys and omits `PipeUtilization.csv` ([UI-55](../../../docs/context/decisions/UI.md)). Memory CSV path (`v930/memory-load-detail`): tabs, search, block switcher, 查看全部. Overlay body fills the column under the header; the field list scrolls (no inner max-height cap). **Scope (DATA-19 / DATA-29):** under **All** the product `summary.jsonl` category list is the default and the CSV list falls back to the first `block_id` (a CSV list has no aggregate row); with a block picked the CSV field list **replaces** the category list and shows that block's row.
 
 ### Hardware details (M1 interim DATA-34a)
 
@@ -75,7 +77,8 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 1. **PR-STATS-001** — Renders summary stats.
 2. **PR-STATS-002** — Renders PIPE bars with correct colors.
 3. **PR-STATS-003** — Cube|Vector toggle appears only for MIX; filters bars by side.
-4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides.
+3b. **PR-STATS-038** — Emulate Cube|Vector 0|Vector 1 toggle; single-core bars.
+4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides (compute-shaped occupancy).
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
 6b. **PR-STATS-006b** — Compute / memory / hardware overlay headers show back and omit close; back restores the report shell close control.
@@ -133,7 +136,9 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 | report is null or undefined | Empty panel, no error; title + close still shown |
 | Empty pipeOccupancy | No bars; summary still visible if present |
 | Non-MIX known opType | No Cube|Vector toggle; side-filtered bars |
-| Blank/unrecognized opType | Show all PIPE bars |
+| Blank/unrecognized opType (cube/vector sides) | Show all PIPE bars |
+| Emulate ≥2 of aic/aiv0/aiv1 | Cube\|Vector 0\|Vector 1 toggle; filter by active core |
+| Emulate single aic/aiv0/aiv1 (+ opType AIC/AIV) | No toggle; show that core's bars (not blank via knownSide) |
 | Missing compute / AICore-parallel fields | With duration: compute **N/A** when `computeCard` absent; AICore **N/A** when both parallel fields absent; BW-only: placeholders omitted |
 | AICore one field only | Single 并行使用率 or 负载均衡度 column |
 | `computeCard` with one side | Single Cube or Vector column; no **N/A** chrome |

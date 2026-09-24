@@ -196,4 +196,30 @@ describe('CsvFieldListPanel', () => {
     });
     expect(wide.find('[data-testid="csv-view-all"]').exists()).toBe(true);
   });
+
+  it('PR-CSV-009: Pipe Utilization tab label and aic_/aiv0_ ratio fields (UI-55)', () => {
+    const histTables: CsvTableModel[] = [
+      {
+        fileName: 'PipeUtilizationHist.csv',
+        headers: ['aic_scalar_ratio', 'aiv0_scalar_ratio'],
+        rows: [{ aic_scalar_ratio: '0.50522', aiv0_scalar_ratio: '0.48385' }],
+        blockIds: [],
+      },
+    ];
+    const wrapper = mount(CsvFieldListPanel, {
+      props: {
+        tables: histTables,
+        csvTexts: { 'PipeUtilizationHist.csv': 'PipeName,CoreName,Utilization\n' },
+        showBlockSwitcher: false,
+        showViewAll: false,
+      },
+    });
+
+    expect(wrapper.get('[data-testid="csv-tab-PipeUtilizationHist.csv"]').text()).toBe(
+      'Pipe Utilization',
+    );
+    expect(wrapper.text()).toContain('aic_scalar_ratio');
+    expect(wrapper.text()).toContain('0.50522');
+    expect(wrapper.text()).toContain('aiv0_scalar_ratio');
+  });
 });

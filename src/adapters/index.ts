@@ -30,8 +30,6 @@ export {
   adaptEmulate,
   isEmulateLeaf,
   readEmulateManifest,
-  pipeOccupancyFromPipesUtilization,
-  pipeOccupancyFromHist,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export type { ArchDiagramMetricMode } from './emulateMemoryTopology';
@@ -47,3 +45,10 @@ export {
 export { buildMemoryTopology, buildMemoryTopologyFromCategories } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';
+export {
+  coreNameToPipeSide,
+  csvTableFromPipeUtilizationHist,
+  pipeOccupancyFromHist,
+  pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
+} from './pipeOccupancyEmulate';

@@ -24,6 +24,10 @@ import { hasDependencies } from '../domain/dependencies';
 import { nestCardTreeFromFlatCorePipes } from '../domain/swimTree';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { buildMemoryTopologyFromCategories, firstLabelledMemoryTopology } from './memoryTopology';
+import {
+  csvTableFromPipeUtilizationHist,
+  pipeOccupancyPreferHist,
+} from './pipeOccupancyEmulate';
 
 const COMPUTE_CSV_FILES = [
   'PipeUtilization.csv',
@@ -928,7 +932,19 @@ export function overviewSeriesFromSampling(payload: Uint8Array | undefined): Ove
 }
 
 function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportViewModel {
-  const compute = collectCsvTables(payloads, COMPUTE_CSV_FILES);
+  // UI-55: when PipeUtilizationHist is present, project sparse aic_/aiv0_/aiv1_ *_ratio keys
+  // for 详情 and omit PipeUtilization.csv.
+  const histPayload = payloadByName(payloads, ['PipeUtilizationHist.csv']);
+  const histTable = csvTableFromPipeUtilizationHist(histPayload);
+  const computeFileNames = histTable
+    ? COMPUTE_CSV_FILES.filter((n) => n !== 'PipeUtilization.csv')
+    : COMPUTE_CSV_FILES;
+  const compute = collectCsvTables(payloads, computeFileNames);
+  if (histTable) {
+    compute.tables.unshift(histTable);
+    // histTable non-null ⇒ histPayload was non-empty and projected.
+    compute.texts['PipeUtilizationHist.csv'] = decodeUtf8(histPayload!);
+  }
   const memory = collectCsvTables(payloads, MEMORY_CSV_FILES);
   const hardwareDetails = hardwareDetailsFromPayloads(payloads);
   const summaryJsonl = payloadByName(payloads, ['summary.jsonl', 'Summary.jsonl', 'SUMMARY.jsonl']);
@@ -988,14 +1004,27 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   return {
     summary,
     pipeOccupancy: (() => {
-      // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` is the producer's
-      // non-NA mean across `block_id`; the CSV mean stays as the classic-`.rep` fallback.
+      // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` wins when present
+      // (compute aggregate). Emulate production uses adaptEmulate; this cascade mainly serves
+      // adaptPayloads + mixed packs. When hist projects for UI-55 详情, occupancy prefers hist
+      // too (skip PipeUtilization.csv) — shared with adaptEmulate via `pipeOccupancyPreferHist`.
       const fromSummary = pipeOccupancyFromRows(
         summaryCategoryRows(summaryCategories, 'PipeUtilization'),
       );
-      return fromSummary.length > 0
-        ? fromSummary
-        : pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv']));
+      if (fromSummary.length > 0) return fromSummary;
+      const histPayloadBytes = histPayload;
+      const pipesPayload = payloadByName(payloads, ['PipesUtilization.csv']);
+      const utilDicts = {
+        queueTypes: payloadByName(payloads, ['InstrQueueTypes.csv']),
+        coreTypes: payloadByName(payloads, ['CoreTypes.csv']),
+      };
+      // Flat cascade mirroring adaptEmulate once summary is absent: hist → util.
+      // When hist does not project for 详情, try compute PipeUtilization.csv first.
+      if (!histTable) {
+        const fromCsv = pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv']));
+        if (fromCsv.length > 0) return fromCsv;
+      }
+      return pipeOccupancyPreferHist(histPayloadBytes, pipesPayload, utilDicts);
     })(),
     overviewSeries: overviewSeriesFromSampling(
       payloadByName(payloads, ['Sampling.json', 'sampling.json']),

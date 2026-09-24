@@ -174,3 +174,23 @@ Format and statuses: [README.md](README.md).
 - **Decision:** The nine badges are **unit utilizations, not peak-relative percents** — no unit gains a peak badge, and the L2 plate keeps its DATA-20 hit-rate meaning. Paint the **three units that have a producer field**, each `{ratio × 100}%` at the sketch's two decimals (the ratio is a fraction of the unit's **own** busy time, DATA-28; the 计算负载分析 pipe rows print the same ratio rounded): AIV0 **and** AIV1 `Scalar` ← `aiv_scalar_ratio`, AIV0 **and** AIV1 `Vec` ← `aiv_vec_ratio`, AIC `Cube` ← `aic_cube_ratio` (all `Summary.jsonl` → `PipeUtilization`). The badges go **in the unit's own box** at the sketch's positions — the export needs no new plate rects. The producer's six `NA` badge rows (AIC `Scalar`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP`) cover only **four** positions and stay **blank** — the `SIMD VF` rows name the same in-box position as the painted `Vec` rows (`6'`/`7'`).
 - **Specs:** [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (PR-MEMTOP-016), [view-models](../../../specs/core/view-models.spec.md) (PR-VM-023), [memory-topology](../../views/memory-topology.md#edge-field-source), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)
 - **Source:** Producer `npu-tools` → `npu-compute/Questions/DATA questions/DATA questions.md` DATA-39 "Memory" table (2026-09-15), which maps the three badges and marks the other six **rows** `NA` (four in-box positions, since its `SIMD VF` rows name the painted `Vec` position); Product approval in chat (2026-09-15) to paint the units with a field and leave the four field-less positions blank. Rendered evidence: [`memory-topology-in-box-badges.png`](../visual/memory-topology-in-box-badges.png) — the three badges as the shipped panel paints them in the official chrome.
+
+---
+
+## UI-54
+
+- **Resolved:** 2026-09-23
+- **Question:** Emulate `PipeUtilizationHist` supplies three values per pipe (AIC / AIV0 / AIV1). Does the PIPE Cube|Vector toggle mean AIC|AIV, and should the UI show three cores?
+- **Decision:** Cube|Vector stays the **compute** MIX control (`aic_*` vs `aiv_*`). For **emulate**, show a **Cube | Vector 0 | Vector 1** segmented control (same chrome; labels match compute naming), one bar list per active core. Map hist/`CoreTypes` `CoreName` → `pipeOccupancy.side` (`aic` / `aiv0` / `aiv1`); **never** average AIV0 with AIV1 into a single Vector series. Unresolved cores (integer FK without `CoreTypes`, bare `AIV`/`vector`, unknown labels) are **dropped** — no cube/vector default.
+- **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-038`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
+- **Source:** Product choice in chat (2026-09-23): 3-way toggle, not grouped bars; labels amended same day to Cube | Vector 0 | Vector 1.
+
+---
+
+## UI-55
+
+- **Resolved:** 2026-09-23 (amended same day)
+- **Question:** When emulate packs `PipeUtilizationHist.csv`, how should compute-load **详情** present pipe util — and should `PipeUtilization.csv` still appear?
+- **Decision:** Prefer **`PipeUtilizationHist`**. Project each hist row onto a sparse compute-like **`*_ratio`** key: prefix from `CoreName` (`AIC`→`aic_`, `AIV0`→`aiv0_`, `AIV1`→`aiv1_` — **never** average AIV cores into `aiv_*`); stem from `PipeName` (`CUBE`→`cube_ratio`, `SCALAR`→`scalar_ratio`, `FIXP`→`fixpipe_ratio`, `MTE1`/`MTE2`/`MTE3`→`mte*_ratio`, `SIMD`→`vec_ratio`, `SIMT`→`simt_ratio` — **no** `icache` stem; ICache may still appear on PIPE bars). Value = Utilization as a **0..1** fraction. One synthetic wide row in `computeTables` (headers in first-seen key order; duplicate keys **last-wins** for values). Do **not** invent times/cycles/stalls/BW. When hist is present, **omit** `PipeUtilization.csv` from compute 详情. ArithmeticUtilization / ResourceConflictRatio unchanged when present. PIPE bars stay [UI-54](./UI.md).
+- **Specs:** [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-009`), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
+- **Source:** Product request in chat (2026-09-23): compute-style keys with separate `aiv0_` / `aiv1_` prefixes (not `PipeName_CoreName`; not mean into `aiv_*`).

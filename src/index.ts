@@ -17,6 +17,8 @@ export {
   adaptPayloads,
   adaptRep,
   chromeTraceToSwimlane,
+  coreNameToPipeSide,
+  csvTableFromPipeUtilizationHist,
   emptyReportViewModel,
   isEmulateLeaf,
   isNpuRep,
@@ -32,6 +34,7 @@ export {
   parseRep,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
 } from './adapters';
 
 export type * from './domain/types';
