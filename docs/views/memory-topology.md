@@ -25,7 +25,7 @@ Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [§ p
 
 ![Memory topology chrome (448×423, AIC + AIV × 2)](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg)
 
-**AIV × 2** is one subblock. Corridor labels are **not** AIV0+AIV1 sums: compute paints a single `aiv_*` field per plate; emulate averages `aiv0_*` / `aiv1_*` when both are present ([DATA-48a](../context/decisions/interim/DATA.md)). Do not change that fill. (GM↔L2 Main Read/Write remains aic+aiv **sum** — [DATA-40](../context/decisions/DATA.md) — a different axis.)
+**AIV × 2** is one subblock. Compute paints a single `aiv_*` field per plate (no aiv0/aiv1 split). Emulate dual `aiv0_*` / `aiv1_*`: **sum** for `*_gbs` / `*_cnt`, **unweighted average** of scalar `*_ratio` when both present ([DATA-48a](../context/decisions/interim/DATA.md)). (GM↔L2 Main Read/Write remains aic+aiv **sum** — [DATA-40](../context/decisions/DATA.md) — a different axis.)
 
 **Component crop:** ![Memory topology](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) (raster of the runtime SVG / `v930-chrome/memory-topology`). Historical dual-AIV product dump: [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) (link only — not the current chrome).
 
@@ -143,34 +143,36 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 
 ### ArchDiagramMetrics → slot (DATA-48a)
 
-Single embed, EAV rows — **no FK join**. Map `ArchDiagramParameterName` → slot via the table below; value = `ArchDiagramParameterValue`. Dual AIV0/AIV1 params: **average** when both present (`pickValue`). Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. No in-box util plates on this path.
+Single embed, EAV rows — **no FK join**. Map `ArchDiagramParameterName` → slot via the table below; value = `ArchDiagramParameterValue` (header lookup case-insensitive, same as 详情 EAV). Metric mode selects CSV suffix (`*_gbs` / `*_ratio` / `*_cnt`). Dual AIV0/AIV1 params: **sum** (gbs/cnt) or **unweighted average** of scalar `*_ratio` values when both present (`combineArchDiagramValues`; not weighted by request counts — DATA-48a). Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. No in-box util plates on this path. UI: metric dropdown on **StatsAside** above `MemoryTopologyPanel` when capability `archDiagram` (PR-STATS-037).
 
 | VM field / slot | Source embed(s) | Join key(s) | Derivation |
 |-----------------|-----------------|-------------|------------|
-| `edges[gm-l2-read].label` | `ArchDiagramMetrics.csv` | name = `hbm_to_l2_syn_gbs` | `{n} GB/s` |
-| `edges[gm-l2-write].label` | same | `l2_to_hbm_syn_gbs` | `{n} GB/s` |
-| `edges[l2-l1-read].label` | same | `aic_out_to_l1_gbs` | `{n} GB/s` |
-| `edges[l1-l0a]` / `[l1-l0b]` | same | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` | `{n} GB/s` |
-| `edges[l0a-cube]` / `[l0b-cube]` | same | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` | `{n} GB/s` |
-| `edges[cube-l0c]` / `[l0c-cube]` | same | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` | `{n} GB/s` on sole plate `cube-l0c` — reverse folds onto forward (prefer forward); `l0c-cube` label cleared after fold |
-| `edges[l2-ub]` | same | `aiv0_out_to_ub_gbs`, `aiv1_out_to_ub_gbs` | average when both present |
-| `edges[ub-l2]` | same | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` | average |
-| `edges[ub-vec]` / `[vec-ub]` | same | `aiv*_ub_to_simd_gbs` / `aiv*_simd_to_ub_gbs` | average |
-| `nodes[l2].peakPct` | same | `l2_cached_ratio` | numeric peak % |
+| `edges[gm-l2-read].label` | `ArchDiagramMetrics.csv` | base `hbm_to_l2_syn` + mode suffix | operator/request: `{n} GB/s`; requests: integer |
+| `edges[gm-l2-write].label` | same | `l2_to_hbm_syn` | same |
+| `edges[l2-l1-read].label` | same | `aic_out_to_l1` | same |
+| `edges[l1-l0a]` / `[l1-l0b]` | same | `aic_l1_to_l0a` / `aic_l1_to_l0b` | same |
+| `edges[l0a-cube]` / `[l0b-cube]` | same | `aic_l0a_to_cube` / `aic_l0b_to_cube` | same |
+| `edges[cube-l0c]` / `[l0c-cube]` | same | `aic_cube_to_l0c` / `aic_l0c_to_cube` | sole plate `cube-l0c` — reverse folds onto forward (prefer forward); `l0c-cube` label cleared after fold |
+| `edges[l2-ub]` | same | `aiv0_out_to_ub`, `aiv1_out_to_ub` | sum (gbs/cnt) / unweighted average (ratio) |
+| `edges[ub-l2]` | same | `aiv0_ub_to_out` / `aiv1_ub_to_out` | same merge |
+| `edges[ub-vec]` / `[vec-ub]` | same | `aiv*_ub_to_simd` / `aiv*_simd_to_ub` | same merge |
+| `nodes[l2].peakPct` | same | `l2_cached_ratio` | numeric peak % (mode-invariant) |
 | capability | — | — | `archDiagram` when `hasDrawableTopology` (not `memoryDiagram`) |
 
-| Slot / plate | Parameter |
-|--------------|-----------|
-| `gm-l2-read` | `hbm_to_l2_syn_gbs` |
-| `gm-l2-write` | `l2_to_hbm_syn_gbs` |
-| `l2-l1-read` | `aic_out_to_l1_gbs` |
-| `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` |
-| `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` |
-| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` — fold reverse onto `cube-l0c` |
-| `l2-ub` | `aiv0_out_to_ub_gbs` (AIV0), `aiv1_out_to_ub_gbs` (AIV1) — average when both present |
-| `ub-l2` | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` |
-| `ub-vec` | `aiv0_ub_to_simd_gbs` / `aiv1_ub_to_simd_gbs` |
-| `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
+SSOT table (corridor bases; append `_gbs` / `_ratio` / `_cnt` by mode):
+
+| Slot / plate | Parameter base(s) |
+|--------------|-------------------|
+| `gm-l2-read` | `hbm_to_l2_syn` |
+| `gm-l2-write` | `l2_to_hbm_syn` |
+| `l2-l1-read` | `aic_out_to_l1` |
+| `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a` / `aic_l1_to_l0b` |
+| `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube` / `aic_l0b_to_cube` |
+| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c` / `aic_l0c_to_cube` — fold reverse onto `cube-l0c` |
+| `l2-ub` | `aiv0_out_to_ub`, `aiv1_out_to_ub` — sum (gbs/cnt) / unweighted average (ratio) |
+| `ub-l2` | `aiv0_ub_to_out` / `aiv1_ub_to_out` |
+| `ub-vec` | `aiv0_ub_to_simd` / `aiv1_ub_to_simd` |
+| `vec-ub` | `aiv0_simd_to_ub` / `aiv1_simd_to_ub` |
 | L2 `peakPct` | `l2_cached_ratio` |
 
 
@@ -183,7 +185,7 @@ Single embed, EAV rows — **no FK join**. Map `ArchDiagramParameterName` → sl
 | HTML bases `aic_l0c_to_all_syn`, `aic_l0c_to_l1`, `aic_l0c_to_out`, `aic_l0c_to_ub0/1` | No Asc chrome plate (L0C→OUT / UB / all) |
 | `aiv{0,1}_ub_to_l1` | No UB→L1 plate |
 | `aiv{0,1}_out_to_simt` / `simt_to_out`, `ub_to_simt` / `simt_to_ub`, `cache_to_simt` / `simt_to_cache` | SIMT / DataCache corridors unplated (UI-38) |
-| Entire HTML `*_ratio` / `*_cnt` Bandwidth tabs (except L2 peak) | Per-request / count views; util ratios other than `l2_cached_ratio` not mapped to `plates` |
+| Corridor `*_ratio` / `*_cnt` on plated slots | Supported via metric-mode dropdown (not a gap) |
 | HTML util ratios `aic_cube_ratio`, `aic_*_scalar_ratio`, `aiv{0,1}_simd/simt/scalar_ratio` | Emulate interim paints no UI-49 badges from ArchDiagramMetrics |
 
 Code SSOT: `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES` / `ARCH_DIAGRAM_L2_PEAK_PARAM` in `emulateMemoryTopology.ts`; locked by `PR-ASIM-008` / `PR-ASIM-008b`.

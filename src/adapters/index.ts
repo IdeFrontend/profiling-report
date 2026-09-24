@@ -34,6 +34,16 @@ export {
   pipeOccupancyFromHist,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
+export type { ArchDiagramMetricMode } from './emulateMemoryTopology';
+export {
+  ARCH_DIAGRAM_METRIC_MODES,
+  ARCH_DIAGRAM_DEFAULT_METRIC_MODE,
+  ARCH_DIAGRAM_EDGE_MAP,
+  ARCH_DIAGRAM_L2_PEAK_PARAM,
+  ARCH_DIAGRAM_UNPLATED_HTML_BASES,
+  archDiagramCsvFromTexts,
+  combineArchDiagramValues,
+} from './emulateMemoryTopology';
 export { buildMemoryTopology, buildMemoryTopologyFromCategories } from './memoryTopology';
 export { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 export { loadReportSource, adaptChromeTrace } from './loadReportSource';

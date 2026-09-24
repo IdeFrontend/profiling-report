@@ -25,8 +25,8 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 1. Tabs list present tables; selecting a tab switches the field list.
 2. Bound **selectedBlockId** when it is in the active table’s `blockIds`; otherwise an internal fallback to that table’s first `blockId` (DATA-19 / DATA-29). Only the block picker emits `update:selectedBlockId` — tab switches do not write through. Rows filtered to the displayed `block_id`.
 3. Search **hides** fields whose headers do not contain the query (case-insensitive substring) and leaves the surviving labels unstyled — no match chip (UI-43). Values stay unchanged. Zero matches leave the list empty (no extra copy). The query persists across tab switches. Clear (×) empties the query and restores the full list. Same rule on compute and memory overlays.
-4. Field list shows header → value for the first matching row of the selected block (or all columns from that row). Show literal `NA`.
-5. 查看全部 emits full CSV text for the active `fileName`.
+4. Field list shows header → value for the first matching row of the selected block (or all columns from that row). Show literal `NA`. **Exception:** `ArchDiagramMetrics.csv` (EAV headers `ArchDiagramParameterName` / `ArchDiagramParameterValue`) lists **parameterName → value** for unique parameters (last row wins; gelu duplicates are deduped). Search filters parameter names.
+5. 查看全部 emits full CSV text for the active `fileName` — **only** when the active table is a **wide-row** projection (one selected row → many columns). Hidden for ArchDiagramMetrics EAV pivots (PR-CSV-008).
 
 ## Acceptance Criteria
 
@@ -36,6 +36,8 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 4. **PR-CSV-004** — 查看全部 emits `view-full-csv` with fileName + text.
 5. **PR-CSV-005** — Tab switch does not emit `update:selectedBlockId` when the active table lacks the bound id; field list falls back internally.
 6. **PR-CSV-006** — Flags hide block and 查看全部.
+7. **PR-CSV-007** — ArchDiagramMetrics EAV pivots to parameterName → value (deduped; meta columns hidden).
+8. **PR-CSV-008** — View all only for wide-row projection; hidden for ArchDiagram EAV even when `showViewAll` is true.
 
 ## Visual
 
@@ -47,7 +49,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 | Inactive tab | `#9a9a9a` |
 | Search | radius `4px`; fill `#262626`; stroke magnifying-glass SVG `12×12` `#9a9a9a`; focus border `#3078f0` |
 | Search match | **Retired (UI-43):** the label stays `#8e8e8e` — no chip. Non-matching rows hidden. Former chip: fill `#1d283c`, text `#688aec` weight `600` (kept here as design history) |
-| Block pill | shared `.pr-block-pill` (`tokens.css`): bg `#2a2a2a`; radius `4px`; custom chevron; no native arrow. Same class as the summary PIPE block select |
+| Block pill | `.pr-block-pill` (`tokens.css`): bg `#2a2a2a`; radius `4px`; custom chevron; no native arrow. Caption via `t('block')` — **分块** / **Block**. PIPE summary block select uses `CardMetricSelect` instead ([StatsAside](../StatsAside.spec.md)). |
 | 查看全部 | `#c8c8c8` `12px` |
 | Field key | `#8e8e8e`; value `#e6e6e6` right-aligned |
 | Field list | fills leftover overlay height; `overflow: auto` (no `max-height` cap) |
