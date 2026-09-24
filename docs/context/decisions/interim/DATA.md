@@ -185,24 +185,26 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim`
 **Question:** [DATA-48](../../questions/DATA.md)
-**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **interim VM carrier** for plated Asc chrome ([arch-diagram](../../../views/arch-diagram.md)). Map plated edges (GB/s labels `{n} GB/s`) and L2 plate (SSOT: [arch-diagram § parameter-slot-map](../../../views/arch-diagram.md#parameter-slot-map)):
+**Interim:** Treat `ArchDiagramMetrics.csv` as biprof **Architecture Diagram** fill (§11.2.3.1), not compute 内存负载 / heatmap. Build `reportModel.memoryTopology` as the **one shared VM carrier** for the **one** plated Asc chrome (**448×423** AIC + AIV × 2; [memory-topology](../../../views/memory-topology.md)). Do **not** invent a second topology model or chrome. Map plated edges and L2 plate — SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_L2_PEAK_PARAM` in [`emulateMemoryTopology.ts`](../../../../src/adapters/emulateMemoryTopology.ts). Edge labels follow biprof metric mode (`bandwidth_per_operator` → `*_gbs` as `{n} GB/s`; `bandwidth_per_request` → `*_ratio` still labeled `{n} GB/s`; `number_of_requests` → `*_cnt` as integer — float noise display-rounded). Dual AIV0/AIV1 params: **sum** for gbs/cnt, **unweighted average** of the scalar `*_ratio` values when both present (CSV does not carry numerators/denominators, so this is not (Σnum)/(Σden); asymmetric AIV0/AIV1 traffic can over/under-state the corridor until Product supplies weights or raw counts):
 
-| Slot / plate | Parameter |
+| Slot / plate | Parameter bases (suffix by mode) |
 |--------------|-----------|
-| `gm-l2-read` | `hbm_to_l2_syn_gbs` |
-| `gm-l2-write` | `l2_to_hbm_syn_gbs` |
-| `l2-l1-read` | `aic_out_to_l1_gbs` |
-| `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a_gbs` / `aic_l1_to_l0b_gbs` |
-| `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube_gbs` / `aic_l0b_to_cube_gbs` |
-| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c_gbs` / `aic_l0c_to_cube_gbs` |
-| `l2-ub` | `aiv0_out_to_ub_gbs` (AIV0), `aiv1_out_to_ub_gbs` (AIV1) — average when both present |
-| `ub-l2` | `aiv0_ub_to_out_gbs` / `aiv1_ub_to_out_gbs` |
-| `ub-vec` | `aiv0_ub_to_simd_gbs` / `aiv1_ub_to_simd_gbs` |
-| `vec-ub` | `aiv0_simd_to_ub_gbs` / `aiv1_simd_to_ub_gbs` |
-| L2 `peakPct` | `l2_cached_ratio` |
+| `gm-l2-read` | `hbm_to_l2_syn` |
+| `gm-l2-write` | `l2_to_hbm_syn` |
+| `l2-l1-read` | `aic_out_to_l1` |
+| `l1-l0a` / `l1-l0b` | `aic_l1_to_l0a` / `aic_l1_to_l0b` |
+| `l0a-cube` / `l0b-cube` | `aic_l0a_to_cube` / `aic_l0b_to_cube` |
+| `cube-l0c` / `l0c-cube` | `aic_cube_to_l0c` / `aic_l0c_to_cube` |
+| `l2-ub` | `aiv0_out_to_ub`, `aiv1_out_to_ub` — sum (gbs/cnt) / unweighted average (ratio) |
+| `ub-l2` | `aiv0_ub_to_out` / `aiv1_ub_to_out` |
+| `ub-vec` | `aiv0_ub_to_simd` / `aiv1_ub_to_simd` |
+| `vec-ub` | `aiv0_simd_to_ub` / `aiv1_simd_to_ub` |
+| L2 `peakPct` | `l2_cached_ratio` (mode-invariant) |
 
-Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the interim `memoryTopology` carrier. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
-**Implement / test as:** `topologyFromArchDiagramMetrics` in `adaptEmulate`; `PR-ASIM-008` + `archDiagram` assertions
+**Gaps (HTML Bandwidth-per-operator inventory present, not plated):** bases in `ARCH_DIAGRAM_UNPLATED_HTML_BASES` (L0C→all/OUT/UB, UB→L1, SIMT/DataCache corridors). Unit util ratios other than `l2_cached_ratio` do **not** populate UI-49 `plates` (compute badges stay PipeUtilization-only). Full tables: [memory-topology § parameter-slot-map](../../../views/memory-topology.md#parameter-slot-map).
+
+Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the shared `memoryTopology` carrier. Emulate chrome shows a metric-mode dropdown (`topology-metric-select`). Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
+**Implement / test as:** `topologyFromArchDiagramMetrics(csv, mode)`; `PR-ASIM-008` / `PR-ASIM-008b` (full map + HTML-gap drift lock + mode merge)
 **Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model
 
 <a id="data-45"></a>

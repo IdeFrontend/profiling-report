@@ -54,7 +54,7 @@ import {
   findThreadById,
   isFolderNode,
 } from '../../domain/swimTree';
-import { t } from '../../i18n';
+import { t, archMetricModeLabel } from '../../i18n';
 import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '../ContextMenu/ContextMenu.vue';
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
@@ -69,6 +69,7 @@ import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import MemoryTopologyPanel from '../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue';
+import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
 import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/layout';
@@ -83,6 +84,13 @@ import {
   type GutterMetric,
 } from '../../domain/gutterMetrics';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
+import {
+  ARCH_DIAGRAM_DEFAULT_METRIC_MODE,
+  ARCH_DIAGRAM_METRIC_MODES,
+  archDiagramCsvFromTexts,
+  topologyFromArchDiagramMetrics,
+  type ArchDiagramMetricMode,
+} from '../../adapters/emulateMemoryTopology';
 
 const props = withDefaults(defineProps<{
   title?: string;
@@ -195,6 +203,9 @@ const dockHeight = ref(DOCK_HEIGHT_COLLAPSED);
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
 const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
+/** Shared with StatsAside (PR-ROOT-015): ArchDiagram Metric mode survives into topology 全屏. */
+const archMetricMode = ref<ArchDiagramMetricMode>(ARCH_DIAGRAM_DEFAULT_METRIC_MODE);
+const archMetricModes = ARCH_DIAGRAM_METRIC_MODES;
 let layoutResizeObserver: ResizeObserver | null = null;
 /** Process / group ids with child lanes collapsed in gutter + canvas. */
 const collapsedGroupIds = ref<string[]>([]);
@@ -237,6 +248,19 @@ const caps = computed<ReportCapability[]>(() => {
   if (props.capabilities) return props.capabilities;
   if (hostManaged.value) return [];
   return internalCapabilities.value ?? [];
+});
+const isArchDiagram = computed(() => caps.value.includes('archDiagram'));
+
+watch(isArchDiagram, (on) => {
+  if (!on) archMetricMode.value = ARCH_DIAGRAM_DEFAULT_METRIC_MODE;
+});
+
+/** Keep the 全屏 diagram on the same Metric mode as the stacked aside (PR-ROOT-015 / PR-ROOT-019).
+ *  Assign the mode rebuild always — `undefined` clears plates (DATA-30); never keep a stale `*_gbs` snapshot. */
+watch(archMetricMode, (mode) => {
+  if (!topologyFullscreen.value || !isArchDiagram.value) return;
+  const csv = archDiagramCsvFromTexts(report.value?.csvTexts);
+  fullscreenTopology.value = topologyFromArchDiagramMetrics(csv, mode) ?? null;
 });
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
@@ -1500,6 +1524,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :report="report"
           :locale="locale"
           :capabilities="caps"
+          v-model:arch-metric-mode="archMetricMode"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
@@ -1568,7 +1593,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @after-leave="onTopologyFullscreenAfterLeave"
     >
       <div
-        v-if="topologyFullscreen && fullscreenTopology"
+        v-if="topologyFullscreen && (fullscreenTopology || isArchDiagram)"
         class="pr-topo-fs"
         role="dialog"
         aria-modal="true"
@@ -1611,10 +1636,27 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
         </div>
         <div class="pr-topo-fs__body">
+          <div
+            v-if="isArchDiagram"
+            class="pr-topo-fs__metric"
+            data-testid="topology-fullscreen-metric-switcher"
+          >
+            <span>{{ t('metric', locale) }}</span>
+            <CardMetricSelect
+              v-model="archMetricMode"
+              :options="archMetricModes"
+              variant="inline"
+              test-id-prefix="topology-fs-metric"
+              :ariaLabel="t('archMetricMode', locale)"
+              :label-of="(m) => archMetricModeLabel(m, locale)"
+            />
+          </div>
           <MemoryTopologyPanel
+            v-if="fullscreenTopology"
             :model="fullscreenTopology"
             :locale="locale"
             :open-details-on-contextmenu="false"
+            wheel-gestures
           />
         </div>
       </div>
@@ -1759,6 +1801,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-height: 0;
   padding: 10px 12px;
   background: var(--pr-bg-deep);
+  overflow: hidden;
 }
 
 .pr-topo-fs-enter-active,
@@ -1831,14 +1874,52 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pr-topo-fs__metric {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: #b8b8b8;
 }
 
 .pr-topo-fs__body :deep(.pr-topo) {
-  height: 100%;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-/* No `svg` override here: the panel's stage is already the diagram's box (448:540 at the current
+/* Fill the leftover box (wide host). The panel's own frame keeps `aspect-ratio` in the stacked
+ * aside, where the card is already ~chrome ratio; here the leftover is much wider, so the frame
+ * must take the flex height instead. Stage size still comes from `100cqh` (PR-MEMTOP-013b). */
+.pr-topo-fs__body :deep(.pr-topo__frame) {
+  flex: 1 1 auto;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
+/* Wide host letterboxes the chrome-ratio stage. When a classic *vertical* bar appears it eats
+ * inline space and `margin-inline: auto` re-centres the stage — a horizontal jump. Always reserve
+ * that lane with `scrollbar-gutter: stable` and keep `overflow: auto` so the gutter is present at
+ * 100% too (content does not overflow the wide leftover at fit, so no stray thumb). The stacked
+ * aside leaves the panel's own overflow:hidden-at-fit rule: there the stage fills the width and
+ * the same jump does not show. */
+.pr-topo-fs__body :deep(.pr-topo__viewport),
+.pr-topo-fs__body :deep(.pr-topo__viewport--pannable) {
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+/* No `svg` override here: the panel's stage is already the diagram's box (448:423 at the current
  * zoom), and the panel sizes the `svg` to it. Sizing the `svg` to the leftover box instead — the
  * old `width/height: 100%` — fills the stage's *used* box rather than the chrome ratio, and only
  * agreed with it while the stage happened to be that ratio. */

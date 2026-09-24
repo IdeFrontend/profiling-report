@@ -98,7 +98,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter field labels; open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
 | **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
-| **Components** | `PipeOccupancyPanel`; `CsvFieldListPanel` — see [COMPONENTS](../architecture/COMPONENTS.md) |
+| **Components** | `PipeOccupancyPanel`; `SummaryCategoryList` (All); `CsvFieldListPanel` (picked block) — see [COMPONENTS](../architecture/COMPONENTS.md) |
 
 ### S6 — Analyze memory paths (M2)
 
@@ -205,9 +205,9 @@ Interactivity classes:
 | Lane gutter | interactive | Expand/collapse; wheel scroll sync | Row set + `scrollY` | M |
 | Event tooltip | interactive (transient) | Hover | Shows timing | M |
 | Detail strip / bottom dock | interactive (selection-driven) | Cleared by empty click | Bound to selection | M / richer P2 |
-| Pipe field list + search | interactive | Type filter, scroll | Filtered rows (no highlight, UI-43) | M1 |
+| Pipe field list + search | interactive | Type filter, scroll | Filtered rows + substring highlight chip (UI-43) | M1 |
 | Memory topology | semi / interactive | Zoom bar (缩小 / 放大 / 适应窗口) on the diagram; click nodes P2 | Field highlight | M2 |
-| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows (no highlight, UI-43) | M1 |
+| Memory field list + search | interactive | Type filter, scroll; block switcher; 查看全部 | Filtered rows + substring highlight chip (UI-43) | M1 |
 | Hardware details | static / semi | Scroll | — | P2 |
 | Dependency link curves | interactive | Toggle visibility; click link | Selection / detail | P2 |
 | Context menu | interactive | Right-click | Pin / actions | P2 |
@@ -282,7 +282,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S5 (M1)
 
 1. MVP: read PIPE bars in aside.
-2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows (no substring highlight, [UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
+2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the matching substring ([UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
 
 ### Flow S6–S9
 
@@ -324,7 +324,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | S2 navigate | Zoom/pan, time axis | `ReportToolbar`, `TimeAxis`, `SwimlaneCanvas` | `swimlane`, `general` |
 | S3 inspect | Hover tooltip, single select, detail | `EventTooltip`, `DetailPanel` | `v930/task-hover`, `v930/detail-strip-raised` |
 | S4 util compare | Lane gutter util bars, PIPE | `LaneGutter`, `PipeOccupancyPanel` | overview sketches |
-| S5 pipe drill | PIPE bars M; compute/memory field lists M1 | `PipeOccupancyPanel`, `CsvFieldListPanel` | `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` |
+| S5 pipe drill | PIPE bars M; compute/memory field lists M1 | `PipeOccupancyPanel`, `SummaryCategoryList`, `CsvFieldListPanel` | `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` |
 | S6 memory | Memory topology M2 (zoom bar + 全屏) | `MemoryTopologyPanel` | `v930-sim/memory-topology-zoom`, `v930-sim/memory-topology-fullscreen` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
 | S8 deps / multi | Deps, multiselect, context menu P2 | `SwimlaneCanvas` (dep curves in renderer), etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |

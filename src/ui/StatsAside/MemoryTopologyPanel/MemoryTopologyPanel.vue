@@ -20,15 +20,15 @@ export const BASE_FONT_PX = 6.3;
  *  Every slot is listed because the clearance differs per slot — the row stack's inner corridors
  *  (L1↔L0A/B, L0A/B↔Cube, Cube↔L0C, UB↔SIMD) are far tighter than the pillars' and have no
  *  common bound. Measured walls at the value's own height band:
- *  `gm-l2-*` x≈55.75/x≈94; `l2-*`/`ub-l2` x≈133.75/x≈188; `ub-vec`/`vec-ub` x≈315/x≈361;
- *  `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube` x≈282/x≈322;
- *  `cube-l0c`/`l0c-cube` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
+ *  `gm-l2-*` x≈55.75/x≈94; `l2-l1-read` / `l2-ub` / `ub-l2` x≈133.75/x≈188 (L2↔row corridor);
+ *  `ub-vec`/`vec-ub` x≈315/x≈361; `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube`
+ *  x≈282/x≈322; `cube-l0c` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
 export const SLOT_MAX_W: Record<string, number> = {
   'gm-l2-read': 35.4,
   'gm-l2-write': 35.4,
-  'l2-ub': 49.9,
-  'ub-l2': 49.9,
-  'l2-l1-read': 49.9,
+  'l2-ub': 49.0,
+  'ub-l2': 49.0,
+  'l2-l1-read': 49.0,
   'ub-vec': 42.1,
   'vec-ub': 42.1,
   'l1-l0a': 41.1,
@@ -36,34 +36,26 @@ export const SLOT_MAX_W: Record<string, number> = {
   'l0a-cube': 36.7,
   'l0b-cube': 34.7,
   'cube-l0c': 37.5,
-  'l0c-cube': 37.5,
   'l2-peak': 36,
 };
 
 /**
- * UI-49 in-box `%` badge slots — the centres of the sketch's unit-utilization badges, which the
- * export stripped like the link values. Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a
- * newly plated unit without coordinates fails typecheck; measured off the sketch
- * (`visual/memory-topology.png`) on the same chrome-unit mapping as `SLOTS`, each badge sitting
- * under its own box's word: AIV0/AIV1 `Scalar` (282.1, 58.6) / (282.1, 378.6), AIV0/AIV1 `Vec`
- * (372.0, 168.6) / (372.0, 488.6), `Cube` (338.0, 248.1). AIV0 and AIV1 share one field
- * (`aiv_scalar_ratio` / `aiv_vec_ratio`), so both slots of a pair carry the same string.
+ * UI-49 in-box `%` badge slots — centres under each unit's own word on the 448×423 chrome.
+ * Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a newly plated unit without coordinates
+ * fails typecheck. The simplified chrome draws one **AIV × 2** row (not separate AIV0/AIV1
+ * stacks): `Scalar` (282.2, 321.0), `Vec`/SIMD (372.1, 367.8), AIC `Cube` (338.1, 95.3) —
+ * each is the export's under-word util sample centre (not the box centre / not the unit word).
+ * AIV0/AIV1 still share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); one chrome slot is
+ * enough for the combined row.
  *
- * The other four in-box badges of the sketch — AIC `Scalar`, AIV0/AIV1 `SIMT`, `FixP` — are the
- * producer's `NA` rows and carry no slot (UI-49). The producer also marks the AIV0/AIV1
- * `SIMD VF` rows `NA`, but those describe the `Vec` position, which the `Vec` rows (`6'`/`7'`)
- * fill, so it is painted rather than blank.
+ * The other in-box badges — AIC `Scalar`, AIV `SIMT`, `FixP` — are the producer's `NA` rows
+ * and carry no slot (UI-49). The producer also marks `SIMD VF` rows `NA`, but those describe
+ * the `Vec` position the `Vec` rows fill, so it is painted rather than blank.
  */
 export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
-  aiv_scalar: [
-    [282.1, 58.6],
-    [282.1, 378.6],
-  ],
-  vec: [
-    [372.0, 168.6],
-    [372.0, 488.6],
-  ],
-  cube: [[338.0, 248.1]],
+  aiv_scalar: [[282.2, 321.0]],
+  vec: [[372.1, 367.8]],
+  cube: [[338.1, 95.3]],
 };
 
 /**
@@ -86,49 +78,44 @@ export const PLATE_MAX_W: Record<TopologyPlateNodeId, number> = {
 export const DEFAULT_MAX_W = 34.7;
 
 /**
- * Value slots of the chrome (`memory-topology.svg`, 448×540 units), keyed by the adapter's
+ * Value slots of the chrome (`memory-topology.svg`, 448×423 units), keyed by the adapter's
  * `TOPOLOGY_SLOT_EDGE_IDS` — the `Record` type keeps the two lists identical, so a newly plated
  * edge without coordinates fails typecheck instead of silently drawing nothing.
- * Coordinates are the centres of the values stripped from the export, so an overlaid
- * label lands on the same link (and inside the same plate) the design filled.
- * Pillars: GM x16–56, L2 x94–134; rows x188–432 — AIV0 y17–197, AIC y201–339, AIV1 y343–523.
- * Ordering follows the export's link direction: the upper label of a pair rides the link
- * whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD, Cube→L0C).
+ * Coordinates are centres of the export's **amber sample GB/s glyphs** (corridor value
+ * plates), never orange MTE / FixPipe chip centres — those chips keep static `MTE_*` /
+ * `FixPipe` labels (UI-38 / PR-MEMTOP-001d). Pillars: GM x16–56, L2 x94–134; rows x188–432 —
+ * AIC y16–200, AIV × 2 y218–402. Ordering follows link direction: the upper label of a pair
+ * rides the link whose arrowhead points into the right-hand box (GM→L2, L2→UB, UB→SIMD,
+ * Cube→L0C).
  *
- * Chrome slots we intentionally leave blank because the adapter computes no such edge, or
- * Product has not confirmed the assignment (UI-48): the AIV0/AIV1 SIMT in/out pair and the
- * four in-row SIMT links, the UB→VEC run, the two rotated AIV↔AIC trunk labels, AIC
- * L1→MTE1#3→BT, FixP→rail, and the lower L2↔AIC corridor that the export routes onto FixP
- * (`l2-l1-write` / `aic_l1_write_bw`). The in-box `%` plates split the same way: the L2 plate is
- * DATA-20 `peakPct`, five unit badges are painted (UI-49, `PLATE_SLOTS`), and the four badge
- * positions with no producer field stay blank.
+ * The simplified chrome merges AIV0/AIV1 into one **AIV × 2** row, so former dual AIV corridor
+ * slots (`l2-ub`, `ub-l2`, `ub-vec`, `vec-ub`) are single plates. Cube↔L0C shares **one**
+ * corridor plate on the export — only `cube-l0c` (into L0C) is drawn there; `l0c-cube` keeps
+ * its adapter / EDGE_MAP id for 详情 typing but is excluded from `hasDrawableTopology` via
+ * `TOPOLOGY_NO_OVERLAY_EDGE_IDS` (empty `SLOTS` list — PR-MEMTOP-004), so the panel cannot
+ * double-paint two GB/s labels 5u apart on the same 11-unit plate. Adapters fold reverse onto
+ * `cube-l0c` before the panel sees the model (PR-MEMTOP-002c).
+ *
+ * Chrome slots left blank (no adapter edge or Product unconfirmed — UI-48): AIV SIMT links,
+ * UB→VEC run, AIV↔AIC trunks, AIC L1→MTE1#3→BT, FixP→rail / lower L2↔AIC FixP corridor
+ * (`l2-l1-write`). In-box `%`: L2 plate = DATA-20 `peakPct`; three unit badges (UI-49); field-less
+ * badge positions stay blank.
  */
 export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, number])[]> = {
-  'gm-l2-read': [[74.5, 255.9]],
-  'gm-l2-write': [[75.3, 277.8]],
-  'l2-ub': [
-    [159.7, 106.4],
-    [159.7, 426.6],
-  ],
-  'ub-l2': [
-    [160.4, 121.3],
-    [159.7, 441.5],
-  ],
-  'l2-l1-read': [[159.7, 235.5]],
-  'ub-vec': [
-    [338.2, 153.4],
-    [338.2, 473.3],
-  ],
-  'vec-ub': [
-    [338.2, 165.2],
-    [338.2, 485.4],
-  ],
-  'l1-l0a': [[239.7, 221.7]],
-  'l1-l0b': [[240.1, 234.3]],
-  'l0a-cube': [[302.9, 222.5]],
-  'l0b-cube': [[302.9, 235.5]],
-  'cube-l0c': [[373.5, 229.2]],
-  'l0c-cube': [[373.5, 244.5]],
+  'gm-l2-read': [[75.1, 200.3]],
+  'gm-l2-write': [[75.2, 219.3]],
+  'l2-ub': [[159.7, 315.2]],
+  'ub-l2': [[159.6, 331.2]],
+  'l2-l1-read': [[160.1, 87.9]],
+  'ub-vec': [[338.7, 351.8]],
+  'vec-ub': [[338.6, 363.8]],
+  'l1-l0a': [[239.1, 49.8]],
+  'l1-l0b': [[239.1, 74.8]],
+  'l0a-cube': [[300.9, 54.8]],
+  'l0b-cube': [[300.9, 79.8]],
+  'cube-l0c': [[373.6, 83.8]],
+  /** Shared plate with `cube-l0c` — no second overlay (PR-MEMTOP-002c). */
+  'l0c-cube': [],
 };
 
 /**
@@ -151,16 +138,60 @@ export function fitFontSize(
 }
 
 /** Zoom ladder (%) for the bar's **+** / **−**. 100 is the design's default readout and means
- *  *fitted to the box*, not 1:1 units: the panel never has a fixed pixel budget (the stacked
- *  aside and the root overlay differ), so 100% is the one scale that is correct in both. */
-export const ZOOM_STEPS = [50, 75, 100, 125, 150, 200, 300, 400];
+ *  *fitted to the box*, not 1:1 units. Stops are a fixed **1.5×** geometric series around 100,
+ *  clamped to **50…500** (`50 → ≈67 → 100 → 150 → 225 → 337.5 → 500`). Pinch uses a continuous
+ *  scale inside the same min/max (PR-MEMTOP-020). */
+export const ZOOM_RATIO = 1.5;
+export const ZOOM_STEPS = [
+  50,
+  100 / ZOOM_RATIO, // ≈ 66.67
+  100,
+  100 * ZOOM_RATIO, // 150
+  100 * ZOOM_RATIO ** 2, // 225
+  100 * ZOOM_RATIO ** 3, // 337.5
+  500,
+] as const;
 
-/** Next ladder stop from `current` in `dir` (+1 in, −1 out); clamped at both ends. An unknown
- *  `current` (should not happen — the ladder is the only writer) falls back to the default. */
+export const ZOOM_MIN = ZOOM_STEPS[0]!;
+export const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
+
+const ZOOM_STEP_EPS = 1e-6;
+
+/** Next ladder stop from `current` in `dir` (+1 in, −1 out); clamped at both ends.
+ *  Off-ladder values (after pinch) step to the nearest rung in that direction. */
 export function nextZoom(current: number, dir: 1 | -1): number {
-  const i = ZOOM_STEPS.indexOf(current);
-  if (i < 0) return 100;
-  return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))]!;
+  const i = ZOOM_STEPS.findIndex((s) => Math.abs(s - current) < ZOOM_STEP_EPS);
+  if (i >= 0) {
+    return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))]!;
+  }
+  if (dir > 0) {
+    return ZOOM_STEPS.find((s) => s > current + ZOOM_STEP_EPS) ?? ZOOM_MAX;
+  }
+  for (let j = ZOOM_STEPS.length - 1; j >= 0; j--) {
+    if (ZOOM_STEPS[j]! < current - ZOOM_STEP_EPS) return ZOOM_STEPS[j]!;
+  }
+  return ZOOM_MIN;
+}
+
+/** Continuous pinch/Ctrl+wheel scale from a wheel `deltaY` (PR-MEMTOP-020).
+ *  Divisor is the |deltaY| that doubles/halves the scale — lower = faster pinch.
+ *  A single tick never crosses the fitted 100% stop: it lands there first so the
+ *  user can settle on fit before continuing past it. */
+export const ZOOM_WHEEL_DELTA_DOUBLE = 100;
+
+/** After `deltaMode` normalization: notches at/above this tween like the bar; finer
+ *  trackpad-pinch ticks paint immediately so the fingers stay in sync (PR-MEMTOP-020). */
+export const ZOOM_WHEEL_TWEEN_MIN_DELTA = 40;
+
+/** Zoom ladder / wheel painted-scale tween length (PR-MEMTOP-019 / 020). Faster than the
+ *  timeline's default 400ms zoom-to-fit — diagram zoom is a short hop. */
+export const ZOOM_TWEEN_MS = 200;
+
+export function continuousZoomFromDelta(current: number, deltaY: number): number {
+  const factor = Math.pow(2, -deltaY / ZOOM_WHEEL_DELTA_DOUBLE);
+  const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(current * factor * 10) / 10));
+  if ((current < 100 && next > 100) || (current > 100 && next < 100)) return 100;
+  return next;
 }
 </script>
 
@@ -168,9 +199,12 @@ export function nextZoom(current: number, dir: 1 | -1): number {
 import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
-/** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified).
- *  Its static labels stay outlined paths; the export's sample values were stripped in-repo.
- *  `?no-inline` keeps the 200 kB asset out of the JS bundle — lib mode inlines assets whatever
+/** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
+ *  448×423). Static labels stay outlined paths (including white `MTE_*` / `FixPipe` ink on
+ *  orange chips). Sample corridor GB/s (`rgb(249,183,102)`) and under-word util `%` glyphs
+ *  were stripped in-repo so panel overlays are not duplicated; chip labels must not be
+ *  stripped with those samples (PR-MEMTOP-001c / 001d).
+ *  `?no-inline` keeps the asset out of the JS bundle — lib mode inlines assets whatever
  *  `assetsInlineLimit` says, and only this suffix is checked first — so it ships as
  *  `dist/memory-topology.svg`. The built reference is the web-root path `/memory-topology.svg`
  *  (hosts must serve that file at the site root, or copy it from the package export
@@ -185,10 +219,22 @@ const props = withDefaults(
     openDetailsOnContextmenu?: boolean;
     /** Bar's **全屏** control: the stacked aside asks for it, the root overlay is already full. */
     showFullscreen?: boolean;
+    /**
+     * Root topology 全屏 only (PR-MEMTOP-020): plain vertical wheel zooms while the diagram still
+     * fits (fullscreen has no aside column to scroll). Ctrl/Cmd+wheel and trackpad pinch zoom on
+     * **both** hosts; the stacked aside leaves this off so unmodified vertical wheel keeps scrolling
+     * the report.
+     */
+    wheelGestures?: boolean;
   }>(),
   // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
   // back), but the linter needs the key present to see the optional prop as intentional.
-  { openDetailsOnContextmenu: true, showFullscreen: false, locale: undefined },
+  {
+    openDetailsOnContextmenu: true,
+    showFullscreen: false,
+    locale: undefined,
+    wheelGestures: false,
+  },
 );
 
 const emit = defineEmits<{
@@ -261,8 +307,7 @@ const summaryId = useId();
  * Accessible text alternative (PR-MEMTOP-011). `role="img"` exposes the diagram as a single
  * image, so its `<text>` values never reach the a11y tree on their own. This spells out the
  * same slots as `from → to: value`, read from the model — so it lists exactly what the diagram
- * draws: blank slots and slotless edges stay out. Paired AIV0/AIV1 slots share one aggregate
- * value, so the description names both rows once instead of repeating the same string.
+ * draws: blank slots and slotless edges stay out.
  */
 const summary = computed(() => {
   const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
@@ -275,22 +320,20 @@ const summary = computed(() => {
     const edge = props.model?.edges.find((e) => e.id === v.id);
     const from = (edge && names.get(edge.from)) ?? edge?.from ?? '';
     const to = (edge && names.get(edge.to)) ?? edge?.to ?? '';
-    const pair = SLOTS[v.id].length > 1 ? ' (AIV0, AIV1)' : '';
-    parts.push(from && to ? `${from} → ${to}${pair}: ${v.text}` : v.text);
+    parts.push(from && to ? `${from} → ${to}: ${v.text}` : v.text);
   }
-  // UI-49 in-box badges: one entry per unit, not per slot (the AIV0/AIV1 pair shares a value).
+  // UI-49 in-box badges: one entry per plated unit (AIV × 2 chrome has one slot each).
   for (const p of plates.value) {
     if (seen.has(p.node)) continue;
     seen.add(p.node);
-    const pair = PLATE_SLOTS[p.node].length > 1 ? ' (AIV0, AIV1)' : '';
-    parts.push(`${names.get(p.node) ?? p.node}${pair}: ${p.text}`);
+    parts.push(`${names.get(p.node) ?? p.node}: ${p.text}`);
   }
   return parts.join('; ');
 });
 
 /**
  * Measurement twin: an unpainted `<text>` carrying the same class, so `getComputedTextLength`
- * reports the label's natural width in chrome units (the viewBox is 448×540 px at 1:1).
+ * reports the label's natural width in chrome units (the viewBox is 448×423 px at 1:1).
  * jsdom has no SVG text metrics — the fit then stays at the base size.
  */
 const measureTwin = ref<SVGTextElement | null>(null);
@@ -338,9 +381,9 @@ const zoom = ref(100);
 /** The scale actually **painted**: `zoom` at rest, an in-flight value during a step (PR-MEMTOP-019).
  *  The stage is sized from this one, and so is everything read off the laid-out box. */
 const paintedZoom = ref(100);
-const zoomPct = computed(() => `${zoom.value}%`);
-const zoomMin = ZOOM_STEPS[0]!;
-const zoomMax = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
+const zoomPct = computed(() => `${Math.round(zoom.value)}%`);
+const zoomMin = ZOOM_MIN;
+const zoomMax = ZOOM_MAX;
 
 /** Only a diagram larger than its own box has anywhere to scroll to (PR-MEMTOP-013). Read off the
  *  *painted* scale, so the box is a scroll container exactly while the drawing overflows it: a step
@@ -422,6 +465,10 @@ function resetPan() {
   }
 }
 
+/** Scroll placement for a zoom step: content fraction + the viewport offset that fraction must
+ *  stay under (box middle for bar clicks, pointer for wheel/pinch — PR-MEMTOP-018 / 020). */
+type ZoomAnchor = { x: number; y: number; ox: number; oy: number };
+
 /** The middle of the box as a fraction of what it can scroll (PR-MEMTOP-018), so a zoom step can
  *  put the same part of the drawing back under it.
  *
@@ -430,20 +477,46 @@ function resetPan() {
  *  the content the bars move. Reading it as a fraction of the *scrollable* extent is also what makes
  *  it survive the stage being centred while it fits (`margin-inline: auto`), where `scrollWidth` is
  *  still the box's own width and the middle is exactly half of it. */
-function centerFraction(el: HTMLElement): { x: number; y: number } | null {
+function centerFraction(el: HTMLElement): ZoomAnchor | null {
   // jsdom has no layout: no box means no middle to keep, and no extent to divide by.
-  if (el.clientWidth <= 0 || el.clientHeight <= 0) return null;
+  if (el.clientWidth <= 0 || el.clientHeight <= 0 || el.scrollWidth <= 0 || el.scrollHeight <= 0) {
+    return null;
+  }
+  const ox = el.clientWidth / 2;
+  const oy = el.clientHeight / 2;
   return {
-    x: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
-    y: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+    x: (el.scrollLeft + ox) / el.scrollWidth,
+    y: (el.scrollTop + oy) / el.scrollHeight,
+    ox,
+    oy,
   };
 }
 
-/** The anchor a running step holds on to: the middle fraction `centerFraction` measured when the
- *  step began, re-applied on every frame of it. It is a property of the scale that was on screen
- *  then, so it is *kept* rather than derived — the placement it drives needs the incoming scale's
- *  own `scrollWidth`, a frame at a time. */
-let stepAnchor: { x: number; y: number } | null = null;
+/** Content under the pointer, kept under the same viewport pixel after the step (PR-MEMTOP-020).
+ *  Must not reuse the bar's "middle of box" placement — that would yank the point to centre. */
+function pointerAnchor(
+  el: HTMLElement,
+  clientX: number,
+  clientY: number,
+): ZoomAnchor | null {
+  if (el.clientWidth <= 0 || el.clientHeight <= 0 || el.scrollWidth <= 0 || el.scrollHeight <= 0) {
+    return null;
+  }
+  const box = el.getBoundingClientRect();
+  const ox = clientX - box.left;
+  const oy = clientY - box.top;
+  return {
+    x: (el.scrollLeft + ox) / el.scrollWidth,
+    y: (el.scrollTop + oy) / el.scrollHeight,
+    ox,
+    oy,
+  };
+}
+
+/** The anchor a running step holds on to: measured when the step began, re-applied on every frame.
+ *  It is a property of the scale that was on screen then, so it is *kept* rather than derived — the
+ *  placement it drives needs the incoming scale's own `scrollWidth`, a frame at a time. */
+let stepAnchor: ZoomAnchor | null = null;
 let cancelZoomAnim: (() => void) | null = null;
 
 function stopZoomAnim() {
@@ -456,18 +529,23 @@ function stepZoom(dir: 1 | -1) {
   setZoom(nextZoom(zoom.value, dir));
 }
 
-/** A ladder step, tweened with the project's own motion (PR-MEMTOP-019): `animateProgress`, the
- *  same 400ms ease-in-out cubic the timeline's zoom-to-fit rides — and, like it, instant when the
- *  platform asks for reduced motion. The committed stop still moves on the click; only the painted
- *  scale travels to it, so asking for 400% four times in quick succession is still four stops.
+/** A ladder step or continuous wheel/pinch target, tweened with the project's own motion
+ *  (PR-MEMTOP-019): `animateProgress`, the same ease-in-out cubic as the timeline's zoom-to-fit,
+ *  at `ZOOM_TWEEN_MS` — and, like it, instant when the platform asks for reduced motion. The
+ *  committed stop still moves on the click / wheel tick; only the painted scale travels to it, so
+ *  asking for 500% four times in quick succession is still four stops.
  *
  *  Mid-step, a new step cancels this one and takes a fresh measurement off whatever is painted, so
- *  a re-click grows the drawing from where it currently is rather than from where it was aimed. */
-function setZoom(target: number) {
+ *  a re-click / re-wheel grows the drawing from where it currently is rather than from where it was
+ *  aimed.
+ *
+ *  `anchor` — omit to keep the box middle (bar clicks); pass a pointer anchor for wheel/pinch
+ *  (PR-MEMTOP-020); pass `null` when there is no layout to measure. */
+function setZoom(target: number, anchor?: ZoomAnchor | null) {
   const el = viewport.value;
   const from = paintedZoom.value;
   // Measured before the step, against the scale still on screen, and read back on every frame.
-  stepAnchor = el ? centerFraction(el) : null;
+  stepAnchor = anchor !== undefined ? anchor : el ? centerFraction(el) : null;
   zoom.value = target;
   stopZoomAnim();
   if (from === target) {
@@ -480,6 +558,7 @@ function setZoom(target: number) {
   cancelZoomAnim = animateProgress({
     from,
     to: target,
+    durationMs: ZOOM_TWEEN_MS,
     onUpdate: (next) => {
       paintedZoom.value = next;
     },
@@ -490,15 +569,66 @@ function setZoom(target: number) {
   });
 }
 
+/**
+ * Wheel / trackpad on the diagram (PR-MEMTOP-020). Pinches report as `wheel` + `ctrlKey`. Fine
+ * trackpad-pinch ticks apply a **continuous** scale immediately (fingers stay in sync). Mouse-wheel
+ * notches step the same **1.5× ladder** as the bar +/− controls and tween with `animateProgress`
+ * (PR-MEMTOP-019). Two-finger / Shift horizontal pans when past the fit. Plain vertical wheel zooms
+ * at fit **only** when `wheelGestures` (fullscreen).
+ */
+function onViewportWheel(e: WheelEvent) {
+  const el = viewport.value;
+  if (!el) return;
+
+  const pinchOrMod = e.ctrlKey || e.metaKey;
+  const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+
+  // Trackpad two-finger X, or Shift+wheel → horizontal pan when the drawing overflows.
+  if ((horizontal || e.shiftKey) && pannable.value && !pinchOrMod) {
+    e.preventDefault();
+    el.scrollLeft += horizontal ? e.deltaX : e.deltaY;
+    if (zoomAnimating.value) stepAnchor = centerFraction(el);
+    return;
+  }
+
+  // Pinch / Ctrl/Cmd+wheel always zooms. Plain vertical at fit zooms only in fullscreen
+  // (`wheelGestures`); otherwise let the event bubble so the aside column can scroll.
+  const wantZoom = pinchOrMod || (props.wheelGestures && !pannable.value);
+  if (!wantZoom) return;
+
+  e.preventDefault();
+  let dy = e.deltaY;
+  if (e.deltaMode === 1) dy *= 16;
+  else if (e.deltaMode === 2) dy *= el.clientHeight || 400;
+
+  const anchor = pointerAnchor(el, e.clientX, e.clientY);
+  // Fine pixel deltas are trackpad pinch — continuous scale, paint now.
+  if (Math.abs(dy) < ZOOM_WHEEL_TWEEN_MIN_DELTA) {
+    const from = paintedZoom.value;
+    const next = continuousZoomFromDelta(from, dy);
+    if (next === from) return;
+    stopZoomAnim();
+    stepAnchor = anchor;
+    zoom.value = next;
+    paintedZoom.value = next;
+    return;
+  }
+
+  // Notch-sized ticks (mouse wheel): one 1.5× ladder stop per notch, same as +/−.
+  const next = nextZoom(zoom.value, dy < 0 ? 1 : -1);
+  if (next === zoom.value) return;
+  setZoom(next, anchor);
+}
+
 /** The offset `placeZoomStep` wrote last, so its own scroll events can be told apart from a user's:
  *  the placement writes `scrollLeft` / `scrollTop` too, and every one of those writes raises a
  *  `scroll` event that is not a pan (PR-MEMTOP-019). */
 let lastPlacement = { left: 0, top: 0 };
 
-/** Put the held middle back under the middle of the box at the scale now painted (PR-MEMTOP-018).
- *  Runs **after** the render that carries the new `--pr-topo-zoom`, because it is the stage's new
- *  `scrollWidth` / `scrollHeight` that the placement is read from — hence a `flush: 'post'` watch
- *  rather than a derived value. */
+/** Put the held content point back under its viewport offset at the scale now painted
+ *  (PR-MEMTOP-018 middle / PR-MEMTOP-020 pointer). Runs **after** the render that carries the new
+ *  `--pr-topo-zoom`, because it is the stage's new `scrollWidth` / `scrollHeight` that the
+ *  placement is read from — hence a `flush: 'post'` watch rather than a derived value. */
 function placeZoomStep() {
   // A live drag owns the offset (PR-MEMTOP-019): its writes and these are the same two properties,
   // so placing on a frame underneath the pointer would rubber-band the diagram back to the anchor
@@ -514,8 +644,11 @@ function placeZoomStep() {
   }
   const el = viewport.value;
   if (!el || !stepAnchor) return;
-  el.scrollLeft = stepAnchor.x * el.scrollWidth - el.clientWidth / 2;
-  el.scrollTop = stepAnchor.y * el.scrollHeight - el.clientHeight / 2;
+  // `ox`/`oy` are the viewport pixels the content fraction must stay under — box middle for bar
+  // steps, cursor offset for wheel/pinch. Using `clientWidth/2` for a pointer fraction would yank
+  // the zoom point to centre.
+  el.scrollLeft = stepAnchor.x * el.scrollWidth - stepAnchor.ox;
+  el.scrollTop = stepAnchor.y * el.scrollHeight - stepAnchor.oy;
   lastPlacement = { left: el.scrollLeft, top: el.scrollTop };
 }
 
@@ -561,34 +694,36 @@ onBeforeUnmount(stopZoomAnim);
     :data-topo-zoom-animating="zoomAnimating ? 'true' : 'false'"
     @contextmenu="onContextMenu"
   >
-    <div
-      ref="viewport"
-      class="pr-topo__viewport"
-      :class="{
-        'pr-topo__viewport--pannable': pannable,
-        'pr-topo__viewport--dragging': dragging,
-      }"
-      data-testid="topology-viewport"
-      @pointerdown="onPanStart"
-      @pointermove="onPanMove"
-      @pointerup="endPan"
-      @pointercancel="endPan"
-      @scroll="onViewportScroll"
-    >
-      <div class="pr-topo__stage">
-        <svg
-          class="pr-topo__svg"
-          viewBox="0 0 448 540"
-          role="img"
-          :aria-label="t('memoryTopology', locale)"
-          :aria-describedby="chromeFailed ? undefined : summaryId"
-        >
+    <div class="pr-topo__frame">
+      <div
+        ref="viewport"
+        class="pr-topo__viewport"
+        :class="{
+          'pr-topo__viewport--pannable': pannable,
+          'pr-topo__viewport--dragging': dragging,
+        }"
+        data-testid="topology-viewport"
+        @pointerdown="onPanStart"
+        @pointermove="onPanMove"
+        @pointerup="endPan"
+        @pointercancel="endPan"
+        @scroll="onViewportScroll"
+        @wheel="onViewportWheel"
+      >
+        <div class="pr-topo__stage">
+          <svg
+            class="pr-topo__svg"
+            viewBox="0 0 448 423"
+            role="img"
+            :aria-label="t('memoryTopology', locale)"
+            :aria-describedby="chromeFailed ? undefined : summaryId"
+          >
           <image
             :href="chromeUrl"
             x="0"
             y="0"
             width="448"
-            height="540"
+            height="423"
             @error="onChromeError"
           />
 
@@ -600,7 +735,7 @@ onBeforeUnmount(stopZoomAnim);
               x="94"
               y="16"
               width="40"
-              height="508"
+              height="391"
             />
 
             <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
@@ -608,8 +743,8 @@ onBeforeUnmount(stopZoomAnim);
                  element; the testid still tells the two sources apart. -->
             <text
               v-if="peakText"
-              x="113.8"
-              y="277.1"
+              x="114.1"
+              y="218.3"
               text-anchor="middle"
               dominant-baseline="middle"
               class="pr-topo__pct"
@@ -654,9 +789,10 @@ onBeforeUnmount(stopZoomAnim);
           aria-hidden="true"
         />
       </template>
-    </svg>
-  </div>
-</div>
+          </svg>
+        </div>
+      </div>
+    </div>
 
     <!-- Zoom / fullscreen bar (design: `v930/new` 内存负载分析 controls). The whole bar hides with
          the chrome it scales — a zoom control over a failed asset is dead chrome. -->
@@ -671,7 +807,7 @@ onBeforeUnmount(stopZoomAnim);
         data-testid="topology-zoom-out"
         :aria-label="t('zoomOut', locale)"
         :title="t('zoomOut', locale)"
-        :disabled="zoom === zoomMin"
+        :disabled="zoom <= zoomMin"
         @click="stepZoom(-1)"
       >
         <svg
@@ -702,7 +838,7 @@ onBeforeUnmount(stopZoomAnim);
         data-testid="topology-zoom-in"
         :aria-label="t('zoomIn', locale)"
         :title="t('zoomIn', locale)"
-        :disabled="zoom === zoomMax"
+        :disabled="zoom >= zoomMax"
         @click="stepZoom(1)"
       >
         <svg
@@ -812,24 +948,35 @@ onBeforeUnmount(stopZoomAnim);
   padding: 6px;
 }
 
-/* Fit box for the diagram (PR-MEMTOP-013). `aspect-ratio` is the chrome's own 448×540, so at the
+/* Fit box for the diagram (PR-MEMTOP-013). `aspect-ratio` is the chrome's own 448×423, so at the
  * 100% zoom the box is exactly as tall as the diagram was when the `svg` was width-driven.
  *
- * `hidden`, not `auto`: the box height comes from `aspect-ratio` while the diagram's comes from
- * its own intrinsic ratio, and the two agree only to a rounding step (measured in Chrome:
- * 511 vs 511.0625). A fitted diagram therefore sat a fraction of a pixel over its own box — not
- * enough for Chromium to treat as scrollable overflow, but enough for a stray permanent scrollbar
- * wherever a platform does not snap it the same way. Nothing is ever cut off by the clip (at or
- * below 100% the stage is at most the box), so the fitted state simply does not scroll.
+ * Sized here, not on the scrollport: classic scrollbars eat the scrollport's client area, and a
+ * stage that was `%` of that client area used to shrink when the bars appeared (layout jump on
+ * zoom-in). This frame keeps a stable size; the stage reads it via `cqh` (PR-MEMTOP-013b). */
+.pr-topo__frame {
+  container-type: size;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 448 / 423;
+}
+
+/* Scrollport filling the frame. `hidden`, not `auto`, while fitted: the box height comes from
+ * `aspect-ratio` while the diagram's comes from its own intrinsic ratio, and the two agree only
+ * to a rounding step (measured in Chrome: 511 vs 511.0625). A fitted diagram therefore sat a
+ * fraction of a pixel over its own box — not enough for Chromium to treat as scrollable overflow,
+ * but enough for a stray permanent scrollbar wherever a platform does not snap it the same way.
+ * Nothing is ever cut off by the clip (at or below 100% the stage is at most the box).
  *
  * `place-items: center` is the fitted-state centring only, for a zoomed-*out* diagram; the
  * pannable state is a plain block, because a centred item that overflows leaves its start edge
  * unreachable by scrolling. */
 .pr-topo__viewport {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  min-width: 0;
-  aspect-ratio: 448 / 540;
   overflow: hidden;
 }
 
@@ -851,8 +998,10 @@ onBeforeUnmount(stopZoomAnim);
   user-select: none;
 }
 
-/* The stage is the *diagram's* own box: `--pr-topo-zoom` (1 = fitted) times the window's height,
- * with the width following the chrome ratio from that height, so the `svg` fills it exactly.
+/* The stage is the *diagram's* own box: `--pr-topo-zoom` (1 = fitted) times the *frame* height
+ * (`100cqh`), with the width following the chrome ratio from that height, so the `svg` fills it
+ * exactly. Sized from the frame rather than the scrollport so classic scrollbar gutters cannot
+ * change the drawing's layout when they appear (PR-MEMTOP-013b).
  *
  * Height-driven on purpose. A stage that followed the *window* in both axes is only the diagram's
  * box where the window already has the chrome ratio — the stacked aside — and in the wide overlay
@@ -863,8 +1012,8 @@ onBeforeUnmount(stopZoomAnim);
  * `margin-inline: auto` centres it while it fits and resolves to 0 once it overflows, so the
  * scroll origin is the diagram's own left edge rather than a letterbox. */
 .pr-topo__stage {
-  height: calc(100% * var(--pr-topo-zoom, 1));
-  aspect-ratio: 448 / 540;
+  height: calc(100cqh * var(--pr-topo-zoom, 1));
+  aspect-ratio: 448 / 423;
   margin-inline: auto;
 }
 

@@ -47,14 +47,14 @@ describe('CsvFieldListPanel', () => {
     });
 
     expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
-    // Shared block-pill chrome (tokens.css) — the PIPE card uses the same class.
+    // Overlay block switcher still uses shared `.pr-block-pill` chrome (tokens.css).
     expect(wrapper.get('[data-testid="csv-block"]').classes()).toContain('pr-block-pill');
     await wrapper.get('[data-testid="csv-block"]').setValue('1');
     expect(wrapper.text()).toContain('0.3');
     expect(wrapper.text()).toContain('NA');
   });
 
-  it('PR-CSV-003: search filters matching labels (no highlight)', async () => {
+  it('PR-CSV-003: search filters and highlights matching labels', async () => {
     const wrapper = mount(CsvFieldListPanel, {
       props: { tables, csvTexts },
     });
@@ -62,11 +62,18 @@ describe('CsvFieldListPanel', () => {
     await wrapper.get('[data-testid="csv-search"]').setValue('mte2');
     expect(wrapper.text()).toContain('aiv_mte2_ratio');
     expect(wrapper.text()).not.toContain('aiv_vec_ratio');
-    // UI-43: filter only — the label renders whole, with no match chip.
-    expect(wrapper.findAll('[data-testid="csv-field-match"]')).toHaveLength(0);
-    expect(wrapper.find('.pr-csv__field-match').exists()).toBe(false);
-    const src = (await import('./CsvFieldListPanel.vue?raw')).default as string;
-    expect(src).not.toMatch(/pr-csv__field-match/);
+    const marks = wrapper.findAll('[data-testid="csv-field-match"]');
+    expect(marks).toHaveLength(1);
+    expect(marks[0].text()).toBe('mte2');
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, '../../tokens.css'), 'utf8');
+    const rule = src.match(/\.pr-field-match\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toMatch(/background:\s*#1d283c/);
+    expect(rule).toMatch(/color:\s*#688aec/);
+    expect(rule).toMatch(/font-weight:\s*600/);
+    expect(rule).toMatch(/padding:\s*0;/);
+    expect(rule).not.toMatch(/display:\s*inline-block/);
     expect(wrapper.find('[data-testid="csv-search-clear"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="csv-search-clear"]').trigger('click');
@@ -121,5 +128,72 @@ describe('CsvFieldListPanel', () => {
     expect(wrapper.text()).toContain('aic_cube_ratio');
     expect(wrapper.text()).toContain('NA');
     expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
+  });
+
+  it('PR-CSV-007: ArchDiagramMetrics EAV pivots to parameterName → value (deduped)', () => {
+    const archTables: CsvTableModel[] = [
+      {
+        fileName: 'ArchDiagramMetrics.csv',
+        headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+        rows: [
+          {
+            ArchDiagramId: '1',
+            ArchDiagramParameterName: 'active_cores',
+            ArchDiagramParameterValue: '1.0',
+          },
+          {
+            ArchDiagramId: '2',
+            ArchDiagramParameterName: 'hbm_to_l2_syn_gbs',
+            ArchDiagramParameterValue: '0.77',
+          },
+          {
+            ArchDiagramId: '3',
+            ArchDiagramParameterName: 'active_cores',
+            ArchDiagramParameterValue: '2.0',
+          },
+        ],
+        blockIds: [],
+      },
+    ];
+    const wrapper = mount(CsvFieldListPanel, {
+      props: { tables: archTables, csvTexts: {}, showBlockSwitcher: false },
+    });
+    expect(wrapper.text()).toContain('hbm_to_l2_syn_gbs');
+    expect(wrapper.text()).toContain('0.77');
+    expect(wrapper.text()).toContain('active_cores');
+    expect(wrapper.text()).toContain('2.0');
+    expect(wrapper.text()).not.toContain('ArchDiagramId');
+    expect(wrapper.text()).not.toContain('ArchDiagramParameterName');
+  });
+
+  it('PR-CSV-008: View all only for wide-row projection, not ArchDiagram EAV', () => {
+    const archTables: CsvTableModel[] = [
+      {
+        fileName: 'ArchDiagramMetrics.csv',
+        headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+        rows: [
+          {
+            ArchDiagramId: '1',
+            ArchDiagramParameterName: 'active_cores',
+            ArchDiagramParameterValue: '1.0',
+          },
+        ],
+        blockIds: [],
+      },
+    ];
+    const arch = mount(CsvFieldListPanel, {
+      props: {
+        tables: archTables,
+        csvTexts: { 'ArchDiagramMetrics.csv': 'ArchDiagramId,ArchDiagramParameterName\n1,x\n' },
+        showBlockSwitcher: false,
+        showViewAll: true,
+      },
+    });
+    expect(arch.find('[data-testid="csv-view-all"]').exists()).toBe(false);
+
+    const wide = mount(CsvFieldListPanel, {
+      props: { tables, csvTexts, showViewAll: true },
+    });
+    expect(wide.find('[data-testid="csv-view-all"]').exists()).toBe(true);
   });
 });

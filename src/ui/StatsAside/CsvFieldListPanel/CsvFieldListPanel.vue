@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { t } from '../../../i18n';
 import type { CsvTableModel } from '../../../domain/types';
+import { highlightParts } from '../../searchHighlight';
 
 const props = withDefaults(
   defineProps<{
@@ -64,7 +65,12 @@ const showBlocks = computed(
   () => props.showBlockSwitcher && blockIds.value.length > 0,
 );
 
-const showActions = computed(() => showBlocks.value || props.showViewAll);
+/** DATA-33d: only for wide-row projection (one block row → many columns), not ArchDiagram EAV. */
+const showViewAllButton = computed(
+  () => props.showViewAll && !!activeTable.value && !isArchDiagramEav(activeTable.value),
+);
+
+const showActions = computed(() => showBlocks.value || showViewAllButton.value);
 
 /** Product tab labels from `v930/compute-load-detail` / `v930/memory-load-detail`. */
 function tabLabel(fileName: string): string {
@@ -87,17 +93,52 @@ const activeRow = computed(() => {
   return table.rows.find((r) => r['block_id'] === selectedBlock.value) ?? null;
 });
 
+/** ArchDiagramMetrics.csv is EAV (parameter name/value rows), not a wide metric row. */
+function isArchDiagramEav(table: CsvTableModel): boolean {
+  const lower = table.headers.map((h) => h.toLowerCase());
+  return (
+    lower.includes('archdiagramparametername') && lower.includes('archdiagramparametervalue')
+  );
+}
+
+function eavParamValueFields(
+  table: CsvTableModel,
+  query: string,
+): { header: string; value: string; parts: { text: string; match: boolean }[] }[] {
+  const nameKey = table.headers.find((h) => h.toLowerCase() === 'archdiagramparametername');
+  const valKey = table.headers.find((h) => h.toLowerCase() === 'archdiagramparametervalue');
+  if (!nameKey || !valKey) return [];
+  // Last row wins — same as topologyFromArchDiagramMetrics Map.set (gelu duplicates the set).
+  const byName = new Map<string, string>();
+  for (const row of table.rows) {
+    const name = (row[nameKey] ?? '').trim();
+    if (name) byName.set(name, row[valKey] ?? '');
+  }
+  const q = query.trim();
+  const qLower = q.toLowerCase();
+  return [...byName.entries()]
+    .filter(([name]) => !qLower || name.toLowerCase().includes(qLower))
+    .map(([header, value]) => ({
+      header,
+      value,
+      parts: highlightParts(header, q),
+    }));
+}
+
 const fields = computed(() => {
   const table = activeTable.value;
-  const row = activeRow.value;
-  if (!table || !row) return [];
+  if (!table) return [];
   const q = search.value.trim();
+  if (isArchDiagramEav(table)) return eavParamValueFields(table, q);
+  const row = activeRow.value;
+  if (!row) return [];
   const headers = q
     ? table.headers.filter((h) => h.toLowerCase().includes(q.toLowerCase()))
     : table.headers;
   return headers.map((h) => ({
     header: h,
     value: row[h] ?? '',
+    parts: highlightParts(h, q),
   }));
 });
 
@@ -134,11 +175,11 @@ function onViewAll() {
       </button>
     </div>
 
-    <div class="pr-csv__toolbar">
-      <label class="pr-csv__search">
-        <span class="pr-csv__sr">{{ t('searchLabel', locale) }}</span>
+    <div class="pr-field-toolbar">
+      <label class="pr-field-search">
+        <span class="pr-field-sr">{{ t('searchLabel', locale) }}</span>
         <span
-          class="pr-csv__search-icon"
+          class="pr-field-search-icon"
           aria-hidden="true"
         >
           <svg
@@ -169,9 +210,9 @@ function onViewAll() {
           :placeholder="t('searchPlaceholder', locale)"
         >
         <button
-          v-if="search.length > 0"
+          v-if="search.trim().length > 0"
           type="button"
-          class="pr-csv__search-clear"
+          class="pr-field-search-clear"
           data-testid="csv-search-clear"
           :aria-label="t('searchClear', locale)"
           @click.stop="search = ''"
@@ -203,7 +244,7 @@ function onViewAll() {
           </select>
         </label>
         <button
-          v-if="showViewAll"
+          v-if="showViewAllButton"
           type="button"
           class="pr-csv__view-all"
           data-testid="csv-view-all"
@@ -224,7 +265,14 @@ function onViewAll() {
         :key="field.header"
         class="pr-csv__field"
       >
-        <span class="pr-csv__field-name">{{ field.header }}</span>
+        <span class="pr-csv__field-name">
+          <span
+            v-for="(part, i) in field.parts"
+            :key="i"
+            :class="{ 'pr-field-match': part.match }"
+            :data-testid="part.match ? 'csv-field-match' : undefined"
+          >{{ part.text }}</span>
+        </span>
         <span class="pr-csv__field-value">{{ field.value }}</span>
       </li>
     </ul>
@@ -274,72 +322,6 @@ function onViewAll() {
 .pr-csv__tab--active {
   color: #ffffff;
   border-bottom-color: #ffffff;
-}
-
-.pr-csv__toolbar {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 0;
-  flex-shrink: 0;
-}
-
-.pr-csv__search {
-  position: relative;
-  display: block;
-  flex: 1 1 140px;
-  min-width: 0;
-}
-
-.pr-csv__search-icon {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9a9a9a;
-  font-size: 12px;
-  pointer-events: none;
-}
-
-.pr-csv__search input {
-  width: 100%;
-  box-sizing: border-box;
-  background: #262626;
-  border: 1px solid #3a3a3a;
-  color: #e0e0e0;
-  font-size: 11px;
-  padding: 5px 24px 5px 26px;
-  border-radius: 4px;
-}
-
-.pr-csv__search input:focus {
-  outline: none;
-  border-color: #3078f0;
-}
-
-.pr-csv__search input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-}
-
-.pr-csv__search-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: #9a9a9a;
-  font-size: 14px;
-  line-height: 1;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-
-.pr-csv__search-clear:hover {
-  color: #d0d0d0;
 }
 
 .pr-csv__actions {
@@ -413,16 +395,5 @@ function onViewAll() {
   font-variant-numeric: tabular-nums;
   text-align: right;
   word-break: break-all;
-}
-
-.pr-csv__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
 }
 </style>

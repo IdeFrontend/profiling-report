@@ -30,6 +30,7 @@ ProfilingReport
 │     ├─ StatsSummaryPanel
 │     ├─ PipeOccupancyPanel (+ Cube|Vector toggle M1)
 │     ├─ CsvFieldListPanel (compute + memory detail tabs M1)
+│     ├─ SummaryCategoryList (All-scope summary.jsonl detail M1)
 │     ├─ RooflinePanel (M2)
 │     ├─ MemoryTopologyPanel (M2)
 │     └─ HardwareDetailsPanel (M1 interim DATA-34a)
@@ -253,7 +254,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` on the **report** shell only (parent clears `asideVisible`; overlay headers omit × — PR-STATS-006b), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back returns to the stack (close omitted while drilled in).
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
@@ -271,9 +272,15 @@ Horizontal bars from `PipeOccupancyItem[]`. **M1:** Cube | Vector segmented cont
 
 ### `CsvFieldListPanel` (M1)
 
-Searchable field list with CSV tabs, optional block switcher, **查看全部** emit (`view-full-csv`). Search hides non-matching headers and paints the matching substring as a flush navy chip. Used for compute-load details (#3) and memory details (#4).
+Searchable field list with CSV tabs, optional block switcher, **查看全部** emit (`view-full-csv`). Search hides non-matching headers and paints the matching substring as a flush navy chip. Used for compute-load details (#3) and memory details (#4) when a block is picked.
 
 **Why:** One reusable panel for all M1 CSV drill-downs; hide empty tabs.
+
+### `SummaryCategoryList` (M1)
+
+Searchable `summary.jsonl` category tabs + field list for **All** block scope in compute/memory 详情. Same search filter + navy match chip as `CsvFieldListPanel` (UI-43).
+
+**Why:** Product reports default to summary categories under **All**; without this panel's search, 详情 looked search-less until a block was picked.
 
 ### `RooflinePanel` (M2)
 
@@ -285,7 +292,7 @@ Log-log roofline chart from `RooflineViewModel` (DATA-37a–f interim). Axes Ops
 
 Static SVG memory path diagram with **data-driven edge labels** from Memory* CSVs ([UI-38](../context/decisions/UI.md), changelog #5). Mounted on the stacked 报告统计 below PIPE and again in the root **全屏** overlay; stacked **详情** / right-click open the memory CSV overlay; overlay right-click does not.
 
-**Why:** The official chrome (`memory-topology.svg`, Figma export of `v930/report-stats-scrolled`) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)). Hosts must serve `dist/memory-topology.svg` at the web root (`/memory-topology.svg`); the package exports it as `@huawei/profiling-report/memory-topology.svg` for copy/deploy.
+**Why:** The official chrome (`memory-topology.svg`, `v930-chrome/memory-topology`, 448×423 AIC + AIV × 2) carries the static geometry and labels; the panel only positions the adapter's values on that chrome's slots ([panel spec](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)). Hosts must serve `dist/memory-topology.svg` at the web root (`/memory-topology.svg`); the package exports it as `@huawei/profiling-report/memory-topology.svg` for copy/deploy.
 
 ### `HardwareDetailsPanel` (M1 interim DATA-34a)
 

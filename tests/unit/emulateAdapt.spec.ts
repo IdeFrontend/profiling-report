@@ -263,6 +263,141 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(empty.reportModel.memoryTopology).toBeUndefined();
     expect(empty.capabilities).not.toContain('archDiagram');
   });
+
+  it('PR-ASIM-008b: ARCH_DIAGRAM_EDGE_MAP locks to plated slots + HTML inventory gaps', async () => {
+    const {
+      ARCH_DIAGRAM_EDGE_MAP,
+      ARCH_DIAGRAM_L2_PEAK_PARAM,
+      ARCH_DIAGRAM_UNPLATED_HTML_BASES,
+      topologyFromArchDiagramMetrics,
+    } = await import('../../src/adapters/emulateMemoryTopology');
+    const { TOPOLOGY_SLOT_EDGE_IDS } = await import('../../src/adapters/memoryTopology');
+
+    // Test-local HTML util inventory (not exported from the adapter — only L2 peak is plated).
+    const ARCH_DIAGRAM_HTML_UTIL_RATIOS = [
+      'aic_cube_ratio',
+      'aic_fixp_ratio',
+      'aic_scalar_ratio',
+      'aiv0_simd_ratio',
+      'aiv0_simt_ratio',
+      'aiv0_scalar_ratio',
+      'aiv1_simd_ratio',
+      'aiv1_simt_ratio',
+      'aiv1_scalar_ratio',
+      'l2_cached_ratio',
+    ] as const;
+
+    // Every emulate plated edge id is a chrome slot (shared vocabulary with compute).
+    const slotIds = new Set<string>(TOPOLOGY_SLOT_EDGE_IDS);
+    expect(ARCH_DIAGRAM_EDGE_MAP.map((e) => e.id).sort()).toEqual([...slotIds].sort());
+    for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
+      expect(slotIds.has(spec.id), spec.id).toBe(true);
+    }
+
+    // Mapped corridor bases must not be listed as intentionally unplated HTML bases.
+    const unplated = new Set(ARCH_DIAGRAM_UNPLATED_HTML_BASES);
+    for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
+      for (const p of spec.params) {
+        expect(p.includes('_gbs') || p.includes('_ratio') || p.includes('_cnt'), p).toBe(false);
+        expect(unplated.has(p as (typeof ARCH_DIAGRAM_UNPLATED_HTML_BASES)[number]), p).toBe(false);
+      }
+    }
+    expect(ARCH_DIAGRAM_L2_PEAK_PARAM).toBe('l2_cached_ratio');
+    expect(ARCH_DIAGRAM_HTML_UTIL_RATIOS).toContain(ARCH_DIAGRAM_L2_PEAK_PARAM);
+
+    // Full Bandwidth-per-operator fixture: every plated edge + L2 peak; AIV pairs **sum**.
+    const expected = new Map<string, string>();
+    const rows = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      `0,${ARCH_DIAGRAM_L2_PEAK_PARAM},50`,
+    ];
+    let id = 1;
+    let solo = 1;
+    for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
+      if (spec.params.length === 1) {
+        const n = 10 + solo++;
+        rows.push(`${id++},${spec.params[0]}_gbs,${n}`);
+        expected.set(spec.id, `${n.toFixed(2)} GB/s`);
+      } else {
+        rows.push(`${id++},${spec.params[0]}_gbs,4`);
+        rows.push(`${id++},${spec.params[1]}_gbs,6`);
+        expected.set(spec.id, '10.00 GB/s');
+      }
+    }
+    // Unplated HTML edge present in CSV must not create an extra edge id / steal a label.
+    rows.push(`${id++},aic_l0c_to_out_gbs,99`);
+    rows.push(`${id++},aic_cube_ratio,0.5`);
+
+    const model = topologyFromArchDiagramMetrics(rows.join('\n'));
+    expect(model).toBeDefined();
+    expect(model!.nodes.find((n) => n.id === 'l2')?.peakPct).toBe(50);
+    expect(model!.plates).toBeUndefined();
+    expect(model!.edges.map((e) => e.id).sort()).toEqual(
+      ARCH_DIAGRAM_EDGE_MAP.map((e) => e.id).sort(),
+    );
+    for (const [edgeId, label] of expected) {
+      // PR-MEMTOP-002c: reverse Cube↔L0C folds onto cube-l0c (prefer forward); l0c-cube cleared.
+      if (edgeId === 'l0c-cube') {
+        expect(model!.edges.find((e) => e.id === edgeId)?.label, edgeId).toBeUndefined();
+        continue;
+      }
+      expect(model!.edges.find((e) => e.id === edgeId)?.label, edgeId).toBe(label);
+    }
+    expect(model!.edges.some((e) => e.label === '99.00 GB/s')).toBe(false);
+
+    // Metric modes: ratio averages AIV pair; count sums.
+    const modeCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,l2_cached_ratio,50',
+      '2,aiv0_out_to_ub_gbs,0.5',
+      '3,aiv1_out_to_ub_gbs,1.5',
+      '4,aiv0_out_to_ub_ratio,0.2',
+      '5,aiv1_out_to_ub_ratio,0.4',
+      '6,aiv0_out_to_ub_cnt,3',
+      '7,aiv1_out_to_ub_cnt,5',
+    ].join('\n');
+    expect(
+      topologyFromArchDiagramMetrics(modeCsv, 'bandwidth_per_operator')!.edges.find(
+        (e) => e.id === 'l2-ub',
+      )?.label,
+    ).toBe('2.00 GB/s');
+    expect(
+      topologyFromArchDiagramMetrics(modeCsv, 'bandwidth_per_request')!.edges.find(
+        (e) => e.id === 'l2-ub',
+      )?.label,
+    ).toBe('0.30 GB/s');
+    expect(
+      topologyFromArchDiagramMetrics(modeCsv, 'number_of_requests')!.edges.find(
+        (e) => e.id === 'l2-ub',
+      )?.label,
+    ).toBe('8');
+
+    // EAV headers are case-insensitive (same regime as CsvFieldListPanel / csvTexts filename).
+    const upperCsv = [
+      'ArchDiagramId,ARCHDIAGRAMPARAMETERNAME,ARCHDIAGRAMPARAMETERVALUE',
+      '1,l2_cached_ratio,50',
+      '2,hbm_to_l2_syn_gbs,1.25',
+    ].join('\n');
+    const upperModel = topologyFromArchDiagramMetrics(upperCsv);
+    expect(upperModel).toBeDefined();
+    expect(upperModel!.nodes.find((n) => n.id === 'l2')?.peakPct).toBe(50);
+    expect(upperModel!.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('1.25 GB/s');
+  });
+
+  it('PR-ASIM-008c: reverse-only Cube↔L0C folds onto cube-l0c plate', async () => {
+    const { topologyFromArchDiagramMetrics } = await import(
+      '../../src/adapters/emulateMemoryTopology'
+    );
+    const model = topologyFromArchDiagramMetrics(
+      [
+        'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+        '1,aic_l0c_to_cube_gbs,7.25',
+      ].join('\n'),
+    );
+    expect(model).toBeDefined();
+    expect(model!.edges.find((e) => e.id === 'cube-l0c')?.label).toBe('7.25 GB/s');
+    expect(model!.edges.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
+  });
 });
 
 describe('npu-rep / loadReportSource profile routing', () => {
