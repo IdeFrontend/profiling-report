@@ -8,7 +8,10 @@ import MemoryTopologyPanel, {
   SLOT_MAX_W,
   SLOTS,
   ZOOM_STEPS,
+  ZOOM_WHEEL_TWEEN_MIN_DELTA,
+  continuousZoomFromDelta,
   fitFontSize,
+  nextZoom,
 } from './MemoryTopologyPanel.vue';
 import { TOPOLOGY_PLATE_NODE_IDS, hasDrawableTopology } from '../../../adapters/memoryTopology';
 import type { TopologyPlateNodeId, TopologySlotEdgeId } from '../../../adapters/memoryTopology';
@@ -644,22 +647,22 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const zoomIn = wrapper.get('[data-testid="topology-zoom-in"]');
     const zoomOut = wrapper.get('[data-testid="topology-zoom-out"]');
     expect(readout.text()).toBe('100%');
-    // Both ends of the ladder are reachable — and disabled there, not silently no-op.
+    // Both ends of the 1.5× ladder are reachable — and disabled there, not silently no-op.
     expect(zoomOut.attributes('disabled')).toBeUndefined();
     await zoomOut.trigger('click');
-    expect(readout.text()).toBe('75%');
+    expect(readout.text()).toBe('67%'); // 100 / 1.5
     await zoomOut.trigger('click');
     expect(readout.text()).toBe('50%');
     expect(zoomOut.attributes('disabled')).toBeDefined();
     for (let i = 0; i < ZOOM_STEPS.length; i++) await zoomIn.trigger('click');
-    expect(readout.text()).toBe('400%');
+    expect(readout.text()).toBe('500%');
     expect(zoomIn.attributes('disabled')).toBeDefined();
   });
 
   it('PR-MEMTOP-015: 适应窗口 resets the readout and the scroll origin', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
     viewport.scrollTop = 120;
     viewport.scrollLeft = 40;
@@ -674,7 +677,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const bars = wrapper.findAll('[data-testid="topology-zoom-in"]');
     await bars[0]!.trigger('click');
     const readouts = wrapper.findAll('[data-testid="topology-zoom-percent"]');
-    expect(readouts[0]!.text()).toBe('125%');
+    expect(readouts[0]!.text()).toBe('150%');
     expect(readouts[1]!.text()).toBe('100%');
   });
 
@@ -682,8 +685,10 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     // The ratio itself is CSS (`aspect-ratio` on the box and the stage, measured in the browser —
     // see the spec and tests/e2e/topology-zoom-geometry.spec.ts); jsdom has no layout, so what is
     // checkable here is that the stage is the diagram's own box between the window and the `svg`,
-    // and that the zoom actually reaches it.
+    // and that the zoom actually reaches it. The fit **frame** (PR-MEMTOP-013b) keeps that size
+    // stable when classic scrollbars appear on the scrollport.
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    expect(wrapper.find('.pr-topo__frame').exists()).toBe(true);
     const root = wrapper.get('[data-testid="memory-topology-panel"]');
     const viewport = wrapper.get('[data-testid="topology-viewport"]');
     const stage = viewport.get('.pr-topo__stage');
@@ -691,7 +696,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const scale = () => root.attributes('style') ?? '';
     expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    expect(scale()).toMatch(/--pr-topo-zoom:\s*1\.25(;|$)/);
+    expect(scale()).toMatch(/--pr-topo-zoom:\s*1\.5(;|$)/);
     await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
     expect(scale()).toMatch(/--pr-topo-zoom:\s*1(\.0+)?(;|$)/);
   });
@@ -702,12 +707,12 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     // 100% and below: the stage is at most the box, so there is nothing to scroll to.
     expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
     await wrapper.get('[data-testid="topology-zoom-out"]').trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('75%');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('67%');
     expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
     // Past the fit the diagram is larger than its box, and panning is the platform's own scroll.
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     expect(viewport.classes()).toContain('pr-topo__viewport--pannable');
     // 适应窗口 puts it back to the non-scrolling fitted state.
     await wrapper.get('[data-testid="topology-zoom-fit"]').trigger('click');
@@ -719,7 +724,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
     const zoomIn = wrapper.get('[data-testid="topology-zoom-in"]');
     await zoomIn.trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     // Pan the zoomed diagram, then walk back down to 100% with the ladder — not with 适应窗口.
     viewport.scrollTop = 120;
     viewport.scrollLeft = 40;
@@ -747,19 +752,19 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
 
     // Fitted: the stage is the box, so the middle is the drawing's own middle — half of it.
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
-    // 0.5 × 560 − 224 and 0.5 × 528.75 − 211.5, i.e. half of each step's own overflow.
-    expect(el.scrollLeft).toBeCloseTo(56, 6);
-    expect(el.scrollTop).toBeCloseTo(52.875, 6);
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    // 0.5 × 672 − 224 and 0.5 × 634.5 − 211.5, i.e. half of each step's own overflow.
+    expect(el.scrollLeft).toBeCloseTo(112, 6);
+    expect(el.scrollTop).toBeCloseTo(105.75, 6);
 
-    // Panned by hand, then stepped up to 150%: the fraction under the middle is what is kept, not
-    // the offset — `(60 + 224) / 560` and `(100 + 211.5) / 528.75` of the new 672 × 634.5 stage.
+    // Panned by hand, then stepped up to 225%: the fraction under the middle is what is kept, not
+    // the offset — `(60 + 224) / 672` and `(100 + 211.5) / 634.5` of the new 1008 × 951.75 stage.
     el.scrollLeft = 60;
     el.scrollTop = 100;
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
-    expect(el.scrollLeft).toBeCloseTo(116.8, 1);
-    expect(el.scrollTop).toBeCloseTo(162.3, 1);
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('225%');
+    expect(el.scrollLeft).toBeCloseTo(202, 1);
+    expect(el.scrollTop).toBeCloseTo(255.75, 1);
   });
 
   it('PR-MEMTOP-018: a box with no layout is left alone rather than centred on nothing', async () => {
@@ -769,7 +774,7 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     expect(el.scrollLeft).toBe(0);
     expect(el.scrollTop).toBe(0);
   });
@@ -790,25 +795,25 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
     // Committed on the click, so the readout and the ladder ends do not lag the tween — while
     // `pannable` deliberately does: it reads the *painted* scale, because the box only becomes a
     // scroll container once the drawing actually overflows it (PR-MEMTOP-013).
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     expect(root.attributes('data-topo-zoom-animating')).toBe('true');
     // …while the painted scale is still the stop the step left, because no frame has run yet.
     expect(scale()).toBe(1);
     expect(viewport.classes()).not.toContain('pr-topo__viewport--pannable');
 
-    // Half way (200 of the 400ms) the drawing is between the two stops — and the readout is not.
-    queued.shift()!(performance.now() + 200);
+    // Half way (100 of the 200ms) the drawing is between the two stops — and the readout is not.
+    queued.shift()!(performance.now() + 100);
     await nextTick();
     expect(scale()).toBeGreaterThan(1);
-    expect(scale()).toBeLessThan(1.25);
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
+    expect(scale()).toBeLessThan(1.5);
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     expect(viewport.classes()).toContain('pr-topo__viewport--pannable');
 
     // Landed: the painted scale *is* the committed stop, and the flag goes back down for the
     // browser tests that settle on it (PR-MEMTOP-019).
     while (queued.length) queued.shift()!(performance.now() + 10_000);
     await nextTick();
-    expect(scale()).toBe(1.25);
+    expect(scale()).toBe(1.5);
     expect(root.attributes('data-topo-zoom-animating')).toBe('false');
   });
 
@@ -828,8 +833,8 @@ describe('MemoryTopologyPanel zoom / fullscreen bar (PR-MEMTOP-013/014/015)', ()
       Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.attributes('style') ?? '')?.[1] ?? 1);
 
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('125%');
-    expect(scale()).toBe(1.25);
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    expect(scale()).toBe(1.5);
     expect(root.attributes('data-topo-zoom-animating')).toBe('false');
     expect(raf).not.toHaveBeenCalled();
   });
@@ -914,10 +919,10 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
 
     // Half way through a step up: the drawing overflows its box, so there is a pan to make.
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    queued.shift()!(performance.now() + 200);
+    queued.shift()!(performance.now() + 100);
     await nextTick();
     expect(scale()).toBeGreaterThan(1);
-    expect(scale()).toBeLessThan(1.25);
+    expect(scale()).toBeLessThan(1.5);
     expect(el.scrollLeft).toBeGreaterThan(0);
 
     // A drag from the middle takes the offset with it, 1:1, as it does outside a step.
@@ -932,7 +937,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
 
     // A frame lands under the live pointer: the placement stands down rather than rubber-banding
     // the diagram back out from under the gesture (the offset the drag wrote is the offset kept).
-    queued.shift()!(performance.now() + 260);
+    queued.shift()!(performance.now() + 130);
     await nextTick();
     expect(el.scrollLeft).toBeCloseTo(beforeDrag.left + 40, 6);
     expect(el.scrollTop).toBeCloseTo(beforeDrag.top + 30, 6);
@@ -940,7 +945,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     // Released, the flight's remaining frames carry on from *that* middle — the arrow the pointer
     // handed over — instead of yanking the drawing back to the middle the step aimed at.
     press(el, 'pointerup', { button: 0, pointerId: 7, clientX: 160, clientY: 170 });
-    queued.shift()!(performance.now() + 320);
+    queued.shift()!(performance.now() + 160);
     await nextTick();
     const held = middle();
     expect(held.x).toBeCloseTo(dragged.x, 4);
@@ -949,7 +954,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     // And the step still lands on its committed stop.
     while (queued.length) queued.shift()!(performance.now() + 10_000);
     await nextTick();
-    expect(scale()).toBe(1.25);
+    expect(scale()).toBe(1.5);
   });
 
   it('PR-MEMTOP-019: a wheel or a thumb during a step owns the offset too', async () => {
@@ -980,7 +985,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     };
 
     await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
-    queued.shift()!(performance.now() + 200);
+    queued.shift()!(performance.now() + 100);
     await nextTick();
     expect(scale()).toBeGreaterThan(1);
 
@@ -988,7 +993,7 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     // the wheel left rather than the one the step started with.
     userScroll(80, 90);
     const wheeled = middle();
-    queued.shift()!(performance.now() + 260);
+    queued.shift()!(performance.now() + 130);
     await nextTick();
     const held = middle();
     expect(held.x).toBeCloseTo(wheeled.x, 4);
@@ -997,13 +1002,13 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     // The placement's own writes are not mistaken for a pan: they raise `scroll` too, and the offset
     // they leave is the one the anchor already asked for, so the step stays on it rather than
     // drifting to whatever the clamped read-back happens to be.
-    queued.shift()!(performance.now() + 320);
+    queued.shift()!(performance.now() + 160);
     await nextTick();
     expect(middle().x).toBeCloseTo(wheeled.x, 4);
 
     while (queued.length) queued.shift()!(performance.now() + 10_000);
     await nextTick();
-    expect(scale()).toBe(1.25);
+    expect(scale()).toBe(1.5);
   });
 
   it('PR-MEMTOP-017: a pointercancel ends the drag, as the platform sends one when it takes over', async () => {
@@ -1061,6 +1066,170 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
     press(el, 'pointermove', { button: 0, buttons: 1, clientX: 280, clientY: 300 });
     expect(el.scrollLeft).toBe(120);
+  });
+});
+
+describe('MemoryTopologyPanel wheel gestures (PR-MEMTOP-020)', () => {
+  it('PR-MEMTOP-020: a continuous tick that would cross 100% lands on 100% first', () => {
+    // Fast pinch (after ZOOM_WHEEL_DELTA_DOUBLE=100): 94% × 2^(120/100) ≈ 217 — must not skip fit.
+    expect(continuousZoomFromDelta(94, -120)).toBe(100);
+    expect(continuousZoomFromDelta(133, 120)).toBe(100);
+    // Already at fit: the next tick may leave it.
+    expect(continuousZoomFromDelta(100, -120)).toBeGreaterThan(100);
+    expect(continuousZoomFromDelta(100, 120)).toBeLessThan(100);
+    // A tick that stays on the same side of fit is unchanged.
+    expect(continuousZoomFromDelta(80, -20)).toBeLessThan(100);
+    expect(continuousZoomFromDelta(80, -20)).toBeGreaterThan(80);
+  });
+
+  it('PR-MEMTOP-020: wheel notches step the 1.5× ladder and tween like a bar step', async () => {
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => queued.push(cb));
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]');
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.attributes('style') ?? '')?.[1] ?? 1);
+    const target = nextZoom(100, 1); // 150
+
+    await wrapper.get('[data-testid="topology-viewport"]').trigger('wheel', {
+      deltaY: -120,
+      ctrlKey: true,
+      clientX: 40,
+      clientY: 40,
+    });
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    expect(root.attributes('data-topo-zoom-animating')).toBe('true');
+    expect(scale()).toBe(1);
+
+    queued.shift()!(performance.now() + 100);
+    await nextTick();
+    expect(scale()).toBeGreaterThan(1);
+    expect(scale()).toBeLessThan(target / 100);
+
+    while (queued.length) queued.shift()!(performance.now() + 10_000);
+    await nextTick();
+    expect(scale()).toBe(1.5);
+    expect(root.attributes('data-topo-zoom-animating')).toBe('false');
+
+    // Next notch continues the ladder — not a continuous ≈2× jump.
+    await wrapper.get('[data-testid="topology-viewport"]').trigger('wheel', {
+      deltaY: -120,
+      ctrlKey: true,
+      clientX: 40,
+      clientY: 40,
+    });
+    while (queued.length) queued.shift()!(performance.now() + 10_000);
+    await nextTick();
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('225%');
+  });
+
+  it('PR-MEMTOP-020: fine trackpad pinch paints immediately, without a tween', async () => {
+    const queued: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => queued.push(cb));
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]');
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.attributes('style') ?? '')?.[1] ?? 1);
+    const dy = -(ZOOM_WHEEL_TWEEN_MIN_DELTA - 1);
+    const target = continuousZoomFromDelta(100, dy);
+
+    await wrapper.get('[data-testid="topology-viewport"]').trigger('wheel', {
+      deltaY: dy,
+      ctrlKey: true,
+      clientX: 40,
+      clientY: 40,
+    });
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe(
+      `${Math.round(target)}%`,
+    );
+    expect(scale()).toBeCloseTo(target / 100, 5);
+    expect(root.attributes('data-topo-zoom-animating')).toBe('false');
+    expect(queued).toHaveLength(0);
+  });
+
+  it('PR-MEMTOP-020: mouse-wheel notches use the ladder; plain wheel at fit only with wheelGestures', async () => {
+    const aside = mount(MemoryTopologyPanel, { props: { model } });
+    const asideVp = aside.get('[data-testid="topology-viewport"]');
+    expect(aside.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
+
+    await asideVp.trigger('wheel', { deltaY: -120, ctrlKey: true, clientX: 40, clientY: 40 });
+    expect(aside.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+
+    // Plain vertical must not steal aside column scroll.
+    await asideVp.trigger('wheel', { deltaY: -120, clientX: 40, clientY: 40 });
+    expect(aside.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    aside.unmount();
+
+    const fs = mount(MemoryTopologyPanel, { props: { model, wheelGestures: true } });
+    const fsVp = fs.get('[data-testid="topology-viewport"]');
+    expect(fs.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
+    await fsVp.trigger('wheel', { deltaY: -120, ctrlKey: true, clientX: 40, clientY: 40 });
+    expect(fs.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    await fsVp.trigger('wheel', { deltaY: 120, ctrlKey: true, clientX: 40, clientY: 40 });
+    expect(fs.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
+    // Fullscreen: plain wheel at fit may zoom (no aside column).
+    await fs.get('[data-testid="topology-zoom-fit"]').trigger('click');
+    await fsVp.trigger('wheel', { deltaY: -120, clientX: 40, clientY: 40 });
+    expect(fs.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    fs.unmount();
+  });
+
+  it('PR-MEMTOP-020: past the fit, Shift+wheel pans scrollLeft (aside host)', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    const el = viewport.element;
+    Object.defineProperty(el, 'clientWidth', { configurable: true, value: 200 });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, value: 200 });
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, value: 400 });
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, value: 400 });
+    el.scrollLeft = 0;
+    await viewport.trigger('wheel', { deltaY: 40, shiftKey: true, clientX: 40, clientY: 40 });
+    expect(el.scrollLeft).toBe(40);
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+  });
+
+  it('PR-MEMTOP-020: Ctrl+wheel keeps content under the cursor, not the box middle', async () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    const root = wrapper.get('[data-testid="memory-topology-panel"]').element as HTMLElement;
+    const el = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]').element;
+    const scale = () =>
+      Number(/--pr-topo-zoom:\s*([\d.]+)/.exec(root.getAttribute('style') ?? '')?.[1] ?? 1);
+    const BOX = { w: 448, h: 423 };
+    Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => BOX.w });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => BOX.h });
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => BOX.w * scale() });
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => BOX.h * scale() });
+    el.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: BOX.w,
+        bottom: BOX.h,
+        width: BOX.w,
+        height: BOX.h,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    const ox = 80;
+    const oy = 60;
+    const nextPct = nextZoom(100, 1); // notch → 150%
+    await wrapper.get('[data-testid="topology-viewport"]').trigger('wheel', {
+      deltaY: -120,
+      ctrlKey: true,
+      clientX: ox,
+      clientY: oy,
+    });
+    expect(wrapper.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
+    // At fit, fraction = ox / w; after ×s: scroll = ox·s − ox = ox·(s − 1).
+    const s = nextPct / 100;
+    expect(el.scrollLeft).toBeCloseTo(ox * (s - 1), 5);
+    expect(el.scrollTop).toBeCloseTo(oy * (s - 1), 5);
+    // Not the box-middle placement used by ladder bar clicks (half overflow at 150% ≈ 112).
+    expect(el.scrollLeft).not.toBeCloseTo(112, 0);
   });
 });
 

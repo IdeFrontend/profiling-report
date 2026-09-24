@@ -138,16 +138,60 @@ export function fitFontSize(
 }
 
 /** Zoom ladder (%) for the bar's **+** / **−**. 100 is the design's default readout and means
- *  *fitted to the box*, not 1:1 units: the panel never has a fixed pixel budget (the stacked
- *  aside and the root overlay differ), so 100% is the one scale that is correct in both. */
-export const ZOOM_STEPS = [50, 75, 100, 125, 150, 200, 300, 400];
+ *  *fitted to the box*, not 1:1 units. Stops are a fixed **1.5×** geometric series around 100,
+ *  clamped to **50…500** (`50 → ≈67 → 100 → 150 → 225 → 337.5 → 500`). Pinch uses a continuous
+ *  scale inside the same min/max (PR-MEMTOP-020). */
+export const ZOOM_RATIO = 1.5;
+export const ZOOM_STEPS = [
+  50,
+  100 / ZOOM_RATIO, // ≈ 66.67
+  100,
+  100 * ZOOM_RATIO, // 150
+  100 * ZOOM_RATIO ** 2, // 225
+  100 * ZOOM_RATIO ** 3, // 337.5
+  500,
+] as const;
 
-/** Next ladder stop from `current` in `dir` (+1 in, −1 out); clamped at both ends. An unknown
- *  `current` (should not happen — the ladder is the only writer) falls back to the default. */
+export const ZOOM_MIN = ZOOM_STEPS[0]!;
+export const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
+
+const ZOOM_STEP_EPS = 1e-6;
+
+/** Next ladder stop from `current` in `dir` (+1 in, −1 out); clamped at both ends.
+ *  Off-ladder values (after pinch) step to the nearest rung in that direction. */
 export function nextZoom(current: number, dir: 1 | -1): number {
-  const i = ZOOM_STEPS.indexOf(current);
-  if (i < 0) return 100;
-  return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))]!;
+  const i = ZOOM_STEPS.findIndex((s) => Math.abs(s - current) < ZOOM_STEP_EPS);
+  if (i >= 0) {
+    return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, i + dir))]!;
+  }
+  if (dir > 0) {
+    return ZOOM_STEPS.find((s) => s > current + ZOOM_STEP_EPS) ?? ZOOM_MAX;
+  }
+  for (let j = ZOOM_STEPS.length - 1; j >= 0; j--) {
+    if (ZOOM_STEPS[j]! < current - ZOOM_STEP_EPS) return ZOOM_STEPS[j]!;
+  }
+  return ZOOM_MIN;
+}
+
+/** Continuous pinch/Ctrl+wheel scale from a wheel `deltaY` (PR-MEMTOP-020).
+ *  Divisor is the |deltaY| that doubles/halves the scale — lower = faster pinch.
+ *  A single tick never crosses the fitted 100% stop: it lands there first so the
+ *  user can settle on fit before continuing past it. */
+export const ZOOM_WHEEL_DELTA_DOUBLE = 100;
+
+/** After `deltaMode` normalization: notches at/above this tween like the bar; finer
+ *  trackpad-pinch ticks paint immediately so the fingers stay in sync (PR-MEMTOP-020). */
+export const ZOOM_WHEEL_TWEEN_MIN_DELTA = 40;
+
+/** Zoom ladder / wheel painted-scale tween length (PR-MEMTOP-019 / 020). Faster than the
+ *  timeline's default 400ms zoom-to-fit — diagram zoom is a short hop. */
+export const ZOOM_TWEEN_MS = 200;
+
+export function continuousZoomFromDelta(current: number, deltaY: number): number {
+  const factor = Math.pow(2, -deltaY / ZOOM_WHEEL_DELTA_DOUBLE);
+  const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(current * factor * 10) / 10));
+  if ((current < 100 && next > 100) || (current > 100 && next < 100)) return 100;
+  return next;
 }
 </script>
 
@@ -175,10 +219,22 @@ const props = withDefaults(
     openDetailsOnContextmenu?: boolean;
     /** Bar's **全屏** control: the stacked aside asks for it, the root overlay is already full. */
     showFullscreen?: boolean;
+    /**
+     * Root topology 全屏 only (PR-MEMTOP-020): plain vertical wheel zooms while the diagram still
+     * fits (fullscreen has no aside column to scroll). Ctrl/Cmd+wheel and trackpad pinch zoom on
+     * **both** hosts; the stacked aside leaves this off so unmodified vertical wheel keeps scrolling
+     * the report.
+     */
+    wheelGestures?: boolean;
   }>(),
   // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
   // back), but the linter needs the key present to see the optional prop as intentional.
-  { openDetailsOnContextmenu: true, showFullscreen: false, locale: undefined },
+  {
+    openDetailsOnContextmenu: true,
+    showFullscreen: false,
+    locale: undefined,
+    wheelGestures: false,
+  },
 );
 
 const emit = defineEmits<{
@@ -325,9 +381,9 @@ const zoom = ref(100);
 /** The scale actually **painted**: `zoom` at rest, an in-flight value during a step (PR-MEMTOP-019).
  *  The stage is sized from this one, and so is everything read off the laid-out box. */
 const paintedZoom = ref(100);
-const zoomPct = computed(() => `${zoom.value}%`);
-const zoomMin = ZOOM_STEPS[0]!;
-const zoomMax = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
+const zoomPct = computed(() => `${Math.round(zoom.value)}%`);
+const zoomMin = ZOOM_MIN;
+const zoomMax = ZOOM_MAX;
 
 /** Only a diagram larger than its own box has anywhere to scroll to (PR-MEMTOP-013). Read off the
  *  *painted* scale, so the box is a scroll container exactly while the drawing overflows it: a step
@@ -409,6 +465,10 @@ function resetPan() {
   }
 }
 
+/** Scroll placement for a zoom step: content fraction + the viewport offset that fraction must
+ *  stay under (box middle for bar clicks, pointer for wheel/pinch — PR-MEMTOP-018 / 020). */
+type ZoomAnchor = { x: number; y: number; ox: number; oy: number };
+
 /** The middle of the box as a fraction of what it can scroll (PR-MEMTOP-018), so a zoom step can
  *  put the same part of the drawing back under it.
  *
@@ -417,20 +477,46 @@ function resetPan() {
  *  the content the bars move. Reading it as a fraction of the *scrollable* extent is also what makes
  *  it survive the stage being centred while it fits (`margin-inline: auto`), where `scrollWidth` is
  *  still the box's own width and the middle is exactly half of it. */
-function centerFraction(el: HTMLElement): { x: number; y: number } | null {
+function centerFraction(el: HTMLElement): ZoomAnchor | null {
   // jsdom has no layout: no box means no middle to keep, and no extent to divide by.
-  if (el.clientWidth <= 0 || el.clientHeight <= 0) return null;
+  if (el.clientWidth <= 0 || el.clientHeight <= 0 || el.scrollWidth <= 0 || el.scrollHeight <= 0) {
+    return null;
+  }
+  const ox = el.clientWidth / 2;
+  const oy = el.clientHeight / 2;
   return {
-    x: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
-    y: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+    x: (el.scrollLeft + ox) / el.scrollWidth,
+    y: (el.scrollTop + oy) / el.scrollHeight,
+    ox,
+    oy,
   };
 }
 
-/** The anchor a running step holds on to: the middle fraction `centerFraction` measured when the
- *  step began, re-applied on every frame of it. It is a property of the scale that was on screen
- *  then, so it is *kept* rather than derived — the placement it drives needs the incoming scale's
- *  own `scrollWidth`, a frame at a time. */
-let stepAnchor: { x: number; y: number } | null = null;
+/** Content under the pointer, kept under the same viewport pixel after the step (PR-MEMTOP-020).
+ *  Must not reuse the bar's "middle of box" placement — that would yank the point to centre. */
+function pointerAnchor(
+  el: HTMLElement,
+  clientX: number,
+  clientY: number,
+): ZoomAnchor | null {
+  if (el.clientWidth <= 0 || el.clientHeight <= 0 || el.scrollWidth <= 0 || el.scrollHeight <= 0) {
+    return null;
+  }
+  const box = el.getBoundingClientRect();
+  const ox = clientX - box.left;
+  const oy = clientY - box.top;
+  return {
+    x: (el.scrollLeft + ox) / el.scrollWidth,
+    y: (el.scrollTop + oy) / el.scrollHeight,
+    ox,
+    oy,
+  };
+}
+
+/** The anchor a running step holds on to: measured when the step began, re-applied on every frame.
+ *  It is a property of the scale that was on screen then, so it is *kept* rather than derived — the
+ *  placement it drives needs the incoming scale's own `scrollWidth`, a frame at a time. */
+let stepAnchor: ZoomAnchor | null = null;
 let cancelZoomAnim: (() => void) | null = null;
 
 function stopZoomAnim() {
@@ -443,18 +529,23 @@ function stepZoom(dir: 1 | -1) {
   setZoom(nextZoom(zoom.value, dir));
 }
 
-/** A ladder step, tweened with the project's own motion (PR-MEMTOP-019): `animateProgress`, the
- *  same 400ms ease-in-out cubic the timeline's zoom-to-fit rides — and, like it, instant when the
- *  platform asks for reduced motion. The committed stop still moves on the click; only the painted
- *  scale travels to it, so asking for 400% four times in quick succession is still four stops.
+/** A ladder step or continuous wheel/pinch target, tweened with the project's own motion
+ *  (PR-MEMTOP-019): `animateProgress`, the same ease-in-out cubic as the timeline's zoom-to-fit,
+ *  at `ZOOM_TWEEN_MS` — and, like it, instant when the platform asks for reduced motion. The
+ *  committed stop still moves on the click / wheel tick; only the painted scale travels to it, so
+ *  asking for 500% four times in quick succession is still four stops.
  *
  *  Mid-step, a new step cancels this one and takes a fresh measurement off whatever is painted, so
- *  a re-click grows the drawing from where it currently is rather than from where it was aimed. */
-function setZoom(target: number) {
+ *  a re-click / re-wheel grows the drawing from where it currently is rather than from where it was
+ *  aimed.
+ *
+ *  `anchor` — omit to keep the box middle (bar clicks); pass a pointer anchor for wheel/pinch
+ *  (PR-MEMTOP-020); pass `null` when there is no layout to measure. */
+function setZoom(target: number, anchor?: ZoomAnchor | null) {
   const el = viewport.value;
   const from = paintedZoom.value;
   // Measured before the step, against the scale still on screen, and read back on every frame.
-  stepAnchor = el ? centerFraction(el) : null;
+  stepAnchor = anchor !== undefined ? anchor : el ? centerFraction(el) : null;
   zoom.value = target;
   stopZoomAnim();
   if (from === target) {
@@ -467,6 +558,7 @@ function setZoom(target: number) {
   cancelZoomAnim = animateProgress({
     from,
     to: target,
+    durationMs: ZOOM_TWEEN_MS,
     onUpdate: (next) => {
       paintedZoom.value = next;
     },
@@ -477,15 +569,66 @@ function setZoom(target: number) {
   });
 }
 
+/**
+ * Wheel / trackpad on the diagram (PR-MEMTOP-020). Pinches report as `wheel` + `ctrlKey`. Fine
+ * trackpad-pinch ticks apply a **continuous** scale immediately (fingers stay in sync). Mouse-wheel
+ * notches step the same **1.5× ladder** as the bar +/− controls and tween with `animateProgress`
+ * (PR-MEMTOP-019). Two-finger / Shift horizontal pans when past the fit. Plain vertical wheel zooms
+ * at fit **only** when `wheelGestures` (fullscreen).
+ */
+function onViewportWheel(e: WheelEvent) {
+  const el = viewport.value;
+  if (!el) return;
+
+  const pinchOrMod = e.ctrlKey || e.metaKey;
+  const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+
+  // Trackpad two-finger X, or Shift+wheel → horizontal pan when the drawing overflows.
+  if ((horizontal || e.shiftKey) && pannable.value && !pinchOrMod) {
+    e.preventDefault();
+    el.scrollLeft += horizontal ? e.deltaX : e.deltaY;
+    if (zoomAnimating.value) stepAnchor = centerFraction(el);
+    return;
+  }
+
+  // Pinch / Ctrl/Cmd+wheel always zooms. Plain vertical at fit zooms only in fullscreen
+  // (`wheelGestures`); otherwise let the event bubble so the aside column can scroll.
+  const wantZoom = pinchOrMod || (props.wheelGestures && !pannable.value);
+  if (!wantZoom) return;
+
+  e.preventDefault();
+  let dy = e.deltaY;
+  if (e.deltaMode === 1) dy *= 16;
+  else if (e.deltaMode === 2) dy *= el.clientHeight || 400;
+
+  const anchor = pointerAnchor(el, e.clientX, e.clientY);
+  // Fine pixel deltas are trackpad pinch — continuous scale, paint now.
+  if (Math.abs(dy) < ZOOM_WHEEL_TWEEN_MIN_DELTA) {
+    const from = paintedZoom.value;
+    const next = continuousZoomFromDelta(from, dy);
+    if (next === from) return;
+    stopZoomAnim();
+    stepAnchor = anchor;
+    zoom.value = next;
+    paintedZoom.value = next;
+    return;
+  }
+
+  // Notch-sized ticks (mouse wheel): one 1.5× ladder stop per notch, same as +/−.
+  const next = nextZoom(zoom.value, dy < 0 ? 1 : -1);
+  if (next === zoom.value) return;
+  setZoom(next, anchor);
+}
+
 /** The offset `placeZoomStep` wrote last, so its own scroll events can be told apart from a user's:
  *  the placement writes `scrollLeft` / `scrollTop` too, and every one of those writes raises a
  *  `scroll` event that is not a pan (PR-MEMTOP-019). */
 let lastPlacement = { left: 0, top: 0 };
 
-/** Put the held middle back under the middle of the box at the scale now painted (PR-MEMTOP-018).
- *  Runs **after** the render that carries the new `--pr-topo-zoom`, because it is the stage's new
- *  `scrollWidth` / `scrollHeight` that the placement is read from — hence a `flush: 'post'` watch
- *  rather than a derived value. */
+/** Put the held content point back under its viewport offset at the scale now painted
+ *  (PR-MEMTOP-018 middle / PR-MEMTOP-020 pointer). Runs **after** the render that carries the new
+ *  `--pr-topo-zoom`, because it is the stage's new `scrollWidth` / `scrollHeight` that the
+ *  placement is read from — hence a `flush: 'post'` watch rather than a derived value. */
 function placeZoomStep() {
   // A live drag owns the offset (PR-MEMTOP-019): its writes and these are the same two properties,
   // so placing on a frame underneath the pointer would rubber-band the diagram back to the anchor
@@ -501,8 +644,11 @@ function placeZoomStep() {
   }
   const el = viewport.value;
   if (!el || !stepAnchor) return;
-  el.scrollLeft = stepAnchor.x * el.scrollWidth - el.clientWidth / 2;
-  el.scrollTop = stepAnchor.y * el.scrollHeight - el.clientHeight / 2;
+  // `ox`/`oy` are the viewport pixels the content fraction must stay under — box middle for bar
+  // steps, cursor offset for wheel/pinch. Using `clientWidth/2` for a pointer fraction would yank
+  // the zoom point to centre.
+  el.scrollLeft = stepAnchor.x * el.scrollWidth - stepAnchor.ox;
+  el.scrollTop = stepAnchor.y * el.scrollHeight - stepAnchor.oy;
   lastPlacement = { left: el.scrollLeft, top: el.scrollTop };
 }
 
@@ -548,28 +694,30 @@ onBeforeUnmount(stopZoomAnim);
     :data-topo-zoom-animating="zoomAnimating ? 'true' : 'false'"
     @contextmenu="onContextMenu"
   >
-    <div
-      ref="viewport"
-      class="pr-topo__viewport"
-      :class="{
-        'pr-topo__viewport--pannable': pannable,
-        'pr-topo__viewport--dragging': dragging,
-      }"
-      data-testid="topology-viewport"
-      @pointerdown="onPanStart"
-      @pointermove="onPanMove"
-      @pointerup="endPan"
-      @pointercancel="endPan"
-      @scroll="onViewportScroll"
-    >
-      <div class="pr-topo__stage">
-        <svg
-          class="pr-topo__svg"
-          viewBox="0 0 448 423"
-          role="img"
-          :aria-label="t('memoryTopology', locale)"
-          :aria-describedby="chromeFailed ? undefined : summaryId"
-        >
+    <div class="pr-topo__frame">
+      <div
+        ref="viewport"
+        class="pr-topo__viewport"
+        :class="{
+          'pr-topo__viewport--pannable': pannable,
+          'pr-topo__viewport--dragging': dragging,
+        }"
+        data-testid="topology-viewport"
+        @pointerdown="onPanStart"
+        @pointermove="onPanMove"
+        @pointerup="endPan"
+        @pointercancel="endPan"
+        @scroll="onViewportScroll"
+        @wheel="onViewportWheel"
+      >
+        <div class="pr-topo__stage">
+          <svg
+            class="pr-topo__svg"
+            viewBox="0 0 448 423"
+            role="img"
+            :aria-label="t('memoryTopology', locale)"
+            :aria-describedby="chromeFailed ? undefined : summaryId"
+          >
           <image
             :href="chromeUrl"
             x="0"
@@ -641,9 +789,10 @@ onBeforeUnmount(stopZoomAnim);
           aria-hidden="true"
         />
       </template>
-    </svg>
-  </div>
-</div>
+          </svg>
+        </div>
+      </div>
+    </div>
 
     <!-- Zoom / fullscreen bar (design: `v930/new` 内存负载分析 controls). The whole bar hides with
          the chrome it scales — a zoom control over a failed asset is dead chrome. -->
@@ -658,7 +807,7 @@ onBeforeUnmount(stopZoomAnim);
         data-testid="topology-zoom-out"
         :aria-label="t('zoomOut', locale)"
         :title="t('zoomOut', locale)"
-        :disabled="zoom === zoomMin"
+        :disabled="zoom <= zoomMin"
         @click="stepZoom(-1)"
       >
         <svg
@@ -689,7 +838,7 @@ onBeforeUnmount(stopZoomAnim);
         data-testid="topology-zoom-in"
         :aria-label="t('zoomIn', locale)"
         :title="t('zoomIn', locale)"
-        :disabled="zoom === zoomMax"
+        :disabled="zoom >= zoomMax"
         @click="stepZoom(1)"
       >
         <svg
@@ -802,21 +951,32 @@ onBeforeUnmount(stopZoomAnim);
 /* Fit box for the diagram (PR-MEMTOP-013). `aspect-ratio` is the chrome's own 448×423, so at the
  * 100% zoom the box is exactly as tall as the diagram was when the `svg` was width-driven.
  *
- * `hidden`, not `auto`: the box height comes from `aspect-ratio` while the diagram's comes from
- * its own intrinsic ratio, and the two agree only to a rounding step (measured in Chrome:
- * 511 vs 511.0625). A fitted diagram therefore sat a fraction of a pixel over its own box — not
- * enough for Chromium to treat as scrollable overflow, but enough for a stray permanent scrollbar
- * wherever a platform does not snap it the same way. Nothing is ever cut off by the clip (at or
- * below 100% the stage is at most the box), so the fitted state simply does not scroll.
+ * Sized here, not on the scrollport: classic scrollbars eat the scrollport's client area, and a
+ * stage that was `%` of that client area used to shrink when the bars appeared (layout jump on
+ * zoom-in). This frame keeps a stable size; the stage reads it via `cqh` (PR-MEMTOP-013b). */
+.pr-topo__frame {
+  container-type: size;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 448 / 423;
+}
+
+/* Scrollport filling the frame. `hidden`, not `auto`, while fitted: the box height comes from
+ * `aspect-ratio` while the diagram's comes from its own intrinsic ratio, and the two agree only
+ * to a rounding step (measured in Chrome: 511 vs 511.0625). A fitted diagram therefore sat a
+ * fraction of a pixel over its own box — not enough for Chromium to treat as scrollable overflow,
+ * but enough for a stray permanent scrollbar wherever a platform does not snap it the same way.
+ * Nothing is ever cut off by the clip (at or below 100% the stage is at most the box).
  *
  * `place-items: center` is the fitted-state centring only, for a zoomed-*out* diagram; the
  * pannable state is a plain block, because a centred item that overflows leaves its start edge
  * unreachable by scrolling. */
 .pr-topo__viewport {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  min-width: 0;
-  aspect-ratio: 448 / 423;
   overflow: hidden;
 }
 
@@ -838,8 +998,10 @@ onBeforeUnmount(stopZoomAnim);
   user-select: none;
 }
 
-/* The stage is the *diagram's* own box: `--pr-topo-zoom` (1 = fitted) times the window's height,
- * with the width following the chrome ratio from that height, so the `svg` fills it exactly.
+/* The stage is the *diagram's* own box: `--pr-topo-zoom` (1 = fitted) times the *frame* height
+ * (`100cqh`), with the width following the chrome ratio from that height, so the `svg` fills it
+ * exactly. Sized from the frame rather than the scrollport so classic scrollbar gutters cannot
+ * change the drawing's layout when they appear (PR-MEMTOP-013b).
  *
  * Height-driven on purpose. A stage that followed the *window* in both axes is only the diagram's
  * box where the window already has the chrome ratio — the stacked aside — and in the wide overlay
@@ -850,7 +1012,7 @@ onBeforeUnmount(stopZoomAnim);
  * `margin-inline: auto` centres it while it fits and resolves to 0 once it overflows, so the
  * scroll origin is the diagram's own left edge rather than a letterbox. */
 .pr-topo__stage {
-  height: calc(100% * var(--pr-topo-zoom, 1));
+  height: calc(100cqh * var(--pr-topo-zoom, 1));
   aspect-ratio: 448 / 423;
   margin-inline: auto;
 }
