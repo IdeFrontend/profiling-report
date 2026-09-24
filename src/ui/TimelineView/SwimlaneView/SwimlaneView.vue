@@ -46,7 +46,7 @@ import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import CardMetricSelect from './CardMetricSelect.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import { animateProgress, prefersReducedMotion } from '../animateViewWindow';
-import { t } from '../../../i18n';
+import { gutterMetricLabel, t } from '../../../i18n';
 
 const props = withDefaults(
   defineProps<{
@@ -839,9 +839,9 @@ defineExpose({
               v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
               :model-value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]!"
               :options="metricOptionsForCard(strip.id)"
-              :locale="locale"
               :ariaLabel="t('gutterMetricFor', locale).replace('{name}', strip.name)"
-              @update:model-value="onMetricChange(strip.id, $event)"
+              :label-of="(m) => gutterMetricLabel(m as GutterMetric, locale)"
+              @update:model-value="onMetricChange(strip.id, $event as GutterMetric)"
             />
           </span>
         </div>
