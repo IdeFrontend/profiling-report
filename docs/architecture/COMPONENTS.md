@@ -253,7 +253,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` (parent clears `asideVisible`), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back control returns to the stack.
+Right analytics column. **Shell:** title + chart icon, close → emit `close` on the **report** shell only (parent clears `asideVisible`; overlay headers omit × — PR-STATS-006b), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back returns to the stack (close omitted while drilled in).
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 
