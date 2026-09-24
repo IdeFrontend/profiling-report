@@ -13,26 +13,44 @@ import { adaptPayloads } from '../../src/adapters/adaptRep';
 const enc = new TextEncoder();
 
 describe('pipeOccupancyEmulate', () => {
-  it('coreNameToPipeSide maps AIC / AIV0 / AIV1', () => {
+  it('coreNameToPipeSide maps AIC / AIV0 / AIV1; skips bare aiv/vector', () => {
     expect(coreNameToPipeSide('AIC')).toBe('aic');
     expect(coreNameToPipeSide('AIV0')).toBe('aiv0');
     expect(coreNameToPipeSide('AIV1')).toBe('aiv1');
     expect(coreNameToPipeSide('')).toBeNull();
+    expect(coreNameToPipeSide('AIV')).toBeNull();
+    expect(coreNameToPipeSide('vector')).toBeNull();
   });
 
-  it('csvTableFromPipeUtilizationHist aligns bare AIV/vector with occupancy sides', () => {
-    // coreNameToPipeSide('AIV'|'vector') → aiv0; 详情 must not drop those rows.
+  it('bare AIV/vector CoreName is skipped for bars and 详情 (UI-54)', () => {
     const csv = [
       'PipeName,CoreName,Utilization',
       'SCALAR,AIV,48.0',
       'SCALAR,vector,40.0',
+      'SCALAR,AIV0,30.0',
     ].join('\n');
     const items = pipeOccupancyFromHist(enc.encode(csv));
-    expect(items.every((p) => p.side === 'aiv0')).toBe(true);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.side).toBe('aiv0');
+    expect(items[0]?.ratio).toBeCloseTo(0.3, 10);
     const table = csvTableFromPipeUtilizationHist(enc.encode(csv));
     expect(table?.headers).toEqual(['aiv0_scalar_ratio']);
-    // last-wins for duplicate keys
-    expect(Number(table?.rows[0].aiv0_scalar_ratio)).toBeCloseTo(0.4, 10);
+    expect(Number(table?.rows[0].aiv0_scalar_ratio)).toBeCloseTo(0.3, 10);
+  });
+
+  it('pipeOccupancyFromPipesUtilization drops integer CoreTypeId without CoreTypes (UI-54)', () => {
+    // Pre-UI-54 defaulted side to cube; unresolved cores must not invent bars.
+    const util = [
+      'CoreId,CoreTypeId,InstrQueueTypeId,PipeUtilization',
+      '0,1,6,18.56',
+      '0,2,6,26.4',
+    ].join('\n');
+    const queues = 'InstrQueueTypeId,InstrQueueTypeName\n6,MTE3\n';
+    expect(
+      pipeOccupancyFromPipesUtilization(enc.encode(util), {
+        queueTypes: enc.encode(queues),
+      }),
+    ).toEqual([]);
   });
 
   it('pipeOccupancyFromHist keeps AIV0 and AIV1 separate (no average)', () => {

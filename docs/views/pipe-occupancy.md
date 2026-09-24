@@ -100,7 +100,7 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/com
 Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
 
 - Compute `PipeUtilization`: AIC group cycles / `*_time(us)` / `*_ratio` / …; AIV group same; display `NA` when absent.
-- Emulate hist ([UI-55](../context/decisions/UI.md)): one synthetic row of projected ratio keys (e.g. `aic_scalar_ratio`, `aiv0_vec_ratio`, `aiv1_mte3_ratio`) in file order; values 0..1; no times/cycles.
+- Emulate hist ([UI-55](../context/decisions/UI.md)): one synthetic row of projected ratio keys (e.g. `aic_scalar_ratio`, `aiv0_vec_ratio`, `aiv1_mte3_ratio`); headers in first-seen order, duplicate keys last-wins for values; 0..1; no times/cycles. ICache may appear on PIPE bars but is not projected (no `*_ratio` stem).
 - Hide a tab when its CSV is missing from the report.
 
 ## Emulate fill
@@ -119,7 +119,7 @@ Prefer `PipeUtilizationHist.csv`. Else `PipesUtilization.csv` + dictionaries.
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
 | `pipeOccupancy[]` (hist) | `PipeUtilizationHist.csv` | _(none)_ — match `PipeName` via `PIPE_NAME_MAP` regex; `CoreName` → side | Acc key `` `${side}:${id}` `` with `side` ∈ `aic`/`aiv0`/`aiv1` ([UI-54](../context/decisions/UI.md)); `ratio` = mean `Utilization` (`normalizeRatio` 0..1 or 0..100%). **Never** average AIV cores |
-| `pipeOccupancy[]` (util) | `PipesUtilization.csv` + `InstrQueueTypes.csv` + `CoreTypes.csv` | `InstrQueueTypeId` → `InstrQueueTypes.InstrQueueTypeName`; `CoreTypeId` → `CoreTypes.CoreTypeName` | Resolve queue label → `mapPipeName`; side from `coreNameToPipeSide` (`aic`/`aiv0`/`aiv1`). Skip bare integer FKs that do not resolve |
+| `pipeOccupancy[]` (util) | `PipesUtilization.csv` + `InstrQueueTypes.csv` + `CoreTypes.csv` | `InstrQueueTypeId` → `InstrQueueTypes.InstrQueueTypeName`; `CoreTypeId` → `CoreTypes.CoreTypeName` | Resolve queue label → `mapPipeName`; side from `coreNameToPipeSide` (`aic`/`aiv0`/`aiv1`). Skip bare integer FKs that do not resolve; **drop** rows whose core label does not map (UI-54 — no cube/vector default) |
 | lane `utilization` | same pipe rows + swimlane threads | pipe `colorKey` ↔ `laneColorKey(thread.name)` | `withPipeLaneUtilizations` — mean ratio onto matching lanes |
 
 Code: `pipeOccupancyFromHist` / `pipeOccupancyFromPipesUtilization` in `pipeOccupancyEmulate.ts`.

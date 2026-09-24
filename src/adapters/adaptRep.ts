@@ -941,9 +941,10 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     ? COMPUTE_CSV_FILES.filter((n) => n !== 'PipeUtilization.csv')
     : COMPUTE_CSV_FILES;
   const compute = collectCsvTables(payloads, computeFileNames);
-  if (histTable && histPayload) {
+  if (histTable) {
     compute.tables.unshift(histTable);
-    compute.texts['PipeUtilizationHist.csv'] = decodeUtf8(histPayload);
+    // histTable non-null ⇒ histPayload was non-empty and projected.
+    compute.texts['PipeUtilizationHist.csv'] = decodeUtf8(histPayload!);
   }
   const memory = collectCsvTables(payloads, MEMORY_CSV_FILES);
   const hardwareDetails = hardwareDetailsFromPayloads(payloads);
@@ -1004,10 +1005,10 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   return {
     summary,
     pipeOccupancy: (() => {
-      // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` is the producer's
-      // non-NA mean across `block_id`; the CSV mean stays as the classic-`.rep` fallback.
-      // UI-55: when hist projects for 详情, occupancy prefers hist too (skip PipeUtilization.csv) —
-      // same order as adaptEmulate (UI-54).
+      // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` wins when present
+      // (compute aggregate). Emulate production uses adaptEmulate; this hist/csv/util cascade mainly
+      // serves adaptPayloads + mixed packs. When hist projects for UI-55 详情, occupancy prefers
+      // hist too (skip PipeUtilization.csv) — same as adaptEmulate (UI-54).
       const fromSummary = pipeOccupancyFromRows(
         summaryCategoryRows(summaryCategories, 'PipeUtilization'),
       );
@@ -1018,9 +1019,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
       } else {
         const fromCsv = pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv']));
         if (fromCsv.length > 0) return fromCsv;
-        const fromHist = pipeOccupancyFromHist(
-          payloadByName(payloads, ['PipeUtilizationHist.csv']),
-        );
+        const fromHist = pipeOccupancyFromHist(histPayload);
         if (fromHist.length > 0) return fromHist;
       }
       return pipeOccupancyFromPipesUtilization(

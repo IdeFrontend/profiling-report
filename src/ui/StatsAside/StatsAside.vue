@@ -5,6 +5,7 @@ import type {
   BandwidthCardModel,
   MemoryTopologyModel,
   PipeOccupancyItem,
+  PipeOccupancySide,
   ReportCapability,
   ReportViewModel,
 } from '../../domain/types';
@@ -57,7 +58,7 @@ const emit = defineEmits<{
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
 }>();
 
-type PipeSide = 'cube' | 'vector' | 'aic' | 'aiv0' | 'aiv1';
+type PipeSide = PipeOccupancySide;
 type AsideSurface = 'report' | 'compute' | 'memory' | 'hardware';
 
 const PIPE_SIDE_ORDER: PipeSide[] = ['cube', 'vector', 'aic', 'aiv0', 'aiv1'];

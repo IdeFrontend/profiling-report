@@ -77,7 +77,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 1. **PR-STATS-001** — Renders summary stats.
 2. **PR-STATS-002** — Renders PIPE bars with correct colors.
 3. **PR-STATS-003** — Cube|Vector toggle appears only for MIX; filters bars by side.
-3b. **PR-STATS-038** — Emulate Cube|Vector 0|Vector 1 toggle when ≥2 core sides present; filters bars by core; does not appear for blank `opType` with only `cube`/`vector` sides ([UI-54](../../../docs/context/decisions/UI.md)). Keeps the active side across option recomputes when still present.
+3b. **PR-STATS-038** — Emulate Cube|Vector 0|Vector 1 toggle.
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides (compute-shaped occupancy).
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.

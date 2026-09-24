@@ -54,7 +54,7 @@ export function coreNameToPipeSide(raw: string): PipeOccupancySide | null {
   if (v === 'aiv1' || v === 'vector1' || v === 'vec1') return 'aiv1';
   if (v.includes('aiv0')) return 'aiv0';
   if (v.includes('aiv1')) return 'aiv1';
-  if (v === 'aiv' || v.includes('vector')) return 'aiv0';
+  // Bare `aiv` / `vector` are ambiguous (pair vs lane) — skip like other unknowns (UI-54).
   if (v.includes('aic') || v.includes('cube')) return 'aic';
   return null;
 }
@@ -104,6 +104,9 @@ export function pipeOccupancyFromHist(payload?: Uint8Array): PipeOccupancyItem[]
 /**
  * Project `PipeUtilizationHist.csv` into one wide row of compute-like `*_ratio` keys (UI-55).
  * Prefix from CoreName (`aic` / `aiv0` / `aiv1`); stem from PipeName; values 0..1.
+ * Headers stay in first-seen key order; duplicate `(prefix, stem)` values last-wins.
+ * ICache hist rows map to bars via `mapPipeName` but have no `*_ratio` stem — omitted here
+ * (compute uses `*_miss_rate`, not a ratio column).
  */
 export function csvTableFromPipeUtilizationHist(
   payload?: Uint8Array,
@@ -141,7 +144,8 @@ function corePrefix(raw: string): 'aic' | 'aiv0' | 'aiv1' | null {
   return side === 'aic' || side === 'aiv0' || side === 'aiv1' ? side : null;
 }
 
-/** PipeName → ratio stem aligned with compute PIPE_COLUMNS naming (UI-55). */
+/** PipeName → ratio stem aligned with compute PIPE_COLUMNS naming (UI-55).
+ * No `icache` stem — bars may still show ICache Miss; 详情 does not invent a miss-rate key. */
 function pipeRatioStem(raw: string): string | null {
   const v = raw.trim().toLowerCase();
   if (v === 'cube') return 'cube_ratio';
@@ -174,6 +178,8 @@ function idNameMap(
 /**
  * Map `PipesUtilization.csv` (CoreId, CoreTypeId, InstrQueueTypeId, PipeUtilization).
  * Join `InstrQueueTypes` / `CoreTypes` when present. Prefer hist when both exist.
+ * Unresolved cores (`coreNameToPipeSide` null — bare integer FK without CoreTypes, or
+ * unknown labels) are **dropped** (UI-54); no cube/vector default.
  */
 export function pipeOccupancyFromPipesUtilization(
   payload?: Uint8Array,

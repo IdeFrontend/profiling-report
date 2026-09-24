@@ -435,6 +435,8 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.profile).toBe('emulate');
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    const sides = new Set(adapted.reportModel.pipeOccupancy.map((p) => p.side));
+    expect([...sides].sort()).toEqual(['aic', 'aiv0', 'aiv1']);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
     expect(adapted.capabilities).toContain('archDiagram');
     expect(adapted.capabilities).not.toContain('memoryDiagram');
