@@ -214,9 +214,10 @@ describe('StatsAside', () => {
       },
     });
 
-    // All keeps the summary.jsonl category list (product default) …
+    // All keeps the summary.jsonl category list (product default) with search …
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="summary-search"]').exists()).toBe(true);
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
 
     // … a picked block switches 详情 to that block's CSV row.

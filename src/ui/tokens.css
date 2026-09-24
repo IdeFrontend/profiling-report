@@ -100,3 +100,93 @@
   min-width: 72px;
   cursor: pointer;
 }
+
+/**
+ * Field-list search toolbar + UI-43 match chip — one definition for
+ * `CsvFieldListPanel` and `SummaryCategoryList` so filter + highlight cannot
+ * drift. Global because both panels are `<style scoped>`.
+ */
+.pr-field-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  flex-shrink: 0;
+}
+
+.pr-field-search {
+  position: relative;
+  display: block;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.pr-field-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9a9a9a;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.pr-field-search input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #262626;
+  border: 1px solid #3a3a3a;
+  color: #e0e0e0;
+  font-size: 11px;
+  padding: 5px 24px 5px 26px;
+  border-radius: 4px;
+}
+
+.pr-field-search input:focus {
+  outline: none;
+  border-color: #3078f0;
+}
+
+.pr-field-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.pr-field-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #9a9a9a;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.pr-field-search-clear:hover {
+  color: #d0d0d0;
+}
+
+.pr-field-match {
+  color: #688aec;
+  background: #1d283c;
+  border-radius: 3px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.pr-field-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

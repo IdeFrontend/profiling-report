@@ -143,10 +143,10 @@ Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delive
 - PIPE bars: **All** (default) = the `summary.jsonl` `PipeUtilization` aggregate; a picked id = that block's `PipeUtilization.csv` row. One block selector (All \| 0 \| 1 \| 2 …, default **All**) scopes every CSV-backed widget — PIPE, topology, BW, compute, roofline ([DATA-19](../context/decisions/DATA.md) / [DATA-28](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). Measure range does not change them.
 - Detail / memory lists are **block-scoped** via the same block switcher ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); a picked id shows that block's CSV row in place of the `summary.jsonl` category list, and with **All** the CSV lists fall back to the first `block_id` (there is no aggregate row). Topology labels follow the same selection. A picked block with no data blanks its widget — never the **All** aggregate under a block label.
 - Cube \| Vector toggle on PIPE for MIX ops only.
-- PIPE section **详情** navigates to compute CSV overlay + emits `open-pipe-details`.
+- PIPE section **详情** navigates to compute detail overlay + emits `open-pipe-details`.
 - Roofline (M2 interim DATA-37* — **not in the current release**): the card is opt-in and mounts on the stack after the duration card only when the host passes the `roofline` capability **and** `report.roofline.points` is non-empty; tabs omitted. Points alone never render it, and they do not open the aside.
-- Compute details overlay: tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio.
-- Memory details overlay: tabs Memory L1 | L2Cache | Memory L0 | Memory UB; **查看全部** opens full CSV ([DATA-33d](../context/decisions/interim/DATA.md)).
+- Compute details overlay: under **All**, `SummaryCategoryList` (`summary.jsonl` categories); with a block picked, CSV tabs PipeUtilization | ArithmeticUtilization | ResourceConflictRatio. Both surfaces: type filter hides non-matching labels and paints the matching substring as a navy chip ([UI-43](../context/decisions/UI.md)).
+- Memory details overlay: same All → `SummaryCategoryList` / picked-block → CSV tabs Memory L1 | L2Cache | Memory L0 | Memory UB; search filter + highlight ([UI-43](../context/decisions/UI.md)); **查看全部** opens full CSV ([DATA-33d](../context/decisions/interim/DATA.md)).
 - Selecting a lane or event may filter lists later (still open); do not invent until Product confirms.
 
 ## Accessibility and robustness

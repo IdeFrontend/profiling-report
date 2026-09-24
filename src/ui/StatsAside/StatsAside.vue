@@ -664,6 +664,7 @@ function backToReport() {
         v-if="computeCategories.length > 0 && !computeCsvScope"
         :categories="computeCategories"
         :active-id="activeCategory"
+        :locale="locale"
         @update:active-id="activeCategory = $event"
       />
       <CsvFieldListPanel
@@ -686,6 +687,7 @@ function backToReport() {
         v-if="memoryCategories.length > 0 && !memoryCsvScope"
         :categories="memoryCategories"
         :active-id="activeCategory"
+        :locale="locale"
         @update:active-id="activeCategory = $event"
       />
       <CsvFieldListPanel
@@ -1115,6 +1117,7 @@ function backToReport() {
             v-if="computeCategories.length > 0 && !computeCsvScope"
             :categories="computeCategories"
             :active-id="activeCategory"
+            :locale="locale"
             @update:active-id="activeCategory = $event"
           />
           <CsvFieldListPanel
@@ -1151,6 +1154,7 @@ function backToReport() {
             v-if="memoryCategories.length > 0 && !memoryCsvScope"
             :categories="memoryCategories"
             :active-id="activeCategory"
+            :locale="locale"
             @update:active-id="activeCategory = $event"
           />
           <CsvFieldListPanel
