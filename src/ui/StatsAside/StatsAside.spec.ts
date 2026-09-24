@@ -1184,7 +1184,9 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.emitted('open-pipe-details')).toBeTruthy();
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="stats-compute"]').classes()).toContain('pr-aside__detail--overlay');
+    // Stack stays mounted under the opaque overlay so leave can fade out over it (PR-STATS-039).
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
   });
 
   it('PR-STATS-017: topology 详情 shows memory CSV overlay', async () => {
@@ -1974,5 +1976,42 @@ describe('StatsAside', () => {
     await csvOnly.get('[data-testid="cannbot-compute"]').trigger('click');
     await csvOnly.get('[data-testid="cannbot-memory"]').trigger('click');
     expect(csvOnly.emitted('open-cannbot')).toEqual([['compute'], ['memory']]);
+  });
+
+  it('PR-STATS-039: detail overlays use a 200ms opacity+scale transition (same as topology fullscreen)', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(/<Transition[^>]*name="pr-aside-detail"/);
+    expect(src).toMatch(
+      /\.pr-aside-detail-enter-active,\s*\.pr-aside-detail-leave-active\s*\{[^}]*opacity\s+200ms\s+ease/s,
+    );
+    expect(src).toMatch(/\.pr-aside-detail-enter-from,\s*\.pr-aside-detail-leave-to\s*\{[^}]*opacity:\s*0/s);
+    expect(src).toMatch(/\.pr-aside-detail-enter-from,\s*\.pr-aside-detail-leave-to\s*\{[^}]*scale\(0\.98\)/s);
+    expect(src).toMatch(/\.pr-aside-detail-leave-active\s*\{[^}]*pointer-events:\s*none/s);
+    expect(src).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]*?\.pr-aside-detail-enter-active/);
+
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opType: 'vector' },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+              blockIds: ['0'],
+            },
+          ],
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.get('[data-testid="stats-compute"]').classes()).toContain('pr-aside__detail--overlay');
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
   });
 });

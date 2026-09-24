@@ -66,11 +66,11 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 **CSV-only fallback.** If duration, bandwidth, PIPE, roofline, and topology are all absent but compute/memory tables exist, show those CSV lists on the stack (no overlay required).
 
-**Compute / Memory overlays.** Hosts `SummaryCategoryList` (All / `summary.jsonl`) or `CsvFieldListPanel` (picked block). Both surfaces show tabs + search + match chips (UI-43). Compute CSV path (`v930/compute-load-detail`, `v930/search-highlight`): no block picker, no 查看全部. When `PipeUtilizationHist.csv` is present, the adapter projects Utilization onto sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys and omits `PipeUtilization.csv` ([UI-55](../../../docs/context/decisions/UI.md)). Memory CSV path (`v930/memory-load-detail`): tabs, search, block switcher, 查看全部. Overlay body fills the column under the header; the field list scrolls (no inner max-height cap). **Scope (DATA-19 / DATA-29):** under **All** the product `summary.jsonl` category list is the default and the CSV list falls back to the first `block_id` (a CSV list has no aggregate row); with a block picked the CSV field list **replaces** the category list and shows that block's row.
+**Compute / Memory overlays.** Hosts `SummaryCategoryList` (All / `summary.jsonl`) or `CsvFieldListPanel` (picked block). Both surfaces show tabs + search + match chips (UI-43). Compute CSV path (`v930/compute-load-detail`, `v930/search-highlight`): no block picker, no 查看全部. When `PipeUtilizationHist.csv` is present, the adapter projects Utilization onto sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys and omits `PipeUtilization.csv` ([UI-55](../../../docs/context/decisions/UI.md)). Memory CSV path (`v930/memory-load-detail`): tabs, search, block switcher, 查看全部. Overlay body fills the column under the header; the field list scrolls (no inner max-height cap). The stacked report stays mounted under an opaque absolute overlay so leave can fade out over it. Show/hide uses the same 200ms opacity + scale `Transition` as topology fullscreen (`pr-aside-detail`; PR-STATS-039 / PR-ROOT-013). **Scope (DATA-19 / DATA-29):** under **All** the product `summary.jsonl` category list is the default and the CSV list falls back to the first `block_id` (a CSV list has no aggregate row); with a block picked the CSV field list **replaces** the category list and shows that block's row.
 
 ### Hardware details (M1 interim DATA-34a)
 
-**更多** opens the hardware overlay (UI-30, UI-31): always visible on the report shell; emits `open-hardware-details`. When `hardwareDetails` is present, render `HardwareDetailsPanel`; otherwise show **缺少 hardware info** / Missing hardware info. Header back control returns to the stacked report.
+**更多** opens the hardware overlay (UI-30, UI-31): always visible on the report shell; emits `open-hardware-details`. When `hardwareDetails` is present, render `HardwareDetailsPanel`; otherwise show **缺少 hardware info** / Missing hardware info. Header back control returns to the stacked report. Enter/leave animation matches compute/memory overlays (PR-STATS-039).
 
 ## Acceptance Criteria
 
@@ -128,6 +128,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
     - a column narrower than the label **itself** ellipsizes it — and **every** column label (AICore, compute, BW) carries its full text in `title` unconditionally, so an ellipsis always has a tooltip;
     - **below a 430px content well** the 2×2 grid collapses to **one tile per row**, so the side columns keep the full well width instead of ~36px.
 41. **PR-STATS-037** — Emulate / `archDiagram`: a **Metric** label + `CardMetricSelect` (same chrome as swimlane card-header metric dropdowns) sits **above** the memory topology diagram; changing mode rebuilds edge labels from ArchDiagramMetrics for **that mode only** (`*_gbs` / `*_ratio` / `*_cnt`) — no fallback to the adapter’s default `*_gbs` snapshot; undrawable mode → DATA-30 hide **plates** only (Metric switcher stays; ArchDiagram-only does not flip to csv-only EAV). Hidden on compute. Mode is shared with topology 全屏 via optional `archMetricMode` v-model ([ProfilingReport](../ProfilingReport/ProfilingReport.spec.md) topology fullscreen Metric).
+42. **PR-STATS-039** — Compute / memory / hardware detail overlays show and hide with a 200ms opacity + scale `Transition` (`pr-aside-detail`), matching topology fullscreen (`pr-topo-fs` / PR-ROOT-013); `prefers-reduced-motion: reduce` drops the transition; leave uses `pointer-events: none` so clicks reach the stacked report under the fading overlay.
 
 ## Edge Cases
 
@@ -278,6 +279,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-24** — Compute / memory / hardware detail overlays fade in/out with the same 200ms opacity + scale transition as topology fullscreen (`pr-aside-detail`; PR-STATS-039); stacked report stays mounted under the opaque overlay.
 - **2026-09-24** — Overlay headers omit close (PR-STATS-006b); back remains the only way out of compute / memory / hardware drill-in.
 - **2026-09-24** — Block caption localizes (`分块` / `Block`); `CardMetricSelect` menu sizes to the longest option so a short selection does not clip longer labels.
 - **2026-09-23** — Inputs: capabilities also include `archDiagram` (PR-STATS-037); PIPE **Block** select uses `CardMetricSelect` (card-header / ArchDiagram Metric chrome) with caption **Block**; memory overlay keeps `.pr-block-pill`.
