@@ -159,17 +159,22 @@ interface PipeOccupancyItem {
 - **Mode switcher**: Summary / PIPE / Compute / Memory tabs, shown only when data available
 - **Summary mode**: Op name, type, duration, frequency metadata
 - **PIPE mode**: Bar chart with per-family utilization ratios, Cube | Vector toggle appears only when `opType === 'MIX'`; non-MIX ops show the relevant side only; blank/unrecognized opType shows all sides
-- **Compute mode**: Hosts `CsvFieldListPanel` with PipeUtilization / ArithmeticUtilization / ResourceConflictRatio tabs
-- **Memory mode**: Hosts `CsvFieldListPanel` with MemoryL0 / L2Cache / MemoryL1 / MemoryUB tabs
+- **Compute mode**: Under **All**, hosts `SummaryCategoryList` (`summary.jsonl`); with a block picked, hosts `CsvFieldListPanel` (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio)
+- **Memory mode**: Same All → `SummaryCategoryList` / picked-block → `CsvFieldListPanel` (MemoryL0 / L2Cache / MemoryL1 / MemoryUB)
 - Emits `view-full-csv` for CSV export
 
 #### CsvFieldListPanel (`src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.vue`)
 
 - **CSV tabs**: Lists available tables by filename, product label mapping (e.g., `Memory.csv` → "MemoryL1")
 - **Block switcher**: `<select>` picker filtered by `block_id` column (DATA-19)
-- **Search**: Filters field header names (case-insensitive substring)
+- **Search**: Filters field header names and paints matching substrings as navy chips (case-insensitive; UI-43)
 - **Field list**: Shows header → value pairs for the selected block/row with literal `NA` display
 - **查看全部 button**: Emits `view-full-csv` with `{ fileName, text }` for full CSV export (DATA-33d)
+
+#### SummaryCategoryList (`src/ui/StatsAside/SummaryCategoryList/SummaryCategoryList.vue`)
+
+- **Category tabs**: One tab per `summary.jsonl` category (product default under **All**)
+- **Search**: Same filter + match-chip rule as CsvFieldListPanel (`PR-SUMM-002` / UI-43)
 
 ### Task 5: i18n — COMPLETED (2026-08-07)
 
@@ -207,7 +212,7 @@ Default locale is zh-CN per interim decision PKG-2.
 
 - **PR-CSV-001**: Tabs render and switch the visible field list
 - **PR-CSV-002**: Block switcher filters rows by block_id
-- **PR-CSV-003**: Search filters field labels (case-insensitive substring)
+- **PR-CSV-003**: Search filters and highlights field labels (case-insensitive substring chip)
 - **PR-CSV-004**: 查看全部 emits view-full-csv with fileName + text
 
 #### Integration (`tests/component/ProfilingReport.feature.spec.ts`)

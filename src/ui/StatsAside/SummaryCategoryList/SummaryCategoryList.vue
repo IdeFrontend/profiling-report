@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { t } from '../../../i18n';
 import type { SummaryCategory } from '../../../domain/types';
+import { highlightParts } from '../../searchHighlight';
 
 const props = defineProps<{
   categories: SummaryCategory[];
   activeId?: string;
+  locale?: string;
 }>();
 
 const emit = defineEmits<{
   'update:activeId': [id: string];
 }>();
+
+const search = ref('');
 
 const active = computed(
   () => props.categories.find((c) => c.id === props.activeId) ?? props.categories[0] ?? null,
@@ -27,6 +32,20 @@ function tabLabel(category: SummaryCategory): string {
   };
   return map[category.id] ?? category.title;
 }
+
+const fields = computed(() => {
+  const category = active.value;
+  if (!category) return [];
+  const q = search.value.trim();
+  const rows = q
+    ? category.fields.filter((f) => f.key.toLowerCase().includes(q.toLowerCase()))
+    : category.fields;
+  return rows.map((f) => ({
+    key: f.key,
+    value: f.value,
+    parts: highlightParts(f.key, q),
+  }));
+});
 </script>
 
 <template>
@@ -53,17 +72,72 @@ function tabLabel(category: SummaryCategory): string {
         {{ tabLabel(category) }}
       </button>
     </div>
+
+    <div class="pr-field-toolbar">
+      <label class="pr-field-search">
+        <span class="pr-field-sr">{{ t('searchLabel', locale) }}</span>
+        <span
+          class="pr-field-search-icon"
+          aria-hidden="true"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+          >
+            <circle
+              cx="5"
+              cy="5"
+              r="3.5"
+              stroke="currentColor"
+              stroke-width="1.2"
+            />
+            <path
+              d="M7.8 7.8 L10.5 10.5"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
+        <input
+          v-model="search"
+          data-testid="summary-search"
+          type="search"
+          :placeholder="t('searchPlaceholder', locale)"
+        >
+        <button
+          v-if="search.trim().length > 0"
+          type="button"
+          class="pr-field-search-clear"
+          data-testid="summary-search-clear"
+          :aria-label="t('searchClear', locale)"
+          @click.stop="search = ''"
+        >
+          ×
+        </button>
+      </label>
+    </div>
+
     <ul
       v-if="active"
       class="pr-summ__fields"
       data-testid="summary-category-fields"
     >
       <li
-        v-for="field in active.fields"
+        v-for="field in fields"
         :key="field.key"
         class="pr-summ__field"
       >
-        <span class="pr-summ__field-name">{{ field.key }}</span>
+        <span class="pr-summ__field-name">
+          <span
+            v-for="(part, i) in field.parts"
+            :key="i"
+            :class="{ 'pr-field-match': part.match }"
+            :data-testid="part.match ? 'summary-field-match' : undefined"
+          >{{ part.text }}</span>
+        </span>
         <span class="pr-summ__field-value">{{ field.value }}</span>
       </li>
     </ul>

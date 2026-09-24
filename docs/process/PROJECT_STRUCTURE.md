@@ -86,6 +86,7 @@ profiling-report/
         StatsSummaryPanel/                      stub + visual (impl still inline)
         PipeOccupancyPanel/                     stub + visual (impl still inline)
         CsvFieldListPanel/
+        SummaryCategoryList/                    All-scope summary.jsonl detail search
         RooflinePanel/                          M2 impl + visual
         MemoryTopologyPanel/                    stub + visual
         HardwareDetailsPanel/                   M1 interim impl + visual
@@ -247,6 +248,7 @@ Each component gets its own prefix to avoid collisions and make ownership clear:
 | SwimlaneCanvas | `PR-CANVAS-*` |
 | AxisRuler | `PR-AXIS-*` |
 | CsvFieldListPanel | `PR-CSV-*` |
+| SummaryCategoryList | `PR-SUMM-*` |
 | CursorTimestamp | `PR-CURSOR-*` |
 ### Core module prefixes
 

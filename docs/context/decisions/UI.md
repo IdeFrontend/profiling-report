@@ -118,12 +118,12 @@ Format and statuses: [README.md](README.md).
 
 ## UI-43 (was: HQ 37)
 
-- **Resolved:** 2026-09-11
-- **Was:** filter + highlight (2026-08-28, PR [#52](https://github.com/IdeFrontend/profiling-report/pull/52)) — superseded.
+- **Resolved:** 2026-09-23
+- **Was:** filter only (2026-09-11, PR [#106](https://github.com/IdeFrontend/profiling-report/pull/106)) — superseded. Prior: filter + highlight (2026-08-28, PR [#52](https://github.com/IdeFrontend/profiling-report/pull/52)).
 - **Question:** CSV 详情 search — filter only, or filter + highlight?
-- **Decision:** **Filter only**: search hides rows whose headers do not contain the query and leaves the matching labels unstyled — no substring chip. Same rule on the compute and memory overlays.
-- **Specs:** [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-003`), [UX_SPEC](../../ui/UX_SPEC.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md)
-- **Source:** Product answer to Q37 in npu-computing `npu-tools` `npu-compute/Questions/NPU-Compute.md` (2026-09-11): "Hide non-matching rows and filter only".
+- **Decision:** **Filter + highlight**: search hides rows whose headers/keys do not contain the query and paints the matching substring as a navy chip (fill `#1d283c`, text `#688aec`, weight `600`, pad `0`). Same rule on the compute and memory overlays (CSV block path and All-scope `summary.jsonl` category list).
+- **Specs:** [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-003`), [SummaryCategoryList.spec.md](../../../src/ui/StatsAside/SummaryCategoryList/SummaryCategoryList.spec.md) (`PR-SUMM-002`), [UX_SPEC](../../ui/UX_SPEC.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md)
+- **Source:** Product request to restore match chips (2026-09-23), reversing the 2026-09-11 filter-only answer to Q37.
 
 ---
 
