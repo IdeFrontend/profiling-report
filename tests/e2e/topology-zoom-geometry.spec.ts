@@ -37,7 +37,8 @@ test.beforeEach(async ({ page }) => {
  */
 async function probe(panel: Locator) {
   return panel.evaluate((root, chrome) => {
-    const viewport = root.querySelector('.pr-topo__viewport') as HTMLElement;
+    const frame = root.querySelector('.pr-topo__frame') as HTMLElement;
+    const viewport = root.querySelector('[data-testid="topology-viewport"]') as HTMLElement;
     const svg = root.querySelector('.pr-topo__svg') as SVGSVGElement;
     const ctm = svg.getScreenCTM()!;
     const map = (x: number, y: number) => ({
@@ -46,7 +47,9 @@ async function probe(panel: Locator) {
     });
     const tl = map(0, 0);
     const br = map(chrome.w, chrome.h);
-    const box = viewport.getBoundingClientRect();
+    // Frame is the stable fit box (PR-MEMTOP-013b); the scrollport's border box matches it, but
+    // classic bars shrink only `clientWidth` / `clientHeight`.
+    const box = frame.getBoundingClientRect();
     const inkW = br.x - tl.x;
     const inkH = br.y - tl.y;
     return {
@@ -120,28 +123,23 @@ test('PR-MEMTOP-013: each host fits the diagram, and pans it by its own overflow
   expect(asideZoomed.inkRatio).toBeCloseTo(CHROME_W / CHROME_H, 2);
   expect(Math.abs(asideZoomed.scrollX - asideZoomed.panX)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(asideZoomed.scrollY - asideZoomed.panY)).toBeLessThanOrEqual(SLOP);
-
-  // Both sides of that comparison are in the *client* box, because `scrollWidth - clientWidth`
-  // excludes a classic scrollbar while the border box includes it. Chromium's overlay scrollbars
-  // reserve nothing, which would hide a mismatch — `scrollbar-gutter: stable` reserves the gutter
-  // regardless, so the reserving regime (Windows / a stable gutter) is exercised rather than
-  // assumed. Against the border box this step is off by exactly the gutter.
-  await page.addStyleTag({
-    content: '.pr-topo__viewport--pannable { scrollbar-gutter: stable; }',
-  });
-  const asideReserved = await probe(aside);
-  // Only the inline gutter has a CSS switch — the vertical bar — so the block-end gutter stays 0.
-  expect(asideReserved.gutterX).toBeGreaterThan(0);
-  expect(Math.abs(asideReserved.scrollX - asideReserved.panX)).toBeLessThanOrEqual(SLOP);
-  expect(Math.abs(asideReserved.scrollY - asideReserved.panY)).toBeLessThanOrEqual(SLOP);
+  // Fit box itself does not move when the diagram overflows (PR-MEMTOP-013b).
+  expect(Math.abs(asideZoomed.box.w - asideFitted.box.w)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(asideZoomed.box.h - asideFitted.box.h)).toBeLessThanOrEqual(SLOP);
+  // Stage sized from the frame: ink is zoom × fitted, not (frame − scrollbar).
+  expect(asideZoomed.ink.h).toBeCloseTo(asideFitted.ink.h * 1.5, 0);
+  expect(asideZoomed.ink.w).toBeCloseTo(asideFitted.ink.w * 1.5, 0);
 
   // The overlay is the wide host: its box is the leftover area, far wider than the diagram, so a
   // stage that followed the box would let the pan travel through empty space on both sides.
+  // Probe it *before* the aside's `scrollbar-gutter` style tag below — that rule is global and
+  // would change the overlay's fitted vs pannable gutters for reasons that are not this host's.
   await aside.getByTestId('topology-fullscreen').click();
   const overlay = page.locator(
     '[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]',
   );
   await expect(overlay).toBeVisible();
+  await expect(page.getByTestId('topology-fullscreen-overlay')).toHaveCSS('transform', 'none');
 
   const overlayFitted = await probe(overlay);
   expect(overlayFitted.box.w).toBeGreaterThan(overlayFitted.box.h * 1.5);
@@ -156,6 +154,34 @@ test('PR-MEMTOP-013: each host fits the diagram, and pans it by its own overflow
   expect(overlayZoomed.inkRatio).toBeCloseTo(CHROME_W / CHROME_H, 2);
   expect(Math.abs(overlayZoomed.scrollX - overlayZoomed.panX)).toBeLessThanOrEqual(SLOP);
   expect(Math.abs(overlayZoomed.scrollY - overlayZoomed.panY)).toBeLessThanOrEqual(SLOP);
+  // PR-MEMTOP-013b: drawing scales with zoom; fit frame and reserved gutter stay put.
+  expect(Math.abs(overlayZoomed.box.w - overlayFitted.box.w)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(overlayZoomed.box.h - overlayFitted.box.h)).toBeLessThanOrEqual(SLOP);
+  expect(overlayZoomed.ink.h).toBeCloseTo(overlayFitted.ink.h * 1.5, 0);
+  expect(overlayZoomed.ink.w).toBeCloseTo(overlayFitted.ink.w * 1.5, 0);
+  expect(overlayZoomed.gutterX).toBe(overlayFitted.gutterX);
+
+  await page.getByTestId('topology-fullscreen-back').click();
+  await expect(page.getByTestId('topology-fullscreen-overlay')).toHaveCount(0);
+
+  // Both sides of that comparison are in the *client* box, because `scrollWidth - clientWidth`
+  // excludes a classic scrollbar while the border box includes it. Chromium's overlay scrollbars
+  // reserve nothing, which would hide a mismatch — `scrollbar-gutter: stable` reserves the gutter
+  // regardless, so the reserving regime (Windows / a stable gutter) is exercised rather than
+  // assumed. Against the border box this step is off by exactly the gutter. Ink must still track
+  // the frame × zoom (not shrink with the gutter) — that is PR-MEMTOP-013b.
+  await page.addStyleTag({
+    content: '.pr-topo__viewport--pannable { scrollbar-gutter: stable; }',
+  });
+  const asideReserved = await probe(aside);
+  // Only the inline gutter has a CSS switch — the vertical bar — so the block-end gutter stays 0.
+  expect(asideReserved.gutterX).toBeGreaterThan(0);
+  expect(Math.abs(asideReserved.scrollX - asideReserved.panX)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(asideReserved.scrollY - asideReserved.panY)).toBeLessThanOrEqual(SLOP);
+  expect(asideReserved.ink.h).toBeCloseTo(asideFitted.ink.h * 1.5, 0);
+  expect(asideReserved.ink.w).toBeCloseTo(asideFitted.ink.w * 1.5, 0);
+  expect(Math.abs(asideReserved.box.w - asideFitted.box.w)).toBeLessThanOrEqual(SLOP);
+  expect(Math.abs(asideReserved.box.h - asideFitted.box.h)).toBeLessThanOrEqual(SLOP);
 });
 
 test('PR-MEMTOP-014: the overlay drops the bar strip the aside keeps', async ({ page }) => {
@@ -219,7 +245,7 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   expect(Math.abs(stepped.y - fitted.y)).toBeLessThanOrEqual(SLOP);
 
   // And it holds from an offset the step did not choose — both axes, and back down a stop. A tenth
-  // of the range is deliberate: the middle of a 125% drawing sits within a quarter of its own width
+  // of the range is deliberate: the middle of a 150% drawing sits within a quarter of its own width
   // of the edges, so a deeper offset would be clamped on the way back down and move the middle for
   // a reason that is not this rule.
   await viewport.evaluate((el) => {
@@ -241,7 +267,7 @@ test('PR-MEMTOP-018: a zoom step keeps the middle on the same part of the drawin
   // Same rule in the wide overlay, whose box is a different *shape* — and there, X is letterboxed at
   // first: the stage is narrower than the box until the ladder reaches ~300%, so `scrollWidth` is the
   // box's own width and the anchor is the fitted `margin-inline: auto` case. The step that crosses
-  // over is the one the aside cannot reach (its box is narrow enough that 125% overflows both axes):
+  // over is the one the aside cannot reach (its box is narrow enough that 150% overflows both axes):
   // the placement has to hand over from centring to a real scroll, and a regression that left the
   // stage left-aligned while `scrollLeft` stayed 0 would only show up here. So step the ladder until
   // X really does overflow, asserting the middle at every step, including the crossing one.
@@ -437,7 +463,7 @@ test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the draw
 
   await aside.getByTestId('topology-zoom-in').click();
   // Committed on the click: the readout is the stop, not the frame's value.
-  await expect(aside.getByTestId('topology-zoom-percent')).toHaveText('125%');
+  await expect(aside.getByTestId('topology-zoom-percent')).toHaveText('150%');
   // In flight: the tween is a real rAF one, and the stage has not reached the stop yet.
   await expect(aside).toHaveAttribute('data-topo-zoom-animating', 'true');
 
@@ -450,7 +476,7 @@ test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the draw
   // *count*, and at 120Hz that is ~50ms of an ease-in-out cubic that has barely left the stop (the
   // 511px stage below has moved ~1px by then, failing the "strictly between" sample for a tween that
   // is running perfectly), while at 60Hz the same six ticks are ~100ms and clear it. The guard is
-  // wall-clock, past the 400ms tween, so a step that never lands fails here instead of hanging.
+  // wall-clock, past the 200ms tween, so a step that never lands fails here instead of hanging.
   const samples = await aside.evaluate(async (root) => {
     const stage = root.querySelector('.pr-topo__stage') as HTMLElement;
     const out: { inFlight: boolean; h: number }[] = [];
@@ -466,11 +492,11 @@ test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the draw
   });
   const inFlight = samples.filter((sample) => sample.inFlight).map((sample) => sample.h);
   expect(inFlight.length).toBeGreaterThan(0);
-  expect(inFlight.every((h) => h >= fitted - SLOP && h <= fitted * 1.25 + SLOP)).toBe(true);
-  expect(inFlight.some((h) => h > fitted + SLOP && h < fitted * 1.25 - SLOP)).toBe(true);
+  expect(inFlight.every((h) => h >= fitted - SLOP && h <= fitted * 1.5 + SLOP)).toBe(true);
+  expect(inFlight.some((h) => h > fitted + SLOP && h < fitted * 1.5 - SLOP)).toBe(true);
 
   // Landed: the stage is the stop's own size and the flag is down, which is what every other
   // probe in this file waits for.
   await expect(aside).toHaveAttribute('data-topo-zoom-animating', 'false');
-  expect(await stageHeight()).toBeCloseTo(fitted * 1.25, 0);
+  expect(await stageHeight()).toBeCloseTo(fitted * 1.5, 0);
 });
