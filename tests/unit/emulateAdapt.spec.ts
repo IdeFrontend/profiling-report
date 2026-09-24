@@ -397,6 +397,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(model).toBeDefined();
     expect(model!.edges.find((e) => e.id === 'cube-l0c')?.label).toBe('7.25 GB/s');
     expect(model!.edges.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
+  });
 
   it('PR-ASIM-010: no hint embeds → performanceHints omitted and no capability (DATA-30)', () => {
     const adapted = adaptEmulate({
