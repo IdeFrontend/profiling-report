@@ -20,7 +20,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **PIPE occupancy (Sept 30 / M4).** When `PipeUtilizationHist.csv` or `PipesUtilization.csv` is present, map into `pipeOccupancy` / `computeTables` without inventing `PipeUtilization.csv` ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)). Prefer hist `PipeName`+`Utilization`.
 
-**Architecture Diagram (Sept 30 / M4).** When `ArchDiagramMetrics.csv` is present, map into the **shared** `memoryTopology` carrier (same chrome / panel as compute) + `memoryTables` via interim [DATA-48a](../../docs/context/decisions/interim/DATA.md) / `ARCH_DIAGRAM_EDGE_MAP`. Do **not** invent a second topology VM or chrome. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../docs/context/questions/DATA.md)). Omit diagram when nothing drawable.
+**Architecture Diagram (Sept 30 / M4).** When `ArchDiagramMetrics.csv` is present, map into the **shared** `memoryTopology` carrier (same chrome / panel as compute) + `memoryTables` via interim [DATA-48a](../../docs/context/decisions/interim/DATA.md) / `ARCH_DIAGRAM_EDGE_MAP` (corridor **bases**; suffix by metric mode). Adapter snapshot defaults to `bandwidth_per_operator` (`*_gbs`); the aside rebuilds labels for `bandwidth_per_request` / `number_of_requests`. Dual AIV0/AIV1: **sum** gbs/cnt, **unweighted average** of scalar `*_ratio` (not (Σnum)/(Σden) — DATA-48a). Do **not** invent a second topology VM or chrome. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../docs/context/questions/DATA.md)). Omit diagram when nothing drawable.
 
 **Omit gap panels.** Do not populate `overviewSeries`, `roofline`, or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards.
 
@@ -38,7 +38,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 6. **PR-ASIM-006** — Missing Trace → `swimlaneModel === null` without throw; corrupt Trace JSON → throw.
 7. **PR-ASIM-007** — When `PipeTrace.json` is absent, every native `core_*_tracing_report_*.json` (non–critical-path) is merged into one swimlane; pids are remapped so cores that each use `pid: 0` stay distinct. Cores are ordered by numeric core index when the basename matches `core_<n>_…`.
 8. **PR-ASIM-008** — `ArchDiagramMetrics.csv` → drawable `memoryTopology` + capability **`archDiagram`**; empty/unmapped → omit (DATA-48a). Do not set `memoryDiagram` on emulate.
-9. **PR-ASIM-008b** — `ARCH_DIAGRAM_EDGE_MAP` edge ids ⊆ `TOPOLOGY_SLOT_EDGE_IDS`; every mapped `*_gbs` param is outside `ARCH_DIAGRAM_UNPLATED_HTML_BASES`; a full ArchDiagramMetrics fixture labels all plated edges + L2 peak (AIV pairs averaged).
+9. **PR-ASIM-008b** — `ARCH_DIAGRAM_EDGE_MAP` edge ids ⊆ `TOPOLOGY_SLOT_EDGE_IDS`; every mapped corridor **base** is outside `ARCH_DIAGRAM_UNPLATED_HTML_BASES` (no `_gbs`/`_ratio`/`_cnt` in the map); a full ArchDiagramMetrics fixture labels all plated edges + L2 peak (AIV pairs **sum** for gbs/cnt; **unweighted average** for ratio); metric modes rebuild labels; EAV headers case-insensitive.
 
 ## Edge Cases
 
@@ -56,6 +56,8 @@ DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (
 DATA-49 — Dedicated ArchDiagramModel / biprof chrome vs heatmap deferral.
 
 ## Changelog
+- **2026-09-24** — DATA-48a ratio merge spelled as unweighted average; EAV headers case-insensitive (PR-ASIM-008b).
+- **2026-09-23** — DATA-48a metric modes + AIV sum (gbs/cnt) / average (ratio); PR-ASIM-008b AC aligned.
 - **2026-09-14** — Initial spec (docs pass; tests todo).
 - **2026-09-15** — Sept 30 PIPE + interim summary; rename emulate.
 - **2026-09-15** — `manifest.json` detection; optional PipeTrace (PR-ASIM-006).

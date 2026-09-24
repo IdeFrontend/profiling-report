@@ -47,7 +47,7 @@ describe('CsvFieldListPanel', () => {
     });
 
     expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
-    // Shared block-pill chrome (tokens.css) — the PIPE card uses the same class.
+    // Overlay block switcher still uses shared `.pr-block-pill` chrome (tokens.css).
     expect(wrapper.get('[data-testid="csv-block"]').classes()).toContain('pr-block-pill');
     await wrapper.get('[data-testid="csv-block"]').setValue('1');
     expect(wrapper.text()).toContain('0.3');
@@ -121,5 +121,72 @@ describe('CsvFieldListPanel', () => {
     expect(wrapper.text()).toContain('aic_cube_ratio');
     expect(wrapper.text()).toContain('NA');
     expect(wrapper.get('[data-testid="csv-block"]').element).toHaveProperty('value', '0');
+  });
+
+  it('PR-CSV-007: ArchDiagramMetrics EAV pivots to parameterName → value (deduped)', () => {
+    const archTables: CsvTableModel[] = [
+      {
+        fileName: 'ArchDiagramMetrics.csv',
+        headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+        rows: [
+          {
+            ArchDiagramId: '1',
+            ArchDiagramParameterName: 'active_cores',
+            ArchDiagramParameterValue: '1.0',
+          },
+          {
+            ArchDiagramId: '2',
+            ArchDiagramParameterName: 'hbm_to_l2_syn_gbs',
+            ArchDiagramParameterValue: '0.77',
+          },
+          {
+            ArchDiagramId: '3',
+            ArchDiagramParameterName: 'active_cores',
+            ArchDiagramParameterValue: '2.0',
+          },
+        ],
+        blockIds: [],
+      },
+    ];
+    const wrapper = mount(CsvFieldListPanel, {
+      props: { tables: archTables, csvTexts: {}, showBlockSwitcher: false },
+    });
+    expect(wrapper.text()).toContain('hbm_to_l2_syn_gbs');
+    expect(wrapper.text()).toContain('0.77');
+    expect(wrapper.text()).toContain('active_cores');
+    expect(wrapper.text()).toContain('2.0');
+    expect(wrapper.text()).not.toContain('ArchDiagramId');
+    expect(wrapper.text()).not.toContain('ArchDiagramParameterName');
+  });
+
+  it('PR-CSV-008: View all only for wide-row projection, not ArchDiagram EAV', () => {
+    const archTables: CsvTableModel[] = [
+      {
+        fileName: 'ArchDiagramMetrics.csv',
+        headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+        rows: [
+          {
+            ArchDiagramId: '1',
+            ArchDiagramParameterName: 'active_cores',
+            ArchDiagramParameterValue: '1.0',
+          },
+        ],
+        blockIds: [],
+      },
+    ];
+    const arch = mount(CsvFieldListPanel, {
+      props: {
+        tables: archTables,
+        csvTexts: { 'ArchDiagramMetrics.csv': 'ArchDiagramId,ArchDiagramParameterName\n1,x\n' },
+        showBlockSwitcher: false,
+        showViewAll: true,
+      },
+    });
+    expect(arch.find('[data-testid="csv-view-all"]').exists()).toBe(false);
+
+    const wide = mount(CsvFieldListPanel, {
+      props: { tables, csvTexts, showViewAll: true },
+    });
+    expect(wide.find('[data-testid="csv-view-all"]').exists()).toBe(true);
   });
 });
