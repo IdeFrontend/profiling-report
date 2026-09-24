@@ -4,7 +4,7 @@
 |----------------|
 | PR-STATS-*   |
 
-Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked 报告统计 scroll (duration, roofline, PIPE, topology), and full-panel overlays for compute CSV, memory CSV, and hardware details.
+Right-side analytics panel: shell chrome (title, close on the report shell only, meta, 更多), stacked 报告统计 scroll (duration, roofline, PIPE, topology), and full-panel overlays for compute CSV, memory CSV, and hardware details.
 
 ## Inputs
 
