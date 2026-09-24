@@ -64,7 +64,12 @@ const showBlocks = computed(
   () => props.showBlockSwitcher && blockIds.value.length > 0,
 );
 
-const showActions = computed(() => showBlocks.value || props.showViewAll);
+/** DATA-33d: only for wide-row projection (one block row → many columns), not ArchDiagram EAV. */
+const showViewAllButton = computed(
+  () => props.showViewAll && !!activeTable.value && !isArchDiagramEav(activeTable.value),
+);
+
+const showActions = computed(() => showBlocks.value || showViewAllButton.value);
 
 /** Product tab labels from `v930/compute-load-detail` / `v930/memory-load-detail`. */
 function tabLabel(fileName: string): string {
@@ -87,11 +92,41 @@ const activeRow = computed(() => {
   return table.rows.find((r) => r['block_id'] === selectedBlock.value) ?? null;
 });
 
+/** ArchDiagramMetrics.csv is EAV (parameter name/value rows), not a wide metric row. */
+function isArchDiagramEav(table: CsvTableModel): boolean {
+  const lower = table.headers.map((h) => h.toLowerCase());
+  return (
+    lower.includes('archdiagramparametername') && lower.includes('archdiagramparametervalue')
+  );
+}
+
+function eavParamValueFields(
+  table: CsvTableModel,
+  query: string,
+): { header: string; value: string }[] {
+  const nameKey = table.headers.find((h) => h.toLowerCase() === 'archdiagramparametername');
+  const valKey = table.headers.find((h) => h.toLowerCase() === 'archdiagramparametervalue');
+  if (!nameKey || !valKey) return [];
+  // Last row wins — same as topologyFromArchDiagramMetrics Map.set (gelu duplicates the set).
+  const byName = new Map<string, string>();
+  for (const row of table.rows) {
+    const name = (row[nameKey] ?? '').trim();
+    if (name) byName.set(name, row[valKey] ?? '');
+  }
+  const q = query.trim().toLowerCase();
+  const entries = [...byName.entries()]
+    .filter(([name]) => !q || name.toLowerCase().includes(q))
+    .map(([header, value]) => ({ header, value }));
+  return entries;
+}
+
 const fields = computed(() => {
   const table = activeTable.value;
-  const row = activeRow.value;
-  if (!table || !row) return [];
+  if (!table) return [];
   const q = search.value.trim();
+  if (isArchDiagramEav(table)) return eavParamValueFields(table, q);
+  const row = activeRow.value;
+  if (!row) return [];
   const headers = q
     ? table.headers.filter((h) => h.toLowerCase().includes(q.toLowerCase()))
     : table.headers;
@@ -203,7 +238,7 @@ function onViewAll() {
           </select>
         </label>
         <button
-          v-if="showViewAll"
+          v-if="showViewAllButton"
           type="button"
           class="pr-csv__view-all"
           data-testid="csv-view-all"

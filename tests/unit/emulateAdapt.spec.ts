@@ -294,21 +294,18 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       expect(slotIds.has(spec.id), spec.id).toBe(true);
     }
 
-    // Mapped *_gbs params must not be listed as intentionally unplated HTML bases.
+    // Mapped corridor bases must not be listed as intentionally unplated HTML bases.
     const unplated = new Set(ARCH_DIAGRAM_UNPLATED_HTML_BASES);
     for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
       for (const p of spec.params) {
-        expect(p.endsWith('_gbs'), p).toBe(true);
-        const base = p.replace(/_gbs$/, '');
-        expect(unplated.has(base as (typeof ARCH_DIAGRAM_UNPLATED_HTML_BASES)[number]), p).toBe(
-          false,
-        );
+        expect(p.includes('_gbs') || p.includes('_ratio') || p.includes('_cnt'), p).toBe(false);
+        expect(unplated.has(p as (typeof ARCH_DIAGRAM_UNPLATED_HTML_BASES)[number]), p).toBe(false);
       }
     }
     expect(ARCH_DIAGRAM_L2_PEAK_PARAM).toBe('l2_cached_ratio');
     expect(ARCH_DIAGRAM_HTML_UTIL_RATIOS).toContain(ARCH_DIAGRAM_L2_PEAK_PARAM);
 
-    // Full Bandwidth-per-operator fixture: every plated edge + L2 peak; AIV pairs average.
+    // Full Bandwidth-per-operator fixture: every plated edge + L2 peak; AIV pairs **sum**.
     const expected = new Map<string, string>();
     const rows = [
       'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
@@ -319,12 +316,12 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     for (const spec of ARCH_DIAGRAM_EDGE_MAP) {
       if (spec.params.length === 1) {
         const n = 10 + solo++;
-        rows.push(`${id++},${spec.params[0]},${n}`);
+        rows.push(`${id++},${spec.params[0]}_gbs,${n}`);
         expected.set(spec.id, `${n.toFixed(2)} GB/s`);
       } else {
-        rows.push(`${id++},${spec.params[0]},4`);
-        rows.push(`${id++},${spec.params[1]},6`);
-        expected.set(spec.id, '5.00 GB/s');
+        rows.push(`${id++},${spec.params[0]}_gbs,4`);
+        rows.push(`${id++},${spec.params[1]}_gbs,6`);
+        expected.set(spec.id, '10.00 GB/s');
       }
     }
     // Unplated HTML edge present in CSV must not create an extra edge id / steal a label.
@@ -347,6 +344,44 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       expect(model!.edges.find((e) => e.id === edgeId)?.label, edgeId).toBe(label);
     }
     expect(model!.edges.some((e) => e.label === '99.00 GB/s')).toBe(false);
+
+    // Metric modes: ratio averages AIV pair; count sums.
+    const modeCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,l2_cached_ratio,50',
+      '2,aiv0_out_to_ub_gbs,0.5',
+      '3,aiv1_out_to_ub_gbs,1.5',
+      '4,aiv0_out_to_ub_ratio,0.2',
+      '5,aiv1_out_to_ub_ratio,0.4',
+      '6,aiv0_out_to_ub_cnt,3',
+      '7,aiv1_out_to_ub_cnt,5',
+    ].join('\n');
+    expect(
+      topologyFromArchDiagramMetrics(modeCsv, 'bandwidth_per_operator')!.edges.find(
+        (e) => e.id === 'l2-ub',
+      )?.label,
+    ).toBe('2.00 GB/s');
+    expect(
+      topologyFromArchDiagramMetrics(modeCsv, 'bandwidth_per_request')!.edges.find(
+        (e) => e.id === 'l2-ub',
+      )?.label,
+    ).toBe('0.30 GB/s');
+    expect(
+      topologyFromArchDiagramMetrics(modeCsv, 'number_of_requests')!.edges.find(
+        (e) => e.id === 'l2-ub',
+      )?.label,
+    ).toBe('8');
+
+    // EAV headers are case-insensitive (same regime as CsvFieldListPanel / csvTexts filename).
+    const upperCsv = [
+      'ArchDiagramId,ARCHDIAGRAMPARAMETERNAME,ARCHDIAGRAMPARAMETERVALUE',
+      '1,l2_cached_ratio,50',
+      '2,hbm_to_l2_syn_gbs,1.25',
+    ].join('\n');
+    const upperModel = topologyFromArchDiagramMetrics(upperCsv);
+    expect(upperModel).toBeDefined();
+    expect(upperModel!.nodes.find((n) => n.id === 'l2')?.peakPct).toBe(50);
+    expect(upperModel!.edges.find((e) => e.id === 'gm-l2-read')?.label).toBe('1.25 GB/s');
   });
 
   it('PR-ASIM-008c: reverse-only Cube↔L0C folds onto cube-l0c plate', async () => {
