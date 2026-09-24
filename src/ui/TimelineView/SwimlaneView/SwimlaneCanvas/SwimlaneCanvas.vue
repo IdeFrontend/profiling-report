@@ -310,6 +310,12 @@ let marqueeLastClientY = 0;
  * until the pointer leaves the band (PR-CANVAS-109).
  */
 let marqueeEdgeWrapH = 0;
+/**
+ * Wrap `clientHeight` at marquee pointerdown (before live preview may mount a dock).
+ * Post-commit ensure scrolls only when the settled wrap is shorter — closed→preview→
+ * session grow ate space under the selection (PR-CANVAS-115).
+ */
+let marqueeWrapHAtGestureStart = 0;
 /** True after a wrap resize until the pointer leaves the edge band. */
 let marqueeEdgeSuspended = false;
 /** Cancels an in-flight post-commit “keep release Y visible” wait. */
@@ -1209,6 +1215,7 @@ function endMarquee(): void {
   lastMarqueeHitFp = '';
   marqueeLastEdgeScrollDir = 0;
   marqueeEdgeWrapH = 0;
+  marqueeWrapHAtGestureStart = 0;
   marqueeEdgeSuspended = false;
   unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);
@@ -1285,10 +1292,12 @@ function ensureContentYVisible(contentY: number): void {
 
 /**
  * Dock height tweens after live class drops; wait until wrap height is stable (or timeout)
- * then keep the chosen post-commit content Y visible (cursor or selection bottom).
+ * then keep the chosen post-commit content Y visible (cursor or selection bottom) —
+ * only when the dock grew and ate wrap space vs gesture start (PR-CANVAS-115).
  */
 function scheduleEnsureMarqueeReleaseVisible(contentY: number): void {
   cancelMarqueeReleaseVisible();
+  const startH = marqueeWrapHAtGestureStart;
   const started = performance.now();
   let lastH = -1;
   let stable = 0;
@@ -1301,7 +1310,9 @@ function scheduleEnsureMarqueeReleaseVisible(contentY: number): void {
       lastH = H;
     }
     if (stable >= 2 || now - started >= MARQUEE_RELEASE_LAYOUT_WAIT_MS) {
-      ensureContentYVisible(contentY);
+      // Already-open dock (unchanged height) or empty close restoring wrap: skip.
+      if (H < startH - 0.5) ensureContentYVisible(contentY);
+      marqueeWrapHAtGestureStart = 0;
       return;
     }
     marqueeReleaseVisibleRaf = requestAnimationFrame(tick);
@@ -1668,7 +1679,7 @@ function onMarqueeDragEnd(): void {
   marqueeShift = false;
   marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   lastMarqueeHitFp = '';
-  // Closed→preview dock grows to collapsed on commit; keep the chosen Y visible.
+  // Closed→preview→session grow may clip the focus Y; skip when wrap did not shrink.
   scheduleEnsureMarqueeReleaseVisible(focusContentY);
   void nextTick(() => {
     marqueePreviewIds = null;
@@ -1688,6 +1699,7 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   localStartTime = props.view.startTime;
   localEndTime = props.view.endTime;
   marqueeEdgeWrapH = wrapRef.value?.clientHeight ?? 0;
+  marqueeWrapHAtGestureStart = marqueeEdgeWrapH;
   marqueeEdgeSuspended = false;
   pinClientOrigin();
   // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.
@@ -1716,6 +1728,7 @@ function onMarqueeKeydown(e: KeyboardEvent): void {
   marqueePreviewIds = null;
   lastMarqueeHitFp = '';
   marqueeEdgeWrapH = 0;
+  marqueeWrapHAtGestureStart = 0;
   marqueeEdgeSuspended = false;
   unpinClientOrigin();
   if (marqueeRect.value) emit('multi-select-span', null);
