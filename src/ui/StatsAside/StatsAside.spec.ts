@@ -14,6 +14,20 @@ function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
 }
 
+/** Open the PIPE CardMetricSelect and pick an option ('' = All). */
+async function pickPipeBlock(
+  wrapper: ReturnType<typeof mount>,
+  value: string,
+): Promise<void> {
+  await wrapper.get('[data-testid="pipe-block-select"] .pr-metric-select__trigger').trigger('click');
+  const opt = document.querySelector(
+    `[data-testid="pipe-block-option-${value}"]`,
+  ) as HTMLElement | null;
+  expect(opt).not.toBeNull();
+  opt!.click();
+  await wrapper.vm.$nextTick();
+}
+
 function cannbotEntryReport(): ReportViewModel {
   return report({
     summary: { pid: '3073000', opType: 'mix', blockDim: 8, taskDurationUs: 1 },
@@ -114,32 +128,37 @@ describe('StatsAside', () => {
       },
     });
 
-    const options = wrapper
-      .findAll('[data-testid="pipe-block"] option')
-      .map((o) => (o.element as HTMLOptionElement).value);
+    await wrapper.get('[data-testid="pipe-block-select"] .pr-metric-select__trigger').trigger('click');
+    const options = [...document.querySelectorAll('[data-testid^="pipe-block-option-"]')].map((el) =>
+      (el.getAttribute('data-testid') ?? '').replace(/^pipe-block-option-/, ''),
+    );
     // Every id the report carries (compute ∪ memory) — a memory-only id must still be selectable, or
     // the memory overlay switcher (same state) would leave this one blank.
     expect(options).toEqual(['', '0', '1', '2']);
+    // Close the teleported menu before further assertions.
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
-    // Shared block-pill chrome (tokens.css) — guards against the native arrow returning.
-    expect(wrapper.get('[data-testid="pipe-block"]').classes()).toContain('pr-block-pill');
+    // Default locale zh-CN → 分块; English keeps "Block".
+    expect(wrapper.find('[data-testid="pipe-block-switcher"]').text()).toContain('分块');
+    // Same CardMetricSelect chrome as card-header / ArchDiagram Metric (not native .pr-block-pill).
+    expect(wrapper.get('[data-testid="pipe-block-select"]').classes()).toContain('pr-metric-select');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
     // All = summary.jsonl aggregate (4.0), not the first block's 1.0.
     expect(wrapper.text()).toContain('4.00 GB/s');
 
-    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    await pickPipeBlock(wrapper, '1');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
     expect(wrapper.text()).toContain('2.00 GB/s');
     expect(wrapper.text()).not.toContain('4.00 GB/s');
 
     // All must return to the summary.jsonl aggregate from a non-default pick (not via an intervening `0`).
-    await wrapper.get('[data-testid="pipe-block"]').setValue('');
+    await pickPipeBlock(wrapper, '');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
     expect(wrapper.text()).toContain('4.00 GB/s');
     expect(wrapper.text()).not.toContain('2.00 GB/s');
 
-    await wrapper.get('[data-testid="pipe-block"]').setValue('0');
+    await pickPipeBlock(wrapper, '0');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
     expect(wrapper.text()).toContain('1.00 GB/s');
   });
@@ -201,7 +220,7 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
 
     // … a picked block switches 详情 to that block's CSV row.
-    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    await pickPipeBlock(wrapper, '1');
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="csv-field-list"]').text()).toContain('0.8');
@@ -254,7 +273,7 @@ describe('StatsAside', () => {
 
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
-    await wrapper.get('[data-testid="pipe-block"]').setValue('1');
+    await pickPipeBlock(wrapper, '1');
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(false);
     // Compute keeps its cell as the N/A placeholder — no All measurement under the block label.
@@ -267,7 +286,7 @@ describe('StatsAside', () => {
     expect(wrapper.text()).not.toContain('50%');
     // … and the selector stays reachable so All can be restored.
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
-    await wrapper.get('[data-testid="pipe-block"]').setValue('');
+    await pickPipeBlock(wrapper, '');
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
     expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
@@ -1609,6 +1628,103 @@ describe('StatsAside', () => {
       edges: expect.arrayContaining([expect.objectContaining({ label: expect.any(String) })]),
     });
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-037: archDiagram Metric select sits above the diagram and rebuilds labels', async () => {
+    const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
+    const archCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,l2_cached_ratio,50',
+      '2,hbm_to_l2_syn_gbs,1.5',
+      '3,hbm_to_l2_syn_cnt,8',
+      '4,hbm_to_l2_syn_ratio,0.25',
+    ].join('\n');
+    const topo = topologyFromArchDiagramMetrics(archCsv)!;
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          profile: 'emulate',
+          memoryTopology: topo,
+          csvTexts: { 'ArchDiagramMetrics.csv': archCsv },
+          memoryTables: [
+            {
+              fileName: 'ArchDiagramMetrics.csv',
+              headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+              rows: [],
+              blockIds: [],
+            },
+          ],
+        }),
+        capabilities: ['archDiagram'],
+      },
+    });
+    const switcher = wrapper.get('[data-testid="topology-metric-switcher"]');
+    expect(switcher.text()).toContain('指标');
+    expect(wrapper.get('[data-testid="topology-metric-select"]').attributes('data-value')).toBe(
+      'bandwidth_per_operator',
+    );
+    expect(wrapper.text()).toContain('1.50 GB/s');
+    await wrapper.get('[data-testid="topology-metric-select"] .pr-metric-select__trigger').trigger('click');
+    const opt = document.querySelector(
+      '[data-testid="topology-metric-option-number_of_requests"]',
+    ) as HTMLElement | null;
+    expect(opt).not.toBeNull();
+    opt!.click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain('8');
+    expect(wrapper.text()).not.toContain('1.50 GB/s');
+  });
+
+  it('PR-STATS-037: archDiagram mode with no drawable plates hides diagram (no *_gbs fallback)', async () => {
+    const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
+    // Operator BW only — no L2 peak, no *_cnt / *_ratio. Adapter snapshot is drawable; cnt mode is not.
+    const archCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,hbm_to_l2_syn_gbs,1.5',
+    ].join('\n');
+    const topo = topologyFromArchDiagramMetrics(archCsv)!;
+    expect(topo).toBeDefined();
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          profile: 'emulate',
+          memoryTopology: topo,
+          csvTexts: { 'ArchDiagramMetrics.csv': archCsv },
+          memoryTables: [
+            {
+              fileName: 'ArchDiagramMetrics.csv',
+              headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+              rows: [],
+              blockIds: [],
+            },
+          ],
+        }),
+        capabilities: ['archDiagram'],
+      },
+    });
+    expect(wrapper.find('[data-testid="stats-topology"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('1.50 GB/s');
+    await wrapper.get('[data-testid="topology-metric-select"] .pr-metric-select__trigger').trigger('click');
+    const opt = document.querySelector(
+      '[data-testid="topology-metric-option-number_of_requests"]',
+    ) as HTMLElement | null;
+    expect(opt).not.toBeNull();
+    opt!.click();
+    await wrapper.vm.$nextTick();
+    // DATA-30: hide plates only — Metric switcher stays so 算子带宽 is reachable again.
+    expect(wrapper.find('[data-testid="stats-topology"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('1.50 GB/s');
+    expect(wrapper.find('[data-testid="topology-metric-switcher"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="topology-metric-select"] .pr-metric-select__trigger').trigger('click');
+    const back = document.querySelector(
+      '[data-testid="topology-metric-option-bandwidth_per_operator"]',
+    ) as HTMLElement | null;
+    expect(back).not.toBeNull();
+    back!.click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="stats-topology"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('1.50 GB/s');
   });
 
   it('PR-STATS-025: aside shell is black; roofline / PIPE / topology islands are grey', async () => {

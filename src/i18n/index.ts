@@ -56,7 +56,7 @@ const messages = {
     ratedFreq: '额定频率',
     pipeSide: 'PIPE 侧',
     measure: '度量',
-    block: 'block',
+    block: '分块',
     blockAll: '全部',
     viewAll: '查看全部',
     modeSummary: '摘要',
@@ -113,6 +113,11 @@ const messages = {
     visibleRangeEnd: '可见范围终点',
     reportViews: '报告视图',
     memoryTopology: '内存拓扑',
+    metric: '指标',
+    archMetricMode: '架构图指标',
+    archMetricBandwidthPerOperator: '算子带宽',
+    archMetricBandwidthPerRequest: '请求带宽',
+    archMetricNumberOfRequests: '请求次数',
     tabsNotSupported: '暂不支持',
     focusMeasureRange: '聚焦度量范围',
     shortcuts: '快捷键说明',
@@ -198,7 +203,7 @@ const messages = {
     ratedFreq: 'Rated freq',
     pipeSide: 'PIPE side',
     measure: 'Measure',
-    block: 'block',
+    block: 'Block',
     blockAll: 'All',
     viewAll: 'View all',
     modeSummary: 'Summary',
@@ -251,6 +256,11 @@ const messages = {
     visibleRangeEnd: 'Visible range end',
     reportViews: 'Report views',
     memoryTopology: 'Memory topology',
+    metric: 'Metric',
+    archMetricMode: 'Architecture diagram metric',
+    archMetricBandwidthPerOperator: 'Bandwidth per operator',
+    archMetricBandwidthPerRequest: 'Bandwidth per request',
+    archMetricNumberOfRequests: 'Number of requests',
     tabsNotSupported: 'Not supported',
     focusMeasureRange: 'Focus measure range',
     itemsSelected: '{n} items selected.',
@@ -333,4 +343,11 @@ export function taskCountLabel(count: number, locale?: string): string {
 /** Localized Card-header gutter metric option label. */
 export function gutterMetricLabel(metric: GutterMetric, locale?: string): string {
   return t(GUTTER_METRIC_MESSAGE[metric], locale);
+}
+
+/** Localized ArchDiagram metric-mode option label (aside + topology fullscreen). */
+export function archMetricModeLabel(mode: string, locale?: string): string {
+  if (mode === 'bandwidth_per_operator') return t('archMetricBandwidthPerOperator', locale);
+  if (mode === 'bandwidth_per_request') return t('archMetricBandwidthPerRequest', locale);
+  return t('archMetricNumberOfRequests', locale);
 }

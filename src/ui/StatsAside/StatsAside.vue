@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { t, type MessageKey } from '../../i18n';
+import { t, archMetricModeLabel, type MessageKey } from '../../i18n';
 import type {
   BandwidthCardModel,
   MemoryTopologyModel,
@@ -19,6 +19,13 @@ import {
   blockIdsInOrder,
   hasDrawableTopology,
 } from '../../adapters/memoryTopology';
+import {
+  ARCH_DIAGRAM_DEFAULT_METRIC_MODE,
+  ARCH_DIAGRAM_METRIC_MODES,
+  archDiagramCsvFromTexts,
+  topologyFromArchDiagramMetrics,
+  type ArchDiagramMetricMode,
+} from '../../adapters/emulateMemoryTopology';
 import CsvFieldListPanel from './CsvFieldListPanel/CsvFieldListPanel.vue';
 import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vue';
@@ -26,12 +33,18 @@ import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import CannbotIcon from './CannbotIcon.vue';
 import CloseButton from '../CloseButton.vue';
+import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import type { CannbotScope } from '../../domain/cannbot';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
   locale?: string;
   capabilities?: ReportCapability[];
+  /**
+   * Emulate ArchDiagram metric mode. When the host passes it (ProfilingReport), aside +
+   * topology fullscreen share one selection; omit for standalone mounts (local default).
+   */
+  archMetricMode?: ArchDiagramMetricMode;
 }>();
 
 const emit = defineEmits<{
@@ -41,6 +54,7 @@ const emit = defineEmits<{
   'open-pipe-details': [];
   'open-topology-fullscreen': [model: MemoryTopologyModel];
   'open-cannbot': [scope: CannbotScope];
+  'update:archMetricMode': [mode: ArchDiagramMetricMode];
 }>();
 
 type PipeSide = 'cube' | 'vector';
@@ -229,6 +243,13 @@ const blockIds = computed(() =>
   blockIdsInOrder([...(props.report?.computeTables ?? []), ...(props.report?.memoryTables ?? [])]),
 );
 
+/** `''` = All, then every report `block_id` (same order as the native select it replaced). */
+const blockSelectOptions = computed(() => ['', ...blockIds.value]);
+
+function blockSelectLabel(value: string): string {
+  return value === '' ? t('blockAll', props.locale) : value;
+}
+
 const showBlockSwitcher = computed(() => showPipe.value && blockIds.value.length > 1);
 
 watch(
@@ -282,12 +303,37 @@ const memoryTablesWithPipe = computed(() => [
   ...(props.report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
 ]);
 
+/** Emulate Architecture Diagram (DATA-48a): metric mode switches `*_gbs` / `*_ratio` / `*_cnt`. */
+const isArchDiagram = computed(() => (props.capabilities ?? []).includes('archDiagram'));
+const archMetricModes = ARCH_DIAGRAM_METRIC_MODES;
+/** Host-owned when ProfilingReport passes `archMetricMode`; else session-local for unit mounts. */
+const localArchMetricMode = ref<ArchDiagramMetricMode>(ARCH_DIAGRAM_DEFAULT_METRIC_MODE);
+const archMetricMode = computed({
+  get: () => props.archMetricMode ?? localArchMetricMode.value,
+  set: (mode: ArchDiagramMetricMode) => {
+    if (props.archMetricMode !== undefined) emit('update:archMetricMode', mode);
+    else localArchMetricMode.value = mode;
+  },
+});
+
+watch(isArchDiagram, (on) => {
+  if (on) return;
+  if (props.archMetricMode !== undefined) emit('update:archMetricMode', ARCH_DIAGRAM_DEFAULT_METRIC_MODE);
+  else localArchMetricMode.value = ARCH_DIAGRAM_DEFAULT_METRIC_MODE;
+});
+
 /**
  * `All` = the adapter's snapshot (`summary.jsonl` categories, else the first drawable block's CSV);
  * a picked id = that block's Memory* CSV row (DATA-19 / DATA-29). Rebuilding the `All` aggregate here
  * would be a second copy of the adapter rule, free to drift from `report.memoryTopology`.
+ * Emulate / `archDiagram`: rebuild from ArchDiagramMetrics + selected metric mode only — never
+ * `?? report.memoryTopology` (that snapshot is always default `*_gbs`; a blank mode must DATA-30 hide).
  */
 const topologyModel = computed(() => {
+  if (isArchDiagram.value) {
+    const csv = archDiagramCsvFromTexts(props.report?.csvTexts);
+    return topologyFromArchDiagramMetrics(csv, archMetricMode.value);
+  }
   const id = blockId.value;
   const tables = memoryTablesWithPipe.value;
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
@@ -304,12 +350,14 @@ const topologyModel = computed(() => {
 
 const showTopology = computed(() => hasDrawableTopology(topologyModel.value));
 
+/** True only when there is no stacked chrome left — ArchDiagram keeps the Metric stack even if plates are DATA-30 absent. */
 const csvOnly = computed(
   () =>
     !hasSummary.value &&
     !showPipe.value &&
     !showRoofline.value &&
     !showTopology.value &&
+    !isArchDiagram.value &&
     (showCompute.value || showMemory.value),
 );
 
@@ -899,23 +947,14 @@ function backToReport() {
             data-testid="pipe-block-switcher"
           >
             <span>{{ t('block', locale) }}</span>
-            <select
+            <CardMetricSelect
               v-model="blockId"
-              class="pr-block-pill"
-              data-testid="pipe-block"
-              :aria-label="t('block', locale)"
-            >
-              <option value="">
-                {{ t('blockAll', locale) }}
-              </option>
-              <option
-                v-for="id in blockIds"
-                :key="id"
-                :value="id"
-              >
-                {{ id }}
-              </option>
-            </select>
+              :options="blockSelectOptions"
+              variant="inline"
+              test-id-prefix="pipe-block"
+              :ariaLabel="t('block', locale)"
+              :label-of="blockSelectLabel"
+            />
           </div>
           <div
             v-if="isMix"
@@ -992,7 +1031,7 @@ function backToReport() {
       </div>
 
       <div
-        v-if="showTopology || (showMemory && !csvOnly)"
+        v-if="showTopology || isArchDiagram || (showMemory && !csvOnly)"
         class="pr-stack-section"
         :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
       >
@@ -1022,10 +1061,26 @@ function backToReport() {
           </div>
         </div>
         <div
-          v-if="showTopology"
+          v-if="showTopology || isArchDiagram"
           class="pr-panel pr-panel--topo"
         >
+          <div
+            v-if="isArchDiagram"
+            class="pr-pipe-block"
+            data-testid="topology-metric-switcher"
+          >
+            <span>{{ t('metric', locale) }}</span>
+            <CardMetricSelect
+              v-model="archMetricMode"
+              :options="archMetricModes"
+              variant="inline"
+              test-id-prefix="topology-metric"
+              :ariaLabel="t('archMetricMode', locale)"
+              :label-of="(m) => archMetricModeLabel(m, locale)"
+            />
+          </div>
           <MemoryTopologyPanel
+            v-if="showTopology"
             :model="topologyModel"
             :locale="locale"
             show-fullscreen

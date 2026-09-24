@@ -8,7 +8,7 @@ Right-side analytics panel: shell chrome (title, close on the report shell only,
 
 ## Inputs
 
-**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — the only flag this component reads is `roofline`, which mounts the Roofline card (Phase 2, out of the current release — opt-in only). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
+**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — this component reads **`roofline`** (mounts the Roofline card; Phase 2, out of the current release — opt-in only) and **`archDiagram`** (emulate Architecture Diagram metric-mode dropdown + rebuild from ArchDiagramMetrics; PR-STATS-037). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
 
 **Data SSOT:** [docs/views/](../../../docs/views/) — [report-summary](../../../docs/views/report-summary.md), [pipe-occupancy](../../../docs/views/pipe-occupancy.md), [roofline](../../../docs/views/roofline.md), [memory-topology](../../../docs/views/memory-topology.md).
 
@@ -124,6 +124,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
     - the column label sits **beside** the score while the two fit on one line and **under** it when they do not;
     - a column narrower than the label **itself** ellipsizes it — and **every** column label (AICore, compute, BW) carries its full text in `title` unconditionally, so an ellipsis always has a tooltip;
     - **below a 430px content well** the 2×2 grid collapses to **one tile per row**, so the side columns keep the full well width instead of ~36px.
+41. **PR-STATS-037** — Emulate / `archDiagram`: a **Metric** label + `CardMetricSelect` (same chrome as swimlane card-header metric dropdowns) sits **above** the memory topology diagram; changing mode rebuilds edge labels from ArchDiagramMetrics for **that mode only** (`*_gbs` / `*_ratio` / `*_cnt`) — no fallback to the adapter’s default `*_gbs` snapshot; undrawable mode → DATA-30 hide **plates** only (Metric switcher stays; ArchDiagram-only does not flip to csv-only EAV). Hidden on compute. Mode is shared with topology 全屏 via optional `archMetricMode` v-model ([ProfilingReport](../ProfilingReport/ProfilingReport.spec.md) topology fullscreen Metric).
 
 ## Edge Cases
 
@@ -242,7 +243,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 | Panel | `#262626` (`--pr-bg-panel`), radius `4px`, padding `12px 10px 10px` |
 | Title | `14px` / `600` / `#ffffff` — **计算负载分析** (on aside shell, not inside panel) |
 | 详情 | `12px` / `#e6e6e6` |
-| Block select | Rendered when `PipeUtilization.csv` holds >1 `block_id` (PR-STATS-014b). Uses the shared block-pill class `.pr-block-pill` (`tokens.css`) — the one definition also used by [`CsvFieldListPanel`](./CsvFieldListPanel/CsvFieldListPanel.spec.md): fill `#2a2a2a`, `1px` stroke `#3a3a3a`, radius `4px`, text `#e0e0e0`, pad `4px 22px 4px 10px`, `min-width: 72px`, `cursor: pointer`, custom chevron (`appearance: none` — never the native arrow); caption `block` `#b8b8b8`, gap `6px` |
+| Block select | Rendered when `PipeUtilization.csv` holds >1 `block_id` (PR-STATS-014b). Localized caption via `t('block')` — **分块** (zh-CN) / **Block** (en); `#b8b8b8`, gap `6px` — + `CardMetricSelect` (same chrome as swimlane card-header / ArchDiagram Metric dropdowns, `variant="inline"`). Open menu width is at least the trigger and grows to the longest option (`width: max-content`) so labels are not clipped to a short selection. Memory overlay CSV block switcher still uses `.pr-block-pill` ([`CsvFieldListPanel`](./CsvFieldListPanel/CsvFieldListPanel.spec.md)). |
 | Cube\|Vector | pill `#111111`; active `#343434` / `#ffffff`; inactive `#b3b3b3`; radius `4px`; label `12px` |
 | Chart well | `#202020`, radius `4px`, padding `10px 8px 12px` |
 | Scale | `12px` / `#999999` |
@@ -273,6 +274,8 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 ## Changelog
 
 - **2026-09-24** — Overlay headers omit close (PR-STATS-006b); back remains the only way out of compute / memory / hardware drill-in.
+- **2026-09-24** — Block caption localizes (`分块` / `Block`); `CardMetricSelect` menu sizes to the longest option so a short selection does not clip longer labels.
+- **2026-09-23** — Inputs: capabilities also include `archDiagram` (PR-STATS-037); PIPE **Block** select uses `CardMetricSelect` (card-header / ArchDiagram Metric chrome) with caption **Block**; memory overlay keeps `.pr-block-pill`.
 - **2026-09-15** — Summary tiles stop cropping text when the aside is resized (PR-STATS-036): card label and duration secondary wrap inside the tile (the secondary breaks a no-space `opName`), the column label drops under the score when the two no longer fit on one line, an ellipsis always carries the full text in `title`, and the 2×2 grid collapses to one tile per row below a **430px** well. The grid previously ran `nowrap` inside an `overflow: hidden` column, so a label wider than its column — 并行使用率 / 负载均衡度, or `Parallel utilization` in `en` — was cropped with no cue; at the **280** minimum each side column was left ~36px. The 2×2 sketch chrome is unchanged at the default **480**.
 - **2026-09-15** — Every column label (AICore, compute, BW) carries its full text in `title`, not just the AICore pair, so the PR-STATS-036 ellipsis floor holds for all three cards rather than one (PR-STATS-036).
 - **2026-09-15** — Topology tables now include `PipeUtilization.csv` (from `computeTables`) next to the Memory* CSVs, so the UI-49 in-box **Scalar / Vec / Cube** badges have a source in the picked-block scope as well as under **All**; the builder looks files up by name, so no other table is affected (PR-STATS-019).

@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import type { GutterMetric } from '../../../domain/gutterMetrics';
-import { gutterMetricLabel } from '../../../i18n';
 
-const props = defineProps<{
-  modelValue: GutterMetric;
-  options: GutterMetric[];
-  ariaLabel: string;
-  locale?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: string;
+    options: readonly string[];
+    ariaLabel: string;
+    /** Resolve display text for a value (required — keeps this component domain-agnostic). */
+    labelOf: (value: string) => string;
+    /**
+     * `card` — gutter chrome on swimlane card strips (right-aligned, fixed width).
+     * `inline` — labeled row (e.g. StatsAside Metric), left-aligned beside a caption.
+     */
+    variant?: 'card' | 'inline';
+    /** Prefix for listbox / option testids (default `card-metric`). */
+    testIdPrefix?: string;
+  }>(),
+  { variant: 'card', testIdPrefix: 'card-metric' },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [metric: GutterMetric];
+  'update:modelValue': [value: string];
 }>();
 
 const open = ref(false);
@@ -21,27 +30,37 @@ const triggerRef = ref<HTMLButtonElement | null>(null);
 const menuStyle = ref<Record<string, string>>({});
 const activeIndex = ref(0);
 
-const label = computed(() => gutterMetricLabel(props.modelValue, props.locale));
-const activeId = computed(() =>
-  open.value && props.options[activeIndex.value]
-    ? `card-metric-option-${props.options[activeIndex.value]}`
-    : undefined,
-);
-
-function optionLabel(metric: GutterMetric): string {
-  return gutterMetricLabel(metric, props.locale);
-}
+const label = computed(() => props.labelOf(props.modelValue));
+const listboxId = computed(() => `${props.testIdPrefix}-listbox`);
+const activeId = computed(() => {
+  const opt = props.options[activeIndex.value];
+  return open.value && opt != null ? `${props.testIdPrefix}-option-${opt}` : undefined;
+});
 
 function placeMenu() {
   const el = rootRef.value;
   if (!el) return;
   const r = el.getBoundingClientRect();
+  // minWidth ≥ trigger so a short selection does not shrink the list; width follows
+  // the longest option (max-content) so labels are not ellipsized to the trigger.
   menuStyle.value = {
     position: 'fixed',
     top: `${r.bottom + 2}px`,
     left: `${r.left}px`,
-    width: `${r.width}px`,
+    minWidth: `${Math.max(r.width, 140)}px`,
+    width: 'max-content',
+    maxWidth: `${Math.max(160, window.innerWidth - 16)}px`,
   };
+}
+
+function clampMenuToViewport() {
+  const menu = menuRef.value;
+  if (!menu) return;
+  const mr = menu.getBoundingClientRect();
+  const pad = 8;
+  if (mr.right <= window.innerWidth - pad) return;
+  const left = Math.max(pad, window.innerWidth - pad - mr.width);
+  menuStyle.value = { ...menuStyle.value, left: `${left}px` };
 }
 
 function syncActiveFromValue() {
@@ -55,10 +74,10 @@ function toggle(e: Event) {
   open.value = !open.value;
 }
 
-function pick(metric: GutterMetric, e?: Event) {
+function pick(value: string, e?: Event) {
   e?.stopPropagation();
   e?.preventDefault();
-  emit('update:modelValue', metric);
+  emit('update:modelValue', value);
   open.value = false;
   triggerRef.value?.focus();
 }
@@ -129,6 +148,8 @@ watch(open, async (v) => {
     syncActiveFromValue();
     await nextTick();
     placeMenu();
+    await nextTick();
+    clampMenuToViewport();
   }
 });
 
@@ -162,8 +183,11 @@ watch(
   <div
     ref="rootRef"
     class="pr-metric-select"
-    :class="{ 'pr-metric-select--open': open }"
-    data-testid="card-metric-select"
+    :class="{
+      'pr-metric-select--open': open,
+      'pr-metric-select--inline': variant === 'inline',
+    }"
+    :data-testid="`${testIdPrefix}-select`"
     :data-value="modelValue"
     @click.stop
     @pointerdown.stop
@@ -176,7 +200,7 @@ watch(
       :aria-label="ariaLabel"
       :aria-expanded="open"
       aria-haspopup="listbox"
-      :aria-controls="open ? 'card-metric-listbox' : undefined"
+      :aria-controls="open ? listboxId : undefined"
       :aria-activedescendant="activeId"
       @click="toggle"
     >
@@ -189,19 +213,19 @@ watch(
     <Teleport to="body">
       <ul
         v-if="open"
-        id="card-metric-listbox"
+        :id="listboxId"
         ref="menuRef"
         class="pr-metric-select__menu"
         role="listbox"
         tabindex="-1"
         :style="menuStyle"
-        data-testid="card-metric-menu"
+        :data-testid="`${testIdPrefix}-menu`"
         @click.stop
         @pointerdown.stop
       >
         <li
           v-for="(opt, i) in options"
-          :id="`card-metric-option-${opt}`"
+          :id="`${testIdPrefix}-option-${opt}`"
           :key="opt"
           role="option"
           class="pr-metric-select__option"
@@ -210,10 +234,10 @@ watch(
             'pr-metric-select__option--active': i === activeIndex,
           }"
           :aria-selected="opt === modelValue"
-          :data-testid="`card-metric-option-${opt}`"
+          :data-testid="`${testIdPrefix}-option-${opt}`"
           @click="pick(opt, $event)"
         >
-          {{ optionLabel(opt) }}
+          {{ labelOf(opt) }}
         </li>
       </ul>
     </Teleport>
@@ -227,6 +251,12 @@ watch(
   max-width: 118px;
   min-width: 0;
   flex: 0 1 118px;
+}
+
+.pr-metric-select--inline {
+  margin-left: 0;
+  max-width: 11.5rem;
+  flex: 0 1 auto;
 }
 
 .pr-metric-select__trigger {
@@ -265,6 +295,10 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
+}
+
+.pr-metric-select--inline .pr-metric-select__label {
+  text-align: left;
 }
 
 .pr-metric-select__chev {
@@ -315,8 +349,6 @@ watch(
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .pr-metric-select__option:hover,

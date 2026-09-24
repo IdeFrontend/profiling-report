@@ -6,6 +6,7 @@ import TimelineView from '../TimelineView/TimelineView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
+import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
@@ -62,6 +63,32 @@ function topologyReport() {
     // The adapter's `All` snapshot (PR-VM-012) — the aside reads it, it does not derive it.
     memoryTopology: firstLabelledMemoryTopology(memoryTables)!.model,
     csvTexts: { 'Memory.csv': 'block_id,aiv_gm_to_ub_bw(GB/s)\n0,1.2\n' },
+  };
+}
+
+/** Emulate ArchDiagramMetrics — drawable topology + Metric modes (PR-ROOT-019). */
+function archDiagramReport() {
+  const archCsv = [
+    'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+    '1,l2_cached_ratio,50',
+    '2,hbm_to_l2_syn_gbs,1.5',
+    '3,hbm_to_l2_syn_cnt,8',
+    '4,hbm_to_l2_syn_ratio,0.25',
+  ].join('\n');
+  const topo = topologyFromArchDiagramMetrics(archCsv)!;
+  return {
+    ...emptyReportViewModel(),
+    profile: 'emulate' as const,
+    memoryTopology: topo,
+    csvTexts: { 'ArchDiagramMetrics.csv': archCsv },
+    memoryTables: [
+      {
+        fileName: 'ArchDiagramMetrics.csv',
+        headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+        rows: [],
+        blockIds: [],
+      },
+    ],
   };
 }
 
@@ -1210,6 +1237,8 @@ describe('ProfilingReport scaffold', () => {
       true,
     );
     expect(overlay.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+    // Compute memoryDiagram: no ArchDiagram Metric chrome on the overlay.
+    expect(overlay.find('[data-testid="topology-fullscreen-metric-switcher"]').exists()).toBe(false);
     expect(wrapper.find('.pr-layout').exists()).toBe(true);
     expect(wrapper.findAll('[data-testid="no-timeline"]')).toHaveLength(0);
     // The chrome asset owns the arrows, so the panel no longer defines SVG <marker>s and
@@ -1226,6 +1255,89 @@ describe('ProfilingReport scaffold', () => {
       reportModel: markRaw({ ...topologyReport(), summary: { taskDurationUs: 99 } }),
     });
     expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-019: archDiagram Metric select appears in topology 全屏 and rebuilds labels', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs-metric',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(archDiagramReport()),
+        capabilities: ['archDiagram'],
+      },
+    });
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    expect(overlay.find('[data-testid="topology-fullscreen-metric-switcher"]').exists()).toBe(true);
+    expect(overlay.text()).toContain('1.50 GB/s');
+    await overlay.get('[data-testid="topology-fs-metric-select"] .pr-metric-select__trigger').trigger('click');
+    const opt = document.querySelector(
+      '[data-testid="topology-fs-metric-option-number_of_requests"]',
+    ) as HTMLElement | null;
+    expect(opt).not.toBeNull();
+    opt!.click();
+    await nextTick();
+    expect(overlay.text()).toContain('8');
+    expect(overlay.text()).not.toContain('1.50 GB/s');
+    // Shared mode: stacked aside Metric follows the fullscreen pick.
+    expect(wrapper.get('[data-testid="topology-metric-select"]').attributes('data-value')).toBe(
+      'number_of_requests',
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-019: fullscreen undrawable mode clears plates but keeps Metric select', async () => {
+    const archCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,hbm_to_l2_syn_gbs,1.5',
+    ].join('\n');
+    const topo = topologyFromArchDiagramMetrics(archCsv)!;
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs-empty-mode',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw({
+          ...emptyReportViewModel(),
+          profile: 'emulate' as const,
+          memoryTopology: topo,
+          csvTexts: { 'ArchDiagramMetrics.csv': archCsv },
+          memoryTables: [
+            {
+              fileName: 'ArchDiagramMetrics.csv',
+              headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+              rows: [],
+              blockIds: [],
+            },
+          ],
+        }),
+        capabilities: ['archDiagram'],
+      },
+    });
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    expect(wrapper.get('[data-testid="topology-fullscreen-overlay"]').text()).toContain('1.50 GB/s');
+    await wrapper
+      .get('[data-testid="topology-fs-metric-select"] .pr-metric-select__trigger')
+      .trigger('click');
+    const opt = document.querySelector(
+      '[data-testid="topology-fs-metric-option-number_of_requests"]',
+    ) as HTMLElement | null;
+    expect(opt).not.toBeNull();
+    opt!.click();
+    await nextTick();
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    expect(overlay.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+    expect(overlay.text()).not.toContain('1.50 GB/s');
+    expect(overlay.find('[data-testid="topology-fullscreen-metric-switcher"]').exists()).toBe(true);
+    await overlay.get('[data-testid="topology-fs-metric-select"] .pr-metric-select__trigger').trigger('click');
+    const back = document.querySelector(
+      '[data-testid="topology-fs-metric-option-bandwidth_per_operator"]',
+    ) as HTMLElement | null;
+    expect(back).not.toBeNull();
+    back!.click();
+    await nextTick();
+    expect(wrapper.get('[data-testid="topology-fullscreen-overlay"]').text()).toContain('1.50 GB/s');
+    expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
     wrapper.unmount();
   });
 
