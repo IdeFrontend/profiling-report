@@ -433,17 +433,23 @@ const pipeSideOptions = computed((): PipeSide[] => {
   return PIPE_SIDE_ORDER.filter((s) => present.has(s));
 });
 
-/** Emulate multi-core: ≥2 of aic|aiv0|aiv1 — show Cube|Vector 0|Vector 1 toggle (UI-54). */
-const isEmulatePipeCores = computed(() => {
+/** Emulate-shaped occupancy: any of aic|aiv0|aiv1 present (UI-54). */
+const hasEmulatePipeCores = computed(() => {
+  const n = pipeSideOptions.value.filter((s) => EMULATE_PIPE_SIDES.includes(s)).length;
+  return n >= 1;
+});
+
+/** Multi-core emulate: ≥2 sides → Cube|Vector 0|Vector 1 toggle. */
+const showEmulatePipeToggle = computed(() => {
   const n = pipeSideOptions.value.filter((s) => EMULATE_PIPE_SIDES.includes(s)).length;
   return n >= 2;
 });
 
-const showPipeSideToggle = computed(() => isMix.value || isEmulatePipeCores.value);
+const showPipeSideToggle = computed(() => isMix.value || showEmulatePipeToggle.value);
 
 watch(
   () =>
-    [isMix.value, knownSide.value, isEmulatePipeCores.value, pipeSideOptions.value] as const,
+    [isMix.value, knownSide.value, hasEmulatePipeCores.value, pipeSideOptions.value] as const,
   ([mix, side, emulateCores, options]) => {
     // Keep the user's pick across option-array recomputes; only default when absent.
     if (mix || emulateCores) {
@@ -467,7 +473,9 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
 
 const visiblePipes = computed(() => {
   const all = scopedPipeOccupancy.value;
-  if (isMix.value || isEmulatePipeCores.value) {
+  // Emulate sides (`aic`/`aiv0`/`aiv1`) must not fall through to compute knownSide
+  // (`aic`→cube / `aiv*`→vector) — that blanks a single-core pack (UI-54).
+  if (isMix.value || hasEmulatePipeCores.value) {
     return all.filter((p) => matchesSide(p, pipeSide.value));
   }
   if (knownSide.value == null) return all;

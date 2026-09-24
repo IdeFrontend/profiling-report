@@ -400,6 +400,48 @@ describe('StatsAside', () => {
     expect(rows).toContain('26');
   });
 
+  it('PR-STATS-038: single emulate core keeps bars with opType AIC/AIV (UI-54)', async () => {
+    // After UI-54 drops unresolved cores, a pack may have only side aic (or only aiv0).
+    // Must not fall through to knownSide (aic→cube / aiv→vector) and blank the list.
+    const aicOnly = [
+      { id: 'scalar', label: 'Scalar', ratio: 0.505, colorKey: 'scalar', side: 'aic' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
+    ];
+    const aic = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1, opType: 'AIC' },
+          pipeOccupancy: aicOnly,
+        }),
+      },
+    });
+    await aic.get('[data-testid="pipe-occupancy"]');
+    expect(aic.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
+    let rows = aic.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('Scalar');
+    expect(rows).toContain('51');
+    expect(rows).toContain('MTE3');
+
+    const aivOnly = [
+      { id: 'scalar', label: 'Scalar', ratio: 0.484, colorKey: 'scalar', side: 'aiv0' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },
+    ];
+    const aiv = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1, opType: 'AIV' },
+          pipeOccupancy: aivOnly,
+        }),
+      },
+    });
+    await aiv.get('[data-testid="pipe-occupancy"]');
+    expect(aiv.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
+    rows = aiv.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('Scalar');
+    expect(rows).toContain('48');
+    expect(rows).toContain('19');
+  });
+
   it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {
     const pipes = [
       { id: 'cube', label: 'Cube', ratio: 0.8, colorKey: 'cube', side: 'cube' as const },
