@@ -26,16 +26,19 @@ const props = withDefaults(
     model: SwimlaneModel | null;
     locale?: string;
     height?: number;
-    /** Live marquee: header count only, no table body (avoids 1000-row layout mid-drag). */
+    /** Live marquee: header count comes from `liveCount` when present (ids-only preview). */
     livePreview?: boolean;
     /** Union size while live; used when `selectedEvents` is not the live set. */
     liveCount?: number;
+    /** Active marquee within the settle window: keep the stale table dimmed, no recalc. */
+    dimmed?: boolean;
   }>(),
   {
     height: DOCK_HEIGHT_COLLAPSED,
     locale: undefined,
     livePreview: false,
     liveCount: undefined,
+    dimmed: false,
   },
 );
 
@@ -83,7 +86,6 @@ const selectedCount = computed(() =>
 );
 
 const rows = computed<Row[]>(() => {
-  if (props.livePreview) return [];
   return props.selectedEvents.map((event) => ({
     id: event.id,
     event,
@@ -98,7 +100,7 @@ const rows = computed<Row[]>(() => {
 
 /**
  * Keep only the visible window sorted. Full `rows` still drive the header count and
- * bar maxima; live marquees are also membership-guarded / throttled in the root so
+ * bar maxima; live marquees are membership-guarded and settle-debounced in the root so
  * this does not re-run on every pointermove with an unchanged id set.
  */
 function selectTopRows(
@@ -320,8 +322,11 @@ function toggleExpanded(): void {
       @scroll.passive="onBodyScroll"
     >
       <table
-        v-if="!livePreview"
         class="pr-multi-select__table"
+        :class="{
+          'pr-multi-select__table--dimmed': dimmed,
+          'pr-multi-select__table--inert': livePreview,
+        }"
         :style="{ '--pr-msel-row-h': `${ROW_HEIGHT_PX}px` }"
       >
         <thead>
@@ -532,6 +537,20 @@ function toggleExpanded(): void {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+  transition: opacity 150ms ease;
+}
+
+/* Active marquee inside the 200ms settle window: the table stays mounted but dimmed
+   (stale rows) until the selection settles and is recalculated. */
+.pr-multi-select__table--dimmed {
+  opacity: 0.4;
+}
+
+/* A live marquee keeps the table non-interactive for the whole gesture — name clicks
+   (select-single) and column sort must not fire mid-drag, even after the settle has
+   resolved the stale rows and cleared the dim. */
+.pr-multi-select__table--inert {
+  pointer-events: none;
 }
 
 .pr-multi-select__table th {
