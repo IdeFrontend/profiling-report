@@ -152,7 +152,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 116. **PR-CANVAS-116** — When post-commit ensure runs (PR-CANVAS-115 gate) and the latest edge-autoscroll that moved scroll was **not** up (none, or down): the reveal range is the **selected lane rows** (top of topmost … bottom of bottommost) in wrap scroll space.
 117. **PR-CANVAS-117** — When post-commit ensure runs (PR-CANVAS-115 gate) and the latest edge-autoscroll that moved scroll was **up**: the reveal range is the mouse-up cursor content Y (degenerate top=bottom), not the selection lane range.
 118. **PR-CANVAS-118** — Vertical wheel (and other `scroll-y` emits) apply `localScrollY` and **flush-paint** in the same turn so the canvas does not lag a frame behind gutter/card strips that already consumed the emit. Paint uses `localScrollY` even when parent `props.view.scrollY` has not caught up yet.
-119. **PR-CANVAS-119** — Live marquee left/right edge bands emit `pan` with the same 40px band and 12px/frame feel as vertical edge autoscroll (`PR-CANVAS-112`); the drag anchor stays fixed in **time** space so each pan step stretches the rect. The marquee rect (border + fill) paints above Card strip expanders (`z-index: 9`).
+119. **PR-CANVAS-119** — Live marquee left/right edge bands emit `pan` with the same 40px band and 12px/frame feel as vertical edge autoscroll (`PR-CANVAS-112`); the drag anchor stays fixed in **time** space so each pan step stretches the rect. The local time window is **clamped to model `minTime`/`maxTime`** the same way `panBy` clamps (parent props lag while `marqueePressActive`). Holding the band at a bound stops further pan. The marquee rect (border + fill) paints above Card strip expanders (`z-index: 9`).
 
 
 ## Edge Cases
@@ -188,6 +188,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-24** — Marquee horizontal edge pan clamps the local time window to model bounds (`PR-CANVAS-119`).
 - **2026-09-24** — Marquee rect paints above Card strip expanders (`z-index: 9`); horizontal edge autoscroll (`PR-CANVAS-119`).
 - **2026-09-23** — Live marquee skips hit-test when the rounded CSS rect is unchanged (`PR-CANVAS-111`); coverage compare is a length + first/mid/last digest (`PR-CANVAS-101`).
 - **2026-09-23** — Shift+union snapshots the committed ids at pointerdown so reversing the live rect can drop uncovered events (`PR-CANVAS-110`).

@@ -3455,6 +3455,86 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-119: horizontal edge pan clamps local window to model bounds', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'p-1',
+              name: 'P',
+              threads: [
+                {
+                  id: 't-1',
+                  name: 'T',
+                  events: [{ id: 'e1', name: 'E1', startTime: 100, duration: 200 }],
+                },
+              ],
+            },
+          ],
+        },
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        // Already at the right bound — further right-edge pan must not drift past maxTime.
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 };
+    Object.defineProperty(wrap, 'clientWidth', { value: box.width, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: box.height, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await fireAllDeviceRo();
+    setView.mockClear();
+
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await canvas.trigger('pointerdown', { clientX: 100, clientY: 80, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 110, clientY: 80, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    frames.length = 0;
+
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 390, clientY: 80, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    for (let i = 0; i < 20; i++) {
+      const cb = frames.shift();
+      if (!cb) break;
+      cb(0);
+      await wrapper.vm.$nextTick();
+    }
+    // At the bound: no positive pan, and paint view never exceeds maxTime.
+    const pans = (wrapper.emitted('pan') ?? []) as unknown as number[][];
+    expect(pans.every((c) => (c[0] as number) <= 0)).toBe(true);
+    for (const call of setView.mock.calls) {
+      const v = call[0] as { startTime: number; endTime: number };
+      expect(v.startTime).toBeGreaterThanOrEqual(0);
+      expect(v.endTime).toBeLessThanOrEqual(1000 + 1e-9);
+    }
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 390, clientY: 80 }));
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-113: wrap shrink does not edge-autoscroll under a stationary pointer', async () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {

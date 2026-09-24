@@ -10,7 +10,7 @@ import {
   type SwimlaneModel,
   type SwimlaneViewWindow,
 } from '../../../../domain/types';
-import { normalizeMeasureRange } from '../../../../domain/viewState';
+import { normalizeMeasureRange, panBy } from '../../../../domain/viewState';
 import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
@@ -394,14 +394,31 @@ function emitScrollY(y: number, settled = false): void {
   flushPaint();
 }
 
-/** Same-turn horizontal pan during marquee edge autoscroll (mirrors emitScrollY). */
-function emitPanDelta(deltaTime: number): void {
-  if (deltaTime === 0) return;
-  localStartTime += deltaTime;
-  localEndTime += deltaTime;
-  emit('pan', deltaTime);
+/**
+ * Same-turn horizontal pan during marquee edge autoscroll (mirrors emitScrollY).
+ * Clamps the local time window to model bounds the same way `panBy` does — the view
+ * watch skips while `marqueePressActive`, so parent clamp alone would leave paint /
+ * marquee hit-test drifting past min/max (PR-CANVAS-119).
+ * @returns true when the local window actually moved.
+ */
+function emitPanDelta(deltaTime: number): boolean {
+  if (deltaTime === 0) return false;
+  const bounds = props.model
+    ? { minTime: props.model.minTime, maxTime: props.model.maxTime }
+    : undefined;
+  const next = panBy(
+    { startTime: localStartTime, endTime: localEndTime, scrollY: localScrollY },
+    deltaTime,
+    bounds,
+  );
+  const applied = next.startTime - localStartTime;
+  if (applied === 0) return false;
+  localStartTime = next.startTime;
+  localEndTime = next.endTime;
+  emit('pan', applied);
   applyViewState();
   flushPaint();
+  return true;
 }
 
 /** Soft-clamp temporary marquee overscroll once the gesture ends (PR-CANVAS-109). */
@@ -1413,8 +1430,8 @@ function tickMarqueeAutoScroll(): void {
     const w = Math.max(1, syncTrackWidth());
     const span = Math.max(1, localEndTime - localStartTime);
     const deltaTime = (marqueeAutoScrollDirX * MARQUEE_EDGE_SCROLL_PX * span) / w;
-    emitPanDelta(deltaTime);
-    moved = true;
+    if (emitPanDelta(deltaTime)) moved = true;
+    else marqueeAutoScrollDirX = 0; // at model time bound
   }
   if (moved) {
     // Remap the rect against the scrolled / panned view using the last pointer position.
@@ -1424,8 +1441,8 @@ function tickMarqueeAutoScroll(): void {
     marqueeAutoScrollDirY === 0 ||
     (marqueeAutoScrollDirY < 0 && localScrollY <= 0) ||
     (marqueeAutoScrollDirY > 0 && localScrollY >= maxScrollY());
-  // Horizontal pan is clamped by the parent; keep ticking while the pointer stays in-band.
-  const keepGoing = (!atYLimit && marqueeAutoScrollDirY !== 0) || marqueeAutoScrollDirX !== 0;
+  const keepGoing =
+    (!atYLimit && marqueeAutoScrollDirY !== 0) || marqueeAutoScrollDirX !== 0;
   if (keepGoing) {
     marqueeAutoScrollRaf = requestAnimationFrame(tickMarqueeAutoScroll);
   } else {
