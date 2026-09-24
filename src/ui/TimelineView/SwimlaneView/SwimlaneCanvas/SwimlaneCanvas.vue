@@ -282,15 +282,15 @@ const MARQUEE_EDGE_AUTOSCROLL_PX = 40;
 const MARQUEE_EDGE_SCROLL_PX = 12;
 /**
  * After marquee commit the dock may tween taller (~200ms) and shrink the wrap.
- * Keep the release content Y this far above the new wrap bottom when scrolling it back into view.
+ * Keep this much margin above/below the selection when ensure-scrolling it into view.
  */
-const MARQUEE_RELEASE_VISIBLE_PAD_PX = 8;
+const MARQUEE_RELEASE_MARGIN_PX = 12;
 /** Stop waiting for wrap height to settle after dock grow (CSS height transition is 200ms). */
 const MARQUEE_RELEASE_LAYOUT_WAIT_MS = 280;
 /** Match `.pr-dock` height transition when scrolling focus Y back into view after dock grow. */
 const DOCK_SCROLL_ANIM_MS = 200;
 let marqueeAutoScrollRaf = 0;
-/** Cancel handle for post-dock `ensureContentYVisible` scroll tween. */
+/** Cancel handle for post-dock ensure-scroll tween. */
 let cancelEnsureScrollAnim: (() => void) | null = null;
 /** −1 = toward top, +1 = toward bottom, 0 = idle. */
 let marqueeAutoScrollDirY = 0;
@@ -1243,36 +1243,49 @@ function cancelMarqueeReleaseVisible(): void {
 }
 
 /**
- * Scroll so `contentY` (scroll-space: localScrollY + viewport-local y) stays inside the wrap.
- * Used after dock grow eats the bottom of the swimlane under the release / selection.
- * Tweens over `DOCK_SCROLL_ANIM_MS` to match the dock height enter/leave (reduced-motion → instant).
+ * Minimal scroll so `[selTop, selBottom]` (wrap scroll space) stays inside the wrap with
+ * `MARQUEE_RELEASE_MARGIN_PX` above and below. Prefers revealing the bottom edge when the
+ * range is taller than the wrap (dock grow clips from below). `maxScrollDelta` caps how far
+ * we may move from the current scroll — typically the wrap shrink from preview→session plus
+ * margin — so an inflated focus Y cannot yank the timeline far from the release view.
  */
-function ensureContentYVisible(contentY: number): void {
+function ensureSelectionRangeVisible(
+  selTop: number,
+  selBottom: number,
+  maxScrollDelta: number,
+): void {
   const viewH = wrapRef.value?.clientHeight ?? 0;
   if (viewH <= 0) return;
-  // Paint hard-clamps when marqueePressActive is clear; compare against that window.
-  const top = clampScrollY(localScrollY);
-  const bottom = top + viewH;
-  if (contentY >= top && contentY < bottom) {
-    if (top !== localScrollY) emitScrollY(top, true);
-    else emit('scroll-y', localScrollY, true);
-    return;
+  const margin = MARQUEE_RELEASE_MARGIN_PX;
+  const topY = Math.min(selTop, selBottom);
+  const bottomY = Math.max(selTop, selBottom);
+  let next = localScrollY;
+  // Bottom overflow first (dock eats the bottom of the wrap).
+  if (bottomY + margin > next + viewH) {
+    next = bottomY + margin - viewH;
   }
-  let next = top;
-  if (contentY >= bottom) {
-    next = contentY - viewH + MARQUEE_RELEASE_VISIBLE_PAD_PX;
-  } else {
-    next = contentY - MARQUEE_RELEASE_VISIBLE_PAD_PX;
+  // Top overflow — if the range is taller than the wrap, re-prefer bottom afterward.
+  if (topY - margin < next) {
+    next = topY - margin;
+  }
+  if (bottomY + margin > next + viewH) {
+    next = bottomY + margin - viewH;
+  }
+  // Cap: never scroll more than the dock-driven wrap shrink (+ margin).
+  if (Number.isFinite(maxScrollDelta) && maxScrollDelta >= 0) {
+    const lo = localScrollY - maxScrollDelta;
+    const hi = localScrollY + maxScrollDelta;
+    next = Math.min(hi, Math.max(lo, next));
   }
   next = clampScrollY(next);
-  if (next === localScrollY) {
+  if (Math.abs(next - localScrollY) < 0.5) {
     emit('scroll-y', localScrollY, true);
     return;
   }
   cancelEnsureScrollAnim?.();
   cancelEnsureScrollAnim = null;
   const from = localScrollY;
-  if (prefersReducedMotion() || Math.abs(next - from) < 0.5) {
+  if (prefersReducedMotion()) {
     emitScrollY(next, true);
     return;
   }
@@ -1292,12 +1305,14 @@ function ensureContentYVisible(contentY: number): void {
 
 /**
  * Dock height tweens after live class drops; wait until wrap height is stable (or timeout)
- * then keep the chosen post-commit content Y visible (cursor or selection bottom) —
- * only when the dock grew and ate wrap space vs gesture start (PR-CANVAS-115).
+ * then minimally scroll so the selection range stays visible — only when the dock grew and
+ * ate wrap space vs gesture start (PR-CANVAS-115).
  */
-function scheduleEnsureMarqueeReleaseVisible(contentY: number): void {
+function scheduleEnsureMarqueeReleaseVisible(selTop: number, selBottom: number): void {
   cancelMarqueeReleaseVisible();
   const startH = marqueeWrapHAtGestureStart;
+  // Height at commit is still the live preview wrap; session grow shrinks further.
+  const hAtCommit = wrapRef.value?.clientHeight ?? startH;
   const started = performance.now();
   let lastH = -1;
   let stable = 0;
@@ -1311,7 +1326,10 @@ function scheduleEnsureMarqueeReleaseVisible(contentY: number): void {
     }
     if (stable >= 2 || now - started >= MARQUEE_RELEASE_LAYOUT_WAIT_MS) {
       // Already-open dock (unchanged height) or empty close restoring wrap: skip.
-      if (H < startH - 0.5) ensureContentYVisible(contentY);
+      if (H < startH - 0.5) {
+        const maxDelta = Math.max(0, hAtCommit - H) + MARQUEE_RELEASE_MARGIN_PX;
+        ensureSelectionRangeVisible(selTop, selBottom, maxDelta);
+      }
       marqueeWrapHAtGestureStart = 0;
       return;
     }
@@ -1448,22 +1466,35 @@ function snapContentYToRowBottom(contentY: number): number {
 }
 
 /**
- * Bottom edge of the bottommost committed event's lane row, in **wrap** scroll space
- * (`localScrollY + viewportY`, including `contentTopPad`). Falls back to snapping the
- * marquee rect bottom when the commit is empty.
+ * Top/bottom of the committed selection in **wrap** scroll space (`layoutY + contentTopPad`).
+ * Falls back to the marquee rect (snapped to lane rows) when the commit is empty.
  */
-function selectionBottomContentYForCommit(commitEvents: SwimEvent[], rect: MarqueeRect): number {
+function selectionRangeContentYForCommit(
+  commitEvents: SwimEvent[],
+  rect: MarqueeRect,
+): { top: number; bottom: number } {
   const layout = backend.getLayout();
   const pad = props.contentTopPad ?? 0;
+  let top = Infinity;
   let bottom = -Infinity;
   for (const ev of commitEvents) {
     const item = findLaidOutEvent(layout, ev.id);
-    // item.y is layout/content space; ensureContentYVisible compares wrap space.
-    if (item) bottom = Math.max(bottom, item.y + LANE_HEIGHT + pad);
+    // item.y is layout/content space; ensure compares wrap space.
+    if (!item) continue;
+    top = Math.min(top, item.y + pad);
+    bottom = Math.max(bottom, item.y + LANE_HEIGHT + pad);
   }
-  if (Number.isFinite(bottom)) return bottom;
+  if (Number.isFinite(bottom) && Number.isFinite(top)) return { top, bottom };
+  const wrapTop = localScrollY + Math.min(rect.y0, rect.y1);
   const wrapBottom = localScrollY + Math.max(rect.y0, rect.y1);
-  return snapContentYToRowBottom(wrapBottom - pad) + pad;
+  const snappedBottom = snapContentYToRowBottom(wrapBottom - pad) + pad;
+  const snappedTop = snapContentYToRowBottom(wrapTop - pad) - LANE_HEIGHT + pad;
+  return { top: Math.min(snappedTop, snappedBottom), bottom: Math.max(snappedTop, snappedBottom) };
+}
+
+/** @deprecated Use selectionRangeContentYForCommit — kept for existing unit probes. */
+function selectionBottomContentYForCommit(commitEvents: SwimEvent[], rect: MarqueeRect): number {
+  return selectionRangeContentYForCommit(commitEvents, rect).bottom;
 }
 
 function snapshotShiftBaseIds(): string[] {
@@ -1637,7 +1668,7 @@ function onMarqueeDragEnd(): void {
   marqueeAnchor = null;
   marqueePending = false;
   // Soft-clamp overscroll while press is still live so paint + localScrollY agree
-  // before ensureContentYVisible runs (PR-CANVAS-109).
+  // before post-commit ensure-scroll runs (PR-CANVAS-109).
   settleMarqueeOverscroll(false);
   // Canvas `pointerup` bubbles to window first, so the flag is still set when it
   // decides whether to select — clear it only here, once the gesture is truly over.
@@ -1656,14 +1687,15 @@ function onMarqueeDragEnd(): void {
   const releaseContentY = local != null ? localScrollY + local.y : null;
   const rectEvents = eventsInMarquee(rect);
   const commitEvents = marqueeShift ? eventsForMarqueeCommit(rectEvents) : rectEvents;
-  // Selection-border focus uses the bottom of the bottommost selected *row* (full lane
-  // height), not the raw marquee/cursor Y — a mid-row release must not leave the row clipped.
-  const selectionBottomContentY = selectionBottomContentYForCommit(commitEvents, rect);
-  // Latest edge-autoscroll: up → keep cursor visible; otherwise keep selection bottom visible.
+  const selectionRange = selectionRangeContentYForCommit(commitEvents, rect);
+  // Latest edge-autoscroll up → reveal cursor only; else the selection lane range.
   const preferCursor = marqueeLastEdgeScrollDir < 0;
-  const focusContentY = preferCursor
-    ? (releaseContentY ?? selectionBottomContentY)
-    : selectionBottomContentY;
+  let selTop = selectionRange.top;
+  let selBottom = selectionRange.bottom;
+  if (preferCursor && releaseContentY != null) {
+    selTop = releaseContentY;
+    selBottom = releaseContentY;
+  }
   marqueeLastEdgeScrollDir = 0;
   // Hold committed ids through the sync emit so dim does not flash back to stale
   // props (parent re-renders one tick after `multi-select`). Clear on nextTick.
@@ -1679,8 +1711,8 @@ function onMarqueeDragEnd(): void {
   marqueeShift = false;
   marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   lastMarqueeHitFp = '';
-  // Closed→preview→session grow may clip the focus Y; skip when wrap did not shrink.
-  scheduleEnsureMarqueeReleaseVisible(focusContentY);
+  // Closed→preview→session grow may clip the selection; skip when wrap did not shrink.
+  scheduleEnsureMarqueeReleaseVisible(selTop, selBottom);
   void nextTick(() => {
     marqueePreviewIds = null;
     sync();
@@ -2959,6 +2991,7 @@ defineExpose({
   },
   computeMarqueePreviewDockHeight,
   /** Test helper: wrap-space bottom of the bottommost committed lane row. */
+  selectionRangeContentYForCommit,
   selectionBottomContentYForCommit,
 });
 </script>

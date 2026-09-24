@@ -3700,10 +3700,10 @@ describe('SwimlaneCanvas', () => {
     box.bottom = 150;
 
     const rowBottom = 40 + 6 * 22 + 22; // LANE_GROUP_HEADER_HEIGHT + t-6 top + LANE_HEIGHT
-    const targetMin = rowBottom - 50;
-    const targetMax = rowBottom - 50 + 8;
+    const margin = 12;
+    const target = rowBottom + margin - 50;
     const before = wrapper.emitted('scroll-y')?.length ?? 0;
-    // Layout-settle rAF, then the 200ms ensureContentYVisible tween.
+    // Layout-settle rAF, then the 200ms ensureSelectionRangeVisible tween.
     for (let i = 0; i < 40; i++) {
       now += 16;
       const pending = frames.splice(0);
@@ -3715,18 +3715,106 @@ describe('SwimlaneCanvas', () => {
       if (
         (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
         last != null &&
-        last >= targetMin &&
-        last <= targetMax
+        Math.abs(last - target) <= 1
       ) {
         break;
       }
     }
     expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
     const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
-    // Full bottom row (194), not raw marquee Y (180) or cursor (120).
-    expect(scrolled).toBeGreaterThanOrEqual(targetMin);
-    expect(scrolled).toBeLessThanOrEqual(targetMax);
+    // Minimal: selection bottom + margin - viewH (not an overscroll toward content end).
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
     expect(scrolled).toBeGreaterThan(180 - 50);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-115: mild wrap shrink scrolls only by clip + margin', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    // Selection bottom ~194 — visible in 200px wrap; after shrink to 180 needs ~26px scroll.
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 150, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 220 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select')).toBeTruthy();
+
+    Object.defineProperty(wrap, 'clientHeight', { value: 180, configurable: true });
+    box.height = 180;
+    box.bottom = 280;
+
+    const rowBottom = 40 + 6 * 22 + 22;
+    const margin = 12;
+    const target = rowBottom + margin - 180;
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        Math.abs(last - target) <= 1
+      ) {
+        break;
+      }
+    }
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
+    // Must not jump near the old pin-to-bottom-of-tiny-wrap magnitude.
+    expect(scrolled).toBeLessThan(80);
 
     wrapper.unmount();
   });
@@ -3820,9 +3908,9 @@ describe('SwimlaneCanvas', () => {
 
     const before = wrapper.emitted('scroll-y')?.length ?? 0;
     const cursorContentY = scrollAtCommit + 50;
-    const targetMin = cursorContentY - 50;
-    const targetMax = cursorContentY - 50 + 8;
-    // Layout-settle rAF, then the 200ms ensureContentYVisible tween.
+    const margin = 12;
+    const target = cursorContentY + margin - 50;
+    // Layout-settle rAF, then the 200ms ensureSelectionRangeVisible tween.
     for (let i = 0; i < 40; i++) {
       now += 16;
       const pending = frames.splice(0);
@@ -3834,8 +3922,7 @@ describe('SwimlaneCanvas', () => {
       if (
         (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
         last != null &&
-        last >= targetMin &&
-        last <= targetMax
+        Math.abs(last - target) <= 1
       ) {
         break;
       }
@@ -3843,8 +3930,8 @@ describe('SwimlaneCanvas', () => {
     expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
     const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
     // Latest edge-scroll was up → focus release cursor (localY 50), not selection bottom (100).
-    expect(scrolled).toBeGreaterThanOrEqual(targetMin);
-    expect(scrolled).toBeLessThanOrEqual(targetMax);
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
     // Selection-bottom focus would land ~50px lower.
     expect(scrolled).toBeLessThan(scrollAtCommit + 100 - 50);
 
