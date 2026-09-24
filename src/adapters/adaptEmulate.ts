@@ -18,14 +18,14 @@ import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 import { parseCsv } from './parseCsv';
 import {
   csvTableFromPipeUtilizationHist,
-  pipeOccupancyFromHist,
-  pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
 
 export {
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
 
 /** Producer `manifest.json` only ([PROC-8]). */
@@ -236,15 +236,14 @@ export function adaptEmulate(
 
   const summary = {};
 
-  const histPipes = pipeOccupancyFromHist(payloadByName(payloads, PIPE_HIST_NAMES));
-  const utilPipes = pipeOccupancyFromPipesUtilization(
+  const pipeOccupancy = pipeOccupancyPreferHist(
+    payloadByName(payloads, PIPE_HIST_NAMES),
     payloadByName(payloads, PIPES_UTIL_NAMES),
     {
       queueTypes: payloadByName(payloads, INSTR_QUEUE_TYPE_NAMES),
       coreTypes: payloadByName(payloads, CORE_TYPE_NAMES),
     },
   );
-  const pipeOccupancy = histPipes.length > 0 ? histPipes : utilPipes;
 
   // Trace optional: PipeTrace.json or native core_*_tracing_report_*.json.
   // Absent → null swimlane; corrupt → throw. Values are µs (DATA-46); override

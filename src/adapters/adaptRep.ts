@@ -26,8 +26,7 @@ import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { buildMemoryTopologyFromCategories, firstLabelledMemoryTopology } from './memoryTopology';
 import {
   csvTableFromPipeUtilizationHist,
-  pipeOccupancyFromHist,
-  pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
 
 const COMPUTE_CSV_FILES = [
@@ -1006,29 +1005,26 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     summary,
     pipeOccupancy: (() => {
       // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` wins when present
-      // (compute aggregate). Emulate production uses adaptEmulate; this hist/csv/util cascade mainly
-      // serves adaptPayloads + mixed packs. When hist projects for UI-55 详情, occupancy prefers
-      // hist too (skip PipeUtilization.csv) — same as adaptEmulate (UI-54).
+      // (compute aggregate). Emulate production uses adaptEmulate; this cascade mainly serves
+      // adaptPayloads + mixed packs. When hist projects for UI-55 详情, occupancy prefers hist
+      // too (skip PipeUtilization.csv) — shared with adaptEmulate via `pipeOccupancyPreferHist`.
       const fromSummary = pipeOccupancyFromRows(
         summaryCategoryRows(summaryCategories, 'PipeUtilization'),
       );
       if (fromSummary.length > 0) return fromSummary;
-      if (histTable) {
-        const fromHist = pipeOccupancyFromHist(histPayload);
-        if (fromHist.length > 0) return fromHist;
-      } else {
+      const histPayloadBytes = histPayload;
+      const pipesPayload = payloadByName(payloads, ['PipesUtilization.csv']);
+      const utilDicts = {
+        queueTypes: payloadByName(payloads, ['InstrQueueTypes.csv']),
+        coreTypes: payloadByName(payloads, ['CoreTypes.csv']),
+      };
+      // Flat cascade mirroring adaptEmulate once summary is absent: hist → util.
+      // When hist does not project for 详情, try compute PipeUtilization.csv first.
+      if (!histTable) {
         const fromCsv = pipeOccupancyFromCsv(payloadByName(payloads, ['PipeUtilization.csv']));
         if (fromCsv.length > 0) return fromCsv;
-        const fromHist = pipeOccupancyFromHist(histPayload);
-        if (fromHist.length > 0) return fromHist;
       }
-      return pipeOccupancyFromPipesUtilization(
-        payloadByName(payloads, ['PipesUtilization.csv']),
-        {
-          queueTypes: payloadByName(payloads, ['InstrQueueTypes.csv']),
-          coreTypes: payloadByName(payloads, ['CoreTypes.csv']),
-        },
-      );
+      return pipeOccupancyPreferHist(histPayloadBytes, pipesPayload, utilDicts);
     })(),
     overviewSeries: overviewSeriesFromSampling(
       payloadByName(payloads, ['Sampling.json', 'sampling.json']),

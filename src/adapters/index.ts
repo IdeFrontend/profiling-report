@@ -50,4 +50,5 @@ export {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';

@@ -7,6 +7,7 @@ import {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
 } from '../../src/adapters/pipeOccupancyEmulate';
 import { adaptPayloads } from '../../src/adapters/adaptRep';
 
@@ -118,6 +119,14 @@ describe('pipeOccupancyEmulate', () => {
     expect(mte3.map((p) => p.side).sort()).toEqual(['aic', 'aiv0', 'aiv1']);
     expect(mte3.find((p) => p.side === 'aiv0')?.ratio).toBeCloseTo(0.1856, 4);
     expect(mte3.find((p) => p.side === 'aiv1')?.ratio).toBeCloseTo(0.264, 4);
+  });
+
+  it('pipeOccupancyPreferHist prefers hist over PipesUtilization', () => {
+    const hist = 'PipeName,CoreName,Utilization\nSCALAR,AIC,50\n';
+    const util = 'CoreId,CoreTypeId,InstrQueueTypeId,PipeUtilization\n0,AIC,Scalar,10\n';
+    const items = pipeOccupancyPreferHist(enc.encode(hist), enc.encode(util));
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ id: 'scalar', side: 'aic', ratio: 0.5 });
   });
 
   it('adaptPayloads: hist only → computeTables projected ratios, no PipeUtilization.csv', () => {

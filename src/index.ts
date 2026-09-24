@@ -34,6 +34,7 @@ export {
   parseRep,
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
+  pipeOccupancyPreferHist,
 } from './adapters';
 
 export type * from './domain/types';

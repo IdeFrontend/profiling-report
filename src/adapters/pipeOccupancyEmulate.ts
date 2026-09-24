@@ -216,3 +216,17 @@ export function pipeOccupancyFromPipesUtilization(
   }
   return [...acc.values()].map((v) => v.item);
 }
+
+/**
+ * Shared hist → PipesUtilization occupancy cascade (UI-54).
+ * Used by `adaptEmulate` and by `adaptRep` after summary / compute CSV fallbacks.
+ */
+export function pipeOccupancyPreferHist(
+  histPayload?: Uint8Array,
+  pipesPayload?: Uint8Array,
+  dicts?: { queueTypes?: Uint8Array; coreTypes?: Uint8Array },
+): PipeOccupancyItem[] {
+  const hist = pipeOccupancyFromHist(histPayload);
+  if (hist.length > 0) return hist;
+  return pipeOccupancyFromPipesUtilization(pipesPayload, dicts);
+}
