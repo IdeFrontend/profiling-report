@@ -10,6 +10,7 @@ import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopo
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 /** Two linked events, so the dock mounts its Relevent column. */
 function depsModel(): SwimlaneModel {
@@ -1103,10 +1104,10 @@ describe('ProfilingReport scaffold', () => {
     await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
     expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
-    // The dock shell applies the hints modifier only while the hints table is its content.
-    expect(wrapper.get('[data-testid="dock"]').classes()).toContain('pr-dock--hints');
+    // The pane reuses the standard event-detail dock: no dedicated hints chrome on the shell.
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
 
-    // The dock's own close button dismisses it again (modifier goes with it).
+    // The dock's own close button dismisses it again.
     await wrapper.get('[data-testid="performance-hints-close"]').trigger('click');
     expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
     expect(wrapper.find('.pr-dock--hints').exists()).toBe(false);
@@ -1151,10 +1152,10 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.selectedEventId).toBeNull();
     expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
     expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="dock"]').classes()).toContain('pr-dock--hints');
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
 
     // A committed marquee is the other branch that used to win the slot. The shell keeps
-    // its hints chrome only while the pane is the content.
+    // its standard chrome either way — the pane never brings a hints modifier.
     const model = depsModel();
     const events = model.processes[0]!.threads[0]!.events;
     wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', events);
@@ -1167,7 +1168,100 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="dock"]').classes()).toContain('pr-dock--hints');
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-020: environment routes the 性能分析 trigger — vscode asks the host to open Problems, browser opens the internal dock', async () => {
+    const hintRow = {
+      message: 'UB bank conflicts detected. Try to optimize local memory accesses.',
+      typeName: 'shared_bank_conflicts',
+      origin: 'kernel',
+    } as const;
+
+    const vscodeWrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-vscode',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [hintRow],
+        },
+        capabilities: ['performanceHints'],
+        environment: 'vscode',
+      },
+    });
+
+    // Hints-only report: the post-mount DATA-33a reset leaves the aside closed, so the
+    // toolbar toggle is what opens it (same flow as the no-timeline test above).
+    await nextTick();
+    await vscodeWrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    await vscodeWrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+
+    expect(vscodeWrapper.emitted('open-performance-hints-in-problems')).toHaveLength(1);
+    expect(vscodeWrapper.find('[data-testid="dock"]').exists()).toBe(false);
+
+    const browserWrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-browser',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [hintRow],
+        },
+        capabilities: ['performanceHints'],
+        environment: 'browser',
+      },
+    });
+
+    await nextTick();
+    await browserWrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    await browserWrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+
+    expect(browserWrapper.emitted('open-performance-hints-in-problems')).toBeUndefined();
+    expect(browserWrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    expect(browserWrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+  });
+
+  it('PR-ROOT-021: the hints pane carries the shared dock expander and drives --pr-dock-h', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-expander',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [
+            {
+              message: 'UB bank conflicts detected. Try to optimize local memory accesses.',
+              typeName: 'shared_bank_conflicts',
+              origin: 'kernel',
+            },
+          ],
+        },
+        capabilities: ['performanceHints'],
+        environment: 'browser',
+      },
+    });
+
+    // Same browser flow as PR-ROOT-020: the hints-only report's DATA-33a aside reset means
+    // the toolbar toggle opens the aside before the 性能分析 详情 trigger can be clicked.
+    await nextTick();
+    await wrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+
+    const dock = wrapper.get('[data-testid="dock"]');
+    const expander = wrapper.get('[data-testid="performance-hints-expander"]');
+    expect(expander.attributes('aria-expanded')).toBe('false');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`);
+
+    await expander.trigger('click');
+    expect(expander.attributes('aria-expanded')).toBe('true');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`);
+
+    await expander.trigger('click');
+    expect(expander.attributes('aria-expanded')).toBe('false');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`);
 
     wrapper.unmount();
   });

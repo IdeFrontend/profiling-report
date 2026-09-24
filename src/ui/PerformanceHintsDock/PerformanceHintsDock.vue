@@ -1,17 +1,38 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { t } from '../../i18n';
 import type { PerformanceHintItem } from '../../domain/types';
 import CloseButton from '../CloseButton.vue';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
-defineProps<{
-  /** Joined hint rows (adapter preserves CSV order; 53 on gelu). */
-  rows: PerformanceHintItem[];
-  locale?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /** Joined hint rows (adapter preserves CSV order; 53 on gelu). */
+    rows: PerformanceHintItem[];
+    locale?: string;
+    /** Dock height in px, owned by the parent shell (shared with DetailPanel / MultiSelectSummary). */
+    height?: number;
+  }>(),
+  {
+    height: DOCK_HEIGHT_COLLAPSED,
+    locale: undefined,
+  },
+);
 
 const emit = defineEmits<{
   close: [];
+  'update:height': [height: number];
 }>();
+
+const expanded = computed(() => props.height >= DOCK_HEIGHT_EXPANDED);
+
+const expanderLabel = computed(() =>
+  t(expanded.value ? 'collapseDock' : 'expandDock', props.locale),
+);
+
+function toggleExpanded(): void {
+  emit('update:height', expanded.value ? DOCK_HEIGHT_COLLAPSED : DOCK_HEIGHT_EXPANDED);
+}
 
 /**
  * Instruction-address cell. `pc` keeps its exact decimal digits (the adapter never turns
@@ -35,6 +56,19 @@ function formatPc(pc: PerformanceHintItem['pc'] | null, locale?: string): string
     class="pr-hints"
     data-testid="performance-hints-dock"
   >
+    <button
+      type="button"
+      class="pr-hints__expander"
+      :class="{ 'pr-hints__expander--expanded': expanded }"
+      data-testid="performance-hints-expander"
+      :aria-label="expanderLabel"
+      :aria-expanded="expanded"
+      :title="expanderLabel"
+      @click="toggleExpanded"
+    >
+      <span class="pr-hints__expander-bar" />
+      <span class="pr-hints__expander-arrow" />
+    </button>
     <header class="pr-hints__head">
       <h3 class="pr-hints__title">
         {{ t('performanceAnalysis', locale) }}
@@ -115,12 +149,66 @@ function formatPc(pc: PerformanceHintItem['pc'] | null, locale?: string): string
 .pr-hints {
   display: flex;
   flex-direction: column;
+  /* Anchors the centred expander on the pane's own top edge — the shell owns the border. */
+  position: relative;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
   padding: 0 16px;
+}
+
+/* The pane's affordance for the shared dock height: a 14x1 bar with a small solid
+   triangle, straddling the top edge. The pair swaps order between states — triangle
+   above the bar reads as "push up to expand", below it as "push down to collapse" —
+   which is the flex direction flip. Same sketch geometry as DetailPanel's expander,
+   so either pane drives the one dock height. */
+.pr-hints__expander {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  /* Padding only, so the plate keeps its sketch position while the hit target
+     reaches a usable size. */
+  margin: 0;
+  padding: 4px 16px 10px;
+  border: 0;
+  background: transparent;
+  color: #6c6c6c;
+  cursor: pointer;
+}
+
+.pr-hints__expander--expanded {
+  flex-direction: column;
+}
+
+.pr-hints__expander:hover {
+  color: #b3b3b3;
+}
+
+.pr-hints__expander-bar {
+  width: 14px;
+  height: 1px;
+  background: currentColor;
+}
+
+.pr-hints__expander-arrow {
+  width: 0;
+  height: 0;
+  border-right: 3px solid transparent;
+  border-bottom: 4px solid currentColor;
+  border-left: 3px solid transparent;
+}
+
+.pr-hints__expander--expanded .pr-hints__expander-arrow {
+  border-top: 4px solid currentColor;
+  border-bottom: 0;
 }
 
 .pr-hints__head {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import PerformanceHintsDock from './PerformanceHintsDock.vue';
 import type { PerformanceHintItem } from '../../domain/types';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 const rows: PerformanceHintItem[] = [
   {
@@ -127,16 +128,50 @@ describe('PerformanceHintsDock', () => {
     expect(wrapper.emitted('close')).toHaveLength(1);
   });
 
-  it('PR-PHINTS-007: the host footer applies the Figma hints chrome', async () => {
-    // The shell belongs to the root's dock footer, not this component: the modifier is
-    // set from the same computed that gates the pane (ProfilingReport.vue).
+  it('PR-PHINTS-007: the pane reuses the standard event-detail dock chrome', async () => {
+    // The shell belongs to the root's dock footer, not this component: the pane is a content
+    // branch of the same `.pr-dock` that hosts DetailPanel / MultiSelectSummary, and it has no
+    // shell of its own — no `pr-dock--hints` modifier and no Figma hints rule (ProfilingReport.vue).
     const dockSrc = (await import('../ProfilingReport/ProfilingReport.vue?raw')).default as string;
-    const rule = /\.pr-dock--hints\s*\{([^}]*)\}/s.exec(dockSrc);
+    expect(dockSrc).not.toMatch(/pr-dock--hints/);
+    const rule = /\.pr-dock\s*\{([^}]*)\}/s.exec(dockSrc);
     expect(rule).not.toBeNull();
     const body = rule![1]!;
-    expect(body).toMatch(/height:\s*min\(353px,\s*60vh\)/);
-    expect(body).toMatch(/border:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.1\)/);
-    expect(body).toMatch(/border-radius:\s*12px/);
-    expect(body).toMatch(/background:\s*rgba\(31,\s*31,\s*31,\s*1\)/);
+    expect(body).toMatch(/height:\s*min\(var\(--pr-dock-h\),\s*60vh\)/);
+    expect(body).toMatch(/background:\s*var\(--pr-bg-panel,\s*#262626\)/);
+    expect(body).toMatch(/border-radius:\s*16px 16px 0 0/);
+  });
+
+  it('PR-PHINTS-008: the pane carries the centred top-edge expander, collapsed by default', async () => {
+    const wrapper = mount(PerformanceHintsDock, { props: { rows } });
+    const expander = wrapper.find('[data-testid="performance-hints-expander"]');
+    expect(expander.exists()).toBe(true);
+    expect(expander.attributes('aria-expanded')).toBe('false');
+    expect(expander.attributes('aria-label')).toBe('展开详情');
+
+    // Straddling the dock's top edge needs the pane as the positioning context — without
+    // `position: relative` here the button escapes to the shell and the centring is lost.
+    const src = (await import('./PerformanceHintsDock.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-hints\s*\{[^}]*position:\s*relative/);
+    expect(src).toMatch(/\.pr-hints__expander\s*\{[^}]*position:\s*absolute/);
+    expect(src).toMatch(/\.pr-hints__expander\s*\{[^}]*top:\s*0/);
+    expect(src).toMatch(/\.pr-hints__expander\s*\{[^}]*left:\s*50%/);
+    expect(src).toMatch(/\.pr-hints__expander\s*\{[^}]*transform:\s*translateX\(-50%\)/);
+
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_EXPANDED]);
+  });
+
+  it('PR-PHINTS-009: an expanded height flips the expander back to the collapsed height', async () => {
+    const wrapper = mount(PerformanceHintsDock, {
+      props: { rows, height: DOCK_HEIGHT_EXPANDED },
+    });
+    const expander = wrapper.find('[data-testid="performance-hints-expander"]');
+    expect(expander.attributes('aria-expanded')).toBe('true');
+    expect(expander.attributes('aria-label')).toBe('收起详情');
+    expect(expander.classes()).toContain('pr-hints__expander--expanded');
+
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_COLLAPSED]);
   });
 });

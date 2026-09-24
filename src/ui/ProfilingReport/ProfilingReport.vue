@@ -86,6 +86,7 @@ import {
   type GutterBarDisplay,
   type GutterMetric,
 } from '../../domain/gutterMetrics';
+import { resolveEnvironmentBehavior } from '../environments';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import {
   ARCH_DIAGRAM_DEFAULT_METRIC_MODE,
@@ -115,6 +116,10 @@ const props = withDefaults(defineProps<{
   capabilities?: ReportCapability[];
   /** End-user guide URL for the toolbar help button. */
   userGuideUrl?: string;
+  /** Host environment. Routes environment-dependent actions (性能分析 详情 →
+   *  Problems on `vscode`, internal dock otherwise). Open union so future
+   *  environments can be added without touching consumers. */
+  environment?: 'vscode' | 'browser' | (string & {});
 }>(), {
   title: undefined,
   source: undefined,
@@ -129,6 +134,7 @@ const props = withDefaults(defineProps<{
   userGuideUrl: DEFAULT_USER_GUIDE_URL,
   preferRenderer: undefined,
   capabilities: undefined,
+  environment: undefined,
 });
 
 const emit = defineEmits<{
@@ -140,6 +146,7 @@ const emit = defineEmits<{
   'open-pipe-details': [];
   'cannbot-request': [payload: CannbotPayload];
   'open-user-guide': [url: string];
+  'open-performance-hints-in-problems': [];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -227,7 +234,9 @@ const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
 const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
-/** Shared dock height for single-select DetailPanel and multi-select summary. */
+/** Shared dock height for every footer branch — DetailPanel, multi-select summary and the
+ *  hints pane. Whichever pane is mounted carries the expander, so one value survives
+ *  branch swaps and reopens. */
 const dockHeight = ref(DOCK_HEIGHT_COLLAPSED);
 /**
  * Shell height while marquee is live: slack-based preview when opening from closed,
@@ -306,6 +315,9 @@ watch(archMetricMode, (mode) => {
   const csv = archDiagramCsvFromTexts(report.value?.csvTexts);
   fullscreenTopology.value = topologyFromArchDiagramMetrics(csv, mode) ?? null;
 });
+
+/** Environment-routed behavior for host-dependent actions (extensible map in `environments.ts`). */
+const environmentBehavior = computed(() => resolveEnvironmentBehavior(props.environment));
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
@@ -327,8 +339,9 @@ const hasPerformanceHints = computed(
 /**
  * Mirrors the dock content chain's hints branch exactly: the pane renders only while the
  * dock is open, the capability carries rows, and no multi/single selection owns the slot.
- * Drives both that branch and the `pr-dock--hints` shell chrome, so the shell can never
- * claim hints chrome for another pane's content.
+ * Drives that branch (and so the pane mount) only — the pane reuses the standard
+ * event-detail dock chrome, there is no dedicated hints shell, and it is handed the
+ * shared `dockHeight` so its top-edge expander resizes the same dock as DetailPanel.
  */
 const hintsDockShown = computed(
   () =>
@@ -1454,16 +1467,25 @@ function onAside(visible: boolean) {
 }
 
 /**
- * StatsAside 性能分析 trigger → mount the hints table in the bottom dock.
+ * StatsAside 性能分析 详情 trigger → environment-routed (`environments.ts`).
  *
- * The pane is the dock content chain's last branch, so an open DetailPanel /
- * MultiSelectSummary would swallow the trigger. Release the live marquee first
- * (`clearMarqueeLive` drops dockSnap, the marquee flags and the preview throttle), then
- * the committed selection through `onSelect(null)` — the same path the canvas uses; it
- * clears selected / multiSelected / the Δt span / viewState and notifies the host
- * `select(null)` ("no single selection").
+ * `vscode`: hand the request to the host (`open-performance-hints-in-problems`) and leave
+ * the dock alone — the host reveals its own Problems diagnostics.
+ *
+ * `browser`: mount the hints table in the bottom dock. The pane is the dock content chain's
+ * last branch, so an open DetailPanel / MultiSelectSummary would swallow the trigger.
+ * Release the live marquee first (`clearMarqueeLive` drops dockSnap, the marquee flags and
+ * the preview throttle), then the committed selection through `onSelect(null)` — the same
+ * path the canvas uses; it clears selected / multiSelected / the Δt span / viewState and
+ * notifies the host `select(null)` ("no single selection").
  */
 function onOpenPerformanceHints() {
+  if (environmentBehavior.value.performanceHintsTarget === 'problems') {
+    emit('open-performance-hints-in-problems');
+
+    return;
+  }
+
   clearMarqueeLive();
   onSelect(null);
   hintsDockOpen.value = true;
@@ -1691,10 +1713,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       <footer
         v-if="(showTimeline && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints)"
         class="pr-dock"
-        :class="{
-          'pr-dock--live': marqueeLive,
-          'pr-dock--hints': hintsDockShown,
-        }"
+        :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
         :style="{ '--pr-dock-h': `${dockDisplayHeight}px` }"
       >
@@ -1736,7 +1755,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             key="hints"
             :rows="performanceHints"
             :locale="locale"
+            :height="dockHeight"
             @close="hintsDockOpen = false"
+            @update:height="dockHeight = $event"
           />
           <div
             v-else
@@ -1888,14 +1909,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
    tween would shrink the wrap mid-animation and re-feed the slack math. */
 .pr-dock--live.pr-dock-enter-active {
   transition: opacity 200ms ease;
-}
-
-.pr-dock--hints {
-  /* Figma: bottom panel 353px; 60vh clamp mirrors the shell rule and only kicks in on short windows. */
-  height: min(353px, 60vh);
-  background: rgba(31, 31, 31, 1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
 }
 
 .pr-dock > * {

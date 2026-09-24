@@ -198,7 +198,7 @@ WebGL2 interval backend with sudu-style analytical horizontal coverage AA combin
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`, and `environment` (`'vscode'` routes environment-dependent actions to the host, e.g. 性能分析 详情 → Problems; `'browser'`/omitted keeps them internal). Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside) | `open-performance-hints-in-problems` (性能分析 详情 under `environment: 'vscode'`). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
