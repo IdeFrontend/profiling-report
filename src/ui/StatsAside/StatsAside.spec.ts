@@ -413,6 +413,70 @@ describe('StatsAside', () => {
     expect(wrapper.emitted('close')).toBeTruthy();
   });
 
+  it('PR-STATS-006b: overlay headers show back and omit close', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: {
+            'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.5\n',
+          },
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+              rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': '1.2' }],
+              blockIds: ['0'],
+            },
+          ],
+          hardwareDetails: {
+            sections: [
+              {
+                id: 'op',
+                title: 'OpBasicInfo',
+                fields: [{ key: 'Op Name', value: 'add_custom' }],
+              },
+            ],
+          },
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="topology-details"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    await wrapper.get('[data-testid="stats-aside-more"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+  });
+
   it('PR-STATS-007: meta segments only when fields present; 更多 always on report shell', () => {
     const empty = mount(StatsAside, {
       props: {

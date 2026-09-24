@@ -14,7 +14,7 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ## Outputs
 
-- **close** — aside close control; parent clears `asideVisible`.
+- **close** — aside close control on the **report** shell only; parent clears `asideVisible`. Overlay headers omit it.
 - **open-hardware-details** — **更多** / More (emit intent).
 - **view-full-csv** — re-emitted from `CsvFieldListPanel` (DATA-33d).
 - **open-pipe-details** — **详情** / Details on the PIPE section; opens compute CSV overlay when compute tables exist, and always emits.
@@ -25,9 +25,9 @@ Right-side analytics panel: shell chrome (title, close, meta, 更多), stacked �
 
 ### Shell (header chrome)
 
-Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close**. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** always on the report shell (UI-30, UI-31).
+Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close** — report shell only. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** always on the report shell (UI-30, UI-31).
 
-Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
+Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. Close is **omitted** on overlay headers so × cannot dismiss the whole aside while drilled in. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
 
 **cannbot entries.** Three question shortcuts (CANNBot 分析 / CANNBot Analysis): right end of the meta row (summary), left of **详情** on the compute and memory section heads. Each follows its host — summary with the meta row, compute with the PIPE panel, memory with the memory panel; the memory icon stays even when that head has no **详情**. 16×16 agent icon, localized title / aria-label (`cannbotAsk`), hover highlight; clicking only emits **open-cannbot** — no overlay, no request.
 
@@ -78,6 +78,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides.
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
+6b. **PR-STATS-006b** — Compute / memory / hardware overlay headers show back and omit close; back restores the report shell close control.
 7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing; **更多** always on compute report shell. Emulate (`report.profile === 'emulate'`) omits meta row, **更多**, summary cards, and summary CANNBot ([DATA-47](../../../../docs/context/decisions/DATA.md)).
 8. **PR-STATS-008** — More always visible on compute report shell; missing hardware shows placeholder message.
 9. **PR-STATS-009** — Duration card sketch chrome (raised tile, split value/unit, pill bar).
@@ -271,6 +272,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-24** — Overlay headers omit close (PR-STATS-006b); back remains the only way out of compute / memory / hardware drill-in.
 - **2026-09-15** — Summary tiles stop cropping text when the aside is resized (PR-STATS-036): card label and duration secondary wrap inside the tile (the secondary breaks a no-space `opName`), the column label drops under the score when the two no longer fit on one line, an ellipsis always carries the full text in `title`, and the 2×2 grid collapses to one tile per row below a **430px** well. The grid previously ran `nowrap` inside an `overflow: hidden` column, so a label wider than its column — 并行使用率 / 负载均衡度, or `Parallel utilization` in `en` — was cropped with no cue; at the **280** minimum each side column was left ~36px. The 2×2 sketch chrome is unchanged at the default **480**.
 - **2026-09-15** — Every column label (AICore, compute, BW) carries its full text in `title`, not just the AICore pair, so the PR-STATS-036 ellipsis floor holds for all three cards rather than one (PR-STATS-036).
 - **2026-09-15** — Topology tables now include `PipeUtilization.csv` (from `computeTables`) next to the Memory* CSVs, so the UI-49 in-box **Scalar / Vec / Cube** badges have a source in the picked-block scope as well as under **All**; the builder looks files up by name, so no other table is affected (PR-STATS-019).

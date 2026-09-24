@@ -542,6 +542,7 @@ function backToReport() {
           {{ headerTitle }}
         </h3>
         <CloseButton
+          v-if="asideSurface === 'report'"
           class="pr-aside__close"
           data-testid="stats-aside-close"
           :label="t('closePanel', locale)"
