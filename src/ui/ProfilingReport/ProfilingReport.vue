@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
 import { loadReportSource } from '../../adapters';
 import {
   applyWindow,
@@ -62,6 +62,8 @@ import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
   DOCK_HEIGHT_COLLAPSED,
+  DOCK_HEIGHT_EXPANDED,
+  DOCK_HEIGHT_MARQUEE_PREVIEW,
   fitPanelWidths,
   GUTTER_WIDTH_DEFAULT,
 } from '../panelResize';
@@ -177,20 +179,47 @@ type DockSnap = {
   multiSelected: SwimEvent[];
   /** Dock was already showing content when the gesture started. */
   wasOpen: boolean;
+  dockHeight: number;
+  /**
+   * Swimlane wrap height before the preview dock mounted (closed layout).
+   * Frozen for the gesture so mid-enter / RO feedback cannot overshoot to collapsed.
+   */
+  wrapClosedHeight?: number;
+  /**
+   * `scrollY` at gesture start — frozen for slack preview math so edge autoscroll
+   * does not grow the dock and re-suspend the edge band.
+   */
+  scrollY?: number;
 };
 /** Snapshot of dock UI taken on the first live preview of a gesture; discarded on commit. */
 let dockSnap: DockSnap | null = null;
-/** Reactive: live marquee started over an already-open dock (keeps shell for empty state). */
+/** Reactive: live marquee opened the dock from closed (drives preview shell height). */
 const marqueeFromClosed = ref(false);
 /** Recompute the multi-select table this long after the last live selection change. */
 const MULTI_SELECT_SETTLE_MS = 200;
 let multiSelectDimTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Applied preview height while marquee is live from a closed dock.
+ * Fed back into slack math as `currentPreviewHeight` so wrap shrink stays consistent.
+ */
+const marqueePreviewHeight = ref(DOCK_HEIGHT_MARQUEE_PREVIEW);
 const tooltipStyle = ref({ left: '0px', top: '0px' });
 const localTimeDisplayMode = ref<TimeDisplayMode>(props.timeDisplayMode ?? 'time');
 const localDependencyMode = ref<DependencyMode>(props.dependencyMode);
 const localDependencyDepth = ref(normalizeDependencyDepth(props.dependencyDepth));
 const cursor = ref<{ time: number; xRatio: number; snapped?: boolean } | null>(null);
-const timelineRef = ref<{ gutterRoot: HTMLElement | null; trackWidth?: number } | null>(null);
+const timelineRef = ref<{
+  gutterRoot: HTMLElement | null;
+  trackWidth?: number;
+  wrapLayoutEpoch?: number;
+  swimlaneWrapHeight?: number;
+  computeMarqueePreviewDockHeight?: (
+    currentPreviewPx: number,
+    targetPx: number,
+    wrapClosedHeight?: number,
+    scrollY?: number,
+  ) => number;
+} | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
@@ -199,6 +228,18 @@ const gutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const asideWidth = ref(ASIDE_WIDTH_DEFAULT);
 /** Shared dock height for single-select DetailPanel and multi-select summary. */
 const dockHeight = ref(DOCK_HEIGHT_COLLAPSED);
+/**
+ * Shell height while marquee is live: slack-based preview when opening from closed,
+ * otherwise the session dock height (already budgeted into the timeline).
+ */
+const dockDisplayHeight = computed(() => {
+  if (marqueeLive.value && marqueeFromClosed.value) {
+    return marqueePreviewHeight.value;
+  }
+  return dockHeight.value;
+});
+/** Session expand intent — drives the chevron even when live preview height is slack-capped. */
+const dockSessionExpanded = computed(() => dockHeight.value >= DOCK_HEIGHT_EXPANDED);
 
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
@@ -368,6 +409,26 @@ const visualCollapsedIds = computed(() =>
 /** Unfiltered swim identity — collapse is paint-only on the canvas (PR-UI-013). */
 const displaySwim = computed((): SwimlaneModel | null => swim.value);
 
+/** Recompute preview height from wrap slack below lane content while live from closed. */
+watchEffect(() => {
+  if (!marqueeLive.value || !marqueeFromClosed.value) return;
+  // Reactive deps so collapse / model refresh the height. Do **not** subscribe to
+  // live scrollY — slack is frozen at gesture-start scroll (dockSnap.scrollY) so
+  // edge autoscroll cannot grow the preview and re-suspend the edge band.
+  void collapseAnim.value;
+  void displaySwim.value;
+  const wrapClosed = dockSnap?.wrapClosedHeight;
+  const frozenScrollY = dockSnap?.scrollY;
+  const next =
+    timelineRef.value?.computeMarqueePreviewDockHeight?.(
+      marqueePreviewHeight.value,
+      dockHeight.value,
+      wrapClosed,
+      frozenScrollY,
+    ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
+  if (next !== marqueePreviewHeight.value) marqueePreviewHeight.value = next;
+});
+
 const bounds = computed(() => {
   const m = swim.value;
   if (!m) return { minTime: 0, maxTime: 1 };
@@ -452,6 +513,7 @@ function resetViewFromModel(
   clearMultiSelectDimTimer();
   multiSelectDimmed.value = false;
   livePreviewIds.value = [];
+  marqueePreviewHeight.value = DOCK_HEIGHT_MARQUEE_PREVIEW;
   dockSnap = null;
   hovered.value = null;
   closeTopologyFullscreen();
@@ -968,13 +1030,30 @@ function selectedPayloadFromEvent(ev: SwimEvent): SelectedEvent {
 function snapshotDockIfNeeded(): void {
   if (dockSnap) return;
   const wasOpen = !!(selected.value || multiSelected.value.length);
+  const wrapClosedHeight = wasOpen
+    ? undefined
+    : (timelineRef.value?.swimlaneWrapHeight ?? 0);
   dockSnap = {
     selected: selected.value,
     selectedEvent: selectedEvent.value,
     multiSelected: multiSelected.value.slice(),
     wasOpen,
+    dockHeight: dockHeight.value,
+    wrapClosedHeight,
+    scrollY: viewState.value.scrollY,
   };
   marqueeFromClosed.value = !wasOpen;
+  // Precompute before the dock mounts so the first paint is already at preview
+  // height (not collapsed → shrink flicker via wrap RO feedback).
+  if (!wasOpen) {
+    marqueePreviewHeight.value =
+      timelineRef.value?.computeMarqueePreviewDockHeight?.(
+        0,
+        dockHeight.value,
+        wrapClosedHeight,
+        viewState.value.scrollY,
+      ) ?? DOCK_HEIGHT_MARQUEE_PREVIEW;
+  }
 }
 
 /**
@@ -1059,11 +1138,13 @@ function clearMarqueeLive(opts?: { restore?: boolean }): void {
     selected.value = dockSnap.selected;
     selectedEvent.value = dockSnap.selectedEvent;
     multiSelected.value = dockSnap.multiSelected;
+    dockHeight.value = dockSnap.dockHeight;
   }
   dockSnap = null;
   marqueeLive.value = false;
   livePreviewCount.value = 0;
   marqueeFromClosed.value = false;
+  marqueePreviewHeight.value = DOCK_HEIGHT_MARQUEE_PREVIEW;
 }
 
 function previewPayloadIds(payload: string[] | SwimEvent[]): string[] {
@@ -1087,7 +1168,8 @@ function previewPayloadEvents(payload: string[] | SwimEvent[]): SwimEvent[] | nu
  * `marqueeLive` for Escape. Empty mid-drag clears Detail/Summary. When the dock was
  * already open at drag start, the footer stays mounted with a nothing-selected message;
  * when it opened from closed, the footer stays hidden until coverage is non-empty
- * (no empty-state flash). Unchanged coverage does not restart the settle timer.
+ * (no empty-state flash) and uses slack-based preview height toward the session target.
+ * Unchanged coverage does not restart the settle timer.
  */
 function onMultiSelectPreview(payload: string[] | SwimEvent[] | null): void {
   if (payload == null) {
@@ -1142,12 +1224,17 @@ function onMultiSelectPreview(payload: string[] | SwimEvent[] | null): void {
  * follows the live drag).
  */
 function onMultiSelect(events: SwimEvent[]) {
+  const priorHeight = dockSnap?.dockHeight ?? dockHeight.value;
   // Discard the pre-drag snap; commit wins. Preview-null that follows is a no-op.
   clearMarqueeLive();
   if (events.length === 0) {
     onSelect(null);
     return;
   }
+  // Closed→drag used preview height; grow to the session height (collapsed or expanded).
+  // Clearing the selection must not forget an expanded dock — priorHeight is that session value.
+  // Already-open already shows session height during the gesture.
+  dockHeight.value = priorHeight;
   if (events.length === 1) {
     onSelect(events[0]!);
     return;
@@ -1536,6 +1623,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </ReportLayout>
 
     <!-- Persistent dock shell: single/multi/empty swap content, not the container.
+         Live marquee from a closed dock uses slack-based preview height toward the
+         session target (collapsed or expanded); commit grows to that session height.
          From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
@@ -1543,7 +1632,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
-        :style="{ '--pr-dock-h': `${dockHeight}px` }"
+        :style="{ '--pr-dock-h': `${dockDisplayHeight}px` }"
       >
         <Transition name="pr-dock-content" mode="out-in">
           <MultiSelectSummary
@@ -1552,7 +1641,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :selected-events="multiSelected"
             :model="swim"
             :locale="locale"
-            :height="dockHeight"
+            :height="dockDisplayHeight"
+            :expanded="dockSessionExpanded"
             :live-preview="marqueeLive"
             :live-count="marqueeLive ? livePreviewCount : undefined"
             :dimmed="multiSelectDimmed"
@@ -1571,7 +1661,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :locale="locale"
             :neighbors="dependencyNeighbors"
             :dependency-mode="localDependencyMode"
-            :height="dockHeight"
+            :height="dockDisplayHeight"
+            :expanded="dockSessionExpanded"
             @close="onSelect(null)"
             @update:height="dockHeight = $event"
             @update:dependency-mode="onDependencyMode"
@@ -1720,6 +1811,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 .pr-dock--live {
   /* Live preview swaps content; keep shell height stable (no expander fight). */
   transition: none;
+}
+
+/* Live enter: opacity only — height is already the precomputed preview; a height
+   tween would shrink the wrap mid-animation and re-feed the slack math. */
+.pr-dock--live.pr-dock-enter-active {
+  transition: opacity 200ms ease;
 }
 
 .pr-dock > * {

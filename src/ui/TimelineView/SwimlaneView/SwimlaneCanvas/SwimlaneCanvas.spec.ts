@@ -1835,7 +1835,13 @@ describe('SwimlaneCanvas', () => {
     );
   });
 
-  it('PR-CANVAS-065: summary click expands, clears hover, and selects sole leaf or clears selection', async () => {
+  it('PR-CANVAS-065: summary click expands, selects sole leaf or multi-selects nested leaves', async () => {
+    const leaves = [
+      { id: 'e1', name: 'a', startTime: 0, duration: 400 },
+      { id: 'e2', name: 'b', startTime: 200, duration: 400 },
+      { id: 'e3', name: 'c', startTime: 500, duration: 300 },
+      { id: 'e4', name: 'd', startTime: 700, duration: 300 },
+    ];
     const multi = {
       minTime: 0,
       maxTime: 1000,
@@ -1850,7 +1856,14 @@ describe('SwimlaneCanvas', () => {
               events: [],
               children: [],
               summaryEvents: [
-                { id: 'folder/summary/0', name: '', startTime: 0, duration: 1000, taskCount: 4 },
+                {
+                  id: 'folder/summary/0',
+                  name: '',
+                  startTime: 0,
+                  duration: 1000,
+                  taskCount: 4,
+                  sourceEvents: leaves,
+                },
               ],
             },
           ],
@@ -1891,8 +1904,9 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
 
     expect(wrapper.emitted('toggle-group')?.[0]).toEqual(['folder']);
-    // Multi-task summary: clear any prior selection.
-    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+    // Multi-task summary: expand + multi-select nested leaves (marquee commit path).
+    expect(wrapper.emitted('multi-select')?.at(-1)?.[0]).toEqual(leaves);
+    expect(wrapper.emitted('select')).toBeFalsy();
     expect(wrapper.emitted('hover')!.at(-1)?.[0]).toBeNull();
     wrapper.unmount();
 
@@ -1959,6 +1973,7 @@ describe('SwimlaneCanvas', () => {
 
     expect(one.emitted('toggle-group')?.[0]).toEqual(['folder']);
     expect(one.emitted('select')?.at(-1)).toEqual([leaf]);
+    expect(one.emitted('multi-select')).toBeFalsy();
     one.unmount();
   });
 
@@ -3272,4 +3287,622 @@ describe('SwimlaneCanvas', () => {
     expect(last.scrollY).toBeLessThan(800);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-112: live marquee edge band emits scroll-y toward that edge', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+
+    // Many lanes so maxScrollY > 0 even with a short wrap.
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    // Height must exceed 2× edge band so a non-edge interior exists.
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+    // Tall content must exceed the wrap so edge autoscroll can move.
+    const sizerH = Number.parseInt(
+      String(wrapper.find('.pr-swim-canvas-sizer').attributes('style')).match(/height:\s*(\d+)/)?.[1] ??
+        '0',
+      10,
+    );
+    expect(sizerH).toBeGreaterThan(200);
+    expect(wrap.getBoundingClientRect().bottom).toBe(300);
+
+    // Cross the gate in the interior (outside the 40px edge bands: 140–260).
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 200, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 50, clientY: 200, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    frames.length = 0;
+
+    // Bottom edge band (bottom 300 → band starts at 260).
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 50, clientY: 290, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(frames.length).toBeGreaterThan(0);
+    for (let i = 0; i < 10 && (wrapper.emitted('scroll-y')?.length ?? 0) <= before; i++) {
+      const cb = frames.shift();
+      expect(cb).toBeTruthy();
+      cb!(0);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    expect(wrapper.emitted('scroll-y')!.at(-1)![0] as number).toBeGreaterThan(0);
+
+    // Anchor is content-fixed: with the pointer held in the bottom band, scroll-down
+    // must grow the rect (top moves up) rather than shift both corners together.
+    const geo = wrapper.find('[data-testid="marquee-rect"]').attributes('style') ?? '';
+    const top = Number(/top:\s*([-.\d]+)px/.exec(geo)?.[1] ?? NaN);
+    const height = Number(/height:\s*([-.\d]+)px/.exec(geo)?.[1] ?? NaN);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    // Started near localY≈100 (clientY 200 − box.top 100); after scroll the viewport
+    // top of the anchor is contentY − scroll ≈ 100 − scrolled.
+    expect(top).toBeLessThan(100);
+    expect(top).toBeCloseTo(100 - scrolled, 0);
+    expect(height).toBeGreaterThan(scrolled);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 50, clientY: 290 }));
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-119: live marquee left/right edge band emits pan toward that edge', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: {
+          minTime: 0,
+          maxTime: 10_000,
+          processes: [
+            {
+              id: 'p-1',
+              name: 'P',
+              threads: [
+                {
+                  id: 't-1',
+                  name: 'T',
+                  events: [{ id: 'e1', name: 'E1', startTime: 100, duration: 200 }],
+                },
+              ],
+            },
+          ],
+        },
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 };
+    Object.defineProperty(wrap, 'clientWidth', { value: box.width, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: box.height, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ view: { startTime: 0, endTime: 1000, scrollY: 0 } });
+    await fireAllDeviceRo();
+
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await canvas.trigger('pointerdown', { clientX: 100, clientY: 80, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 110, clientY: 80, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    frames.length = 0;
+
+    // Right edge band (40px): clientX 390 of 400.
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 390, clientY: 80, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(frames.length).toBeGreaterThan(0);
+    for (let i = 0; i < 8; i++) {
+      const cb = frames.shift();
+      if (!cb) break;
+      cb(0);
+      await wrapper.vm.$nextTick();
+    }
+    const pans = wrapper.emitted('pan') ?? [];
+    expect(pans.length).toBeGreaterThan(0);
+    expect(pans.some((c) => (c[0] as number) > 0)).toBe(true);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 390, clientY: 80 }));
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-113: wrap shrink does not edge-autoscroll under a stationary pointer', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    // Start tall; dock preview will shrink height and move bottom up under the pointer.
+    let box = { left: 0, top: 100, width: 400, height: 300, right: 400, bottom: 400 };
+    const applyBox = () => {
+      Object.defineProperty(wrap, 'clientWidth', { value: box.width, configurable: true });
+      Object.defineProperty(wrap, 'clientHeight', { value: box.height, configurable: true });
+      Object.defineProperty(wrap, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ ...box }),
+      });
+      const canvasEl = wrapper.find('[data-testid="swimlane-canvas"]').element as HTMLCanvasElement;
+      Object.defineProperty(canvasEl, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ ...box }),
+      });
+    };
+    applyBox();
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    // Live marquee with pointer in the interior (not in the 40px edge band).
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 250, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    frames.length = 0;
+
+    // Dock preview: wrap shrinks so clientY 280 is now inside the bottom edge band
+    // (new bottom 300 → band starts at 260) without the pointer moving.
+    box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    applyBox();
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    for (const cb of frames.splice(0)) cb(0);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('scroll-y')?.length ?? 0).toBe(before);
+
+    // Leave the band then re-enter — autoscroll may arm again.
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 200, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 290, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(frames.length).toBeGreaterThan(0);
+    for (let i = 0; i < 10 && (wrapper.emitted('scroll-y')?.length ?? 0) <= before; i++) {
+      const cb = frames.shift();
+      expect(cb).toBeTruthy();
+      cb!(0);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 290 }));
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-114: overscrolled live marquee eases toward maxScrollY without jumping', async () => {
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 500 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({
+      model: { ...tallModel },
+      view: { startTime: 0, endTime: 1000, scrollY: 500 },
+    });
+    await fireAllDeviceRo();
+
+    // Arm a live marquee so soft-clamp applies.
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 150, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 180, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+
+    // Dock shrink: wrap shorter → maxScrollY drops; resize skips clamp while marquee is live.
+    Object.defineProperty(wrap, 'clientHeight', { value: 80, configurable: true });
+    box.bottom = 180;
+    await fireAllDeviceRo();
+    await wrapper.vm.$nextTick();
+
+    const before = (wrapper.emitted('scroll-y') ?? []).map((c) => c[0] as number);
+    const overscrolled = before.at(-1) ?? 500;
+    // Wheel up uses the same clampScrollY path as edge autoscroll.
+    const vm = wrapper.vm as { handleWheel: (e: WheelEvent) => void };
+    vm.handleWheel(
+      new WheelEvent('wheel', { deltaY: -12, clientX: 80, clientY: 150 }),
+    );
+    await wrapper.vm.$nextTick();
+    const after = (wrapper.emitted('scroll-y') ?? []).map((c) => c[0] as number);
+    const stepped = after.at(-1);
+    expect(stepped).toBeTypeOf('number');
+    expect(stepped!).toBeLessThan(overscrolled);
+    expect(overscrolled - stepped!).toBeLessThanOrEqual(12 + 0.5);
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 180 }));
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-115: selection-border focus includes contentTopPad', async () => {
+    const { wrapper } = await mountForMarquee();
+    await wrapper.setProps({ contentTopPad: 80 });
+    await wrapper.vm.$nextTick();
+    const vm = wrapper.vm as unknown as {
+      selectionBottomContentYForCommit: (
+        events: { id: string }[],
+        rect: { x0: number; y0: number; x1: number; y1: number },
+      ) => number;
+      renderer: () => { getLayout: () => { events: { id: string; y: number }[] } };
+    };
+    const layoutEv = vm.renderer().getLayout().events.find((e) => e.id === 'e1');
+    expect(layoutEv).toBeTruthy();
+    const withPad = vm.selectionBottomContentYForCommit([{ id: 'e1' } as never], {
+      x0: 0,
+      y0: 0,
+      x1: 10,
+      y1: 10,
+    });
+    // Layout y + LANE_HEIGHT is content space; wrap space adds contentTopPad.
+    expect(withPad).toBe(layoutEv!.y + 22 + 80);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-116: after commit with no upward edge-scroll, keeps selection bottom visible', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    // Selection spans localY 50→180 (mid-row release at 120). Bottom selected
+    // lane row is snapped to full LANE_HEIGHT (header 40 + thread index 6 → bottom 194).
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 150, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 280, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 220 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select')).toBeTruthy();
+
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const rowBottom = 40 + 6 * 22 + 22; // LANE_GROUP_HEADER_HEIGHT + t-6 top + LANE_HEIGHT
+    const targetMin = rowBottom - 50;
+    const targetMax = rowBottom - 50 + 8;
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    // Layout-settle rAF, then the 200ms ensureContentYVisible tween.
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        last >= targetMin &&
+        last <= targetMax
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    // Full bottom row (194), not raw marquee Y (180) or cursor (120).
+    expect(scrolled).toBeGreaterThanOrEqual(targetMin);
+    expect(scrolled).toBeLessThanOrEqual(targetMax);
+    expect(scrolled).toBeGreaterThan(180 - 50);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-117: after commit when latest edge-scroll was up, keeps release cursor visible', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 120 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({
+      model: { ...tallModel },
+      view: { startTime: 0, endTime: 1000, scrollY: 120 },
+    });
+    await fireAllDeviceRo();
+
+    // Anchor mid wrap (localY 100), gate in interior (localY 150 — outside edge bands).
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 200, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 50, clientY: 250, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+
+    // Top edge band → autoscroll up (latest dir = -1).
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 50, clientY: 110, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(frames.length).toBeGreaterThan(0);
+    const beforeUp = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 10 && (wrapper.emitted('scroll-y')?.length ?? 0) <= beforeUp; i++) {
+      const cb = frames.shift();
+      expect(cb).toBeTruthy();
+      cb!(0);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(beforeUp);
+
+    // Leave the edge band; release above the selection bottom so cursor ≠ selection bottom.
+    // Rect: y0=100, y1=10 → bottom local 100. Release at localY 50.
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 150, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 150 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select')).toBeTruthy();
+
+    const scrollAtCommit =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      120;
+
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    const cursorContentY = scrollAtCommit + 50;
+    const targetMin = cursorContentY - 50;
+    const targetMax = cursorContentY - 50 + 8;
+    // Layout-settle rAF, then the 200ms ensureContentYVisible tween.
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        last >= targetMin &&
+        last <= targetMax
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    // Latest edge-scroll was up → focus release cursor (localY 50), not selection bottom (100).
+    expect(scrolled).toBeGreaterThanOrEqual(targetMin);
+    expect(scrolled).toBeLessThanOrEqual(targetMax);
+    // Selection-bottom focus would land ~50px lower.
+    expect(scrolled).toBeLessThan(scrollAtCommit + 100 - 50);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-118: wheel scroll flushPaints with localScrollY without waiting on props', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    const setView = vi.spyOn(CanvasSwimlaneRenderer.prototype, 'setView');
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+          minTime: 0,
+          maxTime: 1000,
+        },
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+        contentTopPad: 0,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    await fireAllDeviceRo();
+    setView.mockClear();
+    frames.length = 0;
+
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    await canvas.trigger('wheel', { deltaY: 48, deltaX: 0 });
+
+    // Same-turn flush on the first ease step: setView sees local scroll before props catch up.
+    expect(setView).toHaveBeenCalled();
+    const emitted = wrapper.emitted('scroll-y')?.at(-1)?.[0] as number;
+    expect(emitted).toBeGreaterThan(0);
+    expect(emitted).toBeLessThanOrEqual(48);
+    const last = setView.mock.calls.at(-1)![0] as { scrollY: number };
+    expect(last.scrollY).toBe(emitted);
+    // Parent props still at 0 — paint must not wait on them.
+    expect(wrapper.props('view').scrollY).toBe(0);
+    wrapper.unmount();
+  });
+
 });
