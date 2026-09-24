@@ -435,6 +435,8 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.profile).toBe('emulate');
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
+    const sides = new Set(adapted.reportModel.pipeOccupancy.map((p) => p.side));
+    expect([...sides].sort()).toEqual(['aic', 'aiv0', 'aiv1']);
     expect(adapted.reportModel.memoryTopology).toBeDefined();
     expect(adapted.capabilities).toContain('archDiagram');
     expect(adapted.capabilities).not.toContain('memoryDiagram');
@@ -535,7 +537,8 @@ describe('emulate pipe mappers', () => {
     );
     expect(items.find((i) => i.id === 'scalar')?.ratio).toBe(0.5);
     expect(items.find((i) => i.id === 'mte2')?.ratio).toBe(0.4);
-    expect(items.find((i) => i.id === 'mte2')?.side).toBe('cube'); // pipe family side from map
+    expect(items.find((i) => i.id === 'scalar')?.side).toBe('aic'); // CoreTypes AIC
+    expect(items.find((i) => i.id === 'mte2')?.side).toBe('aiv0'); // CoreTypes AIV0 (UI-54)
     expect(items.some((i) => /q99|Queue/.test(i.id) || /q99|Queue/.test(i.label))).toBe(false);
   });
 });
