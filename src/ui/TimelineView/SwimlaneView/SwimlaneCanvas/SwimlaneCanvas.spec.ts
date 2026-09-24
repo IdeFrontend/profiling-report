@@ -3315,6 +3315,7 @@ describe('SwimlaneCanvas', () => {
 
     const vm = wrapper.vm as {
       eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+      renderer: () => { setSelection: (selectedId: string | null, hoveredId: string | null) => void };
     };
     const rect = vm.eventScreenRect('e1')!;
     expect(rect).toBeTruthy();
@@ -3327,6 +3328,11 @@ describe('SwimlaneCanvas', () => {
     expect(wrapper.emitted('hover')!.at(-1)![0]).toMatchObject({ id: 'e1' });
     expect(wrapper.emitted('lane-hover')!.at(-1)![0]).toBe('t-0');
 
+    // The renderer's hovered lift must clear too — `applyHoverPaint` is gated by
+    // `laneScrollEasing` so only a direct `setSelection(_, null)` reaches the backend.
+    const setSelection = vi.spyOn(vm.renderer(), 'setSelection');
+    setSelection.mockClear();
+
     // Reduced motion → snap: invalidation and recalculation both run in this turn.
     await canvas.trigger('wheel', { clientX: x, clientY: y, deltaX: 0, deltaY: 40 });
 
@@ -3335,6 +3341,8 @@ describe('SwimlaneCanvas', () => {
     expect(cursors.at(-1)![0]).not.toBeNull(); // recalculated on scroll end
     expect(wrapper.emitted('hover')!.at(-2)![0]).toBeNull();
     expect(wrapper.emitted('lane-hover')!.at(-2)![0]).toBeNull();
+    // Scroll start dropped the stale hovered-event lift in the renderer.
+    expect(setSelection.mock.calls[0]![1]).toBeNull();
     wrapper.unmount();
   });
 });

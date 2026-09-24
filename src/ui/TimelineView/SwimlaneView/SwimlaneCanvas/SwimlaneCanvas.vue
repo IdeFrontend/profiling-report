@@ -2485,6 +2485,18 @@ function finishLaneScroll(y: number): void {
 }
 
 /**
+ * Apply the hovered-event lift straight into the renderer(s). `applyHoverPaint` is
+ * gated by `laneScrollEasing || scrollRaf` so it never reaches the backend mid-scroll;
+ * the scroll lifecycle calls this directly instead so the stale hover is dropped on the
+ * first frame and re-resolved on settle.
+ */
+function applyHoverLift(hoveredId: string | null): void {
+  const paintSelectedId = livePaintSelectedId();
+  backend.setSelection(paintSelectedId, hoveredId);
+  if (useWebGl.value) overlay.setSelection(paintSelectedId, hoveredId);
+}
+
+/**
  * Drop the default-mode hover chrome (magnet caret + snap bars, event hover, lane tint)
  * when lane scrolling starts — the event under the pointer moves, so a stale magnet or
  * hover would keep highlighting the wrong block for the whole scroll.
@@ -2493,6 +2505,7 @@ function invalidateScrollHover(): void {
   if (props.measureMode) return;
   clearEdgeSnapHighlight();
   hoverGap.value = null;
+  applyHoverLift(null);
   emit('cursor', null);
   emit('hover', null, 0, 0);
   emitLaneHover(null);
@@ -2510,9 +2523,11 @@ function recalcPointerHover(): void {
   if (x == null || y == null) return;
   const w = Math.max(1, syncTrackWidth());
   const mag = magnetizeLocal(x, y);
+  const ev = eventAtPointer(x, y, mag.eventId);
+  applyHoverLift(ev?.id ?? null);
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
   updateHoverGap(x, y, w);
-  emit('hover', eventAtPointer(x, y, mag.eventId), lastPointerClientX, lastPointerClientY);
+  emit('hover', ev, lastPointerClientX, lastPointerClientY);
   emitLaneHover(y);
 }
 
