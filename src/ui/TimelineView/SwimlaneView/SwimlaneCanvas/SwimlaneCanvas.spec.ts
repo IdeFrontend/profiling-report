@@ -3273,4 +3273,68 @@ describe('SwimlaneCanvas', () => {
     expect(last.scrollY).toBeLessThan(800);
     wrapper.unmount();
   });
+
+  it('PR-CANVAS-112: vertical lane scroll invalidates then recalculates magnet caret, event hover, and lane hover', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const threads = [
+      { id: 't-0', name: 'T0', events: [{ id: 'e1', name: 'busy', startTime: 200, duration: 300 }] },
+      ...Array.from({ length: 30 }, (_, i) => ({
+        id: `t-${i + 1}`,
+        name: `T${i + 1}`,
+        events: [] as { id: string; name: string; startTime: number; duration: number }[],
+      })),
+    ];
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'p-1', name: 'P', threads }],
+        },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await fireAllDeviceRo();
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    expect(rect).toBeTruthy();
+    // Just left of the start edge, within the ~10px magnet band.
+    const x = rect.x - 5;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointermove', { clientX: x, clientY: y, pointerId: 1 });
+    expect((wrapper.emitted('cursor')!.at(-1)![0] as { snapped?: boolean }).snapped).toBe(true);
+    expect(wrapper.emitted('hover')!.at(-1)![0]).toMatchObject({ id: 'e1' });
+    expect(wrapper.emitted('lane-hover')!.at(-1)![0]).toBe('t-0');
+
+    // Reduced motion → snap: invalidation and recalculation both run in this turn.
+    await canvas.trigger('wheel', { clientX: x, clientY: y, deltaX: 0, deltaY: 40 });
+
+    const cursors = wrapper.emitted('cursor')!;
+    expect(cursors.at(-2)![0]).toBeNull(); // invalidated on scroll start
+    expect(cursors.at(-1)![0]).not.toBeNull(); // recalculated on scroll end
+    expect(wrapper.emitted('hover')!.at(-2)![0]).toBeNull();
+    expect(wrapper.emitted('lane-hover')!.at(-2)![0]).toBeNull();
+    wrapper.unmount();
+  });
 });

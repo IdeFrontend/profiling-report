@@ -219,7 +219,8 @@ let attached = false;
 let attachedModel: SwimlaneModel | null = null;
 let downX = 0;
 let dragging = false;
-/** Client Y for magnet during window-level measure create/resize. */
+/** Client position for magnet during window-level measure create/resize + hover recalc. */
+let lastPointerClientX = 0;
 let lastPointerClientY = 0;
 /** Last canvas-local pointer for hover-gap refresh on zoom/pan/scroll. */
 let lastHoverLocalX: number | null = null;
@@ -2108,6 +2109,7 @@ function onPointerDown(e: PointerEvent): void {
 }
 
 function onPointerMove(e: PointerEvent): void {
+  lastPointerClientX = e.clientX;
   lastPointerClientY = e.clientY;
   // Live marquee: window drag owns coords. Skip getBoundingClientRect — preview
   // emits dirty the dock/cursor and would force a sync reflow mid-drag.
@@ -2411,6 +2413,8 @@ function onWheel(e: WheelEvent): void {
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+  lastPointerClientX = e.clientX;
+  lastPointerClientY = e.clientY;
   if (!props.measureMode) {
     lastHoverLocalX = x;
     lastHoverLocalY = y;
@@ -2442,6 +2446,10 @@ function onWheel(e: WheelEvent): void {
     return;
   }
   scrollTargetY = clampScrollY(scrollTargetY + e.deltaY);
+  // The event under the pointer moves with the lanes — drop the pre-scroll magnet
+  // caret / event hover / lane tint before the first scroll frame, so a stale block
+  // is never highlighted against the wrong content.
+  if (!laneScrollEasing) invalidateScrollHover();
   if (prefersReducedMotion()) {
     if (scrollRaf) {
       cancelAnimationFrame(scrollRaf);
@@ -2467,9 +2475,45 @@ function finishLaneScroll(y: number): void {
   laneScrollEasing = true;
   localScrollY = y;
   applyViewState();
+  // Re-resolve the hover/caret against the settled scroll offset while easing is still
+  // true (paintView reads localScrollY). Without this the caret stays magnetized to
+  // the event that left the pointer when the lanes moved.
+  recalcPointerHover();
   laneScrollEasing = false;
   flushPaint();
   emit('scroll-y', y, true);
+}
+
+/**
+ * Drop the default-mode hover chrome (magnet caret + snap bars, event hover, lane tint)
+ * when lane scrolling starts — the event under the pointer moves, so a stale magnet or
+ * hover would keep highlighting the wrong block for the whole scroll.
+ */
+function invalidateScrollHover(): void {
+  if (props.measureMode) return;
+  clearEdgeSnapHighlight();
+  hoverGap.value = null;
+  emit('cursor', null);
+  emit('hover', null, 0, 0);
+  emitLaneHover(null);
+}
+
+/**
+ * Re-resolve the default-mode hover + magnet caret at the settled scroll offset. The
+ * pointer has not moved (lastHoverLocalX/Y), but the content under it has, so the caret
+ * re-magnetizes and the event/lane hover re-derive from the new scroll.
+ */
+function recalcPointerHover(): void {
+  if (props.measureMode) return;
+  const x = lastHoverLocalX;
+  const y = lastHoverLocalY;
+  if (x == null || y == null) return;
+  const w = Math.max(1, syncTrackWidth());
+  const mag = magnetizeLocal(x, y);
+  emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
+  updateHoverGap(x, y, w);
+  emit('hover', eventAtPointer(x, y, mag.eventId), lastPointerClientX, lastPointerClientY);
+  emitLaneHover(y);
 }
 
 /** Exponential catch-up (~Chrome/Edge wheel smoothing). New deltas retarget without restarting. */

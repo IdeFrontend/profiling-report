@@ -145,6 +145,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 109. **PR-CANVAS-109** — Live marquee preview does not resolve union `SwimEvent` objects; Shift commit looks up ids in the layout map first, then the shared model resolver.
 110. **PR-CANVAS-110** — Shift+union uses the selection snapshotted at pointerdown; shrinking the live rect drops events the rect no longer covers, even if those ids were fed back as `multiSelectedIds`.
 111. **PR-CANVAS-111** — Live marquee reuses coverage when the rounded CSS rect is unchanged; it does not re-run `eventsInMarquee`.
+112. **PR-CANVAS-112** — Vertical lane scroll invalidates the magnet caret, event hover, and lane hover on scroll start (pointer unmoved), then recalculates them at the settled scroll offset on scroll end.
 
 ## Edge Cases
 
@@ -179,6 +180,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-24** — Vertical lane scroll invalidates the magnet caret / event hover / lane hover on scroll start and recalculates them on settle (`PR-CANVAS-112`).
 - **2026-09-23** — Live marquee skips hit-test when the rounded CSS rect is unchanged (`PR-CANVAS-111`); coverage compare is a length + first/mid/last digest (`PR-CANVAS-101`).
 - **2026-09-23** — Shift+union snapshots the committed ids at pointerdown so reversing the live rect can drop uncovered events (`PR-CANVAS-110`).
 - **2026-09-22** — Live marquee preview emits union ids; Shift commit resolves via layout then the shared model resolver (`PR-CANVAS-101` / `PR-CANVAS-109`).
