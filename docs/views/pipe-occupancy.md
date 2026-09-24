@@ -39,6 +39,8 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 
 **Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values. Use the column tables below — not a single combined bar list.
 
+**Emulate ([UI-54](../context/decisions/UI.md)):** when `pipeOccupancy` carries ≥2 of `side` `aic` / `aiv0` / `aiv1` (from `PipeUtilizationHist.csv` `CoreName` or `PipesUtilization` + `CoreTypes`), show **Cube | Vector 0 | Vector 1** with the same segmented-control chrome and filter bars by the active core. Do **not** average AIV0 with AIV1 into Vector. Compute MIX Cube|Vector remains unchanged.
+
 <a id="vm-derivation"></a>
 
 ### VM field ← source (join / derivation)
@@ -90,14 +92,15 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/com
 
 | Tab | Source CSV |
 | --- | --- |
-| `PipeUtilization` | `PipeUtilization.csv` |
+| `PipeUtilization` | `PipeUtilization.csv` (compute; omitted when hist is present — [UI-55](../context/decisions/UI.md)) |
+| `Pipe Utilization` | `PipeUtilizationHist.csv` — preferred when present; sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys from Utilization ([UI-55](../context/decisions/UI.md)) |
 | `ArithmeticUtilization` | `ArithmeticUtilization.csv` |
 | `ResourceConflictRatio` | `ResourceConflictRatio.csv` |
 
 Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
 
-- AIC group: cycles, `*_time(us)`, `*_ratio`, active BW, ICache miss, scalar stall/wait breakdowns.
-- AIV group: same pattern; display `NA` when absent.
+- Compute `PipeUtilization`: AIC group cycles / `*_time(us)` / `*_ratio` / …; AIV group same; display `NA` when absent.
+- Emulate hist ([UI-55](../context/decisions/UI.md)): one synthetic row of projected ratio keys (e.g. `aic_scalar_ratio`, `aiv0_vec_ratio`, `aiv1_mte3_ratio`); headers in first-seen order, duplicate keys last-wins for values; 0..1; no times/cycles. ICache may appear on PIPE bars but is not projected (no `*_ratio` stem).
 - Hide a tab when its CSV is missing from the report.
 
 ## Emulate fill
@@ -115,11 +118,11 @@ Prefer `PipeUtilizationHist.csv`. Else `PipesUtilization.csv` + dictionaries.
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| `pipeOccupancy[]` (hist) | `PipeUtilizationHist.csv` | _(none)_ — match `PipeName` via `PIPE_NAME_MAP` regex | Acc key `` `${side}:${id}` ``; `ratio` = mean `Utilization` (`normalizeRatio` 0..1 or 0..100%) |
-| `pipeOccupancy[]` (util) | `PipesUtilization.csv` + `InstrQueueTypes.csv` + `CoreTypes.csv` | `InstrQueueTypeId` → `InstrQueueTypes.InstrQueueTypeName`; `CoreTypeId` → `CoreTypes.CoreTypeName` | Resolve queue label → `mapPipeName`; side from mapped pipe or core name (`aiv`/`vector` → vector, else cube). Skip bare integer FKs that do not resolve |
+| `pipeOccupancy[]` (hist) | `PipeUtilizationHist.csv` | _(none)_ — match `PipeName` via `PIPE_NAME_MAP` regex; `CoreName` → side | Acc key `` `${side}:${id}` `` with `side` ∈ `aic`/`aiv0`/`aiv1` ([UI-54](../context/decisions/UI.md)); `ratio` = mean `Utilization` (`normalizeRatio` 0..1 or 0..100%). **Never** average AIV cores |
+| `pipeOccupancy[]` (util) | `PipesUtilization.csv` + `InstrQueueTypes.csv` + `CoreTypes.csv` | `InstrQueueTypeId` → `InstrQueueTypes.InstrQueueTypeName`; `CoreTypeId` → `CoreTypes.CoreTypeName` | Resolve queue label → `mapPipeName`; side from `coreNameToPipeSide` (`aic`/`aiv0`/`aiv1`). Skip bare integer FKs that do not resolve; **drop** rows whose core label does not map (UI-54 — no cube/vector default) |
 | lane `utilization` | same pipe rows + swimlane threads | pipe `colorKey` ↔ `laneColorKey(thread.name)` | `withPipeLaneUtilizations` — mean ratio onto matching lanes |
 
-Code: `pipeOccupancyFromHist` / `pipeOccupancyFromPipesUtilization` in `adaptEmulate.ts`.
+Code: `pipeOccupancyFromHist` / `pipeOccupancyFromPipesUtilization` in `pipeOccupancyEmulate.ts`.
 
 ## Adapter
 
