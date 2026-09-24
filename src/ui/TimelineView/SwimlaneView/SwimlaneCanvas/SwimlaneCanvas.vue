@@ -1211,7 +1211,7 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
   marqueeRect.value = rect;
   emit('multi-select-span', marqueeSpan(rect));
   const w = syncTrackWidth();
-  emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
+  emit('cursor', { time: timeAtX(local.x), xRatio: clampXRatio(local.x, w), snapped: false });
   emitLaneHover(null);
   const hitFp = marqueeHitFingerprint(rect);
   if (hitFp === lastMarqueeHitFp) return;
@@ -1591,6 +1591,17 @@ function xAtTime(t: number): number {
   return ((t - props.view.startTime) / span) * w;
 }
 
+/**
+ * Fractional 0–1 position of a canvas x along the track. Cursor stems are drawn at
+ * `xRatio * 100%` of the track; an off-screen magnet edge or a window-bound drag can
+ * put `x` left of the gutter or past the right edge, which would paint the full-height
+ * playhead over the gutter or off the chart. Clamp the position (the `time` stays
+ * unclamped so the label still shows the true snapped/free time).
+ */
+function clampXRatio(x: number, w: number): number {
+  return Math.min(1, Math.max(0, x / Math.max(1, w)));
+}
+
 /** Magnetize local canvas coords; updates live edge snap highlight. */
 function magnetizeLocal(
   localX: number,
@@ -1609,11 +1620,11 @@ function magnetizeLocal(
     invalidateExactMatchCache();
     snapExactEdgeMatches = [];
     snapExactEdgeMarks.value = [];
-    return { time: timeAtX(localX), xPx: localX, xRatio: localX / w, eventId: null };
+    return { time: timeAtX(localX), xPx: localX, xRatio: clampXRatio(localX, w), eventId: null };
   }
   snapExactEdgeMatches = exactMatchesAt(hit.time);
   refreshSnapExactEdgeMarks();
-  return { time: hit.time, xPx: hit.xPx, xRatio: hit.xPx / w, eventId: hit.eventId };
+  return { time: hit.time, xPx: hit.xPx, xRatio: clampXRatio(hit.xPx, w), eventId: hit.eventId };
 }
 
 /** Hover/select target: magnetized edge event wins, else spatial hitTest (device px). */
