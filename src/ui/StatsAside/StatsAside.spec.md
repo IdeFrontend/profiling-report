@@ -4,7 +4,7 @@
 |----------------|
 | PR-STATS-*   |
 
-Right-side analytics panel: shell chrome (title, close on the report shell only, meta, 更多), stacked 报告统计 scroll (duration, roofline, PIPE, topology), and full-panel overlays for compute CSV, memory CSV, and hardware details.
+Right-side analytics panel: shell chrome (title, title-row **性能分析** link when hints exist, close on the report shell only, meta, 更多), stacked 报告统计 scroll (duration, roofline, PIPE, topology), and full-panel overlays for compute CSV, memory CSV, and hardware details.
 
 ## Inputs
 
@@ -15,6 +15,7 @@ Right-side analytics panel: shell chrome (title, close on the report shell only,
 ## Outputs
 
 - **close** — aside close control on the **report** shell only; parent clears `asideVisible`. Overlay headers omit it.
+- **open-performance-hints** — title-row **性能分析** link (report shell only; left of close × when `performanceHints` capability + rows). Parent environment-routes to Problems or the internal dock.
 - **open-hardware-details** — **更多** / More (emit intent).
 - **view-full-csv** — re-emitted from `CsvFieldListPanel` (DATA-33d).
 - **open-pipe-details** — **详情** / Details on the PIPE section; opens compute CSV overlay when compute tables exist, and always emits.
@@ -25,9 +26,9 @@ Right-side analytics panel: shell chrome (title, close on the report shell only,
 
 ### Shell (header chrome)
 
-Localized **summary** title with decorative chart icon (L-axis + sparkline). Close emits **close** — report shell only. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** always on the report shell (UI-30, UI-31).
+Localized **summary** title with decorative chart icon (L-axis + sparkline). When the report carries performance hints (`performanceHints` capability + rows), a **性能分析** text link sits in the title row immediately left of close ([`aside-hints-title-row.png`](./visual/aside-hints-title-row.png)); it emits **open-performance-hints**. Close emits **close** — report shell only. Meta row shows **进程** / **算子类型** / **Blocks** from `pid` / `opType` / `blockDim`; label muted, value lighter; hides a segment when unset. **aic频率**, **Rated Freq**, 核数, and NPU ARCH are not on this shell. **更多** always on the report shell (UI-30, UI-31).
 
-Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. Close is **omitted** on overlay headers so × cannot dismiss the whole aside while drilled in. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
+Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. Close and the **性能分析** link are **omitted** on overlay headers so × cannot dismiss the whole aside while drilled in. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
 
 **cannbot entries.** Three question shortcuts (CANNBot 分析 / CANNBot Analysis): right end of the meta row (summary), left of **详情** on the compute and memory section heads. Each follows its host — summary with the meta row, compute with the PIPE panel, memory with the memory panel; the memory icon stays even when that head has no **详情**. 16×16 agent icon, localized title / aria-label (`cannbotAsk`), hover highlight; clicking only emits **open-cannbot** — no overlay, no request.
 
@@ -82,6 +83,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
 6b. **PR-STATS-006b** — Compute / memory / hardware overlay chrome shows back and omits close; the report-shell close stays mounted under the opaque overlay and is reachable again after back. While `asideSurface !== 'report'`, the shell header and `.pr-aside__main` are `inert` so Tab / AT do not reach controls under the overlay.
+6c. **PR-STATS-006c** — When `performanceHints` capability + rows exist, title-row **性能分析** sits left of close and emits `open-performance-hints`; hidden without the capability or on overlay shells.
 7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing; **更多** always on compute report shell. Emulate (`report.profile === 'emulate'`) omits meta row, **更多**, summary cards, and summary CANNBot ([DATA-47](../../../../docs/context/decisions/DATA.md)).
 8. **PR-STATS-008** — More always visible on compute report shell; missing hardware shows placeholder message.
 9. **PR-STATS-009** — Duration card sketch chrome (raised tile, split value/unit, pill bar).
@@ -279,6 +281,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-25** — Performance-hints entry moves to the report-shell title row as a **性能分析** link left of close × (PR-STATS-006c); body-stack 详情 section removed. Sketch + crop: [`aside-hints-title-row.png`](./visual/aside-hints-title-row.png) from `v930-sim/performance-hints`.
 - **2026-09-25** — Shell header + `.pr-aside__main` are `inert` while a detail overlay is open (PR-STATS-006b).
 - **2026-09-24** — Detail overlays fade opacity-only (no scale) and cover the full aside so back + title animate with the tables (PR-STATS-039).
 - **2026-09-24** — Overlay headers omit close (PR-STATS-006b); back remains the only way out of compute / memory / hardware drill-in.

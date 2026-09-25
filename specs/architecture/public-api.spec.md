@@ -15,7 +15,7 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 
 **Consumption patterns.** Hosts import `ProfilingReport` and format loaders from the barrel, import `style.css`, and serve `memory-topology.svg` at `/memory-topology.svg` (resolved from the package export for copy/deploy). Domain helpers (colors, utilization, view state) are available via deep imports for advanced hosts that pre-process data before passing as props.
 
-**Component events.** `ProfilingReport` emits `ready`, `select`, `error`, `view-full-csv`, `open-hardware-details`, `open-pipe-details` (canonical set in [COMPONENTS.md](../../docs/architecture/COMPONENTS.md)). `select` tracks the **single** selection only: `null` means "no single selection" — it also fires when a marquee commit replaces the single selection with a multi-selection, so hosts must not read it as "nothing is selected" (contract: [ProfilingReport Outputs](../../src/ui/ProfilingReport/ProfilingReport.spec.md)). The marquee's `multi-select` / `multi-select-span` are internal child→root emits and the multi-select dock is self-contained; neither is part of the host-facing surface.
+**Component events.** `ProfilingReport` emits `ready`, `select`, `error`, `view-full-csv`, `open-hardware-details`, `open-pipe-details`, `open-performance-hints-in-problems` (canonical set in [COMPONENTS.md](../../docs/architecture/COMPONENTS.md)). The last is environment-routed: the aside's title-row 性能分析 trigger emits it when the `environment` prop routes to Problems (host `'vscode'`), while `'browser'` — or an omitted/unknown environment — opens the library's internal hints dock instead ([environments.ts](../../src/ui/environments.ts)). The `environment` prop is an open union (`'vscode' | 'browser' | (string & {})`) and is otherwise inert today. `select` tracks the **single** selection only: `null` means "no single selection" — it also fires when a marquee commit replaces the single selection with a multi-selection, so hosts must not read it as "nothing is selected" (contract: [ProfilingReport Outputs](../../src/ui/ProfilingReport/ProfilingReport.spec.md)). The marquee's `multi-select` / `multi-select-span` are internal child→root emits and the multi-select dock is self-contained; neither is part of the host-facing surface.
 
 ## Dependencies
 
@@ -26,6 +26,7 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 *Architecture contracts — verified by integration tests and typecheck.*
 
 ## Changelog
+- **2026-09-25** — `open-performance-hints-in-problems` added to the host-facing events and the `environment` prop documented: the title-row 性能分析 trigger routes to the host Problems view on `'vscode'`, to the internal dock on `'browser'`/omitted ([environments.ts](../../src/ui/environments.ts)).
 - **2026-09-14** — Package `exports` document `./style.css` and `./memory-topology.svg`; hosts must serve the chrome at web-root `/memory-topology.svg`.
 - **2026-09-07** — Re-export `DEFAULT_USER_GUIDE_URL` from barrel.
 - **2026-08-27** — Component events documented: `select(null)` = "no single selection" (fires on a non-empty marquee commit too); `multi-select` / `multi-select-span` are internal, not host surface.

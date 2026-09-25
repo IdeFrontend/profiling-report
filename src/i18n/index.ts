@@ -150,6 +150,13 @@ const messages = {
     ctxShowInEventView: '在事件视图中显示',
     ctxPinRow: '置顶行',
     ctxUnpinRow: '取消置顶行',
+    performanceAnalysis: '性能分析',
+    // Performance-hints dock keeps its three column headers in English in the
+    // zh-CN UI, per the sketch convention (same as Parameter / Relevent above).
+    hintMessage: 'Hint Message',
+    sourceLine: 'Source Line',
+    instructionAddress: 'Instruction Address',
+    notSpecified: '未指定',
   },
   en: {
     searchPlaceholder: 'Search',
@@ -291,6 +298,11 @@ const messages = {
     ctxShowInEventView: 'Show in event view',
     ctxPinRow: 'Pin row',
     ctxUnpinRow: 'Unpin row',
+    performanceAnalysis: 'Performance analysis',
+    hintMessage: 'Hint Message',
+    sourceLine: 'Source Line',
+    instructionAddress: 'Instruction Address',
+    notSpecified: 'Not specified',
   },
 } as const;
 

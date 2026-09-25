@@ -39,6 +39,10 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 7. **PR-ASIM-007** — When `PipeTrace.json` is absent, every native `core_*_tracing_report_*.json` (non–critical-path) is merged into one swimlane; pids are remapped so cores that each use `pid: 0` stay distinct. Cores are ordered by numeric core index when the basename matches `core_<n>_…`.
 8. **PR-ASIM-008** — `ArchDiagramMetrics.csv` → drawable `memoryTopology` + capability **`archDiagram`**; empty/unmapped → omit (DATA-48a). Do not set `memoryDiagram` on emulate.
 9. **PR-ASIM-008b** — `ARCH_DIAGRAM_EDGE_MAP` edge ids ⊆ `TOPOLOGY_SLOT_EDGE_IDS`; every mapped corridor **base** is outside `ARCH_DIAGRAM_UNPLATED_HTML_BASES` (no `_gbs`/`_ratio`/`_cnt` in the map); a full ArchDiagramMetrics fixture labels all plated edges + L2 peak (AIV pairs **sum** for gbs/cnt; **unweighted average** for ratio); metric modes rebuild labels; EAV headers case-insensitive.
+10. **PR-ASIM-009** — gelu packs all five hint CSVs → `reportModel.performanceHints` joined (53 rows: 25 instruction + 20 source-line + 8 kernel) and capability **`performanceHints`**.
+11. **PR-ASIM-010** — No hint embeds (or unresolvable `HintMsgId`s) → `performanceHints` field omitted and capability absent ([DATA-30](../../docs/context/decisions/DATA.md)).
+12. **PR-ASIM-011** — RFC-4180 quoted `HintMessages` text with embedded commas survives `parseCsv` and the join resolves msg id 1 to the full text.
+13. **PR-ASIM-012** — `SourceLineHints` without `SourceLines` → raw `sourceLineId`, no invented line numbers; `KernelHints` rows have no pc/sourceLineId; `PC` kept as exact decimal string.
 
 ## Edge Cases
 
@@ -65,3 +69,4 @@ DATA-49 — Dedicated ArchDiagramModel / biprof chrome vs heatmap deferral.
 - **2026-09-17** — Product lock: capability `archDiagram` (not `memoryDiagram`); heatmap out (DATA-49).
 - **2026-09-17** — PR-ASIM-007: multi-core native tracing reports merged with remapped pids.
 - **2026-09-18** — DATA-47: no summary cards / meta for emulate; drop KernelInfo → summary map.
+- **2026-09-22** — M4 performance-hints join (PR-ASIM-009…012): `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` → `performanceHints` + capability `performanceHints`.

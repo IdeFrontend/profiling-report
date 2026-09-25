@@ -42,7 +42,7 @@ Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisio
 | `roofline` | [roofline](../views/roofline.md) | Arithmetic + Memory | **hide** (gap) |
 | `memoryDiagram` | [memory-topology](../views/memory-topology.md) | Memory* | compute only (Asc 内存负载) |
 | `archDiagram` | [memory-topology](../views/memory-topology.md) | — | Emulate ArchDiagramMetrics **in** on the same chrome + `memoryTopology` VM ([DATA-48a](../context/decisions/interim/DATA.md)); not `memoryDiagram` |
-| Performance hints | [performance-hints](../views/performance-hints.md) | — | **planned** — `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` |
+| Performance hints | [performance-hints](../views/performance-hints.md) | — | **in** — `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` joined by `adaptEmulate` |
 | `hardwareDetails` | _(stub)_ | HardwareInfo | usually omit |
 | `memoryHeatmap` / `vfIpc` / `callStacks` | reserved | — | **out-of-scope** Sept 30 |
 

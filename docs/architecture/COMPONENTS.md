@@ -198,7 +198,7 @@ WebGL2 interval backend with sudu-style analytical horizontal coverage AA combin
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`. Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`, and `environment` (`'vscode'` routes environment-dependent actions to the host, e.g. title-row 性能分析 → Problems; `'browser'`/omitted keeps them internal). Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside) | `open-performance-hints-in-problems` (title-row 性能分析 under `environment: 'vscode'`). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
@@ -254,7 +254,7 @@ Selection details dock. MVP shows **DetailSummary** (name + timing); Parameter a
 
 ### `StatsAside` (M / M1)
 
-Right analytics column. **Shell:** title + chart icon, close → emit `close` on the **report** shell only (parent clears `asideVisible`; overlay headers omit × — PR-STATS-006b), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back returns to the stack (close omitted while drilled in).
+Right analytics column. **Shell:** title + chart icon, title-row **性能分析** link (when hints exist; left of close) → emit `open-performance-hints`, close → emit `close` on the **report** shell only (parent clears `asideVisible`; overlay headers omit × — PR-STATS-006b), meta one-liner (**进程** / **算子类型** / **Blocks** when present), **更多** always opens (UI-30, UI-31): `HardwareDetailsPanel` when data exists, else **缺少 hardware info**; emit `open-hardware-details`. **Stacked report:** summary **2×2** sketch (duration, AICore dual 并行\|负载 from DATA-9/10, compute Cube\|Vector, bandwidth), Roofline (M2 interim DATA-37*) when points exist, PIPE occupancy (+ Cube|Vector for MIX) with **详情** → compute CSV overlay, MemoryTopologyPanel with fit-window **全屏** → root overlay and **详情** → memory CSV overlay. No mode-tab switcher. Overlay header back returns to the stack (close omitted while drilled in).
 
 **Why:** Single aside host for report chrome and analytics modes; emits keep hide/hardware intent out of presentational children.
 

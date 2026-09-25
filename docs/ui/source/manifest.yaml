@@ -106,8 +106,8 @@ batches:
       - id: performance-hints
         path: v930-sim/performance-hints.jpeg
         original_name: "930版本-仿真_性能提示_报告面板-性能提示.jpeg"
-        scenes: [performance-hints, report-panel]
-        components: [StatsAside]
+        scenes: [performance-hints, report-panel, aside-title-trigger]
+        components: [StatsAside, PerformanceHintsDock]
 
   # Official Asc 内存拓扑 chrome export (448×423, AIC + one AIV × 2). Append-only copy of the
   # runtime panel asset — do not overwrite; bump a new batch if the Figma export changes again.

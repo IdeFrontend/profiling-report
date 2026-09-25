@@ -56,6 +56,7 @@ const emit = defineEmits<{
   'open-topology-fullscreen': [model: MemoryTopologyModel];
   'open-cannbot': [scope: CannbotScope];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
+  'open-performance-hints': [];
 }>();
 
 type PipeSide = PipeOccupancySide;
@@ -240,6 +241,12 @@ const showRoofline = computed(
 );
 const hasHardwareDetails = computed(
   () => (props.report?.hardwareDetails?.sections.length ?? 0) > 0,
+);
+/** M4 性能提示 entry: capability + joined rows ([DATA-30]) — reachable from both body branches. */
+const hasPerformanceHints = computed(
+  () =>
+    (props.capabilities ?? []).includes('performanceHints') &&
+    (props.report?.performanceHints?.length ?? 0) > 0,
 );
 
 const asideSurface = ref<AsideSurface>('report');
@@ -616,6 +623,17 @@ const detailTestId = computed(() => {
         <h3 :title="reportTitle">
           {{ reportTitle }}
         </h3>
+        <button
+          v-if="asideSurface === 'report' && hasPerformanceHints"
+          type="button"
+          class="pr-aside__hints"
+          data-testid="performance-hints-trigger"
+          :aria-label="t('performanceAnalysis', locale)"
+          :title="t('performanceAnalysis', locale)"
+          @click="emit('open-performance-hints')"
+        >
+          {{ t('performanceAnalysis', locale) }}
+        </button>
         <CloseButton
           class="pr-aside__close"
           data-testid="stats-aside-close"
@@ -1371,6 +1389,7 @@ const detailTestId = computed(() => {
 }
 
 .pr-aside__more,
+.pr-aside__hints,
 .pr-pipe-details {
   appearance: none;
   border: 0;
@@ -1384,9 +1403,15 @@ const detailTestId = computed(() => {
   font-size: 12px;
 }
 
+.pr-aside__hints,
 .pr-pipe-details {
   color: #e6e6e6;
   font-size: 12px;
+}
+
+.pr-aside__hints {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pr-aside__more:hover {
@@ -1394,6 +1419,7 @@ const detailTestId = computed(() => {
   text-decoration: underline;
 }
 
+.pr-aside__hints:hover,
 .pr-pipe-details:hover {
   color: #ffffff;
   text-decoration: underline;

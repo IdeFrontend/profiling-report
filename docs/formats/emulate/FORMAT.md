@@ -76,10 +76,9 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 | `KernelInfo.csv` | _(not 报告统计 chrome)_ | optional `csvTexts` only | **Out** of summary cards / meta ([DATA-47](../../context/decisions/DATA.md)). May remain packed for catalog / export |
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
 | `ArchDiagramMetrics.csv` | [memory-topology](../../views/memory-topology.md) (Architecture Diagram fill) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
+| `HintMessages.csv` + `HintTypes.csv` + `InstructionHints.csv` + `KernelHints.csv` + `SourceLineHints.csv` | [Performance hints](../../views/performance-hints.md) | `performanceHints` + capability `performanceHints` | Joined rows (53 on gelu, [PR-ASIM-009](../../../specs/core/adapt-emulate.spec.md)); RFC-4180 quoted `HintMsgText` decoded; `SourceLineId` shown raw when `SourceLines` is not packed ([PR-ASIM-012](../../../specs/core/adapt-emulate.spec.md)). Absent / no joined rows → omit |
 
 **Also lit when the above mount:** StatsAside CANNBot scopes (**compute / memory** only — summary scope omitted with meta, [DATA-47](../../context/decisions/DATA.md)) from the same adapted fields — no extra embeds.
-
-**Planned (not lit):** [性能提示](../../views/performance-hints.md) from `HintMessages.csv`, `HintTypes.csv`, `InstructionHints.csv`, `KernelHints.csv`, `SourceLineHints.csv`.
 
 **Reference leaf (committed):** [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) — playground + unit smoke. Roadmap: [milestone-4](../../process/roadmap/milestone-4.md). Per-surface detail: [`../../views/`](../../views/).
 

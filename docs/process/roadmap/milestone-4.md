@@ -14,7 +14,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 | Compute load analysis（计算负载分析） | [pipe-occupancy](../../views/pipe-occupancy.md) + PIPE 详情 | `PipesUtilization` / `PipeUtilizationHist` |
 | Architecture Diagram data → **Memory load analysis** UI（架构图 metrics / biprof 11.2.3.1） | [memory-topology](../../views/memory-topology.md) | `ArchDiagramMetrics` → plated slots via `memoryTopology` VM ([DATA-48a](../../context/decisions/interim/DATA.md)); capability `archDiagram`; **UI title** = 内存负载分析 (same as compute) |
 | Tuning report prompt | StatsAside CANNBot | compute / memory scopes when sections mount |
-| Performance hints（性能提示） | [performance-hints](../../views/performance-hints.md) | **Planned.** Bottom dock table: hint message, source line, instruction address. CSVs: `HintMessages`, `HintTypes`, `InstructionHints`, `KernelHints`, `SourceLineHints` |
+| Performance hints（性能提示） | [performance-hints](../../views/performance-hints.md) | **In.** Bottom dock table: hint message, source line, instruction address. CSVs: `HintMessages`, `HintTypes`, `InstructionHints`, `KernelHints`, `SourceLineHints` |
 | Timeline (supporting) | [timeline](../../views/timeline.md) | `PipeTrace.json` (µs) when present |
 
 **Not Sept 30:** Memory Utilization Heatmap (`MemoryRWAccesses`), dedicated biprof arch SVG ([DATA-49](../../context/questions/DATA.md)), summary cards / pid·opType·Blocks·更多 ([DATA-47](../../context/decisions/DATA.md)).
@@ -35,7 +35,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 | PIPE occupancy + CSV details | **In** | Emulate basenames only — no invent `PipeUtilization.csv` |
 | Architecture Diagram | **In** | ArchDiagramMetrics → interim plated chrome; capability `archDiagram`; UI title **内存负载分析** |
 | CANNBot compute / memory | **In** | Host opens UI; library emits payload; summary-scope icon omitted with meta |
-| Performance hints（性能提示） | **Planned** | Sketch [`v930-sim/performance-hints`](../../ui/source/v930-sim/performance-hints.jpeg); gelu packs the hint CSVs; view not built |
+| Performance hints（性能提示） | **In** | Sketch [`v930-sim/performance-hints`](../../ui/source/v930-sim/performance-hints.jpeg); gelu packs the hint CSVs; bottom dock table built (`PerformanceHintsDock`, capability `performanceHints`) |
 | Heatmap / roofline / VF IPC / call stacks / full ArchDiagramModel | **Out** | Phase 2 ([DATA-49](../../context/questions/DATA.md)) |
 
 ## Implementation tasks
@@ -45,7 +45,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 3. `topologyFromArchDiagramMetrics` + wire `adaptEmulate` (`memoryTopology` carrier, `archDiagram` capability).
 4. Keep `data/gelu.npu-rep` current for playground / unit smoke (sole emulate fixture).
 5. Tests: mapper + `archDiagram` capability; cannbot scopes when packed.
-6. Performance hints dock: join hint CSVs into the 性能提示 table ([performance-hints](../../views/performance-hints.md)).
+6. Performance hints dock: join hint CSVs into the 性能提示 table ([performance-hints](../../views/performance-hints.md)). — **done** (PR-ASIM-009…012)
 
 ## Packer exit criteria (demo leaf)
 
@@ -64,10 +64,10 @@ Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FOR
 | **DATA-48** Product slot map | Arch diagram labels wrong vs chrome | Ship DATA-48a name map from gelu; refine when Product answers |
 | **DATA-49** dedicated arch model/chrome | Lossy projection until biprof SVG | Interim topology chrome; escalate when Product provides chrome |
 | Export packer must include PIPE / ArchDiagram for aside | gelu packs them; keep packing on future dumps | Packer requirement; sample leaf also includes them |
-| Source line on hints | `SourceLineHints.SourceLineId` needs `SourceLines` for a line number; gelu leaves `SourceLines` empty | Show the id or omit the line until ELF/`SourceLines` is packed |
+| Source line on hints | `SourceLineHints.SourceLineId` needs `SourceLines` for a line number; gelu leaves `SourceLines` empty | **Resolved** — show the raw `SourceLineId` (id-only fallback) until ELF/`SourceLines` is packed |
 | **PROC-9** dedicated origin | Head still `origin=1` | Keep until Product assigns |
 
 ## Exit criteria
 
-- Docs agree: PIPE + **Memory load analysis** + CANNBot (compute/memory) **in**; **性能提示** planned; summary chrome + heatmap **out**
+- Docs agree: PIPE + **Memory load analysis** + CANNBot (compute/memory) + **性能提示** **in**; summary chrome + heatmap **out**
 - `adaptEmulate` fills those VM areas from packed embeds; playground demo works
