@@ -577,23 +577,30 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
-    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
+    const computeOverlay = wrapper.get('[data-testid="stats-compute"]');
+    expect(computeOverlay.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
+    expect(computeOverlay.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
+    // Shell close stays under the opaque overlay so leave can fade back to it.
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+    // Shell header + stacked main are inert while drilled in (PR-STATS-006b).
+    expect(wrapper.get('.pr-aside__head').attributes('inert')).toBeDefined();
+    expect(wrapper.get('.pr-aside__main').attributes('inert')).toBeDefined();
 
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+    expect(wrapper.get('.pr-aside__head').attributes('inert')).toBeUndefined();
+    expect(wrapper.get('.pr-aside__main').attributes('inert')).toBeUndefined();
 
     await wrapper.get('[data-testid="topology-details"]').trigger('click');
-    expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
+    const memoryOverlay = wrapper.get('[data-testid="stats-memory"]');
+    expect(memoryOverlay.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
+    expect(memoryOverlay.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
 
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     await wrapper.get('[data-testid="stats-aside-more"]').trigger('click');
-    expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
+    const hwOverlay = wrapper.get('[data-testid="stats-hardware-details"]');
+    expect(hwOverlay.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
+    expect(hwOverlay.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
 
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
@@ -1184,7 +1191,9 @@ describe('StatsAside', () => {
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.emitted('open-pipe-details')).toBeTruthy();
     expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="stats-compute"]').classes()).toContain('pr-aside__detail--overlay');
+    // Stack stays mounted under the opaque overlay so leave can fade out over it (PR-STATS-039).
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
   });
 
   it('PR-STATS-017: topology 详情 shows memory CSV overlay', async () => {
@@ -1974,5 +1983,48 @@ describe('StatsAside', () => {
     await csvOnly.get('[data-testid="cannbot-compute"]').trigger('click');
     await csvOnly.get('[data-testid="cannbot-memory"]').trigger('click');
     expect(csvOnly.emitted('open-cannbot')).toEqual([['compute'], ['memory']]);
+  });
+
+  it('PR-STATS-039: detail overlays use a 200ms opacity-only transition covering header + body', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(/<Transition[^>]*name="pr-aside-detail"/);
+    expect(src).toMatch(
+      /\.pr-aside-detail-enter-active,\s*\.pr-aside-detail-leave-active\s*\{[^}]*transition:\s*opacity\s+200ms\s+ease/s,
+    );
+    expect(src).toMatch(/\.pr-aside-detail-enter-from,\s*\.pr-aside-detail-leave-to\s*\{[^}]*opacity:\s*0/s);
+    expect(src).not.toMatch(/\.pr-aside-detail-enter-from[\s\S]*?scale\(/);
+    expect(src).toMatch(/\.pr-aside-detail-leave-active\s*\{[^}]*pointer-events:\s*none/s);
+    expect(src).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]*?\.pr-aside-detail-enter-active/);
+    // Overlay owns back + title so they fade with the tables.
+    expect(src).toMatch(
+      /pr-aside__detail--overlay[\s\S]*?data-testid="stats-aside-back"[\s\S]*?detailTitle/s,
+    );
+
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opType: 'vector' },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+              blockIds: ['0'],
+            },
+          ],
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    const overlay = wrapper.get('[data-testid="stats-compute"]');
+    expect(overlay.classes()).toContain('pr-aside__detail--overlay');
+    expect(overlay.find('[data-testid="stats-aside-back"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
   });
 });
