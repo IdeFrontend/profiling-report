@@ -20,7 +20,7 @@ Raised bottom 「详情」 dock: titled header with a close control over a three
 
 The header renders the 详情 tab label with a 2px white underline and the close button. The header row **stretches** so the underline lands on the header rule rather than floating mid-header: the sketch puts the underline at +49..+51 from the dock top and the rule at +51..+52, i.e. touching. Close mounts the shared `CloseButton` — a stroked ✕, not a text `×`. The body forwards `selected` to DetailSummary and `selected.args` to DetailParameter. The Relevent column mounts **only** when `neighbors` is supplied: a report with no dependency data passes `undefined` and the dock falls back to two columns — the body carries `pr-detail-panel__body--no-relevant`, which drops the third grid track so Parameter takes the freed width instead of leaving it empty (VIEW_DATA_REQUIREMENTS hide-when-missing policy).
 
-**Two heights, not a range.** The dock is `DOCK_HEIGHT_COLLAPSED` (247px) or `DOCK_HEIGHT_EXPANDED` (407px) — both measured off the v930 pair, whose exports put the dock bottom at 1049 CSS and its top at 802 and 642. A centred expander on the top edge switches between them; there is no drag resize, because the design offers one affordance and free heights only ever produced layouts the sketch never sanctioned. `height` is a prop and `update:height` an emit — the component derives `expanded` from it — so the root owns the state as it owns the gutter and aside widths. Painted height is `min(var(--pr-dock-h), 60vh)` so a short host cannot have the expanded dock eat the timeline — the old drag path left `innerHeight - 160` for the same reason.
+**Two heights, not a range.** The dock is `DOCK_HEIGHT_COLLAPSED` (247px) or `DOCK_HEIGHT_EXPANDED` (407px) — both measured off the v930 pair, whose exports put the dock bottom at 1049 CSS and its top at 802 and 642. A centred expander on the top edge switches between them; there is no drag resize, because the design offers one affordance and free heights only ever produced layouts the sketch never sanctioned. `height` is a prop and `update:height` an emit — the component derives `expanded` from it unless the parent passes an explicit `expanded` boolean (used when live marquee preview height is slack-capped below the session target) — so the root owns the state as it owns the gutter and aside widths. Painted height is `min(var(--pr-dock-h), 60vh)` so a short host cannot have the expanded dock eat the timeline — the old drag path left `innerHeight - 160` for the same reason.
 
 The expander is the sketch's 14×1px bar plus a 6×4px solid triangle in `#6c6c6c`, 4px below the dock's top edge. The two swap order between states — triangle above the bar reads as "push up to expand", below it as "push down to collapse" — which is a flex `column-reverse` / `column` flip. Padding, not margin, grows the hit target so the visual keeps its sketch position.
 
@@ -36,7 +36,7 @@ The identity track is `min-content` rather than a fixed width, so the card fits 
 1. **PR-DPANEL-002** — The header close button emits `close`.
 1. **PR-DPANEL-003** — The Relevent column renders only when `neighbors` is provided, and the body drops to a two-track grid without it.
 1. **PR-DPANEL-004** — Mode and depth changes from the Relevent toolbar are re-emitted to the parent.
-1. **PR-DPANEL-005** — The centred expander toggles the dock between its two sketch heights and carries `aria-expanded`; no drag handle exists.
+1. **PR-DPANEL-005** — The centred expander toggles the dock between its two sketch heights and carries `aria-expanded`; no drag handle exists. When the parent passes `expanded`, that intent wins over deriving from `height` (slack-capped live preview).
 1. **PR-DPANEL-006** — The active tab underline sits on the header rule, not mid-header.
 1. **PR-DPANEL-007** — Dock height animates on appear, disappear and expand (reduced motion excepted), and the close control is the design icon.
 
@@ -54,6 +54,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 [dependencies](../../../specs/core/dependencies.spec.md) for the neighbour model.
 
 ## Changelog
+- **2026-09-13** — Optional `expanded` prop overrides height-derived chevron state (slack-capped preview).
 - **2026-09-10** — Dock mount/unmount is a `translateY(100%)` + opacity slide (`ProfilingReport.vue`'s `pr-dock` transition), not a `height: 0` collapse; duration aligned to 200ms both here and in code.
 - **2026-09-02** — Expanded dock height is `min(var(--pr-dock-h), 60vh)` so a short host cannot lose the timeline; the free-drag path used to leave `innerHeight - 160` for the same reason.
 - **2026-09-01** — Identity track becomes `min-content` in both the three- and two-column layouts, so the card fits its figures instead of cropping them at 290px. Behaviour is specified in DetailSummary (`PR-DSUM-005`).

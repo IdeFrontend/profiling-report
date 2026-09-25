@@ -22,12 +22,19 @@ const props = withDefaults(
     /** Omitted when the report carries no dependency data — the column hides. */
     neighbors?: DependencyNeighbors;
     dependencyMode?: DependencyMode;
-    /** Dock height in px, owned by the parent shell. */
+    /** Dock height in px, owned by the parent shell (may be slack-capped during live preview). */
     height?: number;
+    /**
+     * Session expand intent for the chevron / aria-expanded.
+     * When set, overrides deriving expanded from `height` so a slack-capped preview
+     * still shows the final collapsed/expanded affordance.
+     */
+    expanded?: boolean;
   }>(),
   {
     clockFreqMHz: undefined,
     height: DOCK_HEIGHT_COLLAPSED,
+    expanded: undefined,
     locale: undefined,
     neighbors: undefined,
     dependencyMode: 'all',
@@ -41,7 +48,9 @@ const emit = defineEmits<{
   'update:height': [height: number];
 }>();
 
-const expanded = computed(() => props.height >= DOCK_HEIGHT_EXPANDED);
+const expanded = computed(() =>
+  props.expanded !== undefined ? props.expanded : props.height >= DOCK_HEIGHT_EXPANDED,
+);
 
 const expanderLabel = computed(() =>
   t(expanded.value ? 'collapseDock' : 'expandDock', props.locale),

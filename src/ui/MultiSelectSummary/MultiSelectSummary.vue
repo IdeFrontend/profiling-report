@@ -32,9 +32,16 @@ const props = withDefaults(
     liveCount?: number;
     /** Active marquee within the settle window: keep the stale table dimmed, no recalc. */
     dimmed?: boolean;
+    /**
+     * Session expand intent for the chevron / aria-expanded.
+     * When set, overrides deriving expanded from `height` so a slack-capped preview
+     * still shows the final collapsed/expanded affordance.
+     */
+    expanded?: boolean;
   }>(),
   {
     height: DOCK_HEIGHT_COLLAPSED,
+    expanded: undefined,
     locale: undefined,
     livePreview: false,
     liveCount: undefined,
@@ -265,7 +272,9 @@ function dirFor(key: SortKey): 'asc' | 'desc' | null {
   return sortDirection.value;
 }
 
-const expanded = computed(() => props.height >= DOCK_HEIGHT_EXPANDED);
+const expanded = computed(() =>
+  props.expanded !== undefined ? props.expanded : props.height >= DOCK_HEIGHT_EXPANDED,
+);
 
 const expanderLabel = computed(() =>
   t(expanded.value ? 'collapseDock' : 'expandDock', props.locale),

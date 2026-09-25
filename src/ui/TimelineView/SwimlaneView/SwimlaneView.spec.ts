@@ -2265,6 +2265,67 @@ describe('SwimlaneView', () => {
     );
   });
 
+  it('PR-SWIMVIEW-036: scroll-y syncs gutter and card-strip transform in the same turn', async () => {
+    const tallLanes = Array.from({ length: 30 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      color: '#f00',
+      utilization: 0.5,
+    }));
+    const tallThreads = tallLanes.map((l) => ({
+      id: l.id,
+      name: l.name,
+      events: [{ id: `${l.id}-e`, name: 'e', startTime: 0, duration: 100 }],
+    }));
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [{ id: 'card0', name: 'Card0', lanes: tallLanes }],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'card0', name: 'Card0', threads: tallThreads }],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+
+    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
+    let scrollTop = 0;
+    Object.defineProperty(gutter, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(gutter, 'scrollHeight', { value: 2000, configurable: true });
+    Object.defineProperty(gutter, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (v: number) => {
+        scrollTop = v;
+      },
+    });
+
+    // Parent view.scrollY still 0 — sync must not wait for it.
+    expect(view.scrollY).toBe(0);
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 120);
+
+    expect(scrollTop).toBe(120);
+    expect(
+      (wrapper.get('[data-testid="card-strips"]').element as HTMLElement).style.transform,
+    ).toBe('translateY(-120px)');
+    // In-flight ease frames do not clone parent view-state (PR-SWIMVIEW-032).
+    expect(wrapper.emitted('update:scrollY')).toBeFalsy();
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 120, true);
+    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(120);
+    wrapper.unmount();
+  });
+
   it('PR-SWIMVIEW-033: collapse tween clamps liveScrollY to visual content height', async () => {
     const queued: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {

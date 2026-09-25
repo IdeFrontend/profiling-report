@@ -404,9 +404,7 @@ const hasMeta = computed(() => {
 });
 
 /** UI-30, UI-31: 更多 always on compute report shell; omit for emulate (DATA-47). */
-const showMore = computed(
-  () => asideSurface.value === 'report' && props.report?.profile !== 'emulate',
-);
+const showMore = computed(() => props.report?.profile !== 'emulate');
 
 const opType = computed(() => (props.report?.summary.opType ?? '').trim());
 const isMix = computed(() => opType.value.toUpperCase() === 'MIX');
@@ -534,13 +532,13 @@ function bandwidthUtilFromCards(
 
 const PIPE_SCALE = [0, 20, 40, 60, 80, 100] as const;
 
-const headerTitle = computed(() => {
+const reportTitle = computed(() => t('summary', props.locale));
+
+const detailTitle = computed(() => {
   if (asideSurface.value === 'hardware') return t('hardwareDetails', props.locale);
   if (asideSurface.value === 'compute') return t('computeAnalysis', props.locale);
-  if (asideSurface.value === 'memory') {
-    return t('memoryAnalysis', props.locale);
-  }
-  return t('summary', props.locale);
+  if (asideSurface.value === 'memory') return t('memoryAnalysis', props.locale);
+  return reportTitle.value;
 });
 
 function openHardware() {
@@ -565,6 +563,14 @@ function openTopologyFullscreen() {
 function backToReport() {
   asideSurface.value = 'report';
 }
+
+/** data-testid for the drill-in overlay root (compute / memory / hardware). */
+const detailTestId = computed(() => {
+  if (asideSurface.value === 'hardware') return 'stats-hardware-details';
+  if (asideSurface.value === 'compute') return 'stats-compute';
+  if (asideSurface.value === 'memory') return 'stats-memory';
+  return undefined;
+});
 </script>
 
 <template>
@@ -577,42 +583,12 @@ function backToReport() {
       data-testid="aside-wash"
       aria-hidden="true"
     />
-    <header class="pr-aside__head">
+    <header
+      class="pr-aside__head"
+      :inert="asideSurface !== 'report'"
+    >
       <div class="pr-aside__title-row">
-        <button
-          v-if="asideSurface !== 'report'"
-          type="button"
-          class="pr-aside__back"
-          data-testid="stats-aside-back"
-          :aria-label="t('back', locale)"
-          :title="t('back', locale)"
-          @click="backToReport"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            aria-hidden="true"
-          >
-            <path
-              d="M10 3.5L4.5 8 10 12.5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M5 8h8"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
         <svg
-          v-else
           class="pr-aside__icon"
           data-testid="stats-aside-icon"
           width="16"
@@ -637,11 +613,10 @@ function backToReport() {
             stroke-linecap="round"
           />
         </svg>
-        <h3 :title="headerTitle">
-          {{ headerTitle }}
+        <h3 :title="reportTitle">
+          {{ reportTitle }}
         </h3>
         <CloseButton
-          v-if="asideSurface === 'report'"
           class="pr-aside__close"
           data-testid="stats-aside-close"
           :label="t('closePanel', locale)"
@@ -649,7 +624,7 @@ function backToReport() {
         />
       </div>
       <p
-        v-if="asideSurface === 'report' && (hasMeta || showMore)"
+        v-if="hasMeta || showMore"
         class="pr-aside__meta"
         :data-testid="hasMeta ? 'stats-aside-meta' : undefined"
       >
@@ -688,72 +663,10 @@ function backToReport() {
     </header>
 
     <div
-      v-if="asideSurface === 'hardware'"
-      class="pr-aside__detail"
-      data-testid="stats-hardware-details"
+      class="pr-aside__main"
+      :inert="asideSurface !== 'report'"
     >
-      <HardwareDetailsPanel
-        v-if="hasHardwareDetails && report?.hardwareDetails"
-        :model="report.hardwareDetails"
-        :locale="locale"
-      />
-      <p
-        v-else
-        class="pr-hw-missing"
-        data-testid="hardware-info-missing"
-      >
-        {{ t('hardwareInfoMissing', locale) }}
-      </p>
-    </div>
-
     <div
-      v-else-if="asideSurface === 'compute' && showCompute"
-      data-testid="stats-compute"
-      class="pr-aside__detail"
-    >
-      <SummaryCategoryList
-        v-if="computeCategories.length > 0 && !computeCsvScope"
-        :categories="computeCategories"
-        :active-id="activeCategory"
-        :locale="locale"
-        @update:active-id="activeCategory = $event"
-      />
-      <CsvFieldListPanel
-        v-else
-        :tables="report?.computeTables ?? []"
-        :csv-texts="report?.csvTexts ?? {}"
-        :show-block-switcher="false"
-        :show-view-all="false"
-        :selected-block-id="overlayBlockId"
-        :locale="locale"
-      />
-    </div>
-
-    <div
-      v-else-if="asideSurface === 'memory' && showMemory"
-      data-testid="stats-memory"
-      class="pr-aside__detail"
-    >
-      <SummaryCategoryList
-        v-if="memoryCategories.length > 0 && !memoryCsvScope"
-        :categories="memoryCategories"
-        :active-id="activeCategory"
-        :locale="locale"
-        @update:active-id="activeCategory = $event"
-      />
-      <CsvFieldListPanel
-        v-else
-        :tables="memoryTablesWithPipe"
-        :csv-texts="report?.csvTexts ?? {}"
-        :selected-block-id="overlayBlockId"
-        :locale="locale"
-        @update:selected-block-id="blockId = $event"
-        @view-full-csv="emit('view-full-csv', $event)"
-      />
-    </div>
-
-    <div
-      v-else
       class="pr-aside__body"
     >
       <div
@@ -1213,6 +1126,107 @@ function backToReport() {
         </div>
       </template>
     </div>
+    </div>
+
+    <Transition name="pr-aside-detail">
+      <div
+        v-if="asideSurface !== 'report'"
+        :key="asideSurface"
+        class="pr-aside__detail pr-aside__detail--overlay"
+        :data-testid="detailTestId"
+      >
+        <header class="pr-aside__head">
+          <div class="pr-aside__title-row">
+            <button
+              type="button"
+              class="pr-aside__back"
+              data-testid="stats-aside-back"
+              :aria-label="t('back', locale)"
+              :title="t('back', locale)"
+              @click="backToReport"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                width="14"
+                height="14"
+                aria-hidden="true"
+              >
+                <path
+                  d="M10 3.5L4.5 8 10 12.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M5 8h8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+            <h3 :title="detailTitle">
+              {{ detailTitle }}
+            </h3>
+          </div>
+        </header>
+        <div class="pr-aside__detail-body">
+          <template v-if="asideSurface === 'hardware'">
+            <HardwareDetailsPanel
+              v-if="hasHardwareDetails && report?.hardwareDetails"
+              :model="report.hardwareDetails"
+              :locale="locale"
+            />
+            <p
+              v-else
+              class="pr-hw-missing"
+              data-testid="hardware-info-missing"
+            >
+              {{ t('hardwareInfoMissing', locale) }}
+            </p>
+          </template>
+          <template v-else-if="asideSurface === 'compute' && showCompute">
+            <SummaryCategoryList
+              v-if="computeCategories.length > 0 && !computeCsvScope"
+              :categories="computeCategories"
+              :active-id="activeCategory"
+              :locale="locale"
+              @update:active-id="activeCategory = $event"
+            />
+            <CsvFieldListPanel
+              v-else
+              :tables="report?.computeTables ?? []"
+              :csv-texts="report?.csvTexts ?? {}"
+              :show-block-switcher="false"
+              :show-view-all="false"
+              :selected-block-id="overlayBlockId"
+              :locale="locale"
+            />
+          </template>
+          <template v-else-if="asideSurface === 'memory' && showMemory">
+            <SummaryCategoryList
+              v-if="memoryCategories.length > 0 && !memoryCsvScope"
+              :categories="memoryCategories"
+              :active-id="activeCategory"
+              :locale="locale"
+              @update:active-id="activeCategory = $event"
+            />
+            <CsvFieldListPanel
+              v-else
+              :tables="memoryTablesWithPipe"
+              :csv-texts="report?.csvTexts ?? {}"
+              :selected-block-id="overlayBlockId"
+              :locale="locale"
+              @update:selected-block-id="blockId = $event"
+              @view-full-csv="emit('view-full-csv', $event)"
+            />
+          </template>
+        </div>
+      </div>
+    </Transition>
   </aside>
 </template>
 
@@ -1253,6 +1267,17 @@ function backToReport() {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
+}
+
+/** Stacked report + absolute drill-in overlay share this flex slot. */
+.pr-aside__main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .pr-aside__body {
@@ -1407,11 +1432,53 @@ function backToReport() {
   min-height: 0;
 }
 
-.pr-aside > .pr-aside__detail {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 auto;
+/* Drill-in compute / memory / hardware overlay — covers shell + stack so
+   back/title fade with the tables (not csv-only inline lists). */
+.pr-aside__detail--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  /* Match aside padding so the overlay header lines up with the shell. */
+  padding: 10px 12px;
   overflow: hidden;
+  /* Opaque so the stacked report under the overlay does not show through. */
+  background: var(--pr-bg-aside);
+}
+
+.pr-aside__detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Opacity-only fade (no scale). */
+.pr-aside-detail-enter-active,
+.pr-aside-detail-leave-active {
+  transition: opacity 200ms ease;
+}
+
+.pr-aside-detail-leave-active {
+  pointer-events: none;
+}
+
+.pr-aside-detail-enter-from,
+.pr-aside-detail-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-aside-detail-enter-active,
+  .pr-aside-detail-leave-active {
+    transition: none;
+  }
 }
 
 .pr-hw-missing {

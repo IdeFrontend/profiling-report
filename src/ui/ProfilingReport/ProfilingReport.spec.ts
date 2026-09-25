@@ -646,6 +646,134 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-020: closed-to-drag uses preview dock height; commit grows to session height', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-height',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const { DOCK_HEIGHT_MARQUEE_PREVIEW, DOCK_HEIGHT_COLLAPSED } = await import('../panelResize');
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    const dock = wrapper.get('[data-testid="dock"]');
+    // jsdom wrap is empty of slack → minimum preview height.
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`,
+    );
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-020: expand survives clear then closed-to-drag marquee commit', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'dock-expand-preserved',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const vm = wrapper.vm as unknown as { selectEventById: (id: string) => void };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const { DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } = await import('../panelResize');
+
+    vm.selectEventById('a');
+    await nextTick();
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('update:height', DOCK_HEIGHT_EXPANDED);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`,
+    );
+
+    // Clear selection — dock unmounts; session height must stay expanded.
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('close');
+    await nextTick();
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`,
+    );
+    // Chevron follows session expand even when painted height is slack-capped.
+    expect(wrapper.get('[data-testid="multi-select-expander"]').attributes('aria-expanded')).toBe(
+      'true',
+    );
+
+    timeline().vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.get('[data-testid="dock"]').attributes('style')).toContain(
+      `--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`,
+    );
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="multi-select-expander"]').attributes('aria-expanded')).toBe(
+      'true',
+    );
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-020: closed-to-drag preview grows into slack toward session target', async () => {
+    const panelResize = await import('../panelResize');
+    const { DOCK_HEIGHT_MARQUEE_PREVIEW, DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } =
+      panelResize;
+    const slackHeight = 180;
+    const spy = vi.spyOn(panelResize, 'marqueePreviewDockHeight').mockReturnValue(slackHeight);
+
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'live-preview-slack',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+      attachTo: document.body,
+    });
+    const vm = wrapper.vm as unknown as { selectEventById: (id: string) => void };
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+
+    // Seed session expanded, then clear so closed→drag uses expanded as target.
+    vm.selectEventById('a');
+    await nextTick();
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('update:height', DOCK_HEIGHT_EXPANDED);
+    await nextTick();
+    wrapper.getComponent({ name: 'DetailPanel' }).vm.$emit('close');
+    await nextTick();
+    spy.mockClear();
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+
+    // First paint must already be the precomputed preview (no full-target→shrink flash).
+    const style = wrapper.get('[data-testid="dock"]').attributes('style') ?? '';
+    expect(spy).toHaveBeenCalled();
+    const targetHeights = spy.mock.calls.map((c) => (c[0] as { targetHeight: number }).targetHeight);
+    expect(targetHeights.every((h) => h === DOCK_HEIGHT_EXPANDED)).toBe(true);
+    expect(style).toContain(`--pr-dock-h: ${slackHeight}px`);
+    expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_MARQUEE_PREVIEW}px`);
+    expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`);
+    expect(style).not.toContain(`--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`);
+    expect(slackHeight).toBeLessThan(DOCK_HEIGHT_COLLAPSED);
+    expect(wrapper.get('[data-testid="multi-select-expander"]').attributes('aria-expanded')).toBe(
+      'true',
+    );
+
+    spy.mockRestore();
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-016: Escape mid-drag restores the pre-drag dock without host select', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
@@ -688,7 +816,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-016: empty-first preview does not mount a blank dock', async () => {
+  it('PR-ROOT-016: empty-first from closed does not mount the dock', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'live-preview-empty-first',
@@ -704,7 +832,7 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="dock-empty"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
-    // Gesture is live (Escape gated) even though the footer stays closed.
+    // Gesture is live (Escape gated) even with empty coverage and no dock.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
     expect(wrapper.emitted('select')).toBeFalsy();
@@ -843,6 +971,38 @@ describe('ProfilingReport scaffold', () => {
     expect(summary().props('dimmed')).toBe(false);
 
     vi.useRealTimers();
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-020: slack preview ignores live scrollY after gesture start', async () => {
+    const model = depsModel();
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'frozen-scroll-slack',
+        swimlaneModel: model,
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    const events = model.processes[0]!.threads[0]!.events;
+    const timeline = () => wrapper.findComponent({ name: 'TimelineView' });
+    const panelResize = await import('../panelResize');
+    const spy = vi.spyOn(panelResize, 'marqueePreviewDockHeight').mockReturnValue(120);
+
+    timeline().vm.$emit('multi-select-preview', events);
+    await nextTick();
+    const callsAtOpen = spy.mock.calls.length;
+    expect(callsAtOpen).toBeGreaterThan(0);
+    const scrollAtOpen = spy.mock.calls.at(-1)![0]!.scrollY as number;
+
+    // Edge autoscroll updates view scroll; slack watch must not recompute from live scrollY.
+    const vm = wrapper.vm as unknown as {
+      viewState: { scrollY: number };
+    };
+    vm.viewState.scrollY = scrollAtOpen + 400;
+    await nextTick();
+    expect(spy.mock.calls.length).toBe(callsAtOpen);
+
+    spy.mockRestore();
     wrapper.unmount();
   });
 

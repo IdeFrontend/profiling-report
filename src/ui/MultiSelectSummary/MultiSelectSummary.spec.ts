@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MultiSelectSummary from './MultiSelectSummary.vue';
 import type { SwimEvent, SwimlaneModel } from '../../domain/types';
-import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../panelResize';
 
 function ev(id: string, name: string, startTime: number, duration: number): SwimEvent {
   return { id, name, startTime, duration };
@@ -170,6 +170,19 @@ describe('MultiSelectSummary', () => {
     // Height is driven by the prop, so the parent owning the state is what moves it.
     await wrapper.setProps({ height: DOCK_HEIGHT_EXPANDED });
     expect(expander.attributes('aria-expanded')).toBe('true');
+
+    await expander.trigger('click');
+    expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_COLLAPSED]);
+  });
+
+  it('PR-MSEL-007: expanded prop wins over a slack-capped height', async () => {
+    const wrapper = mountPanel({
+      height: DOCK_HEIGHT_MARQUEE_PREVIEW,
+      expanded: true,
+    });
+    const expander = wrapper.find('[data-testid="multi-select-expander"]');
+    expect(expander.attributes('aria-expanded')).toBe('true');
+    expect(expander.classes()).toContain('pr-multi-select__expander--expanded');
 
     await expander.trigger('click');
     expect(wrapper.emitted('update:height')?.at(-1)).toEqual([DOCK_HEIGHT_COLLAPSED]);

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
-import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../../src/ui/panelResize';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../../src/ui/panelResize';
 
 /** With fit = [minTime, maxTime], events fill the canvas; probe near the left first. */
 const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.35, 0.5, 0.65, 0.8];
@@ -398,17 +398,30 @@ test.describe('PR-E2E feature paths', () => {
     // Live dock follows coverage before commit (≥2 events → summary). The table stays
     // mounted while the marquee is still growing (it is dimmed and recalculated on
     // settle/commit — that transient state is unit-tested with fake timers, not e2e).
+    // Height is slack-based preview toward the session target (PR-ROOT-020) — floor
+    // fits the count header only; with room below lanes it may reach collapsed.
     await expect(page.getByTestId('dock')).toBeVisible();
     await expect(page.getByTestId('multi-select-summary')).toBeVisible();
     await expect(page.locator('.pr-multi-select__table')).toHaveCount(1);
+    const midDragDockH = (await page.getByTestId('dock').boundingBox())!.height;
+    expect(midDragDockH).toBeGreaterThanOrEqual(DOCK_HEIGHT_MARQUEE_PREVIEW);
+    expect(midDragDockH).toBeLessThanOrEqual(DOCK_HEIGHT_EXPANDED);
+
     // Δt chrome tracks the live rect (measure parity), with measure mode off.
     await expect(page.getByTestId('measure-arrow')).toBeVisible();
     await page.mouse.up();
 
     const dock = page.getByTestId('multi-select-summary');
     await expect(dock).toBeVisible();
-    // Committed: the table is recalculated and no longer dimmed.
+    // Committed: the table is recalculated and no longer dimmed; dock grows to session height.
     await expect(page.locator('.pr-multi-select__table--dimmed')).toHaveCount(0);
+    await expect
+      .poll(async () => (await page.getByTestId('dock').boundingBox())?.height ?? 0)
+      .toBeGreaterThanOrEqual(midDragDockH);
+    await expect
+      .poll(async () => (await page.getByTestId('dock').boundingBox())?.height ?? 0)
+      .toBeGreaterThan(200);
+
     await expect(page.getByTestId('marquee-rect')).toHaveCount(0);
     // Δt is cleared on commit; only the live drag showed the measure chrome.
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
@@ -487,10 +500,10 @@ test.describe('PR-E2E feature paths', () => {
     const box = (await overlay.boundingBox())!;
     const topPad = await overviewTopPad(page);
 
-    // Slow the enter so a mid-flight sample is reliable; leave absolute slide unchanged.
+    // Beat scoped `.pr-dock-enter-active[data-v-*]` so the mid-flight sample is reliable.
     await page.addStyleTag({
       content: `
-        .pr-dock-enter-active {
+        [data-testid="dock"].pr-dock-enter-active {
           transition: height 2000ms linear !important, opacity 2000ms linear !important;
         }
       `,
@@ -500,6 +513,30 @@ test.describe('PR-E2E feature paths', () => {
       (canvas) => (canvas.closest('[data-testid="swimlane"]') as HTMLElement).clientHeight,
     );
 
+    // Capture climbing frames before the click so we cannot miss the mid window.
+    await page.evaluate(() => {
+      (window as unknown as { __dockEnterSamples: Array<{ dockH: number; swimH: number }> })
+        .__dockEnterSamples = [];
+      const tick = () => {
+        const d = document.querySelector('[data-testid="dock"]') as HTMLElement | null;
+        const s = document.querySelector('[data-testid="swimlane"]') as HTMLElement | null;
+        if (d && s) {
+          (
+            window as unknown as { __dockEnterSamples: Array<{ dockH: number; swimH: number }> }
+          ).__dockEnterSamples.push({
+            dockH: d.getBoundingClientRect().height,
+            swimH: s.clientHeight,
+          });
+        }
+        (
+          window as unknown as { __dockEnterRaf?: number }
+        ).__dockEnterRaf = requestAnimationFrame(tick);
+      };
+      (
+        window as unknown as { __dockEnterRaf?: number }
+      ).__dockEnterRaf = requestAnimationFrame(tick);
+    });
+
     await page.mouse.click(
       box.x + 106,
       box.y + topPad + LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT / 2,
@@ -507,34 +544,42 @@ test.describe('PR-E2E feature paths', () => {
     const dock = page.getByTestId('dock');
     await expect(dock).toBeVisible();
 
-    // Sample while height is still climbing — must not already reserve the full dock.
+    let mid: { dockH: number; swimH: number } | null = null;
     await expect
-      .poll(async () => {
-        const sample = await page.evaluate(() => {
-          const d = document.querySelector('[data-testid="dock"]') as HTMLElement | null;
-          const s = document.querySelector('[data-testid="swimlane"]') as HTMLElement | null;
-          if (!d || !s) return null;
-          return { dockH: d.getBoundingClientRect().height, swimH: s.clientHeight };
-        });
-        return sample;
-      })
-      .not.toBeNull();
+      .poll(
+        async () => {
+          const samples = await page.evaluate(() => {
+            return (
+              (
+                window as unknown as {
+                  __dockEnterSamples?: Array<{ dockH: number; swimH: number }>;
+                }
+              ).__dockEnterSamples ?? []
+            );
+          });
+          mid =
+            samples.find((s) => s.dockH > 8 && s.dockH < DOCK_HEIGHT_COLLAPSED * 0.6) ?? null;
+          return mid != null;
+        },
+        { timeout: 2500 },
+      )
+      .toBe(true);
+    expect(mid).not.toBeNull();
 
-    const mid = await page.evaluate(() => {
-      const d = document.querySelector('[data-testid="dock"]') as HTMLElement;
-      const s = document.querySelector('[data-testid="swimlane"]') as HTMLElement;
-      return { dockH: d.getBoundingClientRect().height, swimH: s.clientHeight };
+    await page.evaluate(() => {
+      const w = window as unknown as { __dockEnterRaf?: number };
+      if (w.__dockEnterRaf) cancelAnimationFrame(w.__dockEnterRaf);
     });
 
     // Catch the regression: full-height reserved slot + translateY left swim shrunk by
     // ~DOCK_HEIGHT while dock layout height was already final. Mid-enter must couple them.
-    expect(mid.dockH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6);
-    expect(swimBefore - mid.swimH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6 + 40);
+    expect(mid!.dockH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6);
+    expect(swimBefore - mid!.swimH).toBeLessThan(DOCK_HEIGHT_COLLAPSED * 0.6 + 40);
     // Layout shrink tracks the dock's current layout height (not a pre-claimed full slot).
-    expect(Math.abs(swimBefore - mid.swimH - mid.dockH)).toBeLessThan(48);
+    expect(Math.abs(swimBefore - mid!.swimH - mid!.dockH)).toBeLessThan(48);
 
     await expect
-      .poll(async () => (await dock.boundingBox())?.height ?? 0, { timeout: 3000 })
+      .poll(async () => (await dock.boundingBox())?.height ?? 0, { timeout: 5000 })
       .toBe(DOCK_HEIGHT_COLLAPSED);
   });
 
@@ -572,6 +617,122 @@ test.describe('PR-E2E feature paths', () => {
     await expect(page.getByTestId('multi-select-summary')).toHaveCount(0);
     await expect(page.getByTestId('detail-panel')).toHaveCount(0);
     await expect(page.getByTestId('measure-arrow')).toHaveCount(0);
+  });
+
+  test('PR-E2E-015: wheel scroll keeps gutter and card headers locked', async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.goto('/?fixture=stress&scale=large');
+    await expect(page.getByTestId('playground-ready')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('swimlane-canvas')).toBeVisible({ timeout: 30_000 });
+    // Expand enough lanes for vertical scroll room (skip missing names).
+    for (const name of ['Core0.Vec0', 'Core1.Cube', 'Core1.Vec0', 'Core2.Cube', 'Core2.Vec0']) {
+      const btn = page.getByRole('button', { name: new RegExp(`^${name}`) }).first();
+      if ((await btn.count()) === 0) continue;
+      if ((await btn.getAttribute('aria-expanded')) === 'false') await btn.click();
+    }
+    const overlay = page.getByTestId('swimlane-canvas');
+    const gutter = page.getByTestId('lane-gutter');
+    await expect
+      .poll(async () => {
+        return gutter.evaluate((el) => el.scrollHeight - el.clientHeight);
+      }, { timeout: 20_000 })
+      .toBeGreaterThan(200);
+
+    const box = (await overlay.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 200);
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 80);
+
+    const sample = await page.evaluate(() => {
+      const g = document.querySelector('[data-testid="lane-gutter"]') as HTMLElement | null;
+      // Transform lives on the card-strips host (same-turn applyScrollChromeTransforms +
+      // :style binding) — not a nested `__scroll` wrapper.
+      const scroller = document.querySelector('[data-testid="card-strips"]') as HTMLElement | null;
+      const strip = document.querySelector(
+        '[data-testid^="card-strip-"]',
+      ) as HTMLElement | null;
+      const group = strip
+        ? (document.querySelector(
+            `[data-testid="gutter-group-${strip.getAttribute('data-testid')?.replace('card-strip-', '')}"]`,
+          ) as HTMLElement | null)
+        : null;
+      const tf = scroller?.style.transform ?? '';
+      const m = /translateY\((-?\d+(?:\.\d+)?)px\)/.exec(tf);
+      return {
+        gutterTop: g?.scrollTop ?? -1,
+        transformY: m ? Number(m[1]) : null,
+        cardVsGutter:
+          strip && group
+            ? Math.round(strip.getBoundingClientRect().top - group.getBoundingClientRect().top)
+            : null,
+      };
+    });
+    expect(sample.gutterTop).toBeGreaterThan(100);
+    expect(sample.transformY).toBe(-sample.gutterTop);
+    if (sample.cardVsGutter != null) expect(Math.abs(sample.cardVsGutter)).toBeLessThanOrEqual(1);
+  });
+
+  test('PR-E2E-016: marquee edge autoscroll moves the timeline while the rect stays live', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.goto('/?fixture=stress&scale=large');
+    await expect(page.getByTestId('playground-ready')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('swimlane-canvas')).toBeVisible({ timeout: 30_000 });
+    for (const name of ['Core0.Vec0', 'Core1.Cube', 'Core1.Vec0', 'Core2.Cube']) {
+      const btn = page.getByRole('button', { name: new RegExp(`^${name}`) }).first();
+      if ((await btn.count()) === 0) continue;
+      if ((await btn.getAttribute('aria-expanded')) === 'false') await btn.click();
+    }
+    const gutter = page.getByTestId('lane-gutter');
+    await expect
+      .poll(async () => gutter.evaluate((el) => el.scrollHeight - el.clientHeight), {
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(200);
+
+    const wrap = page.getByTestId('swimlane');
+    let box = (await wrap.boundingBox())!;
+    const startY = box.y + box.height / 2;
+    await page.mouse.move(box.x + 40, startY);
+    await page.mouse.down();
+    // Cross the 4px gate in the interior (outside the 40px edge bands).
+    await page.mouse.move(box.x + 120, startY + 20, { steps: 6 });
+    await expect(page.getByTestId('marquee-rect')).toBeVisible();
+    // Dock preview can shrink the wrap and suspend edge autoscroll until the
+    // pointer leaves the band (PR-CANVAS-109). Wait for wrap height to settle,
+    // leave the band, then re-enter to arm autoscroll.
+    await expect
+      .poll(
+        async () => {
+          const h1 = (await wrap.boundingBox())?.height ?? 0;
+          await page.waitForTimeout(40);
+          const h2 = (await wrap.boundingBox())?.height ?? 0;
+          return Math.abs(h1 - h2) < 1 ? h2 : 0;
+        },
+        { timeout: 3000 },
+      )
+      .toBeGreaterThan(0);
+    box = (await wrap.boundingBox())!;
+    await page.mouse.move(box.x + 140, box.y + box.height / 2, { steps: 4 });
+    const before = await gutter.evaluate((el) => el.scrollTop);
+    await page.mouse.move(box.x + 140, box.y + box.height - 8, { steps: 4 });
+    await expect
+      .poll(
+        async () => {
+          const top = await gutter.evaluate((el) => el.scrollTop);
+          if (top > before) return top;
+          const b = (await wrap.boundingBox())!;
+          await page.mouse.move(b.x + 140, b.y + b.height / 2, { steps: 2 });
+          await page.mouse.move(b.x + 140, b.y + b.height - 8, { steps: 2 });
+          return gutter.evaluate((el) => el.scrollTop);
+        },
+        { timeout: 8000 },
+      )
+      .toBeGreaterThan(before);
+    await expect(page.getByTestId('marquee-rect')).toBeVisible();
+    await page.mouse.up();
   });
 });
 

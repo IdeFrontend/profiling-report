@@ -35,7 +35,7 @@ interface SwimEvent    {
 
 **`skipCardHeaders`:** when `true`, `rebuildLayout` / `contentHeightFromModel` skip Card header rows. Used only for the viewer-built pinned sticky-strip model — never on adapter/producer models.
 
-**Collapsed-group summary events:** `filterCollapsedTree` prunes descendants of collapsed ids and attaches `summaryEvents` — the disjoint union (merged overlapping *and touching* intervals) of every descendant leaf event, sorted by `startTime`. Each summary event carries `taskCount` = the number of leaf tasks merged into its interval. A **single-event** union also keeps that leaf's `name`, source `laneName`, and `sourceEvent` (for select-on-expand). Expanded folders omit `summaryEvents`. The viewer may keep the expanded tree and paint those bars via `setCollapsedIds` without calling `filterCollapsedTree` on the hot path (see [`swimlane-renderer.spec.md`](swimlane-renderer.spec.md)). Producers/adapters do not emit `summaryEvents` — it is viewer-built.
+**Collapsed-group summary events:** `filterCollapsedTree` prunes descendants of collapsed ids and attaches `summaryEvents` — the disjoint union (merged overlapping *and touching* intervals) of every descendant leaf event, sorted by `startTime`. Each summary event carries `taskCount` = the number of leaf tasks merged into its interval. A **single-event** union also keeps that leaf's `name`, source `laneName`, and `sourceEvent` (for select-on-expand). A **multi-event** union keeps `sourceEvents` (the merged leaves, for multi-select-on-expand). Expanded folders omit `summaryEvents`. These gray bars are painted on the collapsed folder's own lane by the renderer, labeled "N tasks" in a dimmed foreground, hover-highlighted, and click-to-expand; the viewer may keep the expanded tree and paint those bars via `setCollapsedIds` without calling `filterCollapsedTree` on the hot path (see [`swimlane-renderer.spec.md`](swimlane-renderer.spec.md)). Producers/adapters do not emit `summaryEvents` — it is viewer-built in the collapse pass.
 
 **Card nesting:** `adaptRep` applies `nestCardTreeFromFlatCorePipes` only when the producer sets `nestCardTree: true` on the trace doc (`sample.rep`). Real traces without the flag stay flat even if thread names look like `CoreN.*/PIPE`.
 
@@ -76,7 +76,7 @@ interface SwimEvent    {
 1. **PR-SWIM-011**: Recycled flow ids and the same id in two processes each keep their pairs, including when finishes appear first in the file.
 1. **PR-SWIM-012**: A flow in a gap under an enclosing slice binds the enclosing event.
 1. **PR-SWIM-013**: Touching X intervals (`end === next.start`) are siblings, not nested.
-1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals, each carrying `taskCount` = merged task count; a single-event union also keeps the leaf `name`, source `laneName`, and `sourceEvent`); an expanded folder omits `summaryEvents`.
+1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals, each carrying `taskCount` = merged task count; a single-event union also keeps the leaf `name`, source `laneName`, and `sourceEvent`; a multi-event union keeps `sourceEvents` = the merged leaves); an expanded folder omits `summaryEvents`.
 1. **PR-SWIM-015**: Producer `nestCardTree: true` is recorded in `metadata`; absent → no nest flag (adaptRep does not invent Card nesting).
 1. **PR-SWIM-016**: `findEventInModel` indexes leaf `events` and collapsed-folder `summaryEvents` once per model identity, then looks up by id in O(1).
 
@@ -95,6 +95,7 @@ DATA-35 — Lane hierarchy; use producer thread_name as-is; nesting only via exp
 
 ## Changelog
 - **2026-09-22** — `findEventInModel` is a one-walk-per-model index (`PR-SWIM-016`).
+- **2026-09-13** — Multi-event summary bars carry `sourceEvents` for multi-select-on-expand (`PR-SWIM-014`).
 - **2026-09-08** — Ordering: converter and multi-row layout share `startTime` asc / longest-`duration` first; `rebuildLayout` trusts that order (no defensive re-sort) and throws if a leaf is out of order. Document `sample.lite.rep` as a demo-only exclusivity exception.
 - **2026-09-03** — Ordering drops the "longest `duration` first on ties" tie-break: intra-lane exclusivity makes equal `startTime` within a lane impossible, so it is dead. `rebuildLayout` sorts by `startTime` only; `hitTestLayout` (not rebuildLayout) prefers the shorter nested event in the Chrome-trace overlap path. — superseded 2026-09-08 (multi-row layout + converter share longest-first; layout no longer re-sorts).
 - **2026-09-03** — Drop producer `bands`/`SwimlaneBand`; collapsed folders expose viewer-built `summaryEvents` (disjoint union). PR-SWIM-014.

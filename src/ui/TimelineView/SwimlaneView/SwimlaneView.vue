@@ -130,6 +130,7 @@ const emit = defineEmits<{
 const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
 type CanvasExpose = {
   handleWheel: (e: WheelEvent) => void;
+  setScrollY?: (y: number) => void;
   magnetizeAtClient: (
     clientX: number,
     clientY: number,
@@ -140,6 +141,14 @@ type CanvasExpose = {
   ) => { time: number; xPx: number; xRatio: number; eventId: string | null } | null;
   clearEdgeSnapHighlight: () => void;
   altMeasureBridgeEndpoint?: () => { clientX: number; clientY: number; time: number } | null;
+  wrapLayoutEpoch?: number;
+  swimlaneWrapHeight?: number;
+  computeMarqueePreviewDockHeight?: (
+    currentPreviewPx: number,
+    targetPx: number,
+    wrapClosedHeight?: number,
+    scrollY?: number,
+  ) => number;
 };
 const canvasRef = ref<CanvasExpose | null>(null);
 const pinnedCanvasRef = ref<CanvasExpose | null>(null);
@@ -377,6 +386,16 @@ const cardHeaders = computed(() => {
   }));
 });
 
+/**
+ * Live marquee preview (non-null coverage). While true, gutter `scroll` must not
+ * drive viewState — dock shrink scroll-anchoring was writing scrollTop and
+ * fighting canvas-owned scrollY.
+ */
+const marqueePreviewLive = computed(() => livePreviewIds.value != null);
+
+const cardStripsElRef = ref<HTMLElement | null>(null);
+const overviewElRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
+
 const visibleCardStrips = computed(() => {
   const pad = overviewContentPad.value;
   return cardHeaders.value.map((h) => ({
@@ -396,6 +415,7 @@ onMounted(() => {
   sync();
   bodyResizeObserver = new ResizeObserver(sync);
   bodyResizeObserver.observe(el);
+  syncScrollChromeFromY(liveScrollY.value);
 });
 
 onUnmounted(() => {
@@ -411,7 +431,7 @@ watch(
   (y) => {
     if (canvasLiveScroll) return;
     liveScrollY.value = y;
-    setGutterScrollTop(y);
+    syncScrollChromeFromY(y);
   },
 );
 
@@ -421,11 +441,37 @@ function maxBodyScrollY(): number {
   return Math.max(0, h + overviewContentPad.value - (bodyViewportH.value || 0));
 }
 
+/** Same-turn DOM transforms so cards/overview match gutter before Vue flush. */
+function applyScrollChromeTransforms(y: number): void {
+  if (cardStripsElRef.value) {
+    cardStripsElRef.value.style.transform = `translateY(${-y}px)`;
+  }
+  const overviewEl =
+    overviewElRef.value && '$el' in overviewElRef.value
+      ? overviewElRef.value.$el
+      : (overviewElRef.value as HTMLElement | null);
+  if (overviewEl?.style) {
+    overviewEl.style.transform = `translateY(${-y}px)`;
+  }
+}
+
+/** Gutter + card/overview transforms from one Y; chrome follows quantized scrollTop. */
+function syncScrollChromeFromY(y: number): void {
+  setGutterScrollTop(y);
+  const gutterY = gutterRef.value?.root?.scrollTop;
+  applyScrollChromeTransforms(
+    gutterY != null && Number.isFinite(gutterY) ? gutterY : y,
+  );
+}
+
 function clampLiveScrollToContent(): void {
+  // Dock preview shrinks bodyViewportH under a live marquee; canvas keeps soft
+  // overscroll (PR-CANVAS-109). Do not yank gutter/cards to the new max mid-drag.
+  if (marqueePreviewLive.value) return;
   const maxY = maxBodyScrollY();
   if (liveScrollY.value <= maxY) return;
   liveScrollY.value = maxY;
-  setGutterScrollTop(maxY);
+  syncScrollChromeFromY(maxY);
 }
 
 watch(
@@ -452,7 +498,10 @@ function setGutterScrollTop(y: number): void {
 function onScrollY(scrollY: number, settled?: boolean) {
   const y = Math.max(0, scrollY);
   liveScrollY.value = y;
-  setGutterScrollTop(y);
+  // Native scrollTop quantizes; paint cards/overview from the value the gutter
+  // actually stored so the layers stay pixel-locked (PR-E2E-015 / PR-SWIMVIEW-036).
+  // Imperative transform only — a Vue :style binding would overwrite with float Y.
+  syncScrollChromeFromY(y);
   if (settled) {
     canvasLiveScroll = false;
     emit('update:scrollY', y);
@@ -489,11 +538,17 @@ function onMultiSelectPreview(payload: string[] | SwimEvent[] | null) {
   emit('multi-select-preview', payload);
 }
 
+
 function onGutterScroll(): void {
   if (gutterScrollSync) return;
   const el = gutterRef.value?.root;
   if (!el) return;
   if (Math.abs(el.scrollTop - liveScrollY.value) > 0.5) {
+    if (marqueePreviewLive.value) {
+      // Do not write scrollTop here (that chased canvas/cards). overflow-anchor:none
+      // blocks dock anchoring; canvas emits remain the source of truth via the watcher.
+      return;
+    }
     onScrollY(el.scrollTop, true);
   }
 }
@@ -598,6 +653,27 @@ defineExpose({
   clearEdgeSnapHighlight,
   /** Test/debug: shared Alt-measure session (pin strip ↔ body). */
   altMeasureShared,
+  get wrapLayoutEpoch() {
+    return canvasRef.value?.wrapLayoutEpoch ?? 0;
+  },
+  get swimlaneWrapHeight() {
+    return canvasRef.value?.swimlaneWrapHeight ?? 0;
+  },
+  computeMarqueePreviewDockHeight(
+    currentPreviewPx: number,
+    targetPx: number,
+    wrapClosedHeight?: number,
+    scrollY?: number,
+  ): number {
+    return (
+      canvasRef.value?.computeMarqueePreviewDockHeight?.(
+        currentPreviewPx,
+        targetPx,
+        wrapClosedHeight,
+        scrollY,
+      ) ?? currentPreviewPx
+    );
+  },
 });
 </script>
 
@@ -715,8 +791,8 @@ defineExpose({
     >
       <OverviewCharts
         v-if="scrollOverviewSeries.length"
+        ref="overviewElRef"
         class="pr-body-overview"
-        :style="{ transform: `translateY(${-liveScrollY}px)` }"
         :series="scrollOverviewSeries"
         :pinned-overview-ids="pinnedOverviewIds"
         :start-time="view.startTime"
@@ -805,12 +881,12 @@ defineExpose({
       />
 
       <div
+        ref="cardStripsElRef"
         class="pr-card-strips"
         data-testid="card-strips"
         :style="{
           '--pr-card-header-fill': LANE_GROUP_HEADER_FILL,
           '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
-          transform: `translateY(${-liveScrollY}px)`,
         }"
       >
         <div
@@ -1036,6 +1112,7 @@ defineExpose({
   pointer-events: none;
   z-index: 8;
   overflow: hidden;
+  will-change: transform;
 }
 
 .pr-card-strip {

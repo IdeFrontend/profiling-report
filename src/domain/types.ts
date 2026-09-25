@@ -31,6 +31,11 @@ export interface SwimEvent {
    * summary-bar expand (the summary id itself is never selected).
    */
   sourceEvent?: SwimEvent;
+  /**
+   * Underlying leaf events when `taskCount > 1` — used to multi-select every
+   * nested leaf covered by this summary bar on expand (summary id never selected).
+   */
+  sourceEvents?: SwimEvent[];
 }
 
 /** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */

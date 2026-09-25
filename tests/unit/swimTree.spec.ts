@@ -146,18 +146,18 @@ describe('swimTree + nested layout', () => {
 
     // Overlapping spans merge; count = number of merged source events.
     expect(unionEventIntervals([ev('a', 0, 10), ev('b', 5, 10)])).toEqual([
-      { startTime: 0, duration: 15, count: 2 },
+      { startTime: 0, duration: 15, count: 2, sources: [ev('a', 0, 10), ev('b', 5, 10)] },
     ]);
 
     // Touching (end === next.start) merges into one span, still two tasks.
     expect(unionEventIntervals([ev('a', 0, 10), ev('b', 10, 5)])).toEqual([
-      { startTime: 0, duration: 15, count: 2 },
+      { startTime: 0, duration: 15, count: 2, sources: [ev('a', 0, 10), ev('b', 10, 5)] },
     ]);
 
     // Disjoint stays separate, sorted by start; one task each.
     expect(unionEventIntervals([ev('b', 20, 5), ev('a', 0, 10)])).toEqual([
-      { startTime: 0, duration: 10, count: 1 },
-      { startTime: 20, duration: 5, count: 1 },
+      { startTime: 0, duration: 10, count: 1, sources: [ev('a', 0, 10)] },
+      { startTime: 20, duration: 5, count: 1, sources: [ev('b', 20, 5)] },
     ]);
 
     expect(unionEventIntervals([])).toEqual([]);
@@ -186,7 +186,17 @@ describe('swimTree + nested layout', () => {
     const computeCollapsed = filterCollapsedTree(nestedModel(), ['compute']);
     const c2 = computeCollapsed.processes[0]!.threads[1]!;
     expect(c2.summaryEvents).toEqual([
-      { id: 'compute/summary/0', name: '', startTime: 0, duration: 10, taskCount: 2 },
+      {
+        id: 'compute/summary/0',
+        name: '',
+        startTime: 0,
+        duration: 10,
+        taskCount: 2,
+        sourceEvents: [
+          { id: 'e1', name: 'busy', startTime: 0, duration: 10 },
+          { id: 'e2', name: 'busy', startTime: 0, duration: 5 },
+        ],
+      },
     ]);
   });
 
