@@ -81,7 +81,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 4. **PR-STATS-004** — Blank or unrecognized `opType` shows all PIPE sides (compute-shaped occupancy).
 5. **PR-STATS-005** — Compute overlay search-only; memory keeps 查看全部.
 6. **PR-STATS-006** — Header title and close emit.
-6b. **PR-STATS-006b** — Compute / memory / hardware overlay chrome shows back and omits close; the report-shell close stays mounted under the opaque overlay and is reachable again after back.
+6b. **PR-STATS-006b** — Compute / memory / hardware overlay chrome shows back and omits close; the report-shell close stays mounted under the opaque overlay and is reachable again after back. While `asideSurface !== 'report'`, the shell header and `.pr-aside__main` are `inert` so Tab / AT do not reach controls under the overlay.
 7. **PR-STATS-007** — Meta 进程 / 算子类型 / Blocks hide-if-missing; **更多** always on compute report shell. Emulate (`report.profile === 'emulate'`) omits meta row, **更多**, summary cards, and summary CANNBot ([DATA-47](../../../../docs/context/decisions/DATA.md)).
 8. **PR-STATS-008** — More always visible on compute report shell; missing hardware shows placeholder message.
 9. **PR-STATS-009** — Duration card sketch chrome (raised tile, split value/unit, pill bar).
@@ -279,6 +279,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-09-25** — Shell header + `.pr-aside__main` are `inert` while a detail overlay is open (PR-STATS-006b).
 - **2026-09-24** — Detail overlays fade opacity-only (no scale) and cover the full aside so back + title animate with the tables (PR-STATS-039).
 - **2026-09-24** — Overlay headers omit close (PR-STATS-006b); back remains the only way out of compute / memory / hardware drill-in.
 - **2026-09-24** — Block caption localizes (`分块` / `Block`); `CardMetricSelect` menu sizes to the longest option so a short selection does not clip longer labels.

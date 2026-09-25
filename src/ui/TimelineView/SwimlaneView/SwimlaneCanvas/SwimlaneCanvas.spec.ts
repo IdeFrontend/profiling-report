@@ -3376,7 +3376,12 @@ describe('SwimlaneCanvas', () => {
     expect(top).toBeCloseTo(100 - scrolled, 0);
     expect(height).toBeGreaterThan(scrolled);
 
+    // Release still in the edge band (no leave-band move) — must settle scroll-y.
     window.dispatchEvent(new PointerEvent('pointerup', { clientX: 50, clientY: 290 }));
+    await wrapper.vm.$nextTick();
+    const lastScroll = wrapper.emitted('scroll-y')!.at(-1)!;
+    expect(lastScroll[1]).toBe(true);
+    expect(lastScroll[0] as number).toBe(scrolled);
     wrapper.unmount();
   });
 
@@ -3698,20 +3703,20 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ contentTopPad: 80 });
     await wrapper.vm.$nextTick();
     const vm = wrapper.vm as unknown as {
-      selectionBottomContentYForCommit: (
+      selectionRangeContentYForCommit: (
         events: { id: string }[],
         rect: { x0: number; y0: number; x1: number; y1: number },
-      ) => number;
+      ) => { top: number; bottom: number };
       renderer: () => { getLayout: () => { events: { id: string; y: number }[] } };
     };
     const layoutEv = vm.renderer().getLayout().events.find((e) => e.id === 'e1');
     expect(layoutEv).toBeTruthy();
-    const withPad = vm.selectionBottomContentYForCommit([{ id: 'e1' } as never], {
+    const withPad = vm.selectionRangeContentYForCommit([{ id: 'e1' } as never], {
       x0: 0,
       y0: 0,
       x1: 10,
       y1: 10,
-    });
+    }).bottom;
     // Layout y + LANE_HEIGHT is content space; wrap space adds contentTopPad.
     expect(withPad).toBe(layoutEv!.y + 22 + 80);
     wrapper.unmount();
@@ -4074,6 +4079,12 @@ describe('SwimlaneCanvas', () => {
     window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 220 }));
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted('multi-select')).toBeTruthy();
+
+    // Already-open dock skips ensure tween, but commit must still settle scroll-y.
+    const settledAtCommit = (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.some(
+      (e) => e[1] === true,
+    );
+    expect(settledAtCommit).toBe(true);
 
     const before = wrapper.emitted('scroll-y')?.length ?? 0;
     const scrollAtCommit =

@@ -1343,6 +1343,7 @@ function scheduleEnsureMarqueeReleaseVisible(selTop: number, selBottom: number):
     }
     if (stable >= 2 || now - started >= MARQUEE_RELEASE_LAYOUT_WAIT_MS) {
       // Already-open dock (unchanged height) or empty close restoring wrap: skip.
+      // Settled scroll-y was already emitted on marquee end (PR-CANVAS-115).
       if (H < startH - 0.5) {
         const maxDelta = Math.max(0, hAtCommit - H) + MARQUEE_RELEASE_MARGIN_PX;
         ensureSelectionRangeVisible(selTop, selBottom, maxDelta);
@@ -1509,11 +1510,6 @@ function selectionRangeContentYForCommit(
   return { top: Math.min(snappedTop, snappedBottom), bottom: Math.max(snappedTop, snappedBottom) };
 }
 
-/** @deprecated Use selectionRangeContentYForCommit — kept for existing unit probes. */
-function selectionBottomContentYForCommit(commitEvents: SwimEvent[], rect: MarqueeRect): number {
-  return selectionRangeContentYForCommit(commitEvents, rect).bottom;
-}
-
 function snapshotShiftBaseIds(): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
@@ -1677,16 +1673,19 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
  */
 function onMarqueeDragEnd(): void {
   flushPendingMarqueeMove();
-  stopMarqueeAutoScroll();
+  // Settle if edge-autoscroll was live — release can land still in the band with no
+  // leave-band pointermove, and already-open-dock ensure may skip (PR-CANVAS-112/115).
+  stopMarqueeAutoScroll(true);
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   unpinClientOrigin();
   const rect = marqueeRect.value;
   marqueeAnchor = null;
   marqueePending = false;
-  // Soft-clamp overscroll while press is still live so paint + localScrollY agree
-  // before post-commit ensure-scroll runs (PR-CANVAS-109).
-  settleMarqueeOverscroll(false);
+  // Soft-clamp overscroll and settle so parent viewState.scrollY catches up even when
+  // post-commit ensure-scroll skips (already-open dock). Ensure may start a new live
+  // session if the wrap shrinks (PR-CANVAS-109 / PR-CANVAS-115).
+  settleMarqueeOverscroll(true);
   // Canvas `pointerup` bubbles to window first, so the flag is still set when it
   // decides whether to select — clear it only here, once the gesture is truly over.
   marqueePressActive = false;
@@ -2615,17 +2614,20 @@ function onPointerDown(e: PointerEvent): void {
 function onPointerMove(e: PointerEvent): void {
   const target = activeCanvas();
   if (!target) return;
+
+  // Marquee owns the press: no magnet, no cursor move, no tooltip (spec: suppress hover).
+  // Skip getBoundingClientRect — dock preview emits force sync reflow mid-drag.
+  if (marqueePressActive && !marqueePending) {
+    lastPointerClientY = e.clientY;
+    emit('hover', null, e.clientX, e.clientY);
+    return;
+  }
+
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   const w = Math.max(1, rect.width);
   lastPointerClientY = e.clientY;
-
-  // Marquee owns the press: no magnet, no cursor move, no tooltip (spec: suppress hover).
-  if (marqueePressActive && !marqueePending) {
-    emit('hover', null, e.clientX, e.clientY);
-    return;
-  }
 
   const mag = magnetizeLocal(x, y);
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
@@ -3007,9 +3009,8 @@ defineExpose({
     return wrapRef.value?.clientHeight ?? 0;
   },
   computeMarqueePreviewDockHeight,
-  /** Test helper: wrap-space bottom of the bottommost committed lane row. */
+  /** Test helper: wrap-space top/bottom of the committed selection lane rows. */
   selectionRangeContentYForCommit,
-  selectionBottomContentYForCommit,
 });
 </script>
 

@@ -583,7 +583,10 @@ const detailTestId = computed(() => {
       data-testid="aside-wash"
       aria-hidden="true"
     />
-    <header class="pr-aside__head">
+    <header
+      class="pr-aside__head"
+      :inert="asideSurface !== 'report'"
+    >
       <div class="pr-aside__title-row">
         <svg
           class="pr-aside__icon"
@@ -659,7 +662,10 @@ const detailTestId = computed(() => {
       </p>
     </header>
 
-    <div class="pr-aside__main">
+    <div
+      class="pr-aside__main"
+      :inert="asideSurface !== 'report'"
+    >
     <div
       class="pr-aside__body"
     >

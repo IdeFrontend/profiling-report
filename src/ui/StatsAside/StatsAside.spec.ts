@@ -582,9 +582,14 @@ describe('StatsAside', () => {
     expect(computeOverlay.find('[data-testid="stats-aside-close"]').exists()).toBe(false);
     // Shell close stays under the opaque overlay so leave can fade back to it.
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+    // Shell header + stacked main are inert while drilled in (PR-STATS-006b).
+    expect(wrapper.get('.pr-aside__head').attributes('inert')).toBeDefined();
+    expect(wrapper.get('.pr-aside__main').attributes('inert')).toBeDefined();
 
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
+    expect(wrapper.get('.pr-aside__head').attributes('inert')).toBeUndefined();
+    expect(wrapper.get('.pr-aside__main').attributes('inert')).toBeUndefined();
 
     await wrapper.get('[data-testid="topology-details"]').trigger('click');
     const memoryOverlay = wrapper.get('[data-testid="stats-memory"]');
