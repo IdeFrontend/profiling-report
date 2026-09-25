@@ -3,6 +3,7 @@ import {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   applyCollapseAnim,
+  collapsePaintState,
   eventBlockMetrics,
   findExactEdgeMatches,
   findExactEdgeMatchesAt,
@@ -13,7 +14,7 @@ import {
   projectExactEdgeMarks,
   rebuildLayout,
 } from '../../src/swimlane/layout';
-import type { SwimlaneModel } from '../../src/domain/types';
+import type { SwimEvent, SwimlaneModel } from '../../src/domain/types';
 
 function model(): SwimlaneModel {
   return {
@@ -196,6 +197,47 @@ describe('nearestEventEdgeAtPoint / measureRangeExactEdgeMarks', () => {
         norm(findExactEdgeMatchesAt(fallback, t)),
       );
     }
+  });
+
+  it('edge index matches the full-walk fallback on a collapsed layout (tucked leaf + summary bar)', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'folder',
+              name: 'Folder',
+              events: [],
+              children: [
+                { id: 'leaf', name: 'Leaf', events: [{ id: 'e1', name: 'a', startTime: 10, duration: 20 }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const base = rebuildLayout(m);
+    const cache = new Map<string, SwimEvent[]>();
+    // Collapse the folder: the leaf lane tucks to alpha 0 (excluded) and a gray
+    // summary bar (10..30) is spliced into summaryExtras / eventsByLane.
+    const { hitLayout } = collapsePaintState(base, ['folder'], null, cache);
+    const { edgeIndex: _drop, ...rest } = hitLayout;
+    const fallback = rest as typeof hitLayout;
+    const norm = (arr: { eventId: string; edge: string }[]) =>
+      arr.map((x) => `${x.eventId}:${x.edge}`).sort();
+
+    // 10 / 30 = the summary bar's own edges; 15 = nothing (inside the bar).
+    for (const t of [0, 10, 15, 20, 30, 99]) {
+      expect(norm(findExactEdgeMatchesAt(hitLayout, t))).toEqual(
+        norm(findExactEdgeMatchesAt(fallback, t)),
+      );
+    }
+    // The collapsed leaf must not surface through either path.
+    expect(findExactEdgeMatchesAt(hitLayout, 10).map((x) => x.eventId)).not.toContain('e1');
   });
 });
 

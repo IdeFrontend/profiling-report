@@ -734,8 +734,13 @@ export interface SwimlaneLayout {
 }
 
 /**
- * Allocation-light edge-time index: three parallel typed arrays over 2×event edges,
- * sorted by time. `eventIndices` points into `layout.events`; `isEnd` marks end edges.
+ * Edge-time index: three parallel typed arrays over 2×event edges, sorted by time.
+ * `eventIndices` points into `layout.events`; `isEnd` marks end edges.
+ *
+ * Built once per `rebuildLayout` (~48–56 bytes/event across the source + sorted
+ * arrays — ~12 MB for 125k events), so the query stays O(log N + K) with no per-frame
+ * allocation. Amortized: it is rebuilt only when the layout identity changes, never on
+ * pan/zoom/scroll.
  */
 export interface EdgeTimeIndex {
   times: Float64Array;
@@ -1525,7 +1530,7 @@ export function findExactEdgeMatches(
 }
 
 /** First index in a sorted `Float64Array` whose value is `>= target`. */
-export function lowerBound(sorted: Float64Array, target: number): number {
+function lowerBound(sorted: Float64Array, target: number): number {
   let lo = 0;
   let hi = sorted.length;
   while (lo < hi) {
@@ -1600,7 +1605,9 @@ export function findExactEdgeMatchesAt(
   let i = lowerBound(times, time);
   for (; i < times.length && times[i] === time; i++) {
     const item = layout.events[eventIndices[i]!];
-    if (!item) continue;
+    // Mirror `collectItemEdges`'s guard so a future collapse-opacity change (or a base
+    // event ever gaining `alpha: 0`) keeps this branch equivalent to the full walk.
+    if (!item || item.alpha === 0) continue;
     const laneY = exactEdgeLaneY(layout, item);
     if (laneY == null) continue;
     out.push({

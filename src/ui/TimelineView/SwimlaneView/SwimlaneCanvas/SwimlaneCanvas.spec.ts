@@ -3402,7 +3402,8 @@ describe('SwimlaneCanvas', () => {
     expect(cursor.xRatio).toBeGreaterThanOrEqual(0);
     expect(cursor.xRatio).toBeLessThanOrEqual(1);
 
-    // And the symmetric right edge: an event end past view.endTime must not exceed 1.
+    // And the symmetric right edge: an event end slightly past view.endTime lands at
+    // x > 400 and, magnetized from x=400, must clamp to exactly 1 (not 1.011…).
     const model2 = {
       minTime: 0,
       maxTime: 2000,
@@ -3411,7 +3412,7 @@ describe('SwimlaneCanvas', () => {
           id: 'p-1',
           name: 'P',
           threads: [
-            { id: 't-1', name: 'T', events: [{ id: 'e2', name: 'busy', startTime: 500, duration: 400 }] },
+            { id: 't-1', name: 'T', events: [{ id: 'e2', name: 'busy', startTime: 460, duration: 450 }] },
           ],
         },
       ],
@@ -3442,15 +3443,20 @@ describe('SwimlaneCanvas', () => {
     };
     const rect2 = vm2.eventScreenRect('e2')!;
     expect(rect2).toBeTruthy();
-    // e2 end = 900; view [0,900] → end edge x = 400 (right edge). Hover just inside.
+    // e2 end = 910; view [0,900] → end edge x = 404.4, within 10px of the 400 right edge.
     await canvas2.trigger('pointermove', {
       clientX: 400,
       clientY: rect2.y + rect2.h / 2,
       pointerId: 1,
     });
-    const cursor2 = wrapper2.emitted('cursor')!.at(-1)![0] as { xRatio: number };
-    expect(cursor2.xRatio).toBeLessThanOrEqual(1);
-    expect(cursor2.xRatio).toBeGreaterThanOrEqual(0);
+    const cursor2 = wrapper2.emitted('cursor')!.at(-1)![0] as {
+      time: number;
+      xRatio: number;
+      snapped?: boolean;
+    };
+    expect(cursor2.snapped).toBe(true); // magnetized to the off-screen end edge
+    expect(cursor2.time).toBe(910); // true snapped time preserved
+    expect(cursor2.xRatio).toBe(1); // clamped from 1.011… to the right edge
 
     wrapper.unmount();
     wrapper2.unmount();
