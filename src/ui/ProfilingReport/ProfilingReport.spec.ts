@@ -10,6 +10,7 @@ import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopo
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
+import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 /** Two linked events, so the dock mounts its Relevent column. */
 function depsModel(): SwimlaneModel {
@@ -1066,6 +1067,224 @@ describe('ProfilingReport scaffold', () => {
     });
     expect(wrapper.find('[data-testid="toggle-aside"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
+  });
+
+  it('no timeline: the 性能分析 trigger still mounts the hints dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-no-timeline',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [
+            {
+              message:
+                'UB bank conflicts detected. Try to optimize local memory accesses, prefer sequential patterns instead of strided.',
+              typeName: 'shared_bank_conflicts',
+              origin: 'kernel',
+            },
+          ],
+        },
+        capabilities: ['performanceHints'],
+      },
+    });
+
+    // No swimlaneModel → timeline absent; DATA-33a keeps the hints-only aside closed.
+    expect(wrapper.find('[data-testid="no-timeline"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(false);
+    await nextTick(); // first render opens the aside (default state); onMounted's DATA-33a reset closes it.
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(false);
+
+    // Manual toolbar toggle opens the aside; the hints entry renders once (non-csvOnly branch).
+    await wrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(0);
+    expect(wrapper.findAll('[data-testid="performance-hints-trigger"]')).toHaveLength(1);
+
+    // The trigger mounts the dock even though showTimeline is false.
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    expect(wrapper.find('[data-testid="dock"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    // The pane reuses the standard event-detail dock: no dedicated hints chrome on the shell.
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+
+    // The dock's own close button dismisses it again.
+    await wrapper.get('[data-testid="performance-hints-close"]').trigger('click');
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+    expect(wrapper.find('.pr-dock--hints').exists()).toBe(false);
+  });
+
+  it('PR-ROOT-023: the 性能分析 trigger clears the selection so the hints pane owns the dock', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-over-selection',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          summary: { opName: 'gelu', opType: 'vector', taskDurationUs: 120 },
+          performanceHints: [
+            {
+              message: 'Low warp occupancy detected (32.5%).',
+              typeName: 'warp_occupancy_hint',
+              pc: '624191680372',
+              origin: 'instruction',
+            },
+          ],
+        },
+        capabilities: ['performanceHints'],
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectEventById: (id: string) => void;
+      viewState: { selectedEventId: string | null; multiSelectedIds: string[] };
+    };
+
+    // The duration card auto-opens the aside, so its 性能分析 trigger is on screen.
+    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(true);
+
+    // Selection first: DetailPanel owns the dock slot, so the pane would be swallowed.
+    vm.selectEventById('a');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(vm.viewState.selectedEventId).toBeNull();
+    expect(wrapper.emitted('select')?.at(-1)).toEqual([null]);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+
+    // A later single select clears sticky hintsDockOpen — closing DetailPanel must not
+    // resurrect the hints pane without another 性能分析 click.
+    vm.selectEventById('a');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="detail-panel-close"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+
+    // Re-open hints, then a committed marquee owns the slot and also clears sticky open.
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    const model = depsModel();
+    const events = model.processes[0]!.threads[0]!.events;
+    wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', events);
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+
+    // Closing the multi summary must not resurrect hints either.
+    await wrapper.get('[data-testid="multi-select-close"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+
+    // Trigger still works after sticky clear.
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    await nextTick();
+    expect(vm.viewState.multiSelectedIds).toEqual([]);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-021: environment routes the 性能分析 trigger — vscode asks the host to open Problems, browser opens the internal dock', async () => {
+    const hintRow = {
+      message: 'UB bank conflicts detected. Try to optimize local memory accesses.',
+      typeName: 'shared_bank_conflicts',
+      origin: 'kernel',
+    } as const;
+
+    const vscodeWrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-vscode',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [hintRow],
+        },
+        capabilities: ['performanceHints'],
+        environment: 'vscode',
+      },
+    });
+
+    // Hints-only report: the post-mount DATA-33a reset leaves the aside closed, so the
+    // toolbar toggle is what opens it (same flow as the no-timeline test above).
+    await nextTick();
+    await vscodeWrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    await vscodeWrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+
+    expect(vscodeWrapper.emitted('open-performance-hints-in-problems')).toHaveLength(1);
+    expect(vscodeWrapper.find('[data-testid="dock"]').exists()).toBe(false);
+
+    const browserWrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-browser',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [hintRow],
+        },
+        capabilities: ['performanceHints'],
+        environment: 'browser',
+      },
+    });
+
+    await nextTick();
+    await browserWrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    await browserWrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+
+    expect(browserWrapper.emitted('open-performance-hints-in-problems')).toBeUndefined();
+    expect(browserWrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
+    expect(browserWrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+  });
+
+  it('PR-ROOT-022: the hints pane carries the shared dock expander and drives --pr-dock-h', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'hints-expander',
+        swimlaneModel: undefined,
+        reportModel: {
+          ...emptyReportViewModel(),
+          performanceHints: [
+            {
+              message: 'UB bank conflicts detected. Try to optimize local memory accesses.',
+              typeName: 'shared_bank_conflicts',
+              origin: 'kernel',
+            },
+          ],
+        },
+        capabilities: ['performanceHints'],
+        environment: 'browser',
+      },
+    });
+
+    // Same browser flow as PR-ROOT-021: the hints-only report's DATA-33a aside reset means
+    // the toolbar toggle opens the aside before the title-row 性能分析 trigger can be clicked.
+    await nextTick();
+    await wrapper.get('[data-testid="toggle-aside"]').trigger('click');
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+
+    const dock = wrapper.get('[data-testid="dock"]');
+    const expander = wrapper.get('[data-testid="performance-hints-expander"]');
+    expect(expander.attributes('aria-expanded')).toBe('false');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`);
+
+    await expander.trigger('click');
+    expect(expander.attributes('aria-expanded')).toBe('true');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_EXPANDED}px`);
+
+    await expander.trigger('click');
+    expect(expander.attributes('aria-expanded')).toBe('false');
+    expect(dock.attributes('style')).toContain(`--pr-dock-h: ${DOCK_HEIGHT_COLLAPSED}px`);
+
+    wrapper.unmount();
   });
 
   it('toolbar lives in main column only (not full-width above aside)', () => {

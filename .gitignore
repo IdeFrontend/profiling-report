@@ -25,3 +25,8 @@ graphify-out/
 .hermes/
 .worktrees/
 data/scripts/__pycache__/
+# Planning artifacts (never commit)
+PLAN.md
+.aider*
+# Tooling caches (never commit)
+.playwright-mcp

@@ -398,6 +398,75 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(model!.edges.find((e) => e.id === 'cube-l0c')?.label).toBe('7.25 GB/s');
     expect(model!.edges.find((e) => e.id === 'l0c-cube')?.label).toBeUndefined();
   });
+
+  it('PR-ASIM-010: no hint embeds → performanceHints omitted and no capability (DATA-30)', () => {
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(minimalTraceUs()),
+    });
+    expect(adapted.reportModel.performanceHints).toBeUndefined();
+    expect(adapted.capabilities).not.toContain('performanceHints');
+
+    // Unresolvable HintMsgId alone must not light the surface either.
+    const dangling = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(minimalTraceUs()),
+      'InstructionHints.csv': enc.encode('HintId,HintTypeId,HintMsgId,PC\n1,2,99,1\n'),
+    });
+    expect(dangling.reportModel.performanceHints).toBeUndefined();
+    expect(dangling.capabilities).not.toContain('performanceHints');
+  });
+
+  it('PR-ASIM-012: sourceLineId raw / kernel message-only / PC exact decimal string', () => {
+    const hintMessages = [
+      'HintMsgId,HintMsgText',
+      '1,"UB bank conflicts detected. Try to optimize local memory accesses, prefer sequential patterns instead of strided."',
+      '2,Low warp occupancy detected',
+    ].join('\n');
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(minimalTraceUs()),
+      'HintMessages.csv': enc.encode(hintMessages),
+      'HintTypes.csv': enc.encode(
+        'HintTypeId,HintTypeName,HintPassed\n1,shared_bank_conflicts,1\n2,warp_occupancy_hint,1\n',
+      ),
+      'InstructionHints.csv': enc.encode(
+        'HintId,HintTypeId,HintMsgId,PC\n1,2,2,624191680372\n2,2,99,1\n',
+      ),
+      'KernelHints.csv': enc.encode('HintId,HintTypeId,HintMsgId\n1,1,1\n'),
+      'SourceLineHints.csv': enc.encode(
+        'HintId,HintTypeId,HintMsgId,SourceLineId\n1,1,1,39\n',
+      ),
+    });
+
+    const rows = adapted.reportModel.performanceHints!;
+    // Unresolvable HintMsgId 99 is skipped; join order: instruction → sourceLine → kernel.
+    expect(rows).toHaveLength(3);
+
+    const instruction = rows.find((r) => r.origin === 'instruction')!;
+    expect(instruction.message).toBe('Low warp occupancy detected');
+    expect(instruction.typeName).toBe('warp_occupancy_hint');
+    expect(instruction.pc).toBe('624191680372');
+    expect(typeof instruction.pc).toBe('string');
+    expect(instruction.sourceLineId).toBeUndefined();
+
+    const sourceLine = rows.find((r) => r.origin === 'sourceLine')!;
+    expect(sourceLine.sourceLineId).toBe('39');
+    expect(typeof sourceLine.sourceLineId).toBe('string');
+    // No SourceLines on gelu → raw id, no invented line number.
+    expect(sourceLine).not.toHaveProperty('lineNumber');
+    expect(sourceLine.pc).toBeUndefined();
+    expect(sourceLine.typeName).toBe('shared_bank_conflicts');
+
+    const kernel = rows.find((r) => r.origin === 'kernel')!;
+    // Exact full-text equality for quoted HintMessages row 1 (embedded commas intact).
+    expect(kernel.message).toBe(
+      'UB bank conflicts detected. Try to optimize local memory accesses, prefer sequential patterns instead of strided.',
+    );
+    expect(kernel.pc).toBeUndefined();
+    expect(kernel.sourceLineId).toBeUndefined();
+    expect(kernel.typeName).toBe('shared_bank_conflicts');
+  });
 });
 
 describe('npu-rep / loadReportSource profile routing', () => {
@@ -424,7 +493,7 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.reportModel.pipeOccupancy).toEqual([]);
   });
 
-  it('gelu.npu-rep opens as emulate with swimlane + PIPE + ArchDiagram (no summary chrome)', () => {
+  it('PR-ASIM-009: gelu.npu-rep opens as emulate with swimlane + PIPE + ArchDiagram + 53 performance hints (no summary chrome)', () => {
     const bytes = new Uint8Array(
       readFileSync(resolve(__dirname, '../../data/gelu.npu-rep')),
     );
@@ -441,6 +510,23 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.capabilities).toContain('archDiagram');
     expect(adapted.capabilities).not.toContain('memoryDiagram');
     expect(adapted.reportModel.roofline).toBeUndefined();
+
+    // M4 performance-hints join: 25 instruction + 20 source-line + 8 kernel.
+    expect(adapted.reportModel.performanceHints).toBeDefined();
+    expect(adapted.reportModel.performanceHints!.length).toBe(53);
+    expect(adapted.capabilities).toContain('performanceHints');
+    const origins = adapted.reportModel.performanceHints!.reduce(
+      (acc, h) => {
+        acc[h.origin] = (acc[h.origin] ?? 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+    expect(origins).toEqual({ instruction: 25, sourceLine: 20, kernel: 8 });
+    const firstInstruction = adapted.reportModel.performanceHints!.find(
+      (h) => h.origin === 'instruction',
+    );
+    expect(firstInstruction?.pc).toBe('624191680372');
 
     const summaryPayload = buildCannbotPayload('summary', adapted.reportModel, {
       name: 'gelu.npu-rep',

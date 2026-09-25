@@ -160,7 +160,7 @@ function pipeRatioStem(raw: string): string | null {
 }
 
 /** Build id→name map from a two-column dictionary CSV. */
-function idNameMap(
+export function idNameMap(
   payload: Uint8Array | undefined,
   [idCol, nameCol]: [string, string],
 ): Map<string, string> {

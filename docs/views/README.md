@@ -34,7 +34,7 @@ flowchart LR
 | `overview-charts` | [overview-charts.md](overview-charts.md) | M | `gap` | **hide** | OverviewCharts visual |
 | `roofline` | [roofline.md](roofline.md) | M2 | `gap` | **hide** | RooflinePanel visual |
 | `memory-topology` | [memory-topology.md](memory-topology.md) | M2 / M4 | `adapt-mapper` | compute **in** (`memoryDiagram`); emulate Architecture Diagram **in** on same chrome (`archDiagram`) | `memory-topology.svg` (`v930-chrome`) |
-| `performance-hints` | [performance-hints.md](performance-hints.md) | M4 | `adapt-mapper` | **planned** | `v930-sim` 性能提示 report panel |
+| `performance-hints` | [performance-hints.md](performance-hints.md) | M4 | `adapt-mapper` | **in** | `v930-sim` 性能提示 report panel |
 
 ### Stubs (second pass)
 

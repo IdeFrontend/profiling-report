@@ -7,6 +7,7 @@
 import type {
   AdaptedReport,
   CsvTableModel,
+  PerformanceHintItem,
   ReportCapability,
   ReportViewModel,
   SwimlaneModel,
@@ -18,6 +19,7 @@ import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 import { parseCsv } from './parseCsv';
 import {
   csvTableFromPipeUtilizationHist,
+  idNameMap,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
@@ -37,6 +39,11 @@ const PIPE_HIST_NAMES = ['PipeUtilizationHist.csv', 'pipeutilizationhist.csv'];
 const INSTR_QUEUE_TYPE_NAMES = ['InstrQueueTypes.csv', 'instrqueuetypes.csv'];
 const CORE_TYPE_NAMES = ['CoreTypes.csv', 'coretypes.csv'];
 const ARCH_DIAGRAM_NAMES = ['ArchDiagramMetrics.csv', 'archdiagrammetrics.csv'];
+const HINT_MESSAGES_NAMES = ['HintMessages.csv', 'hintmessages.csv'];
+const HINT_TYPES_NAMES = ['HintTypes.csv', 'hinttypes.csv'];
+const INSTRUCTION_HINTS_NAMES = ['InstructionHints.csv', 'instructionhints.csv'];
+const KERNEL_HINTS_NAMES = ['KernelHints.csv', 'kernelhints.csv'];
+const SOURCE_LINE_HINTS_NAMES = ['SourceLineHints.csv', 'sourcelinehints.csv'];
 
 /** Hub object names that identify an npu_emulate CSV export catalog. */
 const EXPORT_CATALOG_HUBS = new Set(['ExecutedInstructions', 'KernelInfo', 'AnalysisState']);
@@ -207,6 +214,57 @@ export function readEmulateManifest(
   return null;
 }
 
+/**
+ * Join the five performance-hint CSVs into `PerformanceHintItem[]` (M4
+ * 性能提示 dock; docs/views/performance-hints.md). Rows whose `HintMsgId`
+ * does not resolve to a message are skipped; when the join is empty the
+ * caller omits the field and the capability ([DATA-30]). `HintPassed` is
+ * ignored (all 1 on gelu). CSV order is preserved (instruction →
+ * source-line → kernel, matching the gelu pack).
+ */
+function performanceHintsFromPayloads(
+  payloads: Record<string, Uint8Array>,
+): PerformanceHintItem[] {
+  const messages = idNameMap(payloadByName(payloads, HINT_MESSAGES_NAMES), [
+    'HintMsgId',
+    'HintMsgText',
+  ]);
+  const types = idNameMap(payloadByName(payloads, HINT_TYPES_NAMES), [
+    'HintTypeId',
+    'HintTypeName',
+  ]);
+
+  const hints: PerformanceHintItem[] = [];
+  const pushRows = (
+    payload: Uint8Array | undefined,
+    origin: PerformanceHintItem['origin'],
+  ): void => {
+    if (!payload) return;
+    const { rows } = parseCsv(decodeUtf8(payload));
+    for (const row of rows) {
+      const msgId = (row.HintMsgId ?? '').trim();
+      const message = messages.get(msgId);
+      if (!message) continue;
+      const item: PerformanceHintItem = { message, origin };
+      const typeName = types.get((row.HintTypeId ?? '').trim());
+      if (typeName) item.typeName = typeName;
+      if (origin === 'instruction') {
+        const pc = (row.PC ?? '').trim();
+        if (pc) item.pc = pc;
+      } else if (origin === 'sourceLine') {
+        const sourceLineId = (row.SourceLineId ?? '').trim();
+        if (sourceLineId) item.sourceLineId = sourceLineId;
+      }
+      hints.push(item);
+    }
+  };
+
+  pushRows(payloadByName(payloads, INSTRUCTION_HINTS_NAMES), 'instruction');
+  pushRows(payloadByName(payloads, SOURCE_LINE_HINTS_NAMES), 'sourceLine');
+  pushRows(payloadByName(payloads, KERNEL_HINTS_NAMES), 'kernel');
+  return hints;
+}
+
 function csvTableFromPayload(
   payloads: Record<string, Uint8Array>,
   names: string[],
@@ -296,6 +354,8 @@ export function adaptEmulate(
     archBytes ? decodeUtf8(archBytes) : undefined,
   );
 
+  const performanceHints = performanceHintsFromPayloads(payloads);
+
   const reportModel: ReportViewModel = {
     ...emptyReportViewModel(),
     profile: 'emulate',
@@ -305,11 +365,13 @@ export function adaptEmulate(
     memoryTables,
     csvTexts,
     ...(memoryTopology ? { memoryTopology } : {}),
+    ...(performanceHints.length > 0 ? { performanceHints } : {}),
   };
 
   const capabilities: ReportCapability[] = [];
   if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   if (memoryTopology) capabilities.push('archDiagram');
+  if (performanceHints.length > 0) capabilities.push('performanceHints');
 
   return {
     swimlaneModel,
