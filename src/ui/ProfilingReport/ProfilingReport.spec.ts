@@ -1113,7 +1113,7 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('.pr-dock--hints').exists()).toBe(false);
   });
 
-  it('PR-ROOT-019: the 性能分析 trigger clears the selection so the hints pane owns the dock', async () => {
+  it('PR-ROOT-022: the 性能分析 trigger clears the selection so the hints pane owns the dock', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'hints-over-selection',
@@ -1154,18 +1154,38 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
 
-    // A committed marquee is the other branch that used to win the slot. The shell keeps
-    // its standard chrome either way — the pane never brings a hints modifier.
+    // A later single select clears sticky hintsDockOpen — closing DetailPanel must not
+    // resurrect the hints pane without another 性能分析 click.
+    vm.selectEventById('a');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="detail-panel-close"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+
+    // Re-open hints, then a committed marquee owns the slot and also clears sticky open.
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
     const model = depsModel();
     const events = model.processes[0]!.threads[0]!.events;
     wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', events);
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
 
-    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    // Closing the multi summary must not resurrect hints either.
+    await wrapper.get('[data-testid="multi-select-close"]').trigger('click');
     await nextTick();
     expect(wrapper.find('[data-testid="multi-select-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(false);
+
+    // Trigger still works after sticky clear.
+    await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
+    await nextTick();
     expect(vm.viewState.multiSelectedIds).toEqual([]);
     expect(wrapper.find('[data-testid="performance-hints-dock"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
