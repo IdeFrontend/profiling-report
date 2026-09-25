@@ -724,6 +724,28 @@ export interface SwimlaneLayout {
   summaryExtras?: readonly LaidOutEvent[];
   /** Id lookup for `summaryExtras` (not copied into `eventsById`). */
   summaryById?: Map<string, LaidOutEvent>;
+  /**
+   * Sorted start/end edge times for every base event, for O(log N + K) exact-edge
+   * lookup (magnet snap / measure marks) instead of walking all events. Built once in
+   * `rebuildLayout`; carried through collapse spreads. `summaryExtras` and any
+   * collapse-ghost events appended to `events` are not indexed (scanned linearly).
+   */
+  edgeIndex?: EdgeTimeIndex;
+}
+
+/**
+ * Edge-time index: three parallel typed arrays over 2×event edges, sorted by time.
+ * `eventIndices` points into `layout.events`; `isEnd` marks end edges.
+ *
+ * Built once per `rebuildLayout` (~48–56 bytes/event across the source + sorted
+ * arrays — ~12 MB for 125k events), so the query stays O(log N + K) with no per-frame
+ * allocation. Amortized: it is rebuilt only when the layout identity changes, never on
+ * pan/zoom/scroll.
+ */
+export interface EdgeTimeIndex {
+  times: Float64Array;
+  eventIndices: Uint32Array;
+  isEnd: Uint8Array;
 }
 
 export const EMPTY_LAYOUT: SwimlaneLayout = {
@@ -968,7 +990,16 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     eventsByLane.push(laneEvents);
     y += rowCount * LANE_HEIGHT;
   }
-  return { lanes, headers, events, eventsById, lanesByTid, eventsByLane, maxLeafDuration };
+  return {
+    lanes,
+    headers,
+    events,
+    eventsById,
+    lanesByTid,
+    eventsByLane,
+    maxLeafDuration,
+    edgeIndex: buildEdgeIndex(events),
+  };
 }
 
 /** Event block height and Y, vertically centered in the lane between row dividers. */
@@ -1492,21 +1523,69 @@ export function findExactEdgeMatches(
   rangeEnd: number,
 ): ExactEdgeMatch[] {
   if (!(rangeEnd > rangeStart)) return [];
-  const bounds = new Set([rangeStart, rangeEnd]);
-  const out: ExactEdgeMatch[] = [];
-  for (const item of iterLaidOutEvents(layout)) {
-    const laneY = exactEdgeLaneY(layout, item);
-    if (laneY == null) continue;
-    const ev = item.event;
-    const end = ev.startTime + ev.duration;
-    if (bounds.has(ev.startTime)) {
-      out.push({ eventId: item.id, edge: 'start', time: ev.startTime, laneY });
-    }
-    if (bounds.has(end)) {
-      out.push({ eventId: item.id, edge: 'end', time: end, laneY });
-    }
+  // Two bound times == two single-point scans; the per-point scan is O(log N + K).
+  return findExactEdgeMatchesAt(layout, rangeStart).concat(
+    findExactEdgeMatchesAt(layout, rangeEnd),
+  );
+}
+
+/** First index in a sorted `Float64Array` whose value is `>= target`. */
+function lowerBound(sorted: Float64Array, target: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (sorted[mid]! < target) lo = mid + 1;
+    else hi = mid;
   }
-  return out;
+  return lo;
+}
+
+/** Build the sorted edge-time index over a layout's base events (start + end each). */
+function buildEdgeIndex(events: readonly LaidOutEvent[]): EdgeTimeIndex {
+  const n = events.length;
+  const len = n * 2;
+  const times = new Float64Array(len);
+  const eventIndices = new Uint32Array(len);
+  const isEnd = new Uint8Array(len);
+  for (let i = 0; i < n; i++) {
+    const ev = events[i]!.event;
+    times[i * 2] = ev.startTime;
+    eventIndices[i * 2] = i;
+    times[i * 2 + 1] = ev.startTime + ev.duration;
+    eventIndices[i * 2 + 1] = i;
+    isEnd[i * 2 + 1] = 1;
+  }
+  // Sort by edge time (TypedArray.sort compares values; compare the times they index).
+  const order = new Uint32Array(len);
+  for (let i = 0; i < len; i++) order[i] = i;
+  order.sort((a, b) => times[a]! - times[b]!);
+  const sortedTimes = new Float64Array(len);
+  const sortedIdx = new Uint32Array(len);
+  const sortedEnd = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    const src = order[i]!;
+    sortedTimes[i] = times[src]!;
+    sortedIdx[i] = eventIndices[src]!;
+    sortedEnd[i] = isEnd[src]!;
+  }
+  return { times: sortedTimes, eventIndices: sortedIdx, isEnd: sortedEnd };
+}
+
+/** Push the two edges of one item (if equal to `time` and not collapse-hidden). */
+function collectItemEdges(
+  layout: SwimlaneLayout,
+  item: LaidOutEvent,
+  time: number,
+  out: ExactEdgeMatch[],
+): void {
+  if (item.alpha === 0) return;
+  const laneY = exactEdgeLaneY(layout, item);
+  if (laneY == null) return;
+  const ev = item.event;
+  if (ev.startTime === time) out.push({ eventId: item.id, edge: 'start', time, laneY });
+  const end = ev.startTime + ev.duration;
+  if (end === time) out.push({ eventId: item.id, edge: 'end', time, laneY });
 }
 
 /** View-invariant: which event edges exactly equal a single time point (magnet snap). */
@@ -1515,17 +1594,36 @@ export function findExactEdgeMatchesAt(
   time: number,
 ): ExactEdgeMatch[] {
   const out: ExactEdgeMatch[] = [];
-  for (const item of iterLaidOutEvents(layout)) {
+  const idx = layout.edgeIndex;
+  if (!idx) {
+    // No index (e.g. an EMPTY_LAYOUT clone): fall back to the full walk.
+    for (const item of iterLaidOutEvents(layout)) collectItemEdges(layout, item, time, out);
+    return out;
+  }
+
+  const { times, eventIndices, isEnd } = idx;
+  let i = lowerBound(times, time);
+  for (; i < times.length && times[i] === time; i++) {
+    const item = layout.events[eventIndices[i]!];
+    // Mirror `collectItemEdges`'s guard so a future collapse-opacity change (or a base
+    // event ever gaining `alpha: 0`) keeps this branch equivalent to the full walk.
+    if (!item || item.alpha === 0) continue;
     const laneY = exactEdgeLaneY(layout, item);
     if (laneY == null) continue;
-    const ev = item.event;
-    if (ev.startTime === time) {
-      out.push({ eventId: item.id, edge: 'start', time, laneY });
-    }
-    const end = ev.startTime + ev.duration;
-    if (end === time) {
-      out.push({ eventId: item.id, edge: 'end', time, laneY });
-    }
+    out.push({
+      eventId: item.id,
+      edge: isEnd[i] ? 'end' : 'start',
+      time,
+      laneY,
+    });
+  }
+
+  // Collapse summaries/ghosts are not in the base index: paint-time extras live in
+  // `summaryExtras`; `mergeCollapseSummaries` appends ghosts to `events` directly.
+  const baseEventCount = eventIndices.length >> 1;
+  for (const item of layout.summaryExtras ?? []) collectItemEdges(layout, item, time, out);
+  for (let e = baseEventCount; e < layout.events.length; e++) {
+    collectItemEdges(layout, layout.events[e]!, time, out);
   }
   return out;
 }
