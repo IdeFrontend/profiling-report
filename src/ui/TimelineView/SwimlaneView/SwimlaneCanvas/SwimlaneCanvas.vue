@@ -224,7 +224,8 @@ let attached = false;
 let attachedModel: SwimlaneModel | null = null;
 let downX = 0;
 let dragging = false;
-/** Client Y for magnet during window-level measure create/resize. */
+/** Client position for magnet during window-level measure create/resize + hover recalc. */
+let lastPointerClientX = 0;
 let lastPointerClientY = 0;
 /** Last canvas-local pointer for hover-gap refresh on zoom/pan/scroll. */
 let lastHoverLocalX: number | null = null;
@@ -675,6 +676,16 @@ function applyLiveScrollHint(on: boolean): void {
   if (backend instanceof CanvasSwimlaneRenderer) backend.setLiveScroll(on);
 }
 
+/**
+ * Selection id to paint while a marquee is live. A rect covering exactly one event
+ * demotes to single-select (dependency curves draw), matching the dock's DetailPanel
+ * preview; zero or ≥2 covered events paint no single selection (PR-CANVAS-085).
+ */
+function livePaintSelectedId(): string | null {
+  if (marqueePreviewIds == null) return props.selectedEventId;
+  return marqueePreviewIds.length === 1 ? marqueePreviewIds[0]! : null;
+}
+
 function applyViewState(forceModel = false): void {
   // Dummy pre-attach backend must not steal `attachedModel` — parent onMounted can
   // push defaultCollapsedIds before this canvas's `await nextTick()` attach.
@@ -701,8 +712,9 @@ function applyViewState(forceModel = false): void {
   backend.setDependencyDepth?.(props.dependencyDepth);
   backend.setPaintDependencies?.(props.showDependencies !== false);
   // Live marquee preview owns brightness via setMultiSelection. Clear selectedId so
-  // dependencyGraph / eventStateOf do not keep the pre-drag selection unmuted (PR-CANVAS-085).
-  const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
+  // dependencyGraph / eventStateOf do not keep the pre-drag selection unmuted
+  // (PR-CANVAS-085) — except a single covered event, which demotes to single-select.
+  const paintSelectedId = livePaintSelectedId();
   backend.setSelection(paintSelectedId, props.hoveredEventId);
   backend.setSearchQuery(props.searchQuery);
   backend.setCollapsedIds?.(props.collapsedIds ?? []);
@@ -1082,7 +1094,7 @@ function applyHoverPaint(): void {
   if (!attached || !props.model) return;
   if (laneScrollEasing || scrollRaf) return;
   if (lastDeviceW < 1 || lastDeviceH < 1) return;
-  const paintSelectedId = marqueePreviewIds != null ? null : props.selectedEventId;
+  const paintSelectedId = livePaintSelectedId();
   backend.setSelection(paintSelectedId, props.hoveredEventId);
   if (useWebGl.value) {
     overlay.setSelection(paintSelectedId, props.hoveredEventId);
@@ -1652,7 +1664,7 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
   marqueeRect.value = rect;
   emit('multi-select-span', marqueeSpan(rect));
   const w = syncTrackWidth();
-  emit('cursor', { time: timeAtX(local.x), xRatio: local.x / w, snapped: false });
+  emit('cursor', { time: timeAtX(local.x), xRatio: clampXRatio(local.x, w), snapped: false });
   emitLaneHover(null);
   const hitFp = marqueeHitFingerprint(rect);
   if (hitFp === lastMarqueeHitFp) return;
@@ -2072,6 +2084,17 @@ function xAtTime(t: number): number {
   return ((t - startTime) / span) * w;
 }
 
+/**
+ * Fractional 0–1 position of a canvas x along the track. Cursor stems are drawn at
+ * `xRatio * 100%` of the track; an off-screen magnet edge or a window-bound drag can
+ * put `x` left of the gutter or past the right edge, which would paint the full-height
+ * playhead over the gutter or off the chart. Clamp the position (the `time` stays
+ * unclamped so the label still shows the true snapped/free time).
+ */
+function clampXRatio(x: number, w: number): number {
+  return Math.min(1, Math.max(0, x / Math.max(1, w)));
+}
+
 /** Magnetize local canvas coords; updates live edge snap highlight. */
 function magnetizeLocal(
   localX: number,
@@ -2090,11 +2113,11 @@ function magnetizeLocal(
     invalidateExactMatchCache();
     snapExactEdgeMatches = [];
     snapExactEdgeMarks.value = [];
-    return { time: timeAtX(localX), xPx: localX, xRatio: localX / w, eventId: null };
+    return { time: timeAtX(localX), xPx: localX, xRatio: clampXRatio(localX, w), eventId: null };
   }
   snapExactEdgeMatches = exactMatchesAt(hit.time);
   refreshSnapExactEdgeMarks();
-  return { time: hit.time, xPx: hit.xPx, xRatio: hit.xPx / w, eventId: hit.eventId };
+  return { time: hit.time, xPx: hit.xPx, xRatio: clampXRatio(hit.xPx, w), eventId: hit.eventId };
 }
 
 /** Hover/select target: magnetized edge event wins, else spatial hitTest (device px). */
@@ -2611,6 +2634,8 @@ function onPointerDown(e: PointerEvent): void {
 }
 
 function onPointerMove(e: PointerEvent): void {
+  lastPointerClientX = e.clientX;
+  lastPointerClientY = e.clientY;
   const target = activeCanvas();
   if (!target) return;
 
@@ -2916,6 +2941,8 @@ function onWheel(e: WheelEvent): void {
   const rect = target.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+  lastPointerClientX = e.clientX;
+  lastPointerClientY = e.clientY;
   if (!props.measureMode) {
     lastHoverLocalX = x;
     lastHoverLocalY = y;
@@ -2947,6 +2974,10 @@ function onWheel(e: WheelEvent): void {
     return;
   }
   scrollTargetY = clampScrollY(scrollTargetY + e.deltaY);
+  // The event under the pointer moves with the lanes — drop the pre-scroll magnet
+  // caret / event hover / lane tint before the first scroll frame, so a stale block
+  // is never highlighted against the wrong content.
+  if (!laneScrollEasing) invalidateScrollHover();
   if (prefersReducedMotion()) {
     if (scrollRaf) {
       cancelAnimationFrame(scrollRaf);
@@ -2972,9 +3003,60 @@ function finishLaneScroll(y: number): void {
   laneScrollEasing = true;
   localScrollY = y;
   applyViewState();
+  // Re-resolve the hover/caret against the settled scroll offset while easing is still
+  // true (paintView reads localScrollY). Without this the caret stays magnetized to
+  // the event that left the pointer when the lanes moved.
+  recalcPointerHover();
   laneScrollEasing = false;
   flushPaint();
   emit('scroll-y', y, true);
+}
+
+/**
+ * Apply the hovered-event lift straight into the renderer(s). `applyHoverPaint` is
+ * gated by `laneScrollEasing || scrollRaf` so it never reaches the backend mid-scroll;
+ * the scroll lifecycle calls this directly instead so the stale hover is dropped on the
+ * first frame and re-resolved on settle.
+ */
+function applyHoverLift(hoveredId: string | null): void {
+  const paintSelectedId = livePaintSelectedId();
+  backend.setSelection(paintSelectedId, hoveredId);
+  if (useWebGl.value) overlay.setSelection(paintSelectedId, hoveredId);
+}
+
+/**
+ * Drop the default-mode hover chrome (magnet caret + snap bars, event hover, lane tint)
+ * when lane scrolling starts — the event under the pointer moves, so a stale magnet or
+ * hover would keep highlighting the wrong block for the whole scroll.
+ */
+function invalidateScrollHover(): void {
+  if (props.measureMode) return;
+  clearEdgeSnapHighlight();
+  hoverGap.value = null;
+  applyHoverLift(null);
+  emit('cursor', null);
+  emit('hover', null, 0, 0);
+  emitLaneHover(null);
+}
+
+/**
+ * Re-resolve the default-mode hover + magnet caret at the settled scroll offset. The
+ * pointer has not moved (lastHoverLocalX/Y), but the content under it has, so the caret
+ * re-magnetizes and the event/lane hover re-derive from the new scroll.
+ */
+function recalcPointerHover(): void {
+  if (props.measureMode) return;
+  const x = lastHoverLocalX;
+  const y = lastHoverLocalY;
+  if (x == null || y == null) return;
+  const w = Math.max(1, syncTrackWidth());
+  const mag = magnetizeLocal(x, y);
+  const ev = eventAtPointer(x, y, mag.eventId);
+  applyHoverLift(ev?.id ?? null);
+  emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
+  updateHoverGap(x, y, w);
+  emit('hover', ev, lastPointerClientX, lastPointerClientY);
+  emitLaneHover(y);
 }
 
 /** Exponential catch-up (~Chrome/Edge wheel smoothing). New deltas retarget without restarting. */

@@ -2300,7 +2300,8 @@ describe('SwimlaneCanvas', () => {
     await flushMarqueeRaf();
     await wrapper.vm.$nextTick();
     expect(multiSpy.mock.calls.at(-1)![0]).toEqual(['e1']);
-    expect(selSpy.mock.calls.at(-1)![0]).toBeNull();
+    // A single covered event demotes to single-select: its dependency curves draw.
+    expect(selSpy.mock.calls.at(-1)![0]).toBe('e1');
 
     // Commit holds preview ids through the sync emit (PR-CANVAS-102); dim does not
     // flash to stale props. After nextTick the hold drops back to props.
@@ -4244,4 +4245,191 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-120: vertical lane scroll invalidates then recalculates magnet caret, event hover, and lane hover', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const threads = [
+      { id: 't-0', name: 'T0', events: [{ id: 'e1', name: 'busy', startTime: 200, duration: 300 }] },
+      ...Array.from({ length: 30 }, (_, i) => ({
+        id: `t-${i + 1}`,
+        name: `T${i + 1}`,
+        events: [] as { id: string; name: string; startTime: number; duration: number }[],
+      })),
+    ];
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [{ id: 'p-1', name: 'P', threads }],
+        },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await fireAllDeviceRo();
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+      renderer: () => { setSelection: (selectedId: string | null, hoveredId: string | null) => void };
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    expect(rect).toBeTruthy();
+    // Just left of the start edge, within the ~10px magnet band.
+    const x = rect.x - 5;
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointermove', { clientX: x, clientY: y, pointerId: 1 });
+    expect((wrapper.emitted('cursor')!.at(-1)![0] as { snapped?: boolean }).snapped).toBe(true);
+    expect(wrapper.emitted('hover')!.at(-1)![0]).toMatchObject({ id: 'e1' });
+    expect(wrapper.emitted('lane-hover')!.at(-1)![0]).toBe('t-0');
+
+    // The renderer's hovered lift must clear too — `applyHoverPaint` is gated by
+    // `laneScrollEasing` so only a direct `setSelection(_, null)` reaches the backend.
+    const setSelection = vi.spyOn(vm.renderer(), 'setSelection');
+    setSelection.mockClear();
+
+    // Reduced motion → snap: invalidation and recalculation both run in this turn.
+    await canvas.trigger('wheel', { clientX: x, clientY: y, deltaX: 0, deltaY: 40 });
+
+    const cursors = wrapper.emitted('cursor')!;
+    expect(cursors.at(-2)![0]).toBeNull(); // invalidated on scroll start
+    expect(cursors.at(-1)![0]).not.toBeNull(); // recalculated on scroll end
+    expect(wrapper.emitted('hover')!.at(-2)![0]).toBeNull();
+    expect(wrapper.emitted('lane-hover')!.at(-2)![0]).toBeNull();
+    // Scroll start dropped the stale hovered-event lift in the renderer.
+    expect(setSelection.mock.calls[0]![1]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-121: off-screen magnet edge clamps cursor xRatio into [0,1]', async () => {
+    // Event start (190) sits before view.startTime (200): at 400px/1000µs its start
+    // edge lands at x=-4, inside the ~10px magnet band of the left edge (x=0). The
+    // magnet snaps (time=190) but the playhead must not paint left of the track.
+    const model = {
+      minTime: 0,
+      maxTime: 2000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-1', name: 'T', events: [{ id: 'e1', name: 'busy', startTime: 190, duration: 300 }] },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model,
+        view: { startTime: 200, endTime: 1200, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...model }, hoveredEventId: null });
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect = vm.eventScreenRect('e1')!;
+    expect(rect).toBeTruthy();
+    const y = rect.y + rect.h / 2;
+
+    await canvas.trigger('pointermove', { clientX: 0, clientY: y, pointerId: 1 });
+    const cursor = wrapper.emitted('cursor')!.at(-1)![0] as {
+      time: number;
+      xRatio: number;
+      snapped?: boolean;
+    };
+    expect(cursor.snapped).toBe(true); // still magnetized to the off-screen start edge
+    expect(cursor.time).toBe(190); // true snapped time preserved
+    expect(cursor.xRatio).toBeGreaterThanOrEqual(0);
+    expect(cursor.xRatio).toBeLessThanOrEqual(1);
+
+    // And the symmetric right edge: an event end slightly past view.endTime lands at
+    // x > 400 and, magnetized from x=400, must clamp to exactly 1 (not 1.011…).
+    const model2 = {
+      minTime: 0,
+      maxTime: 2000,
+      processes: [
+        {
+          id: 'p-1',
+          name: 'P',
+          threads: [
+            { id: 't-1', name: 'T', events: [{ id: 'e2', name: 'busy', startTime: 460, duration: 450 }] },
+          ],
+        },
+      ],
+    };
+    const wrapper2 = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: model2,
+        view: { startTime: 0, endTime: 900, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap2 = wrapper2.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap2, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap2, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap2, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas2 = wrapper2.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas2.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper2.setProps({ model: { ...model2 }, hoveredEventId: null });
+
+    const vm2 = wrapper2.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const rect2 = vm2.eventScreenRect('e2')!;
+    expect(rect2).toBeTruthy();
+    // e2 end = 910; view [0,900] → end edge x = 404.4, within 10px of the 400 right edge.
+    await canvas2.trigger('pointermove', {
+      clientX: 400,
+      clientY: rect2.y + rect2.h / 2,
+      pointerId: 1,
+    });
+    const cursor2 = wrapper2.emitted('cursor')!.at(-1)![0] as {
+      time: number;
+      xRatio: number;
+      snapped?: boolean;
+    };
+    expect(cursor2.snapped).toBe(true); // magnetized to the off-screen end edge
+    expect(cursor2.time).toBe(910); // true snapped time preserved
+    expect(cursor2.xRatio).toBe(1); // clamped from 1.011… to the right edge
+
+    wrapper.unmount();
+    wrapper2.unmount();
+  });
 });
