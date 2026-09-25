@@ -1060,7 +1060,7 @@ function onSelect(ev: SwimEvent | null) {
     return;
   }
   // A later timeline commit owns the dock — drop sticky hints so closing DetailPanel
-  // does not resurrect the pane without another 性能分析 click (PR-ROOT-022).
+  // does not resurrect the pane without another 性能分析 click (PR-ROOT-023).
   hintsDockOpen.value = false;
   const payload: SelectedEvent = {
     id: ev.id,
@@ -1299,7 +1299,7 @@ function onMultiSelect(events: SwimEvent[]) {
     onSelect(events[0]!);
     return;
   }
-  // Same sticky-hints clear as onSelect(non-null) — multi commit owns the dock (PR-ROOT-022).
+  // Same sticky-hints clear as onSelect(non-null) — multi commit owns the dock (PR-ROOT-023).
   hintsDockOpen.value = false;
   selected.value = null;
   selectedEvent.value = null;

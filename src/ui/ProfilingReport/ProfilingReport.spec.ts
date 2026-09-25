@@ -1114,7 +1114,7 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.find('.pr-dock--hints').exists()).toBe(false);
   });
 
-  it('PR-ROOT-022: the 性能分析 trigger clears the selection so the hints pane owns the dock', async () => {
+  it('PR-ROOT-023: the 性能分析 trigger clears the selection so the hints pane owns the dock', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'hints-over-selection',
@@ -1194,7 +1194,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-020: environment routes the 性能分析 trigger — vscode asks the host to open Problems, browser opens the internal dock', async () => {
+  it('PR-ROOT-021: environment routes the 性能分析 trigger — vscode asks the host to open Problems, browser opens the internal dock', async () => {
     const hintRow = {
       message: 'UB bank conflicts detected. Try to optimize local memory accesses.',
       typeName: 'shared_bank_conflicts',
@@ -1245,7 +1245,7 @@ describe('ProfilingReport scaffold', () => {
     expect(browserWrapper.get('[data-testid="dock"]').classes()).not.toContain('pr-dock--hints');
   });
 
-  it('PR-ROOT-021: the hints pane carries the shared dock expander and drives --pr-dock-h', async () => {
+  it('PR-ROOT-022: the hints pane carries the shared dock expander and drives --pr-dock-h', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'hints-expander',
@@ -1265,7 +1265,7 @@ describe('ProfilingReport scaffold', () => {
       },
     });
 
-    // Same browser flow as PR-ROOT-020: the hints-only report's DATA-33a aside reset means
+    // Same browser flow as PR-ROOT-021: the hints-only report's DATA-33a aside reset means
     // the toolbar toggle opens the aside before the title-row 性能分析 trigger can be clicked.
     await nextTick();
     await wrapper.get('[data-testid="toggle-aside"]').trigger('click');

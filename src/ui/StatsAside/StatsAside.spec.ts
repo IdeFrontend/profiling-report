@@ -2028,7 +2028,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
   });
 
-  it('performance-hints title-row trigger renders once and emits open-performance-hints', async () => {
+  it('PR-STATS-006c: performance-hints title-row trigger renders once and emits open-performance-hints', async () => {
     const hintsReport = {
       ...emptyReportViewModel(),
       summary: { taskDurationUs: 1 },
@@ -2056,7 +2056,7 @@ describe('StatsAside', () => {
     expect(csvOnly.emitted('open-performance-hints')).toHaveLength(1);
   });
 
-  it('performance-hints title-row trigger stays on report shell under overlays', async () => {
+  it('PR-STATS-006c: performance-hints title-row trigger omitted on overlay shells', async () => {
     const hints = [{ message: 'hint', origin: 'kernel' as const }];
     const wrapper = mount(StatsAside, {
       props: {
@@ -2087,7 +2087,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
   });
 
-  it('performance-hints entry hidden without the capability (DATA-30 gate)', () => {
+  it('PR-STATS-006c: performance-hints entry hidden without the capability', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: {
