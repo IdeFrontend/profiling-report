@@ -140,6 +140,63 @@ describe('nearestEventEdgeAtPoint / measureRangeExactEdgeMarks', () => {
     expect(ends.map((m) => `${m.eventId}:${m.edge}`)).toEqual(['e-long:end']);
     expect(findExactEdgeMatchesAt(layout, 123)).toEqual([]);
   });
+
+  it('rebuildLayout attaches a sorted edge index over 2× events', () => {
+    const layout = rebuildLayout(model());
+    expect(layout.edgeIndex).toBeTruthy();
+    const { times, eventIndices, isEnd } = layout.edgeIndex!;
+    expect(times.length).toBe(layout.events.length * 2);
+    expect(eventIndices.length).toBe(times.length);
+    expect(isEnd.length).toBe(times.length);
+    for (let i = 1; i < times.length; i++) {
+      expect(times[i]!).toBeGreaterThanOrEqual(times[i - 1]!);
+    }
+    // End edges are marked; start edges are not.
+    expect(isEnd.some((v) => v === 1)).toBe(true);
+    expect(isEnd.some((v) => v === 0)).toBe(true);
+  });
+
+  it('edge index matches the full-walk fallback (interleaved lanes, duplicate + zero-length edges)', () => {
+    const m: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p1',
+          name: 'P1',
+          threads: [
+            {
+              id: 't1',
+              name: 'T1',
+              events: [
+                { id: 'a1', name: 'a', startTime: 100, duration: 200 },
+                { id: 'a2', name: 'b', startTime: 300, duration: 100 },
+              ],
+            },
+            {
+              id: 't2',
+              name: 'T2',
+              events: [
+                { id: 'b1', name: 'c', startTime: 100, duration: 400 }, // shares start 100 + end 500
+                { id: 'b2', name: 'd', startTime: 300, duration: 0 }, // start == end 300
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const indexed = rebuildLayout(m);
+    // Fallback clone without the index → the pre-index full-walk path.
+    const { edgeIndex: _drop, ...rest } = indexed;
+    const fallback = rest as typeof indexed;
+    const norm = (arr: { eventId: string; edge: string }[]) =>
+      arr.map((x) => `${x.eventId}:${x.edge}`).sort();
+    for (const t of [0, 100, 200, 300, 400, 500, 999]) {
+      expect(norm(findExactEdgeMatchesAt(indexed, t))).toEqual(
+        norm(findExactEdgeMatchesAt(fallback, t)),
+      );
+    }
+  });
 });
 
 describe('findHoverGap', () => {
