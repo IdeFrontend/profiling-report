@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>profiling-report</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- __NPU_REP_EMBED_START__ -->
+    <script>
+      // Placeholders must not be substrings of the property names (CLI does literal replace).
+      window.__NPU_REP_B64__ = '%%NPU_REP_B64%%';
+      window.__NPU_REP_NAME__ = '%%NPU_REP_NAME%%';
+    </script>
+    <!-- __NPU_REP_EMBED_END__ -->
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>
