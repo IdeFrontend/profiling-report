@@ -8,7 +8,7 @@ export type HostEnvironment = 'vscode' | 'browser';
 
 export interface EnvironmentBehavior {
   /**
-   * Target of the 性能分析 详情 trigger.
+   * Target of the title-row 性能分析 trigger.
    * - `'problems'`: route to the host via `open-performance-hints-in-problems`
    *   (the host reveals its native Problems diagnostics).
    * - `'dock'`: open the internal hints dock, reusing the event-detail dock.

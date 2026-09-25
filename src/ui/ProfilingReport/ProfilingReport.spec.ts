@@ -1098,7 +1098,8 @@ describe('ProfilingReport scaffold', () => {
     // Manual toolbar toggle opens the aside; the hints entry renders once (non-csvOnly branch).
     await wrapper.get('[data-testid="toggle-aside"]').trigger('click');
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
-    expect(wrapper.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(0);
+    expect(wrapper.findAll('[data-testid="performance-hints-trigger"]')).toHaveLength(1);
 
     // The trigger mounts the dock even though showTimeline is false.
     await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');
@@ -1265,7 +1266,7 @@ describe('ProfilingReport scaffold', () => {
     });
 
     // Same browser flow as PR-ROOT-020: the hints-only report's DATA-33a aside reset means
-    // the toolbar toggle opens the aside before the 性能分析 详情 trigger can be clicked.
+    // the toolbar toggle opens the aside before the title-row 性能分析 trigger can be clicked.
     await nextTick();
     await wrapper.get('[data-testid="toggle-aside"]').trigger('click');
     await wrapper.get('[data-testid="performance-hints-trigger"]').trigger('click');

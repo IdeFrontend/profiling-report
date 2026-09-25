@@ -13,13 +13,13 @@
 
 ![Performance hints report panel](../ui/source/v930-sim/performance-hints.jpeg)
 
-Sketch shows a **性能分析** table under the timeline: **Hint Message**, **Source Line**, **Instruction Address**. Annotations call for a **性能分析** tab (增加页签) and a trigger in the report panel (触发按钮). Empty Source Line / Instruction Address cells show **Not specified** (sketch fidelity).
+Sketch shows a **性能分析** table under the timeline: **Hint Message**, **Source Line**, **Instruction Address**. Annotations call for a **性能分析** tab (增加页签 / 增加页面显示) and a **title-row 性能分析** trigger left of the aside close × (触发按钮). Empty Source Line / Instruction Address cells show **Not specified** (sketch fidelity).
 
 ## Purpose
 
 List simulator performance hints for the open emulate kernel: advice text, the source line it attaches to, and the instruction address when the hint is per-PC.
 
-**Trigger.** The aside's 性能分析 详情 button is environment-routed ([environments.ts](../../src/ui/environments.ts)): under `environment: 'vscode'` it emits `open-performance-hints-in-problems` and the host reveals its native Problems diagnostics (no dock opens), while the `'browser'` default opens the pane in the standard event-detail dock ([ProfilingReport spec](../../src/ui/ProfilingReport/ProfilingReport.spec.md) `PR-ROOT-020`).
+**Trigger.** The aside **title-row** **性能分析** link (left of close ×; [`aside-hints-title-row.png`](../../src/ui/StatsAside/visual/aside-hints-title-row.png)) is environment-routed ([environments.ts](../../src/ui/environments.ts)): under `environment: 'vscode'` it emits `open-performance-hints-in-problems` and the host reveals its native Problems diagnostics (no dock opens), while the `'browser'` default opens the pane in the standard event-detail dock ([ProfilingReport spec](../../src/ui/ProfilingReport/ProfilingReport.spec.md) `PR-ROOT-020`).
 
 ## View-model
 

@@ -623,6 +623,17 @@ const detailTestId = computed(() => {
         <h3 :title="reportTitle">
           {{ reportTitle }}
         </h3>
+        <button
+          v-if="asideSurface === 'report' && hasPerformanceHints"
+          type="button"
+          class="pr-aside__hints"
+          data-testid="performance-hints-trigger"
+          :aria-label="t('performanceAnalysis', locale)"
+          :title="t('performanceAnalysis', locale)"
+          @click="emit('open-performance-hints')"
+        >
+          {{ t('performanceAnalysis', locale) }}
+        </button>
         <CloseButton
           class="pr-aside__close"
           data-testid="stats-aside-close"
@@ -676,26 +687,6 @@ const detailTestId = computed(() => {
     <div
       class="pr-aside__body"
     >
-      <div
-        v-if="hasPerformanceHints && !csvOnly"
-        class="pr-stack-section"
-        data-testid="stats-performance-hints"
-      >
-        <div class="pr-stack-section__head">
-          <h4>{{ t('performanceAnalysis', locale) }}</h4>
-          <div class="pr-pipe-head__actions">
-            <button
-              type="button"
-              class="pr-pipe-details"
-              data-testid="performance-hints-trigger"
-              @click="emit('open-performance-hints')"
-            >
-              {{ t('details', locale) }}
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div
         v-if="hasSummary"
         class="pr-cards"
@@ -1078,25 +1069,6 @@ const detailTestId = computed(() => {
 
       <template v-if="csvOnly">
         <div
-          v-if="hasPerformanceHints"
-          class="pr-stack-section"
-          data-testid="stats-performance-hints"
-        >
-          <div class="pr-stack-section__head">
-            <h4>{{ t('performanceAnalysis', locale) }}</h4>
-            <div class="pr-pipe-head__actions">
-              <button
-                type="button"
-                class="pr-pipe-details"
-                data-testid="performance-hints-trigger"
-                @click="emit('open-performance-hints')"
-              >
-                {{ t('details', locale) }}
-              </button>
-            </div>
-          </div>
-        </div>
-        <div
           v-if="showCompute"
           data-testid="stats-compute"
           class="pr-aside__detail"
@@ -1417,6 +1389,7 @@ const detailTestId = computed(() => {
 }
 
 .pr-aside__more,
+.pr-aside__hints,
 .pr-pipe-details {
   appearance: none;
   border: 0;
@@ -1430,9 +1403,15 @@ const detailTestId = computed(() => {
   font-size: 12px;
 }
 
+.pr-aside__hints,
 .pr-pipe-details {
   color: #e6e6e6;
   font-size: 12px;
+}
+
+.pr-aside__hints {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pr-aside__more:hover {
@@ -1440,6 +1419,7 @@ const detailTestId = computed(() => {
   text-decoration: underline;
 }
 
+.pr-aside__hints:hover,
 .pr-pipe-details:hover {
   color: #ffffff;
   text-decoration: underline;

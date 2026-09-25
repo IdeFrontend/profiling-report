@@ -2028,65 +2028,63 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
   });
 
-  it('performance-hints entry renders exactly once per branch (summary and csvOnly)', async () => {
+  it('performance-hints title-row trigger renders once and emits open-performance-hints', async () => {
     const hintsReport = {
       ...emptyReportViewModel(),
       summary: { taskDurationUs: 1 },
       performanceHints: [{ message: 'hint', origin: 'kernel' as const }],
     };
-    // Non-csvOnly branch: the shared body renders the section; the csvOnly template stays closed.
     const summary = mount(StatsAside, {
       props: { capabilities: ['performanceHints'], report: hintsReport },
     });
-    expect(summary.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(1);
+    expect(summary.find('[data-testid="stats-performance-hints"]').exists()).toBe(false);
     expect(summary.findAll('[data-testid="performance-hints-trigger"]')).toHaveLength(1);
+    // Title-row placement: trigger precedes the close control.
+    const trigger = summary.get('[data-testid="performance-hints-trigger"]').element;
+    const close = summary.get('[data-testid="stats-aside-close"]').element;
+    expect(
+      trigger.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(summary.get('[data-testid="performance-hints-trigger"]').text()).toBe('性能分析');
 
-    // csvOnly branch: only the csvOnly-branch block renders (the shared body one is gated).
     const csvOnly = mount(StatsAside, {
       props: { capabilities: ['performanceHints'], report: { ...csvOnlyEntryReport(), performanceHints: hintsReport.performanceHints } },
     });
-    expect(csvOnly.findAll('[data-testid="stats-performance-hints"]')).toHaveLength(1);
     expect(csvOnly.findAll('[data-testid="performance-hints-trigger"]')).toHaveLength(1);
 
     await csvOnly.get('[data-testid="performance-hints-trigger"]').trigger('click');
     expect(csvOnly.emitted('open-performance-hints')).toHaveLength(1);
   });
 
-  it('performance-hints section renders first in both stack branches', () => {
+  it('performance-hints title-row trigger stays on report shell under overlays', async () => {
     const hints = [{ message: 'hint', origin: 'kernel' as const }];
-
-    // Summary branch: the hints section precedes the pipe occupancy section.
-    const summary = mount(StatsAside, {
+    const wrapper = mount(StatsAside, {
       props: {
         capabilities: ['performanceHints'],
-        report: {
-          ...emptyReportViewModel(),
-          summary: { taskDurationUs: 1, opType: 'vector' },
+        report: report({
           pipeOccupancy: [
             { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
           ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+              blockIds: ['0'],
+            },
+          ],
+          csvTexts: {
+            'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.5\n',
+          },
           performanceHints: hints,
-        },
+        }),
       },
     });
-    const summaryHints = summary.get('[data-testid="stats-performance-hints"]').element;
-    const pipeSection = summary.get('[data-testid="pipe-occupancy"]').element;
-    expect(
-      summaryHints.compareDocumentPosition(pipeSection) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    // csvOnly branch: the hints section precedes the compute detail block.
-    const csvOnly = mount(StatsAside, {
-      props: {
-        capabilities: ['performanceHints'],
-        report: { ...csvOnlyEntryReport(), performanceHints: hints },
-      },
-    });
-    const csvHints = csvOnly.get('[data-testid="stats-performance-hints"]').element;
-    const computeSection = csvOnly.get('[data-testid="stats-compute"]').element;
-    expect(
-      csvHints.compareDocumentPosition(computeSection) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    // Overlay keeps the report-shell close (inert under the overlay) but drops the hints link.
+    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
   });
 
   it('performance-hints entry hidden without the capability (DATA-30 gate)', () => {
@@ -2099,6 +2097,6 @@ describe('StatsAside', () => {
         },
       },
     });
-    expect(wrapper.find('[data-testid="stats-performance-hints"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(false);
   });
 });

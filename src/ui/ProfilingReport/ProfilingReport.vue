@@ -116,7 +116,7 @@ const props = withDefaults(defineProps<{
   capabilities?: ReportCapability[];
   /** End-user guide URL for the toolbar help button. */
   userGuideUrl?: string;
-  /** Host environment. Routes environment-dependent actions (性能分析 详情 →
+  /** Host environment. Routes environment-dependent actions (title-row 性能分析 →
    *  Problems on `vscode`, internal dock otherwise). Open union so future
    *  environments can be added without touching consumers. */
   environment?: 'vscode' | 'browser' | (string & {});
@@ -1472,7 +1472,7 @@ function onAside(visible: boolean) {
 }
 
 /**
- * StatsAside 性能分析 详情 trigger → environment-routed (`environments.ts`).
+ * StatsAside title-row 性能分析 trigger → environment-routed (`environments.ts`).
  *
  * `vscode`: hand the request to the host (`open-performance-hints-in-problems`) and leave
  * the dock alone — the host reveals its own Problems diagnostics.

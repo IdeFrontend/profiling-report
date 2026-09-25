@@ -5,3 +5,7 @@ crops:
     source: v930/report-stats-scrolled
     region: "Scrolled aside shell: header + full 计算负载分析 PIPE bars"
     box: { x: 5776, y: 355, w: 1850, h: 1250 }
+  aside-hints-title-row.png:
+    source: v930-sim/performance-hints
+    region: "Report-shell title row: 报告统计 + 性能分析 link left of close × (annotated 触发按钮)"
+    box: { x: 737, y: 34, w: 286, h: 127 }
