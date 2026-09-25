@@ -42,7 +42,7 @@ Missing Source Line / PC cells show the `notSpecified` copy — **Not specified*
 [vision of the view](../../../docs/views/performance-hints.md) — column set, PC-as-hex and the Not specified copy come from the sketch. Host docking and the 性能分析 trigger: [ProfilingReport](../ProfilingReport/ProfilingReport.spec.md).
 
 ## Changelog
-- **2026-09-25** — The pane gains the shared dock expander: **height** / **update:height** wired to the root's `dockHeight` and the centred top-edge affordance copied from `DetailPanel`, so the browser hints dock expands and collapses like the detail docks instead of staying pinned at 247px (`PR-PHINTS-008`, `PR-PHINTS-009`, `PR-ROOT-021`).
-- **2026-09-25** — The pane now renders in the host's standard event-detail dock (same height/chrome as `DetailPanel`); the dedicated `pr-dock--hints` shell chrome is gone (`PR-PHINTS-007`, `PR-ROOT-020`).
+- **2026-09-25** — The pane gains the shared dock expander: **height** / **update:height** wired to the root's `dockHeight` and the centred top-edge affordance copied from `DetailPanel`, so the browser hints dock expands and collapses like the detail docks instead of staying pinned at 247px (`PR-PHINTS-008`, `PR-PHINTS-009`, `PR-ROOT-022`).
+- **2026-09-25** — The pane now renders in the host's standard event-detail dock (same height/chrome as `DetailPanel`); the dedicated `pr-dock--hints` shell chrome is gone (`PR-PHINTS-007`, `PR-ROOT-021`).
 - **2026-09-23** — PC formatting moves into `formatPc`: decimal → `0x` lowercase hex, `BigInt`-rejected input echoed as-is, absent PC → `Not specified` (PR-PHINTS-003/004/005). The inline `'0x' + BigInt(row.pc)` could blank the whole table on non-decimal input.
 - **2026-09-23** — Spec introduced: three-column 50/25/25 pane, empty-cell copy, close emit, and the host `pr-dock--hints` chrome; the pane renders only when no other dock content owns the slot (PR-PHINTS-001..007).

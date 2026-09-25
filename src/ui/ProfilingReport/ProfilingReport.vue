@@ -1760,7 +1760,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             key="hints"
             :rows="performanceHints"
             :locale="locale"
-            :height="dockHeight"
+            :height="dockDisplayHeight"
             @close="hintsDockOpen = false"
             @update:height="dockHeight = $event"
           />
