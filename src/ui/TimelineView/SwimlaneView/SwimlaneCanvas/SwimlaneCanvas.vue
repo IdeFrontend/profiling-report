@@ -1673,9 +1673,8 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
  */
 function onMarqueeDragEnd(): void {
   flushPendingMarqueeMove();
-  // Settle if edge-autoscroll was live — release can land still in the band with no
-  // leave-band pointermove, and already-open-dock ensure may skip (PR-CANVAS-112/115).
-  stopMarqueeAutoScroll(true);
+  // Stop edge-autoscroll RAF only — one settle below covers band release + overscroll.
+  stopMarqueeAutoScroll();
   unbindMarqueeDrag?.();
   unbindMarqueeDrag = null;
   unpinClientOrigin();
@@ -1683,8 +1682,9 @@ function onMarqueeDragEnd(): void {
   marqueeAnchor = null;
   marqueePending = false;
   // Soft-clamp overscroll and settle so parent viewState.scrollY catches up even when
-  // post-commit ensure-scroll skips (already-open dock). Ensure may start a new live
-  // session if the wrap shrinks (PR-CANVAS-109 / PR-CANVAS-115).
+  // post-commit ensure-scroll skips (already-open dock / mid-band release with no
+  // leave-band pointermove). Ensure may start a new live session if the wrap shrinks
+  // (PR-CANVAS-109 / PR-CANVAS-112 / PR-CANVAS-115).
   settleMarqueeOverscroll(true);
   // Canvas `pointerup` bubbles to window first, so the flag is still set when it
   // decides whether to select — clear it only here, once the gesture is truly over.
@@ -1694,7 +1694,6 @@ function onMarqueeDragEnd(): void {
     marqueePreviewIds = null;
     lastMarqueeHitFp = '';
     emitMarqueePreview(null);
-    emit('scroll-y', localScrollY, true);
     sync();
     return;
   }
