@@ -102,7 +102,11 @@ defineExpose({ root });
   flex-direction: column;
   font-size: 11px;
   color: #b0b0b0;
+  /* Wheel is forwarded to the canvas; hide native overflow so labels stay row-aligned. */
   overflow: hidden;
+  /* Dock mount shrinks this viewport; without this the browser scroll-anchors
+   * and bumps scrollTop (timeline jumps under a live marquee far from edges). */
+  overflow-anchor: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
   min-height: 0;

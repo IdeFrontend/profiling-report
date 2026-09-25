@@ -24,7 +24,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 **Body scroll.** `.pr-swim-row--body` uses `overflow: hidden` so lane scroll stays contained while ReportLayout `.pr-main` stays `overflow: visible` for overview/axis chrome at the aside seam. Wheel over the lane gutter is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips and overview); the gutter does not native-overflow-scroll. Vertical wheel eases shared `scrollY` so labels and event rows stay aligned for the whole motion.
 
-**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. The marquee multi-select rect sits above the measure chrome and still below the strips (`z-index: 6`), so an unmodified drag reads as one rectangle across Card bands without painting over header chrome. The mouse-following cursor bar lives inside `SwimlaneCanvas` (`z-index: 3`, above the event canvas, below blue edge marks at `z-index: 4–5`) so magnet snap markers always paint on top of the gray/blue playhead stem. Card strips remain on top (`z-index: 8`). Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
+**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. Card strips sit at `z-index: 8`. The marquee multi-select rect sits above the measure chrome **and above** Card strip expanders (`z-index: 9`, same band as the swim cursor / Alt-measure chrome) so the blue rect paints over header chrome while dragging. The mouse-following cursor bar lives inside `SwimlaneCanvas` (`z-index: 9` over strips; event canvas / edge marks sit lower) so magnet snap markers still read clearly. Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
 
 **Gutter resize.** The `ew-resize` handle (`data-testid="gutter-resize-handle"`) lives on the swim body seam (`z-index: 5`), under Card strips (`z-index: 8`), so it is inactive across Card bands. Overview/axis rows do not host the handle. The handle is pinned to the **used** gutter grid column (`grid-column: 1 / 2`), not `left: var(--pr-gutter-width)`, so it stays aligned when the gutter column shrinks below the token. The end line must be explicit: for abspos children, a lone `grid-column: 1` resolves end to `auto` (container padding edge) and parks the handle on the far track edge. Card-strip labels use the same column formula as the swim row.
 
@@ -89,6 +89,8 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 33. **PR-SWIMVIEW-033** — A collapse tween that shrinks content while scrolled to the bottom clamps live `scrollY` / gutter `scrollTop` to the visual content height so Card strips and gutter stay aligned with the canvas. A native gutter `scrollTop` clamp emits a settled `update:scrollY` so the parent window is not left stale.
 34. **PR-SWIMVIEW-034** — Unchanged live marquee coverage does not replace `livePreviewIds` (no extra canvas `multiSelectedIds` sync).
 35. **PR-SWIMVIEW-035** — Body canvas `view` is `{ startTime, endTime, scrollY }` only.
+36. **PR-SWIMVIEW-036** — A canvas `scroll-y` emit updates gutter `scrollTop` and the card-strip scroller `translateY` in the same turn (before parent `view.scrollY` catches up), so gutter / cards / canvas do not chase each other.
+
 
 ## Visual
 
@@ -119,6 +121,8 @@ Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.m
 - **2026-09-17** — PR-SWIMVIEW-033: collapse at max scroll clamps live `scrollY`; gutter clamp emits settled `update:scrollY`.
 - **2026-09-16** — PR-SWIMVIEW-032: gutter `scrollTop` tracks eased canvas `scroll-y` in the same turn.
 - **2026-09-16** — PR-SWIMVIEW-031: gutter wheel uses canvas `handleWheel` so labels stay row-aligned with event rects.
+- **2026-09-13** — PR-SWIMVIEW-036: canvas `scroll-y` updates gutter + card-strip transform in the same turn (renumbered from PR tip 031 / interim 034 after merge with master 031–035).
+
 - **2026-09-10** — PR-SWIMVIEW-028: sticky overview pins stack **above** the lane pin strip (was below).
 - **2026-09-10** — PR-SWIMVIEW-029: pinned overview strip height tweens like the lane pin strip (`--pr-pinned-overview-h`, 200ms).
 - **2026-09-10** — 统计分析 section collapse/expand tweens pad + track height/opacity over 200ms (`PR-OV-013`); mid-tween reverse + reduced-motion instant.
