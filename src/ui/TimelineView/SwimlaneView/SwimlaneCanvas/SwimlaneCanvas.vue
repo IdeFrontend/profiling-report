@@ -402,11 +402,21 @@ function emitScrollY(y: number, settled = false): void {
  * marquee hit-test drifting past min/max (PR-CANVAS-119).
  * @returns true when the local window actually moved.
  */
+/** Model time bounds for local pan/zoom. Clamps `maxTime` to `minTime + 1` for a
+ * degenerate single-point model, matching `ProfilingReport.bounds`, so the swimlane
+ * never diverges from the ruler's 1-unit window (both pan and zoom use this). */
+function localTimeBounds(): { minTime: number; maxTime: number } | undefined {
+  const m = props.model;
+  if (!m) return undefined;
+  return {
+    minTime: m.minTime,
+    maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
+  };
+}
+
 function emitPanDelta(deltaTime: number): boolean {
   if (deltaTime === 0) return false;
-  const bounds = props.model
-    ? { minTime: props.model.minTime, maxTime: props.model.maxTime }
-    : undefined;
+  const bounds = localTimeBounds();
   const next = panBy(
     { startTime: localStartTime, endTime: localEndTime, scrollY: localScrollY },
     deltaTime,
@@ -2967,9 +2977,7 @@ function onWheel(e: WheelEvent): void {
     // while the axis/slider zoom. Apply the zoom to the local window too and re-anchor
     // the marquee rect — same convention as tickMarqueeAutoScroll's pan remap.
     if (marqueePressActive) {
-      const bounds = props.model
-        ? { minTime: props.model.minTime, maxTime: props.model.maxTime }
-        : undefined;
+      const bounds = localTimeBounds();
       const next = zoomAt(
         { startTime: localStartTime, endTime: localEndTime, scrollY: localScrollY },
         factor,
