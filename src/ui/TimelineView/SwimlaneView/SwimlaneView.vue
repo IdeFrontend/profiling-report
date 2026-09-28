@@ -395,14 +395,14 @@ const marqueePreviewLive = computed(() => livePreviewIds.value != null);
 
 const overviewElRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 
-const visibleCardStrips = computed(() => {
+const cardStrips = computed(() => {
   const scrollY = liveScrollY.value;
   const pad = overviewContentPad.value;
-  // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
-  const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
-  return cardHeaders.value
-    .map((h) => ({ ...h, top: h.y + pad - scrollY }))
-    .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
+  // Bake the scroll offset into each strip's `top` and keep every strip mounted.
+  // Off-screen strips are clipped by the container's `overflow: hidden`; keeping them
+  // in the DOM preserves keyboard focus on a `role="button"` header scrolled out of
+  // view (a viewport filter would unmount the focused node and drop focus).
+  return cardHeaders.value.map((h) => ({ ...h, top: h.y + pad - scrollY }));
 });
 
 let bodyResizeObserver: ResizeObserver | null = null;
@@ -443,7 +443,7 @@ function maxBodyScrollY(): number {
 }
 
 /** Same-turn DOM transforms so overview matches gutter before Vue flush.
- * Card strips bake `scrollY` into their `top` (see visibleCardStrips) instead: the
+ * Card strips bake `scrollY` into their `top` (see `cardStrips`) instead — the
  * container transform + `overflow:hidden` let the compositor cull off-screen strips
  * and never re-rasterize them after scroll (headers below the fold never drew). */
 function applyScrollChromeTransforms(y: number): void {
@@ -890,7 +890,7 @@ defineExpose({
         }"
       >
         <div
-          v-for="strip in visibleCardStrips"
+          v-for="strip in cardStrips"
           :key="strip.id"
           role="button"
           tabindex="0"
@@ -1111,8 +1111,8 @@ defineExpose({
   inset: 0;
   pointer-events: none;
   z-index: 8;
-  /* Clips strips during the pre-measure window (viewportH is +∞ until ResizeObserver
-   * reports); scroll is baked into each strip's `top`, so the container never transforms. */
+  /* Clips off-screen strips (scroll is baked into each strip's `top`); the container
+   * itself never transforms, so there is no composited layer to stale-rasterize. */
   overflow: hidden;
 }
 
