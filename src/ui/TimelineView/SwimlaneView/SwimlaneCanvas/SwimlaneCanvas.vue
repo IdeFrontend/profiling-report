@@ -10,7 +10,7 @@ import {
   type SwimlaneModel,
   type SwimlaneViewWindow,
 } from '../../../../domain/types';
-import { normalizeMeasureRange, panBy } from '../../../../domain/viewState';
+import { normalizeMeasureRange, panBy, zoomAt } from '../../../../domain/viewState';
 import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
@@ -395,6 +395,18 @@ function emitScrollY(y: number, settled = false): void {
   flushPaint();
 }
 
+/** Model time bounds for local pan/zoom. Clamps `maxTime` to `minTime + 1` for a
+ * degenerate single-point model, matching `ProfilingReport.bounds`, so the swimlane
+ * never diverges from the ruler's 1-unit window (both pan and zoom use this). */
+function localTimeBounds(): { minTime: number; maxTime: number } | undefined {
+  const m = props.model;
+  if (!m) return undefined;
+  return {
+    minTime: m.minTime,
+    maxTime: m.maxTime > m.minTime ? m.maxTime : m.minTime + 1,
+  };
+}
+
 /**
  * Same-turn horizontal pan during marquee edge autoscroll (mirrors emitScrollY).
  * Clamps the local time window to model bounds the same way `panBy` does — the view
@@ -404,9 +416,7 @@ function emitScrollY(y: number, settled = false): void {
  */
 function emitPanDelta(deltaTime: number): boolean {
   if (deltaTime === 0) return false;
-  const bounds = props.model
-    ? { minTime: props.model.minTime, maxTime: props.model.maxTime }
-    : undefined;
+  const bounds = localTimeBounds();
   const next = panBy(
     { startTime: localStartTime, endTime: localEndTime, scrollY: localScrollY },
     deltaTime,
@@ -420,6 +430,15 @@ function emitPanDelta(deltaTime: number): boolean {
   applyViewState();
   flushPaint();
   return true;
+}
+
+/** Pan the local window during a live marquee, then re-anchor the rect — the wheel pan
+ * branches share this with the zoom fix so the swimlane/rect track the axis/slider
+ * instead of staying stale while `marqueePressActive` (same as tickMarqueeAutoScroll). */
+function applyMarqueePan(deltaTime: number): void {
+  if (emitPanDelta(deltaTime)) {
+    applyMarqueeDragMove(marqueeLastClientX, marqueeLastClientY);
+  }
 }
 
 /** Soft-clamp temporary marquee overscroll once the gesture ends (PR-CANVAS-109). */
@@ -2951,16 +2970,44 @@ function onWheel(e: WheelEvent): void {
   // ctrl/meta zoom (pinch + Ctrl+wheel), else vertical lane scroll.
   if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX !== 0) {
     const w = Math.max(1, rect.width);
-    const span = Math.max(1, props.view.endTime - props.view.startTime);
     // Positive deltaX (two-finger swipe right) pans the window forward in time —
     // opposite sign from pointer-drag, which uses clientX motion instead of wheel delta.
-    emit('pan', (e.deltaX / w) * span);
+    if (marqueePressActive) {
+      // Local window owns the pixel→time mapping during a live marquee (the props.view
+      // watcher skips), so pan the local window and re-anchor the rect.
+      applyMarqueePan((e.deltaX / w) * Math.max(1, localEndTime - localStartTime));
+    } else {
+      const span = Math.max(1, props.view.endTime - props.view.startTime);
+      emit('pan', (e.deltaX / w) * span);
+    }
     return;
   }
   if (e.ctrlKey || e.metaKey) {
     const mag = magnetizeLocal(x, y);
     const anchor = stuckMeasureEdgeTime() ?? mag.time;
-    emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, anchor);
+    const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
+    emit('zoom', factor, anchor);
+    // Live marquee owns the local time window (the props.view watcher skips while
+    // marqueePressActive), so the swimlane would keep painting stale start/end times
+    // while the axis/slider zoom. Apply the zoom to the local window too and re-anchor
+    // the marquee rect — same convention as tickMarqueeAutoScroll's pan remap.
+    if (marqueePressActive) {
+      const bounds = localTimeBounds();
+      const next = zoomAt(
+        { startTime: localStartTime, endTime: localEndTime, scrollY: localScrollY },
+        factor,
+        anchor,
+        bounds,
+      );
+      // Clamped to model bounds: the window did not actually move — skip the repaint
+      // and the rect re-emit (same guard as emitPanDelta's `applied === 0`).
+      if (next.startTime === localStartTime && next.endTime === localEndTime) return;
+      localStartTime = next.startTime;
+      localEndTime = next.endTime;
+      applyViewState();
+      flushPaint();
+      applyMarqueeDragMove(marqueeLastClientX, marqueeLastClientY);
+    }
     return;
   }
   // Trackpads report horizontal intent as deltaX; a mouse wheel needs Shift. Take the
@@ -2968,9 +3015,14 @@ function onWheel(e: WheelEvent): void {
   const panPx =
     Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
   if (panPx !== 0) {
-    const span = Math.max(1, props.view.endTime - props.view.startTime);
     const w = Math.max(1, rect.width);
-    emit('pan', (panPx / w) * span);
+    if (marqueePressActive) {
+      // Same local-window ownership as the horizontal trackpad branch above.
+      applyMarqueePan((panPx / w) * Math.max(1, localEndTime - localStartTime));
+    } else {
+      const span = Math.max(1, props.view.endTime - props.view.startTime);
+      emit('pan', (panPx / w) * span);
+    }
     return;
   }
   scrollTargetY = clampScrollY(scrollTargetY + e.deltaY);
