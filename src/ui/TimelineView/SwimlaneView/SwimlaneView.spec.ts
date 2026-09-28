@@ -2327,6 +2327,13 @@ describe('SwimlaneView', () => {
     expect(wrapper.get('[data-testid="card-strip-card1"]').attributes('style')).toContain(
       'top: 580px',
     );
+    // The first header now sits above the viewport (top: −120) but must stay mounted —
+    // no viewport filter — so a keyboard-focused `role="button"` header scrolled out of
+    // view keeps its focus.
+    expect(wrapper.find('[data-testid="card-strip-card0"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="card-strip-card0"]').attributes('style')).toContain(
+      'top: -120px',
+    );
     // In-flight ease frames do not clone parent view-state (PR-SWIMVIEW-032).
     expect(wrapper.emitted('update:scrollY')).toBeFalsy();
     await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 120, true);
