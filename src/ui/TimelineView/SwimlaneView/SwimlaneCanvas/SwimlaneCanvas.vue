@@ -395,13 +395,6 @@ function emitScrollY(y: number, settled = false): void {
   flushPaint();
 }
 
-/**
- * Same-turn horizontal pan during marquee edge autoscroll (mirrors emitScrollY).
- * Clamps the local time window to model bounds the same way `panBy` does — the view
- * watch skips while `marqueePressActive`, so parent clamp alone would leave paint /
- * marquee hit-test drifting past min/max (PR-CANVAS-119).
- * @returns true when the local window actually moved.
- */
 /** Model time bounds for local pan/zoom. Clamps `maxTime` to `minTime + 1` for a
  * degenerate single-point model, matching `ProfilingReport.bounds`, so the swimlane
  * never diverges from the ruler's 1-unit window (both pan and zoom use this). */
@@ -414,6 +407,13 @@ function localTimeBounds(): { minTime: number; maxTime: number } | undefined {
   };
 }
 
+/**
+ * Same-turn horizontal pan during marquee edge autoscroll (mirrors emitScrollY).
+ * Clamps the local time window to model bounds the same way `panBy` does — the view
+ * watch skips while `marqueePressActive`, so parent clamp alone would leave paint /
+ * marquee hit-test drifting past min/max (PR-CANVAS-119).
+ * @returns true when the local window actually moved.
+ */
 function emitPanDelta(deltaTime: number): boolean {
   if (deltaTime === 0) return false;
   const bounds = localTimeBounds();
