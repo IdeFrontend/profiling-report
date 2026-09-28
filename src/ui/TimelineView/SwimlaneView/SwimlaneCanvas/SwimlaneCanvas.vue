@@ -2976,6 +2976,9 @@ function onWheel(e: WheelEvent): void {
         anchor,
         bounds,
       );
+      // Clamped to model bounds: the window did not actually move — skip the repaint
+      // and the rect re-emit (same guard as emitPanDelta's `applied === 0`).
+      if (next.startTime === localStartTime && next.endTime === localEndTime) return;
       localStartTime = next.startTime;
       localEndTime = next.endTime;
       applyViewState();
