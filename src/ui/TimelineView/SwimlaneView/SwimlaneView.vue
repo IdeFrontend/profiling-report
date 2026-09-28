@@ -158,6 +158,13 @@ const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 /** Imperative lane scroll during wheel ease — avoids cloning parent viewState every frame. */
 const liveScrollY = ref(props.view.scrollY);
+/**
+ * The scroll offset the DOM chrome (Card strips + overview) actually paints from:
+ * the gutter's **quantized** `scrollTop`, not the canvas float. Cards read this
+ * reactively and the overview applies it imperatively, so both stay pixel-locked
+ * to the gutter's Card spacers.
+ */
+const chromeScrollY = ref(props.view.scrollY);
 let gutterScrollSync = false;
 let gutterScrollSyncRaf = 0;
 /** True between an in-flight canvas `scroll-y` and its settle emit. */
@@ -396,7 +403,9 @@ const marqueePreviewLive = computed(() => livePreviewIds.value != null);
 const overviewElRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 
 const cardStrips = computed(() => {
-  const scrollY = liveScrollY.value;
+  // Read the quantized chrome Y (same source as the overview transform) so the strips
+  // stay pixel-locked to the gutter Card spacers instead of the canvas float.
+  const scrollY = chromeScrollY.value;
   const pad = overviewContentPad.value;
   // Bake the scroll offset into each strip's `top` and keep every strip mounted.
   // Off-screen strips are clipped by the container's `overflow: hidden`; keeping them
@@ -442,10 +451,11 @@ function maxBodyScrollY(): number {
   return Math.max(0, h + overviewContentPad.value - (bodyViewportH.value || 0));
 }
 
-/** Same-turn DOM transforms so overview matches gutter before Vue flush.
- * Card strips bake `scrollY` into their `top` (see `cardStrips`) instead — the
- * container transform + `overflow:hidden` let the compositor cull off-screen strips
- * and never re-rasterize them after scroll (headers below the fold never drew). */
+/** Same-turn DOM transform so the overview tracks the gutter before the Vue flush.
+ * Card strips bake the scroll offset into each strip's `top` (see `cardStrips`)
+ * instead: a container `translateY` + `overflow:hidden` was what stale-rasterized
+ * off-screen headers (the d1afa39 regression), so strips stay un-transformed and
+ * clipped; only the overview still uses this imperative transform. */
 function applyScrollChromeTransforms(y: number): void {
   const overviewEl =
     overviewElRef.value && '$el' in overviewElRef.value
@@ -456,13 +466,13 @@ function applyScrollChromeTransforms(y: number): void {
   }
 }
 
-/** Gutter + card/overview transforms from one Y; chrome follows quantized scrollTop. */
+/** Gutter + card/overview chrome from one Y; both follow the quantized scrollTop. */
 function syncScrollChromeFromY(y: number): void {
   setGutterScrollTop(y);
   const gutterY = gutterRef.value?.root?.scrollTop;
-  applyScrollChromeTransforms(
-    gutterY != null && Number.isFinite(gutterY) ? gutterY : y,
-  );
+  const chromeY = gutterY != null && Number.isFinite(gutterY) ? gutterY : y;
+  chromeScrollY.value = chromeY;
+  applyScrollChromeTransforms(chromeY);
 }
 
 function clampLiveScrollToContent(): void {
@@ -499,9 +509,10 @@ function setGutterScrollTop(y: number): void {
 function onScrollY(scrollY: number, settled?: boolean) {
   const y = Math.max(0, scrollY);
   liveScrollY.value = y;
-  // Native scrollTop quantizes; paint cards/overview from the value the gutter
-  // actually stored so the layers stay pixel-locked (PR-E2E-015 / PR-SWIMVIEW-036).
-  // Imperative transform only — a Vue :style binding would overwrite with float Y.
+  // Native scrollTop quantizes; paint the DOM chrome (cards + overview) from the
+  // value the gutter actually stored so the layers stay pixel-locked
+  // (PR-E2E-015 / PR-SWIMVIEW-036). Cards read that quantized Y reactively
+  // (chromeScrollY); the overview applies it imperatively so it lands this turn.
   syncScrollChromeFromY(y);
   if (settled) {
     canvasLiveScroll = false;
