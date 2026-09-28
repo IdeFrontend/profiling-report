@@ -48,7 +48,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-012**: Escape cancels a marquee mid-drag and clears a committed one.
 1. **PR-E2E-013**: Closing the dock immediately frees its layout space while it slides away.
 1. **PR-E2E-014**: Opening the dock grows its layout height with the enter animation — the timeline must not shrink by a full dock height while the dock's layout height is still near zero (no black hole under a translateY-hidden full-height slot).
-1. **PR-E2E-015**: Wheel-scrolling a tall stress fixture keeps the lane gutter `scrollTop`, card-strip scroller `translateY`, and card-header screen Y locked to the same scroll offset (no chase between gutter / cards / canvas).
+1. **PR-E2E-015**: Wheel-scrolling a tall stress fixture keeps the lane gutter `scrollTop` and each card-header screen Y locked to the same scroll offset — the scroll offset is baked into the card-strip `top` (no container `translateY`) — with no chase between gutter / cards / canvas.
 1. **PR-E2E-016**: During a live marquee, holding the pointer in the bottom edge band increases gutter `scrollTop` while the marquee rect stays visible (edge autoscroll).
 
 ## Dependencies

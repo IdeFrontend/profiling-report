@@ -2265,7 +2265,7 @@ describe('SwimlaneView', () => {
     );
   });
 
-  it('PR-SWIMVIEW-036: scroll-y syncs gutter and card-strip transform in the same turn', async () => {
+  it('PR-SWIMVIEW-036: scroll-y bakes into card-strip top before view.scrollY catches up', async () => {
     const tallLanes = Array.from({ length: 30 }, (_, i) => ({
       id: `l${i}`,
       name: `L${i}`,
@@ -2284,12 +2284,18 @@ describe('SwimlaneView', () => {
     });
     const wrapper = mount(SwimlaneView, {
       props: {
-        groups: [{ id: 'card0', name: 'Card0', lanes: tallLanes }],
+        groups: [
+          { id: 'card0', name: 'Card0', lanes: tallLanes },
+          { id: 'card1', name: 'Card1', lanes: [] },
+        ],
         collapsedIds: [],
         model: {
           minTime: 0,
           maxTime: 1000,
-          processes: [{ id: 'card0', name: 'Card0', threads: tallThreads }],
+          processes: [
+            { id: 'card0', name: 'Card0', threads: tallThreads },
+            { id: 'card1', name: 'Card1', threads: [] },
+          ],
         },
         view,
         selectedEventId: null,
@@ -2316,9 +2322,18 @@ describe('SwimlaneView', () => {
     await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 120);
 
     expect(scrollTop).toBe(120);
-    expect(
-      (wrapper.get('[data-testid="card-strips"]').element as HTMLElement).style.transform,
-    ).toBe('translateY(-120px)');
+    // Card strips bake scrollY into `top` (no container transform): card1 header sits
+    // at y = 40 (header) + 30 · 22 (lanes) = 700 → top = 700 − 120 = 580.
+    expect(wrapper.get('[data-testid="card-strip-card1"]').attributes('style')).toContain(
+      'top: 580px',
+    );
+    // The first header now sits above the viewport (top: −120) but must stay mounted —
+    // no viewport filter — so a keyboard-focused `role="button"` header scrolled out of
+    // view keeps its focus.
+    expect(wrapper.find('[data-testid="card-strip-card0"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="card-strip-card0"]').attributes('style')).toContain(
+      'top: -120px',
+    );
     // In-flight ease frames do not clone parent view-state (PR-SWIMVIEW-032).
     expect(wrapper.emitted('update:scrollY')).toBeFalsy();
     await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 120, true);
@@ -2369,23 +2384,23 @@ describe('SwimlaneView', () => {
       },
     });
     await nextTick();
-    const strips = wrapper.get('[data-testid="card-strips"]');
-    const yBefore = Number(/translateY\((-?[\d.]+)px\)/.exec(strips.attributes('style') ?? '')?.[1] ?? 0);
-    expect(yBefore).toBe(-10_000);
+    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
+    // liveScrollY starts at the overscrolled parent value.
+    expect(gutter.scrollTop).toBe(10_000);
 
     await wrapper.setProps({
       collapseAnim: { groupId: 'core', visible: 0.5, hiddenHeight: 20 * 22 },
     });
     await nextTick();
-    const yAfter = Number(/translateY\((-?[\d.]+)px\)/.exec(strips.attributes('style') ?? '')?.[1] ?? 0);
-    expect(-yAfter).toBeLessThan(10_000);
-    expect(-yAfter).toBeLessThan(800);
+    // The collapse shrinks content; liveScrollY / gutter clamp to the visual height.
+    const clamped = gutter.scrollTop;
+    expect(clamped).toBeLessThan(10_000);
+    expect(clamped).toBeLessThan(800);
 
     for (const cb of queued.splice(0)) cb(0);
-    const gutter = wrapper.get('[data-testid="lane-gutter"]').element as HTMLElement;
-    gutter.scrollTop = -yAfter + 24;
+    gutter.scrollTop = clamped + 24;
     await wrapper.get('[data-testid="lane-gutter"]').trigger('scroll');
-    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(-yAfter + 24);
+    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(clamped + 24);
     wrapper.unmount();
     vi.unstubAllGlobals();
   });
