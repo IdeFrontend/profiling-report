@@ -2208,6 +2208,61 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-122b: Shift+wheel during a live marquee pans the local window and remaps the rect', async () => {
+    // Narrower view so the local window has room to pan (a full-span window clamps).
+    const { wrapper, canvas } = await mountWithEventModel({
+      measureMode: false,
+      view: { startTime: 100, endTime: 400, scrollY: 0 },
+    });
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 90, clientY: 30, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+
+    const before = wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+      startTime: number;
+      endTime: number;
+    };
+    await canvas.trigger('wheel', { clientX: 100, clientY: 30, deltaY: 120, shiftKey: true });
+    await wrapper.vm.$nextTick();
+
+    // Pan forwarded to the parent AND the local window moved so the rect re-maps —
+    // without the fix the wheel only emits `pan` and the swimlane/rect stay stale.
+    expect(wrapper.emitted('pan')).toBeTruthy();
+    const after = wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+      startTime: number;
+      endTime: number;
+    };
+    expect(after).not.toEqual(before);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-122c: horizontal trackpad pan during a live marquee pans the local window and remaps the rect', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({
+      measureMode: false,
+      view: { startTime: 100, endTime: 400, scrollY: 0 },
+    });
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 90, clientY: 30, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+
+    const before = wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+      startTime: number;
+      endTime: number;
+    };
+    await canvas.trigger('wheel', { clientX: 100, clientY: 30, deltaX: -80, deltaY: 0 });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('pan')).toBeTruthy();
+    const after = wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+      startTime: number;
+      endTime: number;
+    };
+    expect(after).not.toEqual(before);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-094: onPointerUp guards e.button !== 0, matching onPointerDown', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {
@@ -3639,10 +3694,10 @@ describe('SwimlaneCanvas', () => {
       cb(0);
       await wrapper.vm.$nextTick();
     }
-    // The clamped 1-unit window cannot pan forward: no positive pan, and paint view
-    // never exceeds the minTime + 1 ceiling (never a zero-span/NaN drift).
-    const pans = (wrapper.emitted('pan') ?? []) as unknown as number[][];
-    expect(pans.every((c) => (c[0] as number) <= 0)).toBe(true);
+    // The clamped 1-unit window cannot pan forward: `emitPanDelta`'s `applied === 0`
+    // guard short-circuits before `emit('pan')`, so no pan is emitted at all.
+    const pans = wrapper.emitted('pan');
+    expect(pans ?? []).toEqual([]);
     for (const call of setView.mock.calls) {
       const v = call[0] as { startTime: number; endTime: number };
       expect(v.endTime).toBeLessThanOrEqual(101 + 1e-9);

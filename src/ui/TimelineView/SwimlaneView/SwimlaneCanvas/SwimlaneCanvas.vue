@@ -432,6 +432,15 @@ function emitPanDelta(deltaTime: number): boolean {
   return true;
 }
 
+/** Pan the local window during a live marquee, then re-anchor the rect — the wheel pan
+ * branches share this with the zoom fix so the swimlane/rect track the axis/slider
+ * instead of staying stale while `marqueePressActive` (same as tickMarqueeAutoScroll). */
+function applyMarqueePan(deltaTime: number): void {
+  if (emitPanDelta(deltaTime)) {
+    applyMarqueeDragMove(marqueeLastClientX, marqueeLastClientY);
+  }
+}
+
 /** Soft-clamp temporary marquee overscroll once the gesture ends (PR-CANVAS-109). */
 function settleMarqueeOverscroll(settled = true): void {
   const maxY = maxScrollY();
@@ -2961,10 +2970,16 @@ function onWheel(e: WheelEvent): void {
   // ctrl/meta zoom (pinch + Ctrl+wheel), else vertical lane scroll.
   if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX !== 0) {
     const w = Math.max(1, rect.width);
-    const span = Math.max(1, props.view.endTime - props.view.startTime);
     // Positive deltaX (two-finger swipe right) pans the window forward in time —
     // opposite sign from pointer-drag, which uses clientX motion instead of wheel delta.
-    emit('pan', (e.deltaX / w) * span);
+    if (marqueePressActive) {
+      // Local window owns the pixel→time mapping during a live marquee (the props.view
+      // watcher skips), so pan the local window and re-anchor the rect.
+      applyMarqueePan((e.deltaX / w) * Math.max(1, localEndTime - localStartTime));
+    } else {
+      const span = Math.max(1, props.view.endTime - props.view.startTime);
+      emit('pan', (e.deltaX / w) * span);
+    }
     return;
   }
   if (e.ctrlKey || e.metaKey) {
@@ -3000,9 +3015,14 @@ function onWheel(e: WheelEvent): void {
   const panPx =
     Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
   if (panPx !== 0) {
-    const span = Math.max(1, props.view.endTime - props.view.startTime);
     const w = Math.max(1, rect.width);
-    emit('pan', (panPx / w) * span);
+    if (marqueePressActive) {
+      // Same local-window ownership as the horizontal trackpad branch above.
+      applyMarqueePan((panPx / w) * Math.max(1, localEndTime - localStartTime));
+    } else {
+      const span = Math.max(1, props.view.endTime - props.view.startTime);
+      emit('pan', (panPx / w) * span);
+    }
     return;
   }
   scrollTargetY = clampScrollY(scrollTargetY + e.deltaY);
