@@ -2265,7 +2265,7 @@ describe('SwimlaneView', () => {
     );
   });
 
-  it('PR-SWIMVIEW-036: scroll-y bakes into card-strip top in the same turn', async () => {
+  it('PR-SWIMVIEW-036: scroll-y bakes into card-strip top before view.scrollY catches up', async () => {
     const tallLanes = Array.from({ length: 30 }, (_, i) => ({
       id: `l${i}`,
       name: `L${i}`,

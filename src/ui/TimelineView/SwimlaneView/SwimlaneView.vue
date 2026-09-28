@@ -1111,8 +1111,9 @@ defineExpose({
   inset: 0;
   pointer-events: none;
   z-index: 8;
+  /* Clips strips during the pre-measure window (viewportH is +∞ until ResizeObserver
+   * reports); scroll is baked into each strip's `top`, so the container never transforms. */
   overflow: hidden;
-  will-change: transform;
 }
 
 .pr-card-strip {

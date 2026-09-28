@@ -89,7 +89,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 33. **PR-SWIMVIEW-033** — A collapse tween that shrinks content while scrolled to the bottom clamps live `scrollY` / gutter `scrollTop` to the visual content height so Card strips and gutter stay aligned with the canvas. A native gutter `scrollTop` clamp emits a settled `update:scrollY` so the parent window is not left stale.
 34. **PR-SWIMVIEW-034** — Unchanged live marquee coverage does not replace `livePreviewIds` (no extra canvas `multiSelectedIds` sync).
 35. **PR-SWIMVIEW-035** — Body canvas `view` is `{ startTime, endTime, scrollY }` only.
-36. **PR-SWIMVIEW-036** — A canvas `scroll-y` emit updates gutter `scrollTop` and the card-strip `top` positions in the same turn (before parent `view.scrollY` catches up), so gutter / cards / canvas do not chase each other.
+36. **PR-SWIMVIEW-036** — A canvas `scroll-y` emit updates gutter `scrollTop` synchronously and repositions card strips by baking the scroll offset into their `top` (a reactive binding) — both land before parent `view.scrollY` catches up, within the same frame, so gutter / cards / canvas do not chase each other.
 
 
 ## Visual
