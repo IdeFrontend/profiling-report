@@ -158,6 +158,13 @@ const bodyRef = ref<HTMLElement | null>(null);
 const bodyViewportH = ref(0);
 /** Imperative lane scroll during wheel ease — avoids cloning parent viewState every frame. */
 const liveScrollY = ref(props.view.scrollY);
+/**
+ * The scroll offset the DOM chrome (Card strips + overview) actually paints from:
+ * the gutter's **quantized** `scrollTop`, not the canvas float. Cards read this
+ * reactively and the overview applies it imperatively, so both stay pixel-locked
+ * to the gutter's Card spacers.
+ */
+const chromeScrollY = ref(props.view.scrollY);
 let gutterScrollSync = false;
 let gutterScrollSyncRaf = 0;
 /** True between an in-flight canvas `scroll-y` and its settle emit. */
@@ -393,15 +400,18 @@ const cardHeaders = computed(() => {
  */
 const marqueePreviewLive = computed(() => livePreviewIds.value != null);
 
-const cardStripsElRef = ref<HTMLElement | null>(null);
 const overviewElRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 
-const visibleCardStrips = computed(() => {
+const cardStrips = computed(() => {
+  // Read the quantized chrome Y (same source as the overview transform) so the strips
+  // stay pixel-locked to the gutter Card spacers instead of the canvas float.
+  const scrollY = chromeScrollY.value;
   const pad = overviewContentPad.value;
-  return cardHeaders.value.map((h) => ({
-    ...h,
-    top: h.y + pad,
-  }));
+  // Bake the scroll offset into each strip's `top` and keep every strip mounted.
+  // Off-screen strips are clipped by the container's `overflow: hidden`; keeping them
+  // in the DOM preserves keyboard focus on a `role="button"` header scrolled out of
+  // view (a viewport filter would unmount the focused node and drop focus).
+  return cardHeaders.value.map((h) => ({ ...h, top: h.y + pad - scrollY }));
 });
 
 let bodyResizeObserver: ResizeObserver | null = null;
@@ -441,11 +451,12 @@ function maxBodyScrollY(): number {
   return Math.max(0, h + overviewContentPad.value - (bodyViewportH.value || 0));
 }
 
-/** Same-turn DOM transforms so cards/overview match gutter before Vue flush. */
+/** Same-turn DOM transform so the overview tracks the gutter before the Vue flush.
+ * Card strips bake the scroll offset into each strip's `top` (see `cardStrips`)
+ * instead: a container `translateY` + `overflow:hidden` was what stale-rasterized
+ * off-screen headers (the d1afa39 regression), so strips stay un-transformed and
+ * clipped; only the overview still uses this imperative transform. */
 function applyScrollChromeTransforms(y: number): void {
-  if (cardStripsElRef.value) {
-    cardStripsElRef.value.style.transform = `translateY(${-y}px)`;
-  }
   const overviewEl =
     overviewElRef.value && '$el' in overviewElRef.value
       ? overviewElRef.value.$el
@@ -455,13 +466,13 @@ function applyScrollChromeTransforms(y: number): void {
   }
 }
 
-/** Gutter + card/overview transforms from one Y; chrome follows quantized scrollTop. */
+/** Gutter + card/overview chrome from one Y; both follow the quantized scrollTop. */
 function syncScrollChromeFromY(y: number): void {
   setGutterScrollTop(y);
   const gutterY = gutterRef.value?.root?.scrollTop;
-  applyScrollChromeTransforms(
-    gutterY != null && Number.isFinite(gutterY) ? gutterY : y,
-  );
+  const chromeY = gutterY != null && Number.isFinite(gutterY) ? gutterY : y;
+  chromeScrollY.value = chromeY;
+  applyScrollChromeTransforms(chromeY);
 }
 
 function clampLiveScrollToContent(): void {
@@ -498,9 +509,10 @@ function setGutterScrollTop(y: number): void {
 function onScrollY(scrollY: number, settled?: boolean) {
   const y = Math.max(0, scrollY);
   liveScrollY.value = y;
-  // Native scrollTop quantizes; paint cards/overview from the value the gutter
-  // actually stored so the layers stay pixel-locked (PR-E2E-015 / PR-SWIMVIEW-036).
-  // Imperative transform only — a Vue :style binding would overwrite with float Y.
+  // Native scrollTop quantizes; paint the DOM chrome (cards + overview) from the
+  // value the gutter actually stored so the layers stay pixel-locked
+  // (PR-E2E-015 / PR-SWIMVIEW-036). Cards read that quantized Y reactively
+  // (chromeScrollY); the overview applies it imperatively so it lands this turn.
   syncScrollChromeFromY(y);
   if (settled) {
     canvasLiveScroll = false;
@@ -881,7 +893,6 @@ defineExpose({
       />
 
       <div
-        ref="cardStripsElRef"
         class="pr-card-strips"
         data-testid="card-strips"
         :style="{
@@ -890,7 +901,7 @@ defineExpose({
         }"
       >
         <div
-          v-for="strip in visibleCardStrips"
+          v-for="strip in cardStrips"
           :key="strip.id"
           role="button"
           tabindex="0"
@@ -1111,8 +1122,9 @@ defineExpose({
   inset: 0;
   pointer-events: none;
   z-index: 8;
+  /* Clips off-screen strips (scroll is baked into each strip's `top`); the container
+   * itself never transforms, so there is no composited layer to stale-rasterize. */
   overflow: hidden;
-  will-change: transform;
 }
 
 .pr-card-strip {
