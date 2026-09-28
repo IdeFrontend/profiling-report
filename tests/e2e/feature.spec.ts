@@ -645,9 +645,7 @@ test.describe('PR-E2E feature paths', () => {
 
     const sample = await page.evaluate(() => {
       const g = document.querySelector('[data-testid="lane-gutter"]') as HTMLElement | null;
-      // Transform lives on the card-strips host (same-turn applyScrollChromeTransforms +
-      // :style binding) — not a nested `__scroll` wrapper.
-      const scroller = document.querySelector('[data-testid="card-strips"]') as HTMLElement | null;
+      // Card strips bake the scroll offset into `top` (no container transform).
       const strip = document.querySelector(
         '[data-testid^="card-strip-"]',
       ) as HTMLElement | null;
@@ -656,11 +654,8 @@ test.describe('PR-E2E feature paths', () => {
             `[data-testid="gutter-group-${strip.getAttribute('data-testid')?.replace('card-strip-', '')}"]`,
           ) as HTMLElement | null)
         : null;
-      const tf = scroller?.style.transform ?? '';
-      const m = /translateY\((-?\d+(?:\.\d+)?)px\)/.exec(tf);
       return {
         gutterTop: g?.scrollTop ?? -1,
-        transformY: m ? Number(m[1]) : null,
         cardVsGutter:
           strip && group
             ? Math.round(strip.getBoundingClientRect().top - group.getBoundingClientRect().top)
@@ -668,7 +663,6 @@ test.describe('PR-E2E feature paths', () => {
       };
     });
     expect(sample.gutterTop).toBeGreaterThan(100);
-    expect(sample.transformY).toBe(-sample.gutterTop);
     if (sample.cardVsGutter != null) expect(Math.abs(sample.cardVsGutter)).toBeLessThanOrEqual(1);
   });
 

@@ -393,15 +393,16 @@ const cardHeaders = computed(() => {
  */
 const marqueePreviewLive = computed(() => livePreviewIds.value != null);
 
-const cardStripsElRef = ref<HTMLElement | null>(null);
 const overviewElRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 
 const visibleCardStrips = computed(() => {
+  const scrollY = liveScrollY.value;
   const pad = overviewContentPad.value;
-  return cardHeaders.value.map((h) => ({
-    ...h,
-    top: h.y + pad,
-  }));
+  // 0 until ResizeObserver / mount measures the body; show all and let overflow:hidden clip.
+  const viewportH = bodyViewportH.value > 0 ? bodyViewportH.value : Number.POSITIVE_INFINITY;
+  return cardHeaders.value
+    .map((h) => ({ ...h, top: h.y + pad - scrollY }))
+    .filter((h) => h.top + LANE_GROUP_HEADER_HEIGHT > 0 && h.top < viewportH);
 });
 
 let bodyResizeObserver: ResizeObserver | null = null;
@@ -441,11 +442,11 @@ function maxBodyScrollY(): number {
   return Math.max(0, h + overviewContentPad.value - (bodyViewportH.value || 0));
 }
 
-/** Same-turn DOM transforms so cards/overview match gutter before Vue flush. */
+/** Same-turn DOM transforms so overview matches gutter before Vue flush.
+ * Card strips bake `scrollY` into their `top` (see visibleCardStrips) instead: the
+ * container transform + `overflow:hidden` let the compositor cull off-screen strips
+ * and never re-rasterize them after scroll (headers below the fold never drew). */
 function applyScrollChromeTransforms(y: number): void {
-  if (cardStripsElRef.value) {
-    cardStripsElRef.value.style.transform = `translateY(${-y}px)`;
-  }
   const overviewEl =
     overviewElRef.value && '$el' in overviewElRef.value
       ? overviewElRef.value.$el
@@ -881,7 +882,6 @@ defineExpose({
       />
 
       <div
-        ref="cardStripsElRef"
         class="pr-card-strips"
         data-testid="card-strips"
         :style="{
