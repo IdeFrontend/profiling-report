@@ -2178,6 +2178,33 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-122: Ctrl+wheel during a live marquee zooms the local window and remaps the rect', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    // Start a marquee and cross the 4px gate.
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 90, clientY: 30, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+
+    const before = wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+      startTime: number;
+      endTime: number;
+    };
+    await canvas.trigger('wheel', { clientX: 200, clientY: 40, deltaY: -100, ctrlKey: true });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('zoom')!.at(-1)![0]).toBe(1.15);
+    // The local window zoomed, so the rect re-maps and re-emits a new time extent —
+    // without the fix the wheel only emits `zoom` and the swimlane stays stale.
+    const after = wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+      startTime: number;
+      endTime: number;
+    };
+    expect(after).not.toEqual(before);
+    expect(after.endTime).toBeGreaterThan(before.endTime);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-094: onPointerUp guards e.button !== 0, matching onPointerDown', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     const vm = wrapper.vm as {

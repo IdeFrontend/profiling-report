@@ -155,6 +155,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 119. **PR-CANVAS-119** — Live marquee left/right edge bands emit `pan` with the same 40px band and 12px/frame feel as vertical edge autoscroll (`PR-CANVAS-112`); the drag anchor stays fixed in **time** space so each pan step stretches the rect. The local time window is **clamped to model `minTime`/`maxTime`** the same way `panBy` clamps (parent props lag while `marqueePressActive`). Holding the band at a bound stops further pan. The marquee rect (border + fill) paints above Card strip expanders (`z-index: 9`).
 120. **PR-CANVAS-120** — Vertical lane scroll invalidates the magnet caret, event hover, and lane hover on scroll start (pointer unmoved), then recalculates them at the settled scroll offset on scroll end.
 121. **PR-CANVAS-121** — A cursor whose magnetized edge or free pointer sits off-track still emits `xRatio` clamped to 0–1 (time stays true), so the playhead stem never paints over the gutter or past the right edge.
+122. **PR-CANVAS-122** — While a marquee is live, Ctrl/Cmd+wheel zooms the **local** time window too (not just the emitted `zoom`), so the swimlane blocks repaint at the new scale instead of staying at the stale snapshot; the marquee rect re-maps against the zoomed window.
 
 ## Edge Cases
 
@@ -189,6 +190,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-28** — Ctrl/Cmd+wheel during a live marquee zooms the local time window and re-maps the rect (`PR-CANVAS-122`).
 - **2026-09-25** — Marquee pointerup settles `scroll-y` (incl. mid-band / already-open dock) so parent viewState stays in sync (`PR-CANVAS-112` / `PR-CANVAS-115`).
 - **2026-09-24** — Marquee horizontal edge pan clamps the local time window to model bounds (`PR-CANVAS-119`).
 - **2026-09-24** — Marquee rect paints above Card strip expanders (`z-index: 9`); horizontal edge autoscroll (`PR-CANVAS-119`).

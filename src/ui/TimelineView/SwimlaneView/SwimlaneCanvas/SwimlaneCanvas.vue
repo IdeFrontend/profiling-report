@@ -10,7 +10,7 @@ import {
   type SwimlaneModel,
   type SwimlaneViewWindow,
 } from '../../../../domain/types';
-import { normalizeMeasureRange, panBy } from '../../../../domain/viewState';
+import { normalizeMeasureRange, panBy, zoomAt } from '../../../../domain/viewState';
 import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
@@ -2960,7 +2960,28 @@ function onWheel(e: WheelEvent): void {
   if (e.ctrlKey || e.metaKey) {
     const mag = magnetizeLocal(x, y);
     const anchor = stuckMeasureEdgeTime() ?? mag.time;
-    emit('zoom', e.deltaY > 0 ? 1 / 1.15 : 1.15, anchor);
+    const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
+    emit('zoom', factor, anchor);
+    // Live marquee owns the local time window (the props.view watcher skips while
+    // marqueePressActive), so the swimlane would keep painting stale start/end times
+    // while the axis/slider zoom. Apply the zoom to the local window too and re-anchor
+    // the marquee rect — same convention as tickMarqueeAutoScroll's pan remap.
+    if (marqueePressActive) {
+      const bounds = props.model
+        ? { minTime: props.model.minTime, maxTime: props.model.maxTime }
+        : undefined;
+      const next = zoomAt(
+        { startTime: localStartTime, endTime: localEndTime, scrollY: localScrollY },
+        factor,
+        anchor,
+        bounds,
+      );
+      localStartTime = next.startTime;
+      localEndTime = next.endTime;
+      applyViewState();
+      flushPaint();
+      applyMarqueeDragMove(marqueeLastClientX, marqueeLastClientY);
+    }
     return;
   }
   // Trackpads report horizontal intent as deltaX; a mouse wheel needs Shift. Take the
