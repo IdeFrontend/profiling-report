@@ -98,4 +98,34 @@ describe('TimeOverviewBar', () => {
     expect(wrapper.emitted('update:window')!.length).toBe(countAfterUp);
     wrapper.unmount();
   });
+
+  it('PR-OVERVIEW-007: dragging a full-selection window stays exactly on the bounds', async () => {
+    const wrapper = mount(TimeOverviewBar, {
+      props: {
+        minTime: 0,
+        maxTime: 1_000_000_000, // 1 s — sits on the 's' ↔ 'ms' unit boundary
+        startTime: 0,
+        endTime: 1_000_000_000,
+      },
+      attachTo: document.body,
+    });
+    const track = wrapper.find('[data-testid="time-overview-track"]').element as HTMLElement;
+    // Non-"nice" width so `dt = dxRatio × fullSpan` is not exactly representable
+    // (150px, 14px step → startTime drifts to ~8.9e-8 without the bound snap).
+    Object.defineProperty(track, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 150, height: 20, right: 150, bottom: 20 }),
+    });
+    const span = wrapper.get('[data-testid="time-overview-window"]');
+    await span.trigger('pointerdown', { clientX: 75, clientY: 10, button: 0, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 89, clientY: 10, buttons: 1 }));
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 89, clientY: 10 }));
+
+    const last = wrapper.emitted('update:window')!.at(-1)![0] as {
+      startTime: number;
+      endTime: number;
+    };
+    expect(last.startTime).toBe(0);
+    expect(last.endTime).toBe(1_000_000_000);
+    wrapper.unmount();
+  });
 });
