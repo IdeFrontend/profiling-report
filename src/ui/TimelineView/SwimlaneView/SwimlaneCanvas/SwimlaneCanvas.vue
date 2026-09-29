@@ -1312,9 +1312,17 @@ function ensureSelectionRangeVisible(
   // must not force a scroll. Visibility is scroll-viewport geometry: the top edge is
   // inclusive (`scrollTop` is the first visible pixel) so `topY >= next` is "visible";
   // the bottom edge is exclusive (`scrollTop + viewH` is the first hidden pixel) so
-  // `bottomY < next + viewH` is "visible". A bottom-flush range therefore still falls
-  // through to the release margin (PR-CANVAS-117), while a fully-visible range — even
-  // within MARQUEE_RELEASE_MARGIN_PX of an edge — must not autoscroll (PR-CANVAS-115).
+  // `bottomY < next + viewH` is "visible". A fully-visible range — even within
+  // MARQUEE_RELEASE_MARGIN_PX of an edge — must not autoscroll (PR-CANVAS-115).
+  //
+  // Contract: bottom-flush ⇒ always pad. Because the bottom edge is exclusive, a range
+  // that ends exactly at `next + viewH` is *not* "fully inside", so it falls through to
+  // the release margin below. That covers the PR-CANVAS-117 release-cursor case, but is
+  // broader: any bottom-flush reveal (e.g. a PR-CANVAS-116 lane-row selection whose
+  // bottom row ends exactly at the wrap bottom) also tweens +12px. This is deliberate —
+  // the code cannot distinguish a cursor from a lane-row flush, and a bottom flush is
+  // the one place the dock is about to clip, so padding it is the safe, intended
+  // behavior even when it is technically still visible.
   if (topY >= next && bottomY < next + viewH) {
     emit('scroll-y', localScrollY, true);
     return;
