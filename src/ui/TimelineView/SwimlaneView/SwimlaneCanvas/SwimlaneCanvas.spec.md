@@ -156,6 +156,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 120. **PR-CANVAS-120** — Vertical lane scroll invalidates the magnet caret, event hover, and lane hover on scroll start (pointer unmoved), then recalculates them at the settled scroll offset on scroll end.
 121. **PR-CANVAS-121** — A cursor whose magnetized edge or free pointer sits off-track still emits `xRatio` clamped to 0–1 (time stays true), so the playhead stem never paints over the gutter or past the right edge.
 122. **PR-CANVAS-122** — While a marquee is live, Ctrl/Cmd+wheel zooms the **local** time window too (not just the emitted `zoom`), so the swimlane blocks repaint at the new scale instead of staying at the stale snapshot; the marquee rect re-maps against the zoomed window. Wheel pan during a live marquee (Shift+wheel `PR-CANVAS-122b`, horizontal-dominant trackpad `PR-CANVAS-122c`) applies to the local window the same way and re-maps the rect.
+123. **PR-CANVAS-123** — An off-track marquee drag (pointer or pan-fixed anchor past either track edge) clamps the rect's x edges to the track, so `multi-select-span` (and the live cursor `time`) never emit negative time or time past `maxTime`.
 
 ## Edge Cases
 
@@ -190,6 +191,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-09-29** — Off-track marquee drag clamps the rect x edges to the track so the span/cursor never emit negative time or time past `maxTime` (`PR-CANVAS-123`).
 - **2026-09-28** — Ctrl/Cmd+wheel during a live marquee zooms the local time window and re-maps the rect (`PR-CANVAS-122`); wheel pan (horizontal-dominant trackpad and Shift+wheel) applies to the local window too during a live marquee so the swimlane/rect stay in step with the axis/slider (`PR-CANVAS-122`); local pan/zoom bounds clamp a degenerate single-point model (`maxTime === minTime`) to `minTime + 1`, matching `ProfilingReport.bounds` (`PR-CANVAS-119b`).
 - **2026-09-25** — Marquee pointerup settles `scroll-y` (incl. mid-band / already-open dock) so parent viewState stays in sync (`PR-CANVAS-112` / `PR-CANVAS-115`).
 - **2026-09-24** — Marquee horizontal edge pan clamps the local time window to model bounds (`PR-CANVAS-119`).

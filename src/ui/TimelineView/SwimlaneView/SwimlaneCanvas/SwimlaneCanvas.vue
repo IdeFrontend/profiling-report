@@ -1674,16 +1674,22 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
     hoverGap.value = null;
     emitLaneHover(null);
   }
+  const w = syncTrackWidth();
+  // Clamp the rect's x edges to the track so `timeAtX` cannot extrapolate past the
+  // view window. The window is already clamped to model [minTime, maxTime], so an
+  // off-track pointer/anchor would otherwise emit negative time or time > maxTime
+  // into `multi-select-span` (and the live cursor) — PR-CANVAS-123.
+  const x0 = Math.min(w, Math.max(0, anchorViewX));
+  const x1 = Math.min(w, Math.max(0, local.x));
   const rect = {
-    x0: anchorViewX,
+    x0,
     y0: anchorViewY,
-    x1: local.x,
+    x1,
     y1: local.y,
   };
   marqueeRect.value = rect;
   emit('multi-select-span', marqueeSpan(rect));
-  const w = syncTrackWidth();
-  emit('cursor', { time: timeAtX(local.x), xRatio: clampXRatio(local.x, w), snapped: false });
+  emit('cursor', { time: timeAtX(x1), xRatio: clampXRatio(x1, w), snapped: false });
   emitLaneHover(null);
   const hitFp = marqueeHitFingerprint(rect);
   if (hitFp === lastMarqueeHitFp) return;

@@ -2350,6 +2350,35 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-123: off-track marquee drag clamps the span to [minTime, maxTime]', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const lastSpan = () =>
+      wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+        startTime: number;
+        endTime: number;
+      };
+
+    // Drag left of the track: x=-50 extrapolates to t=-125 without clamping.
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: -50, clientY: 40, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(lastSpan().startTime).toBeCloseTo(0, 0);
+    expect(lastSpan().endTime).toBeCloseTo(100, 0);
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: -50, clientY: 40 }));
+    await wrapper.vm.$nextTick();
+
+    // Drag right of the track: x=450 extrapolates to t=1125 without clamping.
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 2 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 450, clientY: 40, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(lastSpan().startTime).toBeCloseTo(100, 0);
+    expect(lastSpan().endTime).toBeCloseTo(1000, 0);
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 450, clientY: 40 }));
+    await wrapper.vm.$nextTick();
+
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-085: the live marquee previews which events the release will take', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     await wrapper.setProps({ selectedEventId: 'e1' });
