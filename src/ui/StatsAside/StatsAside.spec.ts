@@ -15,9 +15,13 @@ function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
 }
 
-/** Summary-card number tooltip: metric description, then the exact value (PR-STATS-040). */
-function cardTip(hint: string, exact: string): string {
-  return `${hint}\n${t('exactValue')}: ${exact}`;
+/**
+ * Summary-card number tooltip: metric description, then the exact value (PR-STATS-040).
+ * `locale` must match the mount under test — `exactValue` is localized, so an `en` mount asserting
+ * against the default zh-CN label would silently mismatch.
+ */
+function cardTip(hint: string, exact: string, locale?: string): string {
+  return `${hint}\n${t('exactValue', locale)}: ${exact}`;
 }
 
 /** Open the PIPE CardMetricSelect and pick an option ('' = All). */
@@ -975,6 +979,33 @@ describe('StatsAside', () => {
     );
   });
 
+  it('PR-STATS-040: tooltips localize with the mount locale', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        locale: 'en',
+        report: report({
+          summary: { taskDurationUs: 4600 },
+          computeCard: {
+            sides: [{ side: 'aic', measuredTflops: 100, peakTflops: 200 }],
+          },
+        }),
+      },
+    });
+    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
+      cardTip(t('durationValueHint', 'en'), '4.6 ms', 'en'),
+    );
+    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').attributes('title')).toBe(
+      t('computeScoreHint', 'en').replace('{side}', 'Cube'),
+    );
+    // The whole point of the helper's `locale` argument: an `en` mount must not assert zh-CN copy.
+    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).toContain(
+      'Exact value',
+    );
+    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).not.toContain(
+      t('exactValue', 'zh-CN'),
+    );
+  });
+
   it('PR-STATS-040: Exact value lines strip binary-float residue from summed sides', () => {
     // BW 读 sums the aic + aiv sides (DATA-8): 0.1 + 0.2 must not read as 0.30000000000000004.
     const wrapper = mount(StatsAside, {
@@ -1002,6 +1033,23 @@ describe('StatsAside', () => {
     );
     expect(wrapper.get('[data-testid="stats-compute-aic"] .pr-card__sub').attributes('title')).toBe(
       cardTip(t('computeRatioHint').replace('{side}', 'Cube'), '1.65 / 320 TFLOPS'),
+    );
+  });
+
+  it('PR-STATS-040: duration title strips the residue its /1000 into ms introduces', () => {
+    // Not just sums and means: 1000.004 µs divides to 1.0000040000000001 in binary floats.
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1000.004 } }) },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+    expect(value.get('.pr-card__num').text()).toBe('1.00');
+    expect(value.attributes('title')).toBe(cardTip(t('durationValueHint'), '1.000004 ms'));
+    // A sub-µs amount stays exact rather than rounding through 12 significant digits.
+    const micro = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1.800123 } }) },
+    });
+    expect(micro.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
+      cardTip(t('durationValueHint'), '1.800123 µs'),
     );
   });
 

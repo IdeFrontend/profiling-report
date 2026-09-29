@@ -525,13 +525,17 @@ const visiblePipes = computed(() => {
   return all.filter((p) => matchesSide(p, knownSide.value!));
 });
 
-/** Sketch splits the number from a muted unit (`4.06` + `ms`). Display is 2 dp; title keeps full precision. */
+/**
+ * Sketch splits the number from a muted unit (`4.06` + `ms`). Display is 2 dp; title keeps full
+ * precision. The `/1000` into `ms` is not residue-free — `1000.004` µs divides to
+ * `1.0000040000000001` — so the title runs through `exactNumber()` like every other exact value.
+ */
 function formatDurationParts(us: number): { value: string; unit: string; title: string } {
   if (us >= 1000) {
     const ms = us / 1000;
-    return { value: ms.toFixed(2), unit: 'ms', title: `${ms} ms` };
+    return { value: ms.toFixed(2), unit: 'ms', title: `${exactNumber(ms)} ms` };
   }
-  return { value: us.toFixed(2), unit: 'µs', title: `${us} µs` };
+  return { value: us.toFixed(2), unit: 'µs', title: `${exactNumber(us)} µs` };
 }
 
 const durationParts = computed(() => {
