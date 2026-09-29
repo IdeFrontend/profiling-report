@@ -140,29 +140,58 @@ const hasSummary = computed(
     props.report?.profile !== 'emulate' &&
     (hasDuration.value || bandwidthUtilSides.value.length > 0),
 );
+/** Summary-card hover tooltip: what the metric means, then its exact value. */
+function withExactValue(hint: string, exact: string): string {
+  return `${hint}\n${t('exactValue', props.locale)}: ${exact}`;
+}
+
+/**
+ * Raw number for an `Exact value:` line. Stays exact for any value the producer publishes, but
+ * strips binary-float residue from the sums (`aic` + `aiv` BW) and means (compute) that build
+ * these figures — `0.30000000000000004` reads as broken data, not precision. Same 12-significant-
+ * digit rule as the AICore percent below.
+ */
+function exactNumber(n: number): string {
+  return String(Number(n.toPrecision(12)));
+}
+
 const bandwidthView = computed(() =>
-  bandwidthUtilSides.value.map((row) => ({
-    dir: row.dir,
-    labelKey: (row.dir === 'read' ? 'bwRead' : 'bwWrite') as MessageKey,
-    score: utilScore(row.measuredGBs, row.peakGBs),
-    // COLOR_TOKENS: primary=读, secondary=写 (semantic, not array order).
-    barTone: row.dir === 'write' ? 'secondary' : 'primary',
-    ratio: `${formatMagnitude(row.measuredGBs)} / ${formatMagnitude(row.peakGBs)}`,
-    unit: 'GB/s',
-    title: `${row.measuredGBs} / ${row.peakGBs} GB/s`,
-  })),
+  bandwidthUtilSides.value.map((row) => {
+    const label = t(row.dir === 'read' ? 'bwRead' : 'bwWrite', props.locale);
+    return {
+      dir: row.dir,
+      labelKey: (row.dir === 'read' ? 'bwRead' : 'bwWrite') as MessageKey,
+      score: utilScore(row.measuredGBs, row.peakGBs),
+      // COLOR_TOKENS: primary=读, secondary=写 (semantic, not array order).
+      barTone: row.dir === 'write' ? 'secondary' : 'primary',
+      ratio: `${formatMagnitude(row.measuredGBs)} / ${formatMagnitude(row.peakGBs)}`,
+      unit: 'GB/s',
+      ratioTitle: withExactValue(
+        t('bandwidthRatioHint', props.locale).replace('{dir}', label),
+        `${exactNumber(row.measuredGBs)} / ${exactNumber(row.peakGBs)} GB/s`,
+      ),
+      scoreTitle: t('bandwidthScoreHint', props.locale).replace('{dir}', label),
+    };
+  }),
 );
 const computeView = computed(() =>
-  (computeCard.value?.sides ?? []).map((row) => ({
-    side: row.side,
-    label: row.side === 'aic' ? 'Cube' : 'Vector',
-    score: utilScore(row.measuredTflops, row.peakTflops),
-    // COLOR_TOKENS: primary=Cube, secondary=Vector (semantic, not array order).
-    barTone: row.side === 'aiv' ? 'secondary' : 'primary',
-    ratio: `${formatMagnitude(row.measuredTflops)} / ${formatMagnitude(row.peakTflops)}`,
-    unit: 'TFLOPS',
-    title: `${row.measuredTflops} / ${row.peakTflops} TFLOPS`,
-  })),
+  (computeCard.value?.sides ?? []).map((row) => {
+    const label = row.side === 'aic' ? 'Cube' : 'Vector';
+    return {
+      side: row.side,
+      label,
+      score: utilScore(row.measuredTflops, row.peakTflops),
+      // COLOR_TOKENS: primary=Cube, secondary=Vector (semantic, not array order).
+      barTone: row.side === 'aiv' ? 'secondary' : 'primary',
+      ratio: `${formatMagnitude(row.measuredTflops)} / ${formatMagnitude(row.peakTflops)}`,
+      unit: 'TFLOPS',
+      ratioTitle: withExactValue(
+        t('computeRatioHint', props.locale).replace('{side}', label),
+        `${exactNumber(row.measuredTflops)} / ${exactNumber(row.peakTflops)} TFLOPS`,
+      ),
+      scoreTitle: t('computeScoreHint', props.locale).replace('{side}', label),
+    };
+  }),
 );
 
 /** DATA-9 / DATA-10: dual 并行使用率 | 负载均衡度 columns (fractions → %; clamp [0, 100]). */
@@ -171,7 +200,7 @@ function aicorePercent(fraction: number): { score: number; title: string } {
   // Clamp both ends so label and bar agree — balance = 1−σ/μ can go negative; util can exceed 1.
   const score = Number(Math.min(100, Math.max(0, raw)).toFixed(2));
   // Strip binary-float residue while keeping sub-percent detail beyond the 2dp label.
-  const title = `${Number(raw.toPrecision(12))}%`;
+  const title = `${exactNumber(raw)}%`;
   return { score, title };
 }
 const aicoreView = computed(() => {
@@ -181,7 +210,7 @@ const aicoreView = computed(() => {
     labelKey: MessageKey;
     score: number;
     barTone: 'primary' | 'secondary';
-    title: string;
+    scoreTitle: string;
   }[] = [];
   if (s?.parallelUtilization != null) {
     const { score, title } = aicorePercent(s.parallelUtilization);
@@ -190,7 +219,7 @@ const aicoreView = computed(() => {
       labelKey: 'parallelUtil',
       score,
       barTone: 'primary',
-      title,
+      scoreTitle: withExactValue(t('parallelUtilHint', props.locale), title),
     });
   }
   if (s?.parallelBalance != null) {
@@ -200,7 +229,7 @@ const aicoreView = computed(() => {
       labelKey: 'parallelBalance',
       score,
       barTone: 'secondary',
-      title,
+      scoreTitle: withExactValue(t('parallelBalanceHint', props.locale), title),
     });
   }
   return rows;
@@ -387,21 +416,30 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** UI-32 (NPU-Compute): drop the bar; secondary = `{blockDim} Blocks / {coreCount} 核`. */
-const durationSecondary = computed(() => {
+/**
+ * UI-32 (NPU-Compute): drop the bar; secondary = `{blockDim} Blocks / {coreCount} 核`.
+ * DATA-1 fallback order: blocks/core → `blockDim` → `opName`. Each form carries the tooltip
+ * that says which quantity the line reports (PR-STATS-040).
+ */
+const durationSecondary = computed<{ text: string; title: string } | null>(() => {
   const s = summary.value;
   if (!s) return null;
   const block = numericBlockDim(s.blockDim);
   if (block != null && s.coreCount != null && s.coreCount > 0) {
-    return t('blocksPerCores', props.locale)
-      .replace('{blockDim}', String(block))
-      .replace('{coreCount}', String(s.coreCount));
+    return {
+      text: t('blocksPerCores', props.locale)
+        .replace('{blockDim}', String(block))
+        .replace('{coreCount}', String(s.coreCount)),
+      title: t('durationSecondaryBlocksPerCore', props.locale),
+    };
   }
   if (s.blockDim != null && s.blockDim !== '') {
-    return t('blocksOnly', props.locale).replace('{n}', String(s.blockDim));
+    return {
+      text: t('blocksOnly', props.locale).replace('{n}', String(s.blockDim)),
+      title: t('durationSecondaryBlocksOnly', props.locale),
+    };
   }
-  if (s.opName) return s.opName;
-  return null;
+  return s.opName ? { text: s.opName, title: t('durationSecondaryOpName', props.locale) } : null;
 });
 
 const hasMeta = computed(() => {
@@ -500,6 +538,13 @@ const durationParts = computed(() => {
   const us = props.report?.summary.taskDurationUs;
   return us == null ? null : formatDurationParts(us);
 });
+
+/** Duration number tooltip: what it measures, then the exact (unrounded) amount. */
+const durationValueTitle = computed(() =>
+  durationParts.value
+    ? withExactValue(t('durationValueHint', props.locale), durationParts.value.title)
+    : undefined,
+);
 
 function formatPipeAbsolute(v: number): string {
   if (Math.abs(v) >= 100) return v.toFixed(2);
@@ -702,7 +747,7 @@ const detailTestId = computed(() => {
           </div>
           <div
             class="pr-card__value"
-            :title="durationParts.title"
+            :title="durationValueTitle"
             data-testid="stats-duration-value"
           >
             <span class="pr-card__num">{{ durationParts.value }}</span>
@@ -712,9 +757,9 @@ const detailTestId = computed(() => {
             v-if="durationSecondary"
             class="pr-card__sub"
             data-testid="stats-duration-secondary"
-            :title="durationSecondary"
+            :title="durationSecondary.title"
           >
-            {{ durationSecondary }}
+            {{ durationSecondary.text }}
           </div>
         </div>
         <div
@@ -740,7 +785,7 @@ const detailTestId = computed(() => {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-aicore-${row.id}-score`"
-                  :title="row.title"
+                  :title="row.scoreTitle"
                 >
                   <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
                   <span class="pr-card__unit">%</span>
@@ -790,6 +835,7 @@ const detailTestId = computed(() => {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-compute-${row.side}-score`"
+                  :title="row.scoreTitle"
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
                 </span>
@@ -812,7 +858,7 @@ const detailTestId = computed(() => {
               </div>
               <div
                 class="pr-card__sub"
-                :title="row.title"
+                :title="row.ratioTitle"
               >
                 <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
                 <span class="pr-card__sub-unit">{{ row.unit }}</span>
@@ -851,6 +897,7 @@ const detailTestId = computed(() => {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-bandwidth-${row.dir}-score`"
+                  :title="row.scoreTitle"
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
                   <span class="pr-card__unit">%</span>
@@ -874,7 +921,7 @@ const detailTestId = computed(() => {
               </div>
               <div
                 class="pr-card__sub"
-                :title="row.title"
+                :title="row.ratioTitle"
               >
                 <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
                 <span class="pr-card__sub-unit">{{ row.unit }}</span>

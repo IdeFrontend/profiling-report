@@ -9,9 +9,15 @@ import {
 import { parseRep } from '../../adapters/parseRep';
 import type { ReportViewModel } from '../../domain/types';
 import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
+import { t } from '../../i18n';
 
 function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
+}
+
+/** Summary-card number tooltip: metric description, then the exact value (PR-STATS-040). */
+function cardTip(hint: string, exact: string): string {
+  return `${hint}\n${t('exactValue')}: ${exact}`;
 }
 
 /** Open the PIPE CardMetricSelect and pick an option ('' = All). */
@@ -696,7 +702,9 @@ describe('StatsAside', () => {
     expect(card.text()).toMatch(/整体耗时|Total time/);
     expect(card.get('.pr-card__num').text()).toBe('4.60');
     expect(card.get('.pr-card__unit').text()).toBe('ms');
-    expect(card.get('[data-testid="stats-duration-value"]').attributes('title')).toBe('4.6 ms');
+    expect(card.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
+      cardTip(t('durationValueHint'), '4.6 ms'),
+    );
     expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(false);
   });
 
@@ -709,7 +717,7 @@ describe('StatsAside', () => {
     const value = wrapper.get('[data-testid="stats-duration-value"]');
     expect(value.get('.pr-card__num').text()).toBe('1.80');
     expect(value.get('.pr-card__unit').text()).toBe('µs');
-    expect(value.attributes('title')).toBe('1.800123 µs');
+    expect(value.attributes('title')).toBe(cardTip(t('durationValueHint'), '1.800123 µs'));
   });
 
   it('PR-STATS-009b: summary cards use sketch 2x2 grid', () => {
@@ -912,11 +920,11 @@ describe('StatsAside', () => {
     expect(core.text()).toMatch(/AICore 并行使用率|AICore parallel/);
     expect(wrapper.get('[data-testid="stats-aicore-util-score"]').text()).toMatch(/98\.14\s*%/);
     expect(wrapper.get('[data-testid="stats-aicore-util-score"]').attributes('title')).toBe(
-      '98.1418%',
+      cardTip(t('parallelUtilHint'), '98.1418%'),
     );
     expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').text()).toMatch(/93\.38\s*%/);
     expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').attributes('title')).toBe(
-      '93.3769%',
+      cardTip(t('parallelBalanceHint'), '93.3769%'),
     );
     expect(wrapper.get('[data-testid="stats-aicore-util"]').text()).toMatch(
       /并行使用率|Parallel utilization/,
@@ -927,6 +935,73 @@ describe('StatsAside', () => {
     );
     expect(wrapper.get('[data-testid="stats-aicore-balance-bar"]').classes()).toContain(
       'pr-card__bar-fill--secondary',
+    );
+  });
+
+  it('PR-STATS-040: every summary-card number carries a descriptive tooltip', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 4600, blockDim: 8, coreCount: 24 },
+          computeCard: {
+            sides: [{ side: 'aic', measuredTflops: 100, peakTflops: 200 }],
+          },
+          bandwidthCards: [
+            { id: 'input', sides: [{ side: 'aic', measuredGBs: 800, peakGBs: 1600 }] },
+          ],
+        }),
+      },
+    });
+    // Duration keeps the exact (unrounded) amount after the description.
+    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
+      cardTip(t('durationValueHint'), '4.6 ms'),
+    );
+    expect(wrapper.get('[data-testid="stats-duration-secondary"]').attributes('title')).toBe(
+      t('durationSecondaryBlocksPerCore'),
+    );
+    // Compute and BW scores had no tooltip at all before — now they describe the number too.
+    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').attributes('title')).toBe(
+      t('computeScoreHint').replace('{side}', 'Cube'),
+    );
+    expect(wrapper.get('[data-testid="stats-bandwidth-read-score"]').attributes('title')).toBe(
+      t('bandwidthScoreHint').replace('{dir}', t('bwRead')),
+    );
+    // …and so do the `measured / peak` sub-ratios, which keep the raw values.
+    expect(wrapper.get('[data-testid="stats-compute-aic"] .pr-card__sub').attributes('title')).toBe(
+      cardTip(t('computeRatioHint').replace('{side}', 'Cube'), '100 / 200 TFLOPS'),
+    );
+    expect(wrapper.get('[data-testid="stats-bandwidth-read"] .pr-card__sub').attributes('title')).toBe(
+      cardTip(t('bandwidthRatioHint').replace('{dir}', t('bwRead')), '800 / 1600 GB/s'),
+    );
+  });
+
+  it('PR-STATS-040: Exact value lines strip binary-float residue from summed sides', () => {
+    // BW 读 sums the aic + aiv sides (DATA-8): 0.1 + 0.2 must not read as 0.30000000000000004.
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          computeCard: {
+            // A mean can carry residue too: (1.1 + 2.2) / 2.
+            sides: [{ side: 'aic', measuredTflops: 1.6500000000000001, peakTflops: 320 }],
+          },
+          bandwidthCards: [
+            {
+              id: 'input',
+              sides: [
+                { side: 'aic', measuredGBs: 0.1, peakGBs: 1600 },
+                { side: 'aiv', measuredGBs: 0.2, peakGBs: 1600 },
+              ],
+            },
+          ],
+        }),
+      },
+    });
+    expect(wrapper.get('[data-testid="stats-bandwidth-read"] .pr-card__sub').attributes('title')).toBe(
+      cardTip(t('bandwidthRatioHint').replace('{dir}', t('bwRead')), '0.3 / 1600 GB/s'),
+    );
+    expect(wrapper.get('[data-testid="stats-compute-aic"] .pr-card__sub').attributes('title')).toBe(
+      cardTip(t('computeRatioHint').replace('{side}', 'Cube'), '1.65 / 320 TFLOPS'),
     );
   });
 
@@ -944,13 +1019,13 @@ describe('StatsAside', () => {
     });
     const utilScore = wrapper.get('[data-testid="stats-aicore-util-score"]');
     expect(utilScore.get('.pr-card__num').text()).toBe('100.00');
-    expect(utilScore.attributes('title')).toBe('150%');
+    expect(utilScore.attributes('title')).toBe(cardTip(t('parallelUtilHint'), '150%'));
     expect(wrapper.get('[data-testid="stats-aicore-util-bar"]').attributes('style')).toMatch(
       /width:\s*100%/,
     );
     const balScore = wrapper.get('[data-testid="stats-aicore-balance-score"]');
     expect(balScore.get('.pr-card__num').text()).toBe('0.00');
-    expect(balScore.attributes('title')).toBe('-42%');
+    expect(balScore.attributes('title')).toBe(cardTip(t('parallelBalanceHint'), '-42%'));
     expect(wrapper.get('[data-testid="stats-aicore-balance-bar"]').attributes('style')).toMatch(
       /width:\s*0%/,
     );
@@ -1042,7 +1117,9 @@ describe('StatsAside', () => {
     // DATA-8: read = aic + aiv = 80 + 90 = 170 → score round(170/1600×100) = 11
     expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/11/);
     expect(read.text()).toMatch(/170\.0 \/ 1600\.0\s*GB\/s/);
-    expect(read.get('.pr-card__sub').attributes('title')).toBe('170 / 1600 GB/s');
+    expect(read.get('.pr-card__sub').attributes('title')).toBe(
+      cardTip(t('bandwidthRatioHint').replace('{dir}', t('bwRead')), '170 / 1600 GB/s'),
+    );
     expect(read.get('[data-testid="stats-bandwidth-read-bar"]').attributes('style')).toMatch(
       /width:\s*11%/,
     );
