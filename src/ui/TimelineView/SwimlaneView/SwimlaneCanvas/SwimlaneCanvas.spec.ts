@@ -4358,6 +4358,93 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-115: fully-visible selection within release margin does not ensure-scroll', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    // Marquee spans localY 50→75 (clientY 150→175): selects t-0 (40..62) and t-1
+    // (62..84), so selection bottom = 40 + 2*22 = 84 in wrap scroll space.
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 150, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 175, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 175 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select')).toBeTruthy();
+
+    const scrollAtCommit =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      0;
+    // Shrink the wrap to 90px: selection bottom 84 stays visible (6px gap) but sits
+    // within MARQUEE_RELEASE_MARGIN_PX (12) of the bottom — must NOT scroll.
+    Object.defineProperty(wrap, 'clientHeight', { value: 90, configurable: true });
+    box.height = 90;
+    box.bottom = 190;
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+    }
+    const last =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      scrollAtCommit;
+    // No scroll delta: the fully-visible selection must not be nudged for the margin.
+    expect(last).toBe(scrollAtCommit);
+    // May emit a settled scroll-y with the same value; must not tween away from it.
+    if ((wrapper.emitted('scroll-y')?.length ?? 0) > before) {
+      expect(last).toBe(scrollAtCommit);
+    }
+
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-118: wheel scroll flushPaints with localScrollY without waiting on props', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: false,
