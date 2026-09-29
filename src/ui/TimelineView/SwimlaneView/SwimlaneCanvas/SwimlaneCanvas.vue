@@ -1675,14 +1675,15 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
     emitLaneHover(null);
   }
   const w = syncTrackWidth();
-  // Clamp the rect's x edges to the track so `timeAtX` cannot extrapolate past the
-  // view window. The window is already clamped to model [minTime, maxTime], so an
-  // off-track pointer/anchor would otherwise emit negative time or time > maxTime
-  // into `multi-select-span` (and the live cursor) — PR-CANVAS-123.
-  const x0 = Math.min(w, Math.max(0, anchorViewX));
+  // Clamp only the pointer edge to the track: an off-track pointer maps to negative
+  // time / time > maxTime via `timeAtX`. The anchor edge must stay unclamped — it is
+  // `xAtTime(contentTime)`, an exact inverse of `timeAtX`, so `timeAtX(x0)` is the
+  // view-invariant `contentTime` (already within [minTime, maxTime]). Clamping it
+  // would snap an off-screen anchor (edge-autoscroll pan / zoom) to the window edge
+  // and drop events between the anchor and that edge from the commit (PR-CANVAS-123).
   const x1 = Math.min(w, Math.max(0, local.x));
   const rect = {
-    x0,
+    x0: anchorViewX,
     y0: anchorViewY,
     x1,
     y1: local.y,
