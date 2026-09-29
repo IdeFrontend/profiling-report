@@ -37,6 +37,20 @@ const messages = {
     blocksPerCores: '{blockDim} Blocks / {coreCount} 核',
     blocksOnly: '{n} Blocks',
     notAvailable: 'N/A',
+    // Summary-card hover tooltips: what the number means (metric + unit), then its exact value.
+    exactValue: '准确值',
+    durationValueHint: '算子整体耗时（Task Duration）：该算子执行所花费的墙钟时间。',
+    parallelUtilHint:
+      'AICore 并行使用率（aicore_parallel_utilization）：算子执行期间所有 AI Core 的平均利用率；100% 表示每个核全程都在工作。',
+    parallelBalanceHint:
+      'AICore 负载均衡度（aicore_parallel_balance = 1 − σ/μ）：各 AI Core 工作量分配的均衡程度；100% 表示各核工作量完全一致。',
+    computeScoreHint: '{side} 利用率：该侧实测算力占理论峰值的百分比（实测 ÷ 峰值）。',
+    bandwidthScoreHint: '{dir}带宽利用率：该方向实测带宽占理论峰值的百分比。',
+    computeRatioHint: '{side} 吞吐：实测值 ÷ 理论峰值，单位 TFLOPS。',
+    bandwidthRatioHint: '{dir}带宽：实测值 ÷ 理论峰值，单位 GB/s。',
+    durationSecondaryBlocksPerCore: '每个 AI Core 处理的 Block 数（Block Dim ÷ 核数）。',
+    durationSecondaryBlocksOnly: '该算子切分出的 Block 总数（Block Dim）。',
+    durationSecondaryOpName: '算子名称。',
     freq: '频率',
     noTimeline: '无时间线事件',
     overviewStats: '统计分析',
@@ -191,6 +205,24 @@ const messages = {
     blocksPerCores: '{blockDim} Blocks / {coreCount} cores',
     blocksOnly: '{n} Blocks',
     notAvailable: 'N/A',
+    // Summary-card hover tooltips: what the number means (metric + unit), then its exact value.
+    exactValue: 'Exact value',
+    durationValueHint:
+      'Total operator duration (Task Duration) — wall-clock time this operator took to run.',
+    parallelUtilHint:
+      'AICore parallel utilization (aicore_parallel_utilization) — mean AI Core utilization while the operator ran; 100% means every core was busy the whole time.',
+    parallelBalanceHint:
+      'AICore load balance (aicore_parallel_balance = 1 − σ/μ) — how evenly work is spread across AI Cores; 100% means every core did the same amount of work.',
+    computeScoreHint:
+      '{side} utilization — measured throughput as a percentage of its theoretical peak (measured ÷ peak).',
+    bandwidthScoreHint:
+      '{dir} bandwidth utilization — measured bandwidth in this direction as a percentage of the theoretical peak.',
+    computeRatioHint: '{side} throughput — measured ÷ theoretical peak, in TFLOPS.',
+    bandwidthRatioHint: '{dir} bandwidth — measured ÷ theoretical peak, in GB/s.',
+    durationSecondaryBlocksPerCore:
+      'Blocks per AI Core — how many blocks each core processed (Block Dim ÷ core count).',
+    durationSecondaryBlocksOnly: 'Blocks — how many blocks this operator was split into (Block Dim).',
+    durationSecondaryOpName: 'Operator name.',
     freq: 'Freq',
     noTimeline: 'No timeline events',
     overviewStats: 'Statistical analysis',
