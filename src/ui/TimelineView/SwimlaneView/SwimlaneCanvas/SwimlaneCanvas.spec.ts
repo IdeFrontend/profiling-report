@@ -4432,15 +4432,98 @@ describe('SwimlaneCanvas', () => {
       for (const cb of pending) cb(now);
       await wrapper.vm.$nextTick();
     }
-    const last =
-      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
-      scrollAtCommit;
+    // A settled scroll-y must still fire so the parent viewState catches up
+    // (spec: "commit still emits a settled scroll-y").
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const last = wrapper.emitted('scroll-y')!.at(-1) as unknown as [number, boolean | undefined];
     // No scroll delta: the fully-visible selection must not be nudged for the margin.
-    expect(last).toBe(scrollAtCommit);
-    // May emit a settled scroll-y with the same value; must not tween away from it.
-    if ((wrapper.emitted('scroll-y')?.length ?? 0) > before) {
-      expect(last).toBe(scrollAtCommit);
+    expect(last[0]).toBe(scrollAtCommit);
+    // Settled flag confirms this is the parent-sync emit, not an in-flight tween frame.
+    expect(last[1]).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-115: top-flush selection (top edge inclusive) does not ensure-scroll', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    // scrollY 40 = t-0's row top (header 40 + 0*22): the selection is flush at the wrap top.
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 40 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    // Marquee over t-0's row only (localY 10→20, content 50→60 within row 40..62).
+    // The pointer is inside the top edge band; drop its autoscroll rAF before pointerup
+    // so the gesture never actually scrolls (the commit cancel is a no-op stub).
+    await canvas.trigger('pointerdown', { clientX: 20, clientY: 110, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, clientY: 120, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, clientY: 120 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select')).toBeTruthy();
+
+    const scrollAtCommit =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      40;
+    // Shrink the wrap to 100px: selection [40, 62] is flush at the top (topY === next === 40).
+    // A strict top boundary would scroll up to 28; the inclusive top boundary must not.
+    Object.defineProperty(wrap, 'clientHeight', { value: 100, configurable: true });
+    box.height = 100;
+    box.bottom = 200;
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
     }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const last = wrapper.emitted('scroll-y')!.at(-1) as unknown as [number, boolean | undefined];
+    expect(last[0]).toBe(scrollAtCommit);
+    expect(last[1]).toBe(true);
 
     wrapper.unmount();
   });

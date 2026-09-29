@@ -1309,10 +1309,12 @@ function ensureSelectionRangeVisible(
   const bottomY = Math.max(selTop, selBottom);
   let next = localScrollY;
   // Selection already fully inside the wrap — no clipping to reveal, so the margin
-  // must not force a scroll. Bottom is strict (`<`): a range flush against the wrap
-  // bottom still gets the release margin (PR-CANVAS-117), but a visible range with a
-  // real gap — even within MARQUEE_RELEASE_MARGIN_PX of the edge — must not autoscroll
-  // away from the release view (PR-CANVAS-115).
+  // must not force a scroll. Visibility is scroll-viewport geometry: the top edge is
+  // inclusive (`scrollTop` is the first visible pixel) so `topY >= next` is "visible";
+  // the bottom edge is exclusive (`scrollTop + viewH` is the first hidden pixel) so
+  // `bottomY < next + viewH` is "visible". A bottom-flush range therefore still falls
+  // through to the release margin (PR-CANVAS-117), while a fully-visible range — even
+  // within MARQUEE_RELEASE_MARGIN_PX of an edge — must not autoscroll (PR-CANVAS-115).
   if (topY >= next && bottomY < next + viewH) {
     emit('scroll-y', localScrollY, true);
     return;
