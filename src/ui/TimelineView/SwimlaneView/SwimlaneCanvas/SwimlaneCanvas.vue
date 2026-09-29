@@ -1301,6 +1301,7 @@ function ensureSelectionRangeVisible(
   selTop: number,
   selBottom: number,
   maxScrollDelta: number,
+  cursorReveal = false,
 ): void {
   const viewH = wrapRef.value?.clientHeight ?? 0;
   if (viewH <= 0) return;
@@ -1310,20 +1311,15 @@ function ensureSelectionRangeVisible(
   let next = localScrollY;
   // Selection already fully inside the wrap — no clipping to reveal, so the margin
   // must not force a scroll. Visibility is scroll-viewport geometry: the top edge is
-  // inclusive (`scrollTop` is the first visible pixel) so `topY >= next` is "visible";
-  // the bottom edge is exclusive (`scrollTop + viewH` is the first hidden pixel) so
-  // `bottomY < next + viewH` is "visible". A fully-visible range — even within
-  // MARQUEE_RELEASE_MARGIN_PX of an edge — must not autoscroll (PR-CANVAS-115).
-  //
-  // Contract: bottom-flush ⇒ always pad. Because the bottom edge is exclusive, a range
-  // that ends exactly at `next + viewH` is *not* "fully inside", so it falls through to
-  // the release margin below. That covers the PR-CANVAS-117 release-cursor case, but is
-  // broader: any bottom-flush reveal (e.g. a PR-CANVAS-116 lane-row selection whose
-  // bottom row ends exactly at the wrap bottom) also tweens +12px. This is deliberate —
-  // the code cannot distinguish a cursor from a lane-row flush, and a bottom flush is
-  // the one place the dock is about to clip, so padding it is the safe, intended
-  // behavior even when it is technically still visible.
-  if (topY >= next && bottomY < next + viewH) {
+  // inclusive (`scrollTop` is the first visible pixel) so `topY >= next` is "visible".
+  // The bottom edge is exclusive for a cursor reveal (`cursorReveal`, PR-CANVAS-117):
+  // a degenerate release Y flush against `scrollTop + viewH` must still get the margin
+  // so the user sees context below the pointer. For a lane-row reveal (PR-CANVAS-116)
+  // the bottom edge is inclusive (`bottomY <= next + viewH`): a bottom row that ends
+  // exactly at the wrap bottom is fully visible and must not autoscroll — the same
+  // "spurious margin scroll" class this guard removes, just at gap 0 rather than ≤ 12.
+  const bottomVisible = cursorReveal ? bottomY < next + viewH : bottomY <= next + viewH;
+  if (topY >= next && bottomVisible) {
     emit('scroll-y', localScrollY, true);
     return;
   }
@@ -1375,7 +1371,11 @@ function ensureSelectionRangeVisible(
  * then minimally scroll so the selection range stays visible — only when the dock grew and
  * ate wrap space vs gesture start (PR-CANVAS-115).
  */
-function scheduleEnsureMarqueeReleaseVisible(selTop: number, selBottom: number): void {
+function scheduleEnsureMarqueeReleaseVisible(
+  selTop: number,
+  selBottom: number,
+  cursorReveal = false,
+): void {
   cancelMarqueeReleaseVisible();
   const startH = marqueeWrapHAtGestureStart;
   // Height at commit is still the live preview wrap; session grow shrinks further.
@@ -1396,7 +1396,7 @@ function scheduleEnsureMarqueeReleaseVisible(selTop: number, selBottom: number):
       // Settled scroll-y was already emitted on marquee end (PR-CANVAS-115).
       if (H < startH - 0.5) {
         const maxDelta = Math.max(0, hAtCommit - H) + MARQUEE_RELEASE_MARGIN_PX;
-        ensureSelectionRangeVisible(selTop, selBottom, maxDelta);
+        ensureSelectionRangeVisible(selTop, selBottom, maxDelta, cursorReveal);
       }
       marqueeWrapHAtGestureStart = 0;
       return;
@@ -1777,7 +1777,9 @@ function onMarqueeDragEnd(): void {
   marqueeShiftBaseIds = EMPTY_MULTI_IDS;
   lastMarqueeHitFp = '';
   // Closed→preview→session grow may clip the selection; skip when wrap did not shrink.
-  scheduleEnsureMarqueeReleaseVisible(selTop, selBottom);
+  // `preferCursor` distinguishes a degenerate cursor reveal (exclusive bottom edge)
+  // from a lane-row reveal (inclusive bottom edge) in the ensure-scroll guard.
+  scheduleEnsureMarqueeReleaseVisible(selTop, selBottom, preferCursor);
   void nextTick(() => {
     marqueePreviewIds = null;
     sync();
