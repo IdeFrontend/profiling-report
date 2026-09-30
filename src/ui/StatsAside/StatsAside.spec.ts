@@ -27,18 +27,26 @@ function cardTipValue(exact: string, locale?: string): string {
   return `${t('exactValue', locale)}: ${exact}`;
 }
 
+/**
+ * The popover is teleported to `body` (PR-STATS-041), so it lives outside the mounted wrapper —
+ * `wrapper.find` cannot see it. Query the document, as the other teleporting specs do
+ * (ContextMenu / ReportToolbar / OverviewCharts); `enableAutoUnmount` tears each node down.
+ */
+const CARD_TIP = '[data-testid="stats-card-tooltip"]';
+const tipRoot = (): HTMLElement | null => document.querySelector(CARD_TIP);
+const tipOpen = (): boolean => tipRoot() !== null;
+const tipPart = (testid: string): string | null =>
+  document.querySelector(`[data-testid="${testid}"]`)?.textContent?.trim() ?? null;
+
 /** Hover one summary-card trigger and read the open tooltip's value + hint lines. */
 async function hoverCardTip(
   wrapper: ReturnType<typeof mount>,
   selector: string,
-): Promise<{ value: string; hint: string | null }> {
+): Promise<{ value: string | null; hint: string | null }> {
   await wrapper.get(selector).trigger('pointerenter', { clientX: 10, clientY: 20 });
-  const tip = wrapper.get('[data-testid="stats-card-tooltip"]');
   return {
-    value: tip.get('[data-testid="stats-card-tooltip-value"]').text(),
-    hint: tip.find('[data-testid="stats-card-tooltip-hint"]').exists()
-      ? tip.get('[data-testid="stats-card-tooltip-hint"]').text()
-      : null,
+    value: tipPart('stats-card-tooltip-value'),
+    hint: tipPart('stats-card-tooltip-hint'),
   };
 }
 
@@ -1105,6 +1113,10 @@ describe('StatsAside', () => {
       value: cardTipValue('1.000004 ms'),
       hint: t('durationValueHint'),
     });
+    // Each instance teleports its own popover into `body`, so the first has to go before the
+    // second mounts — otherwise both nodes sit in the document and the query above reads the
+    // stale one. (Production mounts one aside; this is a test-only collision.)
+    wrapper.unmount();
     // A sub-µs amount stays exact rather than rounding through 12 significant digits.
     const micro = mount(StatsAside, {
       props: { report: report({ summary: { taskDurationUs: 1.800123 } }) },
@@ -1134,8 +1146,7 @@ describe('StatsAside', () => {
     }
     expect(tip).toContain('animation: pr-stat-tip-in 120ms ease');
 
-    // The popover is a direct `.pr-aside` child: not inside the `container-type` body, so its
-    // `position: fixed` is the viewport and neither that body's overflow nor containment clips it.
+    // No native `title` survives in the summary grid — every hover goes through the one popover.
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -1144,12 +1155,6 @@ describe('StatsAside', () => {
         }),
       },
     });
-    await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]');
-    expect(wrapper.get('[data-testid="stats-card-tooltip"]').element.parentElement?.className).toBe(
-      'pr-aside',
-    );
-
-    // No native `title` survives in the summary grid — every hover goes through the one popover.
     const grid = wrapper.get('[data-testid="stats-summary"]');
     expect(grid.findAll('[title]')).toEqual([]);
     // …and `data-tip` is the very string the trigger renders, not a second copy of it.
@@ -1165,7 +1170,7 @@ describe('StatsAside', () => {
     const value = wrapper.get('[data-testid="stats-duration-value"]');
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const style = () => wrapper.get('[data-testid="stats-card-tooltip"]').attributes('style')!;
+    const style = () => tipRoot()!.getAttribute('style')!;
 
     // Plenty of room to the right: follow the pointer, as the timeline tip does (12px offset).
     await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
@@ -1200,12 +1205,12 @@ describe('StatsAside', () => {
     expect(describedBy).toBeTruthy();
 
     await value.trigger('focus');
-    const tip = wrapper.get('[data-testid="stats-card-tooltip"]');
-    expect(tip.attributes('role')).toBe('tooltip');
-    expect(tip.attributes('id')).toBe(describedBy);
+    const tip = tipRoot()!;
+    expect(tip.getAttribute('role')).toBe('tooltip');
+    expect(tip.getAttribute('id')).toBe(describedBy);
 
     await value.trigger('blur');
-    expect(wrapper.find('[data-testid="stats-card-tooltip"]').exists()).toBe(false);
+    expect(tipOpen()).toBe(false);
   });
 
   it('PR-STATS-041c: a cancelled gesture or an aside scroll closes the popover', async () => {
@@ -1213,19 +1218,18 @@ describe('StatsAside', () => {
       props: { report: report({ summary: { taskDurationUs: 1 } }) },
     });
     const value = wrapper.get('[data-testid="stats-duration-value"]');
-    const open = () => wrapper.find('[data-testid="stats-card-tooltip"]').exists();
 
     // A touch drag starting on the card fires `pointercancel`, never `pointerleave`.
     await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
-    expect(open()).toBe(true);
+    expect(tipOpen()).toBe(true);
     await value.trigger('pointercancel');
-    expect(open()).toBe(false);
+    expect(tipOpen()).toBe(false);
 
     // Wheel-scrolling the body slides the card out from under a pointer-pinned popover.
     await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
-    expect(open()).toBe(true);
+    expect(tipOpen()).toBe(true);
     await wrapper.get('.pr-aside__body').trigger('scroll');
-    expect(open()).toBe(false);
+    expect(tipOpen()).toBe(false);
   });
 
   it('PR-STATS-041d: a column label only opens the tooltip while it is cut', async () => {
@@ -1238,19 +1242,17 @@ describe('StatsAside', () => {
       },
     });
     const label = wrapper.get('[data-testid="stats-compute-aic"] .pr-bw-col__side');
-    const open = () => wrapper.find('[data-testid="stats-card-tooltip"]').exists();
 
     // Fully visible: echoing the label back is noise.
     setLabelTruncation(label.element, false);
     await label.trigger('pointerenter', { clientX: 10, clientY: 20 });
-    expect(open()).toBe(false);
+    expect(tipOpen()).toBe(false);
 
     // Ellipsized: the truncation escape hatch PR-STATS-036 promises.
     setLabelTruncation(label.element, true);
     await label.trigger('pointerenter', { clientX: 10, clientY: 20 });
-    const tip = wrapper.get('[data-testid="stats-card-tooltip"]');
-    expect(tip.get('[data-testid="stats-card-tooltip-value"]').text()).toBe('Cube');
-    expect(tip.find('[data-testid="stats-card-tooltip-hint"]').exists()).toBe(false);
+    expect(tipPart('stats-card-tooltip-value')).toBe('Cube');
+    expect(tipPart('stats-card-tooltip-hint')).toBeNull();
     // Nothing extra for AT to hear: the label text is in the DOM behind the ellipsis either way.
     expect(label.attributes('tabindex')).toBeUndefined();
     expect(label.attributes('aria-describedby')).toBeUndefined();
@@ -1258,7 +1260,45 @@ describe('StatsAside', () => {
     // It closes again if the column widens under the pointer instead of stranding the echo.
     setLabelTruncation(label.element, false);
     await label.trigger('pointermove', { clientX: 12, clientY: 22 });
-    expect(open()).toBe(false);
+    expect(tipOpen()).toBe(false);
+  });
+
+  it('PR-STATS-041f: the popover is teleported to `body`, clear of the panel that covered it', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toContain('<Teleport to="body">');
+    // The layering the teleport escapes: the aside slot is z-index 0 and the timeline panel 1, so
+    // every tip that flipped left of the seam was painted over for the width of the overlap.
+    const { default: reportLayout } = (await import('../ReportLayout/ReportLayout.vue?raw')) as {
+      default: string;
+    };
+    const rule = (sel: string) =>
+      new RegExp(`${sel}\\s*\\{([^}]*)\\}`).exec(reportLayout)?.[1] ?? '';
+    expect(rule('\\.pr-main')).toContain('z-index: 1');
+    expect(rule('\\.pr-layout__aside')).toContain('z-index: 0');
+
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]');
+
+    expect(tipRoot()?.parentElement).toBe(document.body);
+    expect(wrapper.element.contains(tipRoot())).toBe(false);
+    expect(tipRoot()?.closest('.pr-layout__aside')).toBeNull();
+    expect(tipRoot()?.closest('.pr-main')).toBeNull();
+    // Still anchored by the same viewport-space inline style, just from a higher context.
+    expect(tipRoot()?.getAttribute('style')).toMatch(/(left|right): \d+px/);
+  });
+
+  it('PR-STATS-041e: both tooltip lines are white, the value leading on weight', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    const rule = (selector: string) =>
+      new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(src)?.[1] ?? '';
+
+    expect(rule('\\.pr-stat-tip')).toContain('color: #ffffff');
+    // The hint is a full sentence, so it keeps contrast with the value instead of the timeline
+    // tip's muted `#969696`; only the weight (600) separates the two lines.
+    expect(rule('\\.pr-stat-tip__hint')).toContain('color: #ffffff');
+    expect(rule('\\.pr-stat-tip__value')).toContain('font-weight: 600');
   });
 
   it('PR-STATS-011c: AICore clamps out-of-range fractions for score and bar', async () => {

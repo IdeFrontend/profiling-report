@@ -172,9 +172,8 @@ function exactNumber(n: number): string {
 
 /**
  * One shared hover tooltip for the summary cards, painted in the timeline tooltip's chrome
- * (`EventTooltip` / overview value tip) and positioned beside the pointer like it. It renders as a
- * direct `.pr-aside` child — a sibling of the `container-type` body — so `position: fixed` is the
- * viewport and neither that body's `overflow` nor its containment can clip it.
+ * (`EventTooltip` / overview value tip) and positioned beside the pointer like it. It is teleported
+ * to `body`, so it sits in the root stacking context and no panel can crop or cover it.
  */
 const tipId = useId();
 const cardTip = ref<{ content: CardTip; x: number; y: number } | null>(null);
@@ -188,6 +187,9 @@ const TIP_MAX_W_PX = 320;
  * the right edge, so following the pointer one way only (`clientX + 12`, as the timeline canvas
  * can afford) cut up to **149px off a 180px box** on the AICore / BW right-hand columns. Anchoring
  * the flipped case with `right` / `bottom` keeps the box inside the viewport without measuring it.
+ *
+ * A left flip can reach past the aside into the timeline panel (177px of a 320px box on compute
+ * Vector); the `Teleport` above is what keeps it visible there.
  *
  * ponytail: the flip assumes a viewport wide enough for the 320px popover plus its pointer gap
  * (≈700px). Narrower than that, a left-flipped tip can run past the *left* edge. Measure the box
@@ -1428,28 +1430,36 @@ const detailTestId = computed(() => {
       </div>
     </Transition>
 
-    <div
-      v-if="cardTip"
-      :id="tipId"
-      class="pr-stat-tip"
-      role="tooltip"
-      data-testid="stats-card-tooltip"
-      :style="tipStyle"
-    >
+    <!--
+      Teleported to `body` (the house pattern for floating chrome — ContextMenu, ReportToolbar's
+      popovers, OverviewCharts' value tip). Keeping it in the aside cannot work: `.pr-main` is
+      `z-index: 1` and `.pr-layout__aside` `z-index: 0`, so the whole timeline panel paints over
+      the whole aside subtree and a left-flipped tip lost 177px of 320px at the seam.
+    -->
+    <Teleport to="body">
       <div
-        class="pr-stat-tip__value"
-        data-testid="stats-card-tooltip-value"
+        v-if="cardTip"
+        :id="tipId"
+        class="pr-stat-tip"
+        role="tooltip"
+        data-testid="stats-card-tooltip"
+        :style="tipStyle"
       >
-        {{ cardTip.content.value }}
+        <div
+          class="pr-stat-tip__value"
+          data-testid="stats-card-tooltip-value"
+        >
+          {{ cardTip.content.value }}
+        </div>
+        <div
+          v-if="cardTip.content.hint"
+          class="pr-stat-tip__hint"
+          data-testid="stats-card-tooltip-hint"
+        >
+          {{ cardTip.content.hint }}
+        </div>
       </div>
-      <div
-        v-if="cardTip.content.hint"
-        class="pr-stat-tip__hint"
-        data-testid="stats-card-tooltip-hint"
-      >
-        {{ cardTip.content.hint }}
-      </div>
-    </div>
+    </Teleport>
   </aside>
 </template>
 
@@ -2166,15 +2176,17 @@ const detailTestId = computed(() => {
 }
 
 /*
- * Summary-card hover tooltip (PR-STATS-041). A direct child of `.pr-aside` (a sibling of the
- * `container-type` body, so its `position: fixed` is the viewport and neither the body's
- * `overflow` nor its containment can clip it). Chrome matches the timeline EventTooltip /
- * overview value tip: raised surface, 12px radius, 8px/10px padding, 12px text at 1.45, the same
- * soft shadow and 120ms fade-in (dropped under `prefers-reduced-motion`). The exact value is the
- * headline, the metric description sits under it in grey.
+ * Summary-card hover tooltip (PR-STATS-041). Teleported to `body` so no panel's `overflow` or
+ * stacking context can crop it — the aside slot sits below `.pr-main`, which used to paint over a
+ * left-flipped tip. Chrome matches the timeline EventTooltip / overview value tip: raised surface,
+ * 12px radius, 8px/10px padding, 12px text at 1.45, the same soft shadow and 120ms fade-in
+ * (dropped under `prefers-reduced-motion`). The exact value is the headline, the metric
+ * description sits under it — white on both, separated by weight (PR-STATS-041e).
  */
 .pr-stat-tip {
   position: fixed;
+  /* Above `.pr-main` (1) / `.pr-aside__main` (1) now that `Teleport` puts this in the root
+     stacking context; the raised-chrome level shared with the header wash and CANNBot button. */
   z-index: 20;
   pointer-events: none;
   box-sizing: border-box;
@@ -2183,6 +2195,8 @@ const detailTestId = computed(() => {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  /* Teleporting out of the aside drops the inherited `#e8e8e8`; both lines are white (041e). */
+  color: #ffffff;
   font-size: 12px;
   line-height: 1.45;
   min-width: 180px;
@@ -2214,7 +2228,10 @@ const detailTestId = computed(() => {
 
 .pr-stat-tip__hint {
   margin-top: 4px;
-  color: #969696;
+  /* White, not the timeline tip's muted `#969696`: the hint is a full sentence at 12px, and the
+   * muted grey read as washed out against the raised surface (PR-STATS-041e). The value keeps its
+   * lead through weight, not colour. */
+  color: #ffffff;
   white-space: normal;
 }
 

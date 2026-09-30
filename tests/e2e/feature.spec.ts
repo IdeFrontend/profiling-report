@@ -893,3 +893,44 @@ test.describe('PR-STATS-036 summary tiles at resized widths', () => {
     expect(measured.label.h, 'the long card label must gain lines').toBeGreaterThan(20);
   });
 });
+
+test.describe('PR-STATS-041f card tooltip over the timeline seam', () => {
+  test('a left-flipped tooltip is not cropped by the timeline panel', async ({ page }) => {
+    // The aside is docked right, so a tip that flips left of the pointer reaches past the seam
+    // into `.pr-main`. That subtree is `z-index: 1` against the aside slot's `0`, so a tip living
+    // inside the aside was painted over for the width of the overlap — measured, 177px of 320.
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto('/?locale=en');
+    await expect(page.getByTestId('stats-summary')).toBeVisible({ timeout: 30_000 });
+
+    const value = page.getByTestId('stats-duration-value');
+    const box = (await value.boundingBox())!;
+    await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2);
+    await expect(page.getByTestId('stats-card-tooltip')).toBeVisible();
+
+    const geo = await page.evaluate(() => {
+      const tip = document.querySelector('[data-testid="stats-card-tooltip"]')!;
+      const aside = document.querySelector('.pr-layout__aside')!.getBoundingClientRect();
+      const r = tip.getBoundingClientRect();
+      return {
+        parentIsBody: tip.parentElement === document.body,
+        insideTimeline: !!tip.closest('.pr-main'),
+        insideAside: !!tip.closest('.pr-layout__aside'),
+        overTimelinePx: Math.round(Math.max(0, aside.left - r.left)),
+        hintColor: getComputedStyle(
+          tip.querySelector('.pr-stat-tip__hint') ?? tip,
+        ).color,
+      };
+    });
+
+    // Root stacking context: no ancestor panel can crop or cover it.
+    expect(geo.parentIsBody).toBe(true);
+    expect(geo.insideTimeline).toBe(false);
+    expect(geo.insideAside).toBe(false);
+    // The scenario the report describes is genuinely exercised, not passed vacuously.
+    expect(geo.overTimelinePx, 'the tip must reach past the seam into the panel').toBeGreaterThan(
+      20,
+    );
+    expect(geo.hintColor).toBe('rgb(255, 255, 255)');
+  });
+});
