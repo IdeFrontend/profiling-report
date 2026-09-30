@@ -737,13 +737,13 @@ type SummaryProbe = {
   well: number;
   /** Card label / duration secondary text wider than its own box (the old paint-outside-tile bug). */
   overflowing: string[];
-  /** Column labels cut by their own box — `text-overflow: ellipsis` paints the cue. Fine when titled. */
+  /** Column labels cut by their own box — `text-overflow: ellipsis` paints the cue. Fine when tipped. */
   ellipsized: string[];
   /** Column labels hard-clipped by an ancestor instead — no cue, the pre-fix bug shape. Never allowed. */
   ancestorClipped: string[];
-  /** Column labels cut with no `title` — a silent crop, never allowed. */
+  /** Column labels cut with no tooltip text — a silent crop, never allowed. */
   cropped: string[];
-  /** Column labels with no `title` at all, cut or not — the spec's floor is unconditional. */
+  /** Column labels with no tooltip text at all, cut or not — the spec's floor is unconditional. */
   untitled: string[];
 };
 
@@ -776,16 +776,17 @@ async function probeSummary(page: Page): Promise<SummaryProbe> {
     const untitled: string[] = [];
     summary.querySelectorAll('.pr-bw-col').forEach((col) => {
       col.querySelectorAll('.pr-bw-col__side').forEach((el) => {
-        const title = el.getAttribute('title');
-        if (!title) untitled.push(textOf(el));
+        // The label opens the shared card tooltip (PR-STATS-041); `data-tip` is its full text.
+        const tip = el.getAttribute('data-tip');
+        if (!tip) untitled.push(textOf(el));
         if (overflows(el)) {
           // The span is its own clipping box, so the browser paints the ellipsis: a visible cue.
-          (title ? ellipsized : cropped).push(textOf(el));
+          (tip ? ellipsized : cropped).push(textOf(el));
         } else if (textRun(el) > col.clientWidth + 1) {
           // Fits its own box but not the column: an ancestor `overflow: hidden` hard-cuts it with
           // no ellipsis and no cue — the exact shape this PR removed.
           ancestorClipped.push(textOf(el));
-          if (!title) cropped.push(textOf(el));
+          if (!tip) cropped.push(textOf(el));
         }
       });
     });
@@ -828,15 +829,15 @@ test.describe('PR-STATS-036 summary tiles at resized widths', () => {
         wide.well > SUMMARY_COLLAPSE_MAX_WELL ? 2 : 1,
       );
       expect(wide.overflowing, 'card label / duration secondary must wrap inside the tile').toEqual([]);
-      expect(wide.untitled, 'every column label carries its full text in `title`').toEqual([]);
+      expect(wide.untitled, 'every column label opens the shared card tooltip').toEqual([]);
       expect(
         wide.ancestorClipped,
         'a cut label must be cut by its own ellipsis, never hard-clipped by an ancestor',
       ).toEqual([]);
-      expect(wide.cropped, 'a cut column label must carry its full text in `title`').toEqual([]);
+      expect(wide.cropped, 'a cut column label must open the shared card tooltip').toEqual([]);
 
       // `en` is the widest case: at 2 columns its long label is genuinely cut, so the ellipsis +
-      // `title` path above is exercised rather than passing vacuously.
+      // tooltip path above is exercised rather than passing vacuously.
       if (locale === 'en' && wide.cols === 2) {
         expect(wide.ellipsized).toContain('Parallel utilization');
       }

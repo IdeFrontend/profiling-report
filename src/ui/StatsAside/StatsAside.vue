@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { t, archMetricModeLabel, type MessageKey } from '../../i18n';
+import { computed, ref, useId, watch } from 'vue';
+import { t, archMetricModeLabel } from '../../i18n';
 import type {
   BandwidthCardModel,
   MemoryTopologyModel,
@@ -140,9 +140,24 @@ const hasSummary = computed(
     props.report?.profile !== 'emulate' &&
     (hasDuration.value || bandwidthUtilSides.value.length > 0),
 );
-/** Summary-card hover tooltip: what the metric means, then its exact value. */
-function withExactValue(hint: string, exact: string): string {
-  return `${hint}\n${t('exactValue', props.locale)}: ${exact}`;
+/**
+ * Summary-card hover tooltip content: the exact value first, then what the metric means
+ * (PR-STATS-041). The shared popover renders `value` as the headline and `hint` under it.
+ */
+type CardTip = { value: string; hint?: string };
+
+/** Exact value line (`准确值: X`), then the metric description. */
+function withExactValue(hint: string, exact: string): CardTip {
+  return { value: `${t('exactValue', props.locale)}: ${exact}`, hint };
+}
+
+/**
+ * Column-label truncation tooltip: the full label, shown only while its column ellipsizes it.
+ * Built once per view model (not inline in the template) so the trigger and its `data-tip` provably
+ * carry the same string.
+ */
+function labelTip(text: string): CardTip {
+  return { value: text };
 }
 
 /**
@@ -155,22 +170,118 @@ function exactNumber(n: number): string {
   return String(Number(n.toPrecision(12)));
 }
 
+/**
+ * One shared hover tooltip for the summary cards, painted in the timeline tooltip's chrome
+ * (`EventTooltip` / overview value tip) and positioned beside the pointer like it. It renders as a
+ * direct `.pr-aside` child — a sibling of the `container-type` body — so `position: fixed` is the
+ * viewport and neither that body's `overflow` nor its containment can clip it.
+ */
+const tipId = useId();
+const cardTip = ref<{ content: CardTip; x: number; y: number } | null>(null);
+const TIP_OFFSET_PX = 12;
+
+/** Popover bounds from `.pr-stat-tip`; the flip below assumes the widest box it can paint. */
+const TIP_MAX_W_PX = 320;
+
+/**
+ * Flip to the pointer's other side rather than run off the viewport. The aside is docked against
+ * the right edge, so following the pointer one way only (`clientX + 12`, as the timeline canvas
+ * can afford) cut up to **149px off a 180px box** on the AICore / BW right-hand columns. Anchoring
+ * the flipped case with `right` / `bottom` keeps the box inside the viewport without measuring it.
+ *
+ * ponytail: the flip assumes a viewport wide enough for the 320px popover plus its pointer gap
+ * (≈700px). Narrower than that, a left-flipped tip can run past the *left* edge. Measure the box
+ * and clamp if a small window ever becomes a target.
+ */
+const tipStyle = computed(() => {
+  const tip = cardTip.value;
+  if (!tip) return {};
+  const { x, y } = tip;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const toTheRight = x + TIP_OFFSET_PX + TIP_MAX_W_PX <= vw;
+  // Above / below the pointer's halfway line, so the box grows into the larger half: the tallest
+  // hint measures ~200px against the ~540px a 1080p viewport leaves on either side.
+  const below = y < vh / 2;
+  return {
+    left: toTheRight ? `${x + TIP_OFFSET_PX}px` : 'auto',
+    right: toTheRight ? 'auto' : `${vw - x + TIP_OFFSET_PX}px`,
+    top: below ? `${y + TIP_OFFSET_PX}px` : 'auto',
+    bottom: below ? 'auto' : `${vh - y + TIP_OFFSET_PX}px`,
+  };
+});
+
+function closeTip() {
+  cardTip.value = null;
+}
+
+function openTip(content: CardTip, x: number, y: number) {
+  cardTip.value = { content, x, y };
+}
+
+/** A column label is worth a tooltip only while its column actually cuts it (as `title` was not). */
+function truncated(el: EventTarget | null): boolean {
+  return el instanceof HTMLElement && el.scrollWidth > el.clientWidth;
+}
+
+/**
+ * `v-bind` payload for one trigger — the listeners plus, for values that live nowhere else, the
+ * keyboard path and its `aria-describedby` (the tip carries `role="tooltip"` and is read from
+ * here, which is what native `title` used to do for assistive tech). Empty without a tooltip.
+ *
+ * `whenTruncated` keeps a fully visible column label quiet instead of echoing its own text.
+ */
+function tipBind(
+  tip: CardTip | null | undefined,
+  opts: { focusable?: boolean; whenTruncated?: boolean } = {},
+): Record<string, unknown> {
+  if (!tip) return {};
+  const hidden = (el: EventTarget | null) => opts.whenTruncated && !truncated(el);
+  return {
+    ...(opts.focusable ? { tabindex: 0, 'aria-describedby': tipId } : {}),
+    onPointerenter: (e: PointerEvent) => {
+      if (!hidden(e.currentTarget)) openTip(tip, e.clientX, e.clientY);
+    },
+    onPointermove: (e: PointerEvent) => {
+      if (!cardTip.value) return;
+      if (hidden(e.currentTarget)) closeTip();
+      else openTip(tip, e.clientX, e.clientY);
+    },
+    onPointerleave: closeTip,
+    // A cancelled touch gesture (scroll starting on the card) fires `pointercancel`, never
+    // `pointerleave`, which used to strand the popover until the next pointer event.
+    onPointercancel: closeTip,
+    ...(opts.focusable
+      ? {
+          onFocus: (e: FocusEvent) => {
+            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            openTip(tip, r.left, r.bottom);
+          },
+          onBlur: closeTip,
+        }
+      : {}),
+  };
+}
+
 const bandwidthView = computed(() =>
   bandwidthUtilSides.value.map((row) => {
     const label = t(row.dir === 'read' ? 'bwRead' : 'bwWrite', props.locale);
     return {
       dir: row.dir,
-      labelKey: (row.dir === 'read' ? 'bwRead' : 'bwWrite') as MessageKey,
+      labelTip: labelTip(label),
       score: utilScore(row.measuredGBs, row.peakGBs),
       // COLOR_TOKENS: primary=读, secondary=写 (semantic, not array order).
       barTone: row.dir === 'write' ? 'secondary' : 'primary',
       ratio: `${formatMagnitude(row.measuredGBs)} / ${formatMagnitude(row.peakGBs)}`,
       unit: 'GB/s',
-      ratioTitle: withExactValue(
+      ratioTip: withExactValue(
         t('bandwidthRatioHint', props.locale).replace('{dir}', label),
         `${exactNumber(row.measuredGBs)} / ${exactNumber(row.peakGBs)} GB/s`,
       ),
-      scoreTitle: t('bandwidthScoreHint', props.locale).replace('{dir}', label),
+      scoreTip: withExactValue(
+        t('bandwidthScoreHint', props.locale).replace('{dir}', label),
+        utilPercent(row.measuredGBs, row.peakGBs),
+      ),
     };
   }),
 );
@@ -179,17 +290,20 @@ const computeView = computed(() =>
     const label = row.side === 'aic' ? 'Cube' : 'Vector';
     return {
       side: row.side,
-      label,
+      labelTip: labelTip(label),
       score: utilScore(row.measuredTflops, row.peakTflops),
       // COLOR_TOKENS: primary=Cube, secondary=Vector (semantic, not array order).
       barTone: row.side === 'aiv' ? 'secondary' : 'primary',
       ratio: `${formatMagnitude(row.measuredTflops)} / ${formatMagnitude(row.peakTflops)}`,
       unit: 'TFLOPS',
-      ratioTitle: withExactValue(
+      ratioTip: withExactValue(
         t('computeRatioHint', props.locale).replace('{side}', label),
         `${exactNumber(row.measuredTflops)} / ${exactNumber(row.peakTflops)} TFLOPS`,
       ),
-      scoreTitle: t('computeScoreHint', props.locale).replace('{side}', label),
+      scoreTip: withExactValue(
+        t('computeScoreHint', props.locale).replace('{side}', label),
+        utilPercent(row.measuredTflops, row.peakTflops),
+      ),
     };
   }),
 );
@@ -207,29 +321,29 @@ const aicoreView = computed(() => {
   const s = props.report?.summary;
   const rows: {
     id: 'util' | 'balance';
-    labelKey: MessageKey;
+    labelTip: CardTip;
     score: number;
     barTone: 'primary' | 'secondary';
-    scoreTitle: string;
+    scoreTip: CardTip;
   }[] = [];
   if (s?.parallelUtilization != null) {
     const { score, title } = aicorePercent(s.parallelUtilization);
     rows.push({
       id: 'util',
-      labelKey: 'parallelUtil',
+      labelTip: labelTip(t('parallelUtil', props.locale)),
       score,
       barTone: 'primary',
-      scoreTitle: withExactValue(t('parallelUtilHint', props.locale), title),
+      scoreTip: withExactValue(t('parallelUtilHint', props.locale), title),
     });
   }
   if (s?.parallelBalance != null) {
     const { score, title } = aicorePercent(s.parallelBalance);
     rows.push({
       id: 'balance',
-      labelKey: 'parallelBalance',
+      labelTip: labelTip(t('parallelBalance', props.locale)),
       score,
       barTone: 'secondary',
-      scoreTitle: withExactValue(t('parallelBalanceHint', props.locale), title),
+      scoreTip: withExactValue(t('parallelBalanceHint', props.locale), title),
     });
   }
   return rows;
@@ -307,6 +421,10 @@ watch(
   },
   { immediate: true },
 );
+
+// A card tooltip holds a snapshot of its metric, and the overlays paint under it: drop it whenever
+// the surface changes instead of letting it outlive the card it describes.
+watch(asideSurface, closeTip);
 
 const scopedPipeOccupancy = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
@@ -421,25 +539,23 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
  * DATA-1 fallback order: blocks/core → `blockDim` → `opName`. Each form carries the tooltip
  * that says which quantity the line reports (PR-STATS-040).
  */
-const durationSecondary = computed<{ text: string; title: string } | null>(() => {
+const durationSecondary = computed<{ text: string; tip: CardTip } | null>(() => {
   const s = summary.value;
   if (!s) return null;
   const block = numericBlockDim(s.blockDim);
   if (block != null && s.coreCount != null && s.coreCount > 0) {
-    return {
-      text: t('blocksPerCores', props.locale)
-        .replace('{blockDim}', String(block))
-        .replace('{coreCount}', String(s.coreCount)),
-      title: t('durationSecondaryBlocksPerCore', props.locale),
-    };
+    const text = t('blocksPerCores', props.locale)
+      .replace('{blockDim}', String(block))
+      .replace('{coreCount}', String(s.coreCount));
+    return { text, tip: withExactValue(t('durationSecondaryBlocksPerCore', props.locale), text) };
   }
   if (s.blockDim != null && s.blockDim !== '') {
-    return {
-      text: t('blocksOnly', props.locale).replace('{n}', String(s.blockDim)),
-      title: t('durationSecondaryBlocksOnly', props.locale),
-    };
+    const text = t('blocksOnly', props.locale).replace('{n}', String(s.blockDim));
+    return { text, tip: withExactValue(t('durationSecondaryBlocksOnly', props.locale), text) };
   }
-  return s.opName ? { text: s.opName, title: t('durationSecondaryOpName', props.locale) } : null;
+  return s.opName
+    ? { text: s.opName, tip: withExactValue(t('durationSecondaryOpName', props.locale), s.opName) }
+    : null;
 });
 
 const hasMeta = computed(() => {
@@ -526,16 +642,16 @@ const visiblePipes = computed(() => {
 });
 
 /**
- * Sketch splits the number from a muted unit (`4.06` + `ms`). Display is 2 dp; title keeps full
- * precision. The `/1000` into `ms` is not residue-free — `1000.004` µs divides to
- * `1.0000040000000001` — so the title runs through `exactNumber()` like every other exact value.
+ * Sketch splits the number from a muted unit (`4.06` + `ms`). Display is 2 dp; the tooltip's
+ * exact line keeps full precision. The `/1000` into `ms` is not residue-free — `1000.004` µs
+ * divides to `1.0000040000000001` — so it runs through `exactNumber()` like every other exact value.
  */
-function formatDurationParts(us: number): { value: string; unit: string; title: string } {
+function formatDurationParts(us: number): { value: string; unit: string; exact: string } {
   if (us >= 1000) {
     const ms = us / 1000;
-    return { value: ms.toFixed(2), unit: 'ms', title: `${exactNumber(ms)} ms` };
+    return { value: ms.toFixed(2), unit: 'ms', exact: `${exactNumber(ms)} ms` };
   }
-  return { value: us.toFixed(2), unit: 'µs', title: `${exactNumber(us)} µs` };
+  return { value: us.toFixed(2), unit: 'µs', exact: `${exactNumber(us)} µs` };
 }
 
 const durationParts = computed(() => {
@@ -543,10 +659,10 @@ const durationParts = computed(() => {
   return us == null ? null : formatDurationParts(us);
 });
 
-/** Duration number tooltip: what it measures, then the exact (unrounded) amount. */
-const durationValueTitle = computed(() =>
+/** Duration number tooltip: the exact (unrounded) amount first, then what it measures. */
+const durationValueTip = computed(() =>
   durationParts.value
-    ? withExactValue(t('durationValueHint', props.locale), durationParts.value.title)
+    ? withExactValue(t('durationValueHint', props.locale), durationParts.value.exact)
     : undefined,
 );
 
@@ -567,6 +683,17 @@ function formatMagnitude(n: number): string {
 function utilScore(measured: number, peak: number): number {
   if (!(peak > 0)) return 0;
   return Math.min(100, Math.max(0, Math.round((measured / peak) * 100)));
+}
+
+/**
+ * Precise `measured ÷ peak` percent behind a score. The bar and the printed score **clamp** to
+ * [0, 100] (`utilScore`), exactly as AICore's label does, while this line keeps the true percent —
+ * so an over-peak measurement reads `100` on the card and its real number in the tooltip instead of
+ * the two disagreeing silently (PR-STATS-011c is the same rule for 并行使用率).
+ */
+function utilPercent(measured: number, peak: number): string {
+  if (!(peak > 0)) return '0%';
+  return `${exactNumber((measured / peak) * 100)}%`;
 }
 
 /** Sketch 读|写: collapse input/output × aic|aiv into one **sum** per direction (DATA-8). */
@@ -735,6 +862,7 @@ const detailTestId = computed(() => {
     >
     <div
       class="pr-aside__body"
+      @scroll="closeTip"
     >
       <div
         v-if="hasSummary"
@@ -751,8 +879,8 @@ const detailTestId = computed(() => {
           </div>
           <div
             class="pr-card__value"
-            :title="durationValueTitle"
             data-testid="stats-duration-value"
+            v-bind="tipBind(durationValueTip, { focusable: true })"
           >
             <span class="pr-card__num">{{ durationParts.value }}</span>
             <span class="pr-card__unit">{{ durationParts.unit }}</span>
@@ -761,7 +889,7 @@ const detailTestId = computed(() => {
             v-if="durationSecondary"
             class="pr-card__sub"
             data-testid="stats-duration-secondary"
-            :title="durationSecondary.title"
+            v-bind="tipBind(durationSecondary.tip, { focusable: true })"
           >
             {{ durationSecondary.text }}
           </div>
@@ -789,15 +917,16 @@ const detailTestId = computed(() => {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-aicore-${row.id}-score`"
-                  :title="row.scoreTitle"
+                  v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
                   <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
                   <span class="pr-card__unit">%</span>
                 </span>
                 <span
                   class="pr-bw-col__side"
-                  :title="t(row.labelKey, locale)"
-                >{{ t(row.labelKey, locale) }}</span>
+                  :data-tip="row.labelTip.value"
+                  v-bind="tipBind(row.labelTip, { whenTruncated: true })"
+                >{{ row.labelTip.value }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -839,14 +968,15 @@ const detailTestId = computed(() => {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-compute-${row.side}-score`"
-                  :title="row.scoreTitle"
+                  v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
                 </span>
                 <span
                   class="pr-bw-col__side"
-                  :title="row.label"
-                >{{ row.label }}</span>
+                  :data-tip="row.labelTip.value"
+                  v-bind="tipBind(row.labelTip, { whenTruncated: true })"
+                >{{ row.labelTip.value }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -862,7 +992,7 @@ const detailTestId = computed(() => {
               </div>
               <div
                 class="pr-card__sub"
-                :title="row.ratioTitle"
+                v-bind="tipBind(row.ratioTip, { focusable: true })"
               >
                 <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
                 <span class="pr-card__sub-unit">{{ row.unit }}</span>
@@ -901,15 +1031,16 @@ const detailTestId = computed(() => {
                 <span
                   class="pr-card__value"
                   :data-testid="`stats-bandwidth-${row.dir}-score`"
-                  :title="row.scoreTitle"
+                  v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
                   <span class="pr-card__unit">%</span>
                 </span>
                 <span
                   class="pr-bw-col__side"
-                  :title="t(row.labelKey, locale)"
-                >{{ t(row.labelKey, locale) }}</span>
+                  :data-tip="row.labelTip.value"
+                  v-bind="tipBind(row.labelTip, { whenTruncated: true })"
+                >{{ row.labelTip.value }}</span>
               </div>
               <div class="pr-card__bar-track">
                 <span
@@ -925,7 +1056,7 @@ const detailTestId = computed(() => {
               </div>
               <div
                 class="pr-card__sub"
-                :title="row.ratioTitle"
+                v-bind="tipBind(row.ratioTip, { focusable: true })"
               >
                 <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
                 <span class="pr-card__sub-unit">{{ row.unit }}</span>
@@ -1296,6 +1427,29 @@ const detailTestId = computed(() => {
         </div>
       </div>
     </Transition>
+
+    <div
+      v-if="cardTip"
+      :id="tipId"
+      class="pr-stat-tip"
+      role="tooltip"
+      data-testid="stats-card-tooltip"
+      :style="tipStyle"
+    >
+      <div
+        class="pr-stat-tip__value"
+        data-testid="stats-card-tooltip-value"
+      >
+        {{ cardTip.content.value }}
+      </div>
+      <div
+        v-if="cardTip.content.hint"
+        class="pr-stat-tip__hint"
+        data-testid="stats-card-tooltip-hint"
+      >
+        {{ cardTip.content.hint }}
+      </div>
+    </div>
   </aside>
 </template>
 
@@ -1733,8 +1887,8 @@ const detailTestId = computed(() => {
  * line when they do not. Both children used to be `flex: 0 0 auto` in a `nowrap` row inside an
  * `overflow: hidden` column, so a label wider than the column — 并行使用率 / 负载均衡度, or
  * "Parallel utilization" — was cropped with no cue (PR-STATS-036). Ellipsis is the floor for a
- * column narrower than the label itself; every `.pr-bw-col__side` carries its full text in
- * `title` (AICore, compute and BW alike) so an ellipsis is never a silent crop.
+ * column narrower than the label itself; every `.pr-bw-col__side` opens the shared card tooltip
+ * (AICore, compute and BW alike) so an ellipsis is never a silent crop (PR-STATS-041).
  */
 .pr-bw-col__head {
   display: flex;
@@ -2009,5 +2163,69 @@ const detailTestId = computed(() => {
   font-size: 12px;
   color: #ffffff;
   pointer-events: none;
+}
+
+/*
+ * Summary-card hover tooltip (PR-STATS-041). A direct child of `.pr-aside` (a sibling of the
+ * `container-type` body, so its `position: fixed` is the viewport and neither the body's
+ * `overflow` nor its containment can clip it). Chrome matches the timeline EventTooltip /
+ * overview value tip: raised surface, 12px radius, 8px/10px padding, 12px text at 1.45, the same
+ * soft shadow and 120ms fade-in (dropped under `prefers-reduced-motion`). The exact value is the
+ * headline, the metric description sits under it in grey.
+ */
+.pr-stat-tip {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  line-height: 1.45;
+  min-width: 180px;
+  /* The hint is a sentence, unlike the timeline tip's short lines; cap it so the popover keeps the
+   * timeline tip's scale instead of stretching across the viewport. */
+  max-width: 320px;
+  animation: pr-stat-tip-in 120ms ease;
+}
+
+@keyframes pr-stat-tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-stat-tip {
+    animation: none;
+  }
+}
+
+.pr-stat-tip__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-stat-tip__hint {
+  margin-top: 4px;
+  color: #969696;
+  white-space: normal;
+}
+
+/*
+ * The value cells carry `tabindex="0"` so the tooltip's exact values are reachable without a
+ * pointer (PR-STATS-041); a focus ring is what makes that path visible. Keyboard-only, so a mouse
+ * hover never paints it.
+ */
+.pr-cards [tabindex]:focus-visible {
+  outline: 1px solid #3078f0;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 </style>
