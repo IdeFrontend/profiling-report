@@ -50,6 +50,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 4. **PR-OVERVIEW-004** — Ruler renders majors on a nice grid with minors between; `AxisRuler` clips tick overflow vs aside.
 5. **PR-OVERVIEW-005** — Handle tab is exactly `width: 4px; height: 10px; top: 0` (no vertical protrusion); overview track uses `overflow: visible` so left/right edge handles are not cropped (including slight overlap past the main/aside seam).
 6. **PR-OVERVIEW-006** — Handle/window drag ends on window `pointerup` (release outside the overview does not leave a stuck drag).
+7. **PR-OVERVIEW-007** — Dragging a full-selection window (span == full trace) emits exactly `[minTime, maxTime]` — no floating-point ε drift off the bounds (which would flip the viewport unit and shimmer lower-axis edge labels).
 
 ## Edge Cases
 
@@ -67,6 +68,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 - [Statistical analysis (overview charts)](../../../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
+- **2026-09-29** — Full-selection window drag snaps to exact bounds (no ε drift flipping the viewport unit / lower-axis labels); PR-OVERVIEW-007.
 - **2026-08-28** — Drop phantom `timeDisplayMode` / `clockFreqMHz`; overview unit from total span × track width only.
 - **2026-08-20** — Window-level move/up for handle drag; PR-OVERVIEW-006.
 - **2026-08-20** — Edge handles may overlap aside seam via `.pr-main` overflow; PR-OVERVIEW-005.

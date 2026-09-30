@@ -84,6 +84,15 @@ function clientToTime(clientX: number): number {
   return props.minTime + ratio * fullSpan.value;
 }
 
+/**
+ * Fraction of the total span used as a snap tolerance on the bounds. The re-shift
+ * clamps below (`s -= e - maxTime`, `e += minTime - s`) round a full-selection window
+ * to `minTime`/`maxTime ± ε`; without the snap that ε flips the viewport unit across a
+ * boundary (s ↔ ms at a 1 s trace) and shimmers the lower axis edge labels. 1e-9 × span
+ * is far below any mouse-resolvable step (≈4e-7 px) yet 7+ orders above float ULP drift.
+ */
+const BOUND_SNAP_EPS_RATIO = 1e-9;
+
 function clampWindow(start: number, end: number): { startTime: number; endTime: number } {
   const minSpan = Math.max(1, fullSpan.value / 500);
   let s = start;
@@ -103,6 +112,12 @@ function clampWindow(start: number, end: number): { startTime: number; endTime: 
   }
   s = Math.max(props.minTime, s);
   e = Math.min(props.maxTime, e);
+  // Snap back onto a bound the clamp just touched so a fully-selected window that is
+  // dragged stays bit-identical to [minTime, maxTime] instead of wobbling by ε
+  // (PR-OVERVIEW-007).
+  const eps = fullSpan.value * BOUND_SNAP_EPS_RATIO;
+  if (Math.abs(s - props.minTime) <= eps) s = props.minTime;
+  if (Math.abs(e - props.maxTime) <= eps) e = props.maxTime;
   return { startTime: s, endTime: e };
 }
 

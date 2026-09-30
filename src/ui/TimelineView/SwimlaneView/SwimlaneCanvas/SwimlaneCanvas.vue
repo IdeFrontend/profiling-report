@@ -1693,16 +1693,25 @@ function applyMarqueeDragMove(clientX: number, clientY: number): void {
     hoverGap.value = null;
     emitLaneHover(null);
   }
+  const w = syncTrackWidth();
+  // Clamp only the pointer edge to the track: an off-track pointer maps to negative
+  // time / time > maxTime via `timeAtX` (PR-CANVAS-123). The anchor edge must stay
+  // unclamped — it is `xAtTime(contentTime)`, an exact inverse of `timeAtX`, so
+  // `timeAtX(x0)` is the view-invariant `contentTime` (already within [minTime,
+  // maxTime]). Clamping it would snap an off-screen anchor (edge-autoscroll pan /
+  // zoom) to the window edge and drop events between the anchor and that edge from
+  // the commit (PR-CANVAS-124).
+  const x1 = Math.min(w, Math.max(0, local.x));
   const rect = {
     x0: anchorViewX,
     y0: anchorViewY,
-    x1: local.x,
+    x1,
     y1: local.y,
   };
   marqueeRect.value = rect;
   emit('multi-select-span', marqueeSpan(rect));
-  const w = syncTrackWidth();
-  emit('cursor', { time: timeAtX(local.x), xRatio: clampXRatio(local.x, w), snapped: false });
+  // `x1` is already clamped to [0, w], so the pointer fraction is x1 / w directly.
+  emit('cursor', { time: timeAtX(x1), xRatio: x1 / Math.max(1, w), snapped: false });
   emitLaneHover(null);
   const hitFp = marqueeHitFingerprint(rect);
   if (hitFp === lastMarqueeHitFp) return;

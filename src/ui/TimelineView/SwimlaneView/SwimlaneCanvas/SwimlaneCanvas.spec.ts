@@ -2350,6 +2350,106 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-123: off-track marquee drag clamps the span and cursor to [minTime, maxTime]', async () => {
+    const { wrapper, canvas } = await mountForMarquee();
+    const lastSpan = () =>
+      wrapper.emitted('multi-select-span')!.at(-1)![0] as {
+        startTime: number;
+        endTime: number;
+      };
+    const lastCursorTime = () =>
+      (wrapper.emitted('cursor')!.at(-1)![0] as { time: number }).time;
+
+    // Drag left of the track: x=-50 extrapolates to t=-125 without clamping.
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: -50, clientY: 40, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(lastSpan().startTime).toBe(0);
+    expect(lastSpan().endTime).toBe(100);
+    expect(lastCursorTime()).toBe(0);
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: -50, clientY: 40 }));
+    await wrapper.vm.$nextTick();
+
+    // Drag right of the track: x=450 extrapolates to t=1125 without clamping.
+    await canvas.trigger('pointerdown', { clientX: 40, clientY: 30, pointerId: 2 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 450, clientY: 40, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(lastSpan().startTime).toBe(100);
+    expect(lastSpan().endTime).toBe(1000);
+    expect(lastCursorTime()).toBe(1000);
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 450, clientY: 40 }));
+    await wrapper.vm.$nextTick();
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-124: off-screen anchor keeps its true time during pan (no anchor clamp)', async () => {
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: {
+          minTime: 0,
+          maxTime: 2000,
+          processes: [
+            {
+              id: 'p-1',
+              name: 'P',
+              threads: [
+                {
+                  id: 't-1',
+                  name: 'T',
+                  // e1 block [100, 150] — fully left of the panned window start below.
+                  events: [{ id: 'e1', name: 'E1', startTime: 100, duration: 50 }],
+                },
+              ],
+            },
+          ],
+        },
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 };
+    Object.defineProperty(wrap, 'clientWidth', { value: box.width, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: box.height, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', { configurable: true, value: () => ({ ...box }) });
+    await fireAllDeviceRo();
+
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', { configurable: true, value: () => ({ ...box }) });
+    const e1 = (wrapper.vm as { eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null }).eventScreenRect('e1')!;
+    const ey = e1.y + e1.h / 2;
+
+    // Anchor at t=0 (clientX 0); cross the 4px gate.
+    await canvas.trigger('pointerdown', { clientX: 0, clientY: ey, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: ey, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+
+    // Shift+wheel pans the local window right by 300 time units: view → [300, 1300],
+    // so the t=0 anchor slides off-screen left (anchorViewX ≈ -120).
+    await canvas.trigger('wheel', { clientX: 200, clientY: ey, deltaY: 120, shiftKey: true });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('pan')).toBeTruthy();
+
+    // The parent applies the pan (pan → viewState → props) before the release.
+    await wrapper.setProps({ view: { startTime: 300, endTime: 1300, scrollY: 0 } });
+    await wrapper.vm.$nextTick();
+
+    // Commit: the anchor's true time (0) must still bound the rect so the off-screen
+    // e1 (block [100, 150], now fully left of the window start) is captured. Clamping
+    // the anchor edge to x=0 would drop it.
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 30, clientY: ey }));
+    await wrapper.vm.$nextTick();
+    const committed = wrapper.emitted('multi-select')!.at(-1)![0] as SwimEvent[];
+    expect(committed.map((e) => e.id)).toContain('e1');
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-085: the live marquee previews which events the release will take', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     await wrapper.setProps({ selectedEventId: 'e1' });
