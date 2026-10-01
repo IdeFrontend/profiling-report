@@ -115,7 +115,7 @@ Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-
 
 Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, help). MVP implements fit, measure (caliper), **layers → 显示控制**, and **help → user guide**; remaining icons (chart, flag, deps) stay visual-reference until their capabilities land.
 
-**User guide.** A **help** glyph button sits **last** in the action-icon list (after aside when present). It emits `open-user-guide` with `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md`) and also calls `window.open` in a new tab. Distinct from the connection-level tip inside 显示控制, which also uses the `help` glyph.
+**User guide.** A **help** glyph button sits **last** in the action-icon list (after aside when present). It emits `open-user-guide` with `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/fix/readme-review/profiling-report.md`) and also calls `window.open` in a new tab. The page is Chinese-only; English hosts override `userGuideUrl`. Distinct from the connection-level tip inside 显示控制, which also uses the `help` glyph.
 
 ### Display control popover
 
@@ -225,7 +225,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
-- **2026-10-01** — User-guide default URL is `https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md` (`PR-TOOLBAR-024`).
+- **2026-10-01** — User-guide default URL is the GitCode guide on `fix/readme-review` (`profiling-report.md` is not on `main` yet; `PR-TOOLBAR-024`). English hosts override `userGuideUrl`.
 - **2026-09-10** — Secondary tabs: 源码 / 详情 / 缓存 disabled ([UI-37](../../../docs/context/decisions/UI.md)); `PR-TOOLBAR-026`. Time display cites UI-40 / UI-45.
 - **2026-09-09** — Search clear × + inset `:focus-visible` ring so the focus border is not clipped (`PR-TOOLBAR-025`).
 - **2026-09-07** — User-guide action (rightmost `help` glyph) opens `userGuideUrl` (`PR-TOOLBAR-024`); sketch trailing help claimed.

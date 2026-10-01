@@ -41,7 +41,7 @@ Relevant existing MSTT touchpoints (paths may drift; search symbols):
 3. **Panel registration:** flavor/constants panel type id; contribute to `package.json` views/commands as needed.
 4. **Dependency:** workspace package or npm link to profiling-report; Vite resolves Vue SFC from the library.
 5. **i18n:** host-owned strings for “Profiling report”, load errors, etc. Map IDE/extension language → `locale` (`zh-CN` \| `en`, or `zh*` / `en*` prefixes) and pass it into the library. Library chrome uses [`src/i18n`](../../src/i18n/index.ts); see [LOCALIZATION.md](../ui/LOCALIZATION.md).
-6. **User guide:** library emits `open-user-guide` with the URL and also attempts `window.open`. Optional `userGuideUrl` on `<ProfilingReport>` overrides the library default (`https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md`). In MSTT webviews, listen for `open-user-guide` and call `openExternal` (webview may block `window.open`).
+6. **User guide:** library emits `open-user-guide` with the URL and also attempts `window.open`. Optional `userGuideUrl` on `<ProfilingReport>` overrides the library default (`https://gitcode.com/opdevtools/plugin_release/blob/fix/readme-review/profiling-report.md`). That page is Chinese-only; English hosts should pass their own guide URL until a locale-aware page exists. GitCode may ask guests to log in. The file is not on `plugin_release` `main` yet. In MSTT webviews, listen for `open-user-guide` and call `openExternal` (webview may block `window.open`).
 
 ## Message split (optional)
 
