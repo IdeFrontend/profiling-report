@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import StatsAside from './StatsAside.vue';
 import { adaptRep, emptyReportViewModel } from '../../adapters/adaptRep';
 import {
@@ -15,13 +16,87 @@ function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
 }
 
+/** Unmount every wrapper after its test so the shared card tooltip leaves the document with it. */
+enableAutoUnmount(afterEach);
+
 /**
- * Summary-card number tooltip: metric description, then the exact value (PR-STATS-040).
- * `locale` must match the mount under test — `exactValue` is localized, so an `en` mount asserting
- * against the default zh-CN label would silently mismatch.
+ * Summary-card number tooltip (PR-STATS-041): the exact value is the first (bold) line, the metric
+ * description the second. `locale` must match the mount under test — `exactValue` is localized, so
+ * an `en` mount asserting against the default zh-CN label would silently mismatch.
  */
-function cardTip(hint: string, exact: string, locale?: string): string {
-  return `${hint}\n${t('exactValue', locale)}: ${exact}`;
+function cardTipValue(exact: string, locale?: string): string {
+  return `${t('exactValue', locale)}: ${exact}`;
+}
+
+const CARD_TIP = '[data-testid="stats-card-tooltip"]';
+
+/**
+ * The open popover. It is teleported to `body` (PR-STATS-041), so `wrapper.find` cannot see it and
+ * the document has to be queried, as the other teleporting specs do (ContextMenu / ReportToolbar /
+ * OverviewCharts); `enableAutoUnmount` tears each node down.
+ *
+ * Two `mount()` calls in one test both get `useId()` → `v-0` (the counter is app-scoped, and each
+ * test mount is its own app), so the two popovers carry a **duplicate** id: neither the id nor
+ * document order can tell them apart. Refuse to guess instead of reading the other instance's box —
+ * which is how `PR-STATS-040` first failed, asserting a value that came from the previous mount.
+ */
+function tipRoot(): HTMLElement {
+  const open = document.querySelectorAll(CARD_TIP);
+  if (open.length !== 1) {
+    throw new Error(
+      `expected exactly one open card tooltip, found ${open.length}; ` +
+        'unmount earlier instances before hovering so the assertions read the right one',
+    );
+  }
+  return open[0] as HTMLElement;
+}
+
+const tipOpen = (): boolean => document.querySelector(CARD_TIP) !== null;
+const tipPart = (testid: string): string | null =>
+  tipRoot().querySelector(`[data-testid="${testid}"]`)?.textContent?.trim() ?? null;
+
+/**
+ * Hover one summary-card trigger and read the open tooltip's value + hint lines.
+ *
+ * A test that hovers two instances must unmount the first: `tipRoot` throws otherwise, since the
+ * popovers are indistinguishable (see above).
+ */
+async function hoverCardTip(
+  wrapper: ReturnType<typeof mount>,
+  selector: string,
+): Promise<{ value: string | null; hint: string | null }> {
+  await wrapper.get(selector).trigger('pointerenter', { clientX: 10, clientY: 20 });
+  return {
+    value: tipPart('stats-card-tooltip-value'),
+    hint: tipPart('stats-card-tooltip-hint'),
+  };
+}
+
+/**
+ * Chrome the card popover must share with the timeline `EventTooltip` / overview value tip
+ * (PR-STATS-041). Listed once so the parity test fails only when one of the two actually drifts.
+ */
+const SHARED_TOOLTIP_CHROME = [
+  'position: fixed',
+  'pointer-events: none',
+  'box-sizing: border-box',
+  'padding: 8px 10px',
+  'background: var(--pr-surface-raised, #363636)',
+  'border: 1px solid rgba(255, 255, 255, 0.05)',
+  'border-radius: 12px',
+  'box-shadow: 0 0 16px rgba(0, 0, 0, 0.2)',
+  'font-size: 12px',
+  'line-height: 1.45',
+  'min-width: 180px',
+] as const;
+
+/**
+ * jsdom measures every box as 0×0, so truncation has to be stated: shadow the two widths the
+ * ellipsis check reads. `scrollWidth > clientWidth` is exactly what PR-STATS-036's e2e probe uses.
+ */
+function setLabelTruncation(el: Element, truncated: boolean): void {
+  Object.defineProperty(el, 'scrollWidth', { value: truncated ? 200 : 100, configurable: true });
+  Object.defineProperty(el, 'clientWidth', { value: 100, configurable: true });
 }
 
 /** Open the PIPE CardMetricSelect and pick an option ('' = All). */
@@ -694,7 +769,7 @@ describe('StatsAside', () => {
     expect(viaMeta.emitted('open-hardware-details')).toBeTruthy();
   });
 
-  it('PR-STATS-009: duration card has sketch chrome', () => {
+  it('PR-STATS-009: duration card has sketch chrome', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 4600 } }),
@@ -706,13 +781,14 @@ describe('StatsAside', () => {
     expect(card.text()).toMatch(/整体耗时|Total time/);
     expect(card.get('.pr-card__num').text()).toBe('4.60');
     expect(card.get('.pr-card__unit').text()).toBe('ms');
-    expect(card.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
-      cardTip(t('durationValueHint'), '4.6 ms'),
-    );
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]')).toEqual({
+      value: cardTipValue('4.6 ms'),
+      hint: t('durationValueHint'),
+    });
     expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-009c: duration rounds to 2 dp; tooltip keeps full value', () => {
+  it('PR-STATS-009c: duration rounds to 2 dp; tooltip keeps full value', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 1.800123 } }),
@@ -721,7 +797,10 @@ describe('StatsAside', () => {
     const value = wrapper.get('[data-testid="stats-duration-value"]');
     expect(value.get('.pr-card__num').text()).toBe('1.80');
     expect(value.get('.pr-card__unit').text()).toBe('µs');
-    expect(value.attributes('title')).toBe(cardTip(t('durationValueHint'), '1.800123 µs'));
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]')).toEqual({
+      value: cardTipValue('1.800123 µs'),
+      hint: t('durationValueHint'),
+    });
   });
 
   it('PR-STATS-009b: summary cards use sketch 2x2 grid', () => {
@@ -897,7 +976,7 @@ describe('StatsAside', () => {
     expect(wrapper.text()).not.toMatch(/带宽利用率|Bandwidth utilization/);
   });
 
-  it('PR-STATS-011c: compute/util render real values from summary.jsonl derived fields', () => {
+  it('PR-STATS-011c: compute/util render real values from summary.jsonl derived fields', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -923,13 +1002,17 @@ describe('StatsAside', () => {
     const core = wrapper.get('[data-testid="stats-core-util-card"]');
     expect(core.text()).toMatch(/AICore 并行使用率|AICore parallel/);
     expect(wrapper.get('[data-testid="stats-aicore-util-score"]').text()).toMatch(/98\.14\s*%/);
-    expect(wrapper.get('[data-testid="stats-aicore-util-score"]').attributes('title')).toBe(
-      cardTip(t('parallelUtilHint'), '98.1418%'),
-    );
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-util-score"]')).toEqual({
+      // 0.981418 × 100 = 98.1418: the percent is derived, so the tooltip stops at 4 significant
+      // digits (PR-STATS-040) instead of printing all six.
+      value: cardTipValue('98.14%'),
+      hint: t('parallelUtilHint'),
+    });
     expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').text()).toMatch(/93\.38\s*%/);
-    expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').attributes('title')).toBe(
-      cardTip(t('parallelBalanceHint'), '93.3769%'),
-    );
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-balance-score"]')).toEqual({
+      value: cardTipValue('93.38%'),
+      hint: t('parallelBalanceHint'),
+    });
     expect(wrapper.get('[data-testid="stats-aicore-util"]').text()).toMatch(
       /并行使用率|Parallel utilization/,
     );
@@ -942,7 +1025,7 @@ describe('StatsAside', () => {
     );
   });
 
-  it('PR-STATS-040: every summary-card number carries a descriptive tooltip', () => {
+  it('PR-STATS-040: every summary-card number carries an exact value + description', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -956,30 +1039,86 @@ describe('StatsAside', () => {
         }),
       },
     });
-    // Duration keeps the exact (unrounded) amount after the description.
-    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
-      cardTip(t('durationValueHint'), '4.6 ms'),
-    );
-    expect(wrapper.get('[data-testid="stats-duration-secondary"]').attributes('title')).toBe(
-      t('durationSecondaryBlocksPerCore'),
-    );
-    // Compute and BW scores had no tooltip at all before — now they describe the number too.
-    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').attributes('title')).toBe(
-      t('computeScoreHint').replace('{side}', 'Cube'),
-    );
-    expect(wrapper.get('[data-testid="stats-bandwidth-read-score"]').attributes('title')).toBe(
-      t('bandwidthScoreHint').replace('{dir}', t('bwRead')),
-    );
+    // Duration keeps the exact (unrounded) amount as the leading line.
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]')).toEqual({
+      value: cardTipValue('4.6 ms'),
+      hint: t('durationValueHint'),
+    });
+    // The secondary had only a description before — now it states the figure too.
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-duration-secondary"]')).toEqual({
+      value: cardTipValue('8 Blocks / 24 核'),
+      hint: t('durationSecondaryBlocksPerCore'),
+    });
+    // Scores are exact integers on screen, so the tip leads with the precise percent behind them.
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic-score"]')).toEqual({
+      value: cardTipValue('50%'),
+      hint: t('computeScoreHint').replace('{side}', 'Cube'),
+    });
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read-score"]')).toEqual({
+      value: cardTipValue('50%'),
+      hint: t('bandwidthScoreHint').replace('{dir}', t('bwRead')),
+    });
     // …and so do the `measured / peak` sub-ratios, which keep the raw values.
-    expect(wrapper.get('[data-testid="stats-compute-aic"] .pr-card__sub').attributes('title')).toBe(
-      cardTip(t('computeRatioHint').replace('{side}', 'Cube'), '100 / 200 TFLOPS'),
-    );
-    expect(wrapper.get('[data-testid="stats-bandwidth-read"] .pr-card__sub').attributes('title')).toBe(
-      cardTip(t('bandwidthRatioHint').replace('{dir}', t('bwRead')), '800 / 1600 GB/s'),
-    );
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic"] .pr-card__sub')).toEqual({
+      value: cardTipValue('100 / 200 TFLOPS'),
+      hint: t('computeRatioHint').replace('{side}', 'Cube'),
+    });
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
+      value: cardTipValue('800 / 1600 GB/s'),
+      hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
+    });
   });
 
-  it('PR-STATS-040: tooltips localize with the mount locale', () => {
+  it('PR-STATS-042: a derived percent or ratio prints 4 significant digits, not 12', async () => {
+    // The reviewer's report, verbatim: `41.1011153199%` / `39.4570707071%` on the compute scores and
+    // `25 / 60.8256 TFLOPS` on the ratio. `exactNumber`'s 12-digit default is meant for a published
+    // measurement; a percent or a ratio is derived, so those digits are arithmetic noise.
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 4600,
+            parallelUtilization: 0.981418,
+            // Already short: 68.25 must survive the ceiling rather than gain trailing zeros.
+            parallelBalance: 0.6825,
+          },
+          computeCard: {
+            sides: [{ side: 'aic', measuredTflops: 25, peakTflops: 60.8256 }],
+          },
+          bandwidthCards: [
+            { id: 'input', sides: [{ side: 'aic', measuredGBs: 1092, peakGBs: 1600 }] },
+          ],
+        }),
+      },
+    });
+
+    // 25 ÷ 60.8256 = 41.10111531… → 41.1 (the 4th significant digit is a zero, so it is dropped).
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic-score"]')).toEqual({
+      value: cardTipValue('41.1%'),
+      hint: t('computeScoreHint').replace('{side}', 'Cube'),
+    });
+    // 60.8256 rounds to 60.83; the integer measured value and the spec'd peak are untouched.
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic"] .pr-card__sub')).toEqual({
+      value: cardTipValue('25 / 60.83 TFLOPS'),
+      hint: t('computeRatioHint').replace('{side}', 'Cube'),
+    });
+    // 0.981418 × 100 = 98.1418 → 98.14, and a short percent stays exactly as it was (PR-STATS-011c).
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-util-score"]')).toEqual({
+      value: cardTipValue('98.14%'),
+      hint: t('parallelUtilHint'),
+    });
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-balance-score"]')).toEqual({
+      value: cardTipValue('68.25%'),
+      hint: t('parallelBalanceHint'),
+    });
+    // Integers and the BW ratio are unaffected: 1092 / 1600 has nothing to round.
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
+      value: cardTipValue('1092 / 1600 GB/s'),
+      hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
+    });
+  });
+
+  it('PR-STATS-040: tooltips localize with the mount locale', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         locale: 'en',
@@ -991,22 +1130,20 @@ describe('StatsAside', () => {
         }),
       },
     });
-    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
-      cardTip(t('durationValueHint', 'en'), '4.6 ms', 'en'),
-    );
-    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').attributes('title')).toBe(
-      t('computeScoreHint', 'en').replace('{side}', 'Cube'),
-    );
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]')).toEqual({
+      value: cardTipValue('4.6 ms', 'en'),
+      hint: t('durationValueHint', 'en'),
+    });
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic-score"]')).toEqual({
+      value: cardTipValue('50%', 'en'),
+      hint: t('computeScoreHint', 'en').replace('{side}', 'Cube'),
+    });
     // The whole point of the helper's `locale` argument: an `en` mount must not assert zh-CN copy.
-    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).toContain(
-      'Exact value',
-    );
-    expect(wrapper.get('[data-testid="stats-duration-value"]').attributes('title')).not.toContain(
-      t('exactValue', 'zh-CN'),
-    );
+    expect(cardTipValue('4.6 ms', 'en')).toContain('Exact value');
+    expect(cardTipValue('4.6 ms', 'en')).not.toContain(t('exactValue', 'zh-CN'));
   });
 
-  it('PR-STATS-040: Exact value lines strip binary-float residue from summed sides', () => {
+  it('PR-STATS-040: Exact value lines strip binary-float residue from summed sides', async () => {
     // BW 读 sums the aic + aiv sides (DATA-8): 0.1 + 0.2 must not read as 0.30000000000000004.
     const wrapper = mount(StatsAside, {
       props: {
@@ -1028,32 +1165,265 @@ describe('StatsAside', () => {
         }),
       },
     });
-    expect(wrapper.get('[data-testid="stats-bandwidth-read"] .pr-card__sub').attributes('title')).toBe(
-      cardTip(t('bandwidthRatioHint').replace('{dir}', t('bwRead')), '0.3 / 1600 GB/s'),
-    );
-    expect(wrapper.get('[data-testid="stats-compute-aic"] .pr-card__sub').attributes('title')).toBe(
-      cardTip(t('computeRatioHint').replace('{side}', 'Cube'), '1.65 / 320 TFLOPS'),
-    );
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
+      value: cardTipValue('0.3 / 1600 GB/s'),
+      hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
+    });
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic"] .pr-card__sub')).toEqual({
+      value: cardTipValue('1.65 / 320 TFLOPS'),
+      hint: t('computeRatioHint').replace('{side}', 'Cube'),
+    });
   });
 
-  it('PR-STATS-040: duration title strips the residue its /1000 into ms introduces', () => {
+  it('PR-STATS-040: duration value strips the residue its /1000 into ms introduces', async () => {
     // Not just sums and means: 1000.004 µs divides to 1.0000040000000001 in binary floats.
     const wrapper = mount(StatsAside, {
       props: { report: report({ summary: { taskDurationUs: 1000.004 } }) },
     });
     const value = wrapper.get('[data-testid="stats-duration-value"]');
     expect(value.get('.pr-card__num').text()).toBe('1.00');
-    expect(value.attributes('title')).toBe(cardTip(t('durationValueHint'), '1.000004 ms'));
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]')).toEqual({
+      value: cardTipValue('1.000004 ms'),
+      hint: t('durationValueHint'),
+    });
+    // Both instances would teleport a popover into `body` under the same `useId()` (see `tipRoot`),
+    // so unmount the first before mounting the second — `hoverCardTip` throws rather than read it.
+    wrapper.unmount();
     // A sub-µs amount stays exact rather than rounding through 12 significant digits.
     const micro = mount(StatsAside, {
       props: { report: report({ summary: { taskDurationUs: 1.800123 } }) },
     });
-    expect(micro.get('[data-testid="stats-duration-value"]').attributes('title')).toBe(
-      cardTip(t('durationValueHint'), '1.800123 µs'),
-    );
+    expect(await hoverCardTip(micro, '[data-testid="stats-duration-value"]')).toEqual({
+      value: cardTipValue('1.800123 µs'),
+      hint: t('durationValueHint'),
+    });
   });
 
-  it('PR-STATS-011c: AICore clamps out-of-range fractions for score and bar', () => {
+  it('PR-STATS-041: the shared card tooltip matches the timeline chrome, not a native `title`', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    const timeline = (await import('../EventTooltip/EventTooltip.vue?raw')).default as string;
+    const rule = (css: string, selector: string) =>
+      new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+
+    const tip = rule(src, '\\.pr-stat-tip');
+    const eventTip = rule(timeline, '\\.pr-tooltip');
+    /*
+     * This is a deliberate lock, not an accident: the requirement is that the two popovers look
+     * the same, so the shared declarations are listed once and both components are checked against
+     * them. Changing `EventTooltip`'s chrome is meant to land here too.
+     */
+    for (const decl of SHARED_TOOLTIP_CHROME) {
+      expect(eventTip, `EventTooltip dropped the shared chrome "${decl}"`).toContain(decl);
+      expect(tip, `card tooltip is missing the shared chrome "${decl}"`).toContain(decl);
+    }
+    expect(tip).toContain('animation: pr-stat-tip-in 120ms ease');
+
+    // No native `title` survives in the summary grid — every hover goes through the one popover.
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          computeCard: { sides: [{ side: 'aic', measuredTflops: 100, peakTflops: 200 }] },
+        }),
+      },
+    });
+    const grid = wrapper.get('[data-testid="stats-summary"]');
+    expect(grid.findAll('[title]')).toEqual([]);
+    // …and `data-tip` is the very string the trigger renders, not a second copy of it.
+    for (const el of grid.findAll('.pr-bw-col__side[data-tip]')) {
+      expect(el.attributes('data-tip')).toBe(el.text());
+    }
+  });
+
+  it('PR-STATS-041b: the popover flips rather than run off the viewport edge', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const style = () => tipRoot().getAttribute('style')!;
+
+    // Plenty of room to the right: follow the pointer, as the timeline tip does (12px offset).
+    await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(style()).toContain('left: 22px');
+    expect(style()).toContain('right: auto');
+
+    // Within a popover's width of the right edge — the aside's whole right-hand column — the box
+    // has to hang off the pointer's other side instead of losing its text off-screen.
+    await value.trigger('pointerenter', { clientX: vw - 10, clientY: 20 });
+    expect(style()).toContain('left: auto');
+    expect(style()).toContain('right: 22px');
+
+    // Past the halfway line it grows upward for the same reason.
+    await value.trigger('pointerenter', { clientX: 10, clientY: vh - 10 });
+    expect(style()).toContain('top: auto');
+    expect(style()).toContain('bottom: 22px');
+    expect(style()).toContain('left: 22px');
+  });
+
+  it('PR-STATS-041c: value triggers reach the tooltip by keyboard and name it for AT', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toContain(':focus-visible');
+
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 4600 } }) },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+    // `title` used to carry the exact value to assistive tech; `aria-describedby` at the popover
+    // is the replacement, and `tabindex` is what makes it reachable without a pointer.
+    expect(value.attributes('tabindex')).toBe('0');
+    // …but only while the popover exists. A standing reference to the `v-if`-gated popover is a
+    // dangling IDREF in the idle state — AT must ignore it, and axe fails `aria-valid-attr-value`.
+    expect(tipOpen()).toBe(false);
+    expect(value.attributes('aria-describedby')).toBeUndefined();
+
+    await value.trigger('focus');
+    const tip = tipRoot();
+    expect(tip.getAttribute('role')).toBe('tooltip');
+    expect(value.attributes('aria-describedby')).toBe(tip.getAttribute('id'));
+
+    await value.trigger('blur');
+    expect(tipOpen()).toBe(false);
+    expect(value.attributes('aria-describedby')).toBeUndefined();
+  });
+
+  it('PR-STATS-041c: only the trigger that owns the open popover is described by it', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 4600, blockDim: 8, opName: 'relu' } }),
+      },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+    const secondary = wrapper.get('[data-testid="stats-duration-secondary"]');
+
+    // Hovering the secondary opens *its* tip. `cardTip` is a singleton, so binding the attribute on
+    // every focusable trigger left `value` advertising the secondary's description: an AT browsing
+    // without focus (not just tabbing through) would read the wrong metric off the wrong card.
+    await secondary.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipPart('stats-card-tooltip-value')).toContain(secondary.text());
+    expect(secondary.attributes('aria-describedby')).toBe(tipRoot().getAttribute('id'));
+    expect(value.attributes('aria-describedby')).toBeUndefined();
+
+    // Moving the pointer re-homes the description — exactly one trigger is described at a time.
+    await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(value.attributes('aria-describedby')).toBe(tipRoot().getAttribute('id'));
+    expect(secondary.attributes('aria-describedby')).toBeUndefined();
+  });
+
+  it('PR-STATS-041c: a cancelled gesture or an aside scroll closes the popover', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+
+    // A touch drag starting on the card fires `pointercancel`, never `pointerleave`.
+    await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipOpen()).toBe(true);
+    await value.trigger('pointercancel');
+    expect(tipOpen()).toBe(false);
+
+    // Wheel-scrolling the body slides the card out from under a pointer-pinned popover.
+    await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipOpen()).toBe(true);
+    await wrapper.get('.pr-aside__body').trigger('scroll');
+    expect(tipOpen()).toBe(false);
+  });
+
+  it('PR-STATS-041g: a window resize drops the popover instead of stranding it', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+
+    // `tipStyle` caches `window.innerWidth` to pick its flip side and that getter is not reactive,
+    // so nothing recomputes it on resize: the card moves out from under the box and it is left at
+    // the old coordinates (measured in Chromium, a keyboard-focused tip ended 708px away and off
+    // the right edge at 1100px). Reusing the scroll/surface contract is the fix.
+    await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipOpen()).toBe(true);
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+    expect(tipOpen()).toBe(false);
+
+    // The listener is the component's, not the popover's, so it has to come off on unmount.
+    const remove = vi.spyOn(window, 'removeEventListener');
+    wrapper.unmount();
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function));
+    remove.mockRestore();
+  });
+
+  it('PR-STATS-041d: a column label only opens the tooltip while it is cut', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          computeCard: { sides: [{ side: 'aic', measuredTflops: 100, peakTflops: 200 }] },
+        }),
+      },
+    });
+    const label = wrapper.get('[data-testid="stats-compute-aic"] .pr-bw-col__side');
+
+    // Fully visible: echoing the label back is noise.
+    setLabelTruncation(label.element, false);
+    await label.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipOpen()).toBe(false);
+
+    // Ellipsized: the truncation escape hatch PR-STATS-036 promises.
+    setLabelTruncation(label.element, true);
+    await label.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipPart('stats-card-tooltip-value')).toBe('Cube');
+    expect(tipPart('stats-card-tooltip-hint')).toBeNull();
+    // Nothing extra for AT to hear: the label text is in the DOM behind the ellipsis either way.
+    expect(label.attributes('tabindex')).toBeUndefined();
+    expect(label.attributes('aria-describedby')).toBeUndefined();
+
+    // It closes again if the column widens under the pointer instead of stranding the echo.
+    setLabelTruncation(label.element, false);
+    await label.trigger('pointermove', { clientX: 12, clientY: 22 });
+    expect(tipOpen()).toBe(false);
+  });
+
+  it('PR-STATS-041f: the popover is teleported to `body`, clear of the panel that covered it', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toContain('<Teleport to="body">');
+    // The layering the teleport escapes: the aside slot is z-index 0 and the timeline panel 1, so
+    // every tip that flipped left of the seam was painted over for the width of the overlap.
+    const { default: reportLayout } = (await import('../ReportLayout/ReportLayout.vue?raw')) as {
+      default: string;
+    };
+    const rule = (sel: string) =>
+      new RegExp(`${sel}\\s*\\{([^}]*)\\}`).exec(reportLayout)?.[1] ?? '';
+    expect(rule('\\.pr-main')).toContain('z-index: 1');
+    expect(rule('\\.pr-layout__aside')).toContain('z-index: 0');
+
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]');
+
+    const tip = tipRoot();
+    expect(tip.parentElement).toBe(document.body);
+    expect(wrapper.element.contains(tip)).toBe(false);
+    expect(tip.closest('.pr-layout__aside')).toBeNull();
+    expect(tip.closest('.pr-main')).toBeNull();
+    // Still anchored by the same viewport-space inline style, just from a higher context.
+    expect(tip.getAttribute('style')).toMatch(/(left|right): \d+px/);
+  });
+
+  it('PR-STATS-041e: both tooltip lines are white, the value leading on weight', async () => {
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    const rule = (selector: string) =>
+      new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(src)?.[1] ?? '';
+
+    expect(rule('\\.pr-stat-tip')).toContain('color: #ffffff');
+    // The hint is a full sentence, so it keeps contrast with the value instead of the timeline
+    // tip's muted `#969696`; only the weight (600) separates the two lines.
+    expect(rule('\\.pr-stat-tip__hint')).toContain('color: #ffffff');
+    expect(rule('\\.pr-stat-tip__value')).toContain('font-weight: 600');
+  });
+
+  it('PR-STATS-011c: AICore clamps out-of-range fractions for score and bar', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -1067,13 +1437,19 @@ describe('StatsAside', () => {
     });
     const utilScore = wrapper.get('[data-testid="stats-aicore-util-score"]');
     expect(utilScore.get('.pr-card__num').text()).toBe('100.00');
-    expect(utilScore.attributes('title')).toBe(cardTip(t('parallelUtilHint'), '150%'));
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-util-score"]')).toEqual({
+      value: cardTipValue('150%'),
+      hint: t('parallelUtilHint'),
+    });
     expect(wrapper.get('[data-testid="stats-aicore-util-bar"]').attributes('style')).toMatch(
       /width:\s*100%/,
     );
     const balScore = wrapper.get('[data-testid="stats-aicore-balance-score"]');
     expect(balScore.get('.pr-card__num').text()).toBe('0.00');
-    expect(balScore.attributes('title')).toBe(cardTip(t('parallelBalanceHint'), '-42%'));
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-balance-score"]')).toEqual({
+      value: cardTipValue('-42%'),
+      hint: t('parallelBalanceHint'),
+    });
     expect(wrapper.get('[data-testid="stats-aicore-balance-bar"]').attributes('style')).toMatch(
       /width:\s*0%/,
     );
@@ -1135,7 +1511,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-bandwidth-write"]').exists()).toBe(true);
   });
 
-  it('PR-STATS-024: bandwidth util card with 读|写 columns, GB/s, bar = score%', () => {
+  it('PR-STATS-024: bandwidth util card with 读|写 columns, GB/s, bar = score%', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -1165,9 +1541,10 @@ describe('StatsAside', () => {
     // DATA-8: read = aic + aiv = 80 + 90 = 170 → score round(170/1600×100) = 11
     expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/11/);
     expect(read.text()).toMatch(/170\.0 \/ 1600\.0\s*GB\/s/);
-    expect(read.get('.pr-card__sub').attributes('title')).toBe(
-      cardTip(t('bandwidthRatioHint').replace('{dir}', t('bwRead')), '170 / 1600 GB/s'),
-    );
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
+      value: cardTipValue('170 / 1600 GB/s'),
+      hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
+    });
     expect(read.get('[data-testid="stats-bandwidth-read-bar"]').attributes('style')).toMatch(
       /width:\s*11%/,
     );

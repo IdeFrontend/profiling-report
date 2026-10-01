@@ -737,13 +737,13 @@ type SummaryProbe = {
   well: number;
   /** Card label / duration secondary text wider than its own box (the old paint-outside-tile bug). */
   overflowing: string[];
-  /** Column labels cut by their own box — `text-overflow: ellipsis` paints the cue. Fine when titled. */
+  /** Column labels cut by their own box — `text-overflow: ellipsis` paints the cue. Fine when tipped. */
   ellipsized: string[];
   /** Column labels hard-clipped by an ancestor instead — no cue, the pre-fix bug shape. Never allowed. */
   ancestorClipped: string[];
-  /** Column labels cut with no `title` — a silent crop, never allowed. */
+  /** Column labels cut with no tooltip text — a silent crop, never allowed. */
   cropped: string[];
-  /** Column labels with no `title` at all, cut or not — the spec's floor is unconditional. */
+  /** Column labels with no tooltip text at all, cut or not — the spec's floor is unconditional. */
   untitled: string[];
 };
 
@@ -776,16 +776,17 @@ async function probeSummary(page: Page): Promise<SummaryProbe> {
     const untitled: string[] = [];
     summary.querySelectorAll('.pr-bw-col').forEach((col) => {
       col.querySelectorAll('.pr-bw-col__side').forEach((el) => {
-        const title = el.getAttribute('title');
-        if (!title) untitled.push(textOf(el));
+        // The label opens the shared card tooltip (PR-STATS-041); `data-tip` is its full text.
+        const tip = el.getAttribute('data-tip');
+        if (!tip) untitled.push(textOf(el));
         if (overflows(el)) {
           // The span is its own clipping box, so the browser paints the ellipsis: a visible cue.
-          (title ? ellipsized : cropped).push(textOf(el));
+          (tip ? ellipsized : cropped).push(textOf(el));
         } else if (textRun(el) > col.clientWidth + 1) {
           // Fits its own box but not the column: an ancestor `overflow: hidden` hard-cuts it with
           // no ellipsis and no cue — the exact shape this PR removed.
           ancestorClipped.push(textOf(el));
-          if (!title) cropped.push(textOf(el));
+          if (!tip) cropped.push(textOf(el));
         }
       });
     });
@@ -828,15 +829,15 @@ test.describe('PR-STATS-036 summary tiles at resized widths', () => {
         wide.well > SUMMARY_COLLAPSE_MAX_WELL ? 2 : 1,
       );
       expect(wide.overflowing, 'card label / duration secondary must wrap inside the tile').toEqual([]);
-      expect(wide.untitled, 'every column label carries its full text in `title`').toEqual([]);
+      expect(wide.untitled, 'every column label opens the shared card tooltip').toEqual([]);
       expect(
         wide.ancestorClipped,
         'a cut label must be cut by its own ellipsis, never hard-clipped by an ancestor',
       ).toEqual([]);
-      expect(wide.cropped, 'a cut column label must carry its full text in `title`').toEqual([]);
+      expect(wide.cropped, 'a cut column label must open the shared card tooltip').toEqual([]);
 
       // `en` is the widest case: at 2 columns its long label is genuinely cut, so the ellipsis +
-      // `title` path above is exercised rather than passing vacuously.
+      // tooltip path above is exercised rather than passing vacuously.
       if (locale === 'en' && wide.cols === 2) {
         expect(wide.ellipsized).toContain('Parallel utilization');
       }
@@ -890,5 +891,46 @@ test.describe('PR-STATS-036 summary tiles at resized widths', () => {
     expect(measured.label.scrollW).toBeLessThanOrEqual(measured.label.clientW + 1);
     expect(measured.sub.h, 'the unbreakable secondary must gain lines').toBeGreaterThan(20);
     expect(measured.label.h, 'the long card label must gain lines').toBeGreaterThan(20);
+  });
+});
+
+test.describe('PR-STATS-041f card tooltip over the timeline seam', () => {
+  test('a left-flipped tooltip is not cropped by the timeline panel', async ({ page }) => {
+    // The aside is docked right, so a tip that flips left of the pointer reaches past the seam
+    // into `.pr-main`. That subtree is `z-index: 1` against the aside slot's `0`, so a tip living
+    // inside the aside was painted over for the width of the overlap — measured, 177px of 320.
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto('/?locale=en');
+    await expect(page.getByTestId('stats-summary')).toBeVisible({ timeout: 30_000 });
+
+    const value = page.getByTestId('stats-duration-value');
+    const box = (await value.boundingBox())!;
+    await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2);
+    await expect(page.getByTestId('stats-card-tooltip')).toBeVisible();
+
+    const geo = await page.evaluate(() => {
+      const tip = document.querySelector('[data-testid="stats-card-tooltip"]')!;
+      const aside = document.querySelector('.pr-layout__aside')!.getBoundingClientRect();
+      const r = tip.getBoundingClientRect();
+      return {
+        parentIsBody: tip.parentElement === document.body,
+        insideTimeline: !!tip.closest('.pr-main'),
+        insideAside: !!tip.closest('.pr-layout__aside'),
+        overTimelinePx: Math.round(Math.max(0, aside.left - r.left)),
+        hintColor: getComputedStyle(
+          tip.querySelector('.pr-stat-tip__hint') ?? tip,
+        ).color,
+      };
+    });
+
+    // Root stacking context: no ancestor panel can crop or cover it.
+    expect(geo.parentIsBody).toBe(true);
+    expect(geo.insideTimeline).toBe(false);
+    expect(geo.insideAside).toBe(false);
+    // The scenario the report describes is genuinely exercised, not passed vacuously.
+    expect(geo.overTimelinePx, 'the tip must reach past the seam into the panel').toBeGreaterThan(
+      20,
+    );
+    expect(geo.hintColor).toBe('rgb(255, 255, 255)');
   });
 });
