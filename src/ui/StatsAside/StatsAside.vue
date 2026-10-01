@@ -163,12 +163,25 @@ function labelTip(text: string): CardTip {
 /**
  * Raw number for an `Exact value:` line. Stays exact for any value the producer publishes, but
  * strips binary-float residue from the sums (`aic` + `aiv` BW) and means (compute) that build
- * these figures — `0.30000000000000004` reads as broken data, not precision. Same 12-significant-
- * digit rule as the AICore percent below.
+ * these figures — `0.30000000000000004` reads as broken data, not precision.
+ *
+ * `digits` is the precision ceiling. The 12-digit default suits a published measurement (a raw
+ * throughput, a wall-clock amount), where the extra digits are real. A **derived** ratio or percent
+ * does not: it multiplies or divides those measurements, so 12 digits is nothing but arithmetic
+ * noise — the compute scores printed as `41.1011153199%` and `39.4570707071%`. Those callers pass
+ * `RATIO_PRECISION_DIGITS` instead.
  */
-function exactNumber(n: number): string {
-  return String(Number(n.toPrecision(12)));
+function exactNumber(n: number, digits = 12): string {
+  return String(Number(n.toPrecision(digits)));
 }
+
+/**
+ * Precision ceiling for a percent or a ratio (PR-STATS-040): **4 significant digits**. Leading
+ * zeros never count as significant, and `Number()` drops the trailing ones, so only digits that
+ * carry information are printed — `41.1011153199%` → `41.1%`, `39.4570707071%` → `39.46%`,
+ * `60.8256` → `60.83`. A value that is already short (68.25%, 1600 GB/s) passes through untouched.
+ */
+const RATIO_PRECISION_DIGITS = 4;
 
 /**
  * One shared hover tooltip for the summary cards, painted in the timeline tooltip's chrome
@@ -302,7 +315,7 @@ const bandwidthView = computed(() =>
       unit: 'GB/s',
       ratioTip: withExactValue(
         t('bandwidthRatioHint', props.locale).replace('{dir}', label),
-        `${exactNumber(row.measuredGBs)} / ${exactNumber(row.peakGBs)} GB/s`,
+        `${exactNumber(row.measuredGBs, RATIO_PRECISION_DIGITS)} / ${exactNumber(row.peakGBs, RATIO_PRECISION_DIGITS)} GB/s`,
       ),
       scoreTip: withExactValue(
         t('bandwidthScoreHint', props.locale).replace('{dir}', label),
@@ -324,7 +337,7 @@ const computeView = computed(() =>
       unit: 'TFLOPS',
       ratioTip: withExactValue(
         t('computeRatioHint', props.locale).replace('{side}', label),
-        `${exactNumber(row.measuredTflops)} / ${exactNumber(row.peakTflops)} TFLOPS`,
+        `${exactNumber(row.measuredTflops, RATIO_PRECISION_DIGITS)} / ${exactNumber(row.peakTflops, RATIO_PRECISION_DIGITS)} TFLOPS`,
       ),
       scoreTip: withExactValue(
         t('computeScoreHint', props.locale).replace('{side}', label),
@@ -339,8 +352,8 @@ function aicorePercent(fraction: number): { score: number; title: string } {
   const raw = fraction * 100;
   // Clamp both ends so label and bar agree — balance = 1−σ/μ can go negative; util can exceed 1.
   const score = Number(Math.min(100, Math.max(0, raw)).toFixed(2));
-  // Strip binary-float residue while keeping sub-percent detail beyond the 2dp label.
-  const title = `${exactNumber(raw)}%`;
+  // A derived percent, so the 4-digit ceiling applies rather than the 12-digit exact default.
+  const title = `${exactNumber(raw, RATIO_PRECISION_DIGITS)}%`;
   return { score, title };
 }
 const aicoreView = computed(() => {
@@ -719,7 +732,7 @@ function utilScore(measured: number, peak: number): number {
  */
 function utilPercent(measured: number, peak: number): string {
   if (!(peak > 0)) return '0%';
-  return `${exactNumber((measured / peak) * 100)}%`;
+  return `${exactNumber((measured / peak) * 100, RATIO_PRECISION_DIGITS)}%`;
 }
 
 /** Sketch 读|写: collapse input/output × aic|aiv into one **sum** per direction (DATA-8). */

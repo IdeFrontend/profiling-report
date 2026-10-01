@@ -1003,12 +1003,14 @@ describe('StatsAside', () => {
     expect(core.text()).toMatch(/AICore 并行使用率|AICore parallel/);
     expect(wrapper.get('[data-testid="stats-aicore-util-score"]').text()).toMatch(/98\.14\s*%/);
     expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-util-score"]')).toEqual({
-      value: cardTipValue('98.1418%'),
+      // 0.981418 × 100 = 98.1418: the percent is derived, so the tooltip stops at 4 significant
+      // digits (PR-STATS-040) instead of printing all six.
+      value: cardTipValue('98.14%'),
       hint: t('parallelUtilHint'),
     });
     expect(wrapper.get('[data-testid="stats-aicore-balance-score"]').text()).toMatch(/93\.38\s*%/);
     expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-balance-score"]')).toEqual({
-      value: cardTipValue('93.3769%'),
+      value: cardTipValue('93.38%'),
       hint: t('parallelBalanceHint'),
     });
     expect(wrapper.get('[data-testid="stats-aicore-util"]').text()).toMatch(
@@ -1063,6 +1065,55 @@ describe('StatsAside', () => {
     });
     expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
       value: cardTipValue('800 / 1600 GB/s'),
+      hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
+    });
+  });
+
+  it('PR-STATS-042: a derived percent or ratio prints 4 significant digits, not 12', async () => {
+    // The reviewer's report, verbatim: `41.1011153199%` / `39.4570707071%` on the compute scores and
+    // `25 / 60.8256 TFLOPS` on the ratio. `exactNumber`'s 12-digit default is meant for a published
+    // measurement; a percent or a ratio is derived, so those digits are arithmetic noise.
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 4600,
+            parallelUtilization: 0.981418,
+            // Already short: 68.25 must survive the ceiling rather than gain trailing zeros.
+            parallelBalance: 0.6825,
+          },
+          computeCard: {
+            sides: [{ side: 'aic', measuredTflops: 25, peakTflops: 60.8256 }],
+          },
+          bandwidthCards: [
+            { id: 'input', sides: [{ side: 'aic', measuredGBs: 1092, peakGBs: 1600 }] },
+          ],
+        }),
+      },
+    });
+
+    // 25 ÷ 60.8256 = 41.10111531… → 41.1 (the 4th significant digit is a zero, so it is dropped).
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic-score"]')).toEqual({
+      value: cardTipValue('41.1%'),
+      hint: t('computeScoreHint').replace('{side}', 'Cube'),
+    });
+    // 60.8256 rounds to 60.83; the integer measured value and the spec'd peak are untouched.
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-compute-aic"] .pr-card__sub')).toEqual({
+      value: cardTipValue('25 / 60.83 TFLOPS'),
+      hint: t('computeRatioHint').replace('{side}', 'Cube'),
+    });
+    // 0.981418 × 100 = 98.1418 → 98.14, and a short percent stays exactly as it was (PR-STATS-011c).
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-util-score"]')).toEqual({
+      value: cardTipValue('98.14%'),
+      hint: t('parallelUtilHint'),
+    });
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-aicore-balance-score"]')).toEqual({
+      value: cardTipValue('68.25%'),
+      hint: t('parallelBalanceHint'),
+    });
+    // Integers and the BW ratio are unaffected: 1092 / 1600 has nothing to round.
+    expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
+      value: cardTipValue('1092 / 1600 GB/s'),
       hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
     });
   });
