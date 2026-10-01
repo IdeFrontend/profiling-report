@@ -4726,6 +4726,17 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-126: gutter-forwarded Ctrl+wheel zooms on the left view edge, not a negative anchor', async () => {
+    const { wrapper, canvas } = await mountWithEventModel({ measureMode: false });
+    // Pointer left of the canvas (gutter) → x = −100. The zoom anchor must clamp to the
+    // track (x=0 → view.startTime = 0), not the free-cursor negative time (−250).
+    await canvas.trigger('wheel', { clientX: -100, clientY: 60, deltaY: -100, ctrlKey: true });
+    const zoom = wrapper.emitted('zoom')!.at(-1)!;
+    expect(zoom[0]).toBe(1.15);
+    expect(zoom[1]).toBe(0);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-121: off-screen magnet edge clamps cursor xRatio into [0,1]', async () => {
     // Event start (190) sits before view.startTime (200): at 400px/1000µs its start
     // edge lands at x=-4, inside the ~10px magnet band of the left edge (x=0). The

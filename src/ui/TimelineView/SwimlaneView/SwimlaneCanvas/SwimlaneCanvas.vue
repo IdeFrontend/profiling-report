@@ -3022,7 +3022,10 @@ function onWheel(e: WheelEvent): void {
     return;
   }
   if (e.ctrlKey || e.metaKey) {
-    const mag = magnetizeLocal(x, y);
+    // A forwarded Ctrl+wheel from the gutter sits left of the canvas (x < 0); clamp the
+    // anchor pointer into the track so it zooms around the nearest view edge, not a
+    // negative time. A magnetized edge near that edge still keeps its true time.
+    const mag = magnetizeLocal(Math.min(rect.width, Math.max(0, x)), y);
     const anchor = stuckMeasureEdgeTime() ?? mag.time;
     const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
     emit('zoom', factor, anchor);
