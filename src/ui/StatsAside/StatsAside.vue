@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { t, archMetricModeLabel } from '../../i18n';
 import type {
   BandwidthCardModel,
@@ -217,6 +217,19 @@ function closeTip() {
   cardTip.value = null;
 }
 
+/**
+ * `tipStyle` caches the viewport size to flip the box, and `window.innerWidth` is not reactive, so
+ * a resize never recomputes it: the card moves and the popover stays at the old coordinates.
+ * Measured from a keyboard-focused trigger, a 1600 → 1100px resize stranded the box **708px** from
+ * its card and off-screen right. Drop it instead — the same contract as `.pr-aside__body` scroll.
+ */
+function onWindowResize() {
+  closeTip();
+}
+
+onMounted(() => window.addEventListener('resize', onWindowResize));
+onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize));
+
 function openTip(content: CardTip, x: number, y: number) {
   cardTip.value = { content, x, y };
 }
@@ -240,7 +253,18 @@ function tipBind(
   if (!tip) return {};
   const hidden = (el: EventTarget | null) => opts.whenTruncated && !truncated(el);
   return {
-    ...(opts.focusable ? { tabindex: 0, 'aria-describedby': tipId } : {}),
+    ...(opts.focusable
+      ? {
+          tabindex: 0,
+          /*
+           * Only while the popover is mounted. The `Teleport` body is `v-if`-gated on `cardTip`, so
+           * a standing reference points at an id that is not in the document whenever no tooltip is
+           * open — a dangling IDREF, which AT must ignore and axe fails (`aria-valid-attr-value`).
+           * This is read during render, so it lands with the popover in the same flush.
+           */
+          ...(cardTip.value ? { 'aria-describedby': tipId } : {}),
+        }
+      : {}),
     onPointerenter: (e: PointerEvent) => {
       if (!hidden(e.currentTarget)) openTip(tip, e.clientX, e.clientY);
     },

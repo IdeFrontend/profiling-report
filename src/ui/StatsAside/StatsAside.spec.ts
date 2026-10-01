@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import StatsAside from './StatsAside.vue';
 import { adaptRep, emptyReportViewModel } from '../../adapters/adaptRep';
 import {
@@ -27,18 +28,39 @@ function cardTipValue(exact: string, locale?: string): string {
   return `${t('exactValue', locale)}: ${exact}`;
 }
 
-/**
- * The popover is teleported to `body` (PR-STATS-041), so it lives outside the mounted wrapper —
- * `wrapper.find` cannot see it. Query the document, as the other teleporting specs do
- * (ContextMenu / ReportToolbar / OverviewCharts); `enableAutoUnmount` tears each node down.
- */
 const CARD_TIP = '[data-testid="stats-card-tooltip"]';
-const tipRoot = (): HTMLElement | null => document.querySelector(CARD_TIP);
-const tipOpen = (): boolean => tipRoot() !== null;
-const tipPart = (testid: string): string | null =>
-  document.querySelector(`[data-testid="${testid}"]`)?.textContent?.trim() ?? null;
 
-/** Hover one summary-card trigger and read the open tooltip's value + hint lines. */
+/**
+ * The open popover. It is teleported to `body` (PR-STATS-041), so `wrapper.find` cannot see it and
+ * the document has to be queried, as the other teleporting specs do (ContextMenu / ReportToolbar /
+ * OverviewCharts); `enableAutoUnmount` tears each node down.
+ *
+ * Two `mount()` calls in one test both get `useId()` → `v-0` (the counter is app-scoped, and each
+ * test mount is its own app), so the two popovers carry a **duplicate** id: neither the id nor
+ * document order can tell them apart. Refuse to guess instead of reading the other instance's box —
+ * which is how `PR-STATS-040` first failed, asserting a value that came from the previous mount.
+ */
+function tipRoot(): HTMLElement {
+  const open = document.querySelectorAll(CARD_TIP);
+  if (open.length !== 1) {
+    throw new Error(
+      `expected exactly one open card tooltip, found ${open.length}; ` +
+        'unmount earlier instances before hovering so the assertions read the right one',
+    );
+  }
+  return open[0] as HTMLElement;
+}
+
+const tipOpen = (): boolean => document.querySelector(CARD_TIP) !== null;
+const tipPart = (testid: string): string | null =>
+  tipRoot().querySelector(`[data-testid="${testid}"]`)?.textContent?.trim() ?? null;
+
+/**
+ * Hover one summary-card trigger and read the open tooltip's value + hint lines.
+ *
+ * A test that hovers two instances must unmount the first: `tipRoot` throws otherwise, since the
+ * popovers are indistinguishable (see above).
+ */
 async function hoverCardTip(
   wrapper: ReturnType<typeof mount>,
   selector: string,
@@ -1113,9 +1135,8 @@ describe('StatsAside', () => {
       value: cardTipValue('1.000004 ms'),
       hint: t('durationValueHint'),
     });
-    // Each instance teleports its own popover into `body`, so the first has to go before the
-    // second mounts — otherwise both nodes sit in the document and the query above reads the
-    // stale one. (Production mounts one aside; this is a test-only collision.)
+    // Both instances would teleport a popover into `body` under the same `useId()` (see `tipRoot`),
+    // so unmount the first before mounting the second — `hoverCardTip` throws rather than read it.
     wrapper.unmount();
     // A sub-µs amount stays exact rather than rounding through 12 significant digits.
     const micro = mount(StatsAside, {
@@ -1170,7 +1191,7 @@ describe('StatsAside', () => {
     const value = wrapper.get('[data-testid="stats-duration-value"]');
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const style = () => tipRoot()!.getAttribute('style')!;
+    const style = () => tipRoot().getAttribute('style')!;
 
     // Plenty of room to the right: follow the pointer, as the timeline tip does (12px offset).
     await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
@@ -1201,16 +1222,19 @@ describe('StatsAside', () => {
     // `title` used to carry the exact value to assistive tech; `aria-describedby` at the popover
     // is the replacement, and `tabindex` is what makes it reachable without a pointer.
     expect(value.attributes('tabindex')).toBe('0');
-    const describedBy = value.attributes('aria-describedby');
-    expect(describedBy).toBeTruthy();
+    // …but only while the popover exists. A standing reference to the `v-if`-gated popover is a
+    // dangling IDREF in the idle state — AT must ignore it, and axe fails `aria-valid-attr-value`.
+    expect(tipOpen()).toBe(false);
+    expect(value.attributes('aria-describedby')).toBeUndefined();
 
     await value.trigger('focus');
-    const tip = tipRoot()!;
+    const tip = tipRoot();
     expect(tip.getAttribute('role')).toBe('tooltip');
-    expect(tip.getAttribute('id')).toBe(describedBy);
+    expect(value.attributes('aria-describedby')).toBe(tip.getAttribute('id'));
 
     await value.trigger('blur');
     expect(tipOpen()).toBe(false);
+    expect(value.attributes('aria-describedby')).toBeUndefined();
   });
 
   it('PR-STATS-041c: a cancelled gesture or an aside scroll closes the popover', async () => {
@@ -1230,6 +1254,29 @@ describe('StatsAside', () => {
     expect(tipOpen()).toBe(true);
     await wrapper.get('.pr-aside__body').trigger('scroll');
     expect(tipOpen()).toBe(false);
+  });
+
+  it('PR-STATS-041g: a window resize drops the popover instead of stranding it', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 } }) },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+
+    // `tipStyle` caches `window.innerWidth` to pick its flip side and that getter is not reactive,
+    // so nothing recomputes it on resize: the card moves out from under the box and it is left at
+    // the old coordinates (measured in Chromium, a keyboard-focused tip ended 708px away and off
+    // the right edge at 1100px). Reusing the scroll/surface contract is the fix.
+    await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipOpen()).toBe(true);
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+    expect(tipOpen()).toBe(false);
+
+    // The listener is the component's, not the popover's, so it has to come off on unmount.
+    const remove = vi.spyOn(window, 'removeEventListener');
+    wrapper.unmount();
+    expect(remove).toHaveBeenCalledWith('resize', expect.any(Function));
+    remove.mockRestore();
   });
 
   it('PR-STATS-041d: a column label only opens the tooltip while it is cut', async () => {
@@ -1281,12 +1328,13 @@ describe('StatsAside', () => {
     });
     await hoverCardTip(wrapper, '[data-testid="stats-duration-value"]');
 
-    expect(tipRoot()?.parentElement).toBe(document.body);
-    expect(wrapper.element.contains(tipRoot())).toBe(false);
-    expect(tipRoot()?.closest('.pr-layout__aside')).toBeNull();
-    expect(tipRoot()?.closest('.pr-main')).toBeNull();
+    const tip = tipRoot();
+    expect(tip.parentElement).toBe(document.body);
+    expect(wrapper.element.contains(tip)).toBe(false);
+    expect(tip.closest('.pr-layout__aside')).toBeNull();
+    expect(tip.closest('.pr-main')).toBeNull();
     // Still anchored by the same viewport-space inline style, just from a higher context.
-    expect(tipRoot()?.getAttribute('style')).toMatch(/(left|right): \d+px/);
+    expect(tip.getAttribute('style')).toMatch(/(left|right): \d+px/);
   });
 
   it('PR-STATS-041e: both tooltip lines are white, the value leading on weight', async () => {
