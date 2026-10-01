@@ -36,7 +36,7 @@ English documentation for the reusable Vue profiling-report library. Formal beha
 29. **[architecture/MSTT_INTEGRATION.md](architecture/MSTT_INTEGRATION.md)** — how MSTT opens `.npu-rep` / `.json` beside Insight
 30. **[archive/research/SWIMLANE_IMPLEMENTATIONS.md](archive/research/SWIMLANE_IMPLEMENTATIONS.md)** — PyPTO Canvas vs Sudu WebGL vs hybrid
 
-End-user guide (public, Chinese-only): [https://profiling-report.vercel.app/guide/](https://profiling-report.vercel.app/guide/) (`playground/public/guide/`). GitCode blob pages are not the default — guests are rate-limited, and `profiling-report.md` is not on `main` yet.
+End-user guide: [https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md](https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md).
 
 ## Process
 
