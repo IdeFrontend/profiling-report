@@ -13,6 +13,8 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | A – sources | [`source/v930/`](./source/v930/) + [`source/v930-sim/`](./source/v930-sim/) + [`source/v930-chrome/`](./source/v930-chrome/) + [`source/v930-source/`](./source/v930-source/) + [`manifest.yaml`](./source/manifest.yaml) | Full-frame dumps (append-only) |
 | C – visual packs | nested under `src/ui/{Region}/…/{Component}/visual/` | Crops + `provenance.yaml` next to implementation |
 
+A resolution-only replacement of an existing source id (same frame, higher resolution) may overwrite that file in place. A design change still gets a new batch.
+
 ## Source frames (`v930`)
 
 | Id | File | Typical consumers |

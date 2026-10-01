@@ -1,6 +1,6 @@
 # Design sources
 
-Full-frame high-res design dumps. **Append-only** by batch; do not overwrite files in place — add a new batch folder when product design changes.
+Full-frame high-res design dumps. **Append-only** by batch; do not overwrite files in place — add a new batch folder when product design changes. A resolution-only replacement of an existing id (same frame, higher resolution) may overwrite that file.
 
 ## Layout
 
