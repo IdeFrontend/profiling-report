@@ -2992,12 +2992,14 @@ function onWheel(e: WheelEvent): void {
   const y = e.clientY - rect.top;
   lastPointerClientX = e.clientX;
   lastPointerClientY = e.clientY;
-  // A forwarded wheel (gutter / overview / card strip) can land outside the canvas —
-  // the lane gutter sits left of the track, so `x` is negative. Only a pointer over
-  // the canvas has a hover to re-resolve on scroll settle; otherwise drop the stale
-  // coords so `recalcPointerHover` does not re-emit a cursor at a negative time.
+  // Only a wheel that originates on the canvas itself has a hover to re-resolve on
+  // scroll settle. Gutter / overview / card-strip wheels are forwarded here by
+  // SwimlaneView (`handleWheel`), so their `e.target` is the strip/gutter element, not
+  // the canvas — skip recording those or `recalcPointerHover` re-emits a phantom cursor
+  // (negative time over the gutter; a stale non-negative time over the strips, which
+  // also contradicts the strips' `clearCursor`).
   if (!props.measureMode) {
-    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+    if (e.target === target) {
       lastHoverLocalX = x;
       lastHoverLocalY = y;
     } else {

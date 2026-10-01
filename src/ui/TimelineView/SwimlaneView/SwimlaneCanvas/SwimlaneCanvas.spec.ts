@@ -54,6 +54,20 @@ async function fireAllDeviceRo(): Promise<void> {
   await nextTick();
 }
 
+/** A wheel event the way SwimlaneView forwards it: not dispatched, so `target` stays null
+ * (≠ canvas) and jsdom's WheelEvent constructor leaves `clientX`/`clientY` unset — patch them. */
+function forwardedWheel(init: {
+  deltaX: number;
+  deltaY: number;
+  clientX: number;
+  clientY: number;
+}): WheelEvent {
+  const ev = new WheelEvent('wheel', { deltaX: init.deltaX, deltaY: init.deltaY });
+  Object.defineProperty(ev, 'clientX', { value: init.clientX });
+  Object.defineProperty(ev, 'clientY', { value: init.clientY });
+  return ev;
+}
+
 describe('SwimlaneCanvas', () => {
   beforeEach(() => {
     stubDeviceResizeObserver();
@@ -4713,16 +4727,64 @@ describe('SwimlaneCanvas', () => {
       value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
     });
 
-    // Gutter sits left of the canvas → x = −100 (negative-time domain).
-    await canvas.trigger('wheel', { clientX: -100, clientY: 60, deltaX: 0, deltaY: 40 });
+    // Forward a gutter wheel exactly as SwimlaneView does: the native event's target is
+    // the gutter (not the canvas), so `handleWheel` must skip recording the hover coords.
+    const vm = wrapper.vm as { handleWheel: (e: WheelEvent) => void };
+    vm.handleWheel(forwardedWheel({ clientX: -100, clientY: 60, deltaX: 0, deltaY: 40 }));
+    await wrapper.vm.$nextTick();
 
     // Lane scroll still applies (the guard must not break gutter→canvas forwarding).
     expect(wrapper.emitted('scroll-y')?.at(-1)?.[0]).toBe(40);
 
-    // No cursor may be re-emitted at a negative time — the pointer is not over the canvas.
-    for (const [c] of wrapper.emitted('cursor') ?? []) {
-      if (c != null) expect((c as { time: number }).time).toBeGreaterThanOrEqual(0);
-    }
+    // The scroll-settle re-resolution must not re-emit a cursor at all (the last emit is
+    // the scroll-start invalidation `null`, not a negative-time cursor).
+    expect(wrapper.emitted('cursor')?.at(-1)?.[0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-127: in-bounds forwarded wheel (card strip over the track) never re-emits a phantom cursor', async () => {
+    // The card strips / overview overlay the track column, so a forwarded wheel there has
+    // in-bounds canvas coords. The old bounds check recorded them and `recalcPointerHover`
+    // re-emitted a stale cursor (e.g. `{ time: 700, xRatio: 0.5 }`) with no prior pointermove.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const threads = Array.from({ length: 31 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [] as { id: string; name: string; startTime: number; duration: number }[],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        model: { minTime: 0, maxTime: 1000, processes: [{ id: 'p-1', name: 'P', threads }] },
+        view: { startTime: 200, endTime: 1200, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.get('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await fireAllDeviceRo();
+    const canvas = wrapper.get('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+
+    // In-bounds forwarded wheel (card strip over the track, x = 200 → free time 700).
+    const vm = wrapper.vm as { handleWheel: (e: WheelEvent) => void };
+    vm.handleWheel(forwardedWheel({ clientX: 200, clientY: 60, deltaX: 0, deltaY: 40 }));
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('scroll-y')?.at(-1)?.[0]).toBe(40);
+    expect(wrapper.emitted('cursor')?.at(-1)?.[0]).toBeNull();
     wrapper.unmount();
   });
 
