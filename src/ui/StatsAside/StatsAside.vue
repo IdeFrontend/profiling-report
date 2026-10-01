@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue';
 import { t, archMetricModeLabel } from '../../i18n';
 import type {
   BandwidthCardModel,
@@ -176,7 +176,7 @@ function exactNumber(n: number, digits = 12): string {
 }
 
 /**
- * Precision ceiling for a percent or a ratio (PR-STATS-040): **4 significant digits**. Leading
+ * Precision ceiling for a percent or a ratio (PR-STATS-042): **4 significant digits**. Leading
  * zeros never count as significant, and `Number()` drops the trailing ones, so only digits that
  * carry information are printed — `41.1011153199%` → `41.1%`, `39.4570707071%` → `39.46%`,
  * `60.8256` → `60.83`. A value that is already short (68.25%, 1600 GB/s) passes through untouched.
@@ -189,7 +189,13 @@ const RATIO_PRECISION_DIGITS = 4;
  * to `body`, so it sits in the root stacking context and no panel can crop or cover it.
  */
 const tipId = useId();
-const cardTip = ref<{ content: CardTip; x: number; y: number } | null>(null);
+/*
+ * `shallowRef`, not `ref`: the content is an immutable `{value, hint}` pair and nothing mutates it,
+ * so deep reactivity buys nothing — and it would make `cardTip.value.content` a reactive **proxy**,
+ * breaking the `=== tip` identity check in `tipBind` (and the popover would silently drop its
+ * `aria-describedby`). Assignment still triggers, which is the only change we make.
+ */
+const cardTip = shallowRef<{ content: CardTip; x: number; y: number } | null>(null);
 const TIP_OFFSET_PX = 12;
 
 /** Popover bounds from `.pr-stat-tip`; the flip below assumes the widest box it can paint. */
@@ -270,12 +276,18 @@ function tipBind(
       ? {
           tabindex: 0,
           /*
-           * Only while the popover is mounted. The `Teleport` body is `v-if`-gated on `cardTip`, so
-           * a standing reference points at an id that is not in the document whenever no tooltip is
-           * open — a dangling IDREF, which AT must ignore and axe fails (`aria-valid-attr-value`).
-           * This is read during render, so it lands with the popover in the same flush.
+           * Only while *this* trigger owns the popover, and the `Teleport` body is `v-if`-gated on
+           * `cardTip`, so the reference never dangles. Two separate traps:
+           *   - no popover open → the id is absent from the document (dangling IDREF, which AT must
+           *     ignore and axe fails as `aria-valid-attr-value`);
+           *   - a *different* trigger's popover open → `cardTip` is a singleton, so binding on every
+           *     focusable trigger would describe B, C, … with A's value. Browsing in browse mode (no
+           *     focus) would read the wrong description.
+           * Identity, not a key, because each view model builds its tip once and the template passes
+           * that same object both here and to `openTip`. Read during render, so it lands with the
+           * popover in the same flush.
            */
-          ...(cardTip.value ? { 'aria-describedby': tipId } : {}),
+          ...(cardTip.value?.content === tip ? { 'aria-describedby': tipId } : {}),
         }
       : {}),
     onPointerenter: (e: PointerEvent) => {

@@ -1288,6 +1288,29 @@ describe('StatsAside', () => {
     expect(value.attributes('aria-describedby')).toBeUndefined();
   });
 
+  it('PR-STATS-041c: only the trigger that owns the open popover is described by it', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 4600, blockDim: 8, opName: 'relu' } }),
+      },
+    });
+    const value = wrapper.get('[data-testid="stats-duration-value"]');
+    const secondary = wrapper.get('[data-testid="stats-duration-secondary"]');
+
+    // Hovering the secondary opens *its* tip. `cardTip` is a singleton, so binding the attribute on
+    // every focusable trigger left `value` advertising the secondary's description: an AT browsing
+    // without focus (not just tabbing through) would read the wrong metric off the wrong card.
+    await secondary.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(tipPart('stats-card-tooltip-value')).toContain(secondary.text());
+    expect(secondary.attributes('aria-describedby')).toBe(tipRoot().getAttribute('id'));
+    expect(value.attributes('aria-describedby')).toBeUndefined();
+
+    // Moving the pointer re-homes the description — exactly one trigger is described at a time.
+    await value.trigger('pointerenter', { clientX: 10, clientY: 20 });
+    expect(value.attributes('aria-describedby')).toBe(tipRoot().getAttribute('id'));
+    expect(secondary.attributes('aria-describedby')).toBeUndefined();
+  });
+
   it('PR-STATS-041c: a cancelled gesture or an aside scroll closes the popover', async () => {
     const wrapper = mount(StatsAside, {
       props: { report: report({ summary: { taskDurationUs: 1 } }) },
