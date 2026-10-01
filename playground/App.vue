@@ -371,6 +371,7 @@ onMounted(async () => {
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         :locale="locale"
+        :user-guide-url="'/guide/'"
         @view-full-csv="onViewFullCsv"
       />
       <ProfilingReport
@@ -381,6 +382,7 @@ onMounted(async () => {
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         :locale="locale"
+        :user-guide-url="'/guide/'"
         @view-full-csv="onViewFullCsv"
       />
       <div
