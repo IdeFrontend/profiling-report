@@ -158,6 +158,7 @@ Eight interaction events: **select** fires with a `SwimEvent` (or null) on click
 122. **PR-CANVAS-122** — While a marquee is live, Ctrl/Cmd+wheel zooms the **local** time window too (not just the emitted `zoom`), so the swimlane blocks repaint at the new scale instead of staying at the stale snapshot; the marquee rect re-maps against the zoomed window. Wheel pan during a live marquee (Shift+wheel `PR-CANVAS-122b`, horizontal-dominant trackpad `PR-CANVAS-122c`) applies to the local window the same way and re-maps the rect.
 123. **PR-CANVAS-123** — An off-track marquee drag clamps only the pointer edge (`x1`) to the track, so `multi-select-span` (and the live cursor `time`) never emit negative time or time past `maxTime`.
 124. **PR-CANVAS-124** — The marquee anchor edge (`x0`) stays unclamped: `timeAtX(xAtTime(contentTime))` is the in-bounds anchor time, so an anchor that pans off-screen (edge-autoscroll / zoom) keeps committing the events between the anchor and the window edge.
+125. **PR-CANVAS-125** — A wheel forwarded from outside the canvas (lane gutter left of the track → negative `x`) still scrolls lanes, but `recalcPointerHover` does **not** re-emit a cursor at that off-canvas position (no negative-time cursor).
 
 ## Edge Cases
 
@@ -192,6 +193,7 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
+- **2026-10-01** — A wheel forwarded from the lane gutter (pointer left of the canvas) scrolls lanes but no longer re-emits a negative-time cursor on scroll settle (`PR-CANVAS-125`).
 - **2026-09-29** — Off-track marquee drag clamps only the pointer edge to the track so the span/cursor never emit negative time or time past `maxTime`; the anchor edge stays unclamped so an off-screen anchor keeps committing its true-time events (`PR-CANVAS-123` / `PR-CANVAS-124`).
 - **2026-09-28** — Ctrl/Cmd+wheel during a live marquee zooms the local time window and re-maps the rect (`PR-CANVAS-122`); wheel pan (horizontal-dominant trackpad and Shift+wheel) applies to the local window too during a live marquee so the swimlane/rect stay in step with the axis/slider (`PR-CANVAS-122`); local pan/zoom bounds clamp a degenerate single-point model (`maxTime === minTime`) to `minTime + 1`, matching `ProfilingReport.bounds` (`PR-CANVAS-119b`).
 - **2026-09-25** — Marquee pointerup settles `scroll-y` (incl. mid-band / already-open dock) so parent viewState stays in sync (`PR-CANVAS-112` / `PR-CANVAS-115`).

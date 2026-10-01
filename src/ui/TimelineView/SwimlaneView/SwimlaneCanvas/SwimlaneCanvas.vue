@@ -2992,9 +2992,18 @@ function onWheel(e: WheelEvent): void {
   const y = e.clientY - rect.top;
   lastPointerClientX = e.clientX;
   lastPointerClientY = e.clientY;
+  // A forwarded wheel (gutter / overview / card strip) can land outside the canvas —
+  // the lane gutter sits left of the track, so `x` is negative. Only a pointer over
+  // the canvas has a hover to re-resolve on scroll settle; otherwise drop the stale
+  // coords so `recalcPointerHover` does not re-emit a cursor at a negative time.
   if (!props.measureMode) {
-    lastHoverLocalX = x;
-    lastHoverLocalY = y;
+    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+      lastHoverLocalX = x;
+      lastHoverLocalY = y;
+    } else {
+      lastHoverLocalX = null;
+      lastHoverLocalY = null;
+    }
   }
   // PyPTO order: horizontal-dominant trackpad pan first (even with ctrlKey), then
   // ctrl/meta zoom (pinch + Ctrl+wheel), else vertical lane scroll.
