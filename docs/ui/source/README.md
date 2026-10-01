@@ -10,6 +10,7 @@ source/
   v930/             930 性能调优 dump (canonical)
   v930-sim/         930 仿真 dump
   v930-chrome/      930 内存拓扑 official SVG chrome (448×423)
+  v930-source/      930 源码 tab reference (Source / SASS)
 ```
 
 ## Naming

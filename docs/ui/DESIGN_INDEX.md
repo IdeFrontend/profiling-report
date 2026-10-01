@@ -10,7 +10,7 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 
 | Layer | Path | Role |
 |-------|------|------|
-| A – sources | [`source/v930/`](./source/v930/) + [`source/v930-sim/`](./source/v930-sim/) + [`source/v930-chrome/`](./source/v930-chrome/) + [`manifest.yaml`](./source/manifest.yaml) | Full-frame dumps (append-only) |
+| A – sources | [`source/v930/`](./source/v930/) + [`source/v930-sim/`](./source/v930-sim/) + [`source/v930-chrome/`](./source/v930-chrome/) + [`source/v930-source/`](./source/v930-source/) + [`manifest.yaml`](./source/manifest.yaml) | Full-frame dumps (append-only) |
 | C – visual packs | nested under `src/ui/{Region}/…/{Component}/visual/` | Crops + `provenance.yaml` next to implementation |
 
 ## Source frames (`v930`)
@@ -41,6 +41,12 @@ Cross-layer map: **sources (v930) → component visual packs**. Pixel measures l
 | `v930-sim/memory-topology-zoom` | [`memory-topology-zoom.jpeg`](./source/v930-sim/memory-topology-zoom.jpeg) | 内存负载分析 zoom bar in the stacked aside (缩小 / % / 放大 / 适应窗口 / 全屏) |
 | `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay: fit-window control only, no 全屏, no strip |
 | `v930-sim/performance-hints` | [`performance-hints.jpeg`](./source/v930-sim/performance-hints.jpeg) | 性能提示 / 性能分析: title-row 性能分析 trigger (left of aside ×) + bottom hints table (Hint Message / Source Line / Instruction Address) |
+
+## Source frames (`v930-source` — 源码)
+
+| Id | File | Typical consumers |
+|----|------|-------------------|
+| `v930-source/source-correlation` | [`source-correlation.jpeg`](./source/v930-source/source-correlation.jpeg) | 源码 tab reference (Source / SASS split). Timeline authority stays `v930/entry`. No component consumes this frame yet. |
 
 ## Source frames (`v930-chrome` — official topology SVG)
 
