@@ -1,6 +1,6 @@
 # Design sources
 
-Full-frame high-res design dumps. **Append-only** by batch; do not overwrite files in place — add a new batch folder when product design changes.
+Full-frame high-res design dumps. **Append-only** by batch; do not overwrite files in place — add a new batch folder when product design changes. A resolution-only replacement of an existing id (same frame, higher resolution) may overwrite that file.
 
 ## Layout
 
@@ -10,6 +10,7 @@ source/
   v930/             930 性能调优 dump (canonical)
   v930-sim/         930 仿真 dump
   v930-chrome/      930 内存拓扑 official SVG chrome (448×423)
+  v930-source/      930 源码 tab reference (Source / SASS)
 ```
 
 ## Naming
