@@ -11,9 +11,9 @@
 
 ## Sketches
 
-![Performance hints report panel](../ui/source/v930-sim/performance-hints.jpeg)
+![Performance hints report panel](./performance-hints.jpeg)
 
-Sketch shows a **性能分析** table under the timeline: **Hint Message**, **Source Line**, **Instruction Address**. Annotations call for a **性能分析** tab (增加页签 / 增加页面显示) and a **title-row 性能分析** trigger left of the aside close × (触发按钮). Empty Source Line / Instruction Address cells show **Not specified** (sketch fidelity).
+Preview (1600×900) of the full frame [`v930-sim/performance-hints`](../ui/source/v930-sim/performance-hints.jpeg) (7680×4320). Sketch shows a **性能分析** table under the timeline: **Hint Message**, **Source Line**, **Instruction Address**. Annotations call for a **性能分析** tab (增加页签 / 增加页面显示) and a **title-row 性能分析** trigger left of the aside close × (触发按钮). Empty Source Line / Instruction Address cells show **Not specified** (sketch fidelity).
 
 ## Purpose
 
