@@ -86,18 +86,13 @@ function stitch(template, reportBytes, reportName) {
   if (start < 0 || end < 0 || end <= start) {
     fail('embedded shell template is missing embed markers');
   }
-  if (!template.includes('%%NPU_REP_B64%%')) {
-    fail('embedded shell template is missing %%NPU_REP_B64%% placeholder');
-  }
-  const before = template.slice(0, start);
   let embed = template.slice(start, end + embedEnd.length);
-  const after = template.slice(end + embedEnd.length);
-  if (before.includes('%%NPU_REP_B64%%') || after.includes('%%NPU_REP_B64%%')) {
-    fail('%%NPU_REP_B64%% appears outside the embed block');
+  if (!embed.includes('%%NPU_REP_B64%%')) {
+    fail('embedded shell template is missing %%NPU_REP_B64%% placeholder');
   }
   embed = embed.split('%%NPU_REP_B64%%').join(b64);
   embed = embed.split('%%NPU_REP_NAME%%').join(nameEncoded);
-  let html = before + embed + after;
+  let html = template.slice(0, start) + embed + template.slice(end + embedEnd.length);
   const title = reportName
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

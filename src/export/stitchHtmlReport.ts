@@ -14,8 +14,9 @@ export function htmlExportFileName(reportName: string): string {
 
 /**
  * Embed report bytes into a prebuilt single-file shell template.
- * Replaces placeholders only inside the embed block so a bundled viewer that
- * mentions the same tokens in JS is not corrupted.
+ * Replaces placeholders only inside the embed block: the inlined viewer bundle
+ * also contains these token strings (stitch helper constants), so a whole-file
+ * replace would corrupt it.
  */
 export function stitchHtmlReport(
   template: string,
@@ -29,18 +30,13 @@ export function stitchHtmlReport(
   if (start < 0 || end < 0 || end <= start) {
     throw new Error('shell template is missing embed markers');
   }
-  if (!template.includes(HTML_EXPORT_B64_PLACEHOLDER)) {
-    throw new Error('shell template is missing %%NPU_REP_B64%% placeholder');
-  }
-  const before = template.slice(0, start);
   let embed = template.slice(start, end + HTML_EXPORT_EMBED_END.length);
-  const after = template.slice(end + HTML_EXPORT_EMBED_END.length);
-  if (before.includes(HTML_EXPORT_B64_PLACEHOLDER) || after.includes(HTML_EXPORT_B64_PLACEHOLDER)) {
-    throw new Error('%%NPU_REP_B64%% appears outside the embed block');
+  if (!embed.includes(HTML_EXPORT_B64_PLACEHOLDER)) {
+    throw new Error('shell template is missing %%NPU_REP_B64%% placeholder');
   }
   embed = embed.split(HTML_EXPORT_B64_PLACEHOLDER).join(b64);
   embed = embed.split(HTML_EXPORT_NAME_PLACEHOLDER).join(nameEncoded);
-  let html = before + embed + after;
+  let html = template.slice(0, start) + embed + template.slice(end + HTML_EXPORT_EMBED_END.length);
   const title = reportName
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

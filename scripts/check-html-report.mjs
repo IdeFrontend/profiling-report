@@ -20,8 +20,12 @@ function fail(msg) {
 }
 
 function assertHtml(html, label) {
-  if (html.includes('%%NPU_REP_B64%%')) fail(`${label}: placeholder %%NPU_REP_B64%% still present`);
-  if (html.includes('%%NPU_REP_NAME%%')) fail(`${label}: placeholder %%NPU_REP_NAME%% still present`);
+  if (html.includes("window.__NPU_REP_B64__ = '%%NPU_REP_B64%%'")) {
+    fail(`${label}: embed slot still has %%NPU_REP_B64%%`);
+  }
+  if (html.includes("window.__NPU_REP_NAME__ = '%%NPU_REP_NAME%%'")) {
+    fail(`${label}: embed slot still has %%NPU_REP_NAME%%`);
+  }
   if (!html.includes('window.__NPU_REP_B64__')) fail(`${label}: missing window.__NPU_REP_B64__ assignment`);
   if (!html.includes('id="app"')) fail(`${label}: missing #app mount root`);
   if (!html.includes('type="module"')) fail(`${label}: expected inlined module script`);

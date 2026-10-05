@@ -82,19 +82,14 @@ const end = html.indexOf(embedEnd);
 if (start < 0 || end < 0 || end <= start) {
   fail('shell template is missing embed markers — rebuild with npm run build:report-shell');
 }
-if (!html.includes('%%NPU_REP_B64%%')) {
-  fail('shell template is missing %%NPU_REP_B64%% placeholder — rebuild with npm run build:report-shell');
-}
 
-const before = html.slice(0, start);
 let embed = html.slice(start, end + embedEnd.length);
-const after = html.slice(end + embedEnd.length);
-if (before.includes('%%NPU_REP_B64%%') || after.includes('%%NPU_REP_B64%%')) {
-  fail('%%NPU_REP_B64%% appears outside the embed block — refusing to replace (would corrupt the shell bundle)');
+if (!embed.includes('%%NPU_REP_B64%%')) {
+  fail('shell template is missing %%NPU_REP_B64%% placeholder — rebuild with npm run build:report-shell');
 }
 embed = embed.split('%%NPU_REP_B64%%').join(b64);
 embed = embed.split('%%NPU_REP_NAME%%').join(nameEncoded);
-html = before + embed + after;
+html = html.slice(0, start) + embed + html.slice(end + embedEnd.length);
 
 // Title: use the human name (HTML-escaped)
 const title = reportName
