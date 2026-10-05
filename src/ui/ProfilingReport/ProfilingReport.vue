@@ -89,6 +89,11 @@ import {
 import { resolveEnvironmentBehavior } from '../environments';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import {
+  DEFAULT_HTML_EXPORT_TEMPLATE_URL,
+  htmlExportFileName,
+  stitchHtmlReport,
+} from '../../export/stitchHtmlReport';
+import {
   ARCH_DIAGRAM_DEFAULT_METRIC_MODE,
   ARCH_DIAGRAM_METRIC_MODES,
   archDiagramCsvFromTexts,
@@ -116,6 +121,13 @@ const props = withDefaults(defineProps<{
   capabilities?: ReportCapability[];
   /** End-user guide URL for the toolbar help button. */
   userGuideUrl?: string;
+  /**
+   * Toolbar Export (single-file HTML). Default on when `source` bytes exist.
+   * Report-shell (already that bundle) sets this false.
+   */
+  allowHtmlExport?: boolean;
+  /** URL of the inlined report-shell template served by the host. */
+  htmlExportTemplateUrl?: string;
   /** Host environment. Routes environment-dependent actions (title-row 性能分析 →
    *  Problems on `vscode`, internal dock otherwise). Open union so future
    *  environments can be added without touching consumers. */
@@ -132,6 +144,8 @@ const props = withDefaults(defineProps<{
   dependencyMode: 'all',
   dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
   userGuideUrl: DEFAULT_USER_GUIDE_URL,
+  allowHtmlExport: true,
+  htmlExportTemplateUrl: DEFAULT_HTML_EXPORT_TEMPLATE_URL,
   preferRenderer: undefined,
   capabilities: undefined,
   environment: undefined,
@@ -147,6 +161,7 @@ const emit = defineEmits<{
   'cannbot-request': [payload: CannbotPayload];
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
+  'export-html': [{ fileName: string }];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -1431,6 +1446,37 @@ function onZoomToFit() {
   animateToWindow(zoomToFitWindow(swim.value));
 }
 
+const htmlExportAvailable = computed(
+  () => props.allowHtmlExport !== false && props.source != null,
+);
+
+async function onExportHtml() {
+  const raw = props.source;
+  if (!raw) return;
+  const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+  const reportName = props.reportMeta?.name ?? props.title ?? 'report.npu-rep';
+  const fileName = htmlExportFileName(reportName);
+  try {
+    const res = await fetch(props.htmlExportTemplateUrl);
+    if (!res.ok) {
+      throw new Error(`HTML export template HTTP ${res.status} (${props.htmlExportTemplateUrl})`);
+    }
+    const template = await res.text();
+    const html = stitchHtmlReport(template, bytes, reportName);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    emit('export-html', { fileName });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    emit('error', { message, cause });
+  }
+}
+
 function onZoomIn() {
   const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
   onZoom(1.25, mid);
@@ -1570,6 +1616,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :operators="operators"
       :selected-operator-id="selectedOperatorId"
       :user-guide-url="userGuideUrl"
+      :html-export-available="htmlExportAvailable"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
@@ -1582,6 +1629,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @zoom-in="onZoomIn"
       @zoom-out="onZoomOut"
       @open-user-guide="emit('open-user-guide', $event)"
+      @export-html="onExportHtml"
     />
 
     <p
@@ -1616,6 +1664,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :operators="operators"
           :selected-operator-id="selectedOperatorId"
           :user-guide-url="userGuideUrl"
+          :html-export-available="htmlExportAvailable"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
@@ -1627,6 +1676,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
           @open-user-guide="emit('open-user-guide', $event)"
+          @export-html="onExportHtml"
         />
         <TimelineView
           v-if="showTimeline"

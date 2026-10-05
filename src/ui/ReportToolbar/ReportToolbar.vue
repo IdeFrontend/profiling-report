@@ -41,9 +41,15 @@ const props = withDefaults(
     selectedOperatorId?: string | null;
     /** Opens in a new tab from the trailing help button. */
     userGuideUrl?: string;
+    /**
+     * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
+     * leave this false. Playground / MSTT pass true when original report bytes exist.
+     */
+    htmlExportAvailable?: boolean;
   }>(),
   {
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
+    htmlExportAvailable: false,
   },
 );
 
@@ -59,6 +65,7 @@ const emit = defineEmits<{
   'zoom-out': [];
   'update:zoomPercent': [value: number];
   'open-user-guide': [url: string];
+  'export-html': [];
 }>();
 
 function onDepthChange(event: Event) {
@@ -955,6 +962,39 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         @click="emit('update:asideVisible', !asideVisible)"
       >
         <PrIcon name="stats" />
+      </button>
+
+      <button
+        v-if="htmlExportAvailable"
+        type="button"
+        class="pr-toolbar__icon-btn"
+        data-testid="export-html"
+        data-toolbar-clip
+        :aria-label="t('exportHtml', locale)"
+        :title="t('exportHtml', locale)"
+        @click="emit('export-html')"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M8 2v8M5.2 7.8 8 10.6l2.8-2.8"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M3 12.5h10"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linecap="round"
+          />
+        </svg>
       </button>
 
       <button

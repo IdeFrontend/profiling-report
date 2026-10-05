@@ -67,6 +67,7 @@ onMounted(() => {
       :source="source"
       :report-meta="reportMeta"
       locale="zh-CN"
+      :allow-html-export="false"
     />
     <p
       v-else

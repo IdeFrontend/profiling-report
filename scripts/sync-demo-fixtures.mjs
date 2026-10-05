@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -22,4 +22,10 @@ const copies = [
 for (const [from, name] of copies) {
   copyFileSync(join(root, from), join(destDir, name))
   console.log(`synced ${from} -> playground/public/data/${name}`)
+}
+
+const shellTemplate = join(root, 'dist/report-shell/template.html')
+if (existsSync(shellTemplate)) {
+  copyFileSync(shellTemplate, join(root, 'playground/public/npu-rep-html-template.html'))
+  console.log('synced dist/report-shell/template.html -> playground/public/npu-rep-html-template.html')
 }

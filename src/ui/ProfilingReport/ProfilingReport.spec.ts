@@ -1920,4 +1920,54 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.vm.viewState.pinnedLaneIds).toEqual([]);
     wrapper.unmount();
   });
+
+  it('PR-ROOT-024: export-html stitches source; hidden without source or when disallowed', async () => {
+    const { flushPromises } = await import('@vue/test-utils');
+    const noSource = mount(ProfilingReport, {
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+    expect(noSource.find('[data-testid="export-html"]').exists()).toBe(false);
+    noSource.unmount();
+
+    const { loadNpuRepBuffer } = await import('../../../tests/helpers/fixtures');
+    const denied = mount(ProfilingReport, {
+      props: { source: loadNpuRepBuffer(), allowHtmlExport: false },
+    });
+    expect(denied.find('[data-testid="export-html"]').exists()).toBe(false);
+    denied.unmount();
+
+    const template = `<!doctype html><html><head><title>x</title></head><body>
+<!-- __NPU_REP_EMBED_START__ -->
+<script>window.__NPU_REP_B64__='%%NPU_REP_B64%%';window.__NPU_REP_NAME__='%%NPU_REP_NAME%%';</script>
+<!-- __NPU_REP_EMBED_END__ --></body></html>`;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, text: async () => template }) as Response),
+    );
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:export',
+      revokeObjectURL: () => undefined,
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        source: loadNpuRepBuffer(),
+        reportMeta: { name: 'op.npu-rep', id: 'op', path: 'op', collectedAt: 't' },
+      },
+    });
+    expect(wrapper.find('[data-testid="export-html"]').exists()).toBe(true);
+    const realCreate = document.createElement.bind(document);
+    const click = vi.fn();
+    vi.spyOn(document, 'createElement').mockImplementation((tag, opts) => {
+      const el = realCreate(tag, opts as ElementCreationOptions);
+      if (tag === 'a') el.click = click;
+      return el;
+    });
+    await wrapper.find('[data-testid="export-html"]').trigger('click');
+    await flushPromises();
+    expect(click).toHaveBeenCalled();
+    expect(wrapper.emitted('export-html')?.[0]).toEqual([{ fileName: 'op.html' }]);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 });

@@ -629,4 +629,21 @@ describe('ReportToolbar', () => {
     expect(openSpy).toHaveBeenCalledWith('https://example.test/guide/', '_blank', 'noopener,noreferrer');
     openSpy.mockRestore();
   });
+
+  it('PR-TOOLBAR-027: html export sits before user-guide and emits export-html', async () => {
+    const hidden = mount(ReportToolbar, { props: defaultProps });
+    expect(hidden.find('[data-testid="export-html"]').exists()).toBe(false);
+    hidden.unmount();
+
+    const wrapper = mount(ReportToolbar, {
+      props: { ...defaultProps, htmlExportAvailable: true },
+    });
+    expect(wrapper.find('[data-testid="export-html"]').exists()).toBe(true);
+    const actions = wrapper.findAll('[data-toolbar-clip]');
+    expect(actions[actions.length - 1].attributes('data-testid')).toBe('open-user-guide');
+    expect(actions[actions.length - 2].attributes('data-testid')).toBe('export-html');
+    await wrapper.find('[data-testid="export-html"]').trigger('click');
+    expect(wrapper.emitted('export-html')).toHaveLength(1);
+    wrapper.unmount();
+  });
 });

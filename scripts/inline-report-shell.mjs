@@ -3,7 +3,7 @@
  * Fold Vite's report-shell build into one HTML template with embed placeholders.
  * Usage: node scripts/inline-report-shell.mjs
  */
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -71,4 +71,8 @@ if (!html.includes('%%NPU_REP_B64%%') || !html.includes('%%NPU_REP_NAME%%')) {
 
 const outPath = join(distDir, 'template.html');
 writeFileSync(outPath, html, 'utf8');
+const playgroundDir = join(root, 'playground/public');
+mkdirSync(playgroundDir, { recursive: true });
+writeFileSync(join(playgroundDir, 'npu-rep-html-template.html'), html, 'utf8');
 console.log(`[inline-report-shell] wrote ${outPath} (${html.length} bytes)`);
+console.log(`[inline-report-shell] copied playground/public/npu-rep-html-template.html`);

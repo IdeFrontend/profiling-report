@@ -52,9 +52,11 @@ npm run generate:html-report -- path/to/report.npu-rep -o report.html
 
 Open `report.html` in a browser (`file://` works). Rebuild the shell when viewer code changes; the generate step only embeds report bytes into the prebuilt template.
 
+The playground / library toolbar shows **Export** when the report was loaded from original bytes (not the bundled HTML shell). That downloads the same single-file HTML. Requires `npm run build:report-shell` once so `/npu-rep-html-template.html` is copied into the playground public dir.
+
 ### Zero-dep distribution
 
-`npm run build:report-shell` also writes **`dist/npu-rep-html.mjs`** (~1 MB): generator + embedded viewer shell in one ESM file. Copy that single file into CI or share it; consumers need only **Node ≥ 20** (no `npm install`, no sidecar template):
+`npm run build:report-shell` also writes **`dist/npu-rep-html.mjs`** (~1 MB): generator + embedded viewer shell in one ESM file. Consumers need only **Node ≥ 20** (no `npm install`, no sidecar template):
 
 ```bash
 node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html
@@ -62,7 +64,18 @@ node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html
 node npu-rep-html.mjs path/to/report.npu-rep -o report.html
 ```
 
-The standalone script is build output under `dist/` (gitignored), not committed.
+The standalone script is build output under `dist/` (gitignored), **not committed and not published** (no npm / CDN / Releases).
+
+### Two-artifact handoff (external agents)
+
+Give consumers both files (hand delivery):
+
+| Artifact | Source | What they do |
+|----------|--------|----------------|
+| Skill | [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md) | Copy into their agent skills folder |
+| Script | `dist/npu-rep-html.mjs` (after `npm run build:report-shell`) | Place on disk (`NPU_REP_HTML`, cwd, beside the `.npu-rep`, or `~/bin/`) |
+
+The skill instructs the agent to resolve the script path and run `node …`; it does not download or build the script.
 
 CI (in-repo):
 
