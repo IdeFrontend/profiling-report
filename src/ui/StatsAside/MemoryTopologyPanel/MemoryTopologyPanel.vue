@@ -794,7 +794,7 @@ onBeforeUnmount(stopZoomAnim);
       </div>
     </div>
 
-    <!-- Zoom / fullscreen bar (design: `v930/new` 内存负载分析 controls). The whole bar hides with
+    <!-- Zoom / fullscreen bar (design: `v930-sim/memory-topology-zoom` 内存负载分析 controls). The whole bar hides with
          the chrome it scales — a zoom control over a failed asset is dead chrome. -->
     <div
       v-if="!chromeFailed"
