@@ -105,11 +105,23 @@ batches:
         original_name: "930版本-仿真_11.2.3.2_内存负载分析全屏.jpeg"
         scenes: [memory-load, memory-topology, memory-heatmap, fullscreen, unit-selection]
         components: [MemoryTopologyPanel, MemoryHeatmapPanel]
+      # Same frame as the 2026-09 dump, now the 7680×4320 original (was a 1024×576
+      # downscale). Resolution upgrade of one frame, not a design change — id and path stay.
       - id: performance-hints
         path: v930-sim/performance-hints.jpeg
         original_name: "930版本-仿真_性能提示_报告面板-性能提示.jpeg"
         scenes: [performance-hints, report-panel, aside-title-trigger]
         components: [StatsAside, PerformanceHintsDock]
+
+  # 源码 tab reference (Source / SASS). Not a revision of the 性能调优 timeline — that
+  # authority stays v930/entry. No component consumes this frame yet.
+  v930-source:
+    label: "930 源码（代码关联）"
+    files:
+      - id: source-correlation
+        path: v930-source/source-correlation.jpeg
+        original_name: "代码关联_源码.jpeg"
+        scenes: [source, sass]
 
   # Official Asc 内存拓扑 chrome export (448×423, AIC + one AIV × 2). Append-only copy of the
   # runtime panel asset — do not overwrite; bump a new batch if the Figma export changes again.

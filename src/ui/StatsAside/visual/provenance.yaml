@@ -8,4 +8,4 @@ crops:
   aside-hints-title-row.png:
     source: v930-sim/performance-hints
     region: "Report-shell title row: 报告统计 + 性能分析 link left of close × (annotated 触发按钮)"
-    box: { x: 737, y: 34, w: 286, h: 127 }
+    box: { x: 5528, y: 255, w: 2145, h: 953 }

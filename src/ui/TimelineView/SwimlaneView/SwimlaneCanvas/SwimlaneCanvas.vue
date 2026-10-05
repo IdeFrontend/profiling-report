@@ -2992,9 +2992,20 @@ function onWheel(e: WheelEvent): void {
   const y = e.clientY - rect.top;
   lastPointerClientX = e.clientX;
   lastPointerClientY = e.clientY;
+  // Only a wheel that originates on the canvas itself has a hover to re-resolve on
+  // scroll settle. Gutter / overview / card-strip wheels are forwarded here by
+  // SwimlaneView (`handleWheel`), so their `e.target` is the strip/gutter element, not
+  // the canvas — skip recording those or `recalcPointerHover` re-emits a phantom cursor
+  // (negative time over the gutter; a stale non-negative time over the strips, which
+  // also contradicts the strips' `clearCursor`).
   if (!props.measureMode) {
-    lastHoverLocalX = x;
-    lastHoverLocalY = y;
+    if (e.target === target) {
+      lastHoverLocalX = x;
+      lastHoverLocalY = y;
+    } else {
+      lastHoverLocalX = null;
+      lastHoverLocalY = null;
+    }
   }
   // PyPTO order: horizontal-dominant trackpad pan first (even with ctrlKey), then
   // ctrl/meta zoom (pinch + Ctrl+wheel), else vertical lane scroll.
@@ -3013,7 +3024,10 @@ function onWheel(e: WheelEvent): void {
     return;
   }
   if (e.ctrlKey || e.metaKey) {
-    const mag = magnetizeLocal(x, y);
+    // A forwarded Ctrl+wheel from the gutter sits left of the canvas (x < 0); clamp the
+    // anchor pointer into the track so it zooms around the nearest view edge, not a
+    // negative time. A magnetized edge near that edge still keeps its true time.
+    const mag = magnetizeLocal(Math.min(rect.width, Math.max(0, x)), y);
     const anchor = stuckMeasureEdgeTime() ?? mag.time;
     const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
     emit('zoom', factor, anchor);
