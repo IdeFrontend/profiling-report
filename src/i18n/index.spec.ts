@@ -22,8 +22,8 @@ describe('i18n', () => {
     expect(t('focusMeasureRange', 'zh-CN')).toBe('聚焦度量范围');
     expect(t('userGuide', 'zh-CN')).toBe('用户指南');
     expect(t('userGuide', 'en')).toBe('User guide');
-    expect(t('exportHtml', 'zh-CN')).toBe('导出 HTML');
-    expect(t('exportHtml', 'en')).toBe('Export HTML');
+    expect(t('exportHtml', 'zh-CN')).toBe('下载 HTML 报告');
+    expect(t('exportHtml', 'en')).toBe('Download HTML Report');
     expect(t('exportHtmlPreparing', 'en')).toBe('Preparing report…');
     expect(t('exportHtmlCancel', 'zh-CN')).toBe('取消');
   });
