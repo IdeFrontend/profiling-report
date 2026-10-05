@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { t, archMetricModeLabel, type MessageKey } from '../../i18n';
 import type {
   BandwidthCardModel,
+  MemoryHeatmapUnitId,
   MemoryTopologyModel,
   PipeOccupancyItem,
   PipeOccupancySide,
@@ -53,7 +54,8 @@ const emit = defineEmits<{
   'open-hardware-details': [];
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-pipe-details': [];
-  'open-topology-fullscreen': [model: MemoryTopologyModel];
+  /** §11.2.3.2: `unit` is the heat unit clicked on the diagram, so 全屏 opens on it. */
+  'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId];
   'open-cannbot': [scope: CannbotScope];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
   'open-performance-hints': [];
@@ -616,6 +618,28 @@ function openTopologyFullscreen() {
   if (m) emit('open-topology-fullscreen', m);
 }
 
+/**
+ * §11.2.3.2: clicking a heat unit on the stacked diagram opens the 全屏 overlay on that unit —
+ * the unit is that view's selection, so the aside keeps no selection state of its own.
+ */
+function openMemoryUnit(unit: MemoryHeatmapUnitId) {
+  const m = topologyModel.value;
+  if (m) emit('open-topology-fullscreen', m, unit);
+}
+
+/**
+ * §11.2.3.2 unit hover/click only when the report carries a heat surface (PR-MEMTOP-021). The
+ * capability is the gate the specs name, so a host that passes `capabilities` without
+ * `memoryHeatmap` gets no clickable units — otherwise a click would open a 全屏 overlay with no
+ * heat column, the same rule ProfilingReport applies to the overlay itself. Standalone mounts
+ * (no `capabilities` prop) fall back to the carrier.
+ */
+const hasMemoryHeatmap = computed(
+  () =>
+    (props.capabilities?.includes('memoryHeatmap') ?? true) &&
+    (props.report?.memoryHeatmap?.units.length ?? 0) > 0,
+);
+
 function backToReport() {
   asideSurface.value = 'report';
 }
@@ -1111,9 +1135,11 @@ const detailTestId = computed(() => {
             v-if="showTopology"
             :model="topologyModel"
             :locale="locale"
+            :selectable-units="hasMemoryHeatmap"
             show-fullscreen
             @open-details="openMemoryDetails"
             @open-fullscreen="openTopologyFullscreen"
+            @open-memory-unit="openMemoryUnit"
           />
         </div>
       </div>

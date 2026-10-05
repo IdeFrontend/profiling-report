@@ -139,16 +139,26 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Question:** Confirm the parameter-name → chrome slot map for emulate `ArchDiagramMetrics.csv` → **Architecture Diagram** (biprof §11.2.3.1; interim plated stand-in chrome). Are `hbm_to_l2_syn_gbs` / `l2_to_hbm_syn_gbs` / `aic_*` / `aiv*_` names authoritative? Dual AIV0/AIV1 plates: use both values or average? Which `*_gbs` / `l2_cached_ratio` are normative for Sept 30?
 
-**Context:** Sept 30 (M4) lights Architecture Diagram from ArchDiagramMetrics — **not** Memory Utilization Heatmap / `MemoryRWAccesses`. Data capability stays **`archDiagram`** (not compute `memoryDiagram`); interim UI reuses the plated Asc chrome (**448×423**, AIC + AIV × 2) titled **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** ([DATA-48a](../decisions/interim/DATA.md), [memory-topology](../../views/memory-topology.md)). Slot-map names below stay open for Product. **Evidence (not a resolution):** gelu `source_assembly_report.html` Architecture Diagram SVG element ids on the Bandwidth-per-operator tab match the interim `*_gbs` / `l2_cached_ratio` names in DATA-48a / `ARCH_EDGE_MAP` (plus a larger inventory of unplated SIMT/cache/L0C→OUT edges). Dedicated biprof chrome / richer model: [DATA-49](DATA.md).
+**Context:** Sept 30 (M4) lights Architecture Diagram from ArchDiagramMetrics — **not** the Memory Utilization Heatmap / `MemoryRWAccesses`. Data capability stays **`archDiagram`** (not compute `memoryDiagram`); interim UI reuses the plated Asc chrome (**448×423**, AIC + AIV × 2) titled **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** ([DATA-48a](../decisions/interim/DATA.md), [memory-topology](../../views/memory-topology.md)). Slot-map names below stay open for Product. **Evidence (not a resolution):** gelu `source_assembly_report.html` Architecture Diagram SVG element ids on the Bandwidth-per-operator tab match the interim `*_gbs` / `l2_cached_ratio` names in DATA-48a / `ARCH_EDGE_MAP` (plus a larger inventory of unplated SIMT/cache/L0C→OUT edges). A dedicated biprof chrome / richer `ArchDiagramModel` is **not built** — the projection onto the plated stand-in stays until Product ships one, so that ask rides this slot-map question rather than a separate id.
 
 **Specs when answered:** [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [memory-topology](../../views/memory-topology.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
 
-### DATA-49 — Emulate Architecture Diagram model / chrome vs heatmap
+### DATA-50 — `MemoryRWAccesses.MemoryType` → memory unit
 
-**Status:** `open`
+**Status:** `open` + `interim` — [DATA-50a](../decisions/interim/DATA.md#data-50a).
 
-**Question:** After Sept 30, keep the lossy `MemoryTopologyModel` projection of ArchDiagramMetrics onto Asc plated chrome, or introduce a dedicated `ArchDiagramModel` + biprof Architecture Diagram SVG for unit ratios / per-AIV / SIMT / counts? Confirm Memory Utilization Heatmap (`MemoryRWAccesses`) remains a separate deferred surface (capability `memoryHeatmap`), not folded into Architecture Diagram.
+**Question:** Which memory unit does each `MemoryRWAccesses.csv` row belong to? The column carries a bare integer (`1` on every gelu row) with no published vocabulary, so rows cannot be attributed to `L1` / `L2` / `L0A` / `L0B` / `L0C` and those five heat tabs stay blank while only `UbRwAccesses.csv` paints a grid.
 
-**Context:** Product locked Sept 30 to Architecture Diagram only. Current mapper covers a GB/s subset of ~120 params ([FORMATS_COMPARISON](../../formats/FORMATS_COMPARISON.md)). Heatmap is biprof §11.2.3.2.
+**Context:** biprof §11.2.3.2 Memory Utilization Heatmap. `MemoryUtilizationStates.csv` (`CoreId`, `Tick`, `UtilizedBytes`, `MemoryType`) is the other candidate source but is **not packed** (0 rows). Neither file publishes a block size, and no packed table carries a unit capacity — so the grid geometry is an interim guess too, and on the committed gelu pack that guess paints **416 / 416** blocks `已分配有数据` (a solid grid whose second legend state never appears) because the observed address span stands in for the unit's capacity. Evidence: [DATA-50a](../decisions/interim/DATA.md#data-50a).
 
-**Specs when answered:** [memory-topology](../../views/memory-topology.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md)
+**Specs when answered:** [memory-topology](../../views/memory-topology.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [view-models](../../../specs/core/view-models.spec.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
+
+### DATA-51 — Per-unit cache capacity (`Total` / `Used` / `Free`)
+
+**Status:** `open` + `interim` — [DATA-51a](../decisions/interim/DATA.md#data-51a).
+
+**Question:** Which field supplies a memory unit's capacity tooltip — `Total` / `Used` / `Free`? The frame shows `AIC L1 / Total: 64KB / Used: 20KB / Free: 0KB`, but `ArchDiagramMetrics` carries no cache-size parameter and no packed table has one, so the capacity line stays **hidden**.
+
+**Context:** biprof §11.2.3.2 heat panel tooltip. `Free: 0KB` next to a non-zero `Used` in the frame also implies an allocation model (blocks reserved, not bytes touched) that nothing in the pack describes.
+
+**Specs when answered:** [memory-topology](../../views/memory-topology.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [view-models](../../../specs/core/view-models.spec.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)

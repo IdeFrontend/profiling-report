@@ -7,6 +7,7 @@ import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
+import { HEATMAP_BLOCK_COUNT } from '../../adapters/emulateMemoryHeatmap';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
@@ -90,6 +91,18 @@ function archDiagramReport() {
         blockIds: [],
       },
     ],
+  };
+}
+
+/** §11.2.3.2 — the topology carrier plus the heat carrier (`UbRwAccesses` → `ub`). */
+function heatmapReport() {
+  const blocks = Array.from({ length: HEATMAP_BLOCK_COUNT }, (_, index) => ({
+    index,
+    state: index < 3 ? ('withData' as const) : ('withoutData' as const),
+  }));
+  return {
+    ...topologyReport(),
+    memoryHeatmap: { units: [{ id: 'ub' as const, blocks, usedInstructionCount: 12 }] },
   };
 }
 
@@ -1634,6 +1647,105 @@ describe('ProfilingReport scaffold', () => {
       reportModel: markRaw({ ...topologyReport(), summary: { taskDurationUs: 99 } }),
     });
     expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-024: the heat panel is the 全屏 overlay’s right column, capability-gated', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs-heat',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(heatmapReport()),
+        capabilities: ['memoryHeatmap'],
+      },
+    });
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    const body = overlay.get('.pr-topo-fs__body');
+    expect(body.classes()).toContain('pr-topo-fs__body--split');
+    const diagram = body.get('.pr-topo-fs__diagram');
+    const heat = body.get('[data-testid="memory-heatmap-panel"]');
+    expect(diagram.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
+    // Right column, and it is the heat carrier — not the topology one.
+    expect(heat.classes()).toContain('pr-topo-fs__heat');
+    expect(heat.find('[data-testid="heat-tab-ub"]').exists()).toBe(true);
+    expect(heat.find('[data-testid="memory-topology-panel"]').exists()).toBe(false);
+
+    // Without the capability the overlay is the diagram alone: no panel, no reserved column.
+    const plain = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs-plain',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(heatmapReport()),
+      },
+    });
+    await plain.get('[data-testid="topology-fullscreen"]').trigger('click');
+    const plainOverlay = plain.get('[data-testid="topology-fullscreen-overlay"]');
+    expect(plainOverlay.find('[data-testid="memory-heatmap-panel"]').exists()).toBe(false);
+    expect(plainOverlay.get('.pr-topo-fs__body').classes()).not.toContain(
+      'pr-topo-fs__body--split',
+    );
+    wrapper.unmount();
+    plain.unmount();
+  });
+
+  it('PR-ROOT-025: one selection — 全屏 defaults, tabs and diagram both move it', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs-select',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(heatmapReport()),
+        capabilities: ['memoryHeatmap'],
+      },
+    });
+    // 默认选中一个 memory: the model's first unit, mirrored on the diagram.
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    let overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    expect(overlay.get('[data-testid="heat-tab-ub"]').attributes('aria-selected')).toBe('true');
+    expect(overlay.get('[data-testid="memory-unit-ub"]').classes()).toContain('pr-topo__unit--on');
+
+    // A panel tab moves the diagram's highlight too, and blanks a unit with no source.
+    await overlay.get('[data-testid="heat-tab-l2"]').trigger('click');
+    overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    expect(overlay.get('[data-testid="memory-unit-l2"]').classes()).toContain('pr-topo__unit--on');
+    expect(overlay.get('[data-testid="memory-unit-ub"]').classes()).not.toContain(
+      'pr-topo__unit--on',
+    );
+    expect(overlay.find('[data-testid="heat-empty"]').exists()).toBe(true);
+
+    // Back to the default for the next assertion, then close and re-enter per session.
+    await overlay.get('[data-testid="heat-tab-ub"]').trigger('click');
+    await wrapper.get('[data-testid="topology-fullscreen-back"]').trigger('click');
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(false);
+
+    // 点击一个 memory 进来则直接对应显示相应的内容 — from the *stacked* diagram.
+    await wrapper.findAll('[data-testid="memory-unit-l1"]')[0].trigger('click');
+    overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    expect(overlay.get('[data-testid="heat-tab-l1"]').attributes('aria-selected')).toBe('true');
+    expect(overlay.get('[data-testid="memory-unit-l1"]').classes()).toContain('pr-topo__unit--on');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-026: the heat column leaves the overlay’s diagram geometry alone', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'topo-fs-geom',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw({ ...archDiagramReport(), memoryHeatmap: heatmapReport().memoryHeatmap }),
+        capabilities: ['archDiagram', 'memoryHeatmap'],
+      },
+    });
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    const diagram = overlay.get('.pr-topo-fs__diagram');
+    // The Metric switcher stays over the diagram, never over the heat column.
+    expect(diagram.find('[data-testid="topology-fullscreen-metric-switcher"]').exists()).toBe(true);
+    // Zoom bar and fit frame are still the diagram's own.
+    expect(diagram.find('[data-testid="topology-zoom-in"]').exists()).toBe(true);
+    expect(diagram.find('.pr-topo__frame').exists()).toBe(true);
+    expect(overlay.get('[data-testid="memory-heatmap-panel"]').find('.pr-topo__frame').exists()).toBe(
+      false,
+    );
     wrapper.unmount();
   });
 

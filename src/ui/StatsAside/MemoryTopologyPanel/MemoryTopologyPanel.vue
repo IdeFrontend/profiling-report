@@ -6,7 +6,7 @@ import {
   type TopologyPlateNodeId,
   type TopologySlotEdgeId,
 } from '../../../adapters/memoryTopology';
-import type { MemoryTopologyModel } from '../../../domain/types';
+import type { MemoryHeatmapUnitId, MemoryTopologyModel } from '../../../domain/types';
 
 /** Base value type size, cap-height matched to the export's own values (see Visual).
  *  Mirrors the `.pr-topo__edge` font-size; the fit rule below only ever shrinks from it. */
@@ -119,6 +119,29 @@ export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, numbe
 };
 
 /**
+ * Clickable memory units (§11.2.3.2): the chrome box of each of the six units that own a heat
+ * tab, in chrome units, keyed by the domain union so a unit with no box fails typecheck.
+ * These are **hit targets**, read back off the asset's own unit containers (`getBBox` of the
+ * `容器` groups of `memory-topology.svg`) — never the value plates of `SLOTS`, which sit in the
+ * corridors between boxes and would put the click on a neighbour.
+ */
+export const MEMORY_UNIT_BOXES: Record<
+  MemoryHeatmapUnitId,
+  readonly [number, number, number, number]
+> = {
+  /** L2 Cache pillar (the `node-l2` anchor box). */
+  l2: [94, 16, 40, 391],
+  /** AIC L1 — the row stack's leftmost box. */
+  l1: [196, 54, 22, 89],
+  /** AIV × 2 UB — the buffer box between the L2 corridor and SIMT. */
+  ub: [248, 293, 68, 83],
+  l0a: [261.354, 54, 22, 10.75],
+  l0b: [261.354, 78.75, 22, 10.75],
+  /** AIC L0C. */
+  l0c: [393, 54, 22, 69],
+};
+
+/**
  * Type size for a value that is `natural` units wide in slot `slot`.
  * The export's slots were sized for its own 27.6-unit placeholders; the system sans runs
  * wider per cap height, and real values are longer (`{n}.{nn} GB/s`, KB volumes), so a value
@@ -226,6 +249,14 @@ const props = withDefaults(
      * the report.
      */
     wheelGestures?: boolean;
+    /**
+     * §11.2.3.2 (PR-MEMTOP-021): make the six heat units hover-highlight and click. Hosts turn it
+     * on only when the report carries the `memoryHeatmap` capability, so a diagram with no heat
+     * surface keeps its plain cursor and emits nothing.
+     */
+    selectableUnits?: boolean;
+    /** §11.2.3.2: unit the heat panel is showing — painted as the selected highlight (PR-MEMTOP-022). */
+    selectedUnit?: MemoryHeatmapUnitId | null;
   }>(),
   // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
   // back), but the linter needs the key present to see the optional prop as intentional.
@@ -234,13 +265,26 @@ const props = withDefaults(
     showFullscreen: false,
     locale: undefined,
     wheelGestures: false,
+    selectableUnits: false,
+    selectedUnit: null,
   },
 );
 
 const emit = defineEmits<{
   'open-details': [];
   'open-fullscreen': [];
+  /** §11.2.3.2: a heat unit was clicked; the host opens/retargets the heat panel (PR-MEMTOP-021). */
+  'open-memory-unit': [unit: MemoryHeatmapUnitId];
 }>();
+
+/** The six clickable unit boxes, in tab order, as `[id, x, y, w, h]`. */
+const unitBoxes = Object.entries(MEMORY_UNIT_BOXES).map(([id, [x, y, width, height]]) => ({
+  id: id as MemoryHeatmapUnitId,
+  x,
+  y,
+  width,
+  height,
+}));
 
 const show = computed(() => hasDrawableTopology(props.model));
 
@@ -401,6 +445,25 @@ const zoomAnimating = ref(false);
 const dragging = ref(false);
 let dragFrom = { x: 0, y: 0, left: 0, top: 0 };
 
+/** §11.2.3.2 unit press (PR-MEMTOP-021/023): the unit box a primary press landed on, kept so
+ *  `endPan` can tell a click from a drag. Past the fit the press captures the pointer
+ *  (PR-MEMTOP-017), which retargets `pointerup` — and so the browser's `click` — to the viewport,
+ *  where the box's own handler never runs. */
+let unitPress: { id: MemoryHeatmapUnitId; x: number; y: number } | null = null;
+/** Latched once the press travels past the slop, so a drag that returns to its origin is still a pan. */
+let unitPressMoved = false;
+/** A primary press that moves less than this on a unit box is that unit's selection, not a pan. */
+const UNIT_CLICK_SLOP = 4;
+
+/** The §11.2.3.2 hit box under a pointer event, when the six are selectable (PR-MEMTOP-021). */
+function unitUnder(e: PointerEvent): { id: MemoryHeatmapUnitId; x: number; y: number } | null {
+  if (!props.selectableUnits) return null;
+  const hit = (e.target as Element | null)?.closest?.('[data-testid^="memory-unit-"]');
+  const id = hit?.getAttribute('data-testid')?.slice('memory-unit-'.length);
+  if (id == null || !(id in MEMORY_UNIT_BOXES)) return null;
+  return { id: id as MemoryHeatmapUnitId, x: e.clientX, y: e.clientY };
+}
+
 /** A press that lands on the platform's own scrollbar must not start a pan: the thumb's press is
  *  reported on the box too, and driving `scrollLeft` from `clientX` alongside it would fight it.
  *  A **classic** bar sits in the band between the client box and the border box, so the check is
@@ -424,6 +487,10 @@ function pressedScrollbar(el: HTMLElement, e: PointerEvent): boolean {
 
 function onPanStart(e: PointerEvent) {
   const el = viewport.value;
+  // Recorded before the early returns below: the press is the selection's, whether or not there is
+  // anywhere to pan (at the fit nothing is captured and the box's own `click` emits it).
+  unitPress = unitUnder(e);
+  unitPressMoved = false;
   // A finger reports `button === 0` too, and capturing it would delay the platform's takeover.
   if (e.pointerType === 'touch' || !el || !pannable.value || e.button !== 0 || pressedScrollbar(el, e))
     return;
@@ -443,6 +510,13 @@ function onPanMove(e: PointerEvent) {
     endPan();
     return;
   }
+  // Latch the travel, not just the release point: a press that dragged away and came back is a pan
+  // (PR-MEMTOP-023), so the selection cannot be decided from the final position alone.
+  if (unitPress && !unitPressMoved) {
+    unitPressMoved =
+      Math.abs(e.clientX - unitPress.x) > UNIT_CLICK_SLOP ||
+      Math.abs(e.clientY - unitPress.y) > UNIT_CLICK_SLOP;
+  }
   el.scrollLeft = dragFrom.left - (e.clientX - dragFrom.x);
   el.scrollTop = dragFrom.top - (e.clientY - dragFrom.y);
   // A drag during a ladder step owns the offset (PR-MEMTOP-019): the placement stands down while
@@ -452,8 +526,20 @@ function onPanMove(e: PointerEvent) {
   if (zoomAnimating.value) stepAnchor = centerFraction(el);
 }
 
-function endPan() {
+function endPan(e?: PointerEvent) {
+  const wasDragging = dragging.value;
   dragging.value = false;
+  const press = unitPress;
+  const moved = unitPressMoved;
+  unitPress = null;
+  unitPressMoved = false;
+  // §11.2.3.2 (PR-MEMTOP-023): only a captured press needs this — its `click` lands on the
+  // viewport, not the box — and only a press that barely moved is a selection rather than a pan.
+  // `pointercancel` is not a selection either.
+  if (!wasDragging || !press || moved || e?.type !== 'pointerup') return;
+  if (Math.abs(e.clientX - press.x) > UNIT_CLICK_SLOP) return;
+  if (Math.abs(e.clientY - press.y) > UNIT_CLICK_SLOP) return;
+  emit('open-memory-unit', press.id);
 }
 
 /** Back to the scroll origin, so a diagram that was panned while zoomed in returns to its
@@ -728,6 +814,25 @@ onBeforeUnmount(stopZoomAnim);
           />
 
           <template v-if="!chromeFailed">
+            <!-- §11.2.3.2 clickable units (PR-MEMTOP-021 / PR-MEMTOP-022): transparent hit boxes
+                 over the chrome's own unit containers. Hover tints; the unit the heat panel is
+                 showing keeps the selected tint, so diagram and tab strip read as one selection.
+                 Drawn before the values so the box tint never covers a `GB/s` plate. -->
+            <template v-if="selectableUnits">
+              <rect
+                v-for="u in unitBoxes"
+                :key="`unit-hit-${u.id}`"
+                class="pr-topo__unit"
+                :class="{ 'pr-topo__unit--on': u.id === selectedUnit }"
+                :x="u.x"
+                :y="u.y"
+                :width="u.width"
+                :height="u.height"
+                :data-testid="`memory-unit-${u.id}`"
+                @click="emit('open-memory-unit', u.id)"
+              />
+            </template>
+
             <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
             <rect
               data-testid="node-l2"
@@ -1084,6 +1189,24 @@ onBeforeUnmount(stopZoomAnim);
 /* Transparent anchor — the chrome supplies the pillar's fill. */
 .pr-topo__l2 {
   fill: none;
+}
+
+/* §11.2.3.2 unit hit boxes (PR-MEMTOP-021). Transparent at rest so the chrome is unchanged; the
+ * box only appears under the pointer or on the unit the heat panel is showing. The legend's own
+ * blues keep the two surfaces one colour story (docs/ui/COLOR_TOKENS.md § Heatmap). */
+.pr-topo__unit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.pr-topo__unit:hover {
+  fill: rgb(61 100 173 / 35%);
+}
+
+.pr-topo__unit--on {
+  fill: rgb(61 100 173 / 45%);
+  stroke: #afc6fe;
+  stroke-width: 0.8;
 }
 
 /* The export's values measure 27.6 units wide and 4.25 units tall (cap height). Sizing follows

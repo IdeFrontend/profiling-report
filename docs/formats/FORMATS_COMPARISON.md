@@ -32,7 +32,7 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 | **Op / block identity** | Details base info | `OpBasicInfo.csv` (+ `Summary.jsonl`) | `KernelInfo` (not summary chrome; [DATA-47](../context/decisions/DATA.md)) | Light names/args |
 | **Pipe utilization aggregates** | Details compute workload % | `PipeUtilization.csv` (`aic_*` / `aiv_*`) | `PipesUtilization` / hist — **not** remapped to hardware CSV ([DATA-45](../context/decisions/interim/DATA.md#data-45)) | Event spans and/or `tilefwk_prof_pmu.csv` |
 | **Arithmetic / roofline** | Compute + Roofline | `ArithmeticUtilization.csv` + Memory | ArchDiagramMetrics + Functions + VectorUtilizations + SourceInstructions (ELF often required) | Side panels if metrics fed in |
-| **Memory paths** | Heatmap HBM/L2/L1/L0/UB | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | Per-access `MemoryRWAccesses` (heatmap); ArchDiagram bandwidth metrics | Not core swimlane |
+| **Memory paths** | Heatmap HBM/L2/L1/L0/UB | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | Per-access `UbRwAccesses` (shipped UB heat grid; `MemoryRWAccesses` `MemoryType` unattributable — [DATA-50](../context/questions/DATA.md)); ArchDiagram bandwidth metrics | Not core swimlane |
 | **L2 cache** | Cache view | `L2Cache.csv` | Via analysis / heatmap paths as available | Optional counters |
 | **Source ↔ instruction** | First-class Source heatmap | Not in sample hardware embeds | Source Assembly / AsmMetrics when ELF packed (Phase 2) | Not swimlane core |
 | **Deps / sync** | SET_FLAG / WAIT_FLAG | If in trace args ([DATA-36](../context/questions/DATA.md)) | `PipeDependency` / critical path when analyzers run | Flow events / topo / deps.json |

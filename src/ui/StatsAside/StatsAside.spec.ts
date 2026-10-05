@@ -1867,6 +1867,46 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="stats-memory"]').exists()).toBe(false);
   });
 
+  it('PR-STATS-041: the six heat units are clickable only with the memoryHeatmap capability', async () => {
+    const archCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,l2_cached_ratio,50',
+      '2,hbm_to_l2_syn_gbs,1.5',
+      '3,hbm_to_l2_syn_cnt,8',
+      '4,hbm_to_l2_syn_ratio,0.25',
+    ].join('\n');
+    const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
+    const blocks = Array.from({ length: 4 }, (_, index) => ({
+      index,
+      state: index < 2 ? ('withData' as const) : ('withoutData' as const),
+    }));
+    const heatmapReport = report({
+      profile: 'emulate',
+      memoryTopology: topologyFromArchDiagramMetrics(archCsv)!,
+      csvTexts: { 'ArchDiagramMetrics.csv': archCsv },
+      memoryHeatmap: { units: [{ id: 'ub', blocks, usedInstructionCount: 7 }] },
+    });
+
+    // Capability + carrier: the units are targets, and a click re-emits 全屏 with that unit.
+    const gated = mount(StatsAside, {
+      props: { report: heatmapReport, capabilities: ['archDiagram', 'memoryHeatmap'] },
+    });
+    await gated.get('[data-testid="memory-unit-ub"]').trigger('click');
+    expect(gated.emitted('open-topology-fullscreen')).toHaveLength(1);
+    expect(gated.emitted('open-topology-fullscreen')![0][1]).toBe('ub');
+
+    // A host that passes `capabilities` without it keeps the plain diagram: no targets at all.
+    const ungated = mount(StatsAside, {
+      props: { report: heatmapReport, capabilities: ['archDiagram'] },
+    });
+    expect(ungated.find('[data-testid="memory-unit-ub"]').exists()).toBe(false);
+    expect(ungated.emitted('open-topology-fullscreen')).toBeUndefined();
+
+    // A standalone mount (no `capabilities` prop) falls back to the carrier.
+    const standalone = mount(StatsAside, { props: { report: heatmapReport } });
+    expect(standalone.find('[data-testid="memory-unit-ub"]').exists()).toBe(true);
+  });
+
   it('PR-STATS-037: archDiagram Metric select sits above the diagram and rebuilds labels', async () => {
     const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
     const archCsv = [
