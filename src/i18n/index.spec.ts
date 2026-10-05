@@ -24,6 +24,8 @@ describe('i18n', () => {
     expect(t('userGuide', 'en')).toBe('User guide');
     expect(t('exportHtml', 'zh-CN')).toBe('导出 HTML');
     expect(t('exportHtml', 'en')).toBe('Export HTML');
+    expect(t('exportHtmlPreparing', 'en')).toBe('Preparing report…');
+    expect(t('exportHtmlCancel', 'zh-CN')).toBe('取消');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {

@@ -1940,15 +1940,22 @@ describe('ProfilingReport scaffold', () => {
 <!-- __NPU_REP_EMBED_START__ -->
 <script>window.__NPU_REP_B64__='%%NPU_REP_B64%%';window.__NPU_REP_NAME__='%%NPU_REP_NAME%%';</script>
 <!-- __NPU_REP_EMBED_END__ --></body></html>`;
+    let resolveFetch: (value: { ok: boolean; text: () => Promise<string> }) => void = () => undefined;
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ ok: true, text: async () => template }) as Response),
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          }),
+      ),
     );
     vi.stubGlobal('URL', {
       createObjectURL: () => 'blob:export',
       revokeObjectURL: () => undefined,
     });
     const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
       props: {
         source: loadNpuRepBuffer(),
         reportMeta: { name: 'op.npu-rep', id: 'op', path: 'op', collectedAt: 't' },
@@ -1964,10 +1971,45 @@ describe('ProfilingReport scaffold', () => {
     });
     await wrapper.find('[data-testid="export-html"]').trigger('click');
     await flushPromises();
+    expect(wrapper.find('[data-testid="html-export-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="html-export-progress"]').exists()).toBe(true);
+    resolveFetch({ ok: true, text: async () => template });
+    await flushPromises();
     expect(click).toHaveBeenCalled();
     expect(wrapper.emitted('export-html')?.[0]).toEqual([{ fileName: 'op.html' }]);
+    expect(wrapper.find('[data-testid="html-export-dialog"]').exists()).toBe(false);
     wrapper.unmount();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it('PR-ROOT-024: export dialog Cancel aborts before download', async () => {
+    const { flushPromises } = await import('@vue/test-utils');
+    const { loadNpuRepBuffer } = await import('../../../tests/helpers/fixtures');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            const err = new Error('Aborted');
+            err.name = 'AbortError';
+            reject(err);
+          });
+        });
+      }),
+    );
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { source: loadNpuRepBuffer() },
+    });
+    await wrapper.find('[data-testid="export-html"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="html-export-dialog"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="html-export-cancel"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="html-export-dialog"]').exists()).toBe(false);
+    expect(wrapper.emitted('export-html')).toBeUndefined();
+    wrapper.unmount();
+    vi.unstubAllGlobals();
   });
 });
