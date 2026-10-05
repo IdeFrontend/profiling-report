@@ -232,6 +232,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-10-05** — HTML export template URL is `/npu-rep-html-template.txt` with `__HTML_EXPORT_*` placeholders so Vite `%ENV%` replacement cannot strip the embed slot (`PR-ROOT-024` / `PR-E2E-017`).
 - **2026-10-05** — Toolbar HTML export from original `source` bytes (`PR-ROOT-024`): preparing dialog with Cancel; hidden when `allowHtmlExport` is false or there is no source.
 - **2026-09-25** — The hints pane is handed the shared `dockHeight` and its own top-edge expander, so the browser hints dock expands / collapses like the detail docks (`PR-ROOT-022`).
 - **2026-09-25** — environment routing for the 性能分析 trigger (`environments.ts` behavior map) and the hints pane reuses the standard event-detail dock (dedicated `pr-dock--hints` chrome removed) (`PR-ROOT-021`).

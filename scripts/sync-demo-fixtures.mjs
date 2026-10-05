@@ -26,6 +26,6 @@ for (const [from, name] of copies) {
 
 const shellTemplate = join(root, 'dist/report-shell/template.html')
 if (existsSync(shellTemplate)) {
-  copyFileSync(shellTemplate, join(root, 'playground/public/npu-rep-html-template.html'))
-  console.log('synced dist/report-shell/template.html -> playground/public/npu-rep-html-template.html')
+  copyFileSync(shellTemplate, join(root, 'playground/public/npu-rep-html-template.txt'))
+  console.log('synced dist/report-shell/template.html -> playground/public/npu-rep-html-template.txt')
 }

@@ -20,11 +20,11 @@ function fail(msg) {
 }
 
 function assertHtml(html, label) {
-  if (html.includes("window.__NPU_REP_B64__ = '%%NPU_REP_B64%%'")) {
-    fail(`${label}: embed slot still has %%NPU_REP_B64%%`);
+  if (html.includes("window.__NPU_REP_B64__ = '__HTML_EXPORT_B64__'")) {
+    fail(`${label}: embed slot still has __HTML_EXPORT_B64__`);
   }
-  if (html.includes("window.__NPU_REP_NAME__ = '%%NPU_REP_NAME%%'")) {
-    fail(`${label}: embed slot still has %%NPU_REP_NAME%%`);
+  if (html.includes("window.__NPU_REP_NAME__ = '__HTML_EXPORT_NAME__'")) {
+    fail(`${label}: embed slot still has __HTML_EXPORT_NAME__`);
   }
   if (!html.includes('window.__NPU_REP_B64__')) fail(`${label}: missing window.__NPU_REP_B64__ assignment`);
   if (!html.includes('id="app"')) fail(`${label}: missing #app mount root`);

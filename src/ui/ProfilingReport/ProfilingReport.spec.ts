@@ -1938,7 +1938,7 @@ describe('ProfilingReport scaffold', () => {
 
     const template = `<!doctype html><html><head><title>x</title></head><body>
 <!-- __NPU_REP_EMBED_START__ -->
-<script>window.__NPU_REP_B64__='%%NPU_REP_B64%%';window.__NPU_REP_NAME__='%%NPU_REP_NAME%%';</script>
+<script>window.__NPU_REP_B64__='__HTML_EXPORT_B64__';window.__NPU_REP_NAME__='__HTML_EXPORT_NAME__';</script>
 <!-- __NPU_REP_EMBED_END__ --></body></html>`;
     let resolveFetch: (value: { ok: boolean; text: () => Promise<string> }) => void = () => undefined;
     vi.stubGlobal(

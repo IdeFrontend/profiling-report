@@ -24,7 +24,7 @@ if (!existsSync(templatePath)) {
 }
 
 const template = readFileSync(templatePath, 'utf8');
-if (!template.includes('%%NPU_REP_B64%%') || !template.includes('<!-- __NPU_REP_EMBED_START__ -->')) {
+if (!template.includes('__HTML_EXPORT_B64__') || !template.includes('<!-- __NPU_REP_EMBED_START__ -->')) {
   fail('template missing embed placeholders — rebuild report-shell');
 }
 
@@ -81,18 +81,31 @@ function stitch(template, reportBytes, reportName) {
   const nameEncoded = encodeURIComponent(reportName);
   const embedStart = '<!-- __NPU_REP_EMBED_START__ -->';
   const embedEnd = '<!-- __NPU_REP_EMBED_END__ -->';
-  const start = template.indexOf(embedStart);
-  const end = template.indexOf(embedEnd);
-  if (start < 0 || end < 0 || end <= start) {
+  let start = -1;
+  let endExclusive = -1;
+  for (let from = 0; from < template.length; ) {
+    const s = template.indexOf(embedStart, from);
+    if (s < 0) break;
+    const after = template.slice(s + embedStart.length, s + embedStart.length + 64);
+    if (/^\\s*<script[\\s>]/.test(after)) {
+      const e = template.indexOf(embedEnd, s + embedStart.length);
+      if (e < 0) break;
+      start = s;
+      endExclusive = e + embedEnd.length;
+      break;
+    }
+    from = s + embedStart.length;
+  }
+  if (start < 0) {
     fail('embedded shell template is missing embed markers');
   }
-  let embed = template.slice(start, end + embedEnd.length);
-  if (!embed.includes('%%NPU_REP_B64%%')) {
-    fail('embedded shell template is missing %%NPU_REP_B64%% placeholder');
+  let embed = template.slice(start, endExclusive);
+  if (!embed.includes('__HTML_EXPORT_B64__')) {
+    fail('embedded shell template is missing __HTML_EXPORT_B64__ placeholder');
   }
-  embed = embed.split('%%NPU_REP_B64%%').join(b64);
-  embed = embed.split('%%NPU_REP_NAME%%').join(nameEncoded);
-  let html = template.slice(0, start) + embed + template.slice(end + embedEnd.length);
+  embed = embed.split('__HTML_EXPORT_B64__').join(b64);
+  embed = embed.split('__HTML_EXPORT_NAME__').join(nameEncoded);
+  let html = template.slice(0, start) + embed + template.slice(endExclusive);
   const title = reportName
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

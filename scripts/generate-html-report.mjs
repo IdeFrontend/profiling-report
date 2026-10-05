@@ -77,19 +77,32 @@ const nameEncoded = encodeURIComponent(reportName);
 let html = readFileSync(templatePath, 'utf8');
 const embedStart = '<!-- __NPU_REP_EMBED_START__ -->';
 const embedEnd = '<!-- __NPU_REP_EMBED_END__ -->';
-const start = html.indexOf(embedStart);
-const end = html.indexOf(embedEnd);
-if (start < 0 || end < 0 || end <= start) {
+let start = -1;
+let endExclusive = -1;
+for (let from = 0; from < html.length; ) {
+  const s = html.indexOf(embedStart, from);
+  if (s < 0) break;
+  const after = html.slice(s + embedStart.length, s + embedStart.length + 64);
+  if (/^\s*<script[\s>]/.test(after)) {
+    const e = html.indexOf(embedEnd, s + embedStart.length);
+    if (e < 0) break;
+    start = s;
+    endExclusive = e + embedEnd.length;
+    break;
+  }
+  from = s + embedStart.length;
+}
+if (start < 0) {
   fail('shell template is missing embed markers — rebuild with npm run build:report-shell');
 }
 
-let embed = html.slice(start, end + embedEnd.length);
-if (!embed.includes('%%NPU_REP_B64%%')) {
-  fail('shell template is missing %%NPU_REP_B64%% placeholder — rebuild with npm run build:report-shell');
+let embed = html.slice(start, endExclusive);
+if (!embed.includes('__HTML_EXPORT_B64__')) {
+  fail('shell template is missing __HTML_EXPORT_B64__ placeholder — rebuild with npm run build:report-shell');
 }
-embed = embed.split('%%NPU_REP_B64%%').join(b64);
-embed = embed.split('%%NPU_REP_NAME%%').join(nameEncoded);
-html = html.slice(0, start) + embed + html.slice(end + embedEnd.length);
+embed = embed.split('__HTML_EXPORT_B64__').join(b64);
+embed = embed.split('__HTML_EXPORT_NAME__').join(nameEncoded);
+html = html.slice(0, start) + embed + html.slice(endExclusive);
 
 // Title: use the human name (HTML-escaped)
 const title = reportName

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue';
 import { ProfilingReport } from '../src/index';
+import { HTML_EXPORT_B64_PLACEHOLDER } from '../src/export/stitchHtmlReport';
 
 declare global {
   interface Window {
@@ -38,8 +39,7 @@ function b64ToArrayBuffer(b64: string): ArrayBuffer {
 
 onMounted(() => {
   const b64 = window.__NPU_REP_B64__;
-  // Unfilled template keeps a %%…%% sentinel; generate replaces only inside the embed block.
-  if (!b64 || b64.startsWith('%%')) {
+  if (!b64 || b64 === HTML_EXPORT_B64_PLACEHOLDER) {
     error.value =
       'No report embedded. Run: npm run generate:html-report -- <file.npu-rep> -o out.html';
     return;

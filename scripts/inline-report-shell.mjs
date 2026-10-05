@@ -65,14 +65,14 @@ html = html.replace(
 );
 
 // Ensure embed placeholders survived the Vite HTML transform.
-if (!html.includes('%%NPU_REP_B64%%') || !html.includes('%%NPU_REP_NAME%%')) {
-  fail('embed placeholders %%NPU_REP_B64%% / %%NPU_REP_NAME%% missing from built HTML');
+if (!html.includes('__HTML_EXPORT_B64__') || !html.includes('__HTML_EXPORT_NAME__')) {
+  fail('embed placeholders __HTML_EXPORT_B64__ / __HTML_EXPORT_NAME__ missing from built HTML');
 }
 
 const outPath = join(distDir, 'template.html');
 writeFileSync(outPath, html, 'utf8');
 const playgroundDir = join(root, 'playground/public');
 mkdirSync(playgroundDir, { recursive: true });
-writeFileSync(join(playgroundDir, 'npu-rep-html-template.html'), html, 'utf8');
+writeFileSync(join(playgroundDir, 'npu-rep-html-template.txt'), html, 'utf8');
 console.log(`[inline-report-shell] wrote ${outPath} (${html.length} bytes)`);
-console.log(`[inline-report-shell] copied playground/public/npu-rep-html-template.html`);
+console.log(`[inline-report-shell] copied playground/public/npu-rep-html-template.txt`);
