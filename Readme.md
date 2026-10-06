@@ -47,7 +47,8 @@ Self-contained interactive HTML for local share-out and CI artifacts (not the MS
 npm run build:report-shell
 npm run generate:html-report -- path/to/report.npu-rep -o report.html --en
 # or: node scripts/generate-html-report.mjs path/to/report.npu-rep -o report.html --zh
-# or (after build:report-shell + npm link): npu-rep-html path/to/report.npu-rep -o report.html
+# or (after build:report-shell, then npm link): npu-rep-html path/to/report.npu-rep -o report.html
+# `npm run build` does not pack the CLI; the bin fails fast until build:report-shell.
 ```
 
 Open `report.html` in a browser (`file://` works). Rebuild the shell when viewer code changes; the generate step only embeds report bytes into the prebuilt template.
@@ -64,7 +65,7 @@ node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html --en
 node npu-rep-html.mjs path/to/report.npu-rep -o report.html
 ```
 
-The standalone script is build output under `dist/` (gitignored), **not committed and not published** (no npm / CDN / Releases).
+The standalone script is build output under `dist/` (gitignored), **not committed and not published** (no npm / CDN / Releases). `package.json` `bin` (`npu-rep-html`) is a stub that runs `dist/npu-rep-html.mjs` or exits telling you to run `npm run build:report-shell` — `npm link` still needs that step first (`npm run build` does not pack the CLI).
 
 ### Two-artifact handoff (external agents)
 

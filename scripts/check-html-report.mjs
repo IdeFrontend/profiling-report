@@ -7,6 +7,7 @@ import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { stitchHtmlReport } from './stitch-html-report.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -56,6 +57,23 @@ function runGenerate(script, out) {
     /* keep on failure paths only */
   }
 }
+
+const mini = `<!doctype html>
+<html lang="zh-CN"><head><title>profiling-report</title></head>
+<body>
+<!-- __NPU_REP_EMBED_START__ -->
+<script>
+  window.__NPU_REP_B64__ = '__HTML_EXPORT_B64__';
+  window.__NPU_REP_NAME__ = '__HTML_EXPORT_NAME__';
+  window.__NPU_REP_LOCALE__ = '__HTML_EXPORT_LOCALE__';
+</script>
+<!-- __NPU_REP_EMBED_END__ -->
+<p lang="zh-CN">keep</p>
+</body></html>`;
+const miniHtml = stitchHtmlReport(mini, new Uint8Array([1, 2, 3, 4]), 'op.npu-rep', 'en');
+if (!/<html[^>]*\blang="en"/.test(miniHtml)) fail('stitch-html-report: html lang not en');
+if (!miniHtml.includes('<p lang="zh-CN">keep</p>')) fail('stitch-html-report: rewrote inner lang=');
+if (miniHtml.includes('__HTML_EXPORT_LOCALE__')) fail('stitch-html-report: locale placeholder left');
 
 if (!existsSync(fixture)) fail(`missing fixture ${fixture}`);
 

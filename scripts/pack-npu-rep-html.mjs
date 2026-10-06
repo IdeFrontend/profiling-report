@@ -4,6 +4,8 @@
  *   dist/npu-rep-html.mjs
  *
  * Runtime needs only Node >= 20 (no node_modules, no sidecar template).
+ * Stitch body is copied from scripts/stitch-html-report.mjs so locale rewrite
+ * cannot drift from generate-html-report.mjs.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -12,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const templatePath = resolve(root, 'dist/report-shell/template.html');
+const stitchPath = resolve(here, 'stitch-html-report.mjs');
 const outPath = resolve(root, 'dist/npu-rep-html.mjs');
 
 function fail(msg) {
@@ -22,13 +25,19 @@ function fail(msg) {
 if (!existsSync(templatePath)) {
   fail(`missing ${templatePath} — run: npm run build:report-shell`);
 }
+if (!existsSync(stitchPath)) {
+  fail(`missing ${stitchPath}`);
+}
 
 const template = readFileSync(templatePath, 'utf8');
 if (!template.includes('__HTML_EXPORT_B64__') || !template.includes('__HTML_EXPORT_LOCALE__') || !template.includes('<!-- __NPU_REP_EMBED_START__ -->')) {
   fail('template missing embed placeholders — rebuild report-shell');
 }
 
-// Stitch + CLI body inlined so the shipped file has zero imports from this repo.
+const stitchSrc = readFileSync(stitchPath, 'utf8')
+  .replace(/^\/\*\*[\s\S]*?\*\/\s*/, '')
+  .replace(/^export /gm, '');
+
 const body = `#!/usr/bin/env node
 /**
  * Zero-dep npu-rep → self-contained interactive HTML.
@@ -40,6 +49,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 
 const TEMPLATE = ${JSON.stringify(template)};
+
+${stitchSrc}
 
 function usage() {
   console.error(\`Usage: npu-rep-html.mjs <input.npu-rep> -o <output.html> [--name <title>] [--en|--zh]\`);
@@ -82,55 +93,6 @@ function parseArgs(argv) {
   return { input, output, name, locale };
 }
 
-function stitch(template, reportBytes, reportName, locale) {
-  const b64 = reportBytes.toString('base64');
-  const nameEncoded = encodeURIComponent(reportName);
-  const loc = locale ?? 'zh-CN';
-  const embedStart = '<!-- __NPU_REP_EMBED_START__ -->';
-  const embedEnd = '<!-- __NPU_REP_EMBED_END__ -->';
-  let start = -1;
-  let endExclusive = -1;
-  for (let from = 0; from < template.length; ) {
-    const s = template.indexOf(embedStart, from);
-    if (s < 0) break;
-    const after = template.slice(s + embedStart.length, s + embedStart.length + 64);
-    if (/^\\s*<script[\\s>]/.test(after)) {
-      const e = template.indexOf(embedEnd, s + embedStart.length);
-      if (e < 0) break;
-      start = s;
-      endExclusive = e + embedEnd.length;
-      break;
-    }
-    from = s + embedStart.length;
-  }
-  if (start < 0) {
-    fail('embedded shell template is missing embed markers');
-  }
-  let embed = template.slice(start, endExclusive);
-  if (!embed.includes('__HTML_EXPORT_B64__')) {
-    fail('embedded shell template is missing __HTML_EXPORT_B64__ placeholder');
-  }
-  if (!embed.includes('__HTML_EXPORT_LOCALE__')) {
-    fail('embedded shell template is missing __HTML_EXPORT_LOCALE__ placeholder');
-  }
-  embed = embed.split('__HTML_EXPORT_B64__').join(b64);
-  embed = embed.split('__HTML_EXPORT_NAME__').join(nameEncoded);
-  embed = embed.split('__HTML_EXPORT_LOCALE__').join(loc);
-  let html = template.slice(0, start) + embed + template.slice(endExclusive);
-  const title = reportName
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-  html = html.replace(new RegExp('<title>[^<]*</title>', 'i'), \`<title>\${title}</title>\`);
-  if (/\\blang=/.test(html)) {
-    html = html.replace(/\\blang=(["'])[^"']*\\1/, \`lang="\${loc}"\`);
-  } else {
-    html = html.replace(/<html\\b/i, \`<html lang="\${loc}"\`);
-  }
-  return html;
-}
-
 const { input, output, name, locale } = parseArgs(process.argv);
 if (!input || !output) {
   usage();
@@ -144,7 +106,12 @@ const bytes = readFileSync(inputPath);
 if (bytes.length === 0) fail(\`input is empty: \${inputPath}\`);
 
 const reportName = name ?? basename(inputPath);
-const html = stitch(TEMPLATE, bytes, reportName, locale);
+let html;
+try {
+  html = stitchHtmlReport(TEMPLATE, bytes, reportName, locale);
+} catch (cause) {
+  fail(cause instanceof Error ? cause.message : String(cause));
+}
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, html, 'utf8');
 console.log(\`[npu-rep-html] wrote \${outputPath} (\${html.length} bytes, source \${bytes.length} bytes)\`);

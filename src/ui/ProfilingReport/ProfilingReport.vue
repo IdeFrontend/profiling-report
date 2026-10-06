@@ -1483,7 +1483,8 @@ function downloadHtmlFile(html: string, fileName: string) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Defer revoke so the download can start (same-turn revoke flakes in some browsers).
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 async function onExportHtml() {

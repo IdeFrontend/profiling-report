@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stitchHtmlReport } from './stitch-html-report.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -75,57 +76,13 @@ if (!existsSync(inputPath)) fail(`input not found: ${inputPath}`);
 const bytes = readFileSync(inputPath);
 if (bytes.length === 0) fail(`input is empty: ${inputPath}`);
 
-const b64 = bytes.toString('base64');
 const reportName = name ?? basename(inputPath);
-// Encode so quotes / non-ASCII in the name cannot break the JS string literal.
-const loc = locale ?? 'zh-CN';
-const nameEncoded = encodeURIComponent(reportName);
-
-let html = readFileSync(templatePath, 'utf8');
-const embedStart = '<!-- __NPU_REP_EMBED_START__ -->';
-const embedEnd = '<!-- __NPU_REP_EMBED_END__ -->';
-let start = -1;
-let endExclusive = -1;
-for (let from = 0; from < html.length; ) {
-  const s = html.indexOf(embedStart, from);
-  if (s < 0) break;
-  const after = html.slice(s + embedStart.length, s + embedStart.length + 64);
-  if (/^\s*<script[\s>]/.test(after)) {
-    const e = html.indexOf(embedEnd, s + embedStart.length);
-    if (e < 0) break;
-    start = s;
-    endExclusive = e + embedEnd.length;
-    break;
-  }
-  from = s + embedStart.length;
-}
-if (start < 0) {
-  fail('shell template is missing embed markers — rebuild with npm run build:report-shell');
-}
-
-let embed = html.slice(start, endExclusive);
-if (!embed.includes('__HTML_EXPORT_B64__')) {
-  fail('shell template is missing __HTML_EXPORT_B64__ placeholder — rebuild with npm run build:report-shell');
-}
-if (!embed.includes('__HTML_EXPORT_LOCALE__')) {
-  fail('shell template is missing __HTML_EXPORT_LOCALE__ placeholder — rebuild with npm run build:report-shell');
-}
-embed = embed.split('__HTML_EXPORT_B64__').join(b64);
-embed = embed.split('__HTML_EXPORT_NAME__').join(nameEncoded);
-embed = embed.split('__HTML_EXPORT_LOCALE__').join(loc);
-html = html.slice(0, start) + embed + html.slice(endExclusive);
-
-// Title: use the human name (HTML-escaped)
-const title = reportName
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;');
-html = html.replace(/<title>[^<]*<\/title>/i, `<title>${title}</title>`);
-if (/\blang=/.test(html)) {
-  html = html.replace(/\blang=(["'])[^"']*\1/, `lang="${loc}"`);
-} else {
-  html = html.replace(/<html\b/i, `<html lang="${loc}"`);
+const template = readFileSync(templatePath, 'utf8');
+let html;
+try {
+  html = stitchHtmlReport(template, bytes, reportName, locale);
+} catch (cause) {
+  fail(`${cause instanceof Error ? cause.message : String(cause)} — rebuild with npm run build:report-shell`);
 }
 
 mkdirSync(dirname(outputPath), { recursive: true });
