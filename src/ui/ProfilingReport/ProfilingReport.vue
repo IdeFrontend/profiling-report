@@ -122,8 +122,9 @@ const props = withDefaults(defineProps<{
   /** End-user guide URL for the toolbar help button. */
   userGuideUrl?: string;
   /**
-   * Toolbar Export (single-file HTML). Default on when `source` bytes exist.
-   * Report-shell (already that bundle) sets this false.
+   * Toolbar Download HTML Report. Opt-in: hosts that serve
+   * `htmlExportTemplateUrl` (playground / CI). Default false — MSTT does not
+   * ship the shell template. Report-shell (already that bundle) stays false.
    */
   allowHtmlExport?: boolean;
   /** URL of the inlined report-shell template served by the host. */
@@ -144,7 +145,7 @@ const props = withDefaults(defineProps<{
   dependencyMode: 'all',
   dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
   userGuideUrl: DEFAULT_USER_GUIDE_URL,
-  allowHtmlExport: true,
+  allowHtmlExport: false,
   htmlExportTemplateUrl: DEFAULT_HTML_EXPORT_TEMPLATE_URL,
   preferRenderer: undefined,
   capabilities: undefined,
@@ -963,6 +964,7 @@ onBeforeUnmount(() => {
   clearMultiSelectDimTimer();
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onRootKeydown);
+  closeHtmlExportDialog();
 });
 
 /** Escape drops the measure overlay and the marquee multi-selection alike. */
@@ -1452,7 +1454,7 @@ function onZoomToFit() {
 }
 
 const htmlExportAvailable = computed(
-  () => props.allowHtmlExport !== false && props.source != null,
+  () => props.allowHtmlExport === true && props.source != null,
 );
 
 const htmlExportOpen = ref(false);
@@ -1514,7 +1516,6 @@ async function onExportHtml() {
     if (ac.signal.aborted || gen !== htmlExportGeneration) return;
     const message = cause instanceof Error ? cause.message : String(cause);
     htmlExportError.value = message;
-    emit('error', { message, cause });
   } finally {
     if (gen === htmlExportGeneration) {
       htmlExportBusy.value = false;

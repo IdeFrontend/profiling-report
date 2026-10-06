@@ -43,7 +43,8 @@ const props = withDefaults(
     userGuideUrl?: string;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
-     * leave this false. Playground / MSTT pass true when original report bytes exist.
+     * leave this false. Playground (and other hosts that serve the shell template)
+     * pass true when original report bytes exist.
      */
     htmlExportAvailable?: boolean;
   }>(),

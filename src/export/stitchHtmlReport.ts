@@ -76,8 +76,8 @@ export function stitchHtmlReport(
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   html = html.replace(/<title>[^<]*<\/title>/i, `<title>${title}</title>`);
-  if (/\blang=/.test(html)) {
-    html = html.replace(/\blang=(["'])[^"']*\1/, `lang="${loc}"`);
+  if (/<html\b[^>]*\blang=/i.test(html)) {
+    html = html.replace(/<html\b([^>]*)\blang=(["'])[^"']*\2/i, `<html$1lang="${loc}"`);
   } else {
     html = html.replace(/<html\b/i, `<html lang="${loc}"`);
   }

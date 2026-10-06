@@ -117,7 +117,7 @@ Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, he
 
 **User guide.** A **help** glyph button sits **last** in the action-icon list (after aside and HTML export when present). It emits `open-user-guide` with `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md`) and also calls `window.open` in a new tab. The page is Chinese-only; English hosts override `userGuideUrl`. Distinct from the connection-level tip inside 显示控制, which also uses the `help` glyph.
 
-**HTML export.** When `htmlExportAvailable` is true, a **Download HTML Report** control sits immediately before user-guide (`data-testid="export-html"`). Click emits `export-html`. Default is hidden. ProfilingReport turns it on when `allowHtmlExport` (default true) and `source` bytes exist; report-shell sets `allowHtmlExport` false because it already *is* the bundle.
+**HTML export.** When `htmlExportAvailable` is true, a **Download HTML Report** control sits immediately before user-guide (`data-testid="export-html"`). Click emits `export-html`. Default is hidden. ProfilingReport turns it on when `allowHtmlExport` is true (default false) and `source` bytes exist; report-shell leaves it false because it already *is* the bundle.
 
 ### Display control popover
 
@@ -228,6 +228,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-10-06** — ProfilingReport `allowHtmlExport` defaults false; toolbar control still opt-in via `htmlExportAvailable`.
 - **2026-10-05** — Toolbar HTML action label is **Download HTML Report** / **下载 HTML 报告** (`exportHtml`).
 - **2026-10-05** — HTML export action (`PR-TOOLBAR-027`) immediately before user-guide when the host opts in.
 - **2026-10-01** — User-guide default URL is `https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md` (`PR-TOOLBAR-024`). The demo does not ship a `/guide/` page. English hosts override `userGuideUrl`.

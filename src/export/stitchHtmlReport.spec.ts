@@ -50,6 +50,16 @@ ${TEMPLATE}`;
     expect(html).not.toContain('__HTML_EXPORT_LOCALE__');
   });
 
+  it('does not rewrite lang= attributes outside the html tag', () => {
+    const withInner = TEMPLATE.replace(
+      '</body>',
+      '<p lang="zh-CN">keep</p></body>',
+    );
+    const html = stitchHtmlReport(withInner, new Uint8Array([1]), 'op.npu-rep', 'en');
+    expect(html).toMatch(/<html[^>]*\blang="en"/);
+    expect(html).toContain('<p lang="zh-CN">keep</p>');
+  });
+
   it('throws when the embed block is missing', () => {
     expect(() => stitchHtmlReport('<html></html>', new Uint8Array([1]), 'x')).toThrow(
       /embed markers/,

@@ -1930,13 +1930,19 @@ describe('ProfilingReport scaffold', () => {
     noSource.unmount();
 
     const { loadNpuRepBuffer } = await import('../../../tests/helpers/fixtures');
+    const deniedDefault = mount(ProfilingReport, {
+      props: { source: loadNpuRepBuffer() },
+    });
+    expect(deniedDefault.find('[data-testid="export-html"]').exists()).toBe(false);
+    deniedDefault.unmount();
+
     const denied = mount(ProfilingReport, {
       props: { source: loadNpuRepBuffer(), allowHtmlExport: false },
     });
     expect(denied.find('[data-testid="export-html"]').exists()).toBe(false);
     denied.unmount();
 
-    const template = `<!doctype html><html><head><title>x</title></head><body>
+    const template = `<!doctype html><html lang="zh-CN"><head><title>x</title></head><body>
 <!-- __NPU_REP_EMBED_START__ -->
 <script>window.__NPU_REP_B64__='__HTML_EXPORT_B64__';window.__NPU_REP_NAME__='__HTML_EXPORT_NAME__';window.__NPU_REP_LOCALE__='__HTML_EXPORT_LOCALE__';</script>
 <!-- __NPU_REP_EMBED_END__ --></body></html>`;
@@ -1950,6 +1956,17 @@ describe('ProfilingReport scaffold', () => {
           }),
       ),
     );
+    let stitched = '';
+    const OrigBlob = globalThis.Blob;
+    vi.stubGlobal(
+      'Blob',
+      class extends OrigBlob {
+        constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+          super(parts, options);
+          stitched = String(parts?.[0] ?? '');
+        }
+      },
+    );
     vi.stubGlobal('URL', {
       createObjectURL: () => 'blob:export',
       revokeObjectURL: () => undefined,
@@ -1958,6 +1975,7 @@ describe('ProfilingReport scaffold', () => {
       attachTo: document.body,
       props: {
         source: loadNpuRepBuffer(),
+        allowHtmlExport: true,
         locale: 'en',
         reportMeta: { name: 'op.npu-rep', id: 'op', path: 'op', collectedAt: 't' },
       },
@@ -1978,6 +1996,9 @@ describe('ProfilingReport scaffold', () => {
     await flushPromises();
     expect(click).toHaveBeenCalled();
     expect(wrapper.emitted('export-html')?.[0]).toEqual([{ fileName: 'op.html' }]);
+    expect(wrapper.emitted('error')).toBeUndefined();
+    expect(stitched).toContain("window.__NPU_REP_LOCALE__='en'");
+    expect(stitched).toMatch(/<html[^>]*\blang="en"/);
     expect(wrapper.find('[data-testid="html-export-dialog"]').exists()).toBe(false);
     wrapper.unmount();
     vi.unstubAllGlobals();
@@ -2001,7 +2022,7 @@ describe('ProfilingReport scaffold', () => {
     );
     const wrapper = mount(ProfilingReport, {
       attachTo: document.body,
-      props: { source: loadNpuRepBuffer() },
+      props: { source: loadNpuRepBuffer(), allowHtmlExport: true },
     });
     await wrapper.find('[data-testid="export-html"]').trigger('click');
     await flushPromises();
@@ -2009,6 +2030,28 @@ describe('ProfilingReport scaffold', () => {
     await wrapper.find('[data-testid="html-export-cancel"]').trigger('click');
     await flushPromises();
     expect(wrapper.find('[data-testid="html-export-dialog"]').exists()).toBe(false);
+    expect(wrapper.emitted('export-html')).toBeUndefined();
+    expect(wrapper.emitted('error')).toBeUndefined();
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+  });
+
+  it('PR-ROOT-024: export fetch failure stays in the dialog and does not emit error', async () => {
+    const { flushPromises } = await import('@vue/test-utils');
+    const { loadNpuRepBuffer } = await import('../../../tests/helpers/fixtures');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 404, text: async () => '' })),
+    );
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: { source: loadNpuRepBuffer(), allowHtmlExport: true },
+    });
+    await wrapper.find('[data-testid="export-html"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="html-export-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="html-export-error"]').text()).toMatch(/404/);
+    expect(wrapper.emitted('error')).toBeUndefined();
     expect(wrapper.emitted('export-html')).toBeUndefined();
     wrapper.unmount();
     vi.unstubAllGlobals();

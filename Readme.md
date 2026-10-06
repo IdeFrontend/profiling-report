@@ -52,7 +52,7 @@ npm run generate:html-report -- path/to/report.npu-rep -o report.html --en
 
 Open `report.html` in a browser (`file://` works). Rebuild the shell when viewer code changes; the generate step only embeds report bytes into the prebuilt template.
 
-The playground / library toolbar **Download HTML Report** action writes the current viewer **locale** into the file. Requires `npm run build:report-shell` once so `/npu-rep-html-template.txt` is copied into the playground public dir.
+The playground toolbar **Download HTML Report** action writes the current viewer **locale** into the file (`allowHtmlExport` is opt-in; playground passes true). Requires `npm run build:report-shell` once so `/npu-rep-html-template.txt` is copied into the playground public dir.
 
 ### Zero-dep distribution
 
