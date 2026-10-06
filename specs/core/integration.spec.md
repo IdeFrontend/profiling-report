@@ -50,7 +50,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-014**: Opening the dock grows its layout height with the enter animation — the timeline must not shrink by a full dock height while the dock's layout height is still near zero (no black hole under a translateY-hidden full-height slot).
 1. **PR-E2E-015**: Wheel-scrolling a tall stress fixture keeps the lane gutter `scrollTop` and each card-header screen Y locked to the same scroll offset — the scroll offset is baked into the card-strip `top` (no container `translateY`) — with no chase between gutter / cards / canvas.
 1. **PR-E2E-016**: During a live marquee, holding the pointer in the bottom edge band increases gutter `scrollTop` while the marquee rect stays visible (edge autoscroll).
-1. **PR-E2E-017**: Playground toolbar Export fetches `/npu-rep-html-template.txt` (placeholders `__HTML_EXPORT_B64__` / `__HTML_EXPORT_NAME__` intact), stitches the loaded report using the HTML `<script>` embed slot (not marker strings inside the inlined viewer bundle), and downloads `{name}.html` whose embed slot is filled.
+1. **PR-E2E-017**: Playground toolbar Export with `?locale=en` fetches `/npu-rep-html-template.txt`, stitches the loaded report using the HTML `<script>` embed slot (not marker strings inside the inlined viewer bundle), and downloads `{name}.html` whose embed slot is filled with `en`.
 
 ## Dependencies
 

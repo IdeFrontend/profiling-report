@@ -45,21 +45,21 @@ Self-contained interactive HTML for local share-out and CI artifacts (not the MS
 
 ```bash
 npm run build:report-shell
-npm run generate:html-report -- path/to/report.npu-rep -o report.html
-# or: node scripts/generate-html-report.mjs path/to/report.npu-rep -o report.html
+npm run generate:html-report -- path/to/report.npu-rep -o report.html --en
+# or: node scripts/generate-html-report.mjs path/to/report.npu-rep -o report.html --zh
 # or (after build:report-shell + npm link): npu-rep-html path/to/report.npu-rep -o report.html
 ```
 
 Open `report.html` in a browser (`file://` works). Rebuild the shell when viewer code changes; the generate step only embeds report bytes into the prebuilt template.
 
-The playground / library toolbar shows **Download HTML Report** when the report was loaded from original bytes (not the bundled HTML shell). That downloads the same single-file HTML. Requires `npm run build:report-shell` once so `/npu-rep-html-template.txt` is copied into the playground public dir.
+The playground / library toolbar **Download HTML Report** action writes the current viewer **locale** into the file. Requires `npm run build:report-shell` once so `/npu-rep-html-template.txt` is copied into the playground public dir.
 
 ### Zero-dep distribution
 
 `npm run build:report-shell` also writes **`dist/npu-rep-html.mjs`** (~1 MB): generator + embedded viewer shell in one ESM file. Consumers need only **Node ≥ 20** (no `npm install`, no sidecar template):
 
 ```bash
-node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html
+node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html --en
 # or anywhere after copying the file:
 node npu-rep-html.mjs path/to/report.npu-rep -o report.html
 ```

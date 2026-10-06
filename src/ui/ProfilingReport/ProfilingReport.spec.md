@@ -198,7 +198,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 21. **PR-ROOT-021** — the title-row 性能分析 trigger follows the host environment: `vscode` emits `open-performance-hints-in-problems` and does not open the dock; `browser`/omitted opens the hints pane in the standard detail dock.
 22. **PR-ROOT-022** — The hints pane shares the root's `dockHeight`: after the `browser` trigger opens it, the pane's expander reads `aria-expanded="false"` and drives the shell's `--pr-dock-h` between 407px (expanded) and 247px (collapsed) on successive clicks.
 23. **PR-ROOT-023** — The title-row 性能分析 trigger opens the [hints pane](../PerformanceHintsDock/PerformanceHintsDock.spec.md) over any existing dock content: it clears a live marquee and the committed single/multi selection (`select(null)` on the host) before opening, and `hintsDockShown` gates the pane so it cannot outlive that content (the pane reuses the standard event-detail dock — no dedicated hints chrome). A later non-null timeline `onSelect` or marquee multi commit clears `hintsDockOpen`, so closing DetailPanel / MultiSelectSummary does not resurrect the hints pane.
-24. **PR-ROOT-024** — With `source` and default `allowHtmlExport`, the toolbar shows `export-html`. Click opens `html-export-dialog` (preparing + Cancel). Cancel / Escape abort fetch and close. Success stitches `htmlExportTemplateUrl`, downloads `{name}.html`, emits `export-html`, and closes the dialog. Fetch/stitch failure keeps the dialog with the error and Close. `allowHtmlExport: false` hides the control (bundled report-shell). Host-managed mode without `source` hides it.
+24. **PR-ROOT-024** — With `source` and default `allowHtmlExport`, the toolbar shows `export-html`. Click opens `html-export-dialog` (preparing + Cancel). Cancel / Escape abort fetch and close. Success stitches `htmlExportTemplateUrl` using the current **locale**, downloads `{name}.html`, emits `export-html`, and closes the dialog. Fetch/stitch failure keeps the dialog with the error and Close. `allowHtmlExport: false` hides the control (bundled report-shell). Host-managed mode without `source` hides it.
 
 ## Edge Cases
 
@@ -232,6 +232,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-10-06** — Download HTML stitches the live **locale** into the bundle (`PR-ROOT-024`).
 - **2026-10-05** — HTML export template URL is `/npu-rep-html-template.txt` with `__HTML_EXPORT_*` placeholders so Vite `%ENV%` replacement cannot strip the embed slot (`PR-ROOT-024` / `PR-E2E-017`).
 - **2026-10-05** — Toolbar HTML export from original `source` bytes (`PR-ROOT-024`): preparing dialog with Cancel; hidden when `allowHtmlExport` is false or there is no source.
 - **2026-09-25** — The hints pane is handed the shared `dockHeight` and its own top-edge expander, so the browser hints dock expands / collapses like the detail docks (`PR-ROOT-022`).

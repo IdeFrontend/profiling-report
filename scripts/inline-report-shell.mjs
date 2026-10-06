@@ -65,8 +65,8 @@ html = html.replace(
 );
 
 // Ensure embed placeholders survived the Vite HTML transform.
-if (!html.includes('__HTML_EXPORT_B64__') || !html.includes('__HTML_EXPORT_NAME__')) {
-  fail('embed placeholders __HTML_EXPORT_B64__ / __HTML_EXPORT_NAME__ missing from built HTML');
+if (!html.includes('__HTML_EXPORT_B64__') || !html.includes('__HTML_EXPORT_NAME__') || !html.includes('__HTML_EXPORT_LOCALE__')) {
+  fail('embed placeholders __HTML_EXPORT_B64__ / __HTML_EXPORT_NAME__ / __HTML_EXPORT_LOCALE__ missing from built HTML');
 }
 
 const outPath = join(distDir, 'template.html');

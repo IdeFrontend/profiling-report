@@ -26,17 +26,18 @@ If none exist: **stop and ask the user** where `npu-rep-html.mjs` is. Do **not**
 ## Generate
 
 ```bash
-node <script> <input.npu-rep> -o <output.html> [--name <title>]
+node <script> <input.npu-rep> -o <output.html> [--name <title>] [--en|--zh]
 ```
 
 - Default title: input basename when `--name` omitted
+- Default locale: Chinese (`zh-CN`) when `--en` / `--zh` omitted; `--en` English, `--zh` Chinese
 - Output is interactive HTML; open with a browser (`file://` works)
 - Not for MSTT packaging — MSTT embeds the Vue library; this is share/CI only
 
 ## Examples
 
 ```bash
-node npu-rep-html.mjs ./op.npu-rep -o ./op-report.html
+node npu-rep-html.mjs ./op.npu-rep -o ./op-report.html --en
 NPU_REP_HTML=~/bin/npu-rep-html.mjs node "$NPU_REP_HTML" ./op.npu-rep -o /tmp/op.html --name op
 ```
 

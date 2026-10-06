@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue';
 import { ProfilingReport } from '../src/index';
-import { HTML_EXPORT_B64_PLACEHOLDER } from '../src/export/stitchHtmlReport';
+import { HTML_EXPORT_B64_PLACEHOLDER, HTML_EXPORT_LOCALE_PLACEHOLDER, htmlExportLocale } from '../src/export/stitchHtmlReport';
 
 declare global {
   interface Window {
     __NPU_REP_B64__?: string;
     __NPU_REP_NAME__?: string;
+    __NPU_REP_LOCALE__?: string;
   }
 }
 
@@ -21,6 +22,12 @@ const reportName = computed(() => {
   } catch {
     return raw;
   }
+});
+
+const locale = computed(() => {
+  const raw = window.__NPU_REP_LOCALE__;
+  if (!raw || raw === HTML_EXPORT_LOCALE_PLACEHOLDER) return htmlExportLocale();
+  return htmlExportLocale(raw);
 });
 
 const reportMeta = computed(() => ({
@@ -38,6 +45,7 @@ function b64ToArrayBuffer(b64: string): ArrayBuffer {
 }
 
 onMounted(() => {
+  document.documentElement.lang = locale.value;
   const b64 = window.__NPU_REP_B64__;
   if (!b64 || b64 === HTML_EXPORT_B64_PLACEHOLDER) {
     error.value =
@@ -66,7 +74,7 @@ onMounted(() => {
       :title="reportName"
       :source="source"
       :report-meta="reportMeta"
-      locale="zh-CN"
+      :locale="locale"
       :allow-html-export="false"
     />
     <p

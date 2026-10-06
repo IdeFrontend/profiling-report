@@ -16,7 +16,7 @@ test('PR-E2E-017: playground Export downloads a stitched HTML report', async ({ 
   expect(template).toContain('<!-- __NPU_REP_EMBED_START__ -->');
   expect(template).toContain(HTML_EXPORT_B64_PLACEHOLDER);
 
-  await page.goto('/');
+  await page.goto('/?locale=en');
   await expect(page.getByTestId('playground-ready')).toBeVisible();
   const exportBtn = page.getByTestId('export-html');
   await expect(exportBtn).toBeVisible({ timeout: 30_000 });
@@ -37,4 +37,6 @@ test('PR-E2E-017: playground Export downloads a stitched HTML report', async ({ 
   expect(html).toContain('id="app"');
   expect(html).toMatch(/window\.__NPU_REP_B64__ = '[A-Za-z0-9+/]+=*'/);
   expect(html).not.toContain(`window.__NPU_REP_B64__ = '${HTML_EXPORT_B64_PLACEHOLDER}'`);
+  expect(html).toContain("window.__NPU_REP_LOCALE__ = 'en'");
+  expect(html).toMatch(/\blang="en"/);
 });

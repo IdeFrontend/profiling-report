@@ -1505,7 +1505,7 @@ async function onExportHtml() {
     }
     const template = await res.text();
     if (gen !== htmlExportGeneration) return;
-    const html = stitchHtmlReport(template, bytes, reportName);
+    const html = stitchHtmlReport(template, bytes, reportName, props.locale);
     if (gen !== htmlExportGeneration) return;
     downloadHtmlFile(html, fileName);
     emit('export-html', { fileName });

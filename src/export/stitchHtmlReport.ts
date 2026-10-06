@@ -4,6 +4,7 @@ export const HTML_EXPORT_EMBED_END = '<!-- __NPU_REP_EMBED_END__ -->';
 /** Must not use `%NAME%` — Vite HTML env replacement strips those tokens on `.html` fetches. */
 export const HTML_EXPORT_B64_PLACEHOLDER = '__HTML_EXPORT_B64__';
 export const HTML_EXPORT_NAME_PLACEHOLDER = '__HTML_EXPORT_NAME__';
+export const HTML_EXPORT_LOCALE_PLACEHOLDER = '__HTML_EXPORT_LOCALE__';
 
 /** Playground / host URL for the inlined report-shell template (copied at `build:report-shell`). */
 export const DEFAULT_HTML_EXPORT_TEMPLATE_URL = '/npu-rep-html-template.txt';
@@ -11,6 +12,15 @@ export const DEFAULT_HTML_EXPORT_TEMPLATE_URL = '/npu-rep-html-template.txt';
 export function htmlExportFileName(reportName: string): string {
   const base = reportName.replace(/\.(npu-rep|npu\.rep|rep|json)$/i, '');
   return `${base || 'report'}.html`;
+}
+
+/** Viewer locales. Unknown / omitted → zh-CN (same as `resolveLocale`). */
+export function htmlExportLocale(locale?: string): 'en' | 'zh-CN' {
+  if (!locale) return 'zh-CN';
+  const lower = locale.toLowerCase();
+  if (lower.startsWith('en')) return 'en';
+  if (lower.startsWith('zh')) return 'zh-CN';
+  return 'zh-CN';
 }
 
 /**
@@ -43,16 +53,22 @@ export function stitchHtmlReport(
   template: string,
   reportBytes: Uint8Array,
   reportName: string,
+  locale?: string,
 ): string {
   const b64 = uint8ToBase64(reportBytes);
   const nameEncoded = encodeURIComponent(reportName);
+  const loc = htmlExportLocale(locale);
   const { start, endExclusive } = findHtmlExportEmbed(template);
   let embed = template.slice(start, endExclusive);
   if (!embed.includes(HTML_EXPORT_B64_PLACEHOLDER)) {
     throw new Error('shell template is missing __HTML_EXPORT_B64__ placeholder');
   }
+  if (!embed.includes(HTML_EXPORT_LOCALE_PLACEHOLDER)) {
+    throw new Error('shell template is missing __HTML_EXPORT_LOCALE__ placeholder');
+  }
   embed = embed.split(HTML_EXPORT_B64_PLACEHOLDER).join(b64);
   embed = embed.split(HTML_EXPORT_NAME_PLACEHOLDER).join(nameEncoded);
+  embed = embed.split(HTML_EXPORT_LOCALE_PLACEHOLDER).join(loc);
   let html = template.slice(0, start) + embed + template.slice(endExclusive);
   const title = reportName
     .replace(/&/g, '&amp;')
@@ -60,6 +76,11 @@ export function stitchHtmlReport(
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   html = html.replace(/<title>[^<]*<\/title>/i, `<title>${title}</title>`);
+  if (/\blang=/.test(html)) {
+    html = html.replace(/\blang=(["'])[^"']*\1/, `lang="${loc}"`);
+  } else {
+    html = html.replace(/<html\b/i, `<html lang="${loc}"`);
+  }
   return html;
 }
 

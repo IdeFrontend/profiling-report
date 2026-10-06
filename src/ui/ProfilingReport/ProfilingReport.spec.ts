@@ -1938,7 +1938,7 @@ describe('ProfilingReport scaffold', () => {
 
     const template = `<!doctype html><html><head><title>x</title></head><body>
 <!-- __NPU_REP_EMBED_START__ -->
-<script>window.__NPU_REP_B64__='__HTML_EXPORT_B64__';window.__NPU_REP_NAME__='__HTML_EXPORT_NAME__';</script>
+<script>window.__NPU_REP_B64__='__HTML_EXPORT_B64__';window.__NPU_REP_NAME__='__HTML_EXPORT_NAME__';window.__NPU_REP_LOCALE__='__HTML_EXPORT_LOCALE__';</script>
 <!-- __NPU_REP_EMBED_END__ --></body></html>`;
     let resolveFetch: (value: { ok: boolean; text: () => Promise<string> }) => void = () => undefined;
     vi.stubGlobal(
@@ -1958,6 +1958,7 @@ describe('ProfilingReport scaffold', () => {
       attachTo: document.body,
       props: {
         source: loadNpuRepBuffer(),
+        locale: 'en',
         reportMeta: { name: 'op.npu-rep', id: 'op', path: 'op', collectedAt: 't' },
       },
     });
