@@ -2141,6 +2141,10 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 .pr-topo-fs__heat {
   flex: 0 0 320px;
   min-height: 0;
+  /* Same element as `.pr-heat`: keep the column height-bounded so the panel's body scrollport
+   * (PR-HEAT-011) can shrink, rather than growing the overlay and clipping under overflow:hidden. */
+  align-self: stretch;
+  overflow: hidden;
 }
 
 .pr-topo-fs__metric {

@@ -234,6 +234,11 @@ function onTabsKeydown(e: KeyboardEvent) {
   background: #262626;
   color: #fff;
   font-size: 12px;
+  /* The lattice is sized by its rows from the column width (PR-HEAT-003) and often taller than a
+   * laptop viewport. Clip here so the tab strip + legend stay put while the body scrolls
+   * (PR-HEAT-011) — the overlay host is also overflow:hidden, so without a scrollport the footer
+   * and the bottom of the grid were unreachable. */
+  overflow: hidden;
 }
 
 .pr-heat__tabs {
@@ -328,6 +333,10 @@ function onTabsKeydown(e: KeyboardEvent) {
   flex-direction: column;
   min-height: 0;
   gap: 0;
+  /* Vertical-only: the grid must not open a horizontal bar from the scrollbar gutter (same
+   * contract as the aside body, PR-STATS-029). Tabs and legend sit above this scrollport. */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* The frame repeats the selected unit's own name under the grid (`AIC L1`, its diagram words), then

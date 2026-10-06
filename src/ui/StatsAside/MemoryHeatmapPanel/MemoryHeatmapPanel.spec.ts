@@ -156,4 +156,22 @@ describe('MemoryHeatmapPanel', () => {
     expect(stops[0].attributes('data-testid')).toBe('heat-tab-l2');
     expect(unselected.findAll('[role="tab"][aria-selected="true"]')).toHaveLength(0);
   });
+
+  it('PR-HEAT-011: body scrolls vertically only (tabs and legend stay outside)', async () => {
+    // Same source contract as PR-STATS-029 — happy-dom does not apply scoped CSS to
+    // getComputedStyle, so the scrollport is locked in the stylesheet rather than measured.
+    const src = (await import('./MemoryHeatmapPanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-heat__body\s*\{[^}]*overflow-x:\s*hidden/s);
+    expect(src).toMatch(/\.pr-heat__body\s*\{[^}]*overflow-y:\s*auto/s);
+    expect(src).not.toMatch(/\.pr-heat__body\s*\{[^}]*overflow:\s*auto/s);
+    // Root clips so the tab strip cannot scroll away with the body.
+    expect(src).toMatch(/\.pr-heat\s*\{[^}]*overflow:\s*hidden/s);
+    // Tabs and legend are siblings of the body, not inside it.
+    const wrapper = mountPanel();
+    const root = wrapper.get('[data-testid="memory-heatmap-panel"]').element;
+    const body = wrapper.get('[data-testid="heat-body"]').element;
+    expect(root.contains(wrapper.get('[data-testid="heat-tabs"]').element)).toBe(true);
+    expect(body.contains(wrapper.get('[data-testid="heat-tabs"]').element)).toBe(false);
+    expect(body.contains(wrapper.get('.pr-heat__legend').element)).toBe(false);
+  });
 });
