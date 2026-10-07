@@ -198,13 +198,13 @@ WebGL2 interval backend with sudu-style analytical horizontal coverage AA combin
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`, and `environment` (`'vscode'` routes environment-dependent actions to the host, e.g. title-row 性能分析 → Problems; `'browser'`/omitted keeps them internal). Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside) | `open-performance-hints-in-problems` (title-row 性能分析 under `environment: 'vscode'`). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`, and `environment` (`'vscode'` routes environment-dependent actions to the host, e.g. title-row 性能分析 → Problems; `'browser'`/omitted keeps them internal). Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside) | `open-performance-hints-in-problems` (title-row 性能分析 under `environment: 'vscode'`) | `open-user-guide` | `export-html` (single-file HTML from original `source`; hidden unless `allowHtmlExport` is true — default false). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
 ### `ReportToolbar` (M / M2)
 
-Search, zoom slider, zoom-to-fit, toggle stats aside, shortcut-help popover, trailing user-guide help button (`open-user-guide` + `window.open`). **M2:** measure-mode (度量模式) caliper toggle.
+Search, zoom slider, zoom-to-fit, toggle stats aside, shortcut-help popover, HTML export (`export-html`; opt-in via `allowHtmlExport`, hidden in bundled report-shell), trailing user-guide help button (`open-user-guide` + `window.open`). **M2:** measure-mode (度量模式) caliper toggle.
 
 **Why:** Chrome must not sit inside the canvas hit-test path; matches FEATURE_MATRIX toolbar.
 

@@ -19,16 +19,23 @@
   "files": [
     "dist"
   ],
+  "bin": {
+    "npu-rep-html": "./scripts/npu-rep-html.mjs"
+  },
   "scripts": {
     "sync:demo-fixtures": "node scripts/sync-demo-fixtures.mjs",
     "build:sample": "python3 data/build_sample_rep.py && node -e \"const {createHash}=require('crypto');const {readFileSync,writeFileSync}=require('fs');const h=createHash('sha256').update(readFileSync('data/sample.lite.rep')).digest('hex');writeFileSync('data/sample.lite.rep.sha256',h+'\\n');console.log('[build:sample] sha256',h)\" && npm run sync:demo-fixtures",
-    "predev": "npm run sync:demo-fixtures",
+    "predev": "npm run sync:demo-fixtures && npm run ensure:html-export-template",
     "dev": "vite --config playground/vite.config.ts --host 127.0.0.1 --port 5173",
     "playground": "npm run dev",
     "build": "vue-tsc -p tsconfig.lib.json --noEmit && vite build",
-    "prebuild:demo": "npm run sync:demo-fixtures",
+    "prebuild:demo": "npm run sync:demo-fixtures && npm run ensure:html-export-template",
     "build:demo": "vite build --config playground/vite.config.ts",
     "preview:demo": "vite preview --config playground/vite.config.ts --host 127.0.0.1 --port 4173",
+    "build:report-shell": "vite build --config report-shell/vite.config.ts && node scripts/inline-report-shell.mjs && node scripts/pack-npu-rep-html.mjs",
+    "ensure:html-export-template": "node scripts/ensure-html-export-template.mjs",
+    "generate:html-report": "node scripts/generate-html-report.mjs",
+    "check:html-report": "node scripts/check-html-report.mjs",
     "typecheck": "vue-tsc -p tsconfig.lib.json --noEmit && vue-tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
@@ -43,7 +50,7 @@
     "check:sample": "node scripts/check-sample-rep.mjs",
     "render:question-visuals": "node scripts/render-question-visuals.mjs",
     "check:questions": "node scripts/check-questions.mjs",
-    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run check:questions && npm run check:sample && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold",
+    "ci": "npm run lint && npm run typecheck && npm run check:specs && npm run check:design && npm run check:questions && npm run check:sample && npm run test:scaffold && npm run test:feature && npm run test:e2e:scaffold && npm run check:html-report",
     "ci:tdd": "npm run ci && npm run test:e2e:feature"
   },
   "peerDependencies": {

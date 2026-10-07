@@ -26,6 +26,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Zoom slider / zoom to fit | M | |
 | Keyboard shortcut help | M3 | `keyboard` glyph button (first action); 快捷键说明 popover listing mouse / keyboard / combined bindings |
 | User guide | M | Rightmost `help` glyph; opens `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md`) in a new tab |
+| Download HTML report | optional | Self-contained file:// HTML for share-out / CI — **not** MSTT packaging. Toolbar control is opt-in (`allowHtmlExport`); CLI is `npu-rep-html` / `generate:html-report`. |
 | Toggle stats / report panel | M | |
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |

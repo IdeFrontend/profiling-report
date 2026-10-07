@@ -20,7 +20,7 @@ Mirror first-party Vue panels such as `StTestResultsPanel`:
 1. Add a webview panel entry under MSTT `web/src/views/panels/profiling-report/` (name TBD).
 2. Depend on the profiling-report package from the `web` workspace.
 3. Host class (`ProfilingReportPanel` or similar): `createOrShow`, `HtmlTransformer` / Vite multi-entry HTML, typed postMessage if the panel shell needs extension APIs.
-4. Pass report bytes (or path → extension reads file → posts buffer) into the Vue app; mount `<ProfilingReport :source="…" />`.
+4. Pass report bytes (or path → extension reads file → posts buffer) into the Vue app; mount `<ProfilingReport :source="…" />`. Do **not** pass `allowHtmlExport` (it defaults false). Offline HTML is engineer/CI share-out via `npu-rep-html`, not the MSTT webview packaging form. Hosts that want in-viewer download must serve `/npu-rep-html-template.txt` and pass `allowHtmlExport`.
 
 Relevant existing MSTT touchpoints (paths may drift; search symbols):
 

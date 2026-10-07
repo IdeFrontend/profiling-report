@@ -4,6 +4,8 @@ dist/
 playground/dist/
 playground/public/data/*
 !playground/public/data/.gitkeep
+playground/public/npu-rep-html-template.html
+playground/public/npu-rep-html-template.txt
 # Unpacked gelu leaf (use unpack_rep.py locally; commit only gelu.npu-rep)
 data/gelu/
 coverage/

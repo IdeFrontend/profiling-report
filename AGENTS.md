@@ -66,5 +66,6 @@ Do **not** load these into every turn. Use only when the user asks or the trigge
 |---|---|---|
 | **caveman** | "caveman mode", "talk like caveman", "use caveman", "less tokens", `/caveman`, or token-efficient replies | Self-contained in `.agents/skills/caveman/` |
 | **cavecrew** | "delegate to subagent", "use cavecrew", "spawn investigator/builder/reviewer", "save context" | Decision guide only. Subagent defs (`cavecrew-investigator` / `builder` / `reviewer`) are **not** in this repo — they need a full `JuliusBrussee/caveman` install. Without them, use vanilla Explore / edit / reviewer. |
+| **npu-rep-html** | HTML / offline report from `.npu-rep`, `npu-rep-html`, share/CI HTML artifact | [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md); needs hand-distributed `npu-rep-html.mjs` (see README). First-party — not in `skills-lock.json`. |
 
 Read the matching `SKILL.md` only for that turn/session.
