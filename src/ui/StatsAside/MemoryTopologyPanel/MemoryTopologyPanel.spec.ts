@@ -85,6 +85,68 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 423');
   });
 
+  it('PR-MEMTOP-021: the six §11.2.3.2 units are hit targets only when selectableUnits is on', async () => {
+    const off = mount(MemoryTopologyPanel, { props: { model } });
+    expect(off.find('[data-testid="memory-unit-ub"]').exists()).toBe(false);
+
+    const on = mount(MemoryTopologyPanel, { props: { model, selectableUnits: true } });
+    const ids = ['l2', 'l1', 'ub', 'l0a', 'l0b', 'l0c'] as const;
+    for (const id of ids) {
+      expect(on.find(`[data-testid="memory-unit-${id}"]`).exists()).toBe(true);
+    }
+    await on.get('[data-testid="memory-unit-ub"]').trigger('click');
+    expect(on.emitted('open-memory-unit')).toEqual([['ub']]);
+  });
+
+  it('PR-MEMTOP-021: the hit boxes are drawn before the values, so a tint cannot cover a plate', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model, selectableUnits: true } });
+    const firstValue = wrapper.get('.pr-topo__edge').element;
+    for (const box of wrapper.findAll('[data-testid^="memory-unit-"]')) {
+      // DOM order is a bitmask by spec.
+      expect(box.element.compareDocumentPosition(firstValue) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }
+  });
+
+  it('PR-MEMTOP-022: paints the selected unit, and only that one', async () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model, selectableUnits: true, selectedUnit: 'l0b' },
+    });
+    const on = wrapper.findAll('.pr-topo__unit--on');
+    expect(on).toHaveLength(1);
+    expect(on[0].attributes('data-testid')).toBe('memory-unit-l0b');
+    // Hover is CSS; the selected state is the only painted one.
+    expect(wrapper.get('[data-testid="memory-unit-ub"]').classes()).not.toContain(
+      'pr-topo__unit--on',
+    );
+
+    await wrapper.setProps({ selectedUnit: null });
+    expect(wrapper.findAll('.pr-topo__unit--on')).toHaveLength(0);
+
+    // Selected fill must beat `:hover` — otherwise hovering the active unit drops 45% → 35%.
+    const src = (await import('./MemoryTopologyPanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-topo__unit--on,\s*\n\s*\.pr-topo__unit--on:hover\s*\{/);
+    expect(src).toMatch(
+      /\.pr-topo__unit--on(?::hover)?[^}]*fill:\s*rgb\(61 100 173 \/ 45%\)/s,
+    );
+  });
+
+  it('PR-MEMTOP-023: a unit click selects — it does not navigate, toggle, or eat the context menu', async () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model, selectableUnits: true, selectedUnit: 'ub' },
+    });
+    // Re-clicking the selected unit emits the same id; the panel never toggles it off itself.
+    await wrapper.get('[data-testid="memory-unit-ub"]').trigger('click');
+    expect(wrapper.emitted('open-memory-unit')).toEqual([['ub']]);
+    expect(wrapper.get('[data-testid="memory-unit-ub"]').classes()).toContain('pr-topo__unit--on');
+    // It is a selection, not the 全屏 control.
+    expect(wrapper.emitted('open-fullscreen')).toBeUndefined();
+    // And the diagram's contextmenu path is unchanged inside a unit box.
+    await wrapper.get('[data-testid="memory-unit-l1"]').trigger('contextmenu');
+    expect(wrapper.emitted('open-details')).toHaveLength(1);
+  });
+
   it('PR-MEMTOP-001b: chrome has no baked sample GB/s glyphs (overlay-only values)', async () => {
     // The simplified export ships outlined sample values in amber (`rgb(249,183,102)`). Those must
     // be stripped in-repo — otherwise panel overlays double-print on top of them (gelu.npu-rep).
@@ -1009,6 +1071,56 @@ describe('MemoryTopologyPanel drag-to-pan (PR-MEMTOP-017)', () => {
     while (queued.length) queued.shift()!(performance.now() + 10_000);
     await nextTick();
     expect(scale()).toBe(1.5);
+  });
+
+  it('PR-MEMTOP-023: a captured press on a unit box still selects it, and a drag does not', async () => {
+    // Past the fit the press captures the pointer (PR-MEMTOP-017), which retargets `pointerup` —
+    // and so the browser's `click` — to the viewport, where the box's own handler never runs. The
+    // panel has to give the selection back out of `endPan`, or the six units are hover-only as soon
+    // as the diagram is zoomed.
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model, selectableUnits: true, selectedUnit: 'ub' },
+    });
+    const viewport = wrapper.get<HTMLElement>('[data-testid="topology-viewport"]');
+    const box = wrapper.get('[data-testid="memory-unit-l0a"]').element;
+    const el = viewport.element;
+    await wrapper.get('[data-testid="topology-zoom-in"]').trigger('click');
+
+    // A press and release on the same spot: the unit, not a pan.
+    press(box, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(box, 'pointerup', { button: 0, clientX: 301, clientY: 300 });
+    expect(wrapper.emitted('open-memory-unit')).toEqual([['l0a']]);
+
+    // A press that travels is a pan and stays one.
+    press(box, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(box, 'pointermove', { button: 0, buttons: 1, clientX: 260, clientY: 270 });
+    press(box, 'pointerup', { button: 0, clientX: 260, clientY: 270 });
+    expect(wrapper.emitted('open-memory-unit')).toHaveLength(1);
+    expect(el.scrollLeft).toBe(40);
+
+    // A press that drags away and comes *back* to its origin started a pan, so it stays one — the
+    // release point alone would read as a click.
+    press(box, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(box, 'pointermove', { button: 0, buttons: 1, clientX: 180, clientY: 180 });
+    press(box, 'pointermove', { button: 0, buttons: 1, clientX: 301, clientY: 300 });
+    press(box, 'pointerup', { button: 0, clientX: 301, clientY: 300 });
+    expect(wrapper.emitted('open-memory-unit')).toHaveLength(1);
+
+    // A press on the diagram's own background is never a unit selection.
+    press(el, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(el, 'pointerup', { button: 0, clientX: 300, clientY: 300 });
+    expect(wrapper.emitted('open-memory-unit')).toHaveLength(1);
+
+    // At the fit there is no capture, so the box's own `click` is the selection — not this path.
+    const fitted = mount(MemoryTopologyPanel, {
+      props: { model, selectableUnits: true, selectedUnit: 'ub' },
+    });
+    const fittedBox = fitted.get('[data-testid="memory-unit-l0a"]').element;
+    press(fittedBox, 'pointerdown', { button: 0, clientX: 300, clientY: 300 });
+    press(fittedBox, 'pointerup', { button: 0, clientX: 300, clientY: 300 });
+    expect(fitted.emitted('open-memory-unit')).toBeUndefined();
+    await fitted.get('[data-testid="memory-unit-l0a"]').trigger('click');
+    expect(fitted.emitted('open-memory-unit')).toEqual([['l0a']]);
   });
 
   it('PR-MEMTOP-017: a pointercancel ends the drag, as the platform sends one when it takes over', async () => {

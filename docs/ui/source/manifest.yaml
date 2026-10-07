@@ -87,7 +87,9 @@ batches:
         components: [SwimlaneCanvas, PipeOccupancyPanel, CsvFieldListPanel, MemoryTopologyPanel]
 
   # 仿真 11.2.3.2 refresh of the 内存负载分析 panel: the fullscreen/zoom bar (缩放 / 适应窗口 /
-  # 全屏) that supersedes the v930 header 全屏 icon. The 8K frame is 4× CSS pixels for a 1920×1080
+  # 全屏) that supersedes the v930 header 全屏 icon, the six clickable memory units on the diagram,
+  # and the §11.2.3.2 Memory Utilization Heatmap right panel of the fullscreen overlay (unit tabs,
+  # two-state legend, block grid). The 8K frame is 4× CSS pixels for a 1920×1080
   # layout: the strip measures 112 device px ≈ 28 px against the implementation's 30 px bar, and the
   # readout's 36 px ink is a 12 px face — the size the panel uses.
   v930-sim:
@@ -96,13 +98,13 @@ batches:
       - id: memory-topology-zoom
         path: v930-sim/memory-topology-zoom.jpeg
         original_name: "930版本-仿真_11.2.3.2_内存负载分析缩放+全屏.jpeg"
-        scenes: [memory-load, memory-topology, zoom, aside]
+        scenes: [memory-load, memory-topology, memory-heatmap, zoom, aside, unit-selection]
         components: [StatsAside, MemoryTopologyPanel]
       - id: memory-topology-fullscreen
         path: v930-sim/memory-topology-fullscreen.jpeg
         original_name: "930版本-仿真_11.2.3.2_内存负载分析全屏.jpeg"
-        scenes: [memory-load, memory-topology, fullscreen]
-        components: [MemoryTopologyPanel]
+        scenes: [memory-load, memory-topology, memory-heatmap, fullscreen, unit-selection]
+        components: [MemoryTopologyPanel, MemoryHeatmapPanel]
       # Same frame as the 2026-09 dump, now the 7680×4320 original (was a 1024×576
       # downscale). Resolution upgrade of one frame, not a design change — id and path stay.
       - id: performance-hints

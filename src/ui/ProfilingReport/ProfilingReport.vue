@@ -28,6 +28,7 @@ import {
   type AdaptedReport,
   type DependencyMode,
   type MeasureRange,
+  type MemoryHeatmapUnitId,
   type MemoryTopologyModel,
   type ReportCapability,
   type ReportOperator,
@@ -72,6 +73,7 @@ import ReportLayout from '../ReportLayout/ReportLayout.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import StatsAside from '../StatsAside/StatsAside.vue';
 import MemoryTopologyPanel from '../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.vue';
+import MemoryHeatmapPanel from '../StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.vue';
 import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneGutter/gutterTypes';
 import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
@@ -272,6 +274,11 @@ const hintsDockOpen = ref(false);
 const topologyFullscreen = ref(false);
 const fullscreenTopology = ref<MemoryTopologyModel | null>(null);
 const fullscreenBackRef = ref<HTMLButtonElement | null>(null);
+/**
+ * §11.2.3.2 heat panel selection — owned here because the diagram and the tab strip are two
+ * views of one selection (the diagram emits the unit, the tab strip reads it back).
+ */
+const selectedMemoryUnit = ref<MemoryHeatmapUnitId | null>(null);
 /** Shared with StatsAside (PR-ROOT-015): ArchDiagram Metric mode survives into topology 全屏. */
 const archMetricMode = ref<ArchDiagramMetricMode>(ARCH_DIAGRAM_DEFAULT_METRIC_MODE);
 const archMetricModes = ARCH_DIAGRAM_METRIC_MODES;
@@ -319,6 +326,27 @@ const caps = computed<ReportCapability[]>(() => {
   return internalCapabilities.value ?? [];
 });
 const isArchDiagram = computed(() => caps.value.includes('archDiagram'));
+
+/**
+ * §11.2.3.2 heat surface. Its own capability, so it mounts beside the topology independent of
+ * `archDiagram` / `memoryDiagram` (plan § Architecture): the panel needs both the capability and
+ * at least one unit the adapter could fill.
+ */
+const memoryHeatmap = computed(() => report.value?.memoryHeatmap ?? null);
+const hasMemoryHeatmap = computed(
+  () => caps.value.includes('memoryHeatmap') && (memoryHeatmap.value?.units.length ?? 0) > 0,
+);
+/** Heat mounts beside any topology overlay — including `archDiagram` (PR-ROOT-027) — when the
+ * report also carries a drawable `memoryHeatmap`. No topology → no heat column. */
+const showHeatPanel = computed(() => hasMemoryHeatmap.value && fullscreenTopology.value != null);
+/** 默认选中一个 memory: the first unit the producer could fill, until the diagram names one. */
+const activeMemoryUnit = computed(
+  () => selectedMemoryUnit.value ?? memoryHeatmap.value?.units[0]?.id ?? null,
+);
+
+function onSelectMemoryUnit(unit: MemoryHeatmapUnitId) {
+  selectedMemoryUnit.value = unit;
+}
 
 watch(isArchDiagram, (on) => {
   if (!on) archMetricMode.value = ARCH_DIAGRAM_DEFAULT_METRIC_MODE;
@@ -845,11 +873,16 @@ function closeTopologyFullscreen() {
 
 function onTopologyFullscreenAfterLeave() {
   // Leave can be cancelled by a mid-fade reopen — only clear when still closed.
-  if (!topologyFullscreen.value) fullscreenTopology.value = null;
+  if (topologyFullscreen.value) return;
+  fullscreenTopology.value = null;
+  // The heat selection is per overlay session, so the next open defaults again (PR-ROOT-026).
+  selectedMemoryUnit.value = null;
 }
 
-function onOpenTopologyFullscreen(model: MemoryTopologyModel) {
+function onOpenTopologyFullscreen(model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId) {
   fullscreenTopology.value = model;
+  // 如果是直接点击一个 memory 进来则直接对应显示相应的内容; via 全屏 it defaults (activeMemoryUnit).
+  selectedMemoryUnit.value = unit ?? null;
   topologyFullscreen.value = true;
   void nextTick(() => fullscreenBackRef.value?.focus());
 }
@@ -1921,28 +1954,45 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           </button>
           <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
         </div>
-        <div class="pr-topo-fs__body">
-          <div
-            v-if="isArchDiagram"
-            class="pr-topo-fs__metric"
-            data-testid="topology-fullscreen-metric-switcher"
-          >
-            <span>{{ t('metric', locale) }}</span>
-            <CardMetricSelect
-              v-model="archMetricMode"
-              :options="archMetricModes"
-              variant="inline"
-              test-id-prefix="topology-fs-metric"
-              :ariaLabel="t('archMetricMode', locale)"
-              :label-of="(m) => archMetricModeLabel(m, locale)"
+        <div
+          class="pr-topo-fs__body"
+          :class="{ 'pr-topo-fs__body--split': showHeatPanel }"
+        >
+          <div class="pr-topo-fs__diagram">
+            <div
+              v-if="isArchDiagram"
+              class="pr-topo-fs__metric"
+              data-testid="topology-fullscreen-metric-switcher"
+            >
+              <span>{{ t('metric', locale) }}</span>
+              <CardMetricSelect
+                v-model="archMetricMode"
+                :options="archMetricModes"
+                variant="inline"
+                test-id-prefix="topology-fs-metric"
+                :ariaLabel="t('archMetricMode', locale)"
+                :label-of="(m) => archMetricModeLabel(m, locale)"
+              />
+            </div>
+            <MemoryTopologyPanel
+              v-if="fullscreenTopology"
+              :model="fullscreenTopology"
+              :locale="locale"
+              :open-details-on-contextmenu="false"
+              :selectable-units="hasMemoryHeatmap"
+              :selected-unit="activeMemoryUnit"
+              wheel-gestures
+              @open-memory-unit="onSelectMemoryUnit"
             />
           </div>
-          <MemoryTopologyPanel
-            v-if="fullscreenTopology"
-            :model="fullscreenTopology"
+          <!-- §11.2.3.2 heat panel: the overlay's right column, one selection with the diagram. -->
+          <MemoryHeatmapPanel
+            v-if="showHeatPanel"
+            class="pr-topo-fs__heat"
+            :model="memoryHeatmap"
+            :selected-unit="activeMemoryUnit"
             :locale="locale"
-            :open-details-on-contextmenu="false"
-            wheel-gestures
+            @select-unit="onSelectMemoryUnit"
           />
         </div>
       </div>
@@ -2206,6 +2256,31 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+/* §11.2.3.2: the heat panel takes the overlay's right column, the diagram keeps the rest. */
+.pr-topo-fs__body--split {
+  flex-direction: row;
+}
+
+.pr-topo-fs__diagram {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* §11.2.3.2: the heat panel takes the overlay's right column, the diagram keeps the rest. The frame
+ * draws no rule between the two — the panel's own `#262626` surface is the separation. */
+.pr-topo-fs__heat {
+  flex: 0 0 320px;
+  min-height: 0;
+  /* Same element as `.pr-heat`: keep the column height-bounded so the panel's body scrollport
+   * (PR-HEAT-011) can shrink, rather than growing the overlay and clipping under overflow:hidden. */
+  align-self: stretch;
   overflow: hidden;
 }
 

@@ -20,11 +20,13 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **PIPE occupancy (Sept 30 / M4 / UI-54 / UI-55).** When `PipeUtilizationHist.csv` or `PipesUtilization.csv` is present, map into `pipeOccupancy` / `computeTables` without inventing `PipeUtilization.csv` ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)). Prefer hist: `CoreName` → `side` `aic`/`aiv0`/`aiv1` (never average AIV cores); project Utilization onto sparse `aic_`/`aiv0_`/`aiv1_` `*_ratio` keys for 详情 and omit raw util CSV when hist projects.
 
-**Architecture Diagram (Sept 30 / M4).** When `ArchDiagramMetrics.csv` is present, map into the **shared** `memoryTopology` carrier (same chrome / panel as compute) + `memoryTables` via interim [DATA-48a](../../docs/context/decisions/interim/DATA.md) / `ARCH_DIAGRAM_EDGE_MAP` (corridor **bases**; suffix by metric mode). Adapter snapshot defaults to `bandwidth_per_operator` (`*_gbs`); the aside rebuilds labels for `bandwidth_per_request` / `number_of_requests`. Dual AIV0/AIV1: **sum** gbs/cnt, **unweighted average** of scalar `*_ratio` (not (Σnum)/(Σden) — DATA-48a). Do **not** invent a second topology VM or chrome. Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../docs/context/questions/DATA.md)). Omit diagram when nothing drawable.
+**Architecture Diagram (Sept 30 / M4).** When `ArchDiagramMetrics.csv` is present, map into the **shared** `memoryTopology` carrier (same chrome / panel as compute) + `memoryTables` via interim [DATA-48a](../../docs/context/decisions/interim/DATA.md) / `ARCH_DIAGRAM_EDGE_MAP` (corridor **bases**; suffix by metric mode). Adapter snapshot defaults to `bandwidth_per_operator` (`*_gbs`); the aside rebuilds labels for `bandwidth_per_request` / `number_of_requests`. Dual AIV0/AIV1: **sum** gbs/cnt, **unweighted average** of scalar `*_ratio` (not (Σnum)/(Σden) — DATA-48a). Do **not** invent a second topology VM or chrome. Do **not** read `MemoryRWAccesses` here — the heat panel is its own carrier ([DATA-49](../../docs/context/decisions/DATA.md)). Omit diagram when nothing drawable.
+
+**Memory Utilization Heatmap (biprof §11.2.3.2).** When `UbRwAccesses.csv` is present, fill the separate `memoryHeatmap` carrier via `memoryHeatmapFromTexts` and advertise capability **`memoryHeatmap`** ([PR-VM-025](./view-models.spec.md), [DATA-49](../../docs/context/decisions/DATA.md)). `MemoryRWAccesses.csv` cannot attribute rows to a unit yet ([DATA-50](../../docs/context/questions/DATA.md)) and no capacity is emitted ([DATA-51](../../docs/context/questions/DATA.md)). Omit the field and the capability when no unit is drawable.
 
 **Omit gap panels.** Do not populate `overviewSeries`, `roofline`, or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards.
 
-**Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载). Do not set `roofline` until a dedicated mapper exists.
+**Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`; **`memoryHeatmap`** when a heat unit is drawable. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载). Do not set `roofline` until a dedicated mapper exists.
 
 **Errors.** Corrupt marker or unparseable PipeTrace → throw. Missing PipeTrace or optional analytics embeds → omit fields / null swimlane, do not throw.
 
@@ -56,17 +58,17 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 ## Open
 
-DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a).
-DATA-49 — Dedicated ArchDiagramModel / biprof chrome vs heatmap deferral.
+DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a); a dedicated `ArchDiagramModel` / biprof chrome rides this question.
 
 ## Changelog
+- **2026-10-01** — Memory Utilization Heatmap fills the separate `memoryHeatmap` carrier + capability from `UbRwAccesses` (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)); `MemoryRWAccesses` stays unused here ([DATA-50](../../docs/context/questions/DATA.md)).
 - **2026-09-24** — DATA-48a ratio merge spelled as unweighted average; EAV headers case-insensitive (PR-ASIM-008b).
 - **2026-09-23** — DATA-48a metric modes + AIV sum (gbs/cnt) / average (ratio); PR-ASIM-008b AC aligned.
 - **2026-09-14** — Initial spec (docs pass; tests todo).
 - **2026-09-15** — Sept 30 PIPE + interim summary; rename emulate.
 - **2026-09-15** — `manifest.json` detection; optional PipeTrace (PR-ASIM-006).
 - **2026-09-17** — M4 ArchDiagramMetrics → interim plated chrome (PR-ASIM-008 / DATA-48a).
-- **2026-09-17** — Product lock: capability `archDiagram` (not `memoryDiagram`); heatmap out (DATA-49).
+- **2026-09-17** — Product lock: capability `archDiagram` (not `memoryDiagram`); heatmap deferred (later shipped on its own carrier — [DATA-49](../../docs/context/decisions/DATA.md)).
 - **2026-09-17** — PR-ASIM-007: multi-core native tracing reports merged with remapped pids.
 - **2026-09-18** — DATA-47: no summary cards / meta for emulate; drop KernelInfo → summary map.
 - **2026-09-22** — M4 performance-hints join (PR-ASIM-009…012): `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` → `performanceHints` + capability `performanceHints`.

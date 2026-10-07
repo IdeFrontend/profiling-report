@@ -278,6 +278,41 @@ export interface MemoryTopologyModel {
 }
 
 /**
+ * Memory units that carry a §11.2.3.2 heat tab — the six clickable units of the topology
+ * chrome (`MemoryTopologyPanel`). A subset of the `MemoryTopologyNode.id` space, so a unit
+ * the chrome gives no box to cannot be named here.
+ */
+export type MemoryHeatmapUnitId = 'l2' | 'l1' | 'ub' | 'l0a' | 'l0b' | 'l0c';
+
+/** Allocation state of one heat-grid block — the §11.2.3.2 two-state legend. */
+export type MemoryHeatmapBlockState = 'withData' | 'withoutData';
+
+/** One block of a unit's heat grid (`已分配有数据` / `已分配无数据`). */
+export interface MemoryHeatmapBlock {
+  /** Row-major position in the unit's grid; stable identity for the grid cells. */
+  index: number;
+  state: MemoryHeatmapBlockState;
+}
+
+/** Per-unit heat data. A unit with no usable source is omitted from `MemoryHeatmapModel.units`. */
+export interface MemoryHeatmapUnit {
+  id: MemoryHeatmapUnitId;
+  /** Full grid, row-major, `index` 0…n-1 — `withoutData` blocks are the allocated-but-empty ones. */
+  blocks: MemoryHeatmapBlock[];
+  /** `已用指令条数` — distinct `ExecInstrId` behind the unit's accesses; omit when not derivable. */
+  usedInstructionCount?: number;
+}
+
+/**
+ * biprof §11.2.3.2 Memory Utilization Heatmap (emulate). Its own carrier beside
+ * `memoryTopology` — the heat panel is a second surface, not a second topology (DATA-49).
+ * Omit the field (and the `memoryHeatmap` capability) when nothing is drawable.
+ */
+export interface MemoryHeatmapModel {
+  units: MemoryHeatmapUnit[];
+}
+
+/**
  * M4 performance-hint row (docs/views/performance-hints.md) joined from the
  * emulate hint CSVs. One item per joined row — CSV order preserved.
  */
@@ -313,6 +348,8 @@ export interface ReportViewModel {
   hardwareDetails?: HardwareDetailsModel;
   /** M2 memory topology (change-log #5); omit when no label data. */
   memoryTopology?: MemoryTopologyModel;
+  /** biprof §11.2.3.2 Memory Utilization Heatmap; omit when no unit has a usable source. */
+  memoryHeatmap?: MemoryHeatmapModel;
   /** M4 性能提示 dock; omit when no joined hint rows (DATA-30). */
   performanceHints?: PerformanceHintItem[];
   /** Product (NPU-Compute): summary.jsonl metric categories (block-mean) for the detail surface. */
@@ -334,6 +371,7 @@ export type ReportCapability =
   | 'dependencies'
   | 'memoryDiagram'
   | 'archDiagram'
+  | 'memoryHeatmap'
   | 'hardwareDetails'
   | 'performanceHints'
   | 'sourceTab'

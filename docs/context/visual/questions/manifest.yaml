@@ -206,3 +206,22 @@ images:
     highlights:
       - label: "UI-47 统计"
         box: { x: 190, y: 4, w: 150, h: 190 }
+
+  # DATA-50 / DATA-51 — the §11.2.3.2 Memory Utilization Heatmap panel of the fullscreen overlay
+  # (`v930-sim/memory-topology-fullscreen`), cropped to the unit tab strip and to the unit name +
+  # capacity line under the grid.
+  data-50:
+    source_file: src/ui/StatsAside/MemoryHeatmapPanel/visual/heat-panel.png
+    crop: { x: 80, y: 36, w: 1200, h: 170 }
+    maxWidth: 900
+    highlights:
+      - label: "DATA-50 unit tabs"
+        box: { x: 52, y: 38, w: 1108, h: 112 }
+
+  data-51:
+    source_file: src/ui/StatsAside/MemoryHeatmapPanel/visual/heat-panel.png
+    crop: { x: 320, y: 2870, w: 1120, h: 240 }
+    maxWidth: 900
+    highlights:
+      - label: "DATA-51 Total/Used/Free"
+        box: { x: 14, y: 148, w: 1072, h: 62 }

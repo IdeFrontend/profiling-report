@@ -58,6 +58,22 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 | `cube-lane` | `#3860A8` | Blue cube/instruction bands on timeline |
 | `aten` / `mixed` | striped blue/green | Aten-style labels — prefer `cube-lane` + `scalar` stripe in renderer |
 
+<a id="heatmap"></a>
+
+## Heatmap (memory utilization)
+
+Sampled from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-topology-fullscreen.jpeg) — the biprof **§11.2.3.2 Memory Utilization Heatmap** legend and block grid, and reused for the clickable unit tint on the topology ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)). Two allocation states, **no third state**.
+
+| Token | Hex | Role |
+|-------|-----|------|
+| `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | `已分配有数据` legend swatch + allocated-with-data grid cells; also the diagram's hover (35%) / selected (45%) unit tint |
+| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | `已分配无数据` legend swatch + allocated-without-data grid cells; the selected unit box's hairline stroke |
+| `HEAT_GRID_BOARD` | `#303F5E` | the board the grid's gaps cut into (the lattice between cells) |
+| `HEAT_GRID_FRAME` | `#6E798D` | the grid's `2px` outer border |
+| `HEAT_TAB_INDICATOR` | `#FFFFFF` | the active tab's short bar under its label — the heat blue is the *selection* tint on the diagram, not the tab's indicator |
+
+The five are applied directly in [`MemoryHeatmapPanel`](../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) / [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) styles (hardcoded, like the toolbar controls above) — they are the sketch's own inks, not theme-derived, so a host theme tint must not re-map them.
+
 ## CSS variable map (library)
 
 ```css

@@ -40,8 +40,8 @@ A resolution-only replacement of an existing source id (same frame, higher resol
 
 | Id | File | Typical consumers |
 |----|------|-------------------|
-| `v930-sim/memory-topology-zoom` | [`memory-topology-zoom.jpeg`](./source/v930-sim/memory-topology-zoom.jpeg) | 内存负载分析 zoom bar in the stacked aside (缩小 / % / 放大 / 适应窗口 / 全屏) |
-| `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay: fit-window control only, no 全屏, no strip |
+| `v930-sim/memory-topology-zoom` | [`memory-topology-zoom.jpeg`](./source/v930-sim/memory-topology-zoom.jpeg) | 内存负载分析 zoom bar in the stacked aside (缩小 / % / 放大 / 适应窗口 / 全屏); clickable memory units (`L2Cache` / `L1` / `UB` / `L0A` / `L0B` / `L0C`) — hover highlight, click opens that unit's memory info |
+| `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay (fit-window control only, no 全屏, no strip) **plus** the §11.2.3.2 Memory Utilization Heatmap right panel: six unit tabs, two-state legend, block grid, `已用指令条数` |
 | `v930-sim/performance-hints` | [`performance-hints.jpeg`](./source/v930-sim/performance-hints.jpeg) | 性能提示 / 性能分析: title-row 性能分析 trigger (left of aside ×) + bottom hints table (Hint Message / Source Line / Instruction Address) |
 
 ## Source frames (`v930-source` — 源码)
@@ -74,7 +74,8 @@ A resolution-only replacement of an existing source id (same frame, higher resol
 | [`PipeOccupancyPanel`](../../src/ui/StatsAside/PipeOccupancyPanel/visual/) | PIPE bars, Cube\|Vector tabs | `v930/compute-load` |
 | [`CsvFieldListPanel`](../../src/ui/StatsAside/CsvFieldListPanel/visual/) | tabs, fields, block switcher | `v930/compute-load-detail`, `memory-load-detail` |
 | [`RooflinePanel`](../../src/ui/StatsAside/RooflinePanel/visual/) | roofline chart | `v930/report-stats-open` |
-| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology chrome (nodes/edges) + value slots; zoom / fullscreen bar | `v930-chrome/memory-topology` (SVG); bar → `v930-sim/*` |
+| [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology chrome (nodes/edges) + value slots; zoom / fullscreen bar; clickable unit hit boxes | `v930-chrome/memory-topology` (SVG); bar → `v930-sim/*` |
+| [`MemoryHeatmapPanel`](../../src/ui/StatsAside/MemoryHeatmapPanel/visual/) | §11.2.3.2 heat panel: unit tabs, two-state legend, block grid, `已用指令条数` | `v930-sim/memory-topology-fullscreen` |
 | [`HardwareDetailsPanel`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/) | Host/Device info | `v930/hardware-more-detail` |
 | [`DetailPanel`](../../src/ui/DetailPanel/visual/) | dock chrome | `v930/detail-strip-raised` |
 | [`DetailSummary`](../../src/ui/DetailPanel/DetailSummary/visual/) | identity card | `v930/detail-strip-raised` |

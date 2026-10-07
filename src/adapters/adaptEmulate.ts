@@ -16,6 +16,7 @@ import { hasDependencies } from '../domain/dependencies';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
 import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
+import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
 import { parseCsv } from './parseCsv';
 import {
   csvTableFromPipeUtilizationHist,
@@ -39,6 +40,7 @@ const PIPE_HIST_NAMES = ['PipeUtilizationHist.csv', 'pipeutilizationhist.csv'];
 const INSTR_QUEUE_TYPE_NAMES = ['InstrQueueTypes.csv', 'instrqueuetypes.csv'];
 const CORE_TYPE_NAMES = ['CoreTypes.csv', 'coretypes.csv'];
 const ARCH_DIAGRAM_NAMES = ['ArchDiagramMetrics.csv', 'archdiagrammetrics.csv'];
+const UB_RW_ACCESS_NAMES = ['UbRwAccesses.csv', 'ubrwaccesses.csv'];
 const HINT_MESSAGES_NAMES = ['HintMessages.csv', 'hintmessages.csv'];
 const HINT_TYPES_NAMES = ['HintTypes.csv', 'hinttypes.csv'];
 const INSTRUCTION_HINTS_NAMES = ['InstructionHints.csv', 'instructionhints.csv'];
@@ -354,6 +356,13 @@ export function adaptEmulate(
     archBytes ? decodeUtf8(archBytes) : undefined,
   );
 
+  // §11.2.3.2 heat grid; its own carrier beside the topology (DATA-49). Omitted when no unit has
+  // a usable per-access source, so the panel and its capability stay off (DATA-30).
+  const ubRwBytes = payloadByName(payloads, UB_RW_ACCESS_NAMES);
+  const memoryHeatmap = memoryHeatmapFromTexts({
+    'UbRwAccesses.csv': ubRwBytes ? decodeUtf8(ubRwBytes) : undefined,
+  });
+
   const performanceHints = performanceHintsFromPayloads(payloads);
 
   const reportModel: ReportViewModel = {
@@ -365,12 +374,14 @@ export function adaptEmulate(
     memoryTables,
     csvTexts,
     ...(memoryTopology ? { memoryTopology } : {}),
+    ...(memoryHeatmap ? { memoryHeatmap } : {}),
     ...(performanceHints.length > 0 ? { performanceHints } : {}),
   };
 
   const capabilities: ReportCapability[] = [];
   if (hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   if (memoryTopology) capabilities.push('archDiagram');
+  if (memoryHeatmap) capabilities.push('memoryHeatmap');
   if (performanceHints.length > 0) capabilities.push('performanceHints');
 
   return {
