@@ -89,6 +89,11 @@ import {
 import { resolveEnvironmentBehavior } from '../environments';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import {
+  DEFAULT_HTML_EXPORT_TEMPLATE_URL,
+  htmlExportFileName,
+  stitchHtmlReport,
+} from '../../export/stitchHtmlReport';
+import {
   ARCH_DIAGRAM_DEFAULT_METRIC_MODE,
   ARCH_DIAGRAM_METRIC_MODES,
   archDiagramCsvFromTexts,
@@ -116,6 +121,14 @@ const props = withDefaults(defineProps<{
   capabilities?: ReportCapability[];
   /** End-user guide URL for the toolbar help button. */
   userGuideUrl?: string;
+  /**
+   * Toolbar Download HTML Report. Opt-in: hosts that serve
+   * `htmlExportTemplateUrl` (playground / CI). Default false — MSTT does not
+   * ship the shell template. Report-shell (already that bundle) stays false.
+   */
+  allowHtmlExport?: boolean;
+  /** URL of the inlined report-shell template served by the host. */
+  htmlExportTemplateUrl?: string;
   /** Host environment. Routes environment-dependent actions (title-row 性能分析 →
    *  Problems on `vscode`, internal dock otherwise). Open union so future
    *  environments can be added without touching consumers. */
@@ -132,6 +145,8 @@ const props = withDefaults(defineProps<{
   dependencyMode: 'all',
   dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
   userGuideUrl: DEFAULT_USER_GUIDE_URL,
+  allowHtmlExport: false,
+  htmlExportTemplateUrl: DEFAULT_HTML_EXPORT_TEMPLATE_URL,
   preferRenderer: undefined,
   capabilities: undefined,
   environment: undefined,
@@ -147,6 +162,7 @@ const emit = defineEmits<{
   'cannbot-request': [payload: CannbotPayload];
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
+  'export-html': [{ fileName: string }];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -948,10 +964,16 @@ onBeforeUnmount(() => {
   clearMultiSelectDimTimer();
   stopLayoutFitObserver();
   window.removeEventListener('keydown', onRootKeydown);
+  closeHtmlExportDialog();
 });
 
 /** Escape drops the measure overlay and the marquee multi-selection alike. */
 function onRootKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && htmlExportOpen.value) {
+    e.preventDefault();
+    closeHtmlExportDialog();
+    return;
+  }
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
     viewState.value = clearMeasure(viewState.value);
     // Live marquee preview fills `multiSelected` without a commit — do not clear it here.
@@ -975,7 +997,7 @@ function onRootKeydown(e: KeyboardEvent) {
   }
   // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
   // WASD must not pan/zoom the hidden view.
-  if (topologyFullscreen.value || fullscreenTopology.value != null) return;
+  if (htmlExportOpen.value || topologyFullscreen.value || fullscreenTopology.value != null) return;
   if (!showTimeline.value) return;
   const target = e.target as HTMLElement | null;
   // Ignore shortcuts while typing — search, dependency depth, and editable controls own them.
@@ -1431,6 +1453,78 @@ function onZoomToFit() {
   animateToWindow(zoomToFitWindow(swim.value));
 }
 
+const htmlExportAvailable = computed(
+  () => props.allowHtmlExport === true && props.source != null,
+);
+
+const htmlExportOpen = ref(false);
+const htmlExportBusy = ref(false);
+const htmlExportError = ref<string | null>(null);
+let htmlExportAbort: AbortController | null = null;
+let htmlExportGeneration = 0;
+
+function closeHtmlExportDialog() {
+  htmlExportAbort?.abort();
+  htmlExportAbort = null;
+  htmlExportGeneration += 1;
+  htmlExportOpen.value = false;
+  htmlExportBusy.value = false;
+  htmlExportError.value = null;
+}
+
+function downloadHtmlFile(html: string, fileName: string) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Defer revoke so the download can start (same-turn revoke flakes in some browsers).
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function onExportHtml() {
+  const raw = props.source;
+  if (!raw || htmlExportBusy.value) return;
+  htmlExportError.value = null;
+  htmlExportOpen.value = true;
+  htmlExportBusy.value = true;
+  const gen = ++htmlExportGeneration;
+  const ac = new AbortController();
+  htmlExportAbort = ac;
+  await nextTick();
+  const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+  const reportName = props.reportMeta?.name ?? props.title ?? 'report.npu-rep';
+  const fileName = htmlExportFileName(reportName);
+  try {
+    const res = await fetch(props.htmlExportTemplateUrl, { signal: ac.signal });
+    if (gen !== htmlExportGeneration) return;
+    if (!res.ok) {
+      throw new Error(`HTML export template HTTP ${res.status} (${props.htmlExportTemplateUrl})`);
+    }
+    const template = await res.text();
+    if (gen !== htmlExportGeneration) return;
+    const html = stitchHtmlReport(template, bytes, reportName, props.locale);
+    if (gen !== htmlExportGeneration) return;
+    downloadHtmlFile(html, fileName);
+    emit('export-html', { fileName });
+    htmlExportOpen.value = false;
+  } catch (cause) {
+    if (ac.signal.aborted || gen !== htmlExportGeneration) return;
+    const message = cause instanceof Error ? cause.message : String(cause);
+    htmlExportError.value = message;
+  } finally {
+    if (gen === htmlExportGeneration) {
+      htmlExportBusy.value = false;
+      htmlExportAbort = null;
+    }
+  }
+}
+
 function onZoomIn() {
   const mid = (viewState.value.startTime + viewState.value.endTime) / 2;
   onZoom(1.25, mid);
@@ -1570,6 +1664,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :operators="operators"
       :selected-operator-id="selectedOperatorId"
       :user-guide-url="userGuideUrl"
+      :html-export-available="htmlExportAvailable"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
@@ -1582,6 +1677,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @zoom-in="onZoomIn"
       @zoom-out="onZoomOut"
       @open-user-guide="emit('open-user-guide', $event)"
+      @export-html="onExportHtml"
     />
 
     <p
@@ -1616,6 +1712,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :operators="operators"
           :selected-operator-id="selectedOperatorId"
           :user-guide-url="userGuideUrl"
+          :html-export-available="htmlExportAvailable"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
@@ -1627,6 +1724,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
           @open-user-guide="emit('open-user-guide', $event)"
+          @export-html="onExportHtml"
         />
         <TimelineView
           v-if="showTimeline"
@@ -1849,6 +1947,44 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         </div>
       </div>
     </Transition>
+
+    <div
+      v-if="htmlExportOpen"
+      class="pr-export-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pr-export-modal-title"
+      data-testid="html-export-dialog"
+    >
+      <div class="pr-export-modal__card">
+        <h3
+          id="pr-export-modal-title"
+          class="pr-export-modal__title"
+        >
+          {{ htmlExportError ? t('exportHtmlFailed', locale) : t('exportHtmlPreparing', locale) }}
+        </h3>
+        <div
+          v-if="!htmlExportError"
+          class="pr-export-modal__bar"
+          data-testid="html-export-progress"
+        />
+        <p
+          v-else
+          class="pr-export-modal__error"
+          data-testid="html-export-error"
+        >
+          {{ htmlExportError }}
+        </p>
+        <button
+          type="button"
+          class="pr-export-modal__cancel"
+          data-testid="html-export-cancel"
+          @click="closeHtmlExportDialog"
+        >
+          {{ htmlExportError ? t('closePanel', locale) : t('exportHtmlCancel', locale) }}
+        </button>
+      </div>
+    </div>
 
     <EventTooltip
       v-if="hovered && showTimeline"
@@ -2123,5 +2259,84 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
  * it is the control's own hit spacing, not the strip's. */
 .pr-topo-fs__body :deep(.pr-topo__bar) {
   background: transparent;
+}
+
+.pr-export-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.pr-export-modal__card {
+  box-sizing: border-box;
+  min-width: 280px;
+  max-width: min(420px, calc(100% - 32px));
+  padding: 20px 22px 18px;
+  border: 1px solid #5e5e5e;
+  border-radius: 12px;
+  background: #363636;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.pr-export-modal__title {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.pr-export-modal__bar {
+  height: 4px;
+  margin: 0 0 16px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #1a1a1a;
+}
+
+.pr-export-modal__bar::after {
+  content: '';
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: #2d70e3;
+  animation: pr-export-indeterminate 1.1s ease-in-out infinite;
+}
+
+@keyframes pr-export-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+.pr-export-modal__error {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f87171;
+  white-space: pre-wrap;
+}
+
+.pr-export-modal__cancel {
+  display: block;
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: #404040;
+  color: #e6e6e6;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pr-export-modal__cancel:hover {
+  background: #1e2a3e;
+  color: #ffffff;
 }
 </style>

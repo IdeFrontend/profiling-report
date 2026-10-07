@@ -371,6 +371,7 @@ onMounted(async () => {
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         :locale="locale"
+        :allow-html-export="true"
         @view-full-csv="onViewFullCsv"
       />
       <ProfilingReport

@@ -49,3 +49,8 @@ export type { CannbotPayload, CannbotReportMeta, CannbotScope } from './domain/c
 
 export { default as ProfilingReport } from './ui/ProfilingReport/ProfilingReport.vue';
 export { DEFAULT_USER_GUIDE_URL } from './ui/userGuide';
+export {
+  DEFAULT_HTML_EXPORT_TEMPLATE_URL,
+  htmlExportFileName,
+  stitchHtmlReport,
+} from './export/stitchHtmlReport';

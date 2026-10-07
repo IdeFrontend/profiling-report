@@ -48,6 +48,9 @@ jobs:
       - name: Scaffold e2e (must pass)
         run: npm run test:e2e:scaffold
 
+      - name: Check HTML report CLI
+        run: npm run check:html-report
+
       - name: Feature unit/component tests
         run: npm run test:feature
 
