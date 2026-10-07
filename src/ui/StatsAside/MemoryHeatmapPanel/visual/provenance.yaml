@@ -1,0 +1,8 @@
+component: MemoryHeatmapPanel
+source_primary: v930-sim/memory-topology-fullscreen
+crops:
+  heat-panel.png:
+    source: v930-sim/memory-topology-fullscreen
+    region: "biprof §11.2.3.2 Memory Utilization Heatmap — the fullscreen overlay's right panel: the six unit tabs `L2Cache / L1 / UB / L0A / L0B / L0C`, the two-state `已分配有数据` / `已分配无数据` legend above the block grid, the selected unit's own name under the grid (`AIC L1`, 19px `#E7E7E7`), and the 12px capacity line under that (`Total: 64KB` / `Used: 20KB` / `Free: 0KB`, green values) — the slot this panel gives to `已用指令条数` while no capacity field exists (DATA-51)"
+    box: { x: 5900, y: 600, w: 1660, h: 3160 }
+note: "Emulate only: the grid is built from `UbRwAccesses.csv`; the other five tabs stay blank until the producer publishes a `MemoryType` → unit vocabulary (DATA-50). The frame's Total/Used/Free capacity line stays hidden until the producer ships a capacity field (DATA-51), so the panel renders the `已用指令条数` metric under the unit name instead."

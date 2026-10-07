@@ -76,6 +76,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 | `KernelInfo.csv` | _(not 报告统计 chrome)_ | optional `csvTexts` only | **Out** of summary cards / meta ([DATA-47](../../context/decisions/DATA.md)). May remain packed for catalog / export |
 | `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
 | `ArchDiagramMetrics.csv` | [memory-topology](../../views/memory-topology.md) (Architecture Diagram fill) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
+| `UbRwAccesses.csv` | [memory-topology § Memory Utilization Heatmap](../../views/memory-topology.md) | `memoryHeatmap` + capability `memoryHeatmap` | Paints the `ub` grid (observed address span binned onto 16 × 26) + `已用指令条数` (distinct `ExecInstrId`). `MemoryRWAccesses.csv` rows cannot be attributed to L1 / L2 / L0A / L0B / L0C, so those five tabs stay **blank** ([DATA-50](../../context/questions/DATA.md)). No `Total` / `Used` / `Free` line ([DATA-51](../../context/questions/DATA.md)). No drawable unit → omit `memoryHeatmap` |
 | `HintMessages.csv` + `HintTypes.csv` + `InstructionHints.csv` + `KernelHints.csv` + `SourceLineHints.csv` | [Performance hints](../../views/performance-hints.md) | `performanceHints` + capability `performanceHints` | Joined rows (53 on gelu, [PR-ASIM-009](../../../specs/core/adapt-emulate.spec.md)); RFC-4180 quoted `HintMsgText` decoded; `SourceLineId` shown raw when `SourceLines` is not packed ([PR-ASIM-012](../../../specs/core/adapt-emulate.spec.md)). Absent / no joined rows → omit |
 
 **Also lit when the above mount:** StatsAside CANNBot scopes (**compute / memory** only — summary scope omitted with meta, [DATA-47](../../context/decisions/DATA.md)) from the same adapted fields — no extra embeds.
@@ -86,7 +87,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 
 | Embed / table | Product surface | Status |
 |---------------|-----------------|--------|
-| `MemoryRWAccesses.csv` | Memory Utilization Heatmap | **out** ([DATA-49](../../context/questions/DATA.md)) |
+| `MemoryRWAccesses.csv` | Memory Utilization Heatmap (L1 / L2 / L0A / L0B / L0C tabs) | **blank tabs** — `MemoryType` is a bare integer with no published vocabulary ([DATA-50](../../context/questions/DATA.md)) |
 | compute `Memory*.csv` / `memoryDiagram` | Asc 内存负载 | n/a on emulate |
 | `AiCoreOccupancy.csv` / `aicore_utilization.json` | AICore occupancy overlay | out-of-scope |
 | `VfIPC*.csv` / `VfSimtIPC.csv` | SIMD/SIMT VF IPC | out-of-scope |
@@ -128,7 +129,7 @@ Product maps Biprof features → Asc Toolkit using **simulator CSV names** (not 
 | § | Feature | Primary sources |
 |---|---------|-----------------|
 | 11.2.3.1 | Architecture Diagram | `ArchDiagramMetrics` (interim plated chrome; [DATA-48a](../../context/decisions/interim/DATA.md)) |
-| 11.2.3.2 | Memory Utilization Heatmap | `MemoryRWAccesses` — **out** Sept 30 ([DATA-49](../../context/questions/DATA.md)) |
+| 11.2.3.2 | Memory Utilization Heatmap | `UbRwAccesses` **in** (UB grid + `已用指令条数`); `MemoryRWAccesses` packed but not yet attributable to L1 / L2 / L0A / L0B / L0C ([DATA-50](../../context/questions/DATA.md)) |
 | 11.2.3.3 | AICore Utilization | `AiCoreOccupancy` (+ `aicore_utilization.json`) |
 | 11.2.3.4 | Sub Core / pipeline util | `PipesUtilization` |
 | 11.2.3.5 | Roofline | ArchDiagramMetrics, Functions, ExecutedInstructions, VectorUtilizations, SourceInstructions |
@@ -144,7 +145,7 @@ Display ↔ field detail: [views catalog](../../views/README.md) (per-packet fil
 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
-3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); **no** summary cards / meta from KernelInfo ([DATA-47](../../context/decisions/DATA.md)); PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); hide overview/roofline/heatmap gaps ([DATA-30](../../context/decisions/DATA.md)).
+3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); **no** summary cards / meta from KernelInfo ([DATA-47](../../context/decisions/DATA.md)); PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); Memory Utilization Heatmap from `UbRwAccesses` (`memoryHeatmap` carrier, capability `memoryHeatmap`, DATA-50); hide the remaining overview/roofline gaps ([DATA-30](../../context/decisions/DATA.md)).
 4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 ---
@@ -161,6 +162,6 @@ Sole committed emulate fixture: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep
 |------|-----|
 | Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
 | ArchDiagramMetrics → Architecture Diagram slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
-| Dedicated ArchDiagramModel / biprof chrome; heatmap deferral | [DATA-49](../../context/questions/DATA.md) |
+| Dedicated ArchDiagramModel / biprof chrome | [DATA-48](../../context/questions/DATA.md) |
 | Exact `tickToUs` default when freq unknown | producer docs |
 | Synthesizing PipeTrace from ExecutedInstructions / DispatchTime | Future — not required to open |

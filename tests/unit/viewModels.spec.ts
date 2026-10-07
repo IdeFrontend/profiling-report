@@ -13,6 +13,12 @@ import {
   foldCubeL0cCorridorEdges,
   hasDrawableTopology,
 } from '../../src/adapters/memoryTopology';
+import {
+  HEATMAP_BLOCK_COUNT,
+  HEATMAP_COLUMNS,
+  HEATMAP_ROWS,
+  memoryHeatmapFromTexts,
+} from '../../src/adapters/emulateMemoryHeatmap';
 import { loadOutRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import type { CsvTableModel } from '../../src/domain/types';
 
@@ -624,6 +630,62 @@ describe('PR-VM: report view-models (interim)', () => {
       },
     ];
     expect(plate('0', decoy)).toBeUndefined();
+  });
+
+  it('PR-VM-025 (§11.2.3.2): the heat carrier bins each unit’s access stream, or omits itself', () => {
+    // Synthetic multi-unit fixture: `UbRwAccesses` names its unit in the schema; `MemoryRWAccesses`
+    // carries a bare `MemoryType` integer with no vocabulary, so it paints nothing (DATA-50).
+    const ubRw = [
+      'ExecInstrId,AccessedAddress,AccessMode',
+      '10,0,r',
+      '10,100,r',
+      '11,65535,w',
+      '11,100,w',
+      '11,not-a-number,w',
+    ].join('\n');
+    const memoryRw = ['MemoryType,AccessedAddress,ExecInstrId,CoreId', '1,0,10,0', '1,8,11,0'].join(
+      '\n',
+    );
+
+    const model = memoryHeatmapFromTexts({ 'UbRwAccesses.csv': ubRw })!;
+    expect(model.units.map((u) => u.id)).toEqual(['ub']);
+    const ub = model.units[0];
+    expect(ub.blocks).toHaveLength(HEATMAP_BLOCK_COUNT);
+    expect(HEATMAP_BLOCK_COUNT).toBe(HEATMAP_COLUMNS * HEATMAP_ROWS);
+    // Addresses 0 and 100 of a 0…65535 span land in the first and last bins; the third row's
+    // unparseable address is skipped rather than binned as 0.
+    expect(ub.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([
+      0,
+      HEATMAP_BLOCK_COUNT - 1,
+    ]);
+    expect(ub.usedInstructionCount).toBe(2);
+    // `MemoryRWAccesses` alone cannot attribute to any of the six units → the carrier is omitted.
+    expect(memoryHeatmapFromTexts({ 'MemoryRWAccesses.csv': memoryRw })).toBeUndefined();
+    expect(memoryHeatmapFromTexts({})).toBeUndefined();
+  });
+
+  it('PR-VM-025 (§11.2.3.2): a blank address is not address 0, and no capacity is emitted', () => {
+    // Gelu's `UbRwAccesses` is `ExecInstrId,AccessedAddress` with no unit column and no size field,
+    // so: a cell that is absent or whitespace-padded is not a read at address 0 (`Number('')` and
+    // `Number('  ')` are both 0) — the span's `min` and the metric's instruction count must not see
+    // it — and no `Total` / `Used` / `Free` is derivable (DATA-51).
+    const ubRw = [
+      'ExecInstrId,AccessedAddress',
+      '10,4000',
+      '11,4010',
+      '12,',
+      '13,   ',
+      '14,\t',
+    ].join('\n');
+    const model = memoryHeatmapFromTexts({ 'UbRwAccesses.csv': ubRw })!;
+    const ub = model.units[0];
+    // Span 4000…4010: 4000 is block 0 and 4010 is block 378. With a blank binned as 0 the span
+    // would run 0…4010 and both real addresses would land in the last two blocks instead.
+    expect(ub.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0, 378]);
+    expect(ub.usedInstructionCount).toBe(2);
+    expect(ub).not.toHaveProperty('total');
+    expect(ub).not.toHaveProperty('used');
+    expect(ub).not.toHaveProperty('free');
   });
 
   it('PR-VM-018: the default topology block must be one the chrome can actually paint', () => {

@@ -29,8 +29,8 @@ Row counts are data rows (header excluded). Object names match the manifest; lin
 
 | Table / view | Kind | Rows | Notes |
 |---|---|---:|---|
-| [`MemoryRWAccesses`](SCHEMA.md#memoryrwaccesses) | table | 34832 | Memory heatmap |
-| [`UbRwAccesses`](SCHEMA.md#ubrwaccesses) | table | 34832 | UB address accesses |
+| [`MemoryRWAccesses`](SCHEMA.md#memoryrwaccesses) | table | 34832 | Memory heatmap — packed, but `MemoryType` has no unit vocabulary ([DATA-50](../../context/questions/DATA.md)) |
+| [`UbRwAccesses`](SCHEMA.md#ubrwaccesses) | table | 34832 | UB address accesses — the heat **grid** source (UB tab) |
 | [`SharedPatterns`](SCHEMA.md#sharedpatterns) | view | 34832 | Instr + shared address patterns |
 | [`CCUAllTickEvents`](SCHEMA.md#ccualltickevents) | table | 18131 | CCU tick stream |
 | [`VfPMUValues`](SCHEMA.md#vfpmuvalues) | table | 6880 | Per-VF PMU samples |
@@ -98,7 +98,8 @@ Row counts are CSV data rows. `HintMessages`, `InstructionHints`, `KernelHints`,
 | [`KernelInfo`](SCHEMA.md#kernelinfo) | table | 17 | optional | Packed for catalog; **not** summary chrome ([DATA-47](../../context/decisions/DATA.md)) |
 | [`ExecutedInstructions`](SCHEMA.md#executedinstructions) | table | 6031 | yes | Hub; tracing; arch; roofline |
 | [`ArchDiagramMetrics`](SCHEMA.md#archdiagrammetrics) | table | 240 | yes | Architecture Diagram |
-| [`MemoryRWAccesses`](SCHEMA.md#memoryrwaccesses) | table | 34832 | yes | Memory heatmap (out of Sept 30 scope) |
+| [`MemoryRWAccesses`](SCHEMA.md#memoryrwaccesses) | table | 34832 | yes | Memory heatmap — packed but not attributable to a unit ([DATA-50](../../context/questions/DATA.md)) |
+| [`UbRwAccesses`](SCHEMA.md#ubrwaccesses) | table | 34832 | **yes** | Memory heatmap **UB grid** + `已用指令条数` |
 | [`AiCoreOccupancy`](SCHEMA.md#aicoreoccupancy) | view | 3 | **yes** | AICore utilization overlay (out of scope) |
 | [`PipesUtilization`](SCHEMA.md#pipesutilization) | table | 24 | **yes** | PIPE occupancy / CSV tab |
 | [`PipeUtilizationHist`](SCHEMA.md#pipeutilizationhist) | view | 24 | **yes** | Util hist |

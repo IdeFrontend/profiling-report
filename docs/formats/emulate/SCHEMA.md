@@ -838,7 +838,7 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 | Kind | table |
 | Gelu rows | 34832 |
 | CSV file | `MemoryRWAccesses.csv` |
-| Role | Per-access memory read/write events for heatmaps (MHTML §11.2.3.2). |
+| Role | Per-access memory read/write events for heatmaps (MHTML §11.2.3.2). `MemoryType` is a bare integer with no published unit vocabulary, so rows cannot be attributed to L1 / L2 / L0A / L0B / L0C ([DATA-50](../../context/questions/DATA.md)); the shipped heat grid uses `UbRwAccesses`. |
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -1465,7 +1465,7 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 | Kind | table |
 | Gelu rows | 34832 |
 | CSV file | `UbRwAccesses.csv` |
-| Role | Contract DB object from npu_emulate export. *inferred* |
+| Role | Contract DB object from npu_emulate export. *inferred* Source of the shipped **UB** heat grid (§11.2.3.2): `AccessedAddress` is binned onto the fixed 16 × 26 grid and `ExecInstrId` yields `已用指令条数`. |
 
 | Column | Type | Description |
 |--------|------|-------------|

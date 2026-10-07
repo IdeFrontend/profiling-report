@@ -7,13 +7,13 @@
 | **Capabilities** | Compute → **`memoryDiagram`**; emulate → **`archDiagram`**. Same chrome + VM; do **not** advertise emulate as `memoryDiagram`. |
 | **Phase** | M2 (compute); M4 interim (emulate Architecture Diagram stand-in) |
 | **Unification** | **One chrome + one `memoryTopology` VM + two adapters** |
-| **Sept 30 (emulate)** | **in** — ArchDiagramMetrics → interim plated chrome; **UI title** = 内存负载分析 / Memory load analysis (same as compute) |
+| **Sept 30 (emulate)** | **in** — ArchDiagramMetrics → interim plated chrome; **UI title** = 内存负载分析 / Memory load analysis (same as compute). Heatmap (§11.2.3.2) also **in**, as its own surface (§ Memory Utilization Heatmap) |
 
 ## Architecture (normative)
 
 | Piece | Rule |
 |-------|------|
-| **Chrome** | Exactly one SVG: `memory-topology.svg` (**448×423**, AIC above AIV × 2). No compute-only / emulate-only chrome. Full biprof Architecture Diagram SVG / richer model: [DATA-49](../context/questions/DATA.md). |
+| **Chrome** | Exactly one SVG: `memory-topology.svg` (**448×423**, AIC above AIV × 2). No compute-only / emulate-only chrome. A dedicated biprof Architecture Diagram SVG / richer model is not built — no dedicated `ArchDiagramModel` ([DATA-48](../context/questions/DATA.md)). |
 | **View model** | Exactly one carrier: `reportModel.memoryTopology` (`MemoryTopologyModel`). No separate emulate topology VM. |
 | **Panel** | Exactly one: `MemoryTopologyPanel` — profile-agnostic overlays on chrome slots. |
 | **Adapters** | Exactly two mappers: compute `buildMemoryTopology*` / `firstLabelledMemoryTopology`; emulate `topologyFromArchDiagramMetrics`. Shared node scaffold + plated edge ids; different CSV → field maps. |
@@ -34,7 +34,7 @@ Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [§ p
 Fixed memory-path chrome with data-driven edge labels (BW / hit rate / util):
 
 - **Compute (M2):** selected-block Memory* / PipeUtilization fill under capability `memoryDiagram` (Asc 内存负载分析 / 内存拓扑).
-- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from `ArchDiagramMetrics` under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. Heatmap (`MemoryRWAccesses`, §11.2.3.2) is **out** Sept 30 ([DATA-49](../context/questions/DATA.md)).
+- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from `ArchDiagramMetrics` under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. The **Memory Utilization Heatmap** (§11.2.3.2) rides the same fullscreen overlay as its own surface, from `UbRwAccesses` — [§ Memory Utilization Heatmap](#heatmap).
 
 ## View-model
 
@@ -137,7 +137,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
 | `memoryTopology` (same carrier) | `ArchDiagramMetrics.csv` | Parameter→slot + **gaps** below ([DATA-48a](../context/decisions/interim/DATA.md)); SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_L2_PEAK_PARAM` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES`; gelu HTML `*_gbs` ids = evidence toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
-| Heatmap | `MemoryRWAccesses.csv` | biprof §11.2.3.2 | **out** Sept 30 ([DATA-49](../context/questions/DATA.md)) |
+| `memoryHeatmap` (own carrier) | `UbRwAccesses.csv` | biprof §11.2.3.2 heat grid + `已用指令条数`; `MemoryRWAccesses.csv` cannot attribute its rows to L1/L2/L0A/L0B/L0C ([DATA-50](../context/questions/DATA.md)) | `adapt-mapper` |
 
 <a id="parameter-slot-map"></a>
 
@@ -190,7 +190,38 @@ SSOT table (corridor bases; append `_gbs` / `_ratio` / `_cnt` by mode):
 
 Code SSOT: `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES` / `ARCH_DIAGRAM_L2_PEAK_PARAM` in `emulateMemoryTopology.ts`; locked by `PR-ASIM-008` / `PR-ASIM-008b`.
 
-Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../context/questions/DATA.md)).
+Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). `MemoryRWAccesses.csv` is **not** a topology source: its rows carry no unit attribution here — the per-access tables feed the heat surface instead ([§ Memory Utilization Heatmap](#heatmap)).
+
+<a id="heatmap"></a>
+
+## Memory Utilization Heatmap (§11.2.3.2)
+
+The fullscreen overlay's **right-hand panel** — its own surface beside the topology, not a second topology ([DATA-49](../context/decisions/DATA.md)). Panel: [`MemoryHeatmapPanel`](../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md); carrier `reportModel.memoryHeatmap`; capability **`memoryHeatmap`**.
+
+| Piece | Rule |
+|-------|------|
+| Carrier | `memoryHeatmap?: MemoryHeatmapModel` — `units: { id, blocks, usedInstructionCount? }[]`. Its **own** field beside `memoryTopology`; heat is never folded into the topology VM |
+| Capability | **`memoryHeatmap`**, set when at least one unit has a usable per-access source; independent of `memoryDiagram` / `archDiagram` |
+| Tabs | Six, **always**: `L2Cache | L1 | UB | L0A | L0B | L0C`. A unit with no source keeps its tab and blanks its body |
+| Grid | 16 blocks per row × 26 row groups, over the unit's observed address span; **two states only**. Drawn as one lattice — a `2px` `#6E798D` frame around a `#303F5E` board, the gaps cut out of it (no per-cell divider band; the frame's own grid is 16 × 32, DATA-50 owns the count) |
+| Legend | `已分配有数据` `#3D64AD` · `已分配无数据` `#AFC6FE`, centred **above** the grid |
+| Footer | the selected unit's **own name** in the diagram's words (`AIC L1`, `AIV × 2 UB`) at `19px #E7E7E7`, centred **under** the grid |
+| Metric | `已用指令条数 {n}` = the distinct `ExecInstrId` behind the unit's accesses, centred **under** the unit name; the line is omitted when not derivable. The name + metric are the body's only text — neither sits above the grid |
+| Capacity | **hidden** — no `Total` / `Used` / `Free` until the producer ships a capacity field ([DATA-51](../context/questions/DATA.md)) |
+| Selection | one `selectedMemoryUnit` for both surfaces: the diagram's selected unit (PR-MEMTOP-021/022) and the panel's active tab |
+| Hide rule | no unit with a usable source → omit `memoryHeatmap` **and** the capability; the overlay is then the diagram alone (no reserved column) |
+
+**Selection contract.** 全屏 defaults to the model's first unit (默认选中一个 memory); a click on a unit on the **stacked** diagram opens the overlay already on that unit (点击一个 memory 进来则直接对应显示相应的内容); either surface can move it afterwards; the overlay's leave clears it, so the heat surface is per session.
+
+### Emulate fill
+
+| Unit | Source | Status |
+|------|--------|--------|
+| `ub` | `UbRwAccesses.csv` (`AccessedAddress`, `ExecInstrId`) | **in** — grid + `已用指令条数` |
+| L1 / L2 / L0A / L0B / L0C | `MemoryRWAccesses.csv` (`MemoryType`) | **blank tabs** — `MemoryType` is a bare integer with no published vocabulary, so a row cannot be attributed to a unit ([DATA-50](../context/questions/DATA.md)) |
+| per-tick utilization | `MemoryUtilizationStates.csv` | not collected (0 packed rows) — not a source |
+
+**Binning (interim rule, DATA-50).** The producer ships no block size and no capacity, so the grid shape is **fixed** (16 × 26) and the unit's **observed address span** (min…max `AccessedAddress`) is binned across it: a block that received at least one access is `已分配有数据`, every other block is `已分配无数据` — addresses outside the span are not a third state. A cell whose address is **absent** is skipped, not read as address 0 (the sibling adapters' `parseNumber` rule). **Known ceiling:** on `gelu.npu-rep` the UB stream is dense (34 832 accesses over 0…2556), so all **416** blocks land `已分配有数据` and the grid paints solid — the observed span stands in for a capacity nobody publishes, which is what [DATA-51](../context/questions/DATA.md) owes ([DATA-50a](../context/decisions/interim/DATA.md#data-50a)).
 
 ## Adapter
 
@@ -198,11 +229,12 @@ Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertis
 |---------|-------|-------|
 | compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | Capability **`memoryDiagram`** |
 | emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` / `emulateMemoryTopology.ts` | Capability **`archDiagram`** when drawable; same chrome + VM |
+| emulate (heat) | `memoryHeatmapFromTexts` in `adaptEmulate` / `emulateMemoryHeatmap.ts` | Capability **`memoryHeatmap`** when a unit has a source; own carrier (§ above) |
 
 ## Related
 
-- Spec: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md); emulate mapper [adapt-emulate](../../specs/core/adapt-emulate.spec.md)
-- Product: compute §11.2.6; emulate Architecture Diagram §11.2.3.1; heatmap §11.2.3.2 out Sept 30
+- Spec: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md); heat panel [MemoryHeatmapPanel.spec.md](../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md); emulate mapper [adapt-emulate](../../specs/core/adapt-emulate.spec.md)
+- Product: compute §11.2.6; emulate Architecture Diagram §11.2.3.1; emulate Memory Utilization Heatmap §11.2.3.2
 - Delivery: [milestone-4](../process/roadmap/milestone-4.md)
-- Open: [DATA-48](../context/questions/DATA.md), [DATA-49](../context/questions/DATA.md)
+- Open: [DATA-48](../context/questions/DATA.md), [DATA-50](../context/questions/DATA.md) (`MemoryType` → unit), [DATA-51](../context/questions/DATA.md) (capacity)
 - Catalog: [README](README.md)

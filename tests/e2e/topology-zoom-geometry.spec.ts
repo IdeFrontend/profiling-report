@@ -500,3 +500,122 @@ test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the draw
   await expect(aside).toHaveAttribute('data-topo-zoom-animating', 'false');
   expect(await stageHeight()).toBeCloseTo(fitted * 1.5, 0);
 });
+
+/**
+ * §11.2.3.2's heat column is a *layout* fact: the panel beside the diagram, the diagram still the
+ * chrome's ratio inside a narrower box, and the grid laid out as cells. jsdom has no layout, so
+ * this is the only place the column's geometry is observable.
+ *
+ * Fixture: `data/gelu.npu-rep` — the emulate smoke pack, whose `UbRwAccesses.csv` is the one unit
+ * with a usable per-access source (DATA-50). Its six units are clickable on the stacked diagram
+ * (PR-MEMTOP-021), so this also covers the 点击一个 memory 进来 → 全屏 path (PR-ROOT-026).
+ */
+test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagram keeps its ratio', async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=gelu&renderer=canvas');
+
+  const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
+  await expect(aside).toBeVisible({ timeout: 60_000 });
+  // Clicking a heat unit on the stacked diagram opens the overlay already on that unit.
+  await aside.getByTestId('memory-unit-ub').click();
+
+  const overlay = page.getByTestId('topology-fullscreen-overlay');
+  await expect(overlay).toBeVisible();
+  // The overlay's enter is a scale + fade; measure the settled box (as PR-MEMTOP-013 does).
+  await expect(overlay).toHaveCSS('transform', 'none');
+  const heat = overlay.getByTestId('memory-heatmap-panel');
+  await expect(heat).toBeVisible();
+  await expect(overlay.getByTestId('heat-tab-ub')).toHaveAttribute('aria-selected', 'true');
+  await expect(overlay.getByTestId('heat-metric')).toContainText('已用指令条数 ');
+
+  // Two columns, heat on the right, both with a box of their own.
+  const column = overlay.locator('.pr-topo-fs__diagram');
+  const columnBox = (await column.boundingBox())!;
+  const heatBox = (await heat.boundingBox())!;
+  expect(heatBox.width).toBeGreaterThan(200);
+  expect(heatBox.x).toBeGreaterThanOrEqual(columnBox.x + columnBox.width - SLOP);
+  expect(Math.abs(heatBox.height - columnBox.height)).toBeLessThanOrEqual(SLOP + 2);
+
+  // The diagram still fills its (now narrower) box at the chrome's own ratio (PR-MEMTOP-013b).
+  const panel = overlay.locator('[data-testid="memory-topology-panel"]');
+  const fitted = await probe(panel);
+  expect(fitted.inkRatio).toBeCloseTo(CHROME_W / CHROME_H, 2);
+  expect(fitted.fitsInside).toBe(true);
+  expect(fitted.touchesBox).toBe(true);
+
+  // The grid is really laid out: 16 cells to a row, one row taller than the next.
+  const cell = heat.locator('.pr-heat__cell');
+  const first = (await cell.nth(0).boundingBox())!;
+  const eighthRowEnd = (await cell.nth(15).boundingBox())!;
+  const nextRow = (await cell.nth(16).boundingBox())!;
+  expect(first.width).toBeGreaterThan(0);
+  expect(eighthRowEnd.y).toBeCloseTo(first.y, 1);
+  expect(nextRow.y).toBeGreaterThan(first.y);
+
+  // The frame is one lattice, not tiles on the panel: a `#6e798d` border around a `#303f5e` board,
+  // and no per-cell divider band anywhere (MemoryHeatmapPanel.spec.md § Visual).
+  const frame = heat.locator('[data-testid="heat-grid"]');
+  await expect(frame).toHaveCSS('background-color', 'rgb(48, 63, 94)');
+  await expect(frame).toHaveCSS('border-top-width', '2px');
+  await expect(frame).toHaveCSS('border-top-color', 'rgb(110, 121, 141)');
+  await expect(frame.locator('.pr-heat__cell--band')).toHaveCount(0);
+  // One gap of inset inside the frame, so the border does not sit on the outermost cells.
+  const inset = await frame.evaluate((el) =>
+    parseFloat(getComputedStyle(el).paddingTop),
+  );
+  expect(inset).toBeGreaterThan(0);
+
+  // The active tab's indicator is the frame's short white bar — narrower than its own tab — and the
+  // legend is centred in the column, both as the frame draws them.
+  const tabBox = (await overlay.getByTestId('heat-tab-ub').boundingBox())!;
+  const indicator = await overlay.getByTestId('heat-tab-ub').evaluate((el) => {
+    const after = getComputedStyle(el, '::after');
+    return { bg: after.backgroundColor, h: after.height, w: after.width };
+  });
+  expect(indicator.bg).toBe('rgb(255, 255, 255)');
+  expect(parseFloat(indicator.h)).toBe(2);
+  expect(parseFloat(indicator.w)).toBeLessThan(tabBox.width);
+  await expect(heat.locator('.pr-heat__legend')).toHaveCSS('justify-content', 'center');
+
+  // The frame's block order: the legend sits directly above the grid (its swatch 47.5px under the
+  // strip's rule, 28px over the grid), and *under* the grid come the selected unit's own diagram
+  // name (`AIV × 2 UB`) then the 12px caption — the body holds no title *above* the lattice
+  // (MemoryHeatmapPanel.spec.md § Visual, PR-HEAT-003/004/010).
+  const order = await heat.evaluate((panel) => {
+    const at = (sel: string) => {
+      const el = panel.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, text: el.textContent?.trim() ?? '' };
+    };
+    const tabs = at('.pr-heat__tabs');
+    const legend = at('.pr-heat__legend');
+    const swatch = at('.pr-heat__swatch');
+    const grid = at('[data-testid="heat-grid"]');
+    const name = at('[data-testid="heat-unit-name"]');
+    const metric = at('[data-testid="heat-metric"]');
+    return { tabs, legend, swatch, grid, name, metric, bodyText: panel.querySelector('.pr-heat__body')?.textContent?.trim() };
+  });
+  const stripRule = order.tabs!.bottom - 1;
+  expect(order.swatch!.top - stripRule).toBeGreaterThan(40);
+  expect(order.grid!.top - order.swatch!.bottom).toBeLessThan(30);
+  expect(order.grid!.top).toBeGreaterThanOrEqual(order.legend!.bottom);
+  // The frame repeats the unit's own name below its grid, then its caption.
+  expect(order.name!.text).toBe('AIV × 2 UB');
+  expect(order.name!.top).toBeGreaterThan(order.grid!.bottom);
+  expect(order.name!.top - order.grid!.bottom).toBeCloseTo(26, 0);
+  expect(order.metric!.top).toBeGreaterThan(order.name!.bottom);
+  // The body's only text is those two lines — no unit title above the grid.
+  expect(order.bodyText).toContain('已用指令条数 ');
+  expect(order.bodyText!.replace(order.name!.text, '').replace(order.metric!.text, '').trim()).toBe('');
+
+  // A tab with no source blanks its body and moves the diagram's own highlight with it.
+  await overlay.getByTestId('heat-tab-l2').click();
+  await expect(overlay.getByTestId('heat-empty')).toBeVisible();
+  await expect(overlay.getByTestId('heat-grid')).toHaveCount(0);
+  await expect(overlay.getByTestId('memory-unit-l2')).toHaveClass(/pr-topo__unit--on/);
+  await expect(overlay.getByTestId('memory-unit-ub')).not.toHaveClass(/pr-topo__unit--on/);
+});
