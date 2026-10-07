@@ -1203,7 +1203,10 @@ onBeforeUnmount(stopZoomAnim);
   fill: rgb(61 100 173 / 35%);
 }
 
-.pr-topo__unit--on {
+/* Selected must beat `:hover` (0,2,0 vs 0,1,0) — otherwise hovering the active unit drops the
+ * fill from 45% → 35% and reads as a deselection flicker (PR-MEMTOP-022). */
+.pr-topo__unit--on,
+.pr-topo__unit--on:hover {
   fill: rgb(61 100 173 / 45%);
   stroke: #afc6fe;
   stroke-width: 0.8;

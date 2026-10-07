@@ -123,6 +123,13 @@ describe('MemoryTopologyPanel', () => {
 
     await wrapper.setProps({ selectedUnit: null });
     expect(wrapper.findAll('.pr-topo__unit--on')).toHaveLength(0);
+
+    // Selected fill must beat `:hover` — otherwise hovering the active unit drops 45% → 35%.
+    const src = (await import('./MemoryTopologyPanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-topo__unit--on,\s*\n\s*\.pr-topo__unit--on:hover\s*\{/);
+    expect(src).toMatch(
+      /\.pr-topo__unit--on(?::hover)?[^}]*fill:\s*rgb\(61 100 173 \/ 45%\)/s,
+    );
   });
 
   it('PR-MEMTOP-023: a unit click selects — it does not navigate, toggle, or eat the context menu', async () => {

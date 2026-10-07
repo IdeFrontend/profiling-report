@@ -320,7 +320,8 @@ const memoryHeatmap = computed(() => report.value?.memoryHeatmap ?? null);
 const hasMemoryHeatmap = computed(
   () => caps.value.includes('memoryHeatmap') && (memoryHeatmap.value?.units.length ?? 0) > 0,
 );
-/** The heat panel only has a place next to a topology; an arch-diagram overlay shows neither. */
+/** Heat mounts beside any topology overlay — including `archDiagram` (PR-ROOT-026) — when the
+ * report also carries a drawable `memoryHeatmap`. No topology → no heat column. */
 const showHeatPanel = computed(() => hasMemoryHeatmap.value && fullscreenTopology.value != null);
 /** 默认选中一个 memory: the first unit the producer could fill, until the diagram names one. */
 const activeMemoryUnit = computed(

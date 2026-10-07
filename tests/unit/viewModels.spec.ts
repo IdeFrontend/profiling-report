@@ -666,13 +666,20 @@ describe('PR-VM: report view-models (interim)', () => {
 
   it('PR-VM-025 (§11.2.3.2): a blank address is not address 0, and no capacity is emitted', () => {
     // Gelu's `UbRwAccesses` is `ExecInstrId,AccessedAddress` with no unit column and no size field,
-    // so: a cell that is absent is not a read at address 0 (`Number('') === 0`) — the span's `min`
-    // and the metric's instruction count must not see it — and no `Total` / `Used` / `Free` is
-    // derivable (DATA-51).
-    const ubRw = ['ExecInstrId,AccessedAddress', '10,4000', '11,4010', '12,'].join('\n');
+    // so: a cell that is absent or whitespace-padded is not a read at address 0 (`Number('')` and
+    // `Number('  ')` are both 0) — the span's `min` and the metric's instruction count must not see
+    // it — and no `Total` / `Used` / `Free` is derivable (DATA-51).
+    const ubRw = [
+      'ExecInstrId,AccessedAddress',
+      '10,4000',
+      '11,4010',
+      '12,',
+      '13,   ',
+      '14,\t',
+    ].join('\n');
     const model = memoryHeatmapFromTexts({ 'UbRwAccesses.csv': ubRw })!;
     const ub = model.units[0];
-    // Span 4000…4010: 4000 is block 0 and 4010 is block 378. With the blank binned as 0 the span
+    // Span 4000…4010: 4000 is block 0 and 4010 is block 378. With a blank binned as 0 the span
     // would run 0…4010 and both real addresses would land in the last two blocks instead.
     expect(ub.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0, 378]);
     expect(ub.usedInstructionCount).toBe(2);

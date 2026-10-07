@@ -41,13 +41,16 @@ function textFor(texts: Record<string, string | undefined>, file: string): strin
 }
 
 /**
- * A cell that is absent or non-numeric is **not** an address. `Number('')` is `0`, so a missing
- * `AccessedAddress` would otherwise bin onto block 0, pull `min` to 0 and count its instruction —
- * the same guard the sibling adapters' `parseNumber` applies (PR-VM-025).
+ * A cell that is absent or non-numeric is **not** an address. `Number('')` and `Number('  ')` are
+ * both `0`, so a missing / whitespace-padded `AccessedAddress` would otherwise bin onto block 0,
+ * pull `min` to 0 and count its instruction — the same guard the sibling adapters' `parseNumber`
+ * applies, with a trim so padded empties match `ExecInstrId` (PR-VM-025).
  */
 function parseAddress(raw: string | undefined): number | undefined {
-  if (raw == null || raw === '') return undefined;
-  const n = Number(raw);
+  if (raw == null) return undefined;
+  const trimmed = raw.trim();
+  if (trimmed === '') return undefined;
+  const n = Number(trimmed);
   return Number.isFinite(n) ? n : undefined;
 }
 
