@@ -39,6 +39,56 @@ Start here: **[docs/README.md](docs/README.md)**
 python3 data/unpack_rep.py data/out.rep /tmp/out-rep
 ```
 
+## Offline HTML report (CLI)
+
+Self-contained interactive HTML for local share-out and CI artifacts (not the MSTT packaging form — that remains the Vue library).
+
+```bash
+npm run build:report-shell
+npm run generate:html-report -- path/to/report.npu-rep -o report.html --en
+# or: node scripts/generate-html-report.mjs path/to/report.npu-rep -o report.html --zh
+# or (after build:report-shell, then npm link): npu-rep-html path/to/report.npu-rep -o report.html
+# `npm run build` does not pack the CLI; the bin fails fast until build:report-shell.
+```
+
+Open `report.html` in a browser (`file://` works). Rebuild the shell when viewer code changes; the generate step only embeds report bytes into the prebuilt template.
+
+The playground toolbar **Download HTML Report** action writes the current viewer **locale** into the file (`allowHtmlExport` is opt-in; playground passes true). Requires `npm run build:report-shell` once so `/npu-rep-html-template.txt` is copied into the playground public dir.
+
+### Zero-dep distribution
+
+`npm run build:report-shell` also writes **`dist/npu-rep-html.mjs`** (~1 MB): generator + embedded viewer shell in one ESM file. Consumers need only **Node ≥ 20** (no `npm install`, no sidecar template):
+
+```bash
+node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html --en
+# or anywhere after copying the file:
+node npu-rep-html.mjs path/to/report.npu-rep -o report.html
+```
+
+The standalone script is build output under `dist/` (gitignored), **not committed and not published** (no npm / CDN / Releases). `package.json` `bin` (`npu-rep-html`) is a stub that runs `dist/npu-rep-html.mjs` or exits telling you to run `npm run build:report-shell` — `npm link` still needs that step first (`npm run build` does not pack the CLI).
+
+### Two-artifact handoff (external agents)
+
+Give consumers both files (hand delivery):
+
+| Artifact | Source | What they do |
+|----------|--------|----------------|
+| Skill | [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md) | Copy into their agent skills folder |
+| Script | `dist/npu-rep-html.mjs` (after `npm run build:report-shell`) | Place on disk (`NPU_REP_HTML`, cwd, beside the `.npu-rep`, or `~/bin/`) |
+
+The skill instructs the agent to resolve the script path and run `node …`; it does not download or build the script.
+
+CI (in-repo):
+
+```bash
+npm ci
+npm run build:report-shell
+npm run generate:html-report -- "$REPORT_PATH" -o artifacts/profiling-report.html
+# or: node dist/npu-rep-html.mjs "$REPORT_PATH" -o artifacts/profiling-report.html
+```
+
+Smoke: `npm run check:html-report` (needs a prior `build:report-shell`; checks both the in-repo generator and `dist/npu-rep-html.mjs`).
+
 ## Demo (playground)
 
 Static playground demo is what Vercel deploys (`vercel.json` → `npm run build:demo` → `playground/dist`).

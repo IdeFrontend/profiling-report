@@ -508,9 +508,9 @@ test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the draw
  *
  * Fixture: `data/gelu.npu-rep` — the emulate smoke pack, whose `UbRwAccesses.csv` is the one unit
  * with a usable per-access source (DATA-50). Its six units are clickable on the stacked diagram
- * (PR-MEMTOP-021), so this also covers the 点击一个 memory 进来 → 全屏 path (PR-ROOT-025).
+ * (PR-MEMTOP-021), so this also covers the 点击一个 memory 进来 → 全屏 path (PR-ROOT-026).
  */
-test('PR-ROOT-024: the heat panel takes the overlay’s right column; the diagram keeps its ratio', async ({
+test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagram keeps its ratio', async ({
   page,
 }) => {
   test.slow();

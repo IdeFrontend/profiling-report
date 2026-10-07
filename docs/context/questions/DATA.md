@@ -10,7 +10,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 <img src="../visual/questions/data-11.png" alt="DATA-11 Roofline chart — not pipe busy rates" width="900" height="655">
 
-**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The Roofline chart plots **X = Ops/Byte** (arithmetic intensity) and **Y = TOps/s** (achieved performance). The producer doc's Roofline table instead points its three tab labels at **pipe busy rates** — `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio` (`PipeUtilization.csv`). Busy-rate ratios cannot produce either axis, so: what are the real axis quantities, and are the tabs meant to be axes at all, or three separate bottleneck panels?
 
@@ -18,7 +18,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 <img src="../visual/questions/data-12.png" alt="DATA-12 X axis Ops/Byte" width="900" height="655">
 
-**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** **X axis = Ops/Byte** — which file, field(s), and formula? Does the **GM** point use the same formula and byte source as the **L2** point, or different ones? (Interim [DATA-37b](../decisions/interim/DATA.md): `fops ÷ ((read_main_memory_datas(KB) + write_main_memory_datas(KB)) × 1024)`.)
 
@@ -26,7 +26,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 <img src="../visual/questions/data-13.png" alt="DATA-13 Y axis TOps/s" width="900" height="655">
 
-**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** **Y axis = TOps/s** — which file, field(s), and formula? Raw FLOPS *counts* exist (`aiv_vec_fops`, `aic_cube_fops` on `ArithmeticUtilization.csv`) but there is no documented TOps/s conversion. Is it a per-side (Cube \| Vector) value or one combined number? (Interim [DATA-37a](../decisions/interim/DATA.md): `fops ÷ mean(*_time(us)) ÷ 1e6`.)
 
@@ -34,7 +34,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 <img src="../visual/questions/data-14.png" alt="DATA-14 roof lines" width="900" height="655">
 
-**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The two **roof lines** — the bandwidth slope and the compute plateau — which file and fields? Peak compute ([DATA-3](../decisions/DATA.md): `aic/aiv_flops_theoretical`) and peak BW ([DATA-5](../decisions/DATA.md): `aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s**) are documented for the summary cards; nothing states whether the roofline roof reuses those values, or which one applies to which side.
 
@@ -42,7 +42,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 <img src="../visual/questions/data-15.png" alt="DATA-15 L2 legend series" width="900" height="655">
 
-**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The chart legend has an **L2** series alongside GM, and the L2 point needs **bytes moved through L2**. Which field? `L2Cache.csv` carries hit/miss **counts** and hit **rates** only — no byte traffic. If no byte field exists, should the L2 series be dropped, or taken from another file? (Interim [DATA-37c](../decisions/interim/DATA.md): omit the L2 point.)
 
@@ -50,7 +50,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 <img src="../visual/questions/data-16.png" alt="DATA-16 Vec_FP32 / Vec_MISC mix" width="900" height="655">
 
-**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** The op-mix annotation above the plot prints labels such as `Vec_FP32` / `Vec_MISC`. Which file and fields feed them on **Cube vs Vector** ops, and when several mix ratios are non-zero at once, **which labels are shown, in what order, and with how much precision?**
 
@@ -60,7 +60,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 <img src="../visual/questions/data-17.png" alt="DATA-17 Roofline tabs" width="900" height="655">
 
-**Status:** `open` + `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
+**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
 
 **Question:** Tabs **内存单元** / **内存通路** / **搬运单元** — what does each tab show, and is the tab set in scope at all this iteration (or should the panel stay single-chart)?
 
@@ -76,7 +76,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 ### DATA-36 — dependencies encoding (was: Q9)
 
-**Status:** `open` + `interim`
+**Status:** `interim`
 
 **Question:** How does the producer encode the dependency edges between timeline events — which Chrome Trace `args` keys, successor lists or predecessor lists, and how are ids made addressable? Are edges within one lane only, or also cross-lane?
 
@@ -84,7 +84,7 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 
 ### DATA-37 — roofline formulas (was: Q11)
 
-**Status:** `open` + `interim`
+**Status:** `interim`
 
 **Release impact:** none this iteration — the Roofline card is **not in the current release**. It renders only for a host that opts in with the `roofline` capability ([FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)), so these questions block the Phase 2 card, not the current one. The same applies to the DATA-11…DATA-17 aliases below.
 
@@ -135,7 +135,9 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 ### DATA-48 — Emulate ArchDiagramMetrics → Architecture Diagram slots
 
-**Status:** `open`
+**Status:** `interim`
+
+**Interim:** [`DATA-48a`](../decisions/interim/DATA.md).
 
 **Question:** Confirm the parameter-name → chrome slot map for emulate `ArchDiagramMetrics.csv` → **Architecture Diagram** (biprof §11.2.3.1; interim plated stand-in chrome). Are `hbm_to_l2_syn_gbs` / `l2_to_hbm_syn_gbs` / `aic_*` / `aiv*_` names authoritative? Dual AIV0/AIV1 plates: use both values or average? Which `*_gbs` / `l2_cached_ratio` are normative for Sept 30?
 
