@@ -1727,6 +1727,15 @@ describe('ProfilingReport scaffold', () => {
   });
 
   it('PR-ROOT-027: the heat column leaves the overlay’s diagram geometry alone', async () => {
+    const src = (await import('./ProfilingReport.vue?raw')).default as string;
+    // Overlay ground is literal `#1a1a1a` (not `--pr-bg-aside`, which light-theme remaps).
+    expect(src).toMatch(/\.pr-topo-fs\s*\{[^}]*background:\s*#1a1a1a/s);
+    expect(src).not.toMatch(/\.pr-topo-fs\s*\{[^}]*background:\s*var\(--pr-bg-aside/s);
+    expect(src).toMatch(/\.pr-topo-fs__heat\s*\{[^}]*flex:\s*0\s+0\s+400px/s);
+    expect(src).toMatch(
+      /\.pr-topo-fs__body\s+:deep\(\.pr-topo\)\s*\{[^}]*background:\s*transparent/s,
+    );
+
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'topo-fs-geom',
