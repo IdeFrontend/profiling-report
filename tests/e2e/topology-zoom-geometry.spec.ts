@@ -531,11 +531,12 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   await expect(overlay.getByTestId('heat-tab-ub')).toHaveAttribute('aria-selected', 'true');
   await expect(overlay.getByTestId('heat-metric')).toContainText('已用指令条数 ');
 
-  // Two columns, heat on the right, both with a box of their own.
+  // Two columns, heat on the right, both with a box of their own. Carrier locks the sketch's
+  // ~398px band at 400px (PR-ROOT-025 / MemoryHeatmapPanel Visual).
   const column = overlay.locator('.pr-topo-fs__diagram');
   const columnBox = (await column.boundingBox())!;
   const heatBox = (await heat.boundingBox())!;
-  expect(heatBox.width).toBeGreaterThan(200);
+  expect(heatBox.width).toBeCloseTo(400, 0);
   expect(heatBox.x).toBeGreaterThanOrEqual(columnBox.x + columnBox.width - SLOP);
   expect(Math.abs(heatBox.height - columnBox.height)).toBeLessThanOrEqual(SLOP + 2);
 
@@ -611,6 +612,23 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   // The body's only text is those two lines — no unit title above the grid.
   expect(order.bodyText).toContain('已用指令条数 ');
   expect(order.bodyText!.replace(order.name!.text, '').replace(order.metric!.text, '').trim()).toBe('');
+
+  // Short column: height-fit shrinks the lattice — body never scrolls (PR-HEAT-011).
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(heat.getByTestId('heat-grid')).toBeVisible();
+  const bodyFit = await heat.evaluate((panel) => {
+    const body = panel.querySelector('[data-testid="heat-body"]') as HTMLElement | null;
+    if (!body) return null;
+    const cs = getComputedStyle(body);
+    return {
+      overflowY: cs.overflowY,
+      scrollHeight: body.scrollHeight,
+      clientHeight: body.clientHeight,
+    };
+  });
+  expect(bodyFit).not.toBeNull();
+  expect(bodyFit!.overflowY).toBe('hidden');
+  expect(bodyFit!.scrollHeight).toBeLessThanOrEqual(bodyFit!.clientHeight + 1);
 
   // A tab with no source blanks its body and moves the diagram's own highlight with it.
   await overlay.getByTestId('heat-tab-l2').click();

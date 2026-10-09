@@ -171,6 +171,9 @@ describe('MemoryHeatmapPanel', () => {
     expect(src).toMatch(/--pr-heat-radius:\s*5px/);
     expect(src).toMatch(/border-radius:\s*var\(--pr-heat-radius\)/);
     expect(src).toMatch(/\.pr-heat\s*\{[^}]*overflow:\s*hidden/s);
+    // Footer budget assumes these used line-boxes (31+22)+(13+15).
+    expect(src).toMatch(/\.pr-heat__title\s*\{[^}]*line-height:\s*22px/s);
+    expect(src).toMatch(/\.pr-heat__metric\s*\{[^}]*line-height:\s*15px/s);
     // Tabs and legend stay outside the body; grid lives inside the lattice sizer.
     const wrapper = mountPanel();
     const body = wrapper.get('[data-testid="heat-body"]').element;

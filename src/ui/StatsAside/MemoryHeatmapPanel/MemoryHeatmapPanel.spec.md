@@ -49,7 +49,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 
 ## Visual
 
-Dark-only: panel `#262626` (the topology card's surface, not `--pr-bg-panel`), tab strip ruled on `#333333`, active tab on the short white bar. The panel is mounted as the 全屏 overlay's right column (**400px**, the sketch's ~398px band) and meets the diagram with **no** stroke between them — the frame's own boundary is the panel's `#262626` against the overlay's `#1a1a1a` (`--pr-bg-aside`), not a divider line. Every value below is measured off the sketch crop (`visual/heat-panel.png`, a 1:1 crop of the 7680×4320 frame, i.e. **4×** — so sketch px ÷ 4 = frame px).
+Dark-only: panel `#262626` (the topology card's surface, not `--pr-bg-panel`), tab strip ruled on `#333333`, active tab on the short white bar. The panel is mounted as the 全屏 overlay's right column (**400px**, the sketch's ~398px band) and meets the diagram with **no** stroke between them — the frame's own boundary is the panel's `#262626` against the overlay's literal `#1a1a1a` (not `--pr-bg-aside`, which light-theme remaps), not a divider line. Every value below is measured off the sketch crop (`visual/heat-panel.png`, a 1:1 crop of the 7680×4320 frame, i.e. **4×** — so sketch px ÷ 4 = frame px).
 
 The frame's own block order is normative: tab strip → rule → legend → grid → the selected unit's own name → the `12px` caption line, both centred under the grid. Nothing sits between the rule and the legend but space, and no unit name or metric sits *above* the grid.
 
@@ -62,8 +62,8 @@ The frame's own block order is normative: tab strip → rule → legend → grid
 | Tab strip rhythm | label-to-label ink `26px` (the frame's `106px` at 4×), so the labels sit apart rather than as boxed chips |
 | Legend | centred in the column; swatch `8px` (the frame's `32px` at 4× — the frame's own 12px type size), `1px` radius, `8px` to its label, `20px` between the two pairs |
 | Legend offsets | swatch `47.5px` under the strip's rule, grid `28px` under the swatch (the frame's `190px` / `112px` at 4×) |
-| Unit name under the grid | `AIC L1` in the **diagram's** words, `19px` `#e7e7e7`, `600`, centred `31px` under the grid (the frame's `76px` face, `122px` below the grid at 4×) |
-| Metric caption | `#b3b3b3`, `12px`, centred `13px` under the unit name — the same slot the frame fills with its capacity tooltip line (Known deltas / DATA-51) |
+| Unit name under the grid | `AIC L1` in the **diagram's** words, `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid (the frame's `76px` face, `122px` below the grid at 4×) |
+| Metric caption | `#b3b3b3`, `12px`/`15px` line-height, centred `13px` under the unit name — the same slot the frame fills with its capacity tooltip line (Known deltas / DATA-51) |
 | `已分配有数据` (allocated, with data) | `#3d64ad` |
 | `已分配无数据` (allocated, no data) | `#afc6fe` |
 | Grid frame | `2px` `#6e798d` border around the board, `5px` radius (sketch ~20px at 4×), one `2px` gap of inset inside it; cells clip to the radius |
@@ -89,6 +89,7 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 
 ## Changelog
 
+- **2026-10-09** — Title/metric line-heights (`22px` / `15px`) lock the `--pr-heat-footer: 81px` budget under height-fit; overlay ground called out as literal `#1a1a1a` (not `--pr-bg-aside`).
 - **2026-10-08** — Pixel re-compare to `v930-sim/memory-topology-fullscreen`: heat column **400px** (sketch ~398), title gap **31px** (122px÷4), indicator **12px** above the rule, grid radius **5px**. Legend→map gap: body is the size container; spare height falls below the metric. Short-column fit (PR-HEAT-011); overlay ground `#1a1a1a`; diagram `.pr-topo` transparent in 全屏.
 - **2026-10-06** — Short-column scroll (PR-HEAT-011, superseded 2026-10-08): the body was a vertical scrollport; replaced by lattice resize so sketch-faithful chrome stays put without a scrollbar.
 - **2026-10-02** — Sketch re-verification, block order (4× crop): the frame draws the selected unit's **own name** under the grid (`AIC L1`, the diagram's words, `19px` `#e7e7e7`) and its `12px` caption line under that — both centred; above the grid only the legend, no title. The body now renders that name (new PR-HEAT-010) with the metric under it, so the metric moves from between the legend and the grid to the footer. The frame's `12px` caption is decoded as the **capacity tooltip** (`Total: 64KB` / `Used: 20KB` / `Free: 0KB`, green values) that [DATA-51](../../../../docs/context/questions/DATA.md) hides, so the metric takes that slot deliberately. Also corrected against the frame: the strip rule is `#333333`, there is **no** divider between the panel and the diagram (the frame's boundary is `#262626` against `#191919`), the swatch sits `47.5px` under the rule (not `45.5px`, so the legend's top padding is `44px`), and the grid `28px` under the swatch. PR-HEAT-003 / PR-HEAT-004 / PR-HEAT-010 and § Visual updated with it.

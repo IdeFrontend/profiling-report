@@ -2180,8 +2180,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-width: 0;
   min-height: 0;
   padding: 10px 12px;
-  /* Sketch fullscreen ground is `#1a1a1a` — the heat panel alone carries `#262626`. */
-  background: var(--pr-bg-aside, #1a1a1a);
+  /* Sketch fullscreen ground is literal `#1a1a1a` (dark-only, like `.pr-heat` / `.pr-topo`).
+   * Do not use `--pr-bg-aside` — light theme remaps that token to `#e8ecf0`. */
+  background: #1a1a1a;
   overflow: hidden;
 }
 

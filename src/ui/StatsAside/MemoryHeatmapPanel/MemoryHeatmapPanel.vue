@@ -338,8 +338,9 @@ function onTabsKeydown(e: KeyboardEvent) {
   gap: 0;
   overflow: hidden;
   container-type: size;
-  /* Title (31+22) + metric (13+15). ponytail: fixed budget; if title/metric chrome grows past this,
-   * height-fit can clip — derive from measured footer or switch to a nested 1fr grid-slot. */
+  /* Title (31+22) + metric (13+15) — line-heights below lock those used boxes. ponytail: fixed
+   * budget; if title/metric chrome grows past this, height-fit can clip — derive from measured
+   * footer or switch to a nested 1fr grid-slot. */
   --pr-heat-footer: 81px;
 }
 
@@ -361,6 +362,7 @@ function onTabsKeydown(e: KeyboardEvent) {
   color: #e7e7e7;
   font-size: 19px;
   font-weight: 600;
+  line-height: 22px;
   text-align: center;
 }
 
@@ -369,6 +371,8 @@ function onTabsKeydown(e: KeyboardEvent) {
   flex: none;
   margin: 13px 0 0;
   color: #b3b3b3;
+  font-size: 12px;
+  line-height: 15px;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
