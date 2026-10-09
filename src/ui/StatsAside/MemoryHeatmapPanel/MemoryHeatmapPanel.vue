@@ -6,7 +6,7 @@ import type {
   MemoryHeatmapUnit,
   MemoryHeatmapUnitId,
 } from '../../../domain/types';
-import { HEATMAP_COLUMNS } from '../../../adapters/emulateMemoryHeatmap';
+import { HEATMAP_COLUMNS, HEATMAP_ROWS } from '../../../adapters/emulateMemoryHeatmap';
 
 /**
  * biprof §11.2.3.2 Memory Utilization Heatmap panel — the right column of the topology 全屏
@@ -179,20 +179,23 @@ function onTabsKeydown(e: KeyboardEvent) {
       :aria-labelledby="selectedUnit ? `heat-tab-${selectedUnit}` : undefined"
     >
       <template v-if="activeUnit">
-        <div
-          class="pr-heat__grid"
-          :style="{ '--pr-heat-cols': HEATMAP_COLUMNS }"
-          data-testid="heat-grid"
-          role="img"
-          :aria-label="gridLabel"
-        >
-          <span
-            v-for="block in activeUnit.blocks"
-            :key="block.index"
-            class="pr-heat__cell"
-            :class="{ 'pr-heat__cell--with': block.state === 'withData' }"
-            :data-state="block.state"
-          />
+        <!-- Centres the grid; cell size comes from the body's container queries (PR-HEAT-011). -->
+        <div class="pr-heat__lattice" data-testid="heat-lattice">
+          <div
+            class="pr-heat__grid"
+            :style="{ '--pr-heat-cols': HEATMAP_COLUMNS, '--pr-heat-rows': HEATMAP_ROWS }"
+            data-testid="heat-grid"
+            role="img"
+            :aria-label="gridLabel"
+          >
+            <span
+              v-for="block in activeUnit.blocks"
+              :key="block.index"
+              class="pr-heat__cell"
+              :class="{ 'pr-heat__cell--with': block.state === 'withData' }"
+              :data-state="block.state"
+            />
+          </div>
         </div>
         <!-- The frame's own order under the grid: the selected unit's name, then the caption. -->
         <p
@@ -223,7 +226,8 @@ function onTabsKeydown(e: KeyboardEvent) {
 </template>
 
 <style scoped>
-/* Dark-only chrome, same surface as the topology card (MemoryTopologyPanel Visual). */
+/* Dark-only chrome — the *only* grey card in the fullscreen overlay (diagram side stays on the
+ * deep `#1a1a1a` surface; see ProfilingReport `.pr-topo-fs`). */
 .pr-heat {
   box-sizing: border-box;
   display: flex;
@@ -234,10 +238,6 @@ function onTabsKeydown(e: KeyboardEvent) {
   background: #262626;
   color: #fff;
   font-size: 12px;
-  /* The lattice is sized by its rows from the column width (PR-HEAT-003) and often taller than a
-   * laptop viewport. Clip here so the tab strip + legend stay put while the body scrolls
-   * (PR-HEAT-011) — the overlay host is also overflow:hidden, so without a scrollport the footer
-   * and the bottom of the grid were unreachable. */
   overflow: hidden;
 }
 
@@ -246,8 +246,8 @@ function onTabsKeydown(e: KeyboardEvent) {
   flex: none;
   /* 6px between the buttons keeps the label-to-label ink at ~26px, the frame's own rhythm (Visual). */
   gap: 6px;
-  /* The frame's indicator floats ~11px above the rule rather than sitting on it (Visual). */
-  padding-bottom: 11px;
+  /* The frame's indicator floats ~12px above the rule rather than sitting on it (Visual; 50px÷4). */
+  padding-bottom: 12px;
   border-bottom: 1px solid #333333;
   /* The six labels fill the content box to the pixel, so the strip must never shrink or wrap them:
    * a host font a hair wider would otherwise wrap a label and change the strip's height. Tabs keep
@@ -327,22 +327,37 @@ function onTabsKeydown(e: KeyboardEvent) {
   background: #afc6fe;
 }
 
+/* Body is the size container: cqh covers lattice + title + metric, so the grid can shrink for a
+ * short column while legend→grid stays the legend's own 24px (≈28px to the swatch) and spare
+ * height falls *below* the metric — not between the legend and the map (PR-HEAT-011). */
 .pr-heat__body {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
   gap: 0;
-  /* Vertical-only: the grid must not open a horizontal bar from the scrollbar gutter (same
-   * contract as the aside body, PR-STATS-029). Tabs and legend sit above this scrollport. */
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
+  container-type: size;
+  /* Title (31+22) + metric (13+15). ponytail: fixed budget; if title/metric chrome grows past this,
+   * height-fit can clip — derive from measured footer or switch to a nested 1fr grid-slot. */
+  --pr-heat-footer: 81px;
+}
+
+/* Wraps the grid only; does not flex-grow, so it cannot open a legend→map gap. */
+.pr-heat__lattice {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
 }
 
 /* The frame repeats the selected unit's own name under the grid (`AIC L1`, its diagram words), then
  * the `已用指令条数` caption under that — neither sits above the lattice (Visual). */
 .pr-heat__title {
-  margin: 26px 0 0;
+  flex: none;
+  /* Sketch: 122px under the grid at 4× → 30.5px (Visual). */
+  margin: 31px 0 0;
   color: #e7e7e7;
   font-size: 19px;
   font-weight: 600;
@@ -351,33 +366,57 @@ function onTabsKeydown(e: KeyboardEvent) {
 
 /* The frame's `已用指令条数` caption sits *under* the grid, centred — not above it (Visual). */
 .pr-heat__metric {
+  flex: none;
   margin: 13px 0 0;
   color: #b3b3b3;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
-/* 16 cells per row × 26 row groups, same fixed shape as the carrier's grid. The column count comes
- * from `HEATMAP_COLUMNS` (bound as `--pr-heat-cols`) so the shape has one source of truth.
- *
- * The frame is a *lattice*, not tiles on the panel: a `#6e798d` border around a `#303f5e` board, the
- * gaps cut out of that board, and one gap of inset inside the border. The grid is sized by its rows
- * (`flex: none`) so the border wraps the lattice instead of the column's leftover height. */
+/* 16 × 26 carrier shape. Cell size = min(width-fit, height-fit) so the lattice never overflows the
+ * column and never opens a scrollbar (PR-HEAT-011). Bound from HEATMAP_COLUMNS / HEATMAP_ROWS.
+ * `100cq*` is the body (legend is outside), with `--pr-heat-footer` reserved for title + metric. */
 .pr-heat__grid {
+  --pr-heat-gap: 2px;
+  --pr-heat-inset: 2px;
+  --pr-heat-border: 2px;
+  /* Sketch corner ~20px at 4× → 5px. */
+  --pr-heat-radius: 5px;
+  --pr-heat-cell: min(
+    calc(
+      (100cqw - 2 * var(--pr-heat-border) - 2 * var(--pr-heat-inset) -
+        (var(--pr-heat-cols) - 1) * var(--pr-heat-gap)) / var(--pr-heat-cols)
+    ),
+    calc(
+      (100cqh - var(--pr-heat-footer) - 2 * var(--pr-heat-border) - 2 * var(--pr-heat-inset) -
+        (var(--pr-heat-rows) - 1) * var(--pr-heat-gap)) / var(--pr-heat-rows)
+    )
+  );
   display: grid;
-  flex: none;
   box-sizing: border-box;
-  grid-template-columns: repeat(var(--pr-heat-cols), 1fr);
-  align-content: start;
-  gap: 2px;
-  padding: 2px;
-  border: 2px solid #6e798d;
+  width: calc(
+    var(--pr-heat-cols) * var(--pr-heat-cell) + (var(--pr-heat-cols) - 1) * var(--pr-heat-gap) +
+      2 * var(--pr-heat-inset) + 2 * var(--pr-heat-border)
+  );
+  height: calc(
+    var(--pr-heat-rows) * var(--pr-heat-cell) + (var(--pr-heat-rows) - 1) * var(--pr-heat-gap) +
+      2 * var(--pr-heat-inset) + 2 * var(--pr-heat-border)
+  );
+  grid-template-columns: repeat(var(--pr-heat-cols), var(--pr-heat-cell));
+  grid-template-rows: repeat(var(--pr-heat-rows), var(--pr-heat-cell));
+  gap: var(--pr-heat-gap);
+  padding: var(--pr-heat-inset);
+  border: var(--pr-heat-border) solid #6e798d;
+  border-radius: var(--pr-heat-radius);
   background: #303f5e;
+  /* Clip cells to the rounded frame (v930-sim/memory-topology-fullscreen). */
+  overflow: hidden;
   min-height: 0;
 }
 
 .pr-heat__cell {
-  aspect-ratio: 1;
+  width: var(--pr-heat-cell);
+  height: var(--pr-heat-cell);
   border-radius: 1px;
   background: #afc6fe;
 }
