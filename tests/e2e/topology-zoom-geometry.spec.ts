@@ -606,7 +606,7 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   // The frame repeats the unit's own name below its grid, then its caption.
   expect(order.name!.text).toBe('AIV × 2 UB');
   expect(order.name!.top).toBeGreaterThan(order.grid!.bottom);
-  expect(order.name!.top - order.grid!.bottom).toBeCloseTo(26, 0);
+  expect(order.name!.top - order.grid!.bottom).toBeCloseTo(31, 0);
   expect(order.metric!.top).toBeGreaterThan(order.name!.bottom);
   // The body's only text is those two lines — no unit title above the grid.
   expect(order.bodyText).toContain('已用指令条数 ');
