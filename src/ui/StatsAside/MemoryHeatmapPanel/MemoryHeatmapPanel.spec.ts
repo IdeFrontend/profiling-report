@@ -70,11 +70,14 @@ describe('MemoryHeatmapPanel', () => {
     const wrapper = mountPanel({ selectedUnit: 'ub' });
     const name = wrapper.get('[data-testid="heat-unit-name"]');
     expect(name.text()).toBe('AIV × 2 UB');
-    // Under the grid, above the caption — the strip's own tab keeps the short label.
+    // Lattice (holds the grid) → unit name → caption — the strip's own tab keeps the short label.
     const body = wrapper.get('[data-testid="heat-body"]');
-    expect(body.element.children[0].getAttribute('data-testid')).toBe('heat-grid');
+    expect(body.element.children[0].getAttribute('data-testid')).toBe('heat-lattice');
     expect(body.element.children[1].getAttribute('data-testid')).toBe('heat-unit-name');
     expect(body.element.children[2].getAttribute('data-testid')).toBe('heat-metric');
+    expect(wrapper.get('[data-testid="heat-lattice"]').find('[data-testid="heat-grid"]').exists()).toBe(
+      true,
+    );
     // A unit with no source blanks its whole body, name included.
     expect(
       mountPanel({ selectedUnit: 'l2' }).find('[data-testid="heat-unit-name"]').exists(),
@@ -157,21 +160,25 @@ describe('MemoryHeatmapPanel', () => {
     expect(unselected.findAll('[role="tab"][aria-selected="true"]')).toHaveLength(0);
   });
 
-  it('PR-HEAT-011: body scrolls vertically only (tabs and legend stay outside)', async () => {
-    // Same source contract as PR-STATS-029 — happy-dom does not apply scoped CSS to
-    // getComputedStyle, so the scrollport is locked in the stylesheet rather than measured.
+  it('PR-HEAT-011: lattice resizes to fit — no body scrollbar', async () => {
+    // Source contract — happy-dom does not apply scoped CSS to getComputedStyle.
     const src = (await import('./MemoryHeatmapPanel.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-heat__body\s*\{[^}]*overflow-x:\s*hidden/s);
-    expect(src).toMatch(/\.pr-heat__body\s*\{[^}]*overflow-y:\s*auto/s);
-    expect(src).not.toMatch(/\.pr-heat__body\s*\{[^}]*overflow:\s*auto/s);
-    // Root clips so the tab strip cannot scroll away with the body.
+    expect(src).toMatch(/\.pr-heat__body\s*\{[^}]*overflow:\s*hidden/s);
+    expect(src).toMatch(/\.pr-heat__body\s*\{[^}]*container-type:\s*size/s);
+    expect(src).not.toMatch(/\.pr-heat__body\s*\{[^}]*overflow-y:\s*auto/s);
+    expect(src).toMatch(/--pr-heat-cell:\s*min\(/s);
+    expect(src).toMatch(/--pr-heat-footer:/);
+    expect(src).toMatch(/--pr-heat-radius:\s*5px/);
+    expect(src).toMatch(/border-radius:\s*var\(--pr-heat-radius\)/);
     expect(src).toMatch(/\.pr-heat\s*\{[^}]*overflow:\s*hidden/s);
-    // Tabs and legend are siblings of the body, not inside it.
+    // Footer budget assumes these used line-boxes (31+22)+(13+15).
+    expect(src).toMatch(/\.pr-heat__title\s*\{[^}]*line-height:\s*22px/s);
+    expect(src).toMatch(/\.pr-heat__metric\s*\{[^}]*line-height:\s*15px/s);
+    // Tabs and legend stay outside the body; grid lives inside the lattice sizer.
     const wrapper = mountPanel();
-    const root = wrapper.get('[data-testid="memory-heatmap-panel"]').element;
     const body = wrapper.get('[data-testid="heat-body"]').element;
-    expect(root.contains(wrapper.get('[data-testid="heat-tabs"]').element)).toBe(true);
     expect(body.contains(wrapper.get('[data-testid="heat-tabs"]').element)).toBe(false);
     expect(body.contains(wrapper.get('.pr-heat__legend').element)).toBe(false);
+    expect(wrapper.get('[data-testid="heat-grid"]').attributes('style')).toContain('--pr-heat-rows');
   });
 });

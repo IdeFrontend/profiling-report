@@ -2180,7 +2180,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-width: 0;
   min-height: 0;
   padding: 10px 12px;
-  background: var(--pr-bg-deep);
+  /* Sketch fullscreen ground is literal `#1a1a1a` (dark-only, like `.pr-heat` / `.pr-topo`).
+   * Do not use `--pr-bg-aside` — light theme remaps that token to `#e8ecf0`. */
+  background: #1a1a1a;
   overflow: hidden;
 }
 
@@ -2274,12 +2276,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 }
 
 /* §11.2.3.2: the heat panel takes the overlay's right column, the diagram keeps the rest. The frame
- * draws no rule between the two — the panel's own `#262626` surface is the separation. */
+ * draws no rule between the two — the panel's own `#262626` surface is the separation against the
+ * overlay's `#1a1a1a` (diagram side has no grey card of its own). */
 .pr-topo-fs__heat {
-  flex: 0 0 320px;
+  /* Sketch panel is ~398px at 1× (v930-sim/memory-topology-fullscreen); 400 keeps that band. */
+  flex: 0 0 400px;
   min-height: 0;
-  /* Same element as `.pr-heat`: keep the column height-bounded so the panel's body scrollport
-   * (PR-HEAT-011) can shrink, rather than growing the overlay and clipping under overflow:hidden. */
+  /* Same element as `.pr-heat`: height-bounded so the lattice can size down (PR-HEAT-011). */
   align-self: stretch;
   overflow: hidden;
 }
@@ -2301,6 +2304,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-height: 0;
   box-sizing: border-box;
   overflow: hidden;
+  /* Stacked aside keeps the `#262626` card; fullscreen sits on the overlay ground so only the
+   * heat column reads as a grey panel (v930-sim/memory-topology-fullscreen). */
+  background: transparent;
 }
 
 /* Fill the leftover box (wide host). The panel's own frame keeps `aspect-ratio` in the stacked
