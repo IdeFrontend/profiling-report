@@ -30,7 +30,7 @@ Localized **summary** title with decorative chart icon (L-axis + sparkline). Whe
 
 Overlay surfaces replace the stacked report: header title becomes **计算负载分析** / **内存负载分析** / **硬件信息详情**; the back control returns to the stack. Close and the **性能分析** link are **omitted** on overlay headers so × cannot dismiss the whole aside while drilled in. No mode-tab switcher on the stacked report. Header stays pinned; stacked body and overlay lists scroll in the remaining height.
 
-**cannbot entries.** Three question shortcuts (CANNBot 分析 / CANNBot Analysis): right end of the meta row (summary), left of **详情** on the compute and memory section heads. Each follows its host — summary with the meta row, compute with the PIPE panel, memory with the memory panel; the memory icon stays even when that head has no **详情**. 16×16 agent icon, localized title / aria-label (`cannbotAsk`), hover highlight; clicking only emits **open-cannbot** — no overlay, no request.
+**cannbot entries.** Three question shortcuts (CANNWork 分析 / CANNBot Analysis): right end of the meta row (summary), left of **详情** on the compute and memory section heads. Each follows its host — summary with the meta row, compute with the PIPE panel, memory with the memory panel; the memory icon stays even when that head has no **详情**. 16×16 agent icon, localized title / aria-label (`cannbotAsk`), hover highlight; clicking only emits **open-cannbot** — no overlay, no request.
 
 ### Stacked report
 
