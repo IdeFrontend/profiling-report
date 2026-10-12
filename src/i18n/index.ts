@@ -97,7 +97,7 @@ const messages = {
     hardwareInfoMissing: '缺少 hardware info',
     pipeDetails: 'PIPE 占用率',
     back: '返回',
-    cannbotAsk: 'CANNBot 分析',
+    cannbotAsk: 'CANNWork 分析',
     // The sketch keeps these five column/toolbar labels in English in the zh-CN UI —
     // `Relevent` included, misspelling and all. Identical to the `en` block on purpose.
     parameter: 'Parameter',
