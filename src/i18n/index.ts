@@ -294,7 +294,7 @@ const messages = {
     hardwareInfoMissing: 'Missing hardware info',
     pipeDetails: 'PIPE occupancy',
     back: 'Back',
-    cannbotAsk: 'CANNBot Analysis',
+    cannbotAsk: 'CANNWork Analysis',
     parameter: 'Parameter',
     relevant: 'Relevent',
     incoming: 'Incoming',
