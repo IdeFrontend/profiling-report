@@ -34,7 +34,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** label (e.g. `op1` / `op2`); menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
-**Secondary tabs ([UI-37](../../../docs/context/decisions/UI.md)).** **时间线** is the only active tab. **源码 / 详情 / 缓存** render in the strip but are **disabled** (no surfaces). Tooltip uses not-supported copy (`tabsNotSupported`), not “Phase 2”.
+**Secondary tabs ([UI-37](../../../docs/context/decisions/UI.md)).** **时间线** and — when `sourceTabEnabled` — **源码** are selectable (`activeTab` / `update:activeTab`). **详情 / 缓存** stay **disabled** with not-supported tooltip (`tabsNotSupported`). When Source is disabled, its control uses the same not-supported tooltip.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — keep accessible `title` via i18n.
 
@@ -201,7 +201,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt, single-finger, double-finger, box-select) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below; Combined scaling/pan/box-select rows include `/`-separated trackpad/gesture stand-ins.
 25. **PR-TOOLBAR-024** — The user-guide action renders **last** among `data-toolbar-clip` actions (`data-testid="open-user-guide"`, `help` glyph). Click emits `open-user-guide` with `userGuideUrl` (default `DEFAULT_USER_GUIDE_URL`) and calls `window.open(…, '_blank', 'noopener,noreferrer')`.
 26. **PR-TOOLBAR-025** — When `searchQuery` is non-empty, a clear × (`data-testid="search-clear"`, `aria-label` from `searchClear`) appears as a **sibling** of the search `<label>` (not inside it); `@mousedown.prevent` avoids stealing focus before mouse clear; `@click` and keyboard **Enter** / **Space** emit `update:searchQuery` with `''` then refocus the input. Search `:focus-visible` uses an inset playhead ring (not an outer outline) so it is not clipped by `.pr-chrome` / `.pr-toolbar` `overflow-x: clip`.
-27. **PR-TOOLBAR-026** — Tab strip: **时间线** active (`data-testid="tab-timeline"`); **源码 / 详情 / 缓存** present and `disabled` ([UI-37](../../../docs/context/decisions/UI.md)).
+27. **PR-TOOLBAR-026** — Tab strip: **时间线** active by default; **详情 / 缓存** always `disabled`; **源码** disabled until `sourceTabEnabled`, then emits `update:activeTab` ([UI-37](../../../docs/context/decisions/UI.md)).
 
 ## Edge Cases
 

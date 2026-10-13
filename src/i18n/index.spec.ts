@@ -22,6 +22,11 @@ describe('i18n', () => {
     expect(t('focusMeasureRange', 'zh-CN')).toBe('聚焦度量范围');
     expect(t('userGuide', 'zh-CN')).toBe('用户指南');
     expect(t('userGuide', 'en')).toBe('User guide');
+    // Source sketch chrome stays English; icon-button tooltips localize.
+    expect(t('sourceFile', 'zh-CN')).toBe('Source');
+    expect(t('sourceFindNext', 'zh-CN')).toBe('查找下一个');
+    expect(t('sourceLinkSync', 'zh-CN')).toBe('联动视图');
+    expect(t('sourceFindNext', 'en')).toBe('Find next');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {

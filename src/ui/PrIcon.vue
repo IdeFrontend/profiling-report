@@ -17,7 +17,15 @@ export type PrIconName =
   | 'display-config'
   | 'help'
   | 'close'
-  | 'keyboard';
+  | 'keyboard'
+  | 'link'
+  | 'chevron-down'
+  | 'chevron-up'
+  | 'to-top'
+  | 'sort-asc'
+  | 'sort-desc'
+  | 'download'
+  | 'layers';
 
 defineProps<{ name: PrIconName }>();
 </script>
@@ -83,5 +91,45 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--keyboard {
   -webkit-mask-image: url('./icons/keyboard.svg');
   mask-image: url('./icons/keyboard.svg');
+}
+
+.pr-icon--link {
+  -webkit-mask-image: url('./icons/link.svg');
+  mask-image: url('./icons/link.svg');
+}
+
+.pr-icon--chevron-down {
+  -webkit-mask-image: url('./icons/chevron-down.svg');
+  mask-image: url('./icons/chevron-down.svg');
+}
+
+.pr-icon--chevron-up {
+  -webkit-mask-image: url('./icons/chevron-up.svg');
+  mask-image: url('./icons/chevron-up.svg');
+}
+
+.pr-icon--to-top {
+  -webkit-mask-image: url('./icons/to-top.svg');
+  mask-image: url('./icons/to-top.svg');
+}
+
+.pr-icon--sort-asc {
+  -webkit-mask-image: url('./icons/sort-asc.svg');
+  mask-image: url('./icons/sort-asc.svg');
+}
+
+.pr-icon--sort-desc {
+  -webkit-mask-image: url('./icons/sort-desc.svg');
+  mask-image: url('./icons/sort-desc.svg');
+}
+
+.pr-icon--download {
+  -webkit-mask-image: url('./icons/download.svg');
+  mask-image: url('./icons/download.svg');
+}
+
+.pr-icon--layers {
+  -webkit-mask-image: url('./icons/layers.svg');
+  mask-image: url('./icons/layers.svg');
 }
 </style>

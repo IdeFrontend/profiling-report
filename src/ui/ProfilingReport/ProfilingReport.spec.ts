@@ -5,12 +5,46 @@ import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
+import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
+
+vi.mock('../SourceView/sourceFonts', () => ({
+  ensureSourceTabFonts: vi.fn(async () => undefined),
+  SOURCE_TAB_CODICON_URL: '/sudu/codicon.ttf',
+  SOURCE_TAB_MONO_FAMILY: 'JetBrains Mono',
+  SOURCE_TAB_MONO_STACK: "'JetBrains Mono', ui-monospace, monospace",
+  SOURCE_TAB_EDITOR_FONT: { family: 'JetBrains Mono', size: 12, weight: 400 },
+}));
+
+vi.mock('@sudu-ide/code-review', () => ({
+  newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
+  loadFonts: vi.fn(async () => []),
+  newEditor: vi.fn(() => ({
+    setModel: vi.fn(),
+    setVScrollListener: vi.fn(),
+    setCaretListener: vi.fn(),
+    setPosition: vi.fn(),
+    getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
+    revealLine: vi.fn(),
+    revealLineInCenter: vi.fn(),
+    focus: vi.fn(),
+    dispose: vi.fn(),
+    getDevicePixelRatio: () => 1,
+    getLineHeight: () => 18,
+    getEditorHeight: () => 200,
+    getMaxVScrollPos: () => 0,
+    getNumLines: () => 10,
+    getFontSize: () => 12,
+    getFontFamily: () => 'JetBrains Mono',
+    setVScrollPos: vi.fn(),
+  })),
+  newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
+}));
 
 /** Two linked events, so the dock mounts its Relevent column. */
 function depsModel(): SwimlaneModel {
@@ -1918,6 +1952,40 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(span()).toBe(1000);
     expect(wrapper.vm.viewState.pinnedLaneIds).toEqual([]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-024: Source tab v-if swap keeps viewState time window (UI-37)', async () => {
+    const reportModel = {
+      ...emptyReportViewModel(),
+      sourceCorrelation: mockSourceCorrelation(),
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-tab',
+        swimlaneModel: depsModel(),
+        reportModel,
+        capabilities: ['sourceTab'],
+      },
+    });
+    wrapper.vm.viewState = {
+      ...wrapper.vm.viewState,
+      startTime: 120,
+      endTime: 480,
+    };
+
+    expect(wrapper.find('[data-testid="tab-source"]').attributes('disabled')).toBeUndefined();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(false);
+    expect(wrapper.findComponent(TimelineView).exists()).toBe(true);
+    expect(wrapper.vm.viewState.startTime).toBe(120);
+    expect(wrapper.vm.viewState.endTime).toBe(480);
     wrapper.unmount();
   });
 });

@@ -77,6 +77,7 @@ import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneG
 import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
 import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
+import SourceView from '../SourceView/SourceView.vue';
 import '../tokens.css';
 import {
   availableGutterMetrics,
@@ -120,6 +121,10 @@ const props = withDefaults(defineProps<{
    *  Problems on `vscode`, internal dock otherwise). Open union so future
    *  environments can be added without touching consumers. */
   environment?: 'vscode' | 'browser' | (string & {});
+  /** Same-origin URL for the Sudu TeaVM worker (Source tab). */
+  suduWorkerUrl?: string;
+  /** Optional codicon font URL for Sudu `loadFonts`. */
+  suduCodiconUrl?: string;
 }>(), {
   title: undefined,
   source: undefined,
@@ -135,6 +140,8 @@ const props = withDefaults(defineProps<{
   preferRenderer: undefined,
   capabilities: undefined,
   environment: undefined,
+  suduWorkerUrl: '/sudu/worker.js',
+  suduCodiconUrl: '/sudu/codicon.ttf',
 });
 
 const emit = defineEmits<{
@@ -354,6 +361,28 @@ const hintsDockShown = computed(
 const asideAvailable = computed(() => reportHasAsideContent(report.value, caps.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
+/** UI-37: Source tab when adapter (or host) advertises sourceTab and a model exists. */
+const sourceTabEnabled = computed(
+  () => caps.value.includes('sourceTab') && report.value?.sourceCorrelation != null,
+);
+const activeTab = ref<'timeline' | 'source'>('timeline');
+const showSource = computed(
+  () =>
+    activeTab.value === 'source' &&
+    sourceTabEnabled.value &&
+    report.value?.sourceCorrelation != null,
+);
+/** Timeline canvas mounts only while the Timeline tab is active (releases WebGL). */
+const showTimelineSurface = computed(() => showTimeline.value && !showSource.value);
+
+watch(sourceTabEnabled, (ok) => {
+  if (!ok && activeTab.value === 'source') activeTab.value = 'timeline';
+});
+
+function onActiveTab(tab: 'timeline' | 'source') {
+  if (tab === 'source' && !sourceTabEnabled.value) return;
+  activeTab.value = tab;
+}
 
 const pipeUtilRows = computed(() => {
   const table = report.value?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
@@ -1555,7 +1584,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
-      v-if="!showTimeline"
+      v-if="!showTimeline && !showSource"
       :title="title"
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
@@ -1570,6 +1599,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :operators="operators"
       :selected-operator-id="selectedOperatorId"
       :user-guide-url="userGuideUrl"
+      :active-tab="activeTab"
+      :source-tab-enabled="sourceTabEnabled"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
@@ -1578,6 +1609,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @update:dependency-depth="onDependencyDepth"
       @update:zoom-percent="onZoomPercent"
       @update:measure-mode="onMeasureMode"
+      @update:active-tab="onActiveTab"
       @zoom-to-fit="onZoomToFit"
       @zoom-in="onZoomIn"
       @zoom-out="onZoomOut"
@@ -1593,16 +1625,16 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </p>
 
     <ReportLayout
-      v-else-if="showTimeline || showAside"
+      v-else-if="showTimeline || showAside || showSource"
       ref="layoutRef"
-      :show-aside="showAside"
+      :show-aside="showAside && !showSource"
       :aside-width="asideWidth"
       :locale="locale"
       @update:aside-width="onAsideWidth"
     >
       <template #main>
         <ReportToolbar
-          v-if="showTimeline"
+          v-if="showTimeline || showSource"
           :title="title"
           :search-query="viewState.searchQuery"
           :aside-visible="viewState.asideVisible"
@@ -1616,6 +1648,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :operators="operators"
           :selected-operator-id="selectedOperatorId"
           :user-guide-url="userGuideUrl"
+          :active-tab="activeTab"
+          :source-tab-enabled="sourceTabEnabled"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
@@ -1623,13 +1657,23 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
+          @update:active-tab="onActiveTab"
           @zoom-to-fit="onZoomToFit"
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
           @open-user-guide="emit('open-user-guide', $event)"
         />
+        <SourceView
+          v-if="showSource && report?.sourceCorrelation"
+          :model="report.sourceCorrelation"
+          :locale="locale"
+          :sudu-worker-url="suduWorkerUrl"
+          :sudu-codicon-url="suduCodiconUrl"
+          :user-guide-url="userGuideUrl"
+          @open-user-guide="emit('open-user-guide', $event)"
+        />
         <TimelineView
-          v-if="showTimeline"
+          v-if="showTimelineSurface"
           ref="timelineRef"
           :bounds="bounds"
           :view="viewState"
@@ -1716,7 +1760,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
          From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
-        v-if="(showTimeline && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints)"
+        v-if="(showTimelineSurface && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints && !showSource)"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
@@ -1851,7 +1895,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </Transition>
 
     <EventTooltip
-      v-if="hovered && showTimeline"
+      v-if="hovered && showTimelineSurface"
       :event="hovered"
       :style-pos="tooltipStyle"
       :time-display-mode="localTimeDisplayMode"

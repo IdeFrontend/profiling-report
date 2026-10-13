@@ -83,11 +83,10 @@
 }
 
 /**
- * Block switcher (block / 块) pill — the single definition for every select
- * that scopes a view to one `block_id`. Shared by the memory CSV overlay
- * (`CsvFieldListPanel`) and the summary PIPE card (`StatsAside`) so the two
- * cannot drift apart; `appearance: none` + the inline chevron keep the native
- * arrow out. Global because both components are `<style scoped>`.
+ * Dark chrome `<select>` pill — shared by the memory CSV / summary PIPE block
+ * switchers and Source-tab view controls (`SourceView`) so native-arrow / radius
+ * cannot drift. `appearance: none` + the inline chevron keep the OS arrow out.
+ * Global because those components are `<style scoped>`.
  */
 .pr-block-pill {
   appearance: none;

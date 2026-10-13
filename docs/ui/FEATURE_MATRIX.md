@@ -14,7 +14,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Emulate Sept 30 (M4): Timeline + PIPE + Memory load analysis + CANNBot (compute/memory); **性能提示** **in**; summary cards/meta **out** | M | [milestone-4](../process/roadmap/milestone-4.md); [performance-hints](../views/performance-hints.md); [DATA-47](../context/decisions/DATA.md); ArchDiagramMetrics → `archDiagram` ([memory-topology](../views/memory-topology.md)); heatmap / roofline / overview **out** — [emulate/FORMAT](../formats/emulate/FORMAT.md) |
 | Simulator Phase 2: dedicated arch chrome / memory heatmap / VF IPC / call stacks / … | P2 | MHTML §11.2.3; [DATA-49](../context/questions/DATA.md); capabilities `memoryHeatmap`, `vfIpc`, `callStacks`, … |
 | Timeline secondary tab | M | Primary view |
-| OP算子 / 源码 / 详情 / 缓存 tabs | M | **时间线** active; **源码 / 详情 / 缓存** visible and **disabled** ([UI-37](../context/decisions/UI.md)). No tab surfaces this phase. OP算子 = brand / multi-op selector. |
+| OP算子 / 源码 / 详情 / 缓存 tabs | M | **时间线** + **源码** active on report packs ([UI-37](../context/decisions/UI.md)); **详情 / 缓存** visible and **disabled**. OP算子 = brand / multi-op selector. Source mock-first: dual panes, chrome, dock tables; real embeds / heat tint open ([DATA-50](../context/questions/DATA.md), [DATA-51](../context/questions/DATA.md), [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md)). |
 | Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |
 | Keep Insight for `.bin` | H | See formats comparison |
 

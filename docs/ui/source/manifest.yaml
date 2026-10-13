@@ -112,7 +112,7 @@ batches:
         components: [StatsAside, PerformanceHintsDock]
 
   # 源码 tab reference (Source / SASS). Not a revision of the 性能调优 timeline — that
-  # authority stays v930/entry. No component consumes this frame yet.
+  # authority stays v930/entry.
   v930-source:
     label: "930 源码（代码关联）"
     files:
@@ -120,6 +120,7 @@ batches:
         path: v930-source/source-correlation.jpeg
         original_name: "代码关联_源码.jpeg"
         scenes: [source, sass]
+        components: [SourceView]
 
   # Official Asc 内存拓扑 chrome export (448×423, AIC + one AIV × 2). Append-only copy of the
   # runtime panel asset — do not overwrite; bump a new batch if the Figma export changes again.

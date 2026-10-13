@@ -20,6 +20,7 @@ flowchart TB
   layout --> aside[StatsAside]
   mainCol --> toolbar[ReportToolbar]
   mainCol --> timeline[TimelineView]
+  mainCol --> sourceView[SourceView]
   timeline --> overviewBar[TimeOverviewBar]
   timeline --> timeAxis[TimeAxis]
   timeAxis --> ruler[AxisRuler]
@@ -46,6 +47,7 @@ flowchart TB
 src/ui/
   ProfilingReport/                 (no pack)
   ReportToolbar/                   ✓  v930/entry
+  SourceView/                      ✓  v930-source/source-correlation
   ReportLayout/                    (no pack)
   EventTooltip/                    ✓  v930/task-hover
   ContextMenu/                     ✓  v930/task-context-menu
@@ -76,7 +78,7 @@ src/ui/
 
 ## Notes
 
-- Host IDE chrome (OP/kernel selector, OP算子/源码/详情/缓存 tabs) is out of this library tree.
+- Library chrome owns OP算子 / 时间线 / 源码 / 详情 / 缓存 tabs; **源码** mounts `SourceView/` (UI-37).
 - `ReportToolbar` lives in the ReportLayout **main** column (above TimelineView), not as a full-width sibling above the aside.
 - Topology **全屏** is a root sibling of `ReportLayout` (opaque overlay on `.pr-root`); it remounts `MemoryTopologyPanel` and does not unmount the layout. The control itself lives in the panel's zoom bar (only when the host passes `showFullscreen`), so the remounted overlay panel **keeps the zoom bar** but shows no 全屏, and its zoom starts at 100% independently of the stacked aside.
 - `CanvasSwimlaneRenderer` stays under `src/swimlane/` (imperative backend).

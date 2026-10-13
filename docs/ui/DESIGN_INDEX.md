@@ -48,7 +48,7 @@ A resolution-only replacement of an existing source id (same frame, higher resol
 
 | Id | File | Typical consumers |
 |----|------|-------------------|
-| `v930-source/source-correlation` | [`source-correlation.jpeg`](./source/v930-source/source-correlation.jpeg) | 源码 tab reference (Source / SASS split). Timeline authority stays `v930/entry`. No component consumes this frame yet. |
+| `v930-source/source-correlation` | [`source-correlation.jpeg`](./source/v930-source/source-correlation.jpeg) | [`SourceView`](../../src/ui/SourceView/visual/) — Source / SASS split. Timeline authority stays `v930/entry`. |
 
 ## Source frames (`v930-chrome` — official topology SVG)
 
@@ -83,4 +83,5 @@ A resolution-only replacement of an existing source id (same frame, higher resol
 | [`EventTooltip`](../../src/ui/EventTooltip/visual/) | hover tooltip | `v930/task-hover` |
 | [`ContextMenu`](../../src/ui/ContextMenu/visual/) | task context menu | `v930/task-context-menu` |
 | [`MultiSelectSummary`](../../src/ui/MultiSelectSummary/visual/) | selection, info panel | `v930/task-marquee` |
+| [`SourceView`](../../src/ui/SourceView/visual/) | Source / SASS correlation | `v930-source/source-correlation` |
 | ProfilingReport / ReportLayout / TimelineView / TimeAxis | (shells — no visual pack) | — |

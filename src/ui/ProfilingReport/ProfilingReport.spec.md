@@ -198,6 +198,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 21. **PR-ROOT-021** — the title-row 性能分析 trigger follows the host environment: `vscode` emits `open-performance-hints-in-problems` and does not open the dock; `browser`/omitted opens the hints pane in the standard detail dock.
 22. **PR-ROOT-022** — The hints pane shares the root's `dockHeight`: after the `browser` trigger opens it, the pane's expander reads `aria-expanded="false"` and drives the shell's `--pr-dock-h` between 407px (expanded) and 247px (collapsed) on successive clicks.
 23. **PR-ROOT-023** — The title-row 性能分析 trigger opens the [hints pane](../PerformanceHintsDock/PerformanceHintsDock.spec.md) over any existing dock content: it clears a live marquee and the committed single/multi selection (`select(null)` on the host) before opening, and `hintsDockShown` gates the pane so it cannot outlive that content (the pane reuses the standard event-detail dock — no dedicated hints chrome). A later non-null timeline `onSelect` or marquee multi commit clears `hintsDockOpen`, so closing DetailPanel / MultiSelectSummary does not resurrect the hints pane.
+24. **PR-ROOT-024** — With `capabilities: ['sourceTab']` and `reportModel.sourceCorrelation`, 源码 opens `source-view` via `v-if` (Timeline unmounts); Timeline → Source → Timeline keeps the `viewState` time window (`startTime` / `endTime`).
 
 ## Edge Cases
 
