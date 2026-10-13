@@ -413,38 +413,47 @@ const styleVars = computed(() => {
 
 .pr-src-metrics__table th {
   color: #b3b3b3;
-  text-align: right;
+  /* v930-source: metric headers and values are left-aligned (not spreadsheet-right). */
+  text-align: left;
   font-weight: 400;
-  font-size: var(--pr-src-font-size);
+  /* Smaller UI sans than the 12px mono body so ellipsis lands like the sketch
+     ("Instructions Exec…", "Warp Occup…") rather than clipping mid-word earlier. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 11px;
   line-height: var(--pr-src-row-h);
   height: var(--pr-src-row-h);
   background: #2a2a2a;
 }
 
-/* SASS full table widths (# · Address · Assembly · metrics). Source metrics-only
-   panes ignore unused col classes. */
+/*
+ * SASS full-table widths from v930-source header label starts:
+ * # ~3% · Address ~6–10% · Assembly ~20%+ · Instr / Stall / Occ share the rest.
+ * Address keeps a rem floor so hex stays readable at playground widths.
+ * Source metrics-only panes ignore line/address/assembly (Sudu overrides the three metrics).
+ */
 .pr-src-metrics__col--line {
-  width: 3.5rem;
+  width: 3.5%;
 }
 
 .pr-src-metrics__col--address {
-  width: 12rem;
+  width: 10%;
+  min-width: 9rem;
 }
 
 .pr-src-metrics__col--assembly {
-  width: 36%;
+  width: 40%;
 }
 
 .pr-src-metrics__col--instructionsExecuted {
-  width: 7.5rem;
+  width: 14%;
 }
 
 .pr-src-metrics__col--samplingStall {
-  width: 7.5rem;
+  width: 14%;
 }
 
 .pr-src-metrics__col--warpOccupancy {
-  width: 8.5rem;
+  width: 16%;
 }
 
 .pr-src-metrics__left {
@@ -460,7 +469,7 @@ const styleVars = computed(() => {
 }
 
 .pr-src-metrics__num {
-  text-align: right;
+  text-align: left;
   color: #cccccc;
   font-variant-numeric: tabular-nums;
 }
@@ -625,7 +634,7 @@ tr:hover td {
 
 .pr-src-metrics__tip-th-value,
 .pr-src-metrics__tip-value {
-  text-align: right;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 

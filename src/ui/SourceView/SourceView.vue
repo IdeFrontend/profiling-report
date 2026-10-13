@@ -653,6 +653,7 @@ onBeforeUnmount(() => {
 
     <div class="pr-source-view__panes">
       <div class="pr-source-view__pane">
+        <!-- v930-source: # + Source ≈ 63% of the left pane; metrics strip takes the rest. -->
         <SuduCodePane
           v-if="sourceFile"
           ref="sourcePane"
@@ -663,7 +664,7 @@ onBeforeUnmount(() => {
           :correlated-lines="correlatedSource"
           :match-lines="sourceMatchLines"
           :dim-zero-for="dimZeroSource"
-          :editor-ratio="0.42"
+          :editor-ratio="0.62"
           @update:current-line="onSourceLine"
         />
       </div>

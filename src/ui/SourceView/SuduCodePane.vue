@@ -40,7 +40,7 @@ const props = withDefaults(
   }>(),
   {
     codiconUrl: undefined,
-    editorRatio: 0.45,
+    editorRatio: 0.62,
     currentLine: null,
     correlatedLines: () => [],
     matchLines: () => [],
@@ -451,7 +451,7 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
   min-width: 0;
   min-height: 0;
   height: 100%;
-  --pr-editor-ratio: 0.45;
+  --pr-editor-ratio: 0.62;
   --pr-splitter-w: 1px;
   --pr-src-row-h: 20px;
   --pr-src-font-size: 12px;
@@ -524,7 +524,10 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
 .pr-sudu-pane__head-table th {
   padding: 0 8px;
   color: #b3b3b3;
-  text-align: right;
+  /* Match SourceMetricsTable: sketch headers are left-aligned UI sans at 11px. */
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 11px;
   font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
@@ -565,20 +568,20 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
   white-space: pre;
 }
 
-/* Shared col width classes (header table is outside SourceMetricsTable). */
-:deep(.pr-src-metrics__col--address) {
-  width: 28%;
-}
-
+/*
+ * Metrics-strip widths (header table sits outside SourceMetricsTable).
+ * v930-source: the three metric headers read as similar weight, with Warp Occupancy
+ * wide enough for the hatch bar (not the narrow leftover from label-start math).
+ */
 :deep(.pr-src-metrics__col--instructionsExecuted) {
-  width: 22%;
+  width: 28%;
 }
 
 :deep(.pr-src-metrics__col--samplingStall) {
-  width: 22%;
+  width: 28%;
 }
 
 :deep(.pr-src-metrics__col--warpOccupancy) {
-  width: 28%;
+  width: 44%;
 }
 </style>
