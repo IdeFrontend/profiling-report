@@ -102,9 +102,37 @@ describe('SourceView', () => {
     const stallCell = sourceTable.find('tr[data-line="4"] td[data-col="samplingStall"]');
     expect(stallCell.exists()).toBe(true);
     await stallCell.trigger('mouseenter');
-    expect(wrapper.find('[data-testid="stall-tooltip"]').exists()).toBe(true);
+    // Teleported to body (pane overflow / z-index seam).
+    expect(document.querySelector('[data-testid="stall-tooltip"]')).toBeTruthy();
     await stallCell.trigger('mouseleave');
-    expect(wrapper.find('[data-testid="stall-tooltip"]').exists()).toBe(false);
+    expect(document.querySelector('[data-testid="stall-tooltip"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-004b: stall tooltip flips at the viewport edge (right pane)', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
+    // Right panel (SASS) Sampling Stall is where the card used to run off-screen.
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    const stallCell = asmTable.find('tr[data-line="1"] td[data-col="samplingStall"]');
+    expect(stallCell.exists()).toBe(true);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const style = () => document.querySelector('[data-testid="stall-tooltip"]')?.getAttribute('style') ?? '';
+
+    await stallCell.trigger('mouseenter', { clientX: 40, clientY: 40 });
+    expect(style()).toContain('left: 52px');
+    expect(style()).toContain('right: auto');
+
+    await stallCell.trigger('mouseenter', { clientX: vw - 10, clientY: 40 });
+    expect(style()).toContain('left: auto');
+    expect(style()).toContain(`right: 22px`);
+
+    await stallCell.trigger('mouseenter', { clientX: 40, clientY: vh - 10 });
+    expect(style()).toContain('top: auto');
+    expect(style()).toContain('bottom: 22px');
+
+    await stallCell.trigger('mouseleave');
     wrapper.unmount();
   });
 

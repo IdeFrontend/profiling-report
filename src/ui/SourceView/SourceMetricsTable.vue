@@ -50,6 +50,34 @@ const tip = ref<{
   rows: SourceStallBreakdown[];
 } | null>(null);
 
+/** Pointer gap; matches StatsAside / timeline hover tips. */
+const TIP_OFFSET_PX = 12;
+/**
+ * Widest stall card (min-width 340 + padding). Right-pane Sampling Stall sits against the
+ * viewport edge, so `clientX + 12` alone crops the box — flip like PR-STATS-041b.
+ */
+const TIP_MAX_W_PX = 380;
+
+/**
+ * Flip rather than run off the viewport. SASS metrics are on the right half of the Source
+ * layout, so a one-sided `left/top` placement loses most of a 340px card off-screen.
+ */
+const tipStyle = computed(() => {
+  const t = tip.value;
+  if (!t) return {};
+  const { x, y } = t;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const toTheRight = x + TIP_OFFSET_PX + TIP_MAX_W_PX <= vw;
+  const below = y < vh / 2;
+  return {
+    left: toTheRight ? `${x + TIP_OFFSET_PX}px` : 'auto',
+    right: toTheRight ? 'auto' : `${vw - x + TIP_OFFSET_PX}px`,
+    top: below ? `${y + TIP_OFFSET_PX}px` : 'auto',
+    bottom: below ? 'auto' : `${vh - y + TIP_OFFSET_PX}px`,
+  };
+});
+
 const correlatedSet = computed(() => new Set(props.correlatedLines ?? []));
 const matchSet = computed(() => new Set(props.matchLines ?? []));
 
@@ -110,9 +138,10 @@ function onStallEnter(e: MouseEvent, line: number) {
   const total = row.stallBreakdown.reduce((s, r) => s + r.value, 0);
   const el = e.currentTarget instanceof HTMLElement ? e.currentTarget : null;
   const box = el?.getBoundingClientRect();
+  // Raw pointer (or cell box) — `tipStyle` adds the offset and flips at the viewport edge.
   tip.value = {
-    x: (e.clientX || box?.right || 0) + 12,
-    y: (e.clientY || box?.top || 0) + 12,
+    x: e.clientX || box?.right || 0,
+    y: e.clientY || box?.top || 0,
     title: `Total Sample Count: ${total}`,
     rows: row.stallBreakdown,
   };
@@ -256,54 +285,58 @@ const styleVars = computed(() => {
         </tbody>
       </table>
     </div>
-    <div
-      v-if="tip"
-      class="pr-src-metrics__tip"
-      data-testid="stall-tooltip"
-      :style="{ left: `${tip.x}px`, top: `${tip.y}px` }"
-    >
-      <div class="pr-src-metrics__tip-title">
-        {{ tip.title }}
+    <!-- Teleport: pane `overflow` and stacking would still clip a fixed tip near the seam. -->
+    <Teleport to="body">
+      <div
+        v-if="tip"
+        class="pr-src-metrics__tip"
+        data-testid="stall-tooltip"
+        role="tooltip"
+        :style="tipStyle"
+      >
+        <div class="pr-src-metrics__tip-title">
+          {{ tip.title }}
+        </div>
+        <table class="pr-src-metrics__tip-table">
+          <thead>
+            <tr>
+              <th class="pr-src-metrics__tip-th-metric">
+                Metric
+              </th>
+              <th class="pr-src-metrics__tip-th-value">
+                Value
+              </th>
+              <th class="pr-src-metrics__tip-th-pct">
+                Percentage
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="r in tip.rows"
+              :key="r.metric"
+            >
+              <td class="pr-src-metrics__tip-metric">
+                {{ r.metric }}
+              </td>
+              <td class="pr-src-metrics__tip-value">
+                {{ r.value }}
+              </td>
+              <td class="pr-src-metrics__tip-pct">
+                <!-- Same capsule as Warp Occupancy: hatch unused + solid used + % inside the bar. -->
+                <span class="pr-src-metrics__bar-track pr-src-metrics__tip-bar">
+                  <span
+                    class="pr-src-metrics__bar-fill"
+                    :style="{ width: `${Math.min(100, Math.max(0, r.percent))}%` }"
+                  />
+                  <span class="pr-src-metrics__bar-label">{{ r.percent.toFixed(2) }}%</span>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <table class="pr-src-metrics__tip-table">
-        <thead>
-          <tr>
-            <th class="pr-src-metrics__tip-th-metric">
-              Metric
-            </th>
-            <th class="pr-src-metrics__tip-th-value">
-              Value
-            </th>
-            <th class="pr-src-metrics__tip-th-pct">
-              Percentage
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="r in tip.rows"
-            :key="r.metric"
-          >
-            <td class="pr-src-metrics__tip-metric">
-              {{ r.metric }}
-            </td>
-            <td class="pr-src-metrics__tip-value">
-              {{ r.value }}
-            </td>
-            <td class="pr-src-metrics__tip-pct">
-              <!-- Same capsule as Warp Occupancy: hatch unused + solid used + % inside the bar. -->
-              <span class="pr-src-metrics__bar-track pr-src-metrics__tip-bar">
-                <span
-                  class="pr-src-metrics__bar-fill"
-                  :style="{ width: `${Math.min(100, Math.max(0, r.percent))}%` }"
-                />
-                <span class="pr-src-metrics__bar-label">{{ r.percent.toFixed(2) }}%</span>
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -537,10 +570,11 @@ tr:hover td {
   text-align: center;
 }
 
-/* Stall breakdown tip — v930-source: padded card, pill header row, hatch bars. */
+/* Stall breakdown tip — v930-source: padded card, pill header row, hatch bars.
+   Teleported to body; z-index above Source chrome so a left-flipped tip stays visible. */
 .pr-src-metrics__tip {
   position: fixed;
-  z-index: 40;
+  z-index: 1000;
   min-width: 340px;
   padding: 16px;
   background: #2b2b2b;
