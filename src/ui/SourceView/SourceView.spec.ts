@@ -66,6 +66,10 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-dock-inline"]').exists()).toBe(true);
     // Source metrics titles sit above the editor; SASS has its own header in the table.
     expect(wrapper.findAll('[data-testid="sudu-metrics-header-row"]').length).toBe(1);
+    const sourceTitles = wrapper.find('[data-testid="sudu-source-header-titles"]');
+    expect(sourceTitles.exists()).toBe(true);
+    expect(sourceTitles.text()).toContain('#');
+    expect(sourceTitles.text()).toContain('Source');
     expect(wrapper.find('[data-testid="asm-table-pane"] [data-testid="source-metrics-head"]').exists()).toBe(
       true,
     );

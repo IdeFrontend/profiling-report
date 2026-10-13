@@ -265,30 +265,40 @@ const styleVars = computed(() => {
       <div class="pr-src-metrics__tip-title">
         {{ tip.title }}
       </div>
-      <table>
+      <table class="pr-src-metrics__tip-table">
         <thead>
           <tr>
-            <th>Metric</th>
-            <th>Value</th>
-            <th>Percentage</th>
+            <th class="pr-src-metrics__tip-th-metric">
+              Metric
+            </th>
+            <th class="pr-src-metrics__tip-th-value">
+              Value
+            </th>
+            <th class="pr-src-metrics__tip-th-pct">
+              Percentage
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="(r, idx) in tip.rows"
+            v-for="r in tip.rows"
             :key="r.metric"
           >
-            <td>{{ r.metric }}</td>
-            <td>{{ r.value }}</td>
+            <td class="pr-src-metrics__tip-metric">
+              {{ r.metric }}
+            </td>
+            <td class="pr-src-metrics__tip-value">
+              {{ r.value }}
+            </td>
             <td class="pr-src-metrics__tip-pct">
-              <span class="pr-src-metrics__tip-bar">
+              <!-- Same capsule as Warp Occupancy: hatch unused + solid used + % inside the bar. -->
+              <span class="pr-src-metrics__bar-track pr-src-metrics__tip-bar">
                 <span
-                  class="pr-src-metrics__tip-bar-fill"
-                  :class="{ 'pr-src-metrics__tip-bar-fill--primary': idx === 0 }"
-                  :style="{ width: `${r.percent}%` }"
+                  class="pr-src-metrics__bar-fill"
+                  :style="{ width: `${Math.min(100, Math.max(0, r.percent))}%` }"
                 />
+                <span class="pr-src-metrics__bar-label">{{ r.percent.toFixed(2) }}%</span>
               </span>
-              {{ r.percent.toFixed(2) }}%
             </td>
           </tr>
         </tbody>
@@ -446,11 +456,12 @@ const styleVars = computed(() => {
 
 .pr-src-metrics__bar-track {
   position: relative;
+  box-sizing: border-box;
   display: block;
   width: 100%;
-  /* Cap below typical editor line (~18px at 12px font) so rows stay in sync. */
-  height: 10px;
-  border-radius: 5px;
+  /* v930-source: ~⅔ of the ~18px mono row — taller capsule than the old 10px. */
+  height: 14px;
+  border-radius: 7px;
   border: 1px solid #333333;
   overflow: hidden;
   /* Unused remainder: diagonal hatch (v930-source). */
@@ -469,19 +480,19 @@ const styleVars = computed(() => {
   position: absolute;
   inset: 0 auto 0 0;
   height: 100%;
-  border-radius: 5px 0 0 5px;
+  border-radius: 7px 0 0 7px;
   background: #4a4a4a;
 }
 
 .pr-src-metrics__bar-label {
   position: absolute;
-  inset: 0 5px 0 0;
+  inset: 0 6px 0 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   color: #e8e8e8;
-  font-size: 10px;
-  line-height: 10px;
+  font-size: 11px;
+  line-height: 14px;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
   z-index: 1;
@@ -526,81 +537,92 @@ tr:hover td {
   text-align: center;
 }
 
+/* Stall breakdown tip — v930-source: padded card, pill header row, hatch bars. */
 .pr-src-metrics__tip {
   position: fixed;
   z-index: 40;
-  min-width: 280px;
-  padding: 10px 12px 12px;
+  min-width: 340px;
+  padding: 16px;
   background: #2b2b2b;
-  border: 1px solid #555555;
-  border-radius: 4px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  border: 1px solid #4a4a4a;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   font-size: 12px;
   font-weight: 400;
   pointer-events: none;
-  color: #e0e0e0;
+  color: #e8e8e8;
 }
 
 .pr-src-metrics__tip-title {
-  margin-bottom: 8px;
+  margin: 0 0 12px;
   font-weight: 600;
+  font-size: 13px;
   color: #ffffff;
 }
 
-.pr-src-metrics__tip table {
+.pr-src-metrics__tip-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 4px;
 }
 
-.pr-src-metrics__tip th,
-.pr-src-metrics__tip td {
-  padding: 3px 6px;
+.pr-src-metrics__tip-table thead th {
+  padding: 6px 12px;
+  /* Sketch header strip is lighter than the card (#363636 on #2b2b2b), not darker. */
+  color: #b3b3b3;
+  font-weight: 400;
+  background: #363636;
+  border: none;
+}
+
+.pr-src-metrics__tip-table thead th:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.pr-src-metrics__tip-table thead th:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.pr-src-metrics__tip-th-metric,
+.pr-src-metrics__tip-metric {
   text-align: left;
 }
 
-.pr-src-metrics__tip th {
-  color: #b3b3b3;
-  font-weight: 400;
+.pr-src-metrics__tip-th-value,
+.pr-src-metrics__tip-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-src-metrics__tip-th-pct {
+  text-align: left;
+}
+
+.pr-src-metrics__tip-table tbody td {
+  padding: 6px 12px;
+  vertical-align: middle;
+}
+
+.pr-src-metrics__tip-metric {
+  color: #e8e8e8;
+  padding-right: 20px;
+}
+
+.pr-src-metrics__tip-value {
+  color: #e8e8e8;
+  padding-left: 16px;
+  padding-right: 20px;
 }
 
 .pr-src-metrics__tip-pct {
-  white-space: nowrap;
+  min-width: 120px;
 }
 
+/* Wider than table cells so "46.32%" fits inside the capsule. */
 .pr-src-metrics__tip-bar {
-  display: inline-block;
-  width: 56px;
-  height: 8px;
-  margin-right: 8px;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  vertical-align: middle;
-  overflow: hidden;
-}
-
-.pr-src-metrics__tip-bar-fill {
   display: block;
-  height: 100%;
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      #505050,
-      #505050 2px,
-      #3a3a3a 2px,
-      #3a3a3a 4px
-    );
-}
-
-/* Sketch stall tip bars stay grey; primary row is only slightly lighter. */
-.pr-src-metrics__tip-bar-fill--primary {
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      #6a6a6a,
-      #6a6a6a 2px,
-      #4a4a4a 2px,
-      #4a4a4a 4px
-    );
+  width: 100%;
+  min-width: 96px;
 }
 </style>

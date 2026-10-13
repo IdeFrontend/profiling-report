@@ -1,4 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
-  <!-- Down arrow + two stacked hollow squares (navigate sort desc) -->
-  <path fill="currentColor" fill-rule="evenodd" d="M3 3.75a.75.75 0 0 1 1.5 0v6.69l1.22-1.22a.75.75 0 1 1 1.06 1.06l-2.5 2.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L3 10.44V3.75ZM9 2.5h5a.75.75 0 0 1 .75.75v3.5A.75.75 0 0 1 14 7.5H9A.75.75 0 0 1 8.25 6.75v-3.5A.75.75 0 0 1 9 2.5Zm.75 1.5v2h3.5v-2h-3.5ZM9 8.75h5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v-3.5A.75.75 0 0 1 9 8.75Zm.75 1.5v2h3.5v-2h-3.5Z"/>
-</svg>

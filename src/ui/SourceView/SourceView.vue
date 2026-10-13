@@ -437,7 +437,7 @@ onBeforeUnmount(() => {
               :aria-expanded="shortcutsOpen"
               @click="shortcutsOpen = !shortcutsOpen"
             >
-              <PrIcon name="keyboard" />
+              <PrIcon name="list" />
             </button>
             <div
               v-if="shortcutsOpen"
@@ -851,15 +851,17 @@ onBeforeUnmount(() => {
   --pr-src-bg-deep: #1f1f1f;
   --pr-src-bg-body: #1a1a1a;
   --pr-src-bg-metrics: #1e1e1e;
-  --pr-src-bg-control: #2a2a2a;
+  --pr-src-bg-control: #363636;
   --pr-src-bg-header: #2a2a2a;
   --pr-src-border: #333333;
   --pr-src-border-soft: #2e2e2e;
   --pr-src-divider: #3a3a3a;
   --pr-src-label: #b3b3b3;
-  --pr-src-text: #cccccc;
-  --pr-src-text-strong: #e8e8e8;
+  --pr-src-text: #c8c8c8;
+  --pr-src-text-strong: #c8c8c8;
   --pr-src-accent: #3078f0;
+  --pr-src-control-h: 28px;
+  --pr-src-control-radius: 6px;
   --pr-src-ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --pr-src-mono-font: 'JetBrains Mono', ui-monospace, monospace;
 
@@ -886,12 +888,15 @@ onBeforeUnmount(() => {
 /* Tab-row chrome: no padding/margin — ReportToolbar already insets the strip.
    Tokens redeclared here because Teleport mounts outside `.pr-source-view`. */
 .pr-source-view__views-row {
-  --pr-src-bg-control: #2a2a2a;
+  /* v930-source: chrome text is muted grey; controls share one control height. */
+  --pr-src-bg-control: #363636;
   --pr-src-divider: #3a3a3a;
   --pr-src-label: #b3b3b3;
-  --pr-src-text: #cccccc;
-  --pr-src-text-strong: #e8e8e8;
+  --pr-src-text: #c8c8c8;
+  --pr-src-text-strong: #c8c8c8;
   --pr-src-accent: #3078f0;
+  --pr-src-control-h: 28px;
+  --pr-src-control-radius: 6px;
   --pr-src-ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 
   display: flex;
@@ -903,7 +908,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   width: 100%;
   justify-content: flex-end;
-  color: var(--pr-src-text);
+  color: var(--pr-src-label);
   font-family: var(--pr-src-ui-font);
   font-size: 12px;
   font-weight: 400;
@@ -937,10 +942,18 @@ onBeforeUnmount(() => {
   color: var(--pr-src-label);
 }
 
-/* Shared `.pr-block-pill` (tokens.css) owns fill / border / chevron — same as
-   CSV block switcher & summary PIPE. Only constrain width here. */
+/* Match search height/radius; keep shared pill chevron from tokens.css. */
 .pr-source-view__select {
+  box-sizing: border-box;
+  height: var(--pr-src-control-h, 28px);
   max-width: 220px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: var(--pr-src-control-radius, 6px);
+  background-color: var(--pr-src-bg-control, #363636);
+  color: var(--pr-src-text, #c8c8c8);
+  font-size: 12px;
+  line-height: calc(var(--pr-src-control-h, 28px) - 2px);
 }
 
 .pr-source-view__select:disabled {
@@ -956,14 +969,15 @@ onBeforeUnmount(() => {
 }
 
 .pr-source-view__search-field {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
+  height: var(--pr-src-control-h, 28px);
   min-width: 180px;
   padding: 0 8px;
   border: 1px solid var(--pr-src-divider);
-  border-radius: 2px;
+  border-radius: var(--pr-src-control-radius, 6px);
   background: var(--pr-src-bg-control);
   color: var(--pr-src-label);
 }
@@ -986,9 +1000,13 @@ onBeforeUnmount(() => {
   border: none;
   outline: none;
   background: transparent;
-  color: var(--pr-src-text-strong);
+  color: var(--pr-src-text);
   font-family: inherit;
   font-size: 12px;
+}
+
+.pr-source-view__search-field input::placeholder {
+  color: #808080;
 }
 
 .pr-source-view__search-clear {
@@ -1012,47 +1030,49 @@ onBeforeUnmount(() => {
 .pr-source-view__actions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .pr-source-view__shortcut-wrap {
   position: relative;
 }
 
+/* Same grey rounded chrome as timeline toolbar icon buttons (v930-source). */
 .pr-source-view__icon-btn {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: var(--pr-src-control-h, 28px);
+  height: var(--pr-src-control-h, 28px);
   margin: 0;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  background: transparent;
-  color: var(--pr-src-label);
+  border: none;
+  border-radius: var(--pr-src-control-radius, 6px);
+  background: var(--pr-src-bg-control, #363636);
+  color: var(--pr-src-label, #b3b3b3);
   cursor: pointer;
 }
 
 .pr-source-view__icon-btn:hover {
-  color: var(--pr-src-text-strong);
-  background: var(--pr-src-bg-control);
+  color: #2d70e3;
+  background: #1e2a3e;
 }
 
 .pr-source-view__icon-btn--on {
-  color: var(--pr-src-accent);
-  background: #2a2d2e;
-  border-color: var(--pr-src-divider);
+  color: #2d70e3;
+  background: #1e2a3e;
 }
 
 .pr-source-view__text-btn {
-  height: 24px;
+  box-sizing: border-box;
+  height: var(--pr-src-control-h, 28px);
   margin: 0;
   padding: 0 10px;
   border: 1px solid var(--pr-src-divider);
-  border-radius: 2px;
-  background: var(--pr-src-bg-control);
-  color: var(--pr-src-text-strong);
+  border-radius: var(--pr-src-control-radius, 6px);
+  background: var(--pr-src-bg-control, #363636);
+  color: var(--pr-src-text, #c8c8c8);
   font-family: inherit;
   font-size: 12px;
   font-weight: 400;
@@ -1123,6 +1143,11 @@ onBeforeUnmount(() => {
   flex: 1 1 50%;
   min-width: 0;
   min-height: 0;
+  /* v930-source: both panes share the same framed header chrome. */
+  border: 1px solid #2e4a7a;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--pr-src-bg-body);
 }
 
 /* Sketch pane join is a hairline divider, not a thick blue strip. */

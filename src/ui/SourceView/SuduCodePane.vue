@@ -358,7 +358,34 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
       class="pr-sudu-pane__header-row"
       data-testid="sudu-metrics-header-row"
     >
-      <div class="pr-sudu-pane__hpad" />
+      <!-- Sketch: # + Source sit over the editor gutter/code (not an empty pad). -->
+      <div
+        class="pr-sudu-pane__hpad"
+        data-testid="sudu-source-header-titles"
+      >
+        <table class="pr-sudu-pane__source-head">
+          <colgroup>
+            <col class="pr-sudu-pane__col-line">
+            <col class="pr-sudu-pane__col-source">
+          </colgroup>
+          <thead>
+            <tr>
+              <th
+                class="pr-sudu-pane__th-left"
+                title="#"
+              >
+                #
+              </th>
+              <th
+                class="pr-sudu-pane__th-left"
+                title="Source"
+              >
+                Source
+              </th>
+            </tr>
+          </thead>
+        </table>
+      </div>
       <div class="pr-sudu-pane__hsplit" />
       <div class="pr-sudu-pane__hcols">
         <table class="pr-sudu-pane__head-table">
@@ -457,7 +484,10 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
 }
 
 .pr-sudu-pane__hpad {
+  display: flex;
+  align-items: stretch;
   background: #2a2a2a;
+  overflow: hidden;
 }
 
 .pr-sudu-pane__hsplit,
@@ -477,6 +507,8 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
   scrollbar-gutter: stable;
 }
 
+/* Shared header chrome with SASS `# · Address · …` row (same face / grey). */
+.pr-sudu-pane__source-head,
 .pr-sudu-pane__head-table {
   width: 100%;
   height: var(--pr-src-row-h);
@@ -488,6 +520,7 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
   background: #2a2a2a;
 }
 
+.pr-sudu-pane__source-head th,
 .pr-sudu-pane__head-table th {
   padding: 0 8px;
   color: #b3b3b3;
@@ -498,6 +531,14 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
   text-overflow: ellipsis;
   height: var(--pr-src-row-h);
   background: #2a2a2a;
+}
+
+.pr-sudu-pane__col-line {
+  width: 3.5rem;
+}
+
+.pr-sudu-pane__col-source {
+  width: auto;
 }
 
 .pr-sudu-pane__th-left {

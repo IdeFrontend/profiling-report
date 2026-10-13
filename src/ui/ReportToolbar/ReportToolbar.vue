@@ -1164,7 +1164,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 }
 
 .pr-tabs__tab--active {
-  color: #e8e8e8;
+  /* v930-source: active tab stays grey (not white); underline carries the accent. */
+  color: #c8c8c8;
 }
 
 .pr-tabs__tab--active::after {
@@ -1174,7 +1175,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   right: 12px;
   bottom: -2px;
   height: 2px;
-  background: #ffffff;
+  background: #3078f0;
 }
 
 .pr-toolbar {
