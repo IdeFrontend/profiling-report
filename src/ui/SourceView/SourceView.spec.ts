@@ -297,4 +297,34 @@ describe('SourceView', () => {
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     expect(sourceTable.find('tr[data-line="4"]').classes()).toContain('pr-src-metrics__row--current');
   });
+
+  it('PR-SOURCE-015: switching Source file clears caret and correlation', async () => {
+    const base = mockSourceCorrelation();
+    const other = {
+      ...base.files[0]!,
+      id: 'other.py',
+      path: 'other.py',
+      text: 'def other():\n    return 1\n',
+      lines: [
+        { line: 1, values: { instructionsExecuted: 1, samplingStall: 0, warpOccupancy: 0.1 } },
+        { line: 2, values: { instructionsExecuted: 2, samplingStall: 0, warpOccupancy: 0.2 } },
+      ],
+    };
+    const model = { ...base, files: [...base.files, other] };
+    const wrapper = mount(SourceView, { props: { model } });
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await sourceTable.find('tr[data-line="4"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
+
+    await wrapper.find('[data-testid="source-file-select"]').setValue('other.py');
+    await wrapper.vm.$nextTick();
+    expect((wrapper.find('[data-testid="source-file-select"]').element as HTMLSelectElement).value).toBe(
+      'other.py',
+    );
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+  });
 });

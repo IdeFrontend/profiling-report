@@ -90,6 +90,15 @@ watch(
   },
 );
 
+/** File picker only — asm→source correlation may change `selectedFileId` without reset. */
+function onSourceFileChange(fileId: string) {
+  selectedFileId.value = fileId;
+  sourceLine.value = null;
+  asmLine.value = null;
+  searchQuery.value = '';
+  correlationSuppressed.value = false;
+}
+
 const sourceFile = computed<SourceFileModel | null>(() => {
   return props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null;
 });
@@ -557,7 +566,7 @@ onBeforeUnmount(() => {
               class="pr-block-pill pr-source-view__select"
               data-testid="source-file-select"
               :value="selectedFileId"
-              @change="selectedFileId = ($event.target as HTMLSelectElement).value"
+              @change="onSourceFileChange(($event.target as HTMLSelectElement).value)"
             >
               <option
                 v-for="f in model.files"
