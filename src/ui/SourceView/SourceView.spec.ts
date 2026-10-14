@@ -110,13 +110,13 @@ describe('SourceView', () => {
   it('PR-SOURCE-003: source row click marks correlated asm lines', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
-    // Hot mapped line from mock: sharpen.cpp:46 → asm 1,2,3
+    // Hot mapped line from mock: sharpen.cpp:46 → asm 1..5
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     const correlated = asmTable.findAll('tr.pr-src-metrics__row--correlated');
-    expect(correlated.map((r) => Number(r.attributes('data-line')))).toEqual([1, 2, 3]);
+    expect(correlated.map((r) => Number(r.attributes('data-line')))).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('PR-SOURCE-004: stall cell hover shows stall-tooltip', async () => {
@@ -308,7 +308,7 @@ describe('SourceView', () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    // asm:2 → source:46; mapped group is [1,2,3] — must not bounce to 1 on caret echo.
+    // asm:2 → source:46; mapped group is [1..5] — must not bounce to 1 on caret echo.
     await asmTable.find('tr[data-line="2"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');

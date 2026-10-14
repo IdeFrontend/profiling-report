@@ -25,7 +25,7 @@ mockSourceCorrelation(): SourceCorrelationModel
 
 **Chrome Trace–only.** `emptyReportViewModel` / `adaptChromeTrace` omit `sourceCorrelation` and do not advertise `'sourceTab'`.
 
-**Mock shape.** At least one AscendC source file (`language: 'ascend-c'`; Sudu ≥ `0.0.130-alpha4`), one assembly buffer, non-empty `sourceToAsm` / `asmToSource`, and `navigateBy` metric ids matching column ids. Assembly `metricsColumns` order is Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy (`text` for Address/Assembly).
+**Mock shape.** At least one AscendC source file (`language: 'ascend-c'`; Sudu ≥ `0.0.130-alpha4`, ≥100 lines), one assembly buffer (≥40 SASS rows, kernel-ABI `path` like `sharpen[abi:…]`, sketch-scale Sampling Stall), non-empty `sourceToAsm` / `asmToSource`, and `navigateBy` metric ids matching column ids. Assembly `metricsColumns` order is Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy (`text` for Address/Assembly).
 
 ## Acceptance Criteria
 
@@ -40,4 +40,5 @@ mockSourceCorrelation(): SourceCorrelationModel
 
 ## Changelog
 
+- **2026-10-14** — Mock SASS density (≥40 rows), sketch-scale stalls, kernel-ABI assembly `path`.
 - **2026-10-07** — Initial mock-first Source correlation adapter.

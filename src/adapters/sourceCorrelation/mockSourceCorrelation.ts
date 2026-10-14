@@ -159,6 +159,10 @@ const SOURCE_TEXT = [
   '}',
 ].join('\n');
 
+/**
+ * Sketch-density SASS (≥40 rows). Addresses use a mid-space; stall magnitudes
+ * match v930 sample counts (~1e8), not tiny demo integers.
+ */
 const ASM_LINES = [
   'IMAD R0, R1, c[0x0][0x4], R2',
   'LDG.E R4, [R6]',
@@ -169,9 +173,45 @@ const ASM_LINES = [
   'IADD R14, R14, 0x4',
   'FADD R20, R8, R20',
   'STG.E [R22], R20',
+  'ISETP.GE.U32.AND P0, PT, R32, UR4, PT',
+  'IADD3 R31, P0, R33, 0x1, RZ',
+  'UIADD3.X UR4, UR7, UR0, URZ, UP0, UPT',
+  'IMAD R34, R34, c[0x0][0x4], R3',
+  'LDG.E.64 R40, [R42.64]',
+  'FFMA R44, R40, R46, R44',
+  'IADD R42, R42, 0x8',
+  'LDG.E R48, [R50]',
+  'FFMA R44, R48, R52, R44',
+  'IADD R50, R50, 0x4',
+  'FADD R56, R44, R56',
+  'STG.E [R58], R56',
+  'ISETP.LT.AND P1, PT, R60, c[0x0][0x8], PT',
+  'BRA P1, `(.L_tile_loop)',
+  'MOV R62, RZ',
+  'SHL R64, R66, 0x2',
+  'LOP3.LUT R68, R70, R72, R74, 0xc0, !PT',
+  'IMAD.WIDE R76, R78, R80, R82',
+  'LDG.E.SYS R84, [R86]',
+  'FFMA R88, R84, R90, R88',
+  'IADD3 R92, R94, R96, RZ',
+  'STG.E.SYS [R98], R88',
+  'BAR.SYNC 0x0',
+  'NOP.F',
+  'CS2R R100, SR_LANEID',
+  'S2R R102, SR_CTAID.X',
+  'IMAD R104, R102, c[0x0][0xc], R100',
+  'LDG.E R106, [R104]',
+  'FFMA R108, R106, R110, R108',
+  'IADD R104, R104, 0x4',
+  'STG.E [R112], R108',
+  'ISETP.NE.AND P2, PT, R114, RZ, PT',
+  'SEL R116, R118, R120, P2',
+  'FADD R122, R116, R124',
+  'STG.E [R126], R122',
   'EXIT',
   'NOP',
   'BRA.U `(.L_exit)',
+  'EXIT',
 ];
 
 function isCodeLine(line: string): boolean {
@@ -182,28 +222,35 @@ function isCodeLine(line: string): boolean {
   return true;
 }
 
+function stallBreakdown(stall: number) {
+  const short = Math.round(stall * 0.4632);
+  const long = Math.round(stall * 0.2132);
+  const tex = Math.round(stall * 0.1832);
+  const wait = Math.round(stall * 0.0532);
+  const selected = Math.max(0, stall - short - long - tex - wait);
+  return [
+    { metric: 'Short Scoreboard', value: short, percent: 46.32 },
+    { metric: 'Long Scoreboard', value: long, percent: 21.32 },
+    { metric: 'Tex Throttle', value: tex, percent: 18.32 },
+    { metric: 'Wait', value: wait, percent: 5.32 },
+    { metric: 'Selected', value: selected, percent: 8.32 },
+  ];
+}
+
 function sourceLines(): SourceLineMetrics[] {
   return SOURCE_TEXT.split('\n').map((line, i) => {
     const n = i + 1;
     const code = isCodeLine(line);
-    const stall = code ? 40 + ((n * 17) % 120) : 0;
+    // Sketch Sampling Stall is ~1e8 sample counts, not single-digit demo values.
+    const stall = code ? 80_000_000 + ((n * 1_337_017) % 90_000_000) : 0;
     return {
       line: n,
       values: {
-        instructionsExecuted: code ? 80 + n * 3 : 0,
+        instructionsExecuted: code ? 32 + ((n * 3) % 40) : 0,
         samplingStall: stall,
         warpOccupancy: code ? 0.55 + (n % 5) * 0.05 : 0,
       },
-      ...(stall > 0
-        ? {
-            stallBreakdown: [
-              { metric: 'Short Scoreboard', value: Math.round(stall * 0.46), percent: 46.32 },
-              { metric: 'Long Scoreboard', value: Math.round(stall * 0.21), percent: 21.32 },
-              { metric: 'Tex Throttle', value: Math.round(stall * 0.18), percent: 18.32 },
-              { metric: 'Wait', value: Math.round(stall * 0.05), percent: 5.32 },
-            ],
-          }
-        : {}),
+      ...(stall > 0 ? { stallBreakdown: stallBreakdown(stall) } : {}),
     };
   });
 }
@@ -212,27 +259,24 @@ function assemblyFile(): SourceFileModel {
   const text = ASM_LINES.join('\n');
   const lines: SourceLineMetrics[] = ASM_LINES.map((insn, i) => {
     const n = i + 1;
-    const stall = 20 + ((n * 13) % 90);
+    const stall = 120_000_000 + ((n * 2_791_013) % 220_000_000);
     return {
       line: n,
       values: {
         // Sketch paints a mid-space in the hex address (hi lo).
-        address: `00007f7b 895aa${(0x990 + n * 8).toString(16)}`,
+        address: `00007f7b ${(0x895aa990 + (n - 1) * 8).toString(16).padStart(8, '0')}`,
         assembly: insn,
-        instructionsExecuted: 10 + n * 2,
+        instructionsExecuted: 24 + ((n * 5) % 50),
         samplingStall: stall,
         warpOccupancy: 0.6 + (n % 4) * 0.05,
       },
-      stallBreakdown: [
-        { metric: 'Short Scoreboard', value: Math.round(stall * 0.5), percent: 50 },
-        { metric: 'Long Scoreboard', value: Math.round(stall * 0.3), percent: 30 },
-        { metric: 'Wait', value: Math.round(stall * 0.2), percent: 20 },
-      ],
+      stallBreakdown: stallBreakdown(stall),
     };
   });
   return {
     id: 'sass',
-    path: 'kernel.sass',
+    // Sketch right "Source" dropdown shows a kernel ABI id, not a bare .sass path.
+    path: 'sharpen[abi:v1,mock-ascendc]',
     language: 'sass',
     text,
     metricsColumns: ASM_COLUMNS,
@@ -251,13 +295,13 @@ export function mockSourceCorrelation(): SourceCorrelationModel {
     lines: sourceLines(),
   };
 
-  // Map a few hot source lines onto contiguous asm ranges (sketch-like correlation).
+  // Map hot source lines onto contiguous asm ranges (sketch-like correlation density).
   const sourceToAsm: Record<string, number[]> = {
-    'sharpen.cpp:46': [1, 2, 3], // DataCopy kernel weights
-    'sharpen.cpp:61': [4, 5, 6], // Convolve call
-    'sharpen.cpp:71': [7, 8], // DataCopy tile in
-    'sharpen.cpp:85': [9], // Convolve definition
-    'sharpen.cpp:128': [10, 11, 12], // op.Process()
+    'sharpen.cpp:46': [1, 2, 3, 4, 5], // DataCopy kernel weights
+    'sharpen.cpp:61': [6, 7, 8, 9, 10, 11], // Convolve call
+    'sharpen.cpp:71': [12, 13, 14, 15, 16], // DataCopy tile in
+    'sharpen.cpp:85': [17, 18, 19, 20, 21, 22, 23], // Convolve definition
+    'sharpen.cpp:128': [40, 41, 42, 43, 44, 45], // op.Process()
   };
   const asmToSource: Record<number, { fileId: string; line: number }> = {};
   for (const [key, asmLines] of Object.entries(sourceToAsm)) {

@@ -23,7 +23,8 @@ describe('PR-SRC: source correlation adapter', () => {
     expect(a.files[0]!.language).toBe('ascend-c');
     expect(a.files[0]!.path).toMatch(/\.cpp$/);
     expect(a.files[0]!.text.split(/\r?\n/).length).toBeGreaterThanOrEqual(100);
-    expect(a.assembly.lines.length).toBeGreaterThan(0);
+    expect(a.assembly.lines.length).toBeGreaterThanOrEqual(40);
+    expect(a.assembly.path).toMatch(/^sharpen\[abi:/);
     expect(a.assembly.metricsColumns.map((c) => c.id)).toEqual([
       'address',
       'assembly',
@@ -32,6 +33,7 @@ describe('PR-SRC: source correlation adapter', () => {
       'warpOccupancy',
     ]);
     expect(a.assembly.lines[0]!.values.assembly).toBeTruthy();
+    expect(Number(a.assembly.lines[0]!.values.samplingStall)).toBeGreaterThan(1_000_000);
     expect(Object.keys(a.sourceToAsm).length).toBeGreaterThan(0);
     for (const [key, asmLines] of Object.entries(a.sourceToAsm)) {
       const line = Number(key.split(':')[1]);
