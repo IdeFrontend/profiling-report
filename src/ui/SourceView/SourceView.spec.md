@@ -16,7 +16,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Correlation.** Selecting a source line highlights mapped asm rows and moves the asm caret to the first mapped instruction when the asm link toggle is on; selecting an asm line jumps back via `asmToSource` when the source link toggle is on. Programmatic Sudu caret echoes from an asm-driven `setLine` must not re-drive the asm pane (would snap to `mapped[0]`). **Redo Resolve** re-applies mapping from the current (or first hot) source line ([UI-57](../../../docs/context/questions/UI.md)).
 
-**Navigate / search.** With an empty search box, find next/prev walks non-zero **Navigate By** metric lines for the active pane (order flipped by the sort toggle). With a query, it walks text matches and marks matching metrics rows. Scroll-to-top resets both panes to line 1 and suppresses cross-pane correlation highlights until the next caret selection (so a mapped partner is not painted beside the forced line-1 carets). Dim-zeros fades rows whose pane Navigate By value is zero (rows stay so editor sync holds). Download exports a metrics CSV for the active pane. Metric cells stay uncolored (sketch has no heat tint — [UI-59](../../../docs/context/questions/UI.md)).
+**Navigate / search.** Find next/prev (and Enter) walk **text matches** only — with an empty search box they do nothing (buttons disabled). **Sort navigate order** (asc/desc) sets the Navigate By metric order and jumps to the first hot line in that order for the active pane (also used when Redo Resolve picks a default hot line). With a query, matches are marked on metrics rows and find advances among them. Scroll-to-top resets both panes to line 1 and suppresses cross-pane correlation highlights until the next caret selection (so a mapped partner is not painted beside the forced line-1 carets). Dim-zeros fades rows whose pane Navigate By value is zero (rows stay so editor sync holds). Download exports a metrics CSV for the active pane. Metric cells stay uncolored (sketch has no heat tint — [UI-59](../../../docs/context/questions/UI.md)).
 
 **Sudu runtime.** Worker pool and fonts are process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. Before the first editor mount, `ensureSourceTabFonts` registers **JetBrains Mono** (weights 300/400/600; real family name — never aliased as Consolas, which breaks Safari canvas TextMetrics) via `FontFace` + `document.fonts.load`, then loads codicon from `suduCodiconUrl` (default `/sudu/codicon.ttf`). The editor theme sets `editorFont` to 12px JetBrains Mono (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync stays on regardless of the Source↔SASS link toggles.
 
@@ -29,7 +29,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 5. **PR-SOURCE-005** — Asm row click keeps the chosen asm current line and marks the mapped source line (no snap to first mapped insn).
 6. **PR-SOURCE-006** — Selecting an unmapped source line clears asm current/correlated highlights.
 7. **PR-SOURCE-007** — Toolbar exposes search, action icons, per-pane link toggles, and Redo Resolve (`source-search`, `source-toolbar-actions`, `source-link-source`, `source-link-asm`, `source-redo-resolve`).
-8. **PR-SOURCE-008** — Find next with empty search jumps to a non-zero Navigate By line; with a query, marks matching rows and Enter/find-next advances among them.
+8. **PR-SOURCE-008** — Find next/prev with empty search do nothing (disabled); with a query, marks matching rows and Enter/find-next advances among them. Sort asc/desc jumps to the first Navigate By hot line in that order.
 9. **PR-SOURCE-009** — Turning off the asm link toggle keeps source selection from moving the asm caret.
 10. **PR-SOURCE-010** — Dock Inline Functions panel lists mock-derived mapped sites; row click selects that source line.
 11. **PR-SOURCE-011** — Asm Navigate By select is enabled and independent of the source pane’s Navigate By.
@@ -42,6 +42,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-14** — Find next/prev no-op when search empty; sort buttons jump to first Navigate By hot line.
 - **2026-10-12** — Align Source chrome with v930 sketch: tab-row first bar (Teleport), dual sort buttons, icon glyphs, Warp Occupancy capsule bars.
 - **2026-10-12** — Fix asm→source sync bounce: ignore Sudu caret echo / `syncOrigin` gate (`PR-SOURCE-014`).
 - **2026-10-09** — SASS right pane is table-only (`#` · Address · Assembly · metrics); no Sudu (`PR-SOURCE-013`).

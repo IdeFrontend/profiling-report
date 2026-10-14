@@ -213,17 +213,28 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-asm-navigate-by"]').classes()).toContain('pr-block-pill');
   });
 
-  it('PR-SOURCE-008: search marks matches; find-next walks hot lines', async () => {
+  it('PR-SOURCE-008: empty find is a no-op; query find walks matches; sort jumps hot', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     const search = wrapper.find('[data-testid="source-search"]');
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const findNext = wrapper.find('[data-testid="source-find-next"]');
+
+    expect(findNext.attributes('disabled')).toBeDefined();
+    await findNext.trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+
     await search.setValue('sharpen');
     await wrapper.vm.$nextTick();
-    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    expect(findNext.attributes('disabled')).toBeUndefined();
     expect(sourceTable.findAll('tr.pr-src-metrics__row--match').length).toBeGreaterThan(0);
+    await findNext.trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
 
     await search.setValue('');
-    await wrapper.find('[data-testid="source-find-next"]').trigger('click');
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
   });

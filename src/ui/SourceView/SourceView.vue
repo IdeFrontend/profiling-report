@@ -229,21 +229,36 @@ function cycleLine(lines: number[], current: number | null, dir: 1 | -1): number
   return lines[lines.length - 1]!;
 }
 
+/** Find next/prev only walk text matches — empty search is a no-op. */
 function findStep(dir: 1 | -1) {
   const q = searchQuery.value.trim();
+  if (!q) return;
   if (activePane.value === 'asm') {
-    const targets = q
-      ? asmMatchLines.value
-      : hotLines(props.model.assembly, asmNavigateBy.value);
-    const next = cycleLine(targets, asmLine.value, dir);
+    const next = cycleLine(asmMatchLines.value, asmLine.value, dir);
     if (next != null) jumpAsm(next);
     return;
   }
   const file = sourceFile.value;
   if (!file) return;
-  const targets = q ? sourceMatchLines.value : hotLines(file, sourceNavigateBy.value);
-  const next = cycleLine(targets, sourceLine.value, dir);
+  const next = cycleLine(sourceMatchLines.value, sourceLine.value, dir);
   if (next != null) jumpSource(next);
+}
+
+/**
+ * Sort Navigate By order (asc/desc). Toggles order and jumps to the first hot
+ * line in that order for the active pane so the control is immediately useful.
+ */
+function setNavigateSort(desc: boolean) {
+  sortDesc.value = desc;
+  if (activePane.value === 'asm') {
+    const hot = hotLines(props.model.assembly, asmNavigateBy.value);
+    if (hot[0] != null) jumpAsm(hot[0]);
+    return;
+  }
+  const file = sourceFile.value;
+  if (!file) return;
+  const hot = hotLines(file, sourceNavigateBy.value);
+  if (hot[0] != null) jumpSource(hot[0]);
 }
 
 function scrollTop() {
@@ -472,6 +487,7 @@ onBeforeUnmount(() => {
             class="pr-source-view__icon-btn"
             data-testid="source-find-next"
             :title="t('sourceFindNext', locale)"
+            :disabled="!searchQuery.trim()"
             @click="findStep(1)"
           >
             <PrIcon name="chevron-down" />
@@ -481,6 +497,7 @@ onBeforeUnmount(() => {
             class="pr-source-view__icon-btn"
             data-testid="source-find-prev"
             :title="t('sourceFindPrev', locale)"
+            :disabled="!searchQuery.trim()"
             @click="findStep(-1)"
           >
             <PrIcon name="chevron-up" />
@@ -501,7 +518,7 @@ onBeforeUnmount(() => {
             :class="{ 'pr-source-view__icon-btn--on': !sortDesc }"
             :title="t('sourceSortMetric', locale)"
             :aria-pressed="!sortDesc"
-            @click="sortDesc = false"
+            @click="setNavigateSort(false)"
           >
             <PrIcon name="sort-asc" />
           </button>
@@ -512,7 +529,7 @@ onBeforeUnmount(() => {
             :class="{ 'pr-source-view__icon-btn--on': sortDesc }"
             :title="t('sourceSortMetric', locale)"
             :aria-pressed="sortDesc"
-            @click="sortDesc = true"
+            @click="setNavigateSort(true)"
           >
             <PrIcon name="sort-desc" />
           </button>
@@ -1064,9 +1081,14 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.pr-source-view__icon-btn:hover {
+.pr-source-view__icon-btn:hover:not(:disabled) {
   color: #2d70e3;
   background: #1e2a3e;
+}
+
+.pr-source-view__icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .pr-source-view__icon-btn--on {
