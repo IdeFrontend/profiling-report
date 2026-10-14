@@ -50,6 +50,6 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 - **2026-10-09** — Source chrome `<select>`s use shared `.pr-block-pill` (tokens.css) so they match CSV / PIPE block dropdowns.
 - **2026-10-08** — Sketch color/font pass: grey Warp Occupancy bars, white dock underline, `#1F1F1F`/`#2A2A2A`/`#1E1E1E` plane, UI sans + mono metrics, playhead accent `#3078F0`.
 - **2026-10-08** — Removed non-sketch metric heat tint ([UI-59](../../../docs/context/questions/UI.md)).
-- **2026-10-08** — Dock bodies, per-pane Navigate By, metrics CSV download; open questions DATA-50/51, UI-56–59 (`PR-SOURCE-010`–`011`).
+- **2026-10-08** — Dock bodies, per-pane Navigate By, metrics CSV download; open questions DATA-52/53, UI-56–59 (`PR-SOURCE-010`–`011`).
 - **2026-10-07** — Sketch top-bar chrome: Search, action icons, link sync, Redo Resolve (`PR-SOURCE-007`–`009`).
 - **2026-10-07** — Initial Source tab surface (mock-first).

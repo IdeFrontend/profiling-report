@@ -106,7 +106,7 @@ flowchart LR
 - Run the selected adapter (v1: `npu-rep`; classic `cann-rep` fixtures still parse)
 - Build canonical view-models
 - Render shared swimlane and panels according to capabilities
-- Emit events: `ready`, `select`, `error` (canonical set in [COMPONENTS.md](COMPONENTS.md); host persistence of zoom/selection is optional via props/state, not a required `configChange` emit)
+- Emit events: `ready`, `select`, `error`, plus chrome forwards (`view-full-csv`, `open-user-guide`, `export-html`, …) — canonical set in [COMPONENTS.md](COMPONENTS.md). `error` is load/parse only; HTML export is opt-in (`allowHtmlExport`, default false) and is not MSTT’s packaging form. Host persistence of zoom/selection is optional via props/state, not a required `configChange` emit.
 
 ### Suggested public API (illustrative)
 

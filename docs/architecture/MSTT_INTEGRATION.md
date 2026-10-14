@@ -20,7 +20,7 @@ Mirror first-party Vue panels such as `StTestResultsPanel`:
 1. Add a webview panel entry under MSTT `web/src/views/panels/profiling-report/` (name TBD).
 2. Depend on the profiling-report package from the `web` workspace.
 3. Host class (`ProfilingReportPanel` or similar): `createOrShow`, `HtmlTransformer` / Vite multi-entry HTML, typed postMessage if the panel shell needs extension APIs.
-4. Pass report bytes (or path → extension reads file → posts buffer) into the Vue app; mount `<ProfilingReport :source="…" />`.
+4. Pass report bytes (or path → extension reads file → posts buffer) into the Vue app; mount `<ProfilingReport :source="…" />`. Do **not** pass `allowHtmlExport` (it defaults false). Offline HTML is engineer/CI share-out via `npu-rep-html`, not the MSTT webview packaging form. Hosts that want in-viewer download must serve `/npu-rep-html-template.txt` and pass `allowHtmlExport`.
 
 Relevant existing MSTT touchpoints (paths may drift; search symbols):
 
@@ -41,7 +41,7 @@ Relevant existing MSTT touchpoints (paths may drift; search symbols):
 3. **Panel registration:** flavor/constants panel type id; contribute to `package.json` views/commands as needed.
 4. **Dependency:** workspace package or npm link to profiling-report; Vite resolves Vue SFC from the library.
 5. **i18n:** host-owned strings for “Profiling report”, load errors, etc. Map IDE/extension language → `locale` (`zh-CN` \| `en`, or `zh*` / `en*` prefixes) and pass it into the library. Library chrome uses [`src/i18n`](../../src/i18n/index.ts); see [LOCALIZATION.md](../ui/LOCALIZATION.md).
-6. **User guide:** library emits `open-user-guide` with the URL and also attempts `window.open`. Optional `userGuideUrl` on `<ProfilingReport>` overrides the library default (`https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md`). That page is Chinese-only; English hosts should pass their own guide URL until a locale-aware page exists. In MSTT webviews, listen for `open-user-guide` and call `openExternal` (webview may block `window.open`).
+6. **User guide:** library emits `open-user-guide` with the URL and also attempts `window.open`. Optional `userGuideUrl` on `<ProfilingReport>` overrides the library default (`https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`). That page is Chinese-only; English hosts should pass their own guide URL until a locale-aware page exists. In MSTT webviews, listen for `open-user-guide` and call `openExternal` (webview may block `window.open`).
 
 ## Message split (optional)
 

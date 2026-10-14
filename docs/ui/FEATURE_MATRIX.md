@@ -11,10 +11,10 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Open `.npu-rep` in panel | H / M | Host opens; library renders ([PROC-2](../context/decisions/PROC.md)). Hardware or emulate profile ([PROC-6](../context/decisions/PROC.md), [PROC-7](../context/decisions/PROC.md)) |
 | Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/decisions/PROC.md)) |
 | Detect emulate leaf (`manifest.json`) | M | Library-internal ([PROC-8](../context/decisions/PROC.md)); no second host extension |
-| Emulate Sept 30 (M4): Timeline + PIPE + Memory load analysis + CANNBot (compute/memory); **性能提示** **in**; summary cards/meta **out** | M | [milestone-4](../process/roadmap/milestone-4.md); [performance-hints](../views/performance-hints.md); [DATA-47](../context/decisions/DATA.md); ArchDiagramMetrics → `archDiagram` ([memory-topology](../views/memory-topology.md)); heatmap / roofline / overview **out** — [emulate/FORMAT](../formats/emulate/FORMAT.md) |
-| Simulator Phase 2: dedicated arch chrome / memory heatmap / VF IPC / call stacks / … | P2 | MHTML §11.2.3; [DATA-49](../context/questions/DATA.md); capabilities `memoryHeatmap`, `vfIpc`, `callStacks`, … |
+| Emulate Sept 30 (M4): Timeline + PIPE + Memory load analysis + Memory utilization heatmap + CANNBot (compute/memory); **性能提示** **in**; summary cards/meta **out** | M | [milestone-4](../process/roadmap/milestone-4.md); [performance-hints](../views/performance-hints.md); [DATA-47](../context/decisions/DATA.md); ArchDiagramMetrics → `archDiagram` + `UbRwAccesses` → `memoryHeatmap` ([memory-topology](../views/memory-topology.md)); roofline / overview **out** — [emulate/FORMAT](../formats/emulate/FORMAT.md) |
+| Simulator Phase 2: dedicated arch chrome / VF IPC / call stacks / … | P2 | MHTML §11.2.3; [DATA-48](../context/questions/DATA.md); capabilities `vfIpc`, `callStacks`, … |
 | Timeline secondary tab | M | Primary view |
-| OP算子 / 源码 / 详情 / 缓存 tabs | M | **时间线** + **源码** active on report packs ([UI-37](../context/decisions/UI.md)); **详情 / 缓存** visible and **disabled**. OP算子 = brand / multi-op selector. Source mock-first: dual panes, chrome, dock tables; real embeds / heat tint open ([DATA-50](../context/questions/DATA.md), [DATA-51](../context/questions/DATA.md), [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md)). |
+| OP算子 / 源码 / 详情 / 缓存 tabs | M | **时间线** + **源码** active on report packs ([UI-37](../context/decisions/UI.md)); **详情 / 缓存** visible and **disabled**. OP算子 = brand / multi-op selector. Source mock-first: dual panes, chrome, dock tables; real embeds / heat tint open ([DATA-52](../context/questions/DATA.md), [DATA-53](../context/questions/DATA.md), [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md)). |
 | Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |
 | Keep Insight for `.bin` | H | See formats comparison |
 
@@ -25,7 +25,8 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Search events | M | Fuzzy optional later |
 | Zoom slider / zoom to fit | M | |
 | Keyboard shortcut help | M3 | `keyboard` glyph button (first action); 快捷键说明 popover listing mouse / keyboard / combined bindings |
-| User guide | M | Rightmost `help` glyph; opens `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/main/profiling-report.md`) in a new tab |
+| User guide | M | Rightmost `help` glyph; opens `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`) in a new tab |
+| Download HTML report | optional | Self-contained file:// HTML for share-out / CI — **not** MSTT packaging. Toolbar control is opt-in (`allowHtmlExport`); CLI is `npu-rep-html` / `generate:html-report`. |
 | Toggle stats / report panel | M | |
 | Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |

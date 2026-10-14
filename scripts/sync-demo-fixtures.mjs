@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -69,4 +69,10 @@ if (copyIfExists(codiconFrom, join(suduDir, 'codicon.ttf'))) {
   console.log('synced codicon.ttf -> playground/public/sudu/codicon.ttf')
 } else {
   console.warn('[sync:demo-fixtures] codicon not copied (npm install @vscode/codicons)')
+}
+
+const shellTemplate = join(root, 'dist/report-shell/template.html')
+if (existsSync(shellTemplate)) {
+  copyFileSync(shellTemplate, join(root, 'playground/public/npu-rep-html-template.txt'))
+  console.log('synced dist/report-shell/template.html -> playground/public/npu-rep-html-template.txt')
 }

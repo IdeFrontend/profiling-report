@@ -342,3 +342,16 @@ Format and statuses: [README.md](README.md).
 - **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-005, [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) PR-STATS-007, [report-summary](../../views/report-summary.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [view-models](../../../specs/core/view-models.spec.md)
 - **Source:** Product (2026-09-18). Supersedes interim [`DATA-47a`](interim/DATA.md).
 
+
+---
+
+## DATA-49
+
+- **Resolved:** 2026-10-01
+- **Was:** open question DATA-49 (emulate Architecture Diagram model / chrome vs memory heatmap)
+- **Question:** After Sept 30, keep the lossy `MemoryTopologyModel` projection of ArchDiagramMetrics onto the Asc plated chrome, or introduce a dedicated `ArchDiagramModel` + biprof Architecture Diagram SVG for unit ratios / per-AIV / SIMT / counts? And does the Memory Utilization Heatmap (`MemoryRWAccesses`) stay a **separate** surface (capability `memoryHeatmap`), not folded into Architecture Diagram?
+- **Decision:**
+  1. **The heatmap is its own surface, not a second topology.** `ReportViewModel.memoryHeatmap` is a separate carrier beside `memoryTopology`, filled by `memoryHeatmapFromTexts` and advertised as capability **`memoryHeatmap`** (never `memoryDiagram` / `archDiagram`). It renders as the **right-hand panel of the memory-topology 全屏 overlay** ([`MemoryHeatmapPanel`](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)), driven by one shared `selectedMemoryUnit` mirrored between the diagram's clickable units and the panel's tabs. Source today: `UbRwAccesses.csv` (UB grid + `已用指令条数`); the other five tabs stay blank ([DATA-50](../questions/DATA.md)).
+  2. **No dedicated `ArchDiagramModel` / biprof chrome.** The emulate Architecture Diagram **stays** the projection of `ArchDiagramMetrics` onto the shared plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](interim/DATA.md)); a richer model is not built, so the slot-map question stays open as [DATA-48](../questions/DATA.md).
+- **Specs:** [memory-topology § Memory Utilization Heatmap](../../views/memory-topology.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-025, [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [product-sections](../../views/product-sections.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md), [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
+- **Source:** Product (2026-10-01) via the memory-heatmap plan ("its own surface, not a second topology") + the Sept 30 M4 lock (Architecture Diagram and heatmap are separate product surfaces). Retires the DATA-49 row; the two data gaps it exposed are filed as [DATA-50](../questions/DATA.md) (`MemoryType` → unit) and [DATA-51](../questions/DATA.md) (capacity fields).

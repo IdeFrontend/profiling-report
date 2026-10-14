@@ -24,7 +24,7 @@ Domain background (who develops what, pain points, glossary): [DOMAIN_AND_USERS.
 - Building an **uber-viewer** that natively unifies Insight operator `.bin`, full PyPTO swimGraph feature surface, and `.rep` as one combinatorial component.
 - Replacing all MindStudio Insight modes (system Timeline, cluster Summary/Communication, serving, memory leaks).
 - Full PyPTO feature parity (PMU tabs, AICPU E2E mode, Mix/wrap, three-column compute-graph linkage, SQLite cache, `@pypto/data-compress`).
-- Publishing a sealed HTML webview bundle as the primary packaging form (see architecture: Vue library).
+- Publishing a sealed HTML webview bundle as the primary packaging form (see architecture: Vue library). Optional engineer/CI artifact: `npm run generate:html-report` (self-contained HTML); not for MSTT hosting.
 - Depending on `sudu-editor` binaries or TeaVM toolchain.
 - Modifying pypto-tools, msinsight, or sudu-editor repositories as part of this project’s delivery.
 - Parsing Insight `.bin` inside this library.

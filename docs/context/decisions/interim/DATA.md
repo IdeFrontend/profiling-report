@@ -203,9 +203,9 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Gaps (HTML Bandwidth-per-operator inventory present, not plated):** bases in `ARCH_DIAGRAM_UNPLATED_HTML_BASES` (L0C→all/OUT/UB, UB→L1, SIMT/DataCache corridors). Unit util ratios other than `l2_cached_ratio` do **not** populate UI-49 `plates` (compute badges stay PipeUtilization-only). Full tables: [memory-topology § parameter-slot-map](../../../views/memory-topology.md#parameter-slot-map).
 
-Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the shared `memoryTopology` carrier. Emulate chrome shows a metric-mode dropdown (`topology-metric-select`). Do **not** use `MemoryRWAccesses` (heatmap — [DATA-49](../../questions/DATA.md)).
+Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). Aside / overlay titles use the same **内存负载分析** / Memory load analysis (`memoryAnalysis`) and fullscreen **内存拓扑** / Memory topology as compute — still rendered by `MemoryTopologyPanel` on the shared `memoryTopology` carrier. Emulate chrome shows a metric-mode dropdown (`topology-metric-select`). The heat panel is a **separate** surface on its own `memoryHeatmap` carrier ([DATA-49](../DATA.md)) — do not read `MemoryRWAccesses` here.
 **Implement / test as:** `topologyFromArchDiagramMetrics(csv, mode)`; `PR-ASIM-008` / `PR-ASIM-008b` (full map + HTML-gap drift lock + mode merge)
-**Superseded when:** Product locks DATA-48 slot map and/or DATA-49 dedicated chrome/model
+**Superseded when:** Product locks DATA-48 slot map and/or ships a dedicated chrome / richer `ArchDiagramModel`
 
 <a id="data-45"></a>
 
@@ -227,3 +227,24 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 **Implement / test as:** `adaptEmulate` `sourceTimeUnit: 'us'`; PR-SIM-003 (incl. displayTimeUnit override coverage)
 **Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
 
+
+<a id="data-50a"></a>
+
+### DATA-50a — Heat grid geometry + unit attribution
+
+**Status:** `interim` — engineering stamp pending Product
+**Question:** [DATA-50](../../questions/DATA.md)
+**Interim:** The heat grid is **fixed at 16 × 26** blocks (one grid for every unit), and a unit's blocks are cut from its **observed address span** (min…max `AccessedAddress` of its rows): a block that received at least one access is `已分配有数据`, every other block is `已分配无数据`, and addresses outside the span are not a third state. A cell whose `AccessedAddress` is absent is **not** a read at address 0 — it is skipped, like the sibling adapters' `parseNumber` (`Number('') === 0` would otherwise fabricate block 0, shift the span and inflate the metric). Attribution is **per file**: `UbRwAccesses.csv` paints `ub` (the only table whose rows are unit-scoped by construction — it carries no unit column, unlike `MemoryRWAccesses`' bare `MemoryType`); `MemoryRWAccesses.csv` paints **nothing** (do not guess a mapping from `1`), and `MemoryUtilizationStates.csv` is not used while unpacked. Units without a source are **absent from `units`** (five blank tabs), not emitted as empty grids; the metric `已用指令条数` is the count of **distinct** `ExecInstrId` behind the unit's accesses and is omitted (never `0`) when the source names no instructions.
+**Known ceiling (evidence, not a resolution):** on the committed `gelu.npu-rep` the UB stream is dense — 34 832 accesses over addresses 0…2556, 512 distinct instructions — so **every** one of the 416 blocks lands `已分配有数据` (`416 / 416`) and the grid paints as one solid rectangle: the `已分配无数据` half of the legend is unreachable on real data, and the frame's sparse grid is not reproduced. The rule cannot be better than this until its two missing inputs exist (the unit's **capacity** and the **block size**), which is exactly what [DATA-51](../../questions/DATA.md) / this question owe; the observed span is a stand-in for capacity, not a measurement of it.
+**Implement / test as:** `memoryHeatmapFromTexts` / `PR-VM-025` (blank cell + span, no capacity field); `PR-HEAT-003` / `PR-HEAT-005` (grid states + blank tab); [memory-topology § Binning](../../../docs/views/memory-topology.md)
+**Superseded when:** Product publishes the `MemoryType` → unit vocabulary and/or a block-size / capacity field, or the packer starts emitting `MemoryUtilizationStates.csv`
+
+<a id="data-51a"></a>
+
+### DATA-51a — Hide the capacity tooltip line
+
+**Status:** `interim` — engineering stamp pending Product
+**Question:** [DATA-51](../../questions/DATA.md)
+**Interim:** No `Total` / `Used` / `Free` is emitted or rendered anywhere — no packed field carries a cache size — so the unit hover tooltip shows the unit label only and the capacity line stays **hidden** (never a placeholder `N/A`). No copy is reserved for it either: the three labels were dropped from `src/i18n` rather than left unreferenced, and come back with the producer fields.
+**Implement / test as:** absent capacity fields on the carrier (`PR-VM-025`); [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) PR-HEAT-004
+**Superseded when:** Producer ships capacity fields (`Total` / `Used` / `Free` or a cache-size + occupancy pair) for a memory unit

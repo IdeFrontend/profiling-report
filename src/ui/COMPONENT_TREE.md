@@ -16,6 +16,7 @@ flowchart TB
   root --> menu[ContextMenu]
   root --> multi[MultiSelectSummary]
   topoFs --> memFs[MemoryTopologyPanel]
+  topoFs --> heatFs[MemoryHeatmapPanel]
   layout --> mainCol[main column]
   layout --> aside[StatsAside]
   mainCol --> toolbar[ReportToolbar]
@@ -69,6 +70,7 @@ src/ui/
     SummaryCategoryList/           ✓  All-scope summary.jsonl detail (search + chips)
     RooflinePanel/                 ✓  v930/report-stats-open
     MemoryTopologyPanel/           ✓  v930/report-stats-scrolled (+ zoom/全屏 bar: v930-sim)
+    MemoryHeatmapPanel/            ✓  v930-sim/memory-topology-fullscreen (§11.2.3.2 right panel)
     HardwareDetailsPanel/          ✓  v930/hardware-more-detail
   DetailPanel/                     ✓  v930/detail-strip-raised
     DetailSummary/                 ✓
@@ -80,7 +82,7 @@ src/ui/
 
 - Library chrome owns OP算子 / 时间线 / 源码 / 详情 / 缓存 tabs; **源码** mounts `SourceView/` (UI-37).
 - `ReportToolbar` lives in the ReportLayout **main** column (above TimelineView), not as a full-width sibling above the aside.
-- Topology **全屏** is a root sibling of `ReportLayout` (opaque overlay on `.pr-root`); it remounts `MemoryTopologyPanel` and does not unmount the layout. The control itself lives in the panel's zoom bar (only when the host passes `showFullscreen`), so the remounted overlay panel **keeps the zoom bar** but shows no 全屏, and its zoom starts at 100% independently of the stacked aside.
+- Topology **全屏** is a root sibling of `ReportLayout` (opaque overlay on `.pr-root`); it remounts `MemoryTopologyPanel` and does not unmount the layout. The control itself lives in the panel's zoom bar (only when the host passes `showFullscreen`), so the remounted overlay panel **keeps the zoom bar** but shows no 全屏, and its zoom starts at 100% independently of the stacked aside. When the `memoryHeatmap` capability is set, the overlay also hosts `MemoryHeatmapPanel` as a right column and the two share one `selectedMemoryUnit` (diagram unit click ↔ panel tab).
 - `CanvasSwimlaneRenderer` stays under `src/swimlane/` (imperative backend).
 - `DependencyLinksLayer/` is spec + visual pack only (no Vue file); curves are drawn by the swimlane renderer.
 - Design index: [`docs/ui/DESIGN_INDEX.md`](../../docs/ui/DESIGN_INDEX.md).

@@ -32,6 +32,12 @@ export {
   readEmulateManifest,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
+export {
+  HEATMAP_BLOCK_COUNT,
+  HEATMAP_COLUMNS,
+  HEATMAP_ROWS,
+  memoryHeatmapFromTexts,
+} from './emulateMemoryHeatmap';
 export type { ArchDiagramMetricMode } from './emulateMemoryTopology';
 export {
   ARCH_DIAGRAM_METRIC_MODES,

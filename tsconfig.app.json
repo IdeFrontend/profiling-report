@@ -10,6 +10,8 @@
     "src/**/*.d.ts",
     "playground/**/*.ts",
     "playground/**/*.vue",
+    "report-shell/**/*.ts",
+    "report-shell/**/*.vue",
     "tests/**/*.ts",
     "vitest.config.ts",
     "vite.config.ts"

@@ -106,9 +106,9 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Understand bandwidth / path load across L1/L2/UB/GM |
 | **Trigger** | After S1; topology is on the stacked 报告统计 scroll |
-| **Steps** | View topology under PIPE; the diagram's own bar zooms it (**放大** / **缩小** / **适应窗口**, PR-MEMTOP-015) or opens **全屏**, which covers the report with the same diagram; **详情** opens memory CSV field list; correlate with timeline window |
-| **Success** | User identifies memory-bound paths |
-| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930-sim/memory-topology-zoom.jpeg` |
+| **Steps** | View topology under PIPE; the diagram's own bar zooms it (**放大** / **缩小** / **适应窗口**, PR-MEMTOP-015) or opens **全屏**, which covers the report with the same diagram; the six memory units (`L2Cache` / `L1` / `UB` / `L0A` / `L0B` / `L0C`) hover-highlight and are clickable — a click opens **全屏** with that unit's heat panel selected; **详情** opens memory CSV field list; correlate with timeline window |
+| **Success** | User identifies memory-bound paths; the fullscreen right panel shows the selected unit's allocation grid (biprof §11.2.3.2) |
+| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930-sim/memory-topology-zoom.jpeg`, `source/v930-sim/memory-topology-fullscreen.jpeg` |
 
 ### S7 — Review hardware context (P2)
 
@@ -149,8 +149,8 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Open an npu_emulate report with the same host path as compute |
 | **Trigger** | User selects `report_*.npu-rep` packed by emulate (contains emulate `manifest.json`) |
-| **Steps** | Host opens `.npu-rep` → library detects emulate profile ([PROC-8](../context/decisions/PROC.md)) → Timeline from `PipeTrace.json`; **no** summary cards / pid·opType·Blocks·更多 meta ([DATA-47](../context/decisions/DATA.md)); PIPE when PipesUtilization/hist packed; Architecture Diagram when ArchDiagramMetrics maps ([DATA-48a](../context/decisions/interim/DATA.md), interim plated chrome); CANNBot on compute/memory sections when those mount; heatmap / roofline / overview / hardwareDetails **hidden** (gaps) |
-| **Success** | Swimlane usable; PIPE + arch diagram when CSVs present; no summary cards/meta; CANNBot compute/memory payloads emit; no hard error for missing compute CSVs; no invented OpBasicInfo/PipeUtilization ([DATA-45](../context/decisions/interim/DATA.md#data-45), [DATA-47](../context/decisions/DATA.md)) |
+| **Steps** | Host opens `.npu-rep` → library detects emulate profile ([PROC-8](../context/decisions/PROC.md)) → Timeline from `PipeTrace.json`; **no** summary cards / pid·opType·Blocks·更多 meta ([DATA-47](../context/decisions/DATA.md)); PIPE when PipesUtilization/hist packed; Architecture Diagram when ArchDiagramMetrics maps ([DATA-48a](../context/decisions/interim/DATA.md), interim plated chrome); Memory Utilization Heatmap when `UbRwAccesses` is packed (fullscreen panel, UB grid; other five tabs blank, [DATA-50](../context/questions/DATA.md)); CANNBot on compute/memory sections when those mount; roofline / overview / hardwareDetails **hidden** (gaps) |
+| **Success** | Swimlane usable; PIPE + arch diagram when CSVs present; heat panel on the fullscreen topology when `UbRwAccesses` is packed; no summary cards/meta; CANNBot compute/memory payloads emit; no hard error for missing compute CSVs; no invented OpBasicInfo/PipeUtilization ([DATA-45](../context/decisions/interim/DATA.md#data-45), [DATA-47](../context/decisions/DATA.md)) |
 | **Sketches** | Same Timeline chrome as S1; emulate surfaces per [views catalog](../views/README.md) / [product-sections emulate TOC](../views/product-sections.md#emulate-profile) |
 
 ---

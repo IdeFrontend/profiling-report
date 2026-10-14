@@ -69,7 +69,7 @@ See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 | SASS listing columns | `#` (UI) · Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy — Address/Assembly are table cells (no Sudu) |
 | 详情 / 缓存 | Chrome only / **disabled** |
 
-Switch point: `adaptSourceCorrelation(payloads)` — real schema TBD ([DATA-50](../context/questions/DATA.md), emulate ELF path [DATA-51](../context/questions/DATA.md)); returns `null` until embeds ship. Dock / view modes / Redo Resolve / heat tint: [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md).
+Switch point: `adaptSourceCorrelation(payloads)` — real schema TBD ([DATA-52](../context/questions/DATA.md), emulate ELF path [DATA-53](../context/questions/DATA.md)); returns `null` until embeds ship. Dock / view modes / Redo Resolve / heat tint: [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md).
 
 ### Block scope matrix
 

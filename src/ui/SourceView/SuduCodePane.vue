@@ -103,7 +103,8 @@ let ignoreCaret = false;
 let ignoreCaretFallback: ReturnType<typeof setTimeout> | null = null;
 
 /** Prefer ascend-c when LangOptions are wired; otherwise cpp so lexer still colors. */
-function suduModelLanguage(language: string, ascendOptsReady: boolean): string {
+function suduModelLanguage(language: string | undefined, ascendOptsReady: boolean): string {
+  if (!language) return 'text';
   if (language === ASCEND_C_LANG && !ascendOptsReady) return 'cpp';
   return language;
 }

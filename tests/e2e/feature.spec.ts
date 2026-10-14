@@ -121,7 +121,7 @@ async function probeSwimlaneDepCurves(
  */
 
 test.describe('PR-E2E feature paths', () => {
-  test('PR-E2E-017: Source tab opens source-view (UI-37 mock-first)', async ({ page }) => {
+  test('PR-E2E-018: Source tab opens source-view (UI-37 mock-first)', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
     const sourceTab = page.getByTestId('tab-source');
@@ -241,7 +241,6 @@ test.describe('PR-E2E feature paths', () => {
       await probeSwimlaneDepCurves(page, gl, box!, {
         maxLanes: 40,
         xOffsetsPx: [8, 24, 48, 80, 120, 160, 220, 280, 360, 480, 600],
-        paintTimeoutMs: 250,
       }),
     ).toBe(true);
 
