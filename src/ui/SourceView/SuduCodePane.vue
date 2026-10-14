@@ -22,7 +22,14 @@ import {
   SOURCE_TAB_EDITOR_FONT,
   SOURCE_TAB_MONO_STACK,
 } from './sourceFonts';
-import { getSuduWorkerPool, loadSuduApi, type SuduWorkerPool } from './suduRuntime';
+import {
+  ASCEND_C_LANG,
+  applySuduLangOptions,
+  enableAscendC,
+  getSuduWorkerPool,
+  loadSuduApi,
+  type SuduWorkerPool,
+} from './suduRuntime';
 
 const props = withDefaults(
   defineProps<{
@@ -95,6 +102,12 @@ let pendingLine: number | null = null;
 let ignoreCaret = false;
 let ignoreCaretFallback: ReturnType<typeof setTimeout> | null = null;
 
+/** Prefer ascend-c when LangOptions are wired; otherwise cpp so lexer still colors. */
+function suduModelLanguage(language: string, ascendOptsReady: boolean): string {
+  if (language === ASCEND_C_LANG && !ascendOptsReady) return 'cpp';
+  return language;
+}
+
 function beginIgnoreCaret() {
   ignoreCaret = true;
   if (ignoreCaretFallback != null) clearTimeout(ignoreCaretFallback);
@@ -135,10 +148,17 @@ async function boot() {
     if (disposed) return;
     if (!editorHost.value) return;
     editorHost.value.id = containerId;
+    // Ascend C: code-review sample langOptions.js (disableAll + enable ascend-c).
+    // If newLangOptions is missing (stale Vite prebundle), fall back to cpp so
+    // the editor still highlights instead of crashing into the <pre> fallback.
+    const langOptions =
+      props.file.language === ASCEND_C_LANG ? enableAscendC(api) : null;
     editor = api.newEditor({
       containerId,
       workers: pool,
       readonly: true,
+      // Sample also passes disableParser: true; single-editor default is already on.
+      ...(langOptions ? { langOptions } : {}),
       // Theme object (not bare 'dark') so editorFont overrides Sudu’s 16px/300 default.
       theme: {
         baseTheme: 'dark',
@@ -149,9 +169,14 @@ async function boot() {
         },
       },
     });
-    model = api.newTextModel(pool, props.file.text, props.file.language, {
-      path: props.file.path,
-    });
+    // newEditor ignores EditArgs.langOptions in this package — apply before setModel.
+    if (langOptions) applySuduLangOptions(editor, langOptions);
+    model = api.newTextModel(
+      pool,
+      props.file.text,
+      suduModelLanguage(props.file.language, !!langOptions),
+      { path: props.file.path },
+    );
     editor.setModel(model);
     wireSync();
     // Apply selection chosen before boot finished (asm click / parent setLine).
@@ -291,7 +316,15 @@ watch(
     if (!editor || !pool || !model) return;
     const api = await loadSuduApi();
     const prev = model;
-    model = api.newTextModel(pool, file.text, file.language, { path: file.path });
+    const langOptions =
+      file.language === ASCEND_C_LANG ? enableAscendC(api) : null;
+    if (langOptions) applySuduLangOptions(editor, langOptions);
+    model = api.newTextModel(
+      pool,
+      file.text,
+      suduModelLanguage(file.language, !!langOptions),
+      { path: file.path },
+    );
     editor.setModel(model);
     prev.dispose();
     readGeom();

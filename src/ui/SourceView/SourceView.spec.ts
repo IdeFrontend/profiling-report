@@ -15,6 +15,13 @@ vi.mock('./sourceFonts', () => ({
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
   loadFonts: vi.fn(async () => []),
+  newLangOptions: vi.fn(() => ({
+    disableAll: vi.fn(),
+    enable: vi.fn(),
+    disable: vi.fn(),
+    enableAll: vi.fn(),
+    isEnabled: vi.fn(() => false),
+  })),
   newEditor: vi.fn(() => ({
     setModel: vi.fn(),
     setVScrollListener: vi.fn(),
@@ -50,8 +57,9 @@ async function latestSuduEditor() {
 describe('SourceView', () => {
   beforeEach(async () => {
     resetSuduRuntimeForTests();
-    const { newEditor } = await import('@sudu-ide/code-review');
+    const { newEditor, newLangOptions } = await import('@sudu-ide/code-review');
     vi.mocked(newEditor).mockClear();
+    vi.mocked(newLangOptions).mockClear();
   });
 
   it('PR-SOURCE-001: renders dual panes and dock shell', () => {
@@ -73,6 +81,22 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="asm-table-pane"] [data-testid="source-metrics-head"]').exists()).toBe(
       true,
     );
+  });
+
+  it('enables Ascend C LangOptions when booting Sudu (code-review sample)', async () => {
+    mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    await flushPromises();
+    const { newEditor, newLangOptions } = await import('@sudu-ide/code-review');
+    expect(newLangOptions).toHaveBeenCalled();
+    const results = vi.mocked(newLangOptions).mock.results;
+    const opts = results[results.length - 1]?.value as {
+      disableAll: ReturnType<typeof vi.fn>;
+      enable: ReturnType<typeof vi.fn>;
+    };
+    expect(opts.disableAll).toHaveBeenCalled();
+    expect(opts.enable).toHaveBeenCalledWith('ascend-c');
+    const args = vi.mocked(newEditor).mock.calls.at(-1)?.[0] as { langOptions?: unknown };
+    expect(args.langOptions).toBe(opts);
   });
 
   it('PR-SOURCE-002: mock badge visible for mock model', () => {
@@ -304,7 +328,7 @@ describe('SourceView', () => {
       ...base.files[0]!,
       id: 'other.cpp',
       path: 'other.cpp',
-      language: 'cpp',
+      language: 'ascend-c',
       text: 'extern "C" __global__ __aicore__ void other(GM_ADDR x) {\n    AscendC::TPipe pipe;\n}\n',
       lines: [
         { line: 1, values: { instructionsExecuted: 1, samplingStall: 0, warpOccupancy: 0.1 } },

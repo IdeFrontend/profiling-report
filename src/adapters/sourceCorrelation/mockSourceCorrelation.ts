@@ -22,9 +22,8 @@ const ASM_COLUMNS: SourceMetricsColumn[] = [
 ];
 
 /**
- * AscendC-looking mock body (≥100 lines). Sudu language id is `cpp` for now: `ascend-c`
- * is not in `Languages.getAllLanguages()` / default LangOptions in 0.0.130-alpha3, so the
- * editor menu's working highlighter is CppProxy (`cpp`).
+ * AscendC mock body (≥100 lines). Sudu language id is `ascend-c` (supported since
+ * `@sudu-ide/code-review` 0.0.130-alpha4).
  *
  * Correlation maps a few hot Copy/Convolve/Process sites onto contiguous asm ranges.
  */
@@ -246,7 +245,7 @@ export function mockSourceCorrelation(): SourceCorrelationModel {
   const file: SourceFileModel = {
     id: 'sharpen.cpp',
     path: 'sharpen.cpp',
-    language: 'cpp',
+    language: 'ascend-c',
     text: SOURCE_TEXT,
     metricsColumns: SOURCE_COLUMNS,
     lines: sourceLines(),
