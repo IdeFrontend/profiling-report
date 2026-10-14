@@ -36,12 +36,15 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 12. **PR-SOURCE-012** — Scroll-to-top clears correlated row highlights while both carets sit at line 1; a later row click restores correlation.
 13. **PR-SOURCE-013** — SASS pane renders `asm-table-pane` (no Sudu) with column order `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy.
 14. **PR-SOURCE-014** — After an asm row click, a Sudu caret echo for the mapped source line does not snap the asm current row to `mapped[0]`.
+15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file).
+
 ## Design sketches
 
 - [`visual/source-correlation.png`](./visual/source-correlation.png) ← [`v930-source/source-correlation`](../../../docs/ui/source/v930-source/source-correlation.jpeg)
 
 ## Changelog
 
+- **2026-10-14** — File switch clears caret + correlation (`PR-SOURCE-015`).
 - **2026-10-14** — Find next/prev no-op when search empty; sort buttons jump to first Navigate By hot line.
 - **2026-10-12** — Align Source chrome with v930 sketch: tab-row first bar (Teleport), dual sort buttons, icon glyphs, Warp Occupancy capsule bars.
 - **2026-10-12** — Fix asm→source sync bounce: ignore Sudu caret echo / `syncOrigin` gate (`PR-SOURCE-014`).
