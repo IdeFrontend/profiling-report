@@ -20,6 +20,9 @@ describe('PR-SRC: source correlation adapter', () => {
     expect(a).toEqual(b);
     expect(a.mock).toBe(true);
     expect(a.files.length).toBeGreaterThan(0);
+    expect(a.files[0]!.language).toBe('cpp');
+    expect(a.files[0]!.path).toMatch(/\.cpp$/);
+    expect(a.files[0]!.text.split(/\r?\n/).length).toBeGreaterThanOrEqual(100);
     expect(a.assembly.lines.length).toBeGreaterThan(0);
     expect(a.assembly.metricsColumns.map((c) => c.id)).toEqual([
       'address',

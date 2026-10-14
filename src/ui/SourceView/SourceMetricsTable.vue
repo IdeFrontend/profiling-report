@@ -427,12 +427,12 @@ const styleVars = computed(() => {
 
 /*
  * SASS full-table widths from v930-source header label starts:
- * # ~3% · Address ~6–10% · Assembly ~20%+ · Instr / Stall / Occ share the rest.
+ * # ~4.5% · Address ~6–10% · Assembly ~20%+ · Instr / Stall / Occ share the rest.
  * Address keeps a rem floor so hex stays readable at playground widths.
  * Source metrics-only panes ignore line/address/assembly (Sudu overrides the three metrics).
  */
 .pr-src-metrics__col--line {
-  width: 3.5%;
+  width: 4.5%;
 }
 
 .pr-src-metrics__col--address {

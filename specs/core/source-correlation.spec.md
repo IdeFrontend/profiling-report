@@ -25,7 +25,7 @@ mockSourceCorrelation(): SourceCorrelationModel
 
 **Chrome Trace–only.** `emptyReportViewModel` / `adaptChromeTrace` omit `sourceCorrelation` and do not advertise `'sourceTab'`.
 
-**Mock shape.** At least one source file, one assembly buffer, non-empty `sourceToAsm` / `asmToSource`, and `navigateBy` metric ids matching column ids. Assembly `metricsColumns` order is Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy (`text` for Address/Assembly).
+**Mock shape.** At least one AscendC-looking source file (`language: 'cpp'` until Sudu enables `ascend-c` in default LangOptions; Sudu ≥ `0.0.130-alpha3`), one assembly buffer, non-empty `sourceToAsm` / `asmToSource`, and `navigateBy` metric ids matching column ids. Assembly `metricsColumns` order is Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy (`text` for Address/Assembly).
 
 ## Acceptance Criteria
 

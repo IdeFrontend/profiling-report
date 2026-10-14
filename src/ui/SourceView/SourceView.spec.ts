@@ -86,9 +86,9 @@ describe('SourceView', () => {
   it('PR-SOURCE-003: source row click marks correlated asm lines', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
-    // Hot mapped line from mock: sharpen.py:4 → asm 1,2,3
+    // Hot mapped line from mock: sharpen.cpp:46 → asm 1,2,3
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    await sourceTable.find('tr[data-line="4"]').trigger('click');
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     const correlated = asmTable.findAll('tr.pr-src-metrics__row--correlated');
@@ -99,7 +99,7 @@ describe('SourceView', () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    const stallCell = sourceTable.find('tr[data-line="4"] td[data-col="samplingStall"]');
+    const stallCell = sourceTable.find('tr[data-line="46"] td[data-col="samplingStall"]');
     expect(stallCell.exists()).toBe(true);
     await stallCell.trigger('mouseenter');
     // Teleported to body (pane overflow / z-index seam).
@@ -141,16 +141,16 @@ describe('SourceView', () => {
     const wrapper = mount(SourceView, { props: { model } });
     await flushPromises(); // Sudu boot must finish before setLine can touch the editor
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    // asm line 2 maps to sharpen.py:4; must not snap caret to mapped[0]=1
+    // asm line 2 maps to sharpen.cpp:46; must not snap caret to mapped[0]=1
     await asmTable.find('tr[data-line="2"]').trigger('click');
     await flushPromises();
     expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    expect(sourceTable.find('tr[data-line="4"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
     // Sudu caret must move + reveal (asm → source), not only metrics highlight.
     const ed = await latestSuduEditor();
-    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 4, column: 1 });
-    expect(ed.revealLine).toHaveBeenCalledWith(4);
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 46, column: 1 });
+    expect(ed.revealLine).toHaveBeenCalledWith(46);
   });
 
   it('PR-SOURCE-006: unmapped source line clears asm highlight', async () => {
@@ -158,10 +158,10 @@ describe('SourceView', () => {
     const wrapper = mount(SourceView, { props: { model } });
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await sourceTable.find('tr[data-line="4"]').trigger('click');
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
-    // Line 1 is the def line — mapped in mock? sharpen.py:1 not in sourceToAsm
+    // Line 1 is the include — not mapped in mock (sharpen.cpp:1 absent from sourceToAsm)
     await sourceTable.find('tr[data-line="1"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
@@ -211,9 +211,9 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await sourceTable.find('tr[data-line="4"]').trigger('click');
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
-    expect(sourceTable.find('tr[data-line="4"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
   });
@@ -247,7 +247,7 @@ describe('SourceView', () => {
     const wrapper = mount(SourceView, { props: { model } });
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await sourceTable.find('tr[data-line="4"]').trigger('click');
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
 
@@ -256,7 +256,7 @@ describe('SourceView', () => {
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
     expect(sourceTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
 
-    await sourceTable.find('tr[data-line="4"]').trigger('click');
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
   });
@@ -284,27 +284,28 @@ describe('SourceView', () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    // asm:2 → source:4; mapped group is [1,2,3] — must not bounce to 1 on caret echo.
+    // asm:2 → source:46; mapped group is [1,2,3] — must not bounce to 1 on caret echo.
     await asmTable.find('tr[data-line="2"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
 
-    // Simulate Sudu echoing caret after sourcePane.setLine(4).
-    await wrapper.findComponent({ name: 'SuduCodePane' }).vm.$emit('update:currentLine', 4);
+    // Simulate Sudu echoing caret after sourcePane.setLine(46).
+    await wrapper.findComponent({ name: 'SuduCodePane' }).vm.$emit('update:currentLine', 46);
     await wrapper.vm.$nextTick();
     expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
     expect(asmTable.find('tr[data-line="1"]').classes()).not.toContain('pr-src-metrics__row--current');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    expect(sourceTable.find('tr[data-line="4"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
   });
 
   it('PR-SOURCE-015: switching Source file clears caret and correlation', async () => {
     const base = mockSourceCorrelation();
     const other = {
       ...base.files[0]!,
-      id: 'other.py',
-      path: 'other.py',
-      text: 'def other():\n    return 1\n',
+      id: 'other.cpp',
+      path: 'other.cpp',
+      language: 'cpp',
+      text: 'extern "C" __global__ __aicore__ void other(GM_ADDR x) {\n    AscendC::TPipe pipe;\n}\n',
       lines: [
         { line: 1, values: { instructionsExecuted: 1, samplingStall: 0, warpOccupancy: 0.1 } },
         { line: 2, values: { instructionsExecuted: 2, samplingStall: 0, warpOccupancy: 0.2 } },
@@ -314,14 +315,14 @@ describe('SourceView', () => {
     const wrapper = mount(SourceView, { props: { model } });
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await sourceTable.find('tr[data-line="4"]').trigger('click');
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
 
-    await wrapper.find('[data-testid="source-file-select"]').setValue('other.py');
+    await wrapper.find('[data-testid="source-file-select"]').setValue('other.cpp');
     await wrapper.vm.$nextTick();
     expect((wrapper.find('[data-testid="source-file-select"]').element as HTMLSelectElement).value).toBe(
-      'other.py',
+      'other.cpp',
     );
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);

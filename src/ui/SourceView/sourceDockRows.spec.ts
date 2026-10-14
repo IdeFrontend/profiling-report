@@ -7,8 +7,8 @@ describe('sourceDockRows', () => {
     const model = mockSourceCorrelation();
     const rows = inlineFunctionRows(model, model.files[0]!);
     expect(rows.length).toBeGreaterThan(0);
-    expect(rows.every((r) => r.fileId === 'sharpen.py')).toBe(true);
-    expect(rows.some((r) => r.line === 4 && r.asmCount === 3)).toBe(true);
+    expect(rows.every((r) => r.fileId === 'sharpen.cpp')).toBe(true);
+    expect(rows.some((r) => r.line === 46 && r.asmCount === 3)).toBe(true);
   });
 
   it('lists stall markers ahead of hot-only lines when breakdown present', () => {
