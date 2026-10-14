@@ -65,18 +65,11 @@ node dist/npu-rep-html.mjs path/to/report.npu-rep -o report.html --en
 node npu-rep-html.mjs path/to/report.npu-rep -o report.html
 ```
 
-The standalone script is build output under `dist/` (gitignored), **not committed and not published** (no npm / CDN / Releases). `package.json` `bin` (`npu-rep-html`) is a stub that runs `dist/npu-rep-html.mjs` or exits telling you to run `npm run build:report-shell` — `npm link` still needs that step first (`npm run build` does not pack the CLI).
+The standalone script is build output under `dist/` (gitignored), **not committed in this repo** (no npm / CDN). Published copies are the `opdevtools/plugin_release` GitCode release assets. `package.json` `bin` (`npu-rep-html`) is a stub that runs `dist/npu-rep-html.mjs` or exits telling you to run `npm run build:report-shell` — `npm link` still needs that step first (`npm run build` does not pack the CLI).
 
-### Two-artifact handoff (external agents)
+### External agents
 
-Give consumers both files (hand delivery):
-
-| Artifact | Source | What they do |
-|----------|--------|----------------|
-| Skill | [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md) | Copy into their agent skills folder |
-| Script | `dist/npu-rep-html.mjs` (after `npm run build:report-shell`) | Place on disk (`NPU_REP_HTML`, cwd, beside the `.npu-rep`, or `~/bin/`) |
-
-The skill instructs the agent to resolve the script path and run `node …`; it does not download or build the script.
+Copy [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md) into the agent skills folder. The skill fetches `npu-rep-html.mjs` from the latest [opdevtools/plugin_release](https://gitcode.com/opdevtools/plugin_release) GitCode release when that tag is not already cached. Hand delivery of the script is not required. Set `NPU_REP_HTML` to pin a local copy and skip the download.
 
 CI (in-repo):
 
