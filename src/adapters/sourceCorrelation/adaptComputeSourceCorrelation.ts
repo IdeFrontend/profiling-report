@@ -6,11 +6,7 @@ import type {
 } from '../../domain/types';
 import { parseObjdump, normalizePc } from './parseObjdump';
 import { parseSymbolizer } from './parseSymbolizer';
-import {
-  isPcSamplingSqlReady,
-  readPcSamplingDbSync,
-  type PcSamplingRow,
-} from './readPcSamplingDb';
+import { readPcSamplingDb, type PcSamplingRow } from './readPcSamplingDb';
 
 const SOURCE_COLUMNS: SourceMetricsColumn[] = [
   { id: 'instructionsExecuted', label: 'Instructions Executed', kind: 'number' },
@@ -116,7 +112,6 @@ export function hasComputeSourcePack(payloads: Record<string, Uint8Array>): bool
 
 /**
  * Build `SourceCorrelationModel` from compute embeds (`objdump` / `symbolizer` / `summary.db` / source).
- * Requires `ensurePcSamplingSql()` when `summary.db` is present.
  */
 export function adaptComputeSourceCorrelation(
   payloads: Record<string, Uint8Array>,
@@ -135,13 +130,8 @@ export function adaptComputeSourceCorrelation(
   const summaryBytes = payloadByName(payloads, COMPUTE_SOURCE_EMBED_NAMES.summaryDb);
   let stallByPc = new Map<string, PcSamplingRow>();
   if (summaryBytes?.byteLength) {
-    if (!isPcSamplingSqlReady()) {
-      throw new Error(
-        '[profiling-report] summary.db present but sql.js is not initialized; await ensurePcSamplingSql() before adapt',
-      );
-    }
     stallByPc = new Map(
-      readPcSamplingDbSync(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
+      readPcSamplingDb(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
     );
   }
 

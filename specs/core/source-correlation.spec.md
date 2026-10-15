@@ -9,7 +9,7 @@ Adapt report-pack payloads into `SourceCorrelationModel` for the 源码 tab (UI-
 ```ts
 adaptSourceCorrelation(payloads: Record<string, Uint8Array>): SourceCorrelationModel | null
 mockSourceCorrelation(): SourceCorrelationModel
-ensurePcSamplingSql(): Promise<void>
+readPcSamplingDb(bytes: Uint8Array): PcSamplingRow[]
 ```
 
 ## Unit contract
@@ -23,7 +23,7 @@ ensurePcSamplingSql(): Promise<void>
 **Real path — compute multi-file.** When payloads include `objdump.txt` and at least one of `symbolizer.json` / `summary.db`, `adaptSourceCorrelation` builds a real model via `adaptComputeSourceCorrelation` (`mock: false`):
 
 - Asm rows from `objdump.txt` (address + instruction text).
-- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` (requires `await ensurePcSamplingSql()` before adapt when the db is present).
+- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` (sync B-tree reader; no WASM).
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
 - Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`).
 
@@ -53,6 +53,7 @@ ensurePcSamplingSql(): Promise<void>
 ## Changelog
 
 - **2026-10-15** — Refresh gather_2d fixtures (symbolizer Line>0); `gather_2d.npu-rep` playground pack; PR-SRC-006/008; npu-compute PDF column list → DATA-55.
-- **2026-10-15** — Compute multi-file adapt (`objdump` / `symbolizer` / `summary.db` / `.asc`); sql.js `pc_sampling` reader; PR-SRC-005–007.
+- **2026-10-15** — Replace sql.js with sync SQLite B-tree reader for `pc_sampling`.
+- **2026-10-15** — Compute multi-file adapt (`objdump` / `symbolizer` / `summary.db` / `.asc`); `pc_sampling` reader; PR-SRC-005–007.
 - **2026-10-14** — Mock SASS density (≥40 rows), sketch-scale stalls, kernel-ABI assembly `path`.
 - **2026-10-07** — Initial mock-first Source correlation adapter.

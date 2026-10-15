@@ -1,5 +1,12 @@
-import type { SqlValue } from 'sql.js';
 import type { SourceStallBreakdown } from '../../domain/types';
+
+/**
+ * Read-only walker for compute-profile `summary.db` → `pc_sampling`.
+ *
+ * ponytail: hand-rolled SQLite3 B-tree reader for one known table (no sql.js /
+ * WASM). Ceiling: page size / UTF-8 / no overflow / table B-tree only. Upgrade
+ * to a real engine if the producer widens the format.
+ */
 
 /** One `pc_sampling` row from compute-profile `summary.db`. */
 export interface PcSamplingRow {
@@ -32,91 +39,142 @@ const STALL_COLUMNS = [
 
 type StallField = (typeof STALL_COLUMNS)[number][1];
 
-type SqlJsApi = {
-  Database: new (data?: ArrayLike<number> | null) => {
-    exec: (sql: string) => { columns: string[]; values: SqlValue[][] }[];
-    close: () => void;
-  };
-};
+const SQLITE_HEADER = 'SQLite format 3\0';
+const PAGE_LEAF_TABLE = 0x0d;
+const PAGE_INTERIOR_TABLE = 0x05;
 
-export type InitSqlJs = (config?: {
-  wasmBinary?: ArrayBuffer | Uint8Array;
-  locateFile?: (file: string) => string;
-}) => Promise<SqlJsApi>;
-
-let sqlFactory: InitSqlJs | null = null;
-let wasmBinary: Uint8Array | undefined;
-let locateFile: ((file: string) => string) | undefined;
-let sqlApi: SqlJsApi | null = null;
-let sqlReady: Promise<void> | null = null;
-
-/**
- * Inject sql.js init + WASM bytes / locateFile.
- * Browser hosts: serve wasm (playground: `/sqljs/sql-wasm.wasm`) or pass `wasmBinary`.
- * Node tests: pass `wasmBinary` from `sql.js/dist/sql-wasm.wasm`.
- */
-export function configurePcSamplingSql(opts: {
-  initSqlJs?: InitSqlJs;
-  wasmBinary?: Uint8Array;
-  locateFile?: (file: string) => string;
-}): void {
-  if (opts.initSqlJs) sqlFactory = opts.initSqlJs;
-  if (opts.wasmBinary) wasmBinary = opts.wasmBinary;
-  if (opts.locateFile) locateFile = opts.locateFile;
-  sqlApi = null;
-  sqlReady = null;
+function fail(msg: string): never {
+  throw new Error(`[profiling-report] summary.db: ${msg}`);
 }
 
-export function isPcSamplingSqlReady(): boolean {
-  return sqlApi != null;
+function readU16(view: DataView, o: number): number {
+  return view.getUint16(o, false);
 }
 
-/** Browser default path after `sync:demo-fixtures`. */
-export const SQL_WASM_PUBLIC_PATH = '/sqljs/sql-wasm.wasm';
-
-async function loadSqlFactory(): Promise<InitSqlJs> {
-  if (sqlFactory) return sqlFactory;
-  const mod = await import('sql.js');
-  return mod.default as InitSqlJs;
+function readU32(view: DataView, o: number): number {
+  return view.getUint32(o, false);
 }
 
-async function resolveWasmBinary(): Promise<Uint8Array | undefined> {
-  if (wasmBinary) return wasmBinary;
-  if (typeof fetch === 'function') {
-    try {
-      const res = await fetch(SQL_WASM_PUBLIC_PATH);
-      if (res.ok) return new Uint8Array(await res.arrayBuffer());
-    } catch {
-      // Host must configurePcSamplingSql({ wasmBinary | locateFile }).
+function readVarint(bytes: Uint8Array, start: number): { value: number; next: number } {
+  let value = 0;
+  let i = start;
+  for (let n = 0; n < 9; n++) {
+    if (i >= bytes.length) fail('varint overrun');
+    const x = bytes[i]!;
+    i += 1;
+    if (n === 8) {
+      value = value * 256 + x;
+      return { value, next: i };
     }
+    value = value * 128 + (x & 0x7f);
+    if (x < 0x80) return { value, next: i };
   }
-  return undefined;
+  fail('varint too long');
 }
 
-/** Load sql.js WASM once so sync `summary.db` reads can run during adapt. */
-export async function ensurePcSamplingSql(): Promise<void> {
-  if (sqlApi) return;
-  if (!sqlReady) {
-    sqlReady = (async () => {
-      const initSqlJs = await loadSqlFactory();
-      const wasm = await resolveWasmBinary();
-      const config: {
-        wasmBinary?: Uint8Array;
-        locateFile?: (file: string) => string;
-      } = {};
-      if (wasm) config.wasmBinary = wasm;
-      if (locateFile) config.locateFile = locateFile;
-      else if (!wasm) config.locateFile = (file) => `${SQL_WASM_PUBLIC_PATH.replace(/[^/]+$/, '')}${file}`;
-      sqlApi = await initSqlJs(config);
-    })();
-  }
-  await sqlReady;
+function serialPayloadSize(serialType: number): number {
+  if (serialType >= 0 && serialType <= 4) return [0, 1, 2, 3, 4][serialType]!;
+  if (serialType === 5) return 6;
+  if (serialType === 6 || serialType === 7) return 8;
+  if (serialType === 8 || serialType === 9) return 0;
+  if (serialType >= 12 && serialType % 2 === 0) return (serialType - 12) / 2;
+  if (serialType >= 13 && serialType % 2 === 1) return (serialType - 13) / 2;
+  fail(`unsupported serial type ${serialType}`);
 }
 
-function num(v: SqlValue | undefined): number {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  if (typeof v === 'string' && v !== '' && Number.isFinite(Number(v))) return Number(v);
-  return 0;
+function readSignedBe(bytes: Uint8Array, start: number, len: number): number {
+  if (len === 0) return 0;
+  let v = bytes[start]!;
+  const neg = v & 0x80;
+  let x = neg ? v - 256 : v;
+  for (let i = 1; i < len; i++) x = x * 256 + bytes[start + i]!;
+  return x;
+}
+
+function parseRecord(payload: Uint8Array): unknown[] {
+  const hdr = readVarint(payload, 0);
+  const headerSize = hdr.value;
+  if (headerSize <= 0 || headerSize > payload.length) fail('bad record header size');
+  const types: number[] = [];
+  let i = hdr.next;
+  while (i < headerSize) {
+    const st = readVarint(payload, i);
+    types.push(st.value);
+    i = st.next;
+  }
+  if (i !== headerSize) fail('record header size mismatch');
+  const cols: unknown[] = [];
+  for (const st of types) {
+    const sz = serialPayloadSize(st);
+    if (i + sz > payload.length) fail('record payload overrun');
+    const chunk = payload.subarray(i, i + sz);
+    i += sz;
+    if (st === 0) cols.push(null);
+    else if (st >= 1 && st <= 6) cols.push(readSignedBe(chunk, 0, sz));
+    else if (st === 7) fail('float columns not supported');
+    else if (st === 8) cols.push(0);
+    else if (st === 9) cols.push(1);
+    else if (st >= 13 && st % 2 === 1) cols.push(new TextDecoder('utf-8').decode(chunk));
+    else fail(`blob column not supported (serial ${st})`);
+  }
+  return cols;
+}
+
+function pageBytes(file: Uint8Array, pageSize: number, pageNo: number): Uint8Array {
+  if (pageNo < 1) fail(`bad page number ${pageNo}`);
+  const start = (pageNo - 1) * pageSize;
+  const end = start + pageSize;
+  if (end > file.length) fail(`page ${pageNo} past EOF`);
+  return file.subarray(start, end);
+}
+
+function walkTableBtree(
+  file: Uint8Array,
+  pageSize: number,
+  pageNo: number,
+  out: { rowid: number; cols: unknown[] }[],
+): void {
+  const pg = pageBytes(file, pageSize, pageNo);
+  const contentStart = pageNo === 1 ? 100 : 0;
+  const pageType = pg[contentStart]!;
+  const cellCount = (pg[contentStart + 3]! << 8) | pg[contentStart + 4]!;
+  const hdrSize = pageType === PAGE_INTERIOR_TABLE ? 12 : 8;
+  const ptrBase = contentStart + hdrSize;
+
+  if (pageType === PAGE_LEAF_TABLE) {
+    for (let c = 0; c < cellCount; c++) {
+      const ptr = (pg[ptrBase + 2 * c]! << 8) | pg[ptrBase + 2 * c + 1]!;
+      let i = ptr;
+      const payloadLen = readVarint(pg, i);
+      i = payloadLen.next;
+      const rowid = readVarint(pg, i);
+      i = rowid.next;
+      const end = i + payloadLen.value;
+      if (end > pg.length) {
+        fail('overflow pages not supported (pc_sampling cells must fit in-page)');
+      }
+      out.push({ rowid: rowid.value, cols: parseRecord(pg.subarray(i, end)) });
+    }
+    return;
+  }
+
+  if (pageType === PAGE_INTERIOR_TABLE) {
+    const rightMost =
+      (pg[contentStart + 8]! << 24) |
+      (pg[contentStart + 9]! << 16) |
+      (pg[contentStart + 10]! << 8) |
+      pg[contentStart + 11]!;
+    for (let c = 0; c < cellCount; c++) {
+      const ptr = (pg[ptrBase + 2 * c]! << 8) | pg[ptrBase + 2 * c + 1]!;
+      const leftChild =
+        (pg[ptr]! << 24) | (pg[ptr + 1]! << 16) | (pg[ptr + 2]! << 8) | pg[ptr + 3]!;
+      walkTableBtree(file, pageSize, leftChild, out);
+    }
+    walkTableBtree(file, pageSize, rightMost, out);
+    return;
+  }
+
+  fail(`unsupported B-tree page type 0x${pageType.toString(16)} on page ${pageNo}`);
 }
 
 function breakdown(values: Record<StallField, number>): {
@@ -135,49 +193,66 @@ function breakdown(values: Record<StallField, number>): {
   return { samplingStall, stallBreakdown };
 }
 
-function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
-  const db = new api.Database(bytes);
-  try {
-    const cols = STALL_COLUMNS.map(([sql]) => `"${sql}"`).join(', ');
-    const result = db.exec(
-      `SELECT "pc_offset", ${cols} FROM pc_sampling ORDER BY "pc_offset"`,
-    );
-    if (!result.length) return [];
-    const table = result[0]!;
-    const idx = Object.fromEntries(table.columns.map((c, i) => [c, i]));
-    return table.values.map((row) => {
-      const fields = {} as Record<StallField, number>;
-      for (const [sqlCol, field] of STALL_COLUMNS) {
-        fields[field] = num(row[idx[sqlCol]!]);
-      }
-      const { samplingStall, stallBreakdown } = breakdown(fields);
-      return {
-        pcOffset: String(row[idx.pc_offset!] ?? ''),
-        ...fields,
-        samplingStall,
-        stallBreakdown,
-      };
-    });
-  } finally {
-    db.close();
-  }
+function asInt(v: unknown, label: string): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  fail(`expected integer ${label}`);
 }
 
 /**
- * Sync read — call only after `ensurePcSamplingSql()`.
- * Used by the sync adapt path when `summary.db` is in the pack.
+ * Read compute-profile `summary.db` → `pc_sampling` rows (sync, no WASM).
  */
-export function readPcSamplingDbSync(bytes: Uint8Array): PcSamplingRow[] {
-  if (!sqlApi) {
-    throw new Error(
-      '[profiling-report] readPcSamplingDbSync: await ensurePcSamplingSql() first',
-    );
-  }
-  return rowsFromDb(bytes, sqlApi);
-}
+export function readPcSamplingDb(bytes: Uint8Array): PcSamplingRow[] {
+  if (bytes.byteLength < 100) fail('file too small');
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 16));
+  if (head !== SQLITE_HEADER) fail('not a SQLite 3 database');
 
-/** Read compute-profile `summary.db` → `pc_sampling` rows (warms sql.js if needed). */
-export async function readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]> {
-  await ensurePcSamplingSql();
-  return readPcSamplingDbSync(bytes);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let pageSize = readU16(view, 16);
+  if (pageSize === 1) pageSize = 65536;
+  if (pageSize < 512 || (pageSize & (pageSize - 1)) !== 0) fail(`unsupported page_size ${pageSize}`);
+  if (bytes[20] !== 0) fail('reserved per-page bytes not supported');
+  if (readU32(view, 56) !== 1) fail('database encoding must be UTF-8');
+
+  const pageCount = readU32(view, 28);
+  if (pageCount === 0 || pageCount * pageSize > bytes.byteLength) {
+    fail('page_count does not match file length');
+  }
+
+  const masterRows: { rowid: number; cols: unknown[] }[] = [];
+  walkTableBtree(bytes, pageSize, 1, masterRows);
+
+  let rootPage: number | null = null;
+  for (const { cols } of masterRows) {
+    // sqlite_master: type, name, tbl_name, rootpage, sql
+    if (cols[0] === 'table' && cols[1] === 'pc_sampling') {
+      rootPage = asInt(cols[3], 'pc_sampling.rootpage');
+      break;
+    }
+  }
+  if (rootPage == null) fail('table pc_sampling not found');
+
+  const dataRows: { rowid: number; cols: unknown[] }[] = [];
+  walkTableBtree(bytes, pageSize, rootPage, dataRows);
+
+  return dataRows.map(({ cols }) => {
+    if (cols.length !== 9) fail(`pc_sampling row has ${cols.length} columns, expected 9`);
+    if (typeof cols[0] !== 'string') fail('pc_offset must be TEXT');
+    const fields = {
+      ibufEmpty: asInt(cols[1], 'IBuf_Empty'),
+      nopCycles: asInt(cols[2], 'Nop_Cycles'),
+      scoreboardNotReady: asInt(cols[3], 'Scoreboard_Not_Ready'),
+      registerBankConflict: asInt(cols[4], 'Register_bank_conflict'),
+      resourceConflict: asInt(cols[5], 'Resource_conflict'),
+      warpLevelSync: asInt(cols[6], 'Warp_Level_Sync'),
+      divergenceStackSpill: asInt(cols[7], 'Divergence_Stack_Spill'),
+      others: asInt(cols[8], 'Others'),
+    };
+    const { samplingStall, stallBreakdown } = breakdown(fields);
+    return {
+      pcOffset: cols[0],
+      ...fields,
+      samplingStall,
+      stallBreakdown,
+    };
+  });
 }

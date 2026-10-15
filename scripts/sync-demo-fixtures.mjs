@@ -77,13 +77,3 @@ if (existsSync(shellTemplate)) {
   copyFileSync(shellTemplate, join(root, 'playground/public/npu-rep-html-template.txt'))
   console.log('synced dist/report-shell/template.html -> playground/public/npu-rep-html-template.txt')
 }
-
-/** sql.js WASM for compute Source-tab `summary.db` reads (same-origin). */
-const sqljsDir = join(root, 'playground/public/sqljs')
-mkdirSync(sqljsDir, { recursive: true })
-const sqlWasm = join(root, 'node_modules/sql.js/dist/sql-wasm.wasm')
-if (copyIfExists(sqlWasm, join(sqljsDir, 'sql-wasm.wasm'))) {
-  console.log('synced sql-wasm.wasm -> playground/public/sqljs/sql-wasm.wasm')
-} else {
-  console.warn('[sync:demo-fixtures] sql.js wasm not copied (npm install sql.js)')
-}

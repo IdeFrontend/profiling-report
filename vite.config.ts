@@ -30,13 +30,10 @@ export default defineConfig({
       fileName: 'profiling-report',
     },
     rollupOptions: {
-      // sql.js is dynamically imported only for compute Source `summary.db`;
-      // keep it out of the main bundle (host/npm supplies it + the ~670KB wasm).
-      external: ['vue', 'sql.js'],
+      external: ['vue'],
       output: {
         globals: {
           vue: 'Vue',
-          'sql.js': 'initSqlJs',
         },
       },
     },

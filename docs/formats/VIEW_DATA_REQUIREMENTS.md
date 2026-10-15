@@ -70,7 +70,7 @@ See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 | SASS listing columns | `#` (UI) · Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy — Address/Assembly are table cells (no Sudu) |
 | 详情 / 缓存 | Chrome only / **disabled** |
 
-Switch point: `adaptSourceCorrelation(payloads)` — compute multi-file **in**; single JSON + emulate ELF still open ([DATA-52](../context/questions/DATA.md)–[DATA-55](../context/questions/DATA.md)). Hosts must `await ensurePcSamplingSql()` (or rely on ProfilingReport’s load path) before adapting packs that embed `summary.db`. Dock / view modes / Redo Resolve / heat tint: [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md).
+Switch point: `adaptSourceCorrelation(payloads)` — compute multi-file **in**; single JSON + emulate ELF still open ([DATA-52](../context/questions/DATA.md)–[DATA-55](../context/questions/DATA.md)). `summary.db` is read sync via a narrow SQLite B-tree walker (`readPcSamplingDb`). Dock / view modes / Redo Resolve / heat tint: [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md).
 
 ### Block scope matrix
 
