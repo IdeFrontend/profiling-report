@@ -65,6 +65,14 @@ export {
 export { mockSourceCorrelation } from './sourceCorrelation/mockSourceCorrelation';
 export {
   configurePcSamplingSql,
+  ensurePcSamplingSql,
+  isPcSamplingSqlReady,
   readPcSamplingDb,
+  readPcSamplingDbSync,
   type PcSamplingRow,
 } from './sourceCorrelation/readPcSamplingDb';
+export {
+  adaptComputeSourceCorrelation,
+  hasComputeSourcePack,
+  COMPUTE_SOURCE_EMBED_NAMES,
+} from './sourceCorrelation/adaptComputeSourceCorrelation';

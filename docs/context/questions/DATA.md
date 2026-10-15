@@ -185,11 +185,11 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 ### DATA-52 — Source correlation embed schema
 
-**Status:** `open`
+**Status:** `partial`
 
 **Question:** What is the authoritative embed basename and JSON/CSV schema for `reportModel.sourceCorrelation` (`mock: false`)? Confirm whether the switch point stays `SourceCorrelation.json` (and aliases in `SOURCE_CORRELATION_EMBED_NAMES`), or Product prefers another name / multi-file pack (source text + asm + maps).
 
-**Answer so far:** None. `adaptSourceCorrelation` returns `null` until a schema ships; report packs fall back to `mockSourceCorrelation` ([UI-37](../decisions/UI.md)).
+**Answer so far:** Compute packs (gather_2d `sample.zip`) ship a **multi-file** set — `objdump.txt` + `symbolizer.json` + `summary.db` (`pc_sampling`) + Ascend C source (`.asc`) — not `SourceCorrelation.json`. The library adapts that set via `adaptComputeSourceCorrelation` (`mock: false`) when `objdump.txt` is present with symbolizer and/or summary.db. Still open: (1) is this the Product-canonical pack layout for `.npu-rep` leaves, (2) must `.asc` live **inside** the leaf (today’s zip keeps it at the zip root beside the import folder), (3) does a single-file `SourceCorrelation.json` remain a goal.
 
 **Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [ADAPTERS](../../formats/ADAPTERS.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md).
 
@@ -199,6 +199,26 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 
 **Question:** For emulate packs (e.g. gelu), which tables map into Source | SASS when an ELF / `--object-file` is present — `SourceFiles` / `SourceLines` / `AsmMetrics` / `IPCAsmMetrics` / Source Assembly HTML — and how do PC ↔ source line joins populate `sourceToAsm` / `asmToSource`? Confirm gelu-without-ELF stays mock-only.
 
-**Answer so far:** FORMATs_COMPARISON marks Source Assembly / AsmMetrics as Phase 2 / ELF-gated; gelu packs hint CSVs but empty SourceFiles without object file.
+**Answer so far:** FORMATs_COMPARISON marks Source Assembly / AsmMetrics as Phase 2 / ELF-gated; gelu packs hint CSVs but empty SourceFiles without object file. Compute path above does **not** answer emulate.
 
 **Specs when answered:** [emulate/FORMAT](../../formats/emulate/FORMAT.md), [emulate/SCHEMA](../../formats/emulate/SCHEMA.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md).
+
+### DATA-54 — symbolizer `Line: 0` / missing line mapping
+
+**Status:** `open`
+
+**Question:** In compute `symbolizer.json`, every gather_2d site ships `Line: 0` (file + function only). Is `0` “unknown line”, “whole function”, or a producer bug? How should Source↔SASS correlation behave when Line is 0 — no map (current interim), map to function start, or refuse the Source tab?
+
+**Answer so far:** Interim: treat `Line <= 0` as unmapped (`sourceToAsm` / `asmToSource` stay empty); still show source text + asm + per-PC stalls from `summary.db`.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [ADAPTERS](../../formats/ADAPTERS.md).
+
+### DATA-55 — compute Source metrics beyond Sampling Stall
+
+**Status:** `open`
+
+**Question:** `summary.db` / `pc_sampling` exposes stall counters per `pc_offset` (IBuf_Empty, Nop_Cycles, Scoreboard_Not_Ready, …). Where do **Instructions Executed** and **Warp Occupancy** come from for Source | SASS columns on compute packs? Confirm Sampling Stall = sum of those counter columns (current interim).
+
+**Answer so far:** Interim: `samplingStall` = sum of `pc_sampling` stall columns; breakdown feeds the stall tooltip; Instructions Executed and Warp Occupancy stay `0` until a field is named.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [compute/FORMAT](../../formats/compute/FORMAT.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md).

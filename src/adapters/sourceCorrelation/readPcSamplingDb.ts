@@ -32,30 +32,47 @@ const STALL_COLUMNS = [
 
 type StallField = (typeof STALL_COLUMNS)[number][1];
 
-export type InitSqlJs = (config?: {
-  wasmBinary?: ArrayBuffer | Uint8Array;
-  locateFile?: (file: string) => string;
-}) => Promise<{
-  Database: new (data?: ArrayLike<number> | Buffer | null) => {
+type SqlJsApi = {
+  Database: new (data?: ArrayLike<number> | null) => {
     exec: (sql: string) => { columns: string[]; values: SqlValue[][] }[];
     close: () => void;
   };
-}>;
+};
+
+export type InitSqlJs = (config?: {
+  wasmBinary?: ArrayBuffer | Uint8Array;
+  locateFile?: (file: string) => string;
+}) => Promise<SqlJsApi>;
 
 let sqlFactory: InitSqlJs | null = null;
 let wasmBinary: Uint8Array | undefined;
+let locateFile: ((file: string) => string) | undefined;
+let sqlApi: SqlJsApi | null = null;
+let sqlReady: Promise<void> | null = null;
 
 /**
- * Inject sql.js init + optional WASM bytes (browser hosts pass locateFile / wasmBinary;
- * Node tests default to package dist).
+ * Inject sql.js init + WASM bytes / locateFile.
+ * Browser hosts: serve wasm (playground: `/sqljs/sql-wasm.wasm`) or pass `wasmBinary`.
+ * Node tests: pass `wasmBinary` from `sql.js/dist/sql-wasm.wasm`.
  */
 export function configurePcSamplingSql(opts: {
-  initSqlJs: InitSqlJs;
+  initSqlJs?: InitSqlJs;
   wasmBinary?: Uint8Array;
+  locateFile?: (file: string) => string;
 }): void {
-  sqlFactory = opts.initSqlJs;
-  wasmBinary = opts.wasmBinary;
+  if (opts.initSqlJs) sqlFactory = opts.initSqlJs;
+  if (opts.wasmBinary) wasmBinary = opts.wasmBinary;
+  if (opts.locateFile) locateFile = opts.locateFile;
+  sqlApi = null;
+  sqlReady = null;
 }
+
+export function isPcSamplingSqlReady(): boolean {
+  return sqlApi != null;
+}
+
+/** Browser default path after `sync:demo-fixtures`. */
+export const SQL_WASM_PUBLIC_PATH = '/sqljs/sql-wasm.wasm';
 
 async function loadSqlFactory(): Promise<InitSqlJs> {
   if (sqlFactory) return sqlFactory;
@@ -63,16 +80,37 @@ async function loadSqlFactory(): Promise<InitSqlJs> {
   return mod.default as InitSqlJs;
 }
 
-async function defaultWasmBinary(): Promise<Uint8Array | undefined> {
+async function resolveWasmBinary(): Promise<Uint8Array | undefined> {
   if (wasmBinary) return wasmBinary;
-  // Node / vitest: read package wasm. Browser must call configurePcSamplingSql.
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    const { readFileSync } = await import('node:fs');
-    const { createRequire } = await import('node:module');
-    const require = createRequire(import.meta.url);
-    return new Uint8Array(readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')));
+  if (typeof fetch === 'function') {
+    try {
+      const res = await fetch(SQL_WASM_PUBLIC_PATH);
+      if (res.ok) return new Uint8Array(await res.arrayBuffer());
+    } catch {
+      // Host must configurePcSamplingSql({ wasmBinary | locateFile }).
+    }
   }
   return undefined;
+}
+
+/** Load sql.js WASM once so sync `summary.db` reads can run during adapt. */
+export async function ensurePcSamplingSql(): Promise<void> {
+  if (sqlApi) return;
+  if (!sqlReady) {
+    sqlReady = (async () => {
+      const initSqlJs = await loadSqlFactory();
+      const wasm = await resolveWasmBinary();
+      const config: {
+        wasmBinary?: Uint8Array;
+        locateFile?: (file: string) => string;
+      } = {};
+      if (wasm) config.wasmBinary = wasm;
+      if (locateFile) config.locateFile = locateFile;
+      else if (!wasm) config.locateFile = (file) => `${SQL_WASM_PUBLIC_PATH.replace(/[^/]+$/, '')}${file}`;
+      sqlApi = await initSqlJs(config);
+    })();
+  }
+  await sqlReady;
 }
 
 function num(v: SqlValue | undefined): number {
@@ -97,15 +135,8 @@ function breakdown(values: Record<StallField, number>): {
   return { samplingStall, stallBreakdown };
 }
 
-/**
- * Read compute-profile `summary.db` → `pc_sampling` rows.
- * Used by the Source-tab real path (PC metrics keyed by `pc_offset`).
- */
-export async function readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]> {
-  const initSqlJs = await loadSqlFactory();
-  const wasm = await defaultWasmBinary();
-  const SQL = await initSqlJs(wasm ? { wasmBinary: wasm } : undefined);
-  const db = new SQL.Database(bytes);
+function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
+  const db = new api.Database(bytes);
   try {
     const cols = STALL_COLUMNS.map(([sql]) => `"${sql}"`).join(', ');
     const result = db.exec(
@@ -130,4 +161,23 @@ export async function readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow
   } finally {
     db.close();
   }
+}
+
+/**
+ * Sync read — call only after `ensurePcSamplingSql()`.
+ * Used by the sync adapt path when `summary.db` is in the pack.
+ */
+export function readPcSamplingDbSync(bytes: Uint8Array): PcSamplingRow[] {
+  if (!sqlApi) {
+    throw new Error(
+      '[profiling-report] readPcSamplingDbSync: await ensurePcSamplingSql() first',
+    );
+  }
+  return rowsFromDb(bytes, sqlApi);
+}
+
+/** Read compute-profile `summary.db` → `pc_sampling` rows (warms sql.js if needed). */
+export async function readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]> {
+  await ensurePcSamplingSql();
+  return readPcSamplingDbSync(bytes);
 }

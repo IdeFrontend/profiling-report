@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
-import { loadReportSource } from '../../adapters';
+import { ensurePcSamplingSql, loadReportSource } from '../../adapters';
 import {
   applyWindow,
   clearMeasure,
@@ -932,8 +932,10 @@ function failLoad(cause: unknown) {
   emit('error', { message: loadError.value, cause });
 }
 
-function loadFromSource(source: ArrayBuffer | Uint8Array) {
+async function loadFromSource(source: ArrayBuffer | Uint8Array) {
   try {
+    // sql.js WASM — needed when the pack embeds summary.db (compute Source path).
+    await ensurePcSamplingSql();
     applyAdapted(loadReportSource(source));
   } catch (cause) {
     failLoad(cause);
@@ -959,7 +961,7 @@ watch(
   () => props.source,
   (src) => {
     if (src) {
-      loadFromSource(src);
+      void loadFromSource(src);
       return;
     }
     // Source removed: drop what the adapter derived, or its flags outlive the report.
