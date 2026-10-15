@@ -69,7 +69,7 @@ The standalone script is build output under `dist/` (gitignored), **not committe
 
 ### External agents
 
-Copy [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md) into the agent skills folder. The skill fetches `npu-rep-html.mjs` from the latest [opdevtools/plugin_release](https://gitcode.com/opdevtools/plugin_release) GitCode release when that tag is not already cached. Hand delivery of the script is not required. Set `NPU_REP_HTML` to pin a local copy and skip the download.
+Copy [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md) into the agent skills folder. On Linux, macOS, and Windows, the skill fetches `npu-rep-html.mjs` from the latest [opdevtools/plugin_release](https://gitcode.com/opdevtools/plugin_release) GitCode release when that tag is not already cached. Hand delivery of the script is not required. Set `NPU_REP_HTML` to pin a local copy and skip the download.
 
 CI (in-repo):
 
