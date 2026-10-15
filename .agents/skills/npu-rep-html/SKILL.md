@@ -58,7 +58,7 @@ $dir = Join-Path $env:LOCALAPPDATA "npu-rep-html\<tag>"
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 $cache = Join-Path $dir "npu-rep-html.mjs"
 $tmp = Join-Path $dir ("npu-rep-html.mjs." + [guid]::NewGuid().ToString("N"))
-& curl.exe -fsSL -o $tmp "<browser_download_url>"
+& curl.exe -fsSL -o "`"$tmp`"" "`"<browser_download_url>`""
 $ok = $LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $tmp) -and ((Get-Item -LiteralPath $tmp).Length -gt 0) -and ((Get-Content -LiteralPath $tmp -TotalCount 1) -eq '#!/usr/bin/env node')
 if (-not $ok) {
   Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
@@ -135,13 +135,13 @@ if ((Test-Path -LiteralPath $liveNode) -and ([int](& $liveNode -p "process.versi
   $zip = Join-Path $work "node.zip"
   $extract = Join-Path $work "extract"
   try {
-    & curl.exe -fsSL -o $sums "https://nodejs.org/dist/latest-v20.x/SHASUMS256.txt"
+    & curl.exe -fsSL -o "`"$sums`"" "https://nodejs.org/dist/latest-v20.x/SHASUMS256.txt"
     if ($LASTEXITCODE -ne 0) { throw "checksum download failed" }
     $hit = Select-String -LiteralPath $sums -Pattern ('^([0-9a-f]{64})\s+(node-v20\.[0-9.]+-' + [regex]::Escape($plat) + '\.zip)$') | Select-Object -First 1
     if (-not $hit) { throw "no Node 20 zip for $plat" }
     $expected = $hit.Matches[0].Groups[1].Value.ToLowerInvariant()
     $name = $hit.Matches[0].Groups[2].Value
-    & curl.exe -fsSL -o $zip "https://nodejs.org/dist/latest-v20.x/$name"
+    & curl.exe -fsSL -o "`"$zip`"" "`"https://nodejs.org/dist/latest-v20.x/$name`""
     if ($LASTEXITCODE -ne 0) { throw "node zip download failed" }
     $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
     if ($actual -ne $expected) { throw "node zip checksum mismatch" }
@@ -183,7 +183,7 @@ node "$HOME/.cache/npu-rep-html/1.5.5/npu-rep-html.mjs" ./op.npu-rep -o ./op-rep
 ```
 
 ```powershell
-node "$env:LOCALAPPDATA\npu-rep-html\1.5.5\npu-rep-html.mjs" .\op.npu-rep -o .\op-report.html --en
+node "`"$env:LOCALAPPDATA\npu-rep-html\1.5.5\npu-rep-html.mjs`"" .\op.npu-rep -o .\op-report.html --en
 ```
 
 Use the tag you just resolved, not a hardcoded `1.5.5`, when a newer release is current.
