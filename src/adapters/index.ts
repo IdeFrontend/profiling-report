@@ -63,3 +63,8 @@ export {
   SOURCE_CORRELATION_EMBED_NAMES,
 } from './sourceCorrelation/adaptSourceCorrelation';
 export { mockSourceCorrelation } from './sourceCorrelation/mockSourceCorrelation';
+export {
+  configurePcSamplingSql,
+  readPcSamplingDb,
+  type PcSamplingRow,
+} from './sourceCorrelation/readPcSamplingDb';
