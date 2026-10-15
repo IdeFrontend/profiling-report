@@ -2,6 +2,10 @@
 # Local operator pack dumps (Source-tab exploration); committed fixtures under data/gather_2d/
 sample.zip
 sample*.zip
+# Local product docs (cite from Downloads; do not commit binaries)
+npu-compute*.pdf
+*.pdf
+!docs/**/*.pdf
 node_modules/
 dist/
 playground/dist/
