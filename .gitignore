@@ -1,6 +1,7 @@
 .idea
-# Local operator pack dump (Source-tab real-data exploration); fixture DB is under data/gather_2d/
+# Local operator pack dumps (Source-tab exploration); committed fixtures under data/gather_2d/
 sample.zip
+sample*.zip
 node_modules/
 dist/
 playground/dist/

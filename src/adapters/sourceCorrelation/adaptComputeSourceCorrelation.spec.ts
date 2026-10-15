@@ -6,6 +6,7 @@ import { adaptSourceCorrelation } from './adaptSourceCorrelation';
 import { ensurePcSamplingSql } from './readPcSamplingDb';
 import { parseObjdump } from './parseObjdump';
 import { configurePcSamplingSqlForNodeTests } from '../../../tests/helpers/sqlJsNode';
+import { loadReportSource } from '../loadReportSource';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const gather = join(root, 'data/gather_2d');
@@ -38,15 +39,31 @@ describe('adaptComputeSourceCorrelation', () => {
     expect(hot?.stallBreakdown?.length).toBeGreaterThan(0);
   });
 
-  it('PR-SRC-006: symbolizer Line 0 does not invent sourceToAsm entries', () => {
+  it('PR-SRC-006: symbolizer Line>0 fills maps; Line 0 stays unmapped', () => {
     const model = adaptSourceCorrelation(loadGatherPayloads())!;
-    // gather_2d sample ships Line:0 for every site — maps stay empty until producer lines land.
-    expect(Object.keys(model.sourceToAsm)).toHaveLength(0);
-    expect(Object.keys(model.asmToSource)).toHaveLength(0);
+    // Updated gather_2d sample: 12 sites with Line in {27,36–39}; 4 remain Line:0.
+    expect(Object.keys(model.sourceToAsm).length).toBeGreaterThan(0);
+    expect(model.sourceToAsm['gather_2d.asc:39']?.length).toBeGreaterThan(0);
+    const hotAsm = model.assembly.lines.findIndex((l) =>
+      l.values.address?.toString().endsWith('00000268'),
+    );
+    expect(hotAsm).toBeGreaterThanOrEqual(0);
+    expect(model.asmToSource[hotAsm + 1]).toEqual({ fileId: 'gather_2d.asc', line: 39 });
   });
 
   it('PR-SRC-007: parseObjdump counts gather_2d instructions', () => {
     const text = readFileSync(join(gather, 'objdump.txt'), 'utf8');
     expect(parseObjdump(text).length).toBe(124);
+  });
+
+  it('PR-SRC-008: gather_2d.npu-rep load yields real sourceCorrelation (with .asc embed)', async () => {
+    const bytes = new Uint8Array(readFileSync(join(root, 'data/gather_2d.npu-rep')));
+    const adapted = loadReportSource(bytes);
+    expect(adapted.capabilities).toContain('sourceTab');
+    expect(adapted.reportModel.sourceCorrelation?.mock).toBe(false);
+    expect(adapted.reportModel.sourceCorrelation?.files[0]?.text).toContain('gather_2d_custom');
+    expect(Object.keys(adapted.reportModel.sourceCorrelation?.sourceToAsm ?? {}).length).toBeGreaterThan(
+      0,
+    );
   });
 });

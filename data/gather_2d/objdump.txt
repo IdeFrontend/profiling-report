@@ -1,18 +1,24 @@
 
-kernel.o:	file format elf64-hiipu
+./kernel.o:	file format elf64-hiipu
 
 Disassembly of section .text:
 
 0000000000000000 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj$local>:
 _Z16gather_2d_customIfjEvPT_PT0_S1_jj():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
+{
        0:				02004880	MOV		X0, PARA_BASE
        4:				07c10000	MOVK 		X0, #0, #3
 .ParamSummary__Z16gather_2d_customIfjEvPT_PT0_S1_jj():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
        8:				08c00000	DC_PRELOADI	[X0], #0
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
        c:				073afea0	MOVI 		X29, #65184
       10:				077b000f	MOVK 		X29, #15, #1
       14:				029e3880	MOV		X15, SYS_VA_BASE
 .ParamInfo__Z16gather_2d_customIfjEvPT_PT0_S1_jj_0():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
       18:				02224880	MOV		X17, PARA_BASE
       1c:				003bd781	ADD.s64 	X29, X29, X15
       20:				021f0880	MOV		X15, COREID
@@ -20,11 +26,17 @@ _Z16gather_2d_customIfjEvPT_PT0_S1_jj():
       28:				026202b4	SHRI.u64 	X17, #52
       2c:				00def80a	AND.b64  	X15, X15, X16
       30:				08231002	ADDI 	X17, X17, #2
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
       34:				02e2020e	SHLI.b64 	X17, #14
       38:				081ef001	ADDI 	X15, X15, #1
       3c:				003af884	MADD.s64 	X29, X15, X17
 .ParamInfo__Z16gather_2d_customIfjEvPT_PT0_S1_jj_1():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
       40:				083dd788	ADDI 	X30, X29, #1928
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
+__global__ void gather_2d_custom(
       44:				02004880	MOV		X0, PARA_BASE
       48:				0c860150	LDP.b32 	X3, X2, [X0], #-24
       4c:				0c8800e0	LDP.b32 	X4, X1, [X0], #-16
@@ -35,10 +47,14 @@ _Z16gather_2d_customIfjEvPT_PT0_S1_jj():
       60:				1cd47000	LD_IO.b64 		X10, [X7], #0, #0
       64:				0c8e75b0	LDP.b32 	X7, X11, [X7], #24
 .ParamInfo__Z16gather_2d_customIfjEvPT_PT0_S1_jj_2():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       68:				071a8000	MOVI 		X13, #32768
-$d.13():
+$d.20():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       6c:				07188000	MOVI 		X12, #32768
       70:				075b0010	MOVK 		X13, #16, #1
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       74:				02c40210	SHLI.b64 	X2, #16
       78:				02c60220	SHLI.b64 	X3, #32
       7c:				00c4220b	OR.b64  	X2, X2, X4
@@ -47,8 +63,11 @@ $d.13():
       88:				00c4218b	OR.b64  	X2, X2, X3
       8c:				03c4dfd8	ST_IO.b64 		X2, [X13], #-40, #0
 .ParamInfo__Z16gather_2d_customIfjEvPT_PT0_S1_jj_3():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       90:				02041880	MOV		X2, BLOCKID
       94:				00462285	DIV.u64 	X3, X2, X5
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       98:				00186283	MUL.s64 	X12, X6, X5
       9c:				02c8020f	SHLI.b64 	X4, #15
       a0:				00582605	DIV.u64 	X12, X2, X12
@@ -58,7 +77,10 @@ $d.13():
       b0:				02d80220	SHLI.b64 	X12, #32
       b4:				02183c1f	INSERT 		X12, X3, #0, #31
 .ParamInfo__Z16gather_2d_customIfjEvPT_PT0_S1_jj_4():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       b8:				0706fffe	MOVI 		X3, #65534
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       bc:				021ac881	MOV		X13, SHMEM_SZ
       c0:				02c40220	SHLI.b64 	X2, #32
       c4:				07470003	MOVK 		X3, #3, #1
@@ -69,9 +91,12 @@ $d.13():
       d8:				021a3c1f	INSERT 		X13, X3, #0, #31
       dc:				020c5c1f	INSERT 		X6, X5, #0, #31
 .AIV_Kernel_Type__Z16gather_2d_customIfjEvPT_PT0_S1_jj():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       e0:				0783ffff	MOVK 		X1, #65535, #2
       e4:				07c3ffff	MOVK 		X1, #65535, #3
       e8:				431a6130	PUSH_PB 	X13, X6, X2, X12
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
       ec:				00c4008a	AND.b64  	X2, X0, X1
       f0:				02040c1f	INSERT 		X2, X0, #0, #31
       f4:				00c0808a	AND.b64  	X0, X8, X1
@@ -80,8 +105,11 @@ $d.13():
      100:				07068000	MOVI 		X3, #32768
      104:				02008c1f	INSERT 		X0, X8, #0, #31
 .Kernel_Type__Z16gather_2d_customIfjEvPT_PT0_S1_jj():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
      108:				020a9c1f	INSERT 		X5, X9, #0, #31
      10c:				0202ac1f	INSERT 		X1, X10, #0, #31
+_Z16gather_2d_customIfjEvPT_PT0_S1_jj():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
      110:				07470010	MOVK 		X3, #16, #1
      114:				02d60220	SHLI.b64 	X11, #32
      118:				43041280	PUSH_PB 	X2, X1, X5, X0
@@ -89,6 +117,8 @@ $d.13():
      120:				00003201	ADD.s64 	X0, X3, X4
      124:				4316b5ac	PUSH_PB 	X11, X11, X11, X11
      128:				1cc00fd8	LD_IO.b64 		X0, [X0], #-40, #0
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
      12c:				07c10020	MOVK 		X0, #32, #3
      130:				02020880	MOV		X1, PC
      134:				0704000c	MOVI 		X2, #12
@@ -99,45 +129,79 @@ $d.13():
      148:			15e00adc15220400	VF_SIMT 	X2, X0, #86, #0, #1
      150:				071e0000	MOVI 		X15, #0
      154:				402ef000	DCCI 		X15, #1
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:23
+__global__ void gather_2d_custom(
      158:				41600000	END
      15c:				41400000	NOP
 
 0000000000000160 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj_simt_entry>:
 _Z16gather_2d_customIfjEvPT_PT0_S1_jj_simt_entry():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
+{
      160:			06002e00029e065c	S2R 		R3, WARP_STACK_SIZE wait:0b0000001 stall:9
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:25
      168:			06060a08120e009c	SHFI.R.u32	R3, R3, #5 wait:0b0000000 stall:2
      170:	000000000000000104060000000e005d	IADD 		R2, R3, #0 wait:0b0000000 stall:1
+/home/chenning/AscendEnv/0930_test/cann-9.3.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_simt_builtin_vars.h:73
+  __CCE_SIMT_DEVICE_BUILTIN(x, __cce_simt_get_BLOCK_DIM_X());
      180:			08000400029e005c	S2R 		R4, BLOCK_DIM_X wait:0b0000000 stall:1
+/home/chenning/AscendEnv/0930_test/cann-9.3.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_simt_builtin_vars.h:83
+  __CCE_SIMT_DEVICE_BUILTIN(x, __cce_simt_get_BLOCK_IDX_X());
      188:			0d140000009e005c	MOV 		R6, S10 wait:0b0000000 stall:1
+/home/chenning/AscendEnv/0930_test/cann-9.3.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_simt_builtin_vars.h:59
+  __CCE_SIMT_DEVICE_BUILTIN(x, __cce_simt_get_TID_X());
      190:			0a000a00029e025c	S2R 		R5, TID_X wait:0b0000000 stall:9
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:27
+    int32_t out_row = blockIdx.x * blockDim.x + threadIdx.x;
      198:			12080c002806019c	IMAD.u32	R9, R4, R6, R5 wait:0b0000000 stall:6
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:30
+    if (out_row >= index_total_length) {
      1a0:			701345c0218e00dc	ISETP.LT.AND.u32 	P0, PT, R9, S34, PT wait:0b0000000 stall:3
      1a8:			00000000002600dc	START_DVG wait:0b0000000 stall:3 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj$local>
      1b0:			000000f801260160	BRANCH 	248, !P0 wait:0b0000000 stall:5 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj_simt_entry+0x148>
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:36
+    for (int32_t col = 0; col < in_width; col++) {
      1b8:	0000000000000001714001d0018e059d	ISETP.EQ.AND.s32 	P0, PT, S32, #0, PT wait:0b0000001 stall:6
      1c8:			000000e001260140	BRANCH 	224, P0 wait:0b0000000 stall:5 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj_simt_entry+0x148>
-     1d0:			08fefe04c206045c	IMAD.WIDE.u32 	R4, RZ, RZ, S24 wait:0b0000001 stall:1
-     1d8:			200000000016005c	MOVI 		R16, #0 wait:0b0000000 stall:1
+     1d0:			200000000016045c	MOVI 		R16, #0 wait:0b0000001 stall:1
+     1d8:			08fefe04c206005c	IMAD.WIDE.u32 	R4, RZ, RZ, S24 wait:0b0000000 stall:1
      1e0:			29400000009e005c	MOV 		R20, S32 wait:0b0000000 stall:1
-     1e8:			0cfefe04a206021c	IMAD.WIDE.u32 	R6, RZ, RZ, S20 wait:0b0000000 stall:8
+$d.18():
+     1e8:			0cfefe04a206025c	IMAD.WIDE.u32 	R6, RZ, RZ, S20 wait:0b0000000 stall:9
      1f0:	0000000400000001081208100206005d	IMAD.WIDE.s32	R4, R9, #4, R4 wait:0b0000000 stall:1
      200:			12134000028602dc	IMUL.u32	R9, R9, S32 wait:0b0000000 stall:11
+():
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:35
+    uint32_t in_row = index[out_row];
      208:			100800092000009c	LDG.C.NMFV.b32 	R8, [R4] ws:0 rs:1 wait:0b0000000 stall:2
-     210:			08fefe04e206085c	IMAD.WIDE.u32 	R4, RZ, RZ, S28 wait:0b0000010 stall:1
-     218:			22200000009e005c	MOV 		R17, R16 wait:0b0000000 stall:1
+     210:			22200000009e005c	MOV 		R17, R16 wait:0b0000000 stall:1
+     218:			08fefe04e206085c	IMAD.WIDE.u32 	R4, RZ, RZ, S28 wait:0b0000010 stall:1
      220:			2afe0000009e005c	MOV 		R21, RZ wait:0b0000000 stall:1
      228:			101140000286055c	IMUL.u32	R8, R8, S32 wait:0b0000001 stall:5
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:37
+        int input_idx = in_row * in_width + col;
      230:			2c102000000e055c	IADD 		R22, R8, R16 wait:0b0000001 stall:5
      238:	00000004000000012c2c0c100206035d	IMAD.WIDE.s32	R22, R22, #4, R6 wait:0b0000000 stall:13
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:39
+        gather_output[output_idx] = input[input_idx];
      248:			2c2c00092000009c	LDG.C.NMFV.b32 	R22, [R22] ws:0 rs:1 wait:0b0000000 stall:2
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:38
+        int output_idx = out_row * in_width + col;
      250:			2e122000000e091c	IADD 		R23, R9, R16 wait:0b0000010 stall:4
      258:	0000000400000001342e08100206031d	IMAD.WIDE.s32	R26, R23, #4, R4 wait:0b0000000 stall:12
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:39
+        gather_output[output_idx] = input[input_idx];
      268:			2c3400051c0c049c	STG.C.NMFV.b32 	R22, [R26] rs:0 wait:0b0000001 stall:2
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:36
+    for (int32_t col = 0; col < in_width; col++) {
      270:	000000010000000120200000788e01dd	IADD.X 		P0, R16, R16, #1, !PT wait:0b0000000 stall:7
      280:	000000000000000122220000008e011d	IADD.X 		P0, R17, R17, #0, P0 wait:0b0000000 stall:4
      290:			702029d0118e00dc	ISETP.NE.AND.s32 	P0, PT, R16, R20, PT wait:0b0000000 stall:3
      298:			70222a10158e01dc	ISETP.NE.OR.s32 	P0, PT, R17, R21, P0 wait:0b0000000 stall:7
      2a0:			ffffff9001260540	BRANCH 	4294967184, P0 wait:0b0000001 stall:5 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj_simt_entry+0xd0>
      2a8:			0000000000a605dc	END_DVG 	 wait:0b0000001 stall:7 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj$local+0x1>
+/home/chenning/asc-devkit/examples/03_simt_api/00_introduction/01_gather/basic_gather/gather_2d/gather_2d.asc:41
+}
      2b0:			0000000006a6029c	END 		 wait:0b0000000 stall:10 <_Z16gather_2d_customIfjEvPT_PT0_S1_jj$local>
      2b8:			4140000041400000	LDG.NC.NACN.u8 	R32, [S32] ws:0 rs:2 wait:0b0000000 stall:0 @P0

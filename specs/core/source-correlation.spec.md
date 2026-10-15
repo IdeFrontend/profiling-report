@@ -42,8 +42,9 @@ ensurePcSamplingSql(): Promise<void>
 3. **PR-SRC-003** — `adaptRep(out.rep)` fills `sourceCorrelation` (mock) and includes `'sourceTab'`.
 4. **PR-SRC-004** — `adaptChromeTrace` omits `sourceCorrelation` and `'sourceTab'`.
 5. **PR-SRC-005** — gather_2d compute embeds (`objdump` + `symbolizer` + `summary.db` + `.asc`) yield `mock: false` with AscendC source text and asm stall metrics from `pc_sampling`.
-6. **PR-SRC-006** — symbolizer sites with `Line: 0` do not populate `sourceToAsm` / `asmToSource` (DATA-54 interim).
+6. **PR-SRC-006** — symbolizer `Line > 0` fills `sourceToAsm` / `asmToSource` (basename match on `FileName`); `Line: 0` stays unmapped (DATA-54 interim).
 7. **PR-SRC-007** — `parseObjdump` extracts instruction rows from the gather_2d listing.
+8. **PR-SRC-008** — `loadReportSource(gather_2d.npu-rep)` (leaf with `.asc` embed) yields `sourceCorrelation.mock === false` and non-empty maps.
 
 ## Dependencies
 
@@ -51,6 +52,7 @@ ensurePcSamplingSql(): Promise<void>
 
 ## Changelog
 
+- **2026-10-15** — Refresh gather_2d fixtures (symbolizer Line>0); `gather_2d.npu-rep` playground pack; PR-SRC-006/008; npu-compute PDF column list → DATA-55.
 - **2026-10-15** — Compute multi-file adapt (`objdump` / `symbolizer` / `summary.db` / `.asc`); sql.js `pc_sampling` reader; PR-SRC-005–007.
 - **2026-10-14** — Mock SASS density (≥40 rows), sketch-scale stalls, kernel-ABI assembly `path`.
 - **2026-10-07** — Initial mock-first Source correlation adapter.
