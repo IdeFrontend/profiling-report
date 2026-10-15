@@ -64,8 +64,12 @@ if (-not $ok) {
   Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
   throw "npu-rep-html download failed"
 }
-if (Test-Path -LiteralPath $cache) { Remove-Item -LiteralPath $cache -Force }
-Move-Item -LiteralPath $tmp -Destination $cache
+# Same-volume replace. File.Replace is atomic; do not delete $cache first.
+if (Test-Path -LiteralPath $cache) {
+  [System.IO.File]::Replace($tmp, $cache, [NullString]::Value)
+} else {
+  [System.IO.File]::Move($tmp, $cache)
+}
 ```
 
 Do not search the working directory, `~/bin`, or the directory next to the `.npu-rep`. Do not run `npm run build:report-shell`.
@@ -76,7 +80,7 @@ Run `node -p "process.versions.node"`. If the major version is **≥ 20**, use t
 
 If `node` is missing or the major is **< 20**, install the current **Node 20** line, then prepend it to `PATH` and re-check. Stop if the install fails or the major is still < 20.
 
-Prefer a version manager already on the machine. Linux and macOS: `nvm install 20 && nvm use 20`, or `fnm install 20 && fnm use 20`, or `n 20`. Windows: `fnm install 20` then `fnm env --use-on-cd | Invoke-Expression`, or nvm-windows `nvm install 20` and `nvm use` that 20.x. `n` does not run on Windows. If nvm-windows `nvm use` fails because the shell is not elevated, install the zip below instead.
+Prefer a version manager already on the machine. Linux and macOS: `nvm install 20 && nvm use 20`, or `fnm install 20 && fnm use 20`, or `n 20`. Windows: `fnm install 20`, then `fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression`, then `fnm use 20`; or nvm-windows `nvm install 20` and `nvm use` that 20.x. `n` does not run on Windows. If nvm-windows `nvm use` fails because the shell is not elevated, install the zip below instead.
 
 Otherwise download the official Node 20 archive. Require the SHA-256 from `https://nodejs.org/dist/latest-v20.x/SHASUMS256.txt` to match before extract. Stage the checksum file, the archive, and the tree outside the live prefix. Replace the live prefix only after the staged tree contains the `node` binary. If an earlier step fails, delete the stage and leave the live prefix in place.
 
