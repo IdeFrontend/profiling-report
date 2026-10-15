@@ -41,6 +41,10 @@ const props = withDefaults(
     selectedOperatorId?: string | null;
     /** Opens in a new tab from the trailing help button. */
     userGuideUrl?: string;
+    /** Active secondary tab (UI-37). */
+    activeTab?: 'timeline' | 'source';
+    /** When true, 源码 is selectable. */
+    sourceTabEnabled?: boolean;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
      * leave this false. Playground (and other hosts that serve the shell template)
@@ -50,6 +54,8 @@ const props = withDefaults(
   }>(),
   {
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
+    activeTab: 'timeline',
+    sourceTabEnabled: false,
     htmlExportAvailable: false,
   },
 );
@@ -61,6 +67,7 @@ const emit = defineEmits<{
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'update:selectedOperatorId': [id: string];
+  'update:activeTab': [tab: 'timeline' | 'source'];
   'zoom-to-fit': [];
   'zoom-in': [];
   'zoom-out': [];
@@ -430,17 +437,21 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       >{{ title || t('tabOp', locale) }}</span>
       <button
         type="button"
-        class="pr-tabs__tab pr-tabs__tab--active"
+        class="pr-tabs__tab"
+        :class="{ 'pr-tabs__tab--active': activeTab === 'timeline' }"
         data-testid="tab-timeline"
+        @click="emit('update:activeTab', 'timeline')"
       >
         {{ t('tabTimeline', locale) }}
       </button>
       <button
         type="button"
         class="pr-tabs__tab"
-        disabled
+        :class="{ 'pr-tabs__tab--active': activeTab === 'source' }"
+        :disabled="!sourceTabEnabled"
         data-testid="tab-source"
-        :title="t('tabsNotSupported', locale)"
+        :title="sourceTabEnabled ? undefined : t('tabsNotSupported', locale)"
+        @click="sourceTabEnabled && emit('update:activeTab', 'source')"
       >
         {{ t('tabSource', locale) }}
       </button>
@@ -464,7 +475,9 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       </button>
     </nav>
 
+    <!-- Timeline tools only — Source tab owns its own chrome (UI-37 / v930-source). -->
     <div
+      v-if="activeTab === 'timeline'"
       ref="toolbarRef"
       class="pr-toolbar"
     >
@@ -1010,6 +1023,14 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         <PrIcon name="help" />
       </button>
     </div>
+
+    <!-- Source first control bar (Left/Right View, Search, actions) sits on the tab
+         row — SourceView Teleports into this host (v930-source). -->
+    <div
+      v-else-if="activeTab === 'source'"
+      class="pr-toolbar pr-toolbar--source"
+      data-testid="source-chrome-host"
+    />
   </div>
 </template>
 
@@ -1184,7 +1205,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 }
 
 .pr-tabs__tab--active {
-  color: #e8e8e8;
+  /* v930-source: active tab stays grey (not white); underline carries the accent. */
+  color: #c8c8c8;
 }
 
 .pr-tabs__tab--active::after {
@@ -1194,7 +1216,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   right: 12px;
   bottom: -2px;
   height: 2px;
-  background: #ffffff;
+  background: #3078f0;
 }
 
 .pr-toolbar {
@@ -1212,6 +1234,16 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   max-width: 100%;
   overflow-x: clip;
   overflow-y: visible;
+}
+
+/* Source first control bar: same tab row, no extra margin/padding (v930-source). */
+.pr-toolbar--source {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
+  margin: 0 0 0 auto;
+  padding: 0;
+  gap: 0;
 }
 
 /* Search + zoom stay fully visible; rightmost icon actions are what get clipped. */

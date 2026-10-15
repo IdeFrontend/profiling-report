@@ -301,11 +301,12 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     // out.rep carries roofline points, hardwareDetails and memoryDiagram; loadReportSource
     // derives the latter two, so a host passing only `source` must still get them.
     // `roofline` is Phase 2, out of the current release — it is opt-in and never derived.
+    // UI-37: report packs also advertise `sourceTab` (mock sourceCorrelation when embeds absent).
     const auto = mount(ProfilingReport, { props: { source: loadOutRepBuffer() } });
     await flushPromises();
     expect(
       auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
-    ).toBe('hardwareDetails,memoryDiagram');
+    ).toBe('hardwareDetails,memoryDiagram,sourceTab');
     // The attribute alone is not the contract — out.rep has roofline points, and the
     // card must not reach the DOM without the flag (the aside is open: duration/PIPE).
     expect(auto.find('[data-testid="stats-roofline"]').exists()).toBe(false);

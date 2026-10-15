@@ -41,3 +41,43 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 **Answer so far:** Not implemented. Context-menu Hide lane remains deferred until its state and restore path are defined.
 
 **Specs when answered:** [ContextMenu.spec.md](../../../src/ui/ContextMenu/ContextMenu.spec.md), [view-state.spec.md](../../../specs/core/view-state.spec.md), [INTERACTIONS.md](../../ui/INTERACTIONS.md).
+
+### UI-56 — Source tab Left View / Right View modes
+
+**Status:** `open`
+
+**Question:** Beyond **Source | SASS**, which Left View / Right View modes does Product want (metrics-only, source-only, dual SASS, …), and which combinations are valid?
+
+**Answer so far:** Sketch shows Source | SASS only; controls stay disabled with those fixed options until Product lists modes.
+
+**Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md).
+
+### UI-57 — Redo Resolve contract
+
+**Status:** `open`
+
+**Question:** What does **Redo Resolve** do end-to-end — re-run symbol/source resolution against embeds, clear and rebuild correlation maps, or only re-apply the current caret mapping? Does it need a progress / error surface?
+
+**Answer so far:** UI re-jumps correlation from the current (or first hot) source line; no resolve pipeline exists until [DATA-52](DATA.md) / [DATA-53](DATA.md).
+
+**Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [INTERACTIONS.md](../../ui/INTERACTIONS.md).
+
+### UI-58 — Source dock panel schemas
+
+**Status:** `open`
+
+**Question:** What are the real row schemas and interactions for **Inline Functions**, **Source Markers**, and **Statistics** (columns, click→navigate rules, empty states)? Sketch shows dual Source selectors under Inline Functions — are those nested dual panes or filters?
+
+**Answer so far:** Dock bodies ship mock-derived tables from correlation / metrics until Product locks schemas ([v930-source/source-correlation](../../ui/source/v930-source/source-correlation.jpeg)).
+
+**Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md).
+
+### UI-59 — Source metric cell heatmap rules
+
+**Status:** `open`
+
+**Question:** Does Product want a value heat tint on metrics cells (e.g. Sampling Stall), and if so which columns, color scale, and thresholds? [`v930-source/source-correlation`](../../ui/source/v930-source/source-correlation.jpeg) shows plain numbers + grey Warp Occupancy bars only — no warm cell fill.
+
+**Answer so far:** Sketch has **no** heat tint. An amber fill was tried and removed as non-sketch. Leave cells uncolored until Product asks for heat.
+
+**Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [COLOR_TOKENS](../../ui/COLOR_TOKENS.md), [UX_SPEC](../../ui/UX_SPEC.md).

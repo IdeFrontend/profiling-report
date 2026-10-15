@@ -51,6 +51,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-015**: Wheel-scrolling a tall stress fixture keeps the lane gutter `scrollTop` and each card-header screen Y locked to the same scroll offset — the scroll offset is baked into the card-strip `top` (no container `translateY`) — with no chase between gutter / cards / canvas.
 1. **PR-E2E-016**: During a live marquee, holding the pointer in the bottom edge band increases gutter `scrollTop` while the marquee rect stays visible (edge autoscroll).
 1. **PR-E2E-017**: Playground toolbar Export with `?locale=en` fetches `/npu-rep-html-template.txt`, stitches the loaded report using the HTML `<script>` embed slot (not marker strings inside the inlined viewer bundle), and downloads `{name}.html` whose embed slot is filled with `en`.
+1. **PR-E2E-018**: Source tab opens `source-view` with mock badge on a report pack; returning to Timeline unmounts it (UI-37).
 
 ## Dependencies
 

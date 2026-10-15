@@ -359,6 +359,58 @@ export interface ReportViewModel {
    * Omit or `'compute'` for hardware packs.
    */
   profile?: 'compute' | 'emulate';
+  /**
+   * Source ↔ assembly correlation for the 源码 tab (UI-37). Present on report packs
+   * (real embeds or mock fallback); omitted for Chrome Trace–only loads.
+   */
+  sourceCorrelation?: SourceCorrelationModel;
+}
+
+/**
+ * One column in a Source / SASS metrics table.
+ * SASS uses `text` for Address + Assembly (table-only pane — no Sudu).
+ */
+export interface SourceMetricsColumn {
+  id: string;
+  label: string;
+  kind: 'number' | 'percent' | 'bar' | 'text';
+}
+
+export interface SourceStallBreakdown {
+  metric: string;
+  value: number;
+  percent: number;
+}
+
+/** Per-line metrics for a source or assembly buffer (1-based line). */
+export interface SourceLineMetrics {
+  line: number;
+  values: Record<string, number | string | null>;
+  stallBreakdown?: SourceStallBreakdown[];
+}
+
+/** One editable buffer (high-level source file or the SASS listing). */
+export interface SourceFileModel {
+  id: string;
+  path: string;
+  language?: string;
+  text: string;
+  metricsColumns: SourceMetricsColumn[];
+  lines: SourceLineMetrics[];
+}
+
+/**
+ * Dual-pane Source | SASS model. `mock: true` when the adapter filled from the
+ * deterministic fixture rather than real embeds.
+ */
+export interface SourceCorrelationModel {
+  files: SourceFileModel[];
+  assembly: SourceFileModel;
+  /** `${fileId}:${line}` → assembly line numbers (1-based). */
+  sourceToAsm: Record<string, number[]>;
+  asmToSource: Record<number, { fileId: string; line: number }>;
+  navigateBy: string[];
+  mock: boolean;
 }
 
 export type ViewFullCsvPayload = {

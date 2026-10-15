@@ -59,9 +59,17 @@ Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). P
 
 See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 
-### 15. Secondary tabs
+### 15. Secondary tabs — Source (UI-37)
 
-Chrome only / disabled ([UI-37](../context/decisions/UI.md)).
+| Input | Requirement |
+|-------|-------------|
+| `SourceCorrelation.json` (or Product-named embed) | Preferred when present → `reportModel.sourceCorrelation` with `mock: false` |
+| Missing embeds on report packs | **Mock fallback** (`mock: true`) via `mockSourceCorrelation`; still advertise `'sourceTab'` |
+| Chrome Trace–only | Omit `sourceCorrelation`; 源码 stays disabled unless host passes `'sourceTab'` |
+| SASS listing columns | `#` (UI) · Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy — Address/Assembly are table cells (no Sudu) |
+| 详情 / 缓存 | Chrome only / **disabled** |
+
+Switch point: `adaptSourceCorrelation(payloads)` — real schema TBD ([DATA-52](../context/questions/DATA.md), emulate ELF path [DATA-53](../context/questions/DATA.md)); returns `null` until embeds ship. Dock / view modes / Redo Resolve / heat tint: [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md).
 
 ### Block scope matrix
 

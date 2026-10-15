@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-/** HDesign exports under `src/ui/icons/`, stripped of Figma's invisible duplicate paths. */
+/** Glyph masks under `src/ui/icons/` (HDesign SVGs + Source-sketch PNG samples). */
 export type PrIconName =
   | 'search'
   | 'zoom-in'
@@ -17,7 +17,16 @@ export type PrIconName =
   | 'display-config'
   | 'help'
   | 'close'
-  | 'keyboard';
+  | 'keyboard'
+  | 'list'
+  | 'link'
+  | 'chevron-down'
+  | 'chevron-up'
+  | 'to-top'
+  | 'sort-asc'
+  | 'sort-desc'
+  | 'download'
+  | 'layers';
 
 defineProps<{ name: PrIconName }>();
 </script>
@@ -71,8 +80,8 @@ defineProps<{ name: PrIconName }>();
 }
 
 .pr-icon--help {
-  -webkit-mask-image: url('./icons/help.svg');
-  mask-image: url('./icons/help.svg');
+  -webkit-mask-image: url('./icons/help.png');
+  mask-image: url('./icons/help.png');
 }
 
 .pr-icon--close {
@@ -83,5 +92,51 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--keyboard {
   -webkit-mask-image: url('./icons/keyboard.svg');
   mask-image: url('./icons/keyboard.svg');
+}
+
+/* Source-tab glyphs: alpha masks sampled from docs/ui/source/v930-source/source-correlation.jpeg */
+.pr-icon--list {
+  -webkit-mask-image: url('./icons/list.png');
+  mask-image: url('./icons/list.png');
+}
+
+.pr-icon--link {
+  -webkit-mask-image: url('./icons/link.png');
+  mask-image: url('./icons/link.png');
+}
+
+.pr-icon--chevron-down {
+  -webkit-mask-image: url('./icons/chevron-down.png');
+  mask-image: url('./icons/chevron-down.png');
+}
+
+.pr-icon--chevron-up {
+  -webkit-mask-image: url('./icons/chevron-up.png');
+  mask-image: url('./icons/chevron-up.png');
+}
+
+.pr-icon--to-top {
+  -webkit-mask-image: url('./icons/to-top.png');
+  mask-image: url('./icons/to-top.png');
+}
+
+.pr-icon--sort-asc {
+  -webkit-mask-image: url('./icons/sort-asc.png');
+  mask-image: url('./icons/sort-asc.png');
+}
+
+.pr-icon--sort-desc {
+  -webkit-mask-image: url('./icons/sort-desc.png');
+  mask-image: url('./icons/sort-desc.png');
+}
+
+.pr-icon--download {
+  -webkit-mask-image: url('./icons/download.png');
+  mask-image: url('./icons/download.png');
+}
+
+.pr-icon--layers {
+  -webkit-mask-image: url('./icons/layers.png');
+  mask-image: url('./icons/layers.png');
 }
 </style>

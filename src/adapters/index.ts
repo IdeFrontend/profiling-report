@@ -58,3 +58,8 @@ export {
   pipeOccupancyFromPipesUtilization,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+export {
+  adaptSourceCorrelation,
+  SOURCE_CORRELATION_EMBED_NAMES,
+} from './sourceCorrelation/adaptSourceCorrelation';
+export { mockSourceCorrelation } from './sourceCorrelation/mockSourceCorrelation';

@@ -28,6 +28,8 @@ import {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
+import { mockSourceCorrelation } from './sourceCorrelation/mockSourceCorrelation';
 
 const COMPUTE_CSV_FILES = [
   'PipeUtilization.csv',
@@ -1147,6 +1149,9 @@ export function adaptRep(parsed: ParsedRep): AdaptedReport {
 /** Map raw payloads (any container: `cann-rep` leaf or `npu-rep` leaf) → swimlane + report. */
 export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
   const reportModel = reportModelFromPayloads(payloads);
+  const sourceCorrelation =
+    adaptSourceCorrelation(payloads) ?? mockSourceCorrelation();
+  reportModel.sourceCorrelation = sourceCorrelation;
   const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
   // `roofline` is a Phase 2 surface outside the current release: it is opt-in only
@@ -1155,6 +1160,8 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
   if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
+  // UI-37: report packs always advertise Source (real embeds or mock fallback).
+  capabilities.push('sourceTab');
   return {
     swimlaneModel,
     reportModel,

@@ -182,3 +182,23 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Context:** biprof §11.2.3.2 heat-panel tooltip. The three labels were already dropped from `src/i18n` (nothing references them) and come back only with the producer fields; the interim rule is [DATA-51a](../decisions/interim/DATA.md#data-51a).
 
 **Specs when answered:** [memory-topology](../../views/memory-topology.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [view-models](../../../specs/core/view-models.spec.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
+
+### DATA-52 — Source correlation embed schema
+
+**Status:** `open`
+
+**Question:** What is the authoritative embed basename and JSON/CSV schema for `reportModel.sourceCorrelation` (`mock: false`)? Confirm whether the switch point stays `SourceCorrelation.json` (and aliases in `SOURCE_CORRELATION_EMBED_NAMES`), or Product prefers another name / multi-file pack (source text + asm + maps).
+
+**Answer so far:** None. `adaptSourceCorrelation` returns `null` until a schema ships; report packs fall back to `mockSourceCorrelation` ([UI-37](../decisions/UI.md)).
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [ADAPTERS](../../formats/ADAPTERS.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md).
+
+### DATA-53 — Emulate AsmMetrics / SourceFiles → Source tab
+
+**Status:** `open`
+
+**Question:** For emulate packs (e.g. gelu), which tables map into Source | SASS when an ELF / `--object-file` is present — `SourceFiles` / `SourceLines` / `AsmMetrics` / `IPCAsmMetrics` / Source Assembly HTML — and how do PC ↔ source line joins populate `sourceToAsm` / `asmToSource`? Confirm gelu-without-ELF stays mock-only.
+
+**Answer so far:** FORMATs_COMPARISON marks Source Assembly / AsmMetrics as Phase 2 / ELF-gated; gelu packs hint CSVs but empty SourceFiles without object file.
+
+**Specs when answered:** [emulate/FORMAT](../../formats/emulate/FORMAT.md), [emulate/SCHEMA](../../formats/emulate/SCHEMA.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md).

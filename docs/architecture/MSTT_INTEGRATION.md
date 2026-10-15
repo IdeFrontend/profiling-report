@@ -60,6 +60,8 @@ Host may pass capability flags so the library hides Phase 2 UI until ready. **Ca
 
 `roofline` | `memoryDiagram` | `dependencies` | `hardwareDetails` | `sourceTab` | `cacheTab` | `aicpu` | `measureMode`
 
+**`sourceTab` (UI-37).** Derived on report packs (`.rep` / npu-rep / emulate) whenever `reportModel.sourceCorrelation` is filled (real embeds or mock). Pure Chrome Trace omits it. Host `capabilities` override replaces adapter flags — include `'sourceTab'` to keep the tab when overriding. Hosts that open Source must serve the Sudu worker (`suduWorkerUrl` prop; same-origin), codicon (`suduCodiconUrl`, default `/sudu/codicon.ttf`), and JetBrains Mono webfonts under `/sudu/fonts/` (playground: `npm run sync:demo-fixtures` copies from `@vscode/codicons` + `@fontsource/jetbrains-mono`). Do not register those files as `Consolas` — Safari canvas TextMetrics disagree with a Consolas webfont override.
+
 MVP/M1 host can pass `[]` or omit; library shows summary, PIPE, M1 detail tabs, and timeline without requiring capability flags for those. `memoryDiagram` / measure chrome may be gated.
 
 `roofline` is **not** one of the derived flags: the library never turns it on by itself (the card is Phase 2, out of the current release), so a host that wants it must pass `capabilities: ['roofline']` explicitly.

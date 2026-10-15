@@ -24,6 +24,8 @@ import {
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
+import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
+import { mockSourceCorrelation } from './sourceCorrelation/mockSourceCorrelation';
 
 export {
   pipeOccupancyFromHist,
@@ -365,6 +367,9 @@ export function adaptEmulate(
 
   const performanceHints = performanceHintsFromPayloads(payloads);
 
+  const sourceCorrelation =
+    adaptSourceCorrelation(payloads) ?? mockSourceCorrelation();
+
   const reportModel: ReportViewModel = {
     ...emptyReportViewModel(),
     profile: 'emulate',
@@ -373,6 +378,7 @@ export function adaptEmulate(
     computeTables,
     memoryTables,
     csvTexts,
+    sourceCorrelation,
     ...(memoryTopology ? { memoryTopology } : {}),
     ...(memoryHeatmap ? { memoryHeatmap } : {}),
     ...(performanceHints.length > 0 ? { performanceHints } : {}),
@@ -383,6 +389,8 @@ export function adaptEmulate(
   if (memoryTopology) capabilities.push('archDiagram');
   if (memoryHeatmap) capabilities.push('memoryHeatmap');
   if (performanceHints.length > 0) capabilities.push('performanceHints');
+  // UI-37: emulate report packs get Source (mock until embeds exist).
+  capabilities.push('sourceTab');
 
   return {
     swimlaneModel,
