@@ -130,9 +130,15 @@ export function adaptComputeSourceCorrelation(
   const summaryBytes = payloadByName(payloads, COMPUTE_SOURCE_EMBED_NAMES.summaryDb);
   let stallByPc = new Map<string, PcSamplingRow>();
   if (summaryBytes?.byteLength) {
-    stallByPc = new Map(
-      readPcSamplingDb(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
-    );
+    try {
+      stallByPc = new Map(
+        readPcSamplingDb(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
+      );
+    } catch (cause) {
+      // Keep Source/SASS from objdump (+ symbolizer); omit stall metrics rather than failLoad.
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      console.warn(`[profiling-report] ignoring summary.db: ${detail}`);
+    }
   }
 
   const primaryFile =

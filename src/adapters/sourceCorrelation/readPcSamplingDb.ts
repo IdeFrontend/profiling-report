@@ -120,6 +120,9 @@ function parseRecord(payload: Uint8Array): unknown[] {
   return cols;
 }
 
+/** Depth ceiling for table B-trees (hostile/corrupt embeds). */
+const MAX_BTREE_DEPTH = 32;
+
 function pageBytes(file: Uint8Array, pageSize: number, pageNo: number): Uint8Array {
   if (pageNo < 1) fail(`bad page number ${pageNo}`);
   const start = (pageNo - 1) * pageSize;
@@ -133,17 +136,27 @@ function walkTableBtree(
   pageSize: number,
   pageNo: number,
   out: { rowid: number; cols: unknown[] }[],
+  seen: Set<number> = new Set(),
+  depth = 0,
 ): void {
+  if (depth > MAX_BTREE_DEPTH) fail(`B-tree deeper than ${MAX_BTREE_DEPTH}`);
+  if (seen.has(pageNo)) fail(`B-tree cycle at page ${pageNo}`);
+  seen.add(pageNo);
+
   const pg = pageBytes(file, pageSize, pageNo);
   const contentStart = pageNo === 1 ? 100 : 0;
   const pageType = pg[contentStart]!;
   const cellCount = (pg[contentStart + 3]! << 8) | pg[contentStart + 4]!;
   const hdrSize = pageType === PAGE_INTERIOR_TABLE ? 12 : 8;
   const ptrBase = contentStart + hdrSize;
+  const cellAreaStart = ptrBase + 2 * cellCount;
 
   if (pageType === PAGE_LEAF_TABLE) {
     for (let c = 0; c < cellCount; c++) {
       const ptr = (pg[ptrBase + 2 * c]! << 8) | pg[ptrBase + 2 * c + 1]!;
+      if (ptr < cellAreaStart || ptr >= pg.length) {
+        fail(`leaf cell pointer ${ptr} out of range on page ${pageNo}`);
+      }
       let i = ptr;
       const payloadLen = readVarint(pg, i);
       i = payloadLen.next;
@@ -166,11 +179,14 @@ function walkTableBtree(
       pg[contentStart + 11]!;
     for (let c = 0; c < cellCount; c++) {
       const ptr = (pg[ptrBase + 2 * c]! << 8) | pg[ptrBase + 2 * c + 1]!;
+      if (ptr < cellAreaStart || ptr + 4 > pg.length) {
+        fail(`interior cell pointer ${ptr} out of range on page ${pageNo}`);
+      }
       const leftChild =
         (pg[ptr]! << 24) | (pg[ptr + 1]! << 16) | (pg[ptr + 2]! << 8) | pg[ptr + 3]!;
-      walkTableBtree(file, pageSize, leftChild, out);
+      walkTableBtree(file, pageSize, leftChild, out, seen, depth + 1);
     }
-    walkTableBtree(file, pageSize, rightMost, out);
+    walkTableBtree(file, pageSize, rightMost, out, seen, depth + 1);
     return;
   }
 
@@ -194,7 +210,7 @@ function breakdown(values: Record<StallField, number>): {
 }
 
 function asInt(v: unknown, label: string): number {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'number' && Number.isSafeInteger(v)) return v;
   fail(`expected integer ${label}`);
 }
 

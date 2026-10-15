@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { adaptSourceCorrelation } from './adaptSourceCorrelation';
 import { parseObjdump } from './parseObjdump';
 import { loadReportSource } from '../loadReportSource';
@@ -58,5 +58,17 @@ describe('adaptComputeSourceCorrelation', () => {
     expect(Object.keys(adapted.reportModel.sourceCorrelation?.sourceToAsm ?? {}).length).toBeGreaterThan(
       0,
     );
+  });
+
+  it('corrupt summary.db keeps compute model with zero stalls', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const payloads = loadGatherPayloads();
+    payloads['summary.db'] = new Uint8Array([1, 2, 3, 4]);
+    const model = adaptSourceCorrelation(payloads);
+    expect(model).not.toBeNull();
+    expect(model!.mock).toBe(false);
+    expect(model!.assembly.lines.every((l) => l.values.samplingStall === 0)).toBe(true);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

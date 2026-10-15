@@ -22,4 +22,10 @@ describe('readPcSamplingDb', () => {
   it('rejects non-SQLite bytes', () => {
     expect(() => readPcSamplingDb(new Uint8Array([1, 2, 3]))).toThrow(/summary\.db/);
   });
+
+  it('rejects truncated SQLite header region', () => {
+    const bytes = new Uint8Array(80);
+    bytes.set(new TextEncoder().encode('SQLite format 3\0'));
+    expect(() => readPcSamplingDb(bytes)).toThrow(/too small/);
+  });
 });
