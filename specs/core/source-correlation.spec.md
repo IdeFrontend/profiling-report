@@ -9,6 +9,7 @@ Adapt report-pack payloads into `SourceCorrelationModel` for the 源码 tab (UI-
 ```ts
 adaptSourceCorrelation(payloads: Record<string, Uint8Array>): SourceCorrelationModel | null
 mockSourceCorrelation(): SourceCorrelationModel
+readPcSamplingDb(bytes: Uint8Array): PcSamplingRow[]
 ```
 
 ## Unit contract
@@ -19,7 +20,14 @@ mockSourceCorrelation(): SourceCorrelationModel
 
 ## Behavior
 
-**Real path.** `adaptSourceCorrelation` looks up known embed basenames (`SourceCorrelation.json`, aliases). When none exist — or the Product schema is not yet implemented — it returns `null`.
+**Real path — compute multi-file.** When payloads include `objdump.txt` and at least one of `symbolizer.json` / `summary.db`, `adaptSourceCorrelation` builds a real model via `adaptComputeSourceCorrelation` (`mock: false`):
+
+- Asm rows from `objdump.txt` (address + instruction text).
+- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` (sync B-tree reader; no WASM). Corrupt / unsupported DBs are ignored (warn + zero stalls); they do not abort report load.
+- Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
+- Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`).
+
+**Real path — single JSON.** `SourceCorrelation.json` (and aliases) remain reserved; schema is still Product-TBD, so those embeds currently return `null` ([DATA-52](../../docs/context/questions/DATA.md)).
 
 **Mock fallback.** Report-pack adapters (`adaptPayloads`, `adaptEmulate`) assign `reportModel.sourceCorrelation = adapt(...) ?? mockSourceCorrelation()` and push capability `'sourceTab'`.
 
@@ -33,12 +41,19 @@ mockSourceCorrelation(): SourceCorrelationModel
 2. **PR-SRC-002** — `mockSourceCorrelation` is deterministic with `mock: true` and bidirectional maps.
 3. **PR-SRC-003** — `adaptRep(out.rep)` fills `sourceCorrelation` (mock) and includes `'sourceTab'`.
 4. **PR-SRC-004** — `adaptChromeTrace` omits `sourceCorrelation` and `'sourceTab'`.
+5. **PR-SRC-005** — gather_2d compute embeds (`objdump` + `symbolizer` + `summary.db` + `.asc`) yield `mock: false` with AscendC source text and asm stall metrics from `pc_sampling`.
+6. **PR-SRC-006** — symbolizer `Line > 0` fills `sourceToAsm` / `asmToSource` (basename match on `FileName`); `Line: 0` stays unmapped (DATA-54 interim).
+7. **PR-SRC-007** — `parseObjdump` extracts instruction rows from the gather_2d listing.
+8. **PR-SRC-008** — `loadReportSource(gather_2d.npu-rep)` (leaf with `.asc` embed) yields `sourceCorrelation.mock === false` and non-empty maps.
 
 ## Dependencies
 
-[UI-37](../../docs/context/decisions/UI.md), [VIEW_DATA_REQUIREMENTS §15](../../docs/formats/VIEW_DATA_REQUIREMENTS.md), [view-models](./view-models.spec.md).
+[UI-37](../../docs/context/decisions/UI.md), [VIEW_DATA_REQUIREMENTS §15](../../docs/formats/VIEW_DATA_REQUIREMENTS.md), [view-models](./view-models.spec.md), [DATA-52](../../docs/context/questions/DATA.md)–[DATA-55](../../docs/context/questions/DATA.md).
 
 ## Changelog
 
+- **2026-10-15** — Refresh gather_2d fixtures (symbolizer Line>0); `gather_2d.npu-rep` playground pack; PR-SRC-006/008; npu-compute PDF column list → DATA-55.
+- **2026-10-15** — Replace sql.js with sync SQLite B-tree reader for `pc_sampling`.
+- **2026-10-15** — Compute multi-file adapt (`objdump` / `symbolizer` / `summary.db` / `.asc`); `pc_sampling` reader; PR-SRC-005–007.
 - **2026-10-14** — Mock SASS density (≥40 rows), sketch-scale stalls, kernel-ABI assembly `path`.
 - **2026-10-07** — Initial mock-first Source correlation adapter.
