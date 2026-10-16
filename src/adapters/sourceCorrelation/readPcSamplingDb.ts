@@ -84,7 +84,7 @@ function serialPayloadSize(serialType: number): number {
 
 function readSignedBe(bytes: Uint8Array, start: number, len: number): number {
   if (len === 0) return 0;
-  let v = bytes[start]!;
+  const v = bytes[start]!;
   const neg = v & 0x80;
   let x = neg ? v - 256 : v;
   for (let i = 1; i < len; i++) x = x * 256 + bytes[start + i]!;
