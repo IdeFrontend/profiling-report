@@ -39,6 +39,7 @@ vi.mock('@sudu-ide/code-review', () => ({
     getNumLines: () => 10,
     getFontSize: () => 12,
     getFontFamily: () => 'JetBrains Mono',
+    getVScrollPos: () => 0,
     setVScrollPos: vi.fn(),
   })),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
@@ -160,7 +161,7 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
-  it('PR-SOURCE-005: asm row click keeps chosen asm line and marks source', async () => {
+  it('PR-SOURCE-005: asm row click keeps chosen asm line and marks source + siblings', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     await flushPromises(); // Sudu boot must finish before setLine can touch the editor
@@ -171,10 +172,17 @@ describe('SourceView', () => {
     expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
+    // Sibling asm rows for the same source line stay correlated (right-panel start).
+    expect(
+      asmTable.findAll('tr.pr-src-metrics__row--correlated').map((r) => Number(r.attributes('data-line'))),
+    ).toEqual([1, 2, 3, 4, 5]);
     // Sudu caret must move + reveal (asm → source), not only metrics highlight.
     const ed = await latestSuduEditor();
     expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 46, column: 1 });
-    expect(ed.revealLine).toHaveBeenCalledWith(46);
+    expect(ed.revealLineInCenter).toHaveBeenCalledWith(46);
+    // Canvas overlay marks the mapped source line even when focus stays on asm.
+    const overlay = wrapper.find('[data-testid="sudu-current-line-overlay"]');
+    expect(overlay.exists()).toBe(true);
   });
 
   it('PR-SOURCE-006: unmapped source line clears asm highlight', async () => {
@@ -199,9 +207,10 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-find-next"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-find-prev"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-scroll-top"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-scroll-bottom"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-sort-asc"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-sort-desc"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-download"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-download"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="source-hide-zeros"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-user-guide"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-link-source"]').exists()).toBe(true);
@@ -239,11 +248,18 @@ describe('SourceView', () => {
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
   });
 
-  it('PR-SOURCE-009: asm link off keeps source click from moving asm caret', async () => {
+  it('PR-SOURCE-009: shared Link views off keeps source click from moving asm caret', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
-    await wrapper.find('[data-testid="source-link-asm"]').trigger('click');
+    const linkSource = wrapper.find('[data-testid="source-link-source"]');
+    const linkAsm = wrapper.find('[data-testid="source-link-asm"]');
+    expect(linkSource.attributes('aria-pressed')).toBe('true');
+    expect(linkAsm.attributes('aria-pressed')).toBe('true');
+    await linkAsm.trigger('click');
     await wrapper.vm.$nextTick();
+    // Both sides share one toggle state.
+    expect(linkSource.attributes('aria-pressed')).toBe('false');
+    expect(linkAsm.attributes('aria-pressed')).toBe('false');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     await sourceTable.find('tr[data-line="46"]').trigger('click');
@@ -251,6 +267,11 @@ describe('SourceView', () => {
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    // Toggling the other button turns linking back on for both.
+    await linkSource.trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(linkSource.attributes('aria-pressed')).toBe('true');
+    expect(linkAsm.attributes('aria-pressed')).toBe('true');
   });
 
   it('PR-SOURCE-010: dock inline row click selects source line', async () => {
@@ -296,6 +317,29 @@ describe('SourceView', () => {
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
   });
 
+  it('PR-SOURCE-016: scroll-to-bottom suppresses correlated highlights at last lines', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
+
+    await wrapper.find('[data-testid="source-scroll-bottom"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    const srcLast = model.files[0]!.text.split(/\r?\n/).length;
+    const asmLast = model.assembly.lines[model.assembly.lines.length - 1]!.line;
+    expect(sourceTable.find(`tr[data-line="${srcLast}"]`).classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+    expect(asmTable.find(`tr[data-line="${asmLast}"]`).classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+  });
+
   it('PR-SOURCE-013: SASS pane is table-only with sketch column order', () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     const asm = wrapper.find('[data-testid="asm-table-pane"]');
@@ -331,6 +375,22 @@ describe('SourceView', () => {
     expect(asmTable.find('tr[data-line="1"]').classes()).not.toContain('pr-src-metrics__row--current');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
+  });
+
+  it('PR-SOURCE-014b: late caret echo after syncOrigin expires still keeps asm caret', async () => {
+    vi.useFakeTimers();
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    // Past the syncOrigin safety window — echo must still not snap via mapped[0].
+    vi.advanceTimersByTime(400);
+    await wrapper.findComponent({ name: 'SuduCodePane' }).vm.$emit('update:currentLine', 46);
+    await wrapper.vm.$nextTick();
+    expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.find('tr[data-line="1"]').classes()).not.toContain('pr-src-metrics__row--current');
+    vi.useRealTimers();
   });
 
   it('PR-SOURCE-015: switching Source file clears caret and correlation', async () => {

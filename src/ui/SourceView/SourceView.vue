@@ -36,7 +36,11 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
 }>();
 
-type PaneApi = { setLine: (n: number) => void; scrollToTop: () => void };
+type PaneApi = {
+  setLine: (n: number) => void;
+  scrollToTop: () => void;
+  scrollToBottom: () => void;
+};
 
 const selectedFileId = ref(props.model.files[0]?.id ?? '');
 const sourceNavigateBy = ref(props.model.navigateBy[0] ?? 'instructionsExecuted');
@@ -48,16 +52,16 @@ const sourcePane = ref<PaneApi | null>(null);
 const asmPane = ref<PaneApi | null>(null);
 
 const searchQuery = ref('');
-const sourceLink = ref(true);
-const asmLink = ref(true);
+/** Shared Link Views state — both pane toggles stay in sync. */
+const linkViews = ref(true);
 const sortDesc = ref(true);
 const hideZeros = ref(false);
 const shortcutsOpen = ref(false);
 const activePane = ref<'source' | 'asm'>('source');
 /**
- * After scroll-to-top both carets are forced to line 1 independently. Suppress
+ * After scroll-to-top/bottom both carets are forced independently. Suppress
  * cross-pane correlation highlights until the user selects a line again so we
- * do not paint a stale mapped partner (e.g. asm:1 → source:4) beside current=1.
+ * do not paint a stale mapped partner beside the forced carets.
  */
 const correlationSuppressed = ref(false);
 /**
@@ -68,13 +72,23 @@ const correlationSuppressed = ref(false);
 const syncOrigin = ref<'source' | 'asm' | null>(null);
 let syncOriginClear: ReturnType<typeof setTimeout> | null = null;
 
+function endSync() {
+  syncOrigin.value = null;
+  if (syncOriginClear != null) {
+    clearTimeout(syncOriginClear);
+    syncOriginClear = null;
+  }
+}
+
 function beginSync(origin: 'source' | 'asm') {
   syncOrigin.value = origin;
   if (syncOriginClear != null) clearTimeout(syncOriginClear);
-  syncOriginClear = setTimeout(() => {
-    syncOrigin.value = null;
-    syncOriginClear = null;
-  }, 50);
+  // Sudu can echo caret after paint; keep the gate longer than ignoreCaret (50ms).
+  syncOriginClear = setTimeout(endSync, 300);
+}
+
+function toggleLinkViews() {
+  linkViews.value = !linkViews.value;
 }
 
 watch(
@@ -104,14 +118,21 @@ const sourceFile = computed<SourceFileModel | null>(() => {
 });
 
 const correlatedAsm = computed(() => {
-  if (correlationSuppressed.value || !asmLink.value) return [];
+  if (correlationSuppressed.value || !linkViews.value) return [];
   const file = sourceFile.value;
-  if (!file || sourceLine.value == null) return [];
-  return props.model.sourceToAsm[`${file.id}:${sourceLine.value}`] ?? [];
+  if (file && sourceLine.value != null) {
+    const fromSource = props.model.sourceToAsm[`${file.id}:${sourceLine.value}`];
+    if (fromSource?.length) return fromSource;
+  }
+  // Asm-driven: expand siblings via asm → source → sourceToAsm (right-panel start).
+  if (asmLine.value == null) return [];
+  const hit = props.model.asmToSource[asmLine.value];
+  if (!hit) return [];
+  return props.model.sourceToAsm[`${hit.fileId}:${hit.line}`] ?? [];
 });
 
 const correlatedSource = computed(() => {
-  if (correlationSuppressed.value || !sourceLink.value) return [];
+  if (correlationSuppressed.value || !linkViews.value) return [];
   if (asmLine.value == null) return [];
   const hit = props.model.asmToSource[asmLine.value];
   return hit ? [hit.line] : [];
@@ -166,17 +187,22 @@ function onSourceLine(line: number) {
   // Programmatic source caret from an asm-driven sync — keep asm where the user put it.
   if (syncOrigin.value === 'asm') {
     sourceLine.value = line;
+    endSync();
     return;
   }
   activePane.value = 'source';
   sourceLine.value = line;
-  if (!asmLink.value) return;
+  if (!linkViews.value) return;
   const file = sourceFile.value;
   const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
   if (mapped.length > 0) {
     beginSync('source');
-    asmLine.value = mapped[0]!;
-    asmPane.value?.setLine(mapped[0]!);
+    // Keep the asm caret if it already belongs to this source line (late Sudu echo
+    // after an asm→source jump must not snap to mapped[0]).
+    const stay = asmLine.value != null && mapped.includes(asmLine.value);
+    const target = stay ? asmLine.value! : mapped[0]!;
+    asmLine.value = target;
+    asmPane.value?.setLine(target);
   } else {
     // Unmapped: clear opposite highlight so a stale pair is not shown.
     asmLine.value = null;
@@ -187,11 +213,12 @@ function onAsmLine(line: number) {
   correlationSuppressed.value = false;
   if (syncOrigin.value === 'source') {
     asmLine.value = line;
+    endSync();
     return;
   }
   activePane.value = 'asm';
   asmLine.value = line;
-  if (!sourceLink.value) return;
+  if (!linkViews.value) return;
   const hit = props.model.asmToSource[line];
   if (hit) {
     if (hit.fileId !== selectedFileId.value) selectedFileId.value = hit.fileId;
@@ -269,38 +296,16 @@ function scrollTop() {
   asmLine.value = 1;
 }
 
-function csvEscape(v: string): string {
-  if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
-  return v;
-}
-
-/** Download metrics CSV for the active pane (line + columns + source snippet). */
-function downloadActive() {
-  const file = activePane.value === 'asm' ? props.model.assembly : sourceFile.value;
-  if (!file) return;
-  const textLines = file.text.split(/\r?\n/);
-  const cols = file.metricsColumns;
-  const header = ['line', 'text', ...cols.map((c) => c.id)].join(',');
-  const body = file.lines
-    .map((row) => {
-      const snippet = csvEscape((textLines[row.line - 1] ?? '').trim());
-      const cells = cols.map((c) => {
-        const v = row.values[c.id];
-        return v == null ? '' : String(v);
-      });
-      return [row.line, snippet, ...cells].join(',');
-    })
-    .join('\n');
-  const base = (file.path.split(/[/\\]/).pop() || 'source').replace(/\.[^.]+$/, '');
-  const blob = new Blob([`${header}\n${body}\n`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${base}.metrics.csv`;
-  a.rel = 'noopener';
-  a.click();
-  // Defer revoke so Safari/WebKit can start the download navigation first.
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+function scrollBottom() {
+  const srcLast = Math.max(1, sourceTextLines.value.length);
+  const asmLast =
+    props.model.assembly.lines[props.model.assembly.lines.length - 1]?.line ??
+    Math.max(1, props.model.assembly.text.split(/\r?\n/).length);
+  sourcePane.value?.scrollToBottom();
+  asmPane.value?.scrollToBottom();
+  correlationSuppressed.value = true;
+  sourceLine.value = srcLast;
+  asmLine.value = asmLast;
 }
 
 function redoResolve() {
@@ -478,7 +483,7 @@ onBeforeUnmount(() => {
                 <li>{{ t('sourceShortcutLink', locale) }}</li>
                 <li>{{ t('sourceShortcutSearch', locale) }}</li>
                 <li>{{ t('sourceShortcutDock', locale) }}</li>
-                <li>{{ t('sourceShortcutDownload', locale) }}</li>
+                <li>{{ t('sourceShortcutScroll', locale) }}</li>
               </ul>
             </div>
           </div>
@@ -536,11 +541,11 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="pr-source-view__icon-btn"
-            data-testid="source-download"
-            :title="t('sourceDownload', locale)"
-            @click="downloadActive"
+            data-testid="source-scroll-bottom"
+            :title="t('sourceScrollBottom', locale)"
+            @click="scrollBottom"
           >
-            <PrIcon name="download" />
+            <PrIcon name="to-bottom" />
           </button>
           <button
             type="button"
@@ -598,10 +603,10 @@ onBeforeUnmount(() => {
             type="button"
             class="pr-source-view__icon-btn"
             data-testid="source-link-source"
-            :class="{ 'pr-source-view__icon-btn--on': sourceLink }"
+            :class="{ 'pr-source-view__icon-btn--on': linkViews }"
             :title="t('sourceLinkSync', locale)"
-            :aria-pressed="sourceLink"
-            @click="sourceLink = !sourceLink"
+            :aria-pressed="linkViews"
+            @click="toggleLinkViews"
           >
             <PrIcon name="link" />
           </button>
@@ -649,10 +654,10 @@ onBeforeUnmount(() => {
             type="button"
             class="pr-source-view__icon-btn"
             data-testid="source-link-asm"
-            :class="{ 'pr-source-view__icon-btn--on': asmLink }"
+            :class="{ 'pr-source-view__icon-btn--on': linkViews }"
             :title="t('sourceLinkSync', locale)"
-            :aria-pressed="asmLink"
-            @click="asmLink = !asmLink"
+            :aria-pressed="linkViews"
+            @click="toggleLinkViews"
           >
             <PrIcon name="link" />
           </button>

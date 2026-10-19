@@ -83,6 +83,8 @@ const fontSizeCss = ref(12);
 const fontFamily = ref<string | null>(null);
 const ready = ref(false);
 const loadError = ref<string | null>(null);
+/** CSS px scroll of the Sudu canvas — drives the current/correlated line overlays. */
+const editorScrollCss = ref(0);
 
 type EditorView = Awaited<ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newEditor']>>;
 type TextModel = ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newTextModel']>;
@@ -137,6 +139,17 @@ const paneStyle = computed(() => ({
     ? `${fontFamily.value}, ${SOURCE_TAB_MONO_STACK}`
     : SOURCE_TAB_MONO_STACK,
 }));
+
+/** Lines to paint as correlated bands under the canvas (excludes current). */
+const overlayCorrelated = computed(() => {
+  const cur = props.currentLine;
+  return (props.correlatedLines ?? []).filter((n) => n !== cur);
+});
+
+function overlayTopCss(line: number): string {
+  const h = rowH.value || 20;
+  return `${(line - 1) * h - editorScrollCss.value}px`;
+}
 
 async function boot() {
   loadError.value = null;
@@ -225,11 +238,14 @@ function waitForGeom() {
 function wireSync() {
   if (!editor) return;
   editor.setVScrollListener((vScrollPos: number) => {
+    if (geom.value.dpr > 0) {
+      editorScrollCss.value = cssScrollFromDevice(vScrollPos, geom.value.dpr);
+    }
     if (vScrollPos === pendingEcho) return;
     if (props.followScroll === false) return;
     const scroll = tableScrollEl.value;
     if (!scroll || !(geom.value.dpr > 0)) return;
-    const target = cssScrollFromDevice(vScrollPos, geom.value.dpr);
+    const target = editorScrollCss.value;
     if (Math.abs(scroll.scrollTop - target) >= 0.5) scroll.scrollTop = target;
   });
   editor.setCaretListener((lineNumber: number) => {
@@ -247,6 +263,7 @@ function onTableScroll() {
   if (!editor || !(geom.value.dpr > 0)) return;
   const scroll = tableScrollEl.value;
   if (!scroll) return;
+  editorScrollCss.value = scroll.scrollTop;
   const devicePos = deviceScrollFromCss(scroll.scrollTop, geom.value.dpr);
   pendingEcho = devicePos;
   editor.setVScrollPos(devicePos);
@@ -274,10 +291,17 @@ function scrollMetricsToLine(line: number) {
   if (!scroll || !(h > 0)) return;
   const top = (line - 1) * h;
   const bottom = top + h;
-  if (top < scroll.scrollTop) scroll.scrollTop = top;
-  else if (bottom > scroll.scrollTop + scroll.clientHeight) {
-    scroll.scrollTop = bottom - scroll.clientHeight;
+  const view = scroll.clientHeight;
+  // Center when jumping from the other pane so the mapped row is easy to spot.
+  if (top < scroll.scrollTop || bottom > scroll.scrollTop + view) {
+    scroll.scrollTop = Math.max(0, top - Math.max(0, (view - h) / 2));
+    editorScrollCss.value = scroll.scrollTop;
   }
+}
+
+function syncOverlayScroll() {
+  if (!editor || !(geom.value.dpr > 0) || typeof editor.getVScrollPos !== 'function') return;
+  editorScrollCss.value = cssScrollFromDevice(editor.getVScrollPos(), geom.value.dpr);
 }
 
 /** Move caret without emitting — parent already owns the line state. */
@@ -285,9 +309,13 @@ function setLine(line: number) {
   if (!editor) return;
   beginIgnoreCaret();
   editor.setPosition({ lineNumber: line, column: 1 });
-  // setPosition alone may leave the caret off-screen when focus is on the asm pane.
-  editor.revealLine(line);
+  // Prefer center reveal so the mapped line is obvious when focus stays on asm.
+  if (typeof editor.revealLineInCenter === 'function') editor.revealLineInCenter(line);
+  else editor.revealLine(line);
   scrollMetricsToLine(line);
+  syncOverlayScroll();
+  // revealLine can settle scroll on the next frame — resync the overlay band.
+  requestAnimationFrame(syncOverlayScroll);
 }
 
 /** Queue a line until Sudu finishes booting, then apply. */
@@ -309,6 +337,18 @@ function scrollToTop() {
   editor.setVScrollPos(0);
   editor.setPosition({ lineNumber: 1, column: 1 });
   editor.revealLine(1);
+}
+
+/** Scroll editor + metrics table to the bottom without emitting caret (parent owns line). */
+function scrollToBottom() {
+  const scroll = tableScrollEl.value;
+  if (scroll) scroll.scrollTop = scroll.scrollHeight;
+  if (!editor) return;
+  beginIgnoreCaret();
+  const last = Math.max(1, editor.getNumLines());
+  editor.setVScrollPos(editor.getMaxVScrollPos());
+  editor.setPosition({ lineNumber: last, column: 1 });
+  editor.revealLine(last);
 }
 
 watch(
@@ -373,7 +413,7 @@ onBeforeUnmount(() => {
   model = null;
 });
 
-defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
+defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId });
 </script>
 
 <template>
@@ -452,6 +492,25 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
         class="pr-sudu-pane__editor"
         data-testid="sudu-editor-host"
       >
+        <!-- Sudu caret is easy to miss when focus stays on the asm pane; paint bands. -->
+        <div
+          class="pr-sudu-pane__overlays"
+          data-testid="sudu-line-overlays"
+          aria-hidden="true"
+        >
+          <div
+            v-for="line in overlayCorrelated"
+            :key="`c-${line}`"
+            class="pr-sudu-pane__overlay pr-sudu-pane__overlay--correlated"
+            :style="{ top: overlayTopCss(line), height: `${rowH || 20}px` }"
+          />
+          <div
+            v-if="currentLine != null"
+            class="pr-sudu-pane__overlay pr-sudu-pane__overlay--current"
+            data-testid="sudu-current-line-overlay"
+            :style="{ top: overlayTopCss(currentLine), height: `${rowH || 20}px` }"
+          />
+        </div>
         <pre
           v-if="loadError"
           class="pr-sudu-pane__fallback"
@@ -586,6 +645,31 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, containerId });
   position: relative;
   height: 100%;
   background: #1a1a1a;
+  overflow: hidden;
+}
+
+.pr-sudu-pane__overlays {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.pr-sudu-pane__overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+}
+
+.pr-sudu-pane__overlay--correlated {
+  background: rgba(48, 120, 240, 0.12);
+}
+
+.pr-sudu-pane__overlay--current {
+  background: rgba(48, 120, 240, 0.22);
+  box-shadow: inset 2px 0 0 #3078f0;
 }
 
 .pr-sudu-pane__table {

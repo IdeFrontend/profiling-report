@@ -23,9 +23,9 @@ export type PrIconName =
   | 'chevron-down'
   | 'chevron-up'
   | 'to-top'
+  | 'to-bottom'
   | 'sort-asc'
   | 'sort-desc'
-  | 'download'
   | 'layers';
 
 defineProps<{ name: PrIconName }>();
@@ -120,6 +120,11 @@ defineProps<{ name: PrIconName }>();
   mask-image: url('./icons/to-top.png');
 }
 
+.pr-icon--to-bottom {
+  -webkit-mask-image: url('./icons/to-bottom.png');
+  mask-image: url('./icons/to-bottom.png');
+}
+
 .pr-icon--sort-asc {
   -webkit-mask-image: url('./icons/sort-asc.png');
   mask-image: url('./icons/sort-asc.png');
@@ -128,11 +133,6 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--sort-desc {
   -webkit-mask-image: url('./icons/sort-desc.png');
   mask-image: url('./icons/sort-desc.png');
-}
-
-.pr-icon--download {
-  -webkit-mask-image: url('./icons/download.png');
-  mask-image: url('./icons/download.png');
 }
 
 .pr-icon--layers {
