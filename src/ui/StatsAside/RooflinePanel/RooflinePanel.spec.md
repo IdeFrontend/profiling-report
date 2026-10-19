@@ -4,13 +4,13 @@
 |----------------|
 | PR-ROOF-*      |
 
-Log-log roofline bottleneck chart (M2 interim DATA-37*). **Not in the current release:** the panel is kept in the code but has no surface — `StatsAside` mounts it only when the host passes the opt-in `roofline` capability, so it is hidden by default. The panel itself takes no flag; the gate lives in its parent.
+Log-log roofline bottleneck chart (npu-compute §11.8). `StatsAside` mounts it when the `roofline` capability is present (adapter-derived when points exist, or host-passed). The panel itself takes no flag; the gate lives in its parent.
 
 ## Inputs
 
 **Data SSOT:** [docs/views/roofline.md](../../../../docs/views/roofline.md).
 
-**model** is a `RooflineViewModel` (`points`, `mixLabels`, `peakComputeTops`, `peakBandwidthGBs`). Optional **locale** for title/legend.
+**model** is a `RooflineViewModel` (`points`, `mixLabels`, `series`). Optional **locale** for title/legend.
 
 ## Behavior
 

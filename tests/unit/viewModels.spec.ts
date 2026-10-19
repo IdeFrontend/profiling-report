@@ -291,20 +291,21 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(icache?.absoluteValue).toBeUndefined();
   });
 
-  it('PR-VM-009 (interim DATA-37*): GM roofline + mix labels; capability stays opt-in', () => {
+  it('PR-VM-009: GM roofline + AIV/AIC series + mix labels; capability when points exist', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const roof = adapted.reportModel.roofline;
     expect(roof).toBeDefined();
-    // The panel is out of the current release — points alone must not advertise the flag.
-    expect(adapted.capabilities ?? []).not.toContain('roofline');
+    expect(adapted.capabilities).toContain('roofline');
 
     const gm = roof!.points.find((p) => p.id === 'gm');
     expect(gm).toBeDefined();
     expect(gm!.style).toBe('solid');
     expect(gm!.performance).toBeCloseTo(2240 / 0.97962125 / 1e6, 5);
     expect(gm!.intensity).toBeCloseTo(0.09067357512953368, 5);
-    expect(roof!.peakComputeTops).toBe(1);
-    expect(roof!.peakBandwidthGBs).toBeGreaterThan(0);
+    expect(roof!.series.length).toBeGreaterThanOrEqual(3);
+    expect(roof!.series.some((s) => s.group === 'aiv')).toBe(true);
+    expect(roof!.series.some((s) => s.group === 'aic')).toBe(true);
+    expect(roof!.points[0]!.color).toMatch(/^#/);
 
     const byId = Object.fromEntries(roof!.mixLabels.map((m) => [m.id, m]));
     expect(byId.fp32).toBeDefined();

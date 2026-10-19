@@ -20,14 +20,25 @@ const sample: RooflineViewModel = {
       intensity: 0.09,
       performance: 0.0023,
       style: 'solid',
+      color: '#32BE8C',
+      seriesId: 'aiv-fp32',
     },
   ],
   mixLabels: [
     { id: 'fp32', label: 'Vec_FP32', percent: 84.1 },
     { id: 'misc', label: 'Vec_MISC', percent: 15.9 },
   ],
-  peakComputeTops: 1,
-  peakBandwidthGBs: 16.9,
+  series: [
+    {
+      id: 'aiv-fp32',
+      group: 'aiv',
+      label: 'AIV fp32',
+      color: '#32BE8C',
+      peakComputeTops: 13.5,
+      peakBandwidthGBs: 1600,
+      slopeStyle: 'solid',
+    },
+  ],
 };
 
 describe('RooflinePanel', () => {

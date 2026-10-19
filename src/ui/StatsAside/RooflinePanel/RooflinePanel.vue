@@ -11,17 +11,12 @@ import {
   ROOFLINE_X_TICK_BELOW_PLOT as X_TICK_BELOW_PLOT,
   ROOFLINE_Y_TICK_LABEL_DY as Y_TICK_LABEL_DY,
 } from './rooflineLayout';
-import type { RooflinePoint, RooflineViewModel } from '../../../domain/types';
+import type { RooflinePoint, RooflineSeries, RooflineViewModel } from '../../../domain/types';
 
 const props = defineProps<{
   model: RooflineViewModel;
   locale?: string;
 }>();
-
-const X_MIN = 1e-4;
-const X_MAX = 100;
-const Y_MIN = 1e-4;
-const Y_MAX = 10;
 
 const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
@@ -40,67 +35,120 @@ const opsY = plotBottomY;
 const hovered = ref<RooflinePoint | null>(null);
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
+const aivSeries = computed(() => props.model.series.filter((s) => s.group === 'aiv'));
+const aicSeries = computed(() => props.model.series.filter((s) => s.group === 'aic'));
+
+/** Log domain from points + roofs. */
+const domains = computed(() => {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const p of props.model.points) {
+    if (p.intensity > 0) xs.push(p.intensity);
+    if (p.performance > 0) ys.push(p.performance);
+  }
+  for (const s of props.model.series) {
+    if (s.peakComputeTops > 0) ys.push(s.peakComputeTops);
+    if (s.peakBandwidthGBs > 0 && s.peakComputeTops > 0) {
+      const ridge = (s.peakComputeTops * 1000) / s.peakBandwidthGBs;
+      if (ridge > 0) xs.push(ridge);
+    }
+  }
+  return {
+    xMin: niceFloor(xs.length ? Math.min(...xs) : 1e-3, 1e-3),
+    xMax: niceCeil(xs.length ? Math.max(...xs) : 1, 1e3),
+    yMin: niceFloor(ys.length ? Math.min(...ys) : 1e-3, 1e-4),
+    yMax: niceCeil(ys.length ? Math.max(...ys) : 1, 1e5),
+  };
+});
+
+function niceFloor(v: number, floor: number): number {
+  if (!(v > 0)) return floor;
+  return Math.max(floor, 10 ** Math.floor(Math.log10(v)));
+}
+
+function niceCeil(v: number, cap: number): number {
+  if (!(v > 0)) return 1;
+  return Math.min(cap, 10 ** Math.ceil(Math.log10(v)));
+}
 
 function clampLog(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
 function xToPx(intensity: number): number {
-  const v = clampLog(intensity, X_MIN, X_MAX);
-  const t = (Math.log10(v) - Math.log10(X_MIN)) / (Math.log10(X_MAX) - Math.log10(X_MIN));
+  const { xMin, xMax } = domains.value;
+  const v = clampLog(intensity, xMin, xMax);
+  const t = (Math.log10(v) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin));
   return PAD.l + t * plotW;
 }
 
 function yToPx(perf: number): number {
-  const v = clampLog(perf, Y_MIN, Y_MAX);
-  const t = (Math.log10(v) - Math.log10(Y_MIN)) / (Math.log10(Y_MAX) - Math.log10(Y_MIN));
+  const { yMin, yMax } = domains.value;
+  const v = clampLog(perf, yMin, yMax);
+  const t = (Math.log10(v) - Math.log10(yMin)) / (Math.log10(yMax) - Math.log10(yMin));
   return PAD.t + (1 - t) * plotH;
 }
 
-/** DATA-37d: roof TOps/s at intensity. */
-function roofPerf(intensity: number): number {
-  const bwLimited = (props.model.peakBandwidthGBs * intensity) / 1000;
-  return Math.min(props.model.peakComputeTops, bwLimited);
+/** Roof TOps/s at intensity: min(p_peak, b_peak_GBs * I / 1000). */
+function roofPerf(s: RooflineSeries, intensity: number): number {
+  const bwLimited = (s.peakBandwidthGBs * intensity) / 1000;
+  return Math.min(s.peakComputeTops, bwLimited);
 }
 
-/** Roof polyline points in plot space (log-clamped). */
-const roofPoints = computed(() => {
-  const ridge =
-    (props.model.peakComputeTops * 1000) / Math.max(props.model.peakBandwidthGBs, 1e-12);
-  const xs = [X_MIN, ridge, X_MAX].map((x) => clampLog(x, X_MIN, X_MAX));
-  const unique = [...new Set(xs.map((x) => x.toPrecision(8)))].map(Number);
-  return unique.map((x) => ({ x: xToPx(x), y: yToPx(roofPerf(x)) }));
-});
+function roofSegments(s: RooflineSeries): { slope: string; plateau: string; ridgeY: number } {
+  const { xMin, xMax } = domains.value;
+  const ridge = clampLog(
+    (s.peakComputeTops * 1000) / Math.max(s.peakBandwidthGBs, 1e-12),
+    xMin,
+    xMax,
+  );
+  const yRidge = yToPx(roofPerf(s, ridge));
+  const slope = `M ${xToPx(xMin)},${yToPx(roofPerf(s, xMin))} L ${xToPx(ridge)},${yRidge}`;
+  const plateau = `M ${xToPx(ridge)},${yRidge} L ${xToPx(xMax)},${yToPx(roofPerf(s, xMax))}`;
+  return { slope, plateau, ridgeY: yRidge };
+}
 
-const roofPath = computed(() => {
-  const pts = roofPoints.value.map((p) => `${p.x},${p.y}`);
-  return `M ${pts.join(' L ')}`;
-});
-
-/** Closed area under the roof for the sketch gradient wash (v930 detail-strip-raised). */
+/** Closed area under the topmost roof for the wash (highest plateau). */
 const roofAreaPath = computed(() => {
-  const pts = roofPoints.value;
-  if (pts.length < 2) return '';
+  const series = props.model.series;
+  if (!series.length) return '';
+  const top = series.reduce((a, b) => (b.peakComputeTops > a.peakComputeTops ? b : a));
+  const { xMin, xMax } = domains.value;
+  const ridge = clampLog(
+    (top.peakComputeTops * 1000) / Math.max(top.peakBandwidthGBs, 1e-12),
+    xMin,
+    xMax,
+  );
+  const pts = [
+    { x: xToPx(xMin), y: yToPx(roofPerf(top, xMin)) },
+    { x: xToPx(ridge), y: yToPx(roofPerf(top, ridge)) },
+    { x: xToPx(xMax), y: yToPx(roofPerf(top, xMax)) },
+  ];
   const bottom = PAD.t + plotH;
   const line = pts.map((p) => `${p.x},${p.y}`).join(' L ');
-  const last = pts[pts.length - 1]!;
-  const first = pts[0]!;
-  return `M ${line} L ${last.x},${bottom} L ${first.x},${bottom} Z`;
+  return `M ${line} L ${pts[2]!.x},${bottom} L ${pts[0]!.x},${bottom} Z`;
 });
 
-/** Highest roof Y — gradient 0% must sit on the ridge, not the plot frame top. */
 const roofTopY = computed(() => {
-  const pts = roofPoints.value;
-  if (!pts.length) return PAD.t;
-  return Math.min(...pts.map((p) => p.y));
+  if (!props.model.series.length) return PAD.t;
+  return Math.min(...props.model.series.map((s) => roofSegments(s).ridgeY));
 });
 
-const xTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100];
-const yTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10];
+const xTicks = computed(() => logTicks(domains.value.xMin, domains.value.xMax));
+const yTicks = computed(() => logTicks(domains.value.yMin, domains.value.yMax));
+
+function logTicks(min: number, max: number): number[] {
+  const out: number[] = [];
+  const start = Math.ceil(Math.log10(min) - 1e-9);
+  const end = Math.floor(Math.log10(max) + 1e-9);
+  for (let e = start; e <= end; e++) out.push(10 ** e);
+  return out.length > 0 ? out : [min, max];
+}
 
 function fmtTick(v: number): string {
+  if (v >= 1000) return `${v / 1000}K`.replace('.0K', 'K');
   if (v >= 1) return String(v);
-  // Sketch uses decimals (0.0001 / 0.001 / 0.01 / 0.1), not 1e-n.
+  if (v >= 0.001) return v.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
   const digits = Math.max(0, -Math.floor(Math.log10(v)));
   return v.toFixed(digits);
 }
@@ -137,18 +185,44 @@ const tooltipText = computed(() => {
     </h4>
     <div class="pr-roofline__card">
       <div class="pr-roofline__card-head">
-        <span class="pr-roofline__chart-title">GM/L2</span>
-        <div class="pr-roofline__legend">
+        <span class="pr-roofline__chart-title">Roofline</span>
+        <div
+          class="pr-roofline__legend"
+          data-testid="roofline-legend"
+        >
           <span
-            v-for="p in model.points"
-            :key="p.id"
-            class="pr-roofline__leg-item"
+            v-if="aivSeries.length"
+            class="pr-roofline__leg-group"
           >
+            <span class="pr-roofline__leg-head">AIV</span>
             <span
-              class="pr-roofline__leg-dot"
-              :class="{ 'pr-roofline__leg-dot--hollow': p.style === 'hollow' }"
-            />
-            {{ p.label }}
+              v-for="s in aivSeries"
+              :key="s.id"
+              class="pr-roofline__leg-item"
+            >
+              <span
+                class="pr-roofline__leg-dot"
+                :style="{ background: s.color, borderColor: s.color }"
+              />
+              {{ s.label.replace(/^AIV\s+/, '') }}
+            </span>
+          </span>
+          <span
+            v-if="aicSeries.length"
+            class="pr-roofline__leg-group"
+          >
+            <span class="pr-roofline__leg-head">AIC</span>
+            <span
+              v-for="s in aicSeries"
+              :key="s.id"
+              class="pr-roofline__leg-item"
+            >
+              <span
+                class="pr-roofline__leg-dot"
+                :style="{ background: s.color, borderColor: s.color }"
+              />
+              {{ s.label.replace(/^AIC\s+/, '') }}
+            </span>
           </span>
         </div>
       </div>
@@ -240,23 +314,28 @@ const tooltipText = computed(() => {
             :d="roofAreaPath"
             fill="url(#pr-roofline-area)"
           />
-          <path
+          <g
+            v-for="s in model.series"
+            :key="s.id"
             data-testid="roofline-roof"
-            class="pr-roofline__roof"
-            :d="roofPath"
-            fill="none"
-          />
+          >
+            <path
+              class="pr-roofline__roof"
+              :class="{ 'pr-roofline__roof--dashed': s.slopeStyle === 'dashed' }"
+              :d="roofSegments(s).slope"
+              fill="none"
+              :stroke="s.color"
+            />
+            <path
+              class="pr-roofline__roof"
+              :d="roofSegments(s).plateau"
+              fill="none"
+              :stroke="s.color"
+            />
+          </g>
         </g>
         <!-- Markers sit outside plot clip so edge circles are not cropped. -->
         <g class="pr-roofline__markers">
-          <circle
-            v-for="(rp, idx) in roofPoints"
-            :key="`rv-${idx}`"
-            class="pr-roofline__roof-vertex"
-            :cx="rp.x"
-            :cy="rp.y"
-            r="4"
-          />
           <g
             v-for="p in model.points"
             :key="p.id"
@@ -268,6 +347,8 @@ const tooltipText = computed(() => {
               r="4"
               class="pr-roofline__point"
               :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
+              :fill="p.style === 'hollow' ? '#262626' : p.color"
+              :stroke="p.color"
               @mouseenter="hovered = p"
               @mouseleave="hovered = null"
             />
@@ -382,17 +463,29 @@ const tooltipText = computed(() => {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px 14px;
   min-width: 0;
   font-size: 11px;
   line-height: 1.2;
   color: #9a9a9a;
 }
 
+.pr-roofline__leg-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-roofline__leg-head {
+  color: #d0d0d0;
+  font-weight: 600;
+}
+
 .pr-roofline__leg-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: #9a9a9a;
 }
 
@@ -400,13 +493,8 @@ const tooltipText = computed(() => {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #3078f0;
-  border: 1.5px solid #3078f0;
+  border: 1.5px solid currentColor;
   box-sizing: border-box;
-}
-
-.pr-roofline__leg-dot--hollow {
-  background: transparent;
 }
 
 .pr-roofline__svg {
@@ -435,23 +523,18 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__roof {
-  stroke: #3078f0;
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
-.pr-roofline__roof-vertex {
-  fill: #262626;
-  stroke: #3078f0;
-  stroke-width: 1.75;
-  pointer-events: none;
+.pr-roofline__roof--dashed {
+  stroke-dasharray: 4 3;
 }
 
 .pr-roofline__point {
-  fill: #3078f0;
-  stroke: #3078f0;
   cursor: pointer;
+  stroke-width: 1.5;
 }
 
 .pr-roofline__point--hollow {

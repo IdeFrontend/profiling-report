@@ -335,10 +335,29 @@ describe('StatsAside', () => {
             sides: [{ side: 'aic', measuredTflops: 10, peakTflops: 20 }],
           },
           roofline: {
-            points: [{ id: 'gm', label: 'GM', intensity: 1, performance: 1, style: 'solid' }],
+            points: [
+              {
+                id: 'gm',
+                label: 'GM',
+                intensity: 1,
+                performance: 1,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
             mixLabels: [],
-            peakComputeTops: 1,
-            peakBandwidthGBs: 1600,
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ],
           },
           computeTables: [
             {
@@ -1642,11 +1661,22 @@ describe('StatsAside', () => {
             intensity: 0.09,
             performance: 0.002,
             style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
           },
         ],
         mixLabels: [],
-        peakComputeTops: 1,
-        peakBandwidthGBs: 16,
+        series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ]
       },
     });
 
@@ -1656,7 +1686,7 @@ describe('StatsAside', () => {
     expect(withRoof.find('[data-testid="stats-roofline"]').exists()).toBe(true);
     expect(withRoof.find('[data-testid="roofline-panel"]').exists()).toBe(true);
 
-    // Phase 2 opt-in: the current release hides the card, points or not.
+    // Without the capability the card stays hidden even when points exist.
     const unflagged = mount(StatsAside, { props: { report: roofReport } });
     expect(unflagged.find('[data-testid="stats-roofline"]').exists()).toBe(false);
 
@@ -2432,10 +2462,29 @@ describe('StatsAside', () => {
           summary: { taskDurationUs: 1, opType: 'cube' },
           pipeOccupancy: pipes,
           roofline: {
-            points: [{ id: 'p1', label: 'x', intensity: 1, performance: 1, style: 'solid' }],
+            points: [
+              {
+                id: 'p1',
+                label: 'x',
+                intensity: 1,
+                performance: 1,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
             mixLabels: [],
-            peakComputeTops: 10,
-            peakBandwidthGBs: 1000,
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ],
           },
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],
