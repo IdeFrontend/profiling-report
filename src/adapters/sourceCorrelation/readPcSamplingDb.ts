@@ -129,11 +129,12 @@ export async function ensurePcSamplingSql(): Promise<void> {
       sqlApi = await initSqlJs(config);
     })();
   }
+  const pending = sqlReady;
   try {
-    await sqlReady;
+    await pending;
   } catch (cause) {
-    // Allow a later ensure / configurePcSamplingSql to retry after a failed fetch/init.
-    sqlReady = null;
+    // Retry next ensure, but do not clear a newer in-flight init started after this one failed.
+    if (sqlReady === pending) sqlReady = null;
     throw cause;
   }
 }

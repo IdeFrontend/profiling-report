@@ -44,4 +44,29 @@ describe('readPcSamplingDb', () => {
       (await readPcSamplingDb(new Uint8Array(readFileSync(fixture)))).length,
     ).toBe(77);
   });
+
+  it('a late failed ensure does not clear a newer in-flight init', async () => {
+    const { configurePcSamplingSql, ensurePcSamplingSql: ensure, isPcSamplingSqlReady } =
+      await import('./readPcSamplingDb');
+    let releaseFail!: () => void;
+    const failGate = new Promise<void>((resolve) => {
+      releaseFail = resolve;
+    });
+    configurePcSamplingSql({
+      initSqlJs: async () => {
+        await failGate;
+        throw new Error('stale boom');
+      },
+    });
+    const stale = ensure();
+    configurePcSamplingSqlForNodeTests();
+    const fresh = ensure();
+    releaseFail();
+    await expect(stale).rejects.toThrow(/stale boom/);
+    await fresh;
+    expect(isPcSamplingSqlReady()).toBe(true);
+    expect(
+      (await readPcSamplingDb(new Uint8Array(readFileSync(fixture)))).length,
+    ).toBe(77);
+  });
 });
