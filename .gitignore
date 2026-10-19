@@ -43,7 +43,7 @@ PLAN.md
 .aider*
 # Tooling caches (never commit)
 .playwright-mcp
-
 # Local product docs (do not commit)
 npu-compute*.pdf
+.tmp-pdf/
 screenshot-*.png

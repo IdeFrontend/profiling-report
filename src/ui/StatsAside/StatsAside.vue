@@ -254,6 +254,20 @@ function closeTip() {
   cardTip.value = null;
 }
 
+/** Anchor for the duration breakdown list (teleported — aside `overflow` would clip an in-card box). */
+const durationBreakdownTip = ref<{ top: number; left: number; width: number } | null>(null);
+
+function openDurationBreakdownTip(e: MouseEvent) {
+  const el = e.currentTarget as HTMLElement | null;
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  durationBreakdownTip.value = { top: r.bottom + 6, left: r.left, width: r.width };
+}
+
+function closeDurationBreakdownTip() {
+  durationBreakdownTip.value = null;
+}
+
 /**
  * `tipStyle` caches the viewport size to flip the box, and `window.innerWidth` is not reactive, so
  * a resize never recomputes it: the card moves and the popover stays at the old coordinates.
@@ -262,6 +276,7 @@ function closeTip() {
  */
 function onWindowResize() {
   closeTip();
+  closeDurationBreakdownTip();
 }
 
 onMounted(() => window.addEventListener('resize', onWindowResize));
@@ -493,7 +508,10 @@ watch(
 
 // A card tooltip holds a snapshot of its metric, and the overlays paint under it: drop it whenever
 // the surface changes instead of letting it outlive the card it describes.
-watch(asideSurface, closeTip);
+watch(asideSurface, () => {
+  closeTip();
+  closeDurationBreakdownTip();
+});
 
 const scopedPipeOccupancy = computed(() => {
   const all = props.report?.pipeOccupancy ?? [];
@@ -604,9 +622,11 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
 }
 
 /**
- * UI-32 (NPU-Compute): drop the bar; secondary = `{blockDim} Blocks / {coreCount} 核`.
- * DATA-1 fallback order: blocks/core → `blockDim` → `opName`. Each form carries the tooltip
+ * UI-32 secondary: `{blockDim} Blocks / {coreCount} 核` (DATA-1).
+ * Fallback order: blocks/core → `blockDim` → `opName`. Each form carries the tooltip
  * that says which quantity the line reports (PR-STATS-040).
+ * 2026-10-15 mock: secondary sits on the value row (right); bar returns only when
+ * `durationBreakdown` is set (3-segment 头开销/计算/通信).
  */
 const durationSecondary = computed<{ text: string; tip: CardTip } | null>(() => {
   const s = summary.value;
@@ -626,6 +646,39 @@ const durationSecondary = computed<{ text: string; tip: CardTip } | null>(() => 
     ? { text: s.opName, tip: withExactValue(t('durationSecondaryOpName', props.locale), s.opName) }
     : null;
 });
+
+const durationBreakdown = computed(() => summary.value?.durationBreakdown);
+
+const durationSegments = computed(() => {
+  const b = durationBreakdown.value;
+  if (!b) return null;
+  const overhead = Math.max(0, b.overheadUs);
+  const compute = Math.max(0, b.computeUs);
+  const communication = Math.max(0, b.communicationUs);
+  const total = overhead + compute + communication;
+  if (!(total > 0)) return null;
+  return [
+    { id: 'overhead' as const, pct: (overhead / total) * 100 },
+    { id: 'compute' as const, pct: (compute / total) * 100 },
+    { id: 'communication' as const, pct: (communication / total) * 100 },
+  ];
+});
+
+const breakdownIterations = computed(() => {
+  const b = durationBreakdown.value;
+  if (b?.iterationsPerCore != null && b.iterationsPerCore !== '') {
+    return String(b.iterationsPerCore);
+  }
+  const s = summary.value;
+  if (s?.mixBlockDim != null && s.mixBlockDim !== '') return String(s.mixBlockDim);
+  if (s?.blockDim != null && s.blockDim !== '') return String(s.blockDim);
+  return null;
+});
+
+function formatBreakdownTime(us: number): string {
+  const parts = formatDurationParts(us);
+  return `${parts.value} ${parts.unit}`;
+}
 
 const hasMeta = computed(() => {
   if (props.report?.profile === 'emulate') return false;
@@ -953,7 +1006,10 @@ const detailTestId = computed(() => {
     >
     <div
       class="pr-aside__body"
-      @scroll="closeTip"
+      @scroll="
+        closeTip();
+        closeDurationBreakdownTip();
+      "
     >
       <div
         v-if="hasSummary"
@@ -968,21 +1024,48 @@ const detailTestId = computed(() => {
           <div class="pr-card__label">
             {{ t('duration', locale) }}
           </div>
-          <div
-            class="pr-card__value"
-            data-testid="stats-duration-value"
-            v-bind="tipBind(durationValueTip, { focusable: true })"
-          >
-            <span class="pr-card__num">{{ durationParts.value }}</span>
-            <span class="pr-card__unit">{{ durationParts.unit }}</span>
+          <div class="pr-card__value-row">
+            <div
+              class="pr-card__value"
+              data-testid="stats-duration-value"
+              v-bind="tipBind(durationValueTip, { focusable: true })"
+            >
+              <span class="pr-card__num">{{ durationParts.value }}</span>
+              <span class="pr-card__unit">{{ durationParts.unit }}</span>
+            </div>
+            <div
+              v-if="durationSecondary"
+              class="pr-card__value-meta"
+              data-testid="stats-duration-secondary"
+              v-bind="tipBind(durationSecondary.tip, { focusable: true })"
+            >
+              {{ durationSecondary.text }}
+            </div>
           </div>
           <div
-            v-if="durationSecondary"
-            class="pr-card__sub"
-            data-testid="stats-duration-secondary"
-            v-bind="tipBind(durationSecondary.tip, { focusable: true })"
+            v-if="durationSegments"
+            class="pr-card__bar-track pr-card__bar-track--duration"
+            data-testid="stats-duration-bar"
+            @mouseenter="openDurationBreakdownTip"
+            @mouseleave="closeDurationBreakdownTip"
           >
-            {{ durationSecondary.text }}
+            <span
+              v-for="seg in durationSegments"
+              :key="seg.id"
+              class="pr-card__bar-seg"
+              :class="`pr-card__bar-seg--${seg.id}`"
+              :style="{ width: `${seg.pct}%` }"
+              :data-testid="`stats-duration-seg-${seg.id}`"
+            />
+          </div>
+          <div
+            v-if="durationSegments"
+            class="pr-duration-legend"
+            data-testid="stats-duration-legend"
+          >
+            <span>{{ t('durationOverhead', locale) }}</span>
+            <span>{{ t('durationCompute', locale) }}</span>
+            <span>{{ t('durationCommunication', locale) }}</span>
           </div>
         </div>
         <div
@@ -1550,6 +1633,44 @@ const detailTestId = computed(() => {
           {{ cardTip.content.hint }}
         </div>
       </div>
+      <div
+        v-if="durationBreakdownTip && durationBreakdown"
+        class="pr-duration-tooltip"
+        role="tooltip"
+        data-testid="stats-duration-tooltip"
+        :style="{
+          top: `${durationBreakdownTip.top}px`,
+          left: `${durationBreakdownTip.left}px`,
+          width: `${durationBreakdownTip.width}px`,
+        }"
+      >
+        <div class="pr-duration-tooltip__row">
+          <span>{{ t('durationComputeTime', locale) }}</span>
+          <span>{{ formatBreakdownTime(durationBreakdown.computeUs) }}</span>
+        </div>
+        <div class="pr-duration-tooltip__row">
+          <span>{{ t('durationCommTime', locale) }}</span>
+          <span>{{ formatBreakdownTime(durationBreakdown.communicationUs) }}</span>
+        </div>
+        <div
+          v-if="durationBreakdown.overlapUs != null"
+          class="pr-duration-tooltip__row"
+        >
+          <span>{{ t('durationOverlapTime', locale) }}</span>
+          <span>{{ formatBreakdownTime(durationBreakdown.overlapUs) }}</span>
+        </div>
+        <div class="pr-duration-tooltip__row">
+          <span>{{ t('durationOverheadTime', locale) }}</span>
+          <span>{{ formatBreakdownTime(durationBreakdown.overheadUs) }}</span>
+        </div>
+        <div
+          v-if="breakdownIterations != null"
+          class="pr-duration-tooltip__row"
+        >
+          <span>{{ t('durationIterationsLabel', locale) }}</span>
+          <span>{{ t('durationIterationsCount', locale).replace('{n}', breakdownIterations) }}</span>
+        </div>
+      </div>
     </Teleport>
   </aside>
 </template>
@@ -1873,6 +1994,82 @@ const detailTestId = computed(() => {
   border: 0;
   border-radius: 8px;
   padding: 12px 14px;
+}
+
+.pr-card__value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pr-card__value-meta {
+  flex-shrink: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: #8a8a8a;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.pr-card__bar-track--duration {
+  display: flex;
+  margin-top: 8px;
+}
+
+.pr-card__bar-seg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+
+.pr-card__bar-seg--overhead {
+  background: var(--pr-color-duration-overhead);
+}
+
+.pr-card__bar-seg--compute {
+  background: var(--pr-color-duration-compute);
+}
+
+.pr-card__bar-seg--communication {
+  background: var(--pr-color-duration-comm);
+}
+
+.pr-duration-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8a8a8a;
+}
+
+/* Teleported to `body` (same reason as `.pr-stat-tip`): aside overflow would clip an in-card box. */
+.pr-duration-tooltip {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--pr-surface-raised);
+  border: 1px solid var(--pr-divider);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e6e6e6;
+  pointer-events: none;
+}
+
+.pr-duration-tooltip__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pr-duration-tooltip__row span:last-child {
+  color: #c8c8c8;
+  white-space: nowrap;
 }
 
 .pr-card--na {
