@@ -40,7 +40,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 
 ### Phasing
 
-- **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select). **源码** enabled on report packs (mock-first); **详情 / 缓存** visible and disabled ([UI-37](../context/decisions/UI.md)).
+- **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select). **源码** only when the pack has real Source data; **详情 / 缓存** visible and disabled ([UI-37](../context/decisions/UI.md)).
 - **P2:** Roofline polish, hardware aside depth, deps extras, multiselect, context menu. Mid-row gutter 统计 deferred ([UI-47](../context/questions/deferred.md)).
 
 Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([questions](../context/questions/) DATA-31); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
@@ -136,9 +136,9 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | | |
 |--|--|
 | **Goal** | Switch between Timeline and Source; Details/Cache stay unavailable |
-| **Trigger** | User clicks **源码** on a report pack (or host enables `'sourceTab'`) |
+| **Trigger** | User clicks **源码** when the pack has a real Source model (or the host passes `'sourceTab'` plus a non-mock model) |
 | **Steps** | Load Source | SASS surface (`v930-source/source-correlation`); return to **时间线** restores view state |
-| **Success** | Source opens with real or mock correlation; **详情 / 缓存** remain disabled ([UI-37](../context/decisions/UI.md)) |
+| **Success** | Source opens with the real correlation model; packs without embeds hide 源码; **详情 / 缓存** remain disabled ([UI-37](../context/decisions/UI.md)) |
 | **Sketches** | [`v930-source/source-correlation`](./source/v930-source/source-correlation.jpeg); tab chrome in `source/v930/entry.jpeg` |
 
 ---
@@ -166,7 +166,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 
 | Element | MVP | Notes |
 |---------|-----|-------|
-| Secondary tabs: OP算子 / **时间线** / 源码 / 详情 / 缓存 | Timeline + Source on report packs; **详情 / 缓存** **disabled** ([UI-37](../context/decisions/UI.md)) | Source mock-first |
+| Secondary tabs: OP算子 / **时间线** / 源码 / 详情 / 缓存 | Timeline always; Source only with real embeds; **详情 / 缓存** **disabled** ([UI-37](../context/decisions/UI.md)) | 源码 hidden without data |
 | Toolbar | Search, zoom, toggle aside | Extra icons P2 |
 | Main Timeline layout | Gutter + overview + swimlane + aside + detail | See UI_OVERVIEW |
 

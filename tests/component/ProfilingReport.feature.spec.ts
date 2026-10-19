@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { adaptRep, emptyReportViewModel, parseRep, ProfilingReport } from '../../src/index';
+import * as adapters from '../../src/adapters';
 import TimelineView from '../../src/ui/TimelineView/TimelineView.vue';
 import { loadOutRepBuffer, loadOutRepBytes, loadNpuRepBuffer, loadResultNpuRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import * as swimTree from '../../src/domain/swimTree';
@@ -9,8 +10,13 @@ import * as anim from '../../src/ui/TimelineView/animateViewWindow';
 import type { SwimlaneModel } from '../../src/domain/types';
 
 describe('PR-UI: ProfilingReport feature contract', () => {
+  beforeEach(() => {
+    vi.spyOn(adapters, 'ensurePcSamplingSql').mockResolvedValue(undefined);
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   /** Zoom-to-fit / Δt focus animate the window; tests assert final bounds instantly. */
@@ -301,12 +307,13 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     // out.rep carries roofline points, hardwareDetails and memoryDiagram; loadReportSource
     // derives the latter two, so a host passing only `source` must still get them.
     // `roofline` is Phase 2, out of the current release — it is opt-in and never derived.
-    // UI-37: report packs also advertise `sourceTab` (mock sourceCorrelation when embeds absent).
+    // UI-37: no source embeds → no sourceTab (mock Source is not shown).
     const auto = mount(ProfilingReport, { props: { source: loadOutRepBuffer() } });
     await flushPromises();
     expect(
       auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
-    ).toBe('hardwareDetails,memoryDiagram,sourceTab');
+    ).toBe('hardwareDetails,memoryDiagram');
+    expect(auto.find('[data-testid="tab-source"]').exists()).toBe(false);
     // The attribute alone is not the contract — out.rep has roofline points, and the
     // card must not reach the DOM without the flag (the aside is open: duration/PIPE).
     expect(auto.find('[data-testid="stats-roofline"]').exists()).toBe(false);

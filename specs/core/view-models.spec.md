@@ -34,7 +34,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **Chrome Trace–only loads.** `emptyReportViewModel()` / `adaptChromeTrace` leave compute/memory tables and `csvTexts` empty (PROC-3). They also omit `sourceCorrelation` and do not advertise `'sourceTab'` (UI-37).
 
-**Source correlation (UI-37).** Report packs assign `reportModel.sourceCorrelation` via `adaptSourceCorrelation` or `mockSourceCorrelation`, and push `'sourceTab'`. See [source-correlation](./source-correlation.spec.md).
+**Source correlation (UI-37).** Report packs assign `reportModel.sourceCorrelation` and push `'sourceTab'` only when `adaptSourceCorrelation` returns a non-mock model. See [source-correlation](./source-correlation.spec.md).
 
 **Emulate profile.** When adapting an emulate leaf ([adapt-emulate](./adapt-emulate.spec.md)), compute CSV mappings above do not apply. Fill swimlane from `PipeTrace.json` (µs); leave `summary` empty and set `profile: 'emulate'` ([DATA-47](../../docs/context/decisions/DATA.md)); PIPE from `PipesUtilization` / hist when present; Architecture Diagram from `ArchDiagramMetrics` into the **same** plated `memoryTopology` carrier and chrome as compute (capability `archDiagram`, DATA-48a — not a second VM). Omit roofline / overview until dedicated mappers exist ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)); fill the heat carrier from `UbRwAccesses` (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)). Gap matrix: [docs/views/](../../docs/views/README.md).
 

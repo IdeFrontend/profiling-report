@@ -129,11 +129,11 @@ Format and statuses: [README.md](README.md).
 
 ## UI-37 (was: Q10)
 
-- **Resolved:** 2026-09-10; **Amended:** 2026-10-07
+- **Resolved:** 2026-09-10; **Amended:** 2026-10-16
 - **Question:** Source / Details / Cache tabs?
-- **Decision:** **源码** is an active secondary tab (mock-first Source | SASS correlation surface when real embeds are absent). **详情 / 缓存** stay in chrome but remain **disabled**. OP算子 remains brand / multi-op selector, not a mode tab. Report packs (`.rep` / npu-rep / emulate) advertise capability `'sourceTab'` and always supply `reportModel.sourceCorrelation` (real adapter or deterministic mock). Pure Chrome Trace loads omit the model and keep 源码 disabled unless the host passes `'sourceTab'`.
+- **Decision:** **源码** is shown only when the loaded report has a real Source correlation model (`mock !== true`). Packs without those embeds omit `sourceCorrelation` and `'sourceTab'`, and the 源码 control is absent. **详情 / 缓存** stay in chrome but remain **disabled**. OP算子 remains brand / multi-op selector, not a mode tab. A host may still pass `'sourceTab'` plus a non-mock `reportModel.sourceCorrelation`. Pure Chrome Trace loads omit both.
 - **Specs:** [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md)
-- **Source:** Product answer in chat (2026-09-10); Source tab implementation plan (2026-10-07).
+- **Source:** Product answer in chat (2026-09-10); Source tab implementation plan (2026-10-07); hide mock Source and the tab when embeds are absent (2026-10-16).
 
 ---
 

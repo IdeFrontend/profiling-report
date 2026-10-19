@@ -445,13 +445,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         {{ t('tabTimeline', locale) }}
       </button>
       <button
+        v-if="sourceTabEnabled"
         type="button"
         class="pr-tabs__tab"
         :class="{ 'pr-tabs__tab--active': activeTab === 'source' }"
-        :disabled="!sourceTabEnabled"
         data-testid="tab-source"
-        :title="sourceTabEnabled ? undefined : t('tabsNotSupported', locale)"
-        @click="sourceTabEnabled && emit('update:activeTab', 'source')"
+        @click="emit('update:activeTab', 'source')"
       >
         {{ t('tabSource', locale) }}
       </button>

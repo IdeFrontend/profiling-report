@@ -1,9 +1,13 @@
 import type { SourceCorrelationModel } from '../../domain/types';
+import {
+  adaptComputeSourceCorrelation,
+  hasComputeSourcePack,
+} from './adaptComputeSourceCorrelation';
 
 /**
- * Known embed basenames for a future real Source ↔ instruction pack.
- * None are present in current `.rep` / npu-rep fixtures — returning null
- * triggers the mock fallback at the adaptRep / adaptEmulate boundary.
+ * Known embed basenames for a future single-file Source ↔ instruction pack.
+ * Compute packs instead use `objdump.txt` + `symbolizer.json` + `summary.db`
+ * (see `adaptComputeSourceCorrelation`).
  */
 export const SOURCE_CORRELATION_EMBED_NAMES = [
   'SourceCorrelation.json',
@@ -32,17 +36,21 @@ function payloadByName(
  * Parse real Source correlation embeds when present.
  * Returns `null` when no recognized embed exists (caller uses mock).
  *
- * Real schema is Product-TBD; this switch point stays until embeds ship.
+ * Paths:
+ * 1. Compute multi-file pack (`objdump.txt` + symbolizer / summary.db) → real model
+ * 2. Single-file `SourceCorrelation.json` — schema still Product-TBD → null
  */
 export function adaptSourceCorrelation(
   payloads: Record<string, Uint8Array>,
 ): SourceCorrelationModel | null {
+  if (hasComputeSourcePack(payloads)) {
+    return adaptComputeSourceCorrelation(payloads);
+  }
+
   const raw = payloadByName(payloads, SOURCE_CORRELATION_EMBED_NAMES);
   if (!raw || raw.byteLength === 0) return null;
 
   // Future: decode JSON → SourceCorrelationModel and set mock: false.
-  // Until Product publishes the embed schema, treat unknown payloads as absent
-  // so we never invent a half-parsed model.
   void raw;
   return null;
 }

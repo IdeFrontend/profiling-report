@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
-import { loadReportSource } from '../../adapters';
+import { ensurePcSamplingSql, loadReportSource } from '../../adapters';
 import {
   applyWindow,
   clearMeasure,
@@ -405,9 +405,12 @@ const hintsDockShown = computed(
 const asideAvailable = computed(() => reportHasAsideContent(report.value, caps.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
-/** UI-37: Source tab when adapter (or host) advertises sourceTab and a model exists. */
+/** UI-37: Source tab only for a real (non-mock) correlation model. */
 const sourceTabEnabled = computed(
-  () => caps.value.includes('sourceTab') && report.value?.sourceCorrelation != null,
+  () =>
+    caps.value.includes('sourceTab') &&
+    report.value?.sourceCorrelation != null &&
+    report.value.sourceCorrelation.mock !== true,
 );
 const activeTab = ref<'timeline' | 'source'>('timeline');
 const showSource = computed(
@@ -932,10 +935,22 @@ function failLoad(cause: unknown) {
   emit('error', { message: loadError.value, cause });
 }
 
-function loadFromSource(source: ArrayBuffer | Uint8Array) {
+/** Bumps on each source load/clear so stale async loads do not applyAdapted. */
+let sourceLoadGen = 0;
+
+async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
   try {
+    // Best-effort sql.js for compute Source `summary.db`. Failure must not block the report.
+    try {
+      await ensurePcSamplingSql();
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      console.warn(`[profiling-report] sql.js unavailable; Source stalls omitted: ${detail}`);
+    }
+    if (gen !== sourceLoadGen) return;
     applyAdapted(loadReportSource(source));
   } catch (cause) {
+    if (gen !== sourceLoadGen) return;
     failLoad(cause);
   }
 }
@@ -958,8 +973,10 @@ function onOperatorChange(id: string) {
 watch(
   () => props.source,
   (src) => {
+    sourceLoadGen += 1;
+    const gen = sourceLoadGen;
     if (src) {
-      loadFromSource(src);
+      void loadFromSource(src, gen);
       return;
     }
     // Source removed: drop what the adapter derived, or its flags outlive the report.

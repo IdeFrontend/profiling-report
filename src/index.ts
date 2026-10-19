@@ -17,6 +17,8 @@ export {
   adaptPayloads,
   adaptRep,
   adaptSourceCorrelation,
+  configurePcSamplingSql,
+  ensurePcSamplingSql,
   chromeTraceToSwimlane,
   mockSourceCorrelation,
   coreNameToPipeSide,

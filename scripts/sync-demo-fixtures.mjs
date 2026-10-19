@@ -26,6 +26,7 @@ const copies = [
   ['data/ffn_dense.trace.json', 'ffn_dense.trace.json'],
   ['data/vector_muladd_plain.npu-rep', 'vector_muladd_plain.npu-rep'],
   ['data/gelu.npu-rep', 'gelu.npu-rep'],
+  ['data/gather_2d.npu-rep', 'gather_2d.npu-rep'],
 ]
 
 for (const [from, name] of copies) {
@@ -69,6 +70,16 @@ if (copyIfExists(codiconFrom, join(suduDir, 'codicon.ttf'))) {
   console.log('synced codicon.ttf -> playground/public/sudu/codicon.ttf')
 } else {
   console.warn('[sync:demo-fixtures] codicon not copied (npm install @vscode/codicons)')
+}
+
+/** sql.js WASM for compute Source-tab `summary.db` reads (same-origin). */
+const sqljsDir = join(root, 'playground/public/sqljs')
+mkdirSync(sqljsDir, { recursive: true })
+const sqlWasm = join(root, 'node_modules/sql.js/dist/sql-wasm.wasm')
+if (copyIfExists(sqlWasm, join(sqljsDir, 'sql-wasm.wasm'))) {
+  console.log('synced sql-wasm.wasm -> playground/public/sqljs/sql-wasm.wasm')
+} else {
+  console.warn('[sync:demo-fixtures] sql.js wasm not copied (npm install sql.js)')
 }
 
 const shellTemplate = join(root, 'dist/report-shell/template.html')
