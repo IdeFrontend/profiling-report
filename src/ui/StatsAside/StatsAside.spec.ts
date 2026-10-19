@@ -1134,7 +1134,7 @@ describe('StatsAside', () => {
     expect(secondary).toContain('8');
     expect(secondary).toContain('72');
     expect(secondary).toMatch(/Blocks/);
-    expect(util.get('.pr-card__value-row').exists()).toBe(true);
+    expect(util.find('.pr-card__value-row').exists()).toBe(true);
 
     const blockOnly = mount(StatsAside, {
       props: {
