@@ -82,17 +82,8 @@ async function loadSqlFactory(): Promise<InitSqlJs> {
 
 async function resolveWasmBinary(): Promise<Uint8Array | undefined> {
   if (wasmBinary) return wasmBinary;
-  // Vitest / Node hosts: read the package wasm (avoid locateFile → /sqljs/… ENOENT).
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    try {
-      const { readFileSync } = await import('node:fs');
-      const { createRequire } = await import('node:module');
-      const require = createRequire(import.meta.url);
-      return new Uint8Array(readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')));
-    } catch {
-      // Fall through to fetch / locateFile.
-    }
-  }
+  // Browser / playground: fetch the synced public wasm. Node tests inject via
+  // configurePcSamplingSql (see tests/helpers/sqlJsNode.ts) — keep node: out of the lib.
   if (typeof fetch === 'function') {
     try {
       const res = await fetch(SQL_WASM_PUBLIC_PATH);
