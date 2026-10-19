@@ -136,18 +136,19 @@ export function adaptComputeSourceCorrelation(
   let stallByPc = new Map<string, PcSamplingRow>();
   if (summaryBytes?.byteLength) {
     if (!isPcSamplingSqlReady()) {
-      throw new Error(
-        '[profiling-report] summary.db present but sql.js is not initialized; await ensurePcSamplingSql() before adapt',
+      console.warn(
+        '[profiling-report] ignoring summary.db: sql.js is not initialized (await ensurePcSamplingSql() for stall metrics)',
       );
-    }
-    try {
-      stallByPc = new Map(
-        readPcSamplingDbSync(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
-      );
-    } catch (cause) {
-      // Keep Source/SASS from objdump (+ symbolizer); omit stall metrics rather than failLoad.
-      const detail = cause instanceof Error ? cause.message : String(cause);
-      console.warn(`[profiling-report] ignoring summary.db: ${detail}`);
+    } else {
+      try {
+        stallByPc = new Map(
+          readPcSamplingDbSync(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
+        );
+      } catch (cause) {
+        // Keep Source/SASS from objdump (+ symbolizer); omit stall metrics rather than failLoad.
+        const detail = cause instanceof Error ? cause.message : String(cause);
+        console.warn(`[profiling-report] ignoring summary.db: ${detail}`);
+      }
     }
   }
 

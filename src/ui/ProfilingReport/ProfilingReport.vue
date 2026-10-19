@@ -935,12 +935,22 @@ function failLoad(cause: unknown) {
   emit('error', { message: loadError.value, cause });
 }
 
-async function loadFromSource(source: ArrayBuffer | Uint8Array) {
+/** Bumps on each source load/clear so stale async loads do not applyAdapted. */
+let sourceLoadGen = 0;
+
+async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
   try {
-    // sql.js WASM — needed when the pack embeds summary.db (compute Source path).
-    await ensurePcSamplingSql();
+    // Best-effort sql.js for compute Source `summary.db`. Failure must not block the report.
+    try {
+      await ensurePcSamplingSql();
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      console.warn(`[profiling-report] sql.js unavailable; Source stalls omitted: ${detail}`);
+    }
+    if (gen !== sourceLoadGen) return;
     applyAdapted(loadReportSource(source));
   } catch (cause) {
+    if (gen !== sourceLoadGen) return;
     failLoad(cause);
   }
 }
@@ -963,8 +973,10 @@ function onOperatorChange(id: string) {
 watch(
   () => props.source,
   (src) => {
+    sourceLoadGen += 1;
+    const gen = sourceLoadGen;
     if (src) {
-      void loadFromSource(src);
+      void loadFromSource(src, gen);
       return;
     }
     // Source removed: drop what the adapter derived, or its flags outlive the report.

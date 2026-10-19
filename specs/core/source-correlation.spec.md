@@ -24,7 +24,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 **Real path — compute multi-file.** When payloads include `objdump.txt` and at least one of `symbolizer.json` / `summary.db`, `adaptSourceCorrelation` builds a real model via `adaptComputeSourceCorrelation` (`mock: false`):
 
 - Asm rows from `objdump.txt` (address + instruction text).
-- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` via sql.js (`await ensurePcSamplingSql()` before adapt when the db is present). Corrupt / unsupported DBs are ignored (warn + zero stalls); they do not abort report load.
+- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` via sql.js (`await ensurePcSamplingSql()` before adapt when stalls are needed). Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load.
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
 - Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`).
 

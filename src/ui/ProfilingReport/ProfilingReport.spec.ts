@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markRaw, nextTick } from 'vue';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
+import * as adapters from '../../adapters';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
@@ -148,6 +149,15 @@ function heatmapReport() {
 }
 
 describe('ProfilingReport scaffold', () => {
+  beforeEach(() => {
+    // Keep source loads sync-ish in unit tests (real wasm init is covered elsewhere).
+    vi.spyOn(adapters, 'ensurePcSamplingSql').mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('PR-CTXMENU-011: leaf-gutter context menu reaches the report root', async () => {
     const wrapper = mount(ProfilingReport, {
       attachTo: document.body,
@@ -1370,6 +1380,7 @@ describe('ProfilingReport scaffold', () => {
     const wrapper = mount(ProfilingReport, {
       props: { source: loadNpuRepBuffer() },
     });
+    await flushPromises();
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
@@ -1455,6 +1466,7 @@ describe('ProfilingReport scaffold', () => {
       const wrapper = mount(ProfilingReport, {
         props: { source: new ArrayBuffer(8) },
       });
+      await flushPromises();
       expect(wrapper.text()).toContain('alpha-op');
       expect(wrapper.find('[data-testid="profiling-report"]').attributes('data-capabilities')).toBe(
         'roofline',
@@ -1527,6 +1539,7 @@ describe('ProfilingReport scaffold', () => {
       const wrapper = mount(ProfilingReport, {
         props: { source: new ArrayBuffer(8) },
       });
+      await flushPromises();
       expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
 
       await wrapper.get('[data-testid="stats-aside-close"]').trigger('click');
@@ -1590,6 +1603,7 @@ describe('ProfilingReport scaffold', () => {
       const wrapper = mount(ProfilingReport, {
         props: { source: new ArrayBuffer(8) },
       });
+      await flushPromises();
       const layout = wrapper.find('.pr-layout');
       expect(layout.attributes('style')).toContain('--pr-aside-width: 480px');
 

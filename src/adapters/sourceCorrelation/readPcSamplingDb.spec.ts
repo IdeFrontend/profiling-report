@@ -29,4 +29,19 @@ describe('readPcSamplingDb', () => {
   it('rejects non-SQLite bytes', async () => {
     await expect(readPcSamplingDb(new Uint8Array([1, 2, 3]))).rejects.toThrow();
   });
+
+  it('clears a failed ensure so a later call can retry', async () => {
+    const { configurePcSamplingSql, ensurePcSamplingSql: ensure } = await import('./readPcSamplingDb');
+    configurePcSamplingSql({
+      initSqlJs: async () => {
+        throw new Error('wasm boom');
+      },
+    });
+    await expect(ensure()).rejects.toThrow(/wasm boom/);
+    configurePcSamplingSqlForNodeTests();
+    await ensure();
+    expect(
+      (await readPcSamplingDb(new Uint8Array(readFileSync(fixture)))).length,
+    ).toBe(77);
+  });
 });

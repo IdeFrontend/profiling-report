@@ -82,6 +82,17 @@ async function loadSqlFactory(): Promise<InitSqlJs> {
 
 async function resolveWasmBinary(): Promise<Uint8Array | undefined> {
   if (wasmBinary) return wasmBinary;
+  // Vitest / Node hosts: read the package wasm (avoid locateFile → /sqljs/… ENOENT).
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    try {
+      const { readFileSync } = await import('node:fs');
+      const { createRequire } = await import('node:module');
+      const require = createRequire(import.meta.url);
+      return new Uint8Array(readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')));
+    } catch {
+      // Fall through to fetch / locateFile.
+    }
+  }
   if (typeof fetch === 'function') {
     try {
       const res = await fetch(SQL_WASM_PUBLIC_PATH);
@@ -106,11 +117,25 @@ export async function ensurePcSamplingSql(): Promise<void> {
       } = {};
       if (wasm) config.wasmBinary = wasm;
       if (locateFile) config.locateFile = locateFile;
-      else if (!wasm) config.locateFile = (file) => `${SQL_WASM_PUBLIC_PATH.replace(/[^/]+$/, '')}${file}`;
+      else if (!wasm && typeof document !== 'undefined') {
+        // Browser-only fallback when wasm was not fetched (playground sync path).
+        config.locateFile = (file) => `${SQL_WASM_PUBLIC_PATH.replace(/[^/]+$/, '')}${file}`;
+      }
+      if (!wasm && !config.locateFile) {
+        throw new Error(
+          '[profiling-report] sql.js wasm not found; call configurePcSamplingSql({ wasmBinary | locateFile }) or serve /sqljs/sql-wasm.wasm',
+        );
+      }
       sqlApi = await initSqlJs(config);
     })();
   }
-  await sqlReady;
+  try {
+    await sqlReady;
+  } catch (cause) {
+    // Allow a later ensure / configurePcSamplingSql to retry after a failed fetch/init.
+    sqlReady = null;
+    throw cause;
+  }
 }
 
 function num(v: SqlValue | undefined): number {

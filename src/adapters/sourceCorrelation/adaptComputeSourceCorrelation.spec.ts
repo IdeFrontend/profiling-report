@@ -78,4 +78,20 @@ describe('adaptComputeSourceCorrelation', () => {
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });
+
+  it('uninitialized sql.js keeps compute model with zero stalls', async () => {
+    const { configurePcSamplingSql } = await import('./readPcSamplingDb');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Reset module sql state so isPcSamplingSqlReady() is false.
+    configurePcSamplingSql({});
+    const model = adaptSourceCorrelation(loadGatherPayloads());
+    expect(model).not.toBeNull();
+    expect(model!.mock).toBe(false);
+    expect(model!.assembly.lines.every((l) => l.values.samplingStall === 0)).toBe(true);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    // Restore for any later tests in this file (none after, but keep suite isolation).
+    configurePcSamplingSqlForNodeTests();
+    await ensurePcSamplingSql();
+  });
 });
