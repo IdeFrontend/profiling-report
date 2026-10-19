@@ -29,9 +29,7 @@ describe('ReportToolbar', () => {
     expect(timeline.attributes('disabled')).toBeUndefined();
     expect(timeline.classes()).toContain('pr-tabs__tab--active');
 
-    const source = wrapper.find('[data-testid="tab-source"]');
-    expect(source.attributes('disabled')).toBeDefined();
-    expect(source.attributes('title')).toBe(t('tabsNotSupported'));
+    expect(wrapper.find('[data-testid="tab-source"]').exists()).toBe(false);
 
     for (const id of ['tab-detail', 'tab-cache'] as const) {
       const tab = wrapper.find(`[data-testid="${id}"]`);

@@ -121,14 +121,18 @@ async function probeSwimlaneDepCurves(
  */
 
 test.describe('PR-E2E feature paths', () => {
-  test('PR-E2E-018: Source tab opens source-view (UI-37 mock-first)', async ({ page }) => {
+  test('PR-E2E-018: Source tab opens only when the fixture has real source data', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('tab-source')).toHaveCount(0);
+
+    await page.goto('/?fixture=gather_2d');
+    await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
     const sourceTab = page.getByTestId('tab-source');
-    await expect(sourceTab).toBeEnabled({ timeout: 15_000 });
+    await expect(sourceTab).toBeVisible({ timeout: 15_000 });
     await sourceTab.click();
     await expect(page.getByTestId('source-view')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId('source-mock-badge')).toBeVisible();
+    await expect(page.getByTestId('source-mock-badge')).toHaveCount(0);
     await page.getByTestId('tab-timeline').click();
     await expect(page.getByTestId('source-view')).toHaveCount(0);
   });

@@ -24,7 +24,7 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 | Overview charts | **New** | When producer supplies `OverviewSeries` (DATA-32) |
 | Summary DATA-33 tiles | **Shipped** | Duration + compute + BW peak/score + AICore 并行\|负载 (DATA-5–7, DATA-9–10); DATA-8 closed (`summary.jsonl` `OpInfoSummary`, not `Report.csv`) |
 | Roofline (Product-final DATA-37) | **Replace** | Swap [M2](milestone-2.md) interim formulas/peaks when DATA-37 resolves |
-| Secondary tabs | **Partial** | 源码 enabled mock-first ([UI-37](../../context/decisions/UI.md)); 详情 / 缓存 still disabled; hardware aside if DATA-34 |
+| Secondary tabs | **Partial** | 源码 only with real Source embeds ([UI-37](../../context/decisions/UI.md)); 详情 / 缓存 still disabled; hardware aside if DATA-34 |
 | Visual regression / sketch golden | **New** | DATA-31 golden when available |
 | HQ slice 6 BW peak/score | **Shipped** | DATA-5–7 via `summary.jsonl` SOL 1600; DATA-8 closed (not `Report.csv`) |
 | HQ slice 7 AICore 并行\|负载 | **Shipped** | Dual columns from `parallelUtilization` / `parallelBalance` (DATA-9–10) |
@@ -47,7 +47,7 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 | **DATA-33 formulas** still open | Cannot ship sketch-faithful summary tiles | Keep interim hide; escalate Product |
 | **DATA-32 / OverviewSeries** producer missing | Overview charts stay hidden | Blocked on producer; no inventing from PIPE |
 | **DATA-37** still open after M2 interim | Roofline may stay interim past 2026-09-15 | Keep M2 panel; only swap math when Product closes DATA-37 |
-| **UI-37** 详情/缓存 still disabled | No Details/Cache surfaces | Source ships mock-first; keep those two disabled |
+| **UI-37** 详情/缓存 still disabled | No Details/Cache surfaces | 源码 only with real embeds; keep those two disabled |
 | **DATA-34** hardware aside deferred | No hardware panel | Out until Product specs |
 | **DATA-31** sketch-faithful golden absent | Visual regression weak | Keep `out.rep`; add golden when available |
 | **DATA-36 Product-final** may break interim fixture | Migration cost | Keep adapter boundary; version encoding |

@@ -2220,9 +2220,23 @@ describe('ProfilingReport scaffold', () => {
   });
 
   it('PR-ROOT-028: Source tab v-if swap keeps viewState time window (UI-37)', async () => {
+    const hidden = mount(ProfilingReport, {
+      props: {
+        title: 'source-tab',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          sourceCorrelation: mockSourceCorrelation(),
+        },
+        capabilities: ['sourceTab'],
+      },
+    });
+    expect(hidden.find('[data-testid="tab-source"]').exists()).toBe(false);
+    hidden.unmount();
+
     const reportModel = {
       ...emptyReportViewModel(),
-      sourceCorrelation: mockSourceCorrelation(),
+      sourceCorrelation: { ...mockSourceCorrelation(), mock: false },
     };
     const wrapper = mount(ProfilingReport, {
       props: {

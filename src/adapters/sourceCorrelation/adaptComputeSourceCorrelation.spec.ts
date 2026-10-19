@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { adaptSourceCorrelation } from './adaptSourceCorrelation';
+import { ensurePcSamplingSql } from './readPcSamplingDb';
 import { parseObjdump } from './parseObjdump';
+import { configurePcSamplingSqlForNodeTests } from '../../../tests/helpers/sqlJsNode';
 import { loadReportSource } from '../loadReportSource';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -19,6 +21,11 @@ function loadGatherPayloads(): Record<string, Uint8Array> {
 }
 
 describe('adaptComputeSourceCorrelation', () => {
+  beforeAll(async () => {
+    configurePcSamplingSqlForNodeTests();
+    await ensurePcSamplingSql();
+  });
+
   it('PR-SRC-005: compute pack builds mock:false SourceCorrelationModel', () => {
     const model = adaptSourceCorrelation(loadGatherPayloads());
     expect(model).not.toBeNull();

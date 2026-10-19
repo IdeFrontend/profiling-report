@@ -44,11 +44,10 @@ describe('PR-SRC: source correlation adapter', () => {
     expect(a.navigateBy.length).toBeGreaterThan(0);
   });
 
-  it('PR-SRC-003: adaptRep fills mock sourceCorrelation and sourceTab', () => {
+  it('PR-SRC-003: adaptRep omits sourceCorrelation and sourceTab when embeds are absent', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
-    expect(adapted.reportModel.sourceCorrelation).toBeDefined();
-    expect(adapted.reportModel.sourceCorrelation!.mock).toBe(true);
-    expect(adapted.capabilities).toContain('sourceTab');
+    expect(adapted.reportModel.sourceCorrelation).toBeUndefined();
+    expect(adapted.capabilities).not.toContain('sourceTab');
   });
 
   it('PR-SRC-004: adaptChromeTrace omits sourceCorrelation and sourceTab', () => {

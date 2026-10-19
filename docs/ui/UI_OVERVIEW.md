@@ -12,7 +12,7 @@ Sketches place the viewer inside a VS Code–like IDE with:
 - Secondary nav: **OP算子** | **时间线** (Timeline) | **源码** | **详情** | **缓存**
 - Left activity bar / explorer (host-owned in MSTT; not part of the Vue library shell)
 
-**MVP:** **Timeline** is the primary view. **源码** is enabled on report packs (Source | SASS correlation; mock-first) ([UI-37](../context/decisions/UI.md)). **详情 / 缓存** stay visible and **disabled** (see [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
+**MVP:** **Timeline** is the primary view. **源码** appears only when the pack has a real Source | SASS model ([UI-37](../context/decisions/UI.md)). **详情 / 缓存** stay visible and **disabled** (see [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
 
 Primary overview sketches: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg`.
 
