@@ -26,6 +26,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix at plot top; **TOps/s** / **Ops/Byte** grid-aligned with gaps; markers not clipped; SVG display width tracks the card (`width: 100%`).
 5. **PR-ROOF-003** — Empty points → no chart SVG.
 6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved so the card does not shift on hover.
+7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
 
 ## Visual
 
