@@ -26,7 +26,7 @@ import {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
-import { buildRooflineViewModel, rooflineFromRows } from './roofline';
+import { rooflineFromRows } from './roofline';
 
 export { rooflineFromRows } from './roofline';
 
@@ -842,23 +842,23 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   const hwText = hwJsonl ? decodeUtf8(hwJsonl) : undefined;
   const arithCsv = payloadByName(payloads, ['ArithmeticUtilization.csv']);
   const memCsv = payloadByName(payloads, ['Memory.csv']);
-  // Prefer HardwareInfo Roofline category points; else DATA-19 All = summary.jsonl
-  // categories; else classic CSV. Roofs always use §11.8 series catalog / JSON peaks.
-  const roofline =
-    buildRooflineViewModel({
-      hardwareInfoJsonlText: hwText,
-      // Mix labels only — points come from Roofline category when present.
-      arithCsvText: arithCsv ? decodeUtf8(arithCsv) : undefined,
-      memoryCsvText: memCsv ? decodeUtf8(memCsv) : undefined,
-    }) ??
-    rooflineFromRows(
-      summaryCategoryRows(summaryCategories, 'ArithmeticUtilization'),
-      summaryCategoryRows(summaryCategories, 'Memory'),
-      hwText,
-    ) ??
-    (arithCsv && memCsv
-      ? rooflineFromRows(parseCsv(decodeUtf8(arithCsv)).rows, parseCsv(decodeUtf8(memCsv)).rows, hwText)
-      : undefined);
+  // DATA-19 All = summary.jsonl categories when both exist; else classic CSV means.
+  // HardwareInfo Roofline category (when present) supplies points + roofs; mix still
+  // comes from the ArithmeticUtilization + Memory rows passed here.
+  const summaryArith = summaryCategoryRows(summaryCategories, 'ArithmeticUtilization');
+  const summaryMem = summaryCategoryRows(summaryCategories, 'Memory');
+  const useSummaryRoof = summaryArith.length > 0 && summaryMem.length > 0;
+  const arithRows = useSummaryRoof
+    ? summaryArith
+    : arithCsv
+      ? parseCsv(decodeUtf8(arithCsv)).rows
+      : [];
+  const memRows = useSummaryRoof
+    ? summaryMem
+    : memCsv
+      ? parseCsv(decodeUtf8(memCsv)).rows
+      : [];
+  const roofline = rooflineFromRows(arithRows, memRows, hwText);
   const memoryTopology =
     buildMemoryTopologyFromCategories(summaryCategories) ??
     // UI-49: PipeUtilization joins the classic fallback too, so a CSV-only `.rep` that has a

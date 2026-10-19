@@ -35,8 +35,41 @@ const opsY = plotBottomY;
 const hovered = ref<RooflinePoint | null>(null);
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
-const aivSeries = computed(() => props.model.series.filter((s) => s.group === 'aiv'));
-const aicSeries = computed(() => props.model.series.filter((s) => s.group === 'aic'));
+
+/**
+ * Normalize series for draw. Hosts may still pass the interim M2 shape
+ * (`peakComputeTops` / `peakBandwidthGBs` on the root, no `series`).
+ */
+const seriesList = computed((): RooflineSeries[] => {
+  const listed = props.model.series;
+  if (listed && listed.length > 0) return listed;
+  const legacy = props.model as RooflineViewModel & {
+    peakComputeTops?: number;
+    peakBandwidthGBs?: number;
+  };
+  if (
+    legacy.peakComputeTops != null &&
+    legacy.peakComputeTops > 0 &&
+    legacy.peakBandwidthGBs != null &&
+    legacy.peakBandwidthGBs > 0
+  ) {
+    return [
+      {
+        id: 'legacy',
+        group: 'aic',
+        label: 'Peak',
+        color: '#E53935',
+        peakComputeTops: legacy.peakComputeTops,
+        peakBandwidthGBs: legacy.peakBandwidthGBs,
+        slopeStyle: 'solid',
+      },
+    ];
+  }
+  return [];
+});
+
+const aivSeries = computed(() => seriesList.value.filter((s) => s.group === 'aiv'));
+const aicSeries = computed(() => seriesList.value.filter((s) => s.group === 'aic'));
 
 /** Log domain from points + roofs. */
 const domains = computed(() => {
@@ -46,7 +79,7 @@ const domains = computed(() => {
     if (p.intensity > 0) xs.push(p.intensity);
     if (p.performance > 0) ys.push(p.performance);
   }
-  for (const s of props.model.series) {
+  for (const s of seriesList.value) {
     if (s.peakComputeTops > 0) ys.push(s.peakComputeTops);
     if (s.peakBandwidthGBs > 0 && s.peakComputeTops > 0) {
       const ridge = (s.peakComputeTops * 1000) / s.peakBandwidthGBs;
@@ -110,7 +143,7 @@ function roofSegments(s: RooflineSeries): { slope: string; plateau: string; ridg
 
 /** Closed area under the topmost roof for the wash (highest plateau). */
 const roofAreaPath = computed(() => {
-  const series = props.model.series;
+  const series = seriesList.value;
   if (!series.length) return '';
   const top = series.reduce((a, b) => (b.peakComputeTops > a.peakComputeTops ? b : a));
   const { xMin, xMax } = domains.value;
@@ -130,8 +163,8 @@ const roofAreaPath = computed(() => {
 });
 
 const roofTopY = computed(() => {
-  if (!props.model.series.length) return PAD.t;
-  return Math.min(...props.model.series.map((s) => roofSegments(s).ridgeY));
+  if (!seriesList.value.length) return PAD.t;
+  return Math.min(...seriesList.value.map((s) => roofSegments(s).ridgeY));
 });
 
 const xTicks = computed(() => logTicks(domains.value.xMin, domains.value.xMax));
@@ -315,7 +348,7 @@ const tooltipText = computed(() => {
             fill="url(#pr-roofline-area)"
           />
           <g
-            v-for="s in model.series"
+            v-for="s in seriesList"
             :key="s.id"
             data-testid="roofline-roof"
           >

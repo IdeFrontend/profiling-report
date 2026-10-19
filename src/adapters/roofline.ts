@@ -346,32 +346,10 @@ function measuredGmPoint(
   };
 }
 
-export type BuildRooflineInput = {
-  arithCsvText?: string;
-  memoryCsvText?: string;
-  hardwareInfoJsonlText?: string;
-};
-
-function parseCsvRows(text: string): CsvRows {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trimEnd())
-    .filter((l) => l.length > 0);
-  if (lines.length === 0) return [];
-  const headers = lines[0]!.split(',').map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const cols = line.split(',');
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      row[h] = (cols[i] ?? '').trim();
-    });
-    return row;
-  });
-}
-
 /**
  * §11.8 GM point + AIV/AIC roof catalog over the given rows (DATA-19 / DATA-29 scopes).
  * `All` passes summary.jsonl category records; a picked block passes that block's CSV rows.
+ * Pass `hardwareInfoJsonlText` so roofs stay chip-level (Roofline category or §11.8.1 counts).
  */
 export function rooflineFromRows(
   arithRows: Record<string, string>[],
@@ -399,23 +377,4 @@ export function rooflineFromRows(
 
   const series = fromJson && fromJson.series.length > 0 ? fromJson.series : catalog;
   return { points, mixLabels, series };
-}
-
-/**
- * HardwareInfo.jsonl `category: "Roofline"` points only. Returns undefined when that
- * category is absent or has no usable w/t/q — callers then fall back to summary/CSV GM.
- */
-export function buildRooflineViewModel(input: BuildRooflineInput): RooflineViewModel | undefined {
-  if (!input.hardwareInfoJsonlText) return undefined;
-  const fromJson = parseRooflineJsonl(input.hardwareInfoJsonlText);
-  if (!fromJson || fromJson.points.length === 0) return undefined;
-  const measured =
-    input.arithCsvText && input.memoryCsvText
-      ? measuredGmPoint(parseCsvRows(input.arithCsvText), parseCsvRows(input.memoryCsvText))
-      : undefined;
-  return {
-    points: fromJson.points,
-    mixLabels: measured?.mixLabels ?? [],
-    series: fromJson.series,
-  };
 }

@@ -125,11 +125,19 @@ const computeCard = computed(() => {
 const roofline = computed(() => {
   const id = blockId.value;
   if (!id) return props.report?.roofline;
-  // Undecidable for this block ⇒ no series, rather than the All point under a block label.
-  return rooflineFromRows(
+  // Undecidable for this block ⇒ hide, rather than the All point under a block label.
+  // Chip-level roofs stay on the All model (HardwareInfo / §11.8.1); only the GM point
+  // and mix labels are block-scoped.
+  const rebuilt = rooflineFromRows(
     rowsForBlock('ArithmeticUtilization.csv', id),
     rowsForBlock('Memory.csv', id),
   );
+  if (!rebuilt) return undefined;
+  const allSeries = props.report?.roofline?.series;
+  if (allSeries && allSeries.length > 0) {
+    return { ...rebuilt, series: allSeries };
+  }
+  return rebuilt;
 });
 const showComputeCard = computed(
   () => hasDuration.value && (computeCard.value?.sides.length ?? 0) > 0,

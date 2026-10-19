@@ -133,6 +133,18 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('[data-testid="roofline-chart"]').exists()).toBe(false);
   });
 
+  it('PR-ROOF-005: interim host shape (root peaks, no series) still draws a roof', () => {
+    const legacy = {
+      points: sample.points,
+      mixLabels: [],
+      peakComputeTops: 13.5,
+      peakBandwidthGBs: 1600,
+    } as unknown as RooflineViewModel;
+    const wrapper = mount(RooflinePanel, { props: { model: legacy } });
+    expect(wrapper.find('[data-testid="roofline-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="roofline-roof"]').exists()).toBe(true);
+  });
+
   it('PR-ROOF-004: hover point shows tooltip inside card without layout jump', async () => {
     const wrapper = mount(RooflinePanel, { props: { model: sample } });
     const card = wrapper.get('.pr-roofline__card');
