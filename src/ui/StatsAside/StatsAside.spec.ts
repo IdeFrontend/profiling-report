@@ -812,7 +812,7 @@ describe('StatsAside', () => {
     expect(bd.find('[data-testid="stats-duration-seg-communication"]').exists()).toBe(true);
     expect(bd.get('[data-testid="stats-duration-legend"]').text()).toMatch(/头开销|Overhead/);
     expect(bd.get('[data-testid="stats-duration-secondary"]').text()).toMatch(/Blocks/);
-    await bd.get('[data-testid="stats-duration-bar"]').trigger('mouseenter');
+    await bd.get('[data-testid="stats-duration-bar"]').trigger('pointerenter');
     // Teleported to `body` (aside overflow would clip an in-card box).
     const tip = document.querySelector('[data-testid="stats-duration-tooltip"]');
     expect(tip).toBeTruthy();

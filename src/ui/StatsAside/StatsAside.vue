@@ -241,7 +241,7 @@ function closeTip() {
 /** Anchor for the duration breakdown list (teleported — aside `overflow` would clip an in-card box). */
 const durationBreakdownTip = ref<{ top: number; left: number; width: number } | null>(null);
 
-function openDurationBreakdownTip(e: MouseEvent) {
+function openDurationBreakdownTip(e: PointerEvent) {
   const el = e.currentTarget as HTMLElement | null;
   if (!el) return;
   const r = el.getBoundingClientRect();
@@ -1030,8 +1030,9 @@ const detailTestId = computed(() => {
             v-if="durationSegments"
             class="pr-card__bar-track pr-card__bar-track--duration"
             data-testid="stats-duration-bar"
-            @mouseenter="openDurationBreakdownTip"
-            @mouseleave="closeDurationBreakdownTip"
+            @pointerenter="openDurationBreakdownTip"
+            @pointerleave="closeDurationBreakdownTip"
+            @pointercancel="closeDurationBreakdownTip"
           >
             <span
               v-for="seg in durationSegments"
