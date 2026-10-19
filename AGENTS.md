@@ -54,6 +54,16 @@ Rules:
 
 Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung, a small diff you don't understand is just laziness dressed up as efficiency), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs (the platform is never the spec ideal, a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
 
+## New worktrees / new chats
+
+When the user starts a **new chat** for new work and asks for a worktree (or implies a clean base for that work):
+
+1. **Fetch first** — `git fetch origin master` (or `git fetch origin`) so remote refs are current.
+2. **Base on remote master** — create the branch/worktree from **`origin/master`**, not local `master`. Local `master` is often stale and is the wrong default.
+3. Example: `git worktree add -b <branch> <path> origin/master`.
+
+Do not ask the user to restate “from fresh remote master” every time; treat that as the default unless they name another base (PR branch, tag, etc.).
+
 ## Resolving open questions
 
 When Product answers a question: write it into the owning specs, file it in [`docs/context/decisions/`](docs/context/decisions/), and **remove** it from [`docs/context/questions/`](docs/context/questions/) in the same change. Do not leave a `resolved` row on the open list. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
