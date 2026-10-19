@@ -785,7 +785,44 @@ describe('StatsAside', () => {
       value: cardTipValue('4.6 ms'),
       hint: t('durationValueHint'),
     });
+    // No producer breakdown → no bar (UI-32 fallback).
     expect(card.find('[data-testid="stats-duration-bar"]').exists()).toBe(false);
+
+    const withBreakdown = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 24600,
+            blockDim: 8,
+            mixBlockDim: 4,
+            coreCount: 24,
+            durationBreakdown: {
+              overheadUs: 4000,
+              computeUs: 12400,
+              communicationUs: 8200,
+              overlapUs: 12400,
+            },
+          },
+        }),
+      },
+    });
+    const bd = withBreakdown.get('[data-testid="stats-duration-card"]');
+    expect(bd.find('[data-testid="stats-duration-seg-overhead"]').exists()).toBe(true);
+    expect(bd.find('[data-testid="stats-duration-seg-compute"]').exists()).toBe(true);
+    expect(bd.find('[data-testid="stats-duration-seg-communication"]').exists()).toBe(true);
+    expect(bd.get('[data-testid="stats-duration-legend"]').text()).toMatch(/头开销|Overhead/);
+    expect(bd.get('[data-testid="stats-duration-secondary"]').text()).toMatch(/Blocks/);
+    await bd.get('[data-testid="stats-duration-bar"]').trigger('mouseenter');
+    // Teleported to `body` (aside overflow would clip an in-card box).
+    const tip = document.querySelector('[data-testid="stats-duration-tooltip"]');
+    expect(tip).toBeTruthy();
+    const tipText = tip!.textContent ?? '';
+    expect(tipText).toMatch(/计算时间|Compute time/);
+    expect(tipText).toMatch(/通信时间|Communication time/);
+    expect(tipText).toMatch(/通算重叠|overlap/i);
+    expect(tipText).toMatch(/头开销时间|Overhead time/);
+    expect(tipText).not.toMatch(/时间时间/);
+    expect(tipText).toMatch(/4/);
   });
 
   it('PR-STATS-009c: duration rounds to 2 dp; tooltip keeps full value', async () => {
@@ -873,7 +910,7 @@ describe('StatsAside', () => {
     expect(bare.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-031: duration secondary shows `{blockDim} Blocks / {coreCount} 核` (bar removed)', () => {
+  it('PR-STATS-031: duration secondary `{blockDim} Blocks / {coreCount} 核`; bar only with breakdown', () => {
     const util = mount(StatsAside, {
       props: {
         report: report({
@@ -887,6 +924,7 @@ describe('StatsAside', () => {
     expect(secondary).toContain('8');
     expect(secondary).toContain('72');
     expect(secondary).toMatch(/Blocks/);
+    expect(util.get('.pr-card__value-row').exists()).toBe(true);
 
     const blockOnly = mount(StatsAside, {
       props: {

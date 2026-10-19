@@ -32,3 +32,6 @@ PLAN.md
 .aider*
 # Tooling caches (never commit)
 .playwright-mcp
+# Local Product dictionary (not committed)
+npu-compute*.pdf
+.tmp-pdf/

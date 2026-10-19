@@ -5,3 +5,14 @@ crops:
     source: v930/report-stats-open
     region: "Aside panel: header + metadata + all summary metric cards (excl. swimlane left of x≈5780)"
     box: { x: 5776, y: 355, w: 1850, h: 1140 }
+  duration-card.png:
+    source: report-stats-duration-source.png
+    region: "整体耗时 card — label, value + secondary, segmented bar, legend"
+    note: "2026-10-15 Product mock"
+  duration-card-tooltip.png:
+    source: report-stats-duration-source.png
+    region: "整体耗时 card + hover tooltip (计算/通信/通算重叠/头开销/迭代)"
+    note: "2026-10-15 Product mock; sketch typo 头开销时间时间 → UI label 头开销时间"
+  report-stats-duration-source.png:
+    source: screenshot-2026-10-15-12-24-54(3).png
+    region: "Full 报告统计 frame used for duration-card rework"

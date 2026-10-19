@@ -83,6 +83,22 @@ export interface SwimlaneModel {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * 整体耗时 segmented bar + hover breakdown (`StatsSummaryPanel/visual/duration-card.png`).
+ * Bar widths = overhead / compute / communication share of their sum.
+ * Overlap is tooltip-only. CSV field sources for the four times are still Product-open
+ * (npu-compute PDF §11.2.4 maps only `Task Duration(us)` for the card total).
+ */
+export interface DurationBreakdown {
+  overheadUs: number;
+  computeUs: number;
+  communicationUs: number;
+  /** 通算重叠时间 — tooltip only. */
+  overlapUs?: number;
+  /** Tooltip 迭代/核; UI falls back to `mixBlockDim` / `blockDim` when unset. */
+  iterationsPerCore?: number | string;
+}
+
 export interface SummaryMetrics {
   opName?: string;
   opType?: string;
@@ -99,6 +115,16 @@ export interface SummaryMetrics {
   pid?: string;
   /** OpBasicInfo `Block Dim` — aside meta **Blocks** and duration secondary (DATA-1, UI-32). */
   blockDim?: string | number;
+  /**
+   * OpBasicInfo `Mix Block Dim` (Vector core count on MIX; NA when non-MIX).
+   * Breakdown tooltip 迭代/核 prefers this when set.
+   */
+  mixBlockDim?: string | number;
+  /**
+   * Optional 头开销/计算/通信 breakdown for the duration card bar + hover list.
+   * Omit until producer fields are confirmed; card keeps no bar (UI-32 fallback).
+   */
+  durationBreakdown?: DurationBreakdown;
   /** DATA-1: `HardwareInfo.jsonl` core count for `Op Type` (cube/vector/mix). */
   coreCount?: number;
   /** Product (NPU-Compute): AIC measured compute, TFLOPS (summary.jsonl `aic_flops`). */

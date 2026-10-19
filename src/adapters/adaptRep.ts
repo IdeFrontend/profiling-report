@@ -582,13 +582,18 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
     currentFreq: parseNumber(row['Current Freq']),
     ratedFreq: parseNumber(row['Rated Freq']),
     pid: optionalText(row['Pid']) ?? optionalText(row['PID']),
-    blockDim: (() => {
-      const raw = row['Block Dim']?.trim();
-      if (!raw || raw === 'NA') return undefined;
-      const n = Number(raw);
-      return Number.isFinite(n) ? n : raw;
-    })(),
+    blockDim: optionalDim(row['Block Dim']),
+    mixBlockDim: optionalDim(row['Mix Block Dim']),
+    // durationBreakdown: producer fields not in OpBasicInfo / npu-compute PDF §11.2.4 yet
   };
+}
+
+/** OpBasicInfo dim column: omit blank / NA. */
+function optionalDim(raw: string | undefined): string | number | undefined {
+  const v = raw?.trim();
+  if (!v || v === 'NA') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : v;
 }
 
 /**
@@ -623,6 +628,7 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
       ratedFreq: num(obj['Rated Freq']),
       pid: text(obj['Pid']),
       blockDim: num(obj['Block Dim']) ?? text(obj['Block Dim']),
+      mixBlockDim: num(obj['Mix Block Dim']) ?? text(obj['Mix Block Dim']),
       // Derived compute / bandwidth / utilization (absent when the producer did not emit them).
       aicFlops: num(obj['aic_flops']),
       aivFlops: num(obj['aiv_flops']),
