@@ -503,6 +503,7 @@ const styleVars = computed(() => {
   overflow: hidden;
   border-bottom: 1px solid #333333;
   background: #2a2a2a;
+  border-radius: 6px 6px 0 0;
 }
 
 .pr-src-metrics__scroll {

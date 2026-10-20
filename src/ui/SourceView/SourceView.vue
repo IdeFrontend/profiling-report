@@ -504,10 +504,11 @@ onBeforeUnmount(() => {
       </div>
     </Teleport>
 
-    <div
-      class="pr-source-view__chrome"
-    >
-      <div class="pr-source-view__pane-bars">
+    <div class="pr-source-view__panes">
+      <div
+        class="pr-source-view__pane"
+        :class="{ 'pr-source-view__pane--active': activePane === 'source' }"
+      >
         <div class="pr-source-view__pane-bar">
           <label class="pr-source-view__field">
             <span>{{ t('sourceFile', locale) }}:</span>
@@ -555,6 +556,25 @@ onBeforeUnmount(() => {
             </select>
           </label>
         </div>
+        <!-- v930-source: # + Source ≈ 63% of the left pane; metrics strip takes the rest. -->
+        <SuduCodePane
+          v-if="sourceFile"
+          ref="sourcePane"
+          class="pr-source-view__pane-body"
+          :file="sourceFile"
+          :worker-url="suduWorkerUrl"
+          :codicon-url="suduCodiconUrl"
+          :current-line="sourceLine"
+          :correlated-lines="correlatedSource"
+          :match-lines="sourceMatchLines"
+          :editor-ratio="0.62"
+          @update:current-line="onSourceLine"
+        />
+      </div>
+      <div
+        class="pr-source-view__pane"
+        :class="{ 'pr-source-view__pane--active': activePane === 'asm' }"
+      >
         <div class="pr-source-view__pane-bar">
           <label class="pr-source-view__field">
             <span>{{ t('sourceFile', locale) }}:</span>
@@ -598,30 +618,10 @@ onBeforeUnmount(() => {
             </select>
           </label>
         </div>
-      </div>
-    </div>
-
-    <div class="pr-source-view__panes">
-      <div class="pr-source-view__pane">
-        <!-- v930-source: # + Source ≈ 63% of the left pane; metrics strip takes the rest. -->
-        <SuduCodePane
-          v-if="sourceFile"
-          ref="sourcePane"
-          :file="sourceFile"
-          :worker-url="suduWorkerUrl"
-          :codicon-url="suduCodiconUrl"
-          :current-line="sourceLine"
-          :correlated-lines="correlatedSource"
-          :match-lines="sourceMatchLines"
-          :editor-ratio="0.62"
-          @update:current-line="onSourceLine"
-        />
-      </div>
-      <div class="pr-source-view__vsplit" />
-      <div class="pr-source-view__pane">
         <!-- SASS: Address + Assembly are table cells (sketch) — no Sudu editor. -->
         <AsmTablePane
           ref="asmPane"
+          class="pr-source-view__pane-body"
           :file="model.assembly"
           :current-line="asmLine"
           :correlated-lines="correlatedAsm"
@@ -662,19 +662,12 @@ onBeforeUnmount(() => {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  background: var(--pr-src-bg-body);
+  background: var(--pr-src-bg-deep);
   color: var(--pr-src-text);
   font-family: var(--pr-src-ui-font);
   font-size: 12px;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
-}
-
-.pr-source-view__chrome {
-  flex: 0 0 auto;
-  background: var(--pr-src-bg-deep);
-  border-bottom: 1px solid var(--pr-src-border);
-  font-size: 12px;
 }
 
 /* Tab-row chrome: no padding/margin — ReportToolbar already insets the strip.
@@ -706,25 +699,15 @@ onBeforeUnmount(() => {
   font-weight: 400;
 }
 
-.pr-source-view__pane-bars {
-  display: flex;
-  align-items: stretch;
-  min-height: 34px;
-}
-
 .pr-source-view__pane-bar {
   display: flex;
-  flex: 1 1 50%;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
   padding: 5px 10px;
   background: var(--pr-src-bg-deep);
   min-width: 0;
-}
-
-.pr-source-view__pane-bar + .pr-source-view__pane-bar {
-  border-left: 1px solid var(--pr-src-border);
 }
 
 .pr-source-view__field {
@@ -892,24 +875,30 @@ onBeforeUnmount(() => {
 
 .pr-source-view__panes {
   display: flex;
+  gap: 12px;
   flex: 1 1 auto;
   min-height: 0;
 }
 
 .pr-source-view__pane {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 50%;
   min-width: 0;
   min-height: 0;
+}
+
+.pr-source-view__pane-body {
+  flex: 1 1 auto;
+  min-height: 0;
   /* v930-source: both panes share the same framed header chrome. */
-  border: 1px solid #2e4a7a;
-  border-radius: 4px;
+  border: 2px solid var(--pr-src-border);
+  border-radius: 6px;
   overflow: hidden;
   background: var(--pr-src-bg-body);
 }
 
-/* Sketch pane join is a hairline divider, not a thick blue strip. */
-.pr-source-view__vsplit {
-  flex: 0 0 1px;
-  background: var(--pr-src-border);
+.pr-source-view__pane--active .pr-source-view__pane-body {
+  border-color: var(--pr-src-accent);
 }
 </style>

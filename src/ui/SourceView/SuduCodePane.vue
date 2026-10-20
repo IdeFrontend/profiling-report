@@ -639,6 +639,7 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
   height: var(--pr-src-row-h);
   background: #2a2a2a;
   border-bottom: 1px solid #333333;
+  border-radius: 6px 6px 0 0;
 }
 
 .pr-sudu-pane__body {
@@ -693,6 +694,8 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
   height: var(--pr-src-row-h);
   table-layout: fixed;
   border-collapse: collapse;
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
   font-family: var(--pr-src-font-family);
   font-size: var(--pr-src-font-size);
   line-height: var(--pr-src-row-h);
@@ -713,6 +716,10 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
   text-overflow: ellipsis;
   height: var(--pr-src-row-h);
   background: #2a2a2a;
+}
+
+.pr-sudu-pane__head-table th:last-child {
+  border-top-right-radius: 6px;
 }
 
 .pr-sudu-pane__metric-th {
