@@ -64,7 +64,7 @@ describe('SourceView', () => {
     vi.mocked(newLangOptions).mockClear();
   });
 
-  it('PR-SOURCE-001: renders dual panes and dock shell', () => {
+  it('PR-SOURCE-001: renders dual panes without dock shell', () => {
     const wrapper = mount(SourceView, {
       props: { model: mockSourceCorrelation() },
     });
@@ -72,8 +72,7 @@ describe('SourceView', () => {
     // Source keeps Sudu; SASS is a plain table (# · Address · Assembly · metrics).
     expect(wrapper.findAll('[data-testid="sudu-code-pane"]').length).toBe(1);
     expect(wrapper.find('[data-testid="asm-table-pane"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-dock"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-dock-inline"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-dock"]').exists()).toBe(false);
     // Source metrics titles sit above the editor; SASS has its own header in the table.
     expect(wrapper.findAll('[data-testid="sudu-metrics-header-row"]').length).toBe(1);
     const sourceTitles = wrapper.find('[data-testid="sudu-source-header-titles"]');
@@ -212,11 +211,12 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-sort-asc"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-sort-desc"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-download"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="source-hide-zeros"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-hide-zeros"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-toggle-shortcuts"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="source-user-guide"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-link-source"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-link-asm"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-redo-resolve"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-redo-resolve"]').exists()).toBe(false);
     // Shared chrome pill (tokens.css) — same family as CSV / PIPE block selects.
     expect(wrapper.find('[data-testid="source-file-select"]').classes()).toContain('pr-block-pill');
     expect(wrapper.find('[data-testid="source-navigate-by"]').classes()).toContain('pr-block-pill');
@@ -275,16 +275,12 @@ describe('SourceView', () => {
     expect(linkAsm.attributes('aria-pressed')).toBe('true');
   });
 
-  it('PR-SOURCE-010: dock inline row click selects source line', async () => {
-    const model = mockSourceCorrelation();
-    const wrapper = mount(SourceView, { props: { model } });
-    expect(wrapper.find('[data-testid="source-dock-inline-panel"]').exists()).toBe(true);
-    const row = wrapper.find('[data-testid="source-dock-inline-row"]');
-    expect(row.exists()).toBe(true);
-    await row.trigger('click');
-    await wrapper.vm.$nextTick();
-    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
+  it('PR-SOURCE-010: bottom dock (inline / markers / stats) is not rendered', () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    expect(wrapper.find('[data-testid="source-dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-dock-inline"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-dock-markers"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-dock-stats"]').exists()).toBe(false);
   });
 
   it('PR-SOURCE-011: asm Navigate By is enabled and independent', async () => {

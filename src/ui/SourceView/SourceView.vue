@@ -4,11 +4,6 @@ import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
-import {
-  inlineFunctionRows,
-  sourceMarkerRows,
-  sourceStatRows,
-} from './sourceDockRows';
 import AsmTablePane from './AsmTablePane.vue';
 import SuduCodePane from './SuduCodePane.vue';
 import './sourceFonts.css';
@@ -45,7 +40,6 @@ type PaneApi = {
 const selectedFileId = ref(props.model.files[0]?.id ?? '');
 const sourceNavigateBy = ref(props.model.navigateBy[0] ?? 'instructionsExecuted');
 const asmNavigateBy = ref(props.model.navigateBy[0] ?? 'instructionsExecuted');
-const dockTab = ref<'inline' | 'markers' | 'stats'>('inline');
 const sourceLine = ref<number | null>(null);
 const asmLine = ref<number | null>(null);
 const sourcePane = ref<PaneApi | null>(null);
@@ -55,8 +49,6 @@ const searchQuery = ref('');
 /** Shared Link Views state — both pane toggles stay in sync. */
 const linkViews = ref(true);
 const sortDesc = ref(true);
-const hideZeros = ref(false);
-const shortcutsOpen = ref(false);
 const activePane = ref<'source' | 'asm'>('source');
 /**
  * After scroll-to-top/bottom both carets are forced independently. Suppress
@@ -308,26 +300,10 @@ function scrollBottom() {
   asmLine.value = asmLast;
 }
 
-function redoResolve() {
-  const file = sourceFile.value;
-  if (!file) return;
-  // Re-apply correlation from the current source caret (or first hot / first mapped).
-  let line = sourceLine.value;
-  if (line == null) {
-    const hot = hotLines(file, sourceNavigateBy.value);
-    line = hot[0] ?? file.lines[0]?.line ?? 1;
-  }
-  jumpSource(line);
-}
-
 function openUserGuide() {
   const url = props.userGuideUrl;
   emit('open-user-guide', url);
   window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-function jumpDockLine(line: number) {
-  jumpSource(line);
 }
 
 const sourceNavigateOptions = computed(() =>
@@ -343,13 +319,6 @@ const asmNavigateOptions = computed(() =>
     return { id, label: col?.label ?? id };
   }),
 );
-
-const dimZeroSource = computed(() => (hideZeros.value ? sourceNavigateBy.value : null));
-const dimZeroAsm = computed(() => (hideZeros.value ? asmNavigateBy.value : null));
-
-const dockInlineRows = computed(() => inlineFunctionRows(props.model, sourceFile.value));
-const dockMarkerRows = computed(() => sourceMarkerRows(sourceFile.value));
-const dockStatRows = computed(() => sourceStatRows(sourceFile.value));
 
 /** True once ReportToolbar’s tab-row host is in the DOM (Teleport target). */
 const chromeHostReady = ref(false);
@@ -456,37 +425,6 @@ onBeforeUnmount(() => {
           class="pr-source-view__actions"
           data-testid="source-toolbar-actions"
         >
-          <div class="pr-source-view__shortcut-wrap">
-            <button
-              type="button"
-              class="pr-source-view__icon-btn"
-              data-testid="source-toggle-shortcuts"
-              :class="{ 'pr-source-view__icon-btn--on': shortcutsOpen }"
-              :title="t('sourceShortcuts', locale)"
-              :aria-expanded="shortcutsOpen"
-              @click="shortcutsOpen = !shortcutsOpen"
-            >
-              <PrIcon name="list" />
-            </button>
-            <div
-              v-if="shortcutsOpen"
-              class="pr-source-view__shortcuts"
-              data-testid="source-shortcuts"
-              role="dialog"
-              :aria-label="t('sourceShortcuts', locale)"
-            >
-              <div class="pr-source-view__shortcuts-title">
-                {{ t('sourceShortcuts', locale) }}
-              </div>
-              <ul>
-                <li>{{ t('sourceShortcutFind', locale) }}</li>
-                <li>{{ t('sourceShortcutLink', locale) }}</li>
-                <li>{{ t('sourceShortcutSearch', locale) }}</li>
-                <li>{{ t('sourceShortcutDock', locale) }}</li>
-                <li>{{ t('sourceShortcutScroll', locale) }}</li>
-              </ul>
-            </div>
-          </div>
           <button
             type="button"
             class="pr-source-view__icon-btn"
@@ -546,17 +484,6 @@ onBeforeUnmount(() => {
             @click="scrollBottom"
           >
             <PrIcon name="to-bottom" />
-          </button>
-          <button
-            type="button"
-            class="pr-source-view__icon-btn"
-            data-testid="source-hide-zeros"
-            :class="{ 'pr-source-view__icon-btn--on': hideZeros }"
-            :title="t('sourceHideZeros', locale)"
-            :aria-pressed="hideZeros"
-            @click="hideZeros = !hideZeros"
-          >
-            <PrIcon name="layers" />
           </button>
           <button
             type="button"
@@ -627,14 +554,6 @@ onBeforeUnmount(() => {
               </option>
             </select>
           </label>
-          <button
-            type="button"
-            class="pr-source-view__text-btn"
-            data-testid="source-redo-resolve"
-            @click="redoResolve"
-          >
-            {{ t('sourceRedoResolve', locale) }}
-          </button>
         </div>
         <div class="pr-source-view__pane-bar">
           <label class="pr-source-view__field">
@@ -694,7 +613,6 @@ onBeforeUnmount(() => {
           :current-line="sourceLine"
           :correlated-lines="correlatedSource"
           :match-lines="sourceMatchLines"
-          :dim-zero-for="dimZeroSource"
           :editor-ratio="0.62"
           @update:current-line="onSourceLine"
         />
@@ -708,166 +626,8 @@ onBeforeUnmount(() => {
           :current-line="asmLine"
           :correlated-lines="correlatedAsm"
           :match-lines="asmMatchLines"
-          :dim-zero-for="dimZeroAsm"
           @update:current-line="onAsmLine"
         />
-      </div>
-    </div>
-
-    <div
-      class="pr-source-view__dock"
-      data-testid="source-dock"
-    >
-      <div
-        class="pr-source-view__dock-tabs"
-        role="tablist"
-      >
-        <button
-          type="button"
-          role="tab"
-          data-testid="source-dock-inline"
-          :aria-selected="dockTab === 'inline'"
-          :class="{ 'pr-source-view__dock-tab--on': dockTab === 'inline' }"
-          @click="dockTab = 'inline'"
-        >
-          {{ t('sourceDockInline', locale) }}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          data-testid="source-dock-markers"
-          :aria-selected="dockTab === 'markers'"
-          :class="{ 'pr-source-view__dock-tab--on': dockTab === 'markers' }"
-          @click="dockTab = 'markers'"
-        >
-          {{ t('sourceDockMarkers', locale) }}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          data-testid="source-dock-stats"
-          :aria-selected="dockTab === 'stats'"
-          :class="{ 'pr-source-view__dock-tab--on': dockTab === 'stats' }"
-          @click="dockTab = 'stats'"
-        >
-          {{ t('sourceDockStats', locale) }}
-        </button>
-      </div>
-      <div
-        class="pr-source-view__dock-body"
-        data-testid="source-dock-body"
-      >
-        <div
-          v-if="dockTab === 'inline'"
-          class="pr-source-view__dock-panel"
-          data-testid="source-dock-inline-panel"
-        >
-          <p
-            v-if="model.mock"
-            class="pr-source-view__dock-note"
-          >
-            {{ t('sourceDockMockNote', locale) }}
-          </p>
-          <table
-            v-if="dockInlineRows.length"
-            class="pr-source-view__dock-table"
-          >
-            <thead>
-              <tr>
-                <th>{{ t('sourceDockColLine', locale) }}</th>
-                <th>{{ t('sourceDockColPreview', locale) }}</th>
-                <th>{{ t('sourceDockColAsm', locale) }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in dockInlineRows"
-                :key="`${row.fileId}:${row.line}`"
-                data-testid="source-dock-inline-row"
-                @click="jumpDockLine(row.line)"
-              >
-                <td>{{ row.line }}</td>
-                <td>{{ row.preview }}</td>
-                <td>{{ row.asmCount }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <p
-            v-else
-            class="pr-source-view__dock-empty"
-          >
-            {{ t('sourceDockEmpty', locale) }}
-          </p>
-        </div>
-        <div
-          v-else-if="dockTab === 'markers'"
-          class="pr-source-view__dock-panel"
-          data-testid="source-dock-markers-panel"
-        >
-          <table
-            v-if="dockMarkerRows.length"
-            class="pr-source-view__dock-table"
-          >
-            <thead>
-              <tr>
-                <th>{{ t('sourceDockColLine', locale) }}</th>
-                <th>{{ t('sourceDockColKind', locale) }}</th>
-                <th>{{ t('sourceDockColValue', locale) }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in dockMarkerRows"
-                :key="`${row.kind}:${row.line}`"
-                data-testid="source-dock-marker-row"
-                @click="jumpDockLine(row.line)"
-              >
-                <td>{{ row.line }}</td>
-                <td>{{ row.label }}</td>
-                <td>{{ row.value }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <p
-            v-else
-            class="pr-source-view__dock-empty"
-          >
-            {{ t('sourceDockEmpty', locale) }}
-          </p>
-        </div>
-        <div
-          v-else
-          class="pr-source-view__dock-panel"
-          data-testid="source-dock-stats-panel"
-        >
-          <table
-            v-if="dockStatRows.length"
-            class="pr-source-view__dock-table"
-          >
-            <thead>
-              <tr>
-                <th>{{ t('sourceDockColMetric', locale) }}</th>
-                <th>{{ t('sourceDockColValue', locale) }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in dockStatRows"
-                :key="row.id"
-                data-testid="source-dock-stat-row"
-              >
-                <td>{{ row.label }}</td>
-                <td>{{ row.value }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <p
-            v-else
-            class="pr-source-view__dock-empty"
-          >
-            {{ t('sourceDockEmpty', locale) }}
-          </p>
-        </div>
       </div>
     </div>
   </div>
@@ -1065,10 +825,6 @@ onBeforeUnmount(() => {
   gap: 4px;
 }
 
-.pr-source-view__shortcut-wrap {
-  position: relative;
-}
-
 /* Same grey rounded chrome as timeline toolbar icon buttons (v930-source). */
 .pr-source-view__icon-btn {
   box-sizing: border-box;
@@ -1099,55 +855,6 @@ onBeforeUnmount(() => {
 .pr-source-view__icon-btn--on {
   color: #2d70e3;
   background: #1e2a3e;
-}
-
-.pr-source-view__text-btn {
-  box-sizing: border-box;
-  height: var(--pr-src-control-h, 28px);
-  margin: 0;
-  padding: 0 10px;
-  border: 1px solid var(--pr-src-divider);
-  border-radius: var(--pr-src-control-radius, 6px);
-  background: var(--pr-src-bg-control, #363636);
-  color: var(--pr-src-text, #c8c8c8);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.pr-source-view__text-btn:hover {
-  background: #323232;
-}
-
-.pr-source-view__shortcuts {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 20;
-  width: 280px;
-  padding: 10px 12px;
-  border: 1px solid var(--pr-src-divider);
-  border-radius: 2px;
-  background: var(--pr-src-bg-control);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 45%);
-  color: var(--pr-src-text);
-  font-family: var(--pr-src-ui-font);
-}
-
-.pr-source-view__shortcuts-title {
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: var(--pr-src-text-strong);
-}
-
-.pr-source-view__shortcuts ul {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.pr-source-view__shortcuts li {
-  margin: 4px 0;
 }
 
 .pr-source-view__sr {
@@ -1191,95 +898,5 @@ onBeforeUnmount(() => {
 .pr-source-view__vsplit {
   flex: 0 0 1px;
   background: var(--pr-src-border);
-}
-
-.pr-source-view__dock {
-  flex: 0 0 168px;
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--pr-src-border);
-  background: var(--pr-src-bg-deep);
-}
-
-.pr-source-view__dock-tabs {
-  display: flex;
-  gap: 0;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--pr-src-border);
-  background: var(--pr-src-bg-deep);
-}
-
-.pr-source-view__dock-tabs button {
-  margin: 0;
-  padding: 7px 14px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--pr-src-label);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.pr-source-view__dock-tabs button:hover {
-  color: var(--pr-src-text-strong);
-}
-
-/* Sketch: white underline on active dock tab (not playhead blue). */
-.pr-source-view__dock-tab--on {
-  color: #ffffff !important;
-  border-bottom-color: #ffffff !important;
-}
-
-.pr-source-view__dock-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  background: var(--pr-src-bg-metrics);
-}
-
-.pr-source-view__dock-panel {
-  padding: 6px 10px 8px;
-}
-
-.pr-source-view__dock-note,
-.pr-source-view__dock-empty {
-  margin: 0 0 6px;
-  color: var(--pr-src-label);
-  font-size: 11px;
-}
-
-.pr-source-view__dock-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--pr-src-mono-font);
-  font-size: 12px;
-  table-layout: fixed;
-}
-
-.pr-source-view__dock-table th,
-.pr-source-view__dock-table td {
-  padding: 3px 8px;
-  text-align: left;
-  border-bottom: 1px solid var(--pr-src-border-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pr-source-view__dock-table th {
-  color: var(--pr-src-label);
-  font-family: var(--pr-src-ui-font);
-  font-weight: 400;
-}
-
-.pr-source-view__dock-table tbody tr {
-  cursor: pointer;
-  color: var(--pr-src-text);
-}
-
-.pr-source-view__dock-table tbody tr:hover td {
-  background: #252526;
 }
 </style>
