@@ -131,6 +131,7 @@ const gutterRef = ref<{ root: HTMLElement | null } | null>(null);
 type CanvasExpose = {
   handleWheel: (e: WheelEvent) => void;
   setScrollY?: (y: number) => void;
+  driveScrollY?: (y: number, settled?: boolean) => void;
   magnetizeAtClient: (
     clientX: number,
     clientY: number,
@@ -169,6 +170,21 @@ let gutterScrollSync = false;
 let gutterScrollSyncRaf = 0;
 /** True between an in-flight canvas `scroll-y` and its settle emit. */
 let canvasLiveScroll = false;
+/**
+ * Overlay scrollbar: hidden at rest, shown while the body scrolls, then fades
+ * out after settle. When visible it sits above Card strips and the thumb is
+ * draggable (synthetic scrollY via canvas `driveScrollY`).
+ */
+const SCROLLBAR_MIN_THUMB_PX = 24;
+const SCROLLBAR_HIDE_DELAY_MS = 800;
+const scrollbarVisible = ref(false);
+let scrollbarHideTimer = 0;
+let scrollbarDrag: {
+  pointerId: number;
+  startClientY: number;
+  startScrollY: number;
+  track: number;
+} | null = null;
 const localGutterWidth = ref(props.gutterWidth ?? GUTTER_WIDTH_DEFAULT);
 const localMultiSelectedIds = shallowRef<string[]>(props.multiSelectedIds ?? []);
 /**
@@ -432,6 +448,11 @@ onUnmounted(() => {
   cancelOverviewAnim();
   if (canvasLiveScroll) emit('update:scrollY', liveScrollY.value);
   if (gutterScrollSyncRaf) cancelAnimationFrame(gutterScrollSyncRaf);
+  if (scrollbarHideTimer) {
+    clearTimeout(scrollbarHideTimer);
+    scrollbarHideTimer = 0;
+  }
+  scrollbarDrag = null;
   bodyResizeObserver?.disconnect();
   bodyResizeObserver = null;
 });
@@ -445,10 +466,112 @@ watch(
   },
 );
 
+/** Prefer live `clientHeight` so tests (and late layout) do not wait on ResizeObserver. */
+function syncBodyViewportH(): number {
+  const elH = bodyRef.value?.clientHeight ?? 0;
+  if (elH > 0 && elH !== bodyViewportH.value) bodyViewportH.value = elH;
+  return bodyViewportH.value || elH;
+}
+
 /** Native gutter `scrollTop` clamps as the collapse wrapper shrinks; canvas paint must too. */
 function maxBodyScrollY(): number {
   const h = visualContentHeight(props.model, props.collapsedIds ?? [], props.collapseAnim ?? null);
   return Math.max(0, h + overviewContentPad.value - (bodyViewportH.value || 0));
+}
+
+/** Thumb geometry for the overlay scrubber; `null` when content fits the viewport. */
+const scrollbarThumb = computed(() => {
+  const viewport = bodyViewportH.value;
+  const maxY = maxBodyScrollY();
+  if (viewport <= 0 || maxY <= 0) return null;
+  const content = maxY + viewport;
+  const thumbH = Math.min(viewport, Math.max(SCROLLBAR_MIN_THUMB_PX, (viewport * viewport) / content));
+  const track = Math.max(0, viewport - thumbH);
+  const y = Math.min(maxY, Math.max(0, liveScrollY.value));
+  return { height: thumbH, top: track * (y / maxY) };
+});
+
+function clearScrollbarHideTimer(): void {
+  if (!scrollbarHideTimer) return;
+  clearTimeout(scrollbarHideTimer);
+  scrollbarHideTimer = 0;
+}
+
+function revealScrollbar(): void {
+  syncBodyViewportH();
+  if (!scrollbarThumb.value) {
+    scrollbarVisible.value = false;
+    clearScrollbarHideTimer();
+    return;
+  }
+  scrollbarVisible.value = true;
+  clearScrollbarHideTimer();
+}
+
+function scheduleScrollbarHide(): void {
+  if (scrollbarDrag) return;
+  clearScrollbarHideTimer();
+  scrollbarHideTimer = window.setTimeout(() => {
+    scrollbarHideTimer = 0;
+    scrollbarVisible.value = false;
+  }, SCROLLBAR_HIDE_DELAY_MS);
+}
+
+function applyScrollbarScrollY(y: number, settled: boolean): void {
+  const maxY = maxBodyScrollY();
+  const clamped = Math.max(0, Math.min(maxY, y));
+  const drive = canvasRef.value?.driveScrollY;
+  if (drive) {
+    drive(clamped, settled);
+    return;
+  }
+  canvasRef.value?.setScrollY?.(clamped);
+  onScrollY(clamped, settled);
+}
+
+function onScrollbarPointerDown(e: PointerEvent): void {
+  if (e.button !== 0 || !scrollbarVisible.value) return;
+  const thumb = scrollbarThumb.value;
+  if (!thumb) return;
+  const trackEl = e.currentTarget as HTMLElement;
+  const rect = trackEl.getBoundingClientRect();
+  const yInTrack = e.clientY - rect.top;
+  const track = Math.max(0, rect.height - thumb.height);
+  let startScrollY = liveScrollY.value;
+  // Click on the track (outside the thumb): jump so the thumb centers on the pointer.
+  if (yInTrack < thumb.top || yInTrack > thumb.top + thumb.height) {
+    const thumbTop = track <= 0 ? 0 : Math.max(0, Math.min(track, yInTrack - thumb.height / 2));
+    startScrollY = track <= 0 ? 0 : (thumbTop / track) * maxBodyScrollY();
+    applyScrollbarScrollY(startScrollY, false);
+  }
+  trackEl.setPointerCapture?.(e.pointerId);
+  scrollbarDrag = {
+    pointerId: e.pointerId,
+    startClientY: e.clientY,
+    startScrollY,
+    track,
+  };
+  revealScrollbar();
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function onScrollbarPointerMove(e: PointerEvent): void {
+  if (!scrollbarDrag || e.pointerId !== scrollbarDrag.pointerId) return;
+  const maxY = maxBodyScrollY();
+  const track = scrollbarDrag.track;
+  if (track <= 0 || maxY <= 0) {
+    applyScrollbarScrollY(0, false);
+    return;
+  }
+  const dy = e.clientY - scrollbarDrag.startClientY;
+  applyScrollbarScrollY(scrollbarDrag.startScrollY + (dy / track) * maxY, false);
+}
+
+function onScrollbarPointerUp(e: PointerEvent): void {
+  if (!scrollbarDrag || e.pointerId !== scrollbarDrag.pointerId) return;
+  scrollbarDrag = null;
+  applyScrollbarScrollY(liveScrollY.value, true);
 }
 
 /** Same-turn DOM transform so the overview tracks the gutter before the Vue flush.
@@ -508,18 +631,23 @@ function setGutterScrollTop(y: number): void {
 
 function onScrollY(scrollY: number, settled?: boolean) {
   const y = Math.max(0, scrollY);
+  // Marquee begin calls endMarquee → settleMarqueeOverscroll, which emits a settled
+  // scroll-y even when Y did not move. Only reveal the overlay on a real delta.
+  const moved = Math.abs(y - liveScrollY.value) > 0.5;
   liveScrollY.value = y;
   // Native scrollTop quantizes; paint the DOM chrome (cards + overview) from the
   // value the gutter actually stored so the layers stay pixel-locked
   // (PR-E2E-015 / PR-SWIMVIEW-036). Cards read that quantized Y reactively
   // (chromeScrollY); the overview applies it imperatively so it lands this turn.
   syncScrollChromeFromY(y);
+  if (moved) revealScrollbar();
   if (settled) {
     canvasLiveScroll = false;
     emit('update:scrollY', y);
+    if (scrollbarVisible.value) scheduleScrollbarHide();
     return;
   }
-  canvasLiveScroll = true;
+  if (moved) canvasLiveScroll = true;
 }
 
 function onUpdateMultiSelected(newIds: string[]) {
@@ -800,6 +928,7 @@ defineExpose({
     <div
       ref="bodyRef"
       class="pr-swim-row pr-swim-row--body"
+      data-testid="swim-body"
     >
       <OverviewCharts
         v-if="scrollOverviewSeries.length"
@@ -932,6 +1061,32 @@ defineExpose({
             />
           </span>
         </div>
+      </div>
+
+      <!-- Above Card strips (z-index 10); interactive only while --visible. -->
+      <div
+        v-if="scrollbarThumb"
+        class="pr-body-scrollbar"
+        :class="{ 'pr-body-scrollbar--visible': scrollbarVisible }"
+        data-testid="body-scrollbar"
+        role="scrollbar"
+        :aria-valuenow="Math.round(liveScrollY)"
+        :aria-valuemin="0"
+        :aria-valuemax="Math.round(maxBodyScrollY())"
+        aria-orientation="vertical"
+        @pointerdown="onScrollbarPointerDown"
+        @pointermove="onScrollbarPointerMove"
+        @pointerup="onScrollbarPointerUp"
+        @pointercancel="onScrollbarPointerUp"
+      >
+        <div
+          class="pr-body-scrollbar__thumb"
+          data-testid="body-scrollbar-thumb"
+          :style="{
+            height: `${scrollbarThumb.height}px`,
+            transform: `translateY(${scrollbarThumb.top}px)`,
+          }"
+        />
       </div>
     </div>
     <div
@@ -1070,6 +1225,46 @@ defineExpose({
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Overlay thumb on the chart column — above Card strips; hit-test only while visible. */
+.pr-body-scrollbar {
+  grid-column: 2;
+  grid-row: 1;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+
+.pr-body-scrollbar--visible {
+  opacity: 1;
+  transition: none;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.pr-body-scrollbar__thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #5a5a5a;
+  background-clip: content-box;
+  will-change: transform;
+  cursor: grab;
+  touch-action: none;
+}
+
+.pr-body-scrollbar--visible:active .pr-body-scrollbar__thumb {
+  cursor: grabbing;
 }
 
 .pr-body-overview {

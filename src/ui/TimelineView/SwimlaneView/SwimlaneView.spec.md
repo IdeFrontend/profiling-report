@@ -24,7 +24,9 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 **Body scroll.** `.pr-swim-row--body` uses `overflow: hidden` so lane scroll stays contained while ReportLayout `.pr-main` stays `overflow: visible` for overview/axis chrome at the aside seam. Wheel over the lane gutter is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips and overview); the gutter does not native-overflow-scroll. Vertical wheel eases shared `scrollY` so labels and event rows stay aligned for the whole motion.
 
-**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. Card strips sit at `z-index: 8`. The marquee multi-select rect sits above the measure chrome **and above** Card strip expanders (`z-index: 9`, same band as the swim cursor / Alt-measure chrome) so the blue rect paints over header chrome while dragging. The mouse-following cursor bar lives inside `SwimlaneCanvas` (`z-index: 9` over strips; event canvas / edge marks sit lower) so magnet snap markers still read clearly. Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Gutter resize handle stays under strips (`z-index: 5`).
+**Auto-hide scrollbar.** When content is taller than the body viewport, a thin overlay thumb paints on the right edge of the chart column (not the gutter). It is **invisible at rest** (`pointer-events: none`). Any canvas `scroll-y` (wheel ease, marquee edge autoscroll, gutter settle) reveals it immediately; after the ease **settles**, it stays briefly then **fades out** (~500ms opacity). While visible it accepts pointer hits: drag the thumb (or click the track) to drive synthetic `scrollY` via the body canvas. Hidden entirely when content fits.
+
+**Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. Card strips sit at `z-index: 8`. The marquee multi-select rect sits above the measure chrome **and above** Card strip expanders (`z-index: 9`, same band as the swim cursor / Alt-measure chrome) so the blue rect paints over header chrome while dragging. The mouse-following cursor bar lives inside `SwimlaneCanvas` (`z-index: 9` over strips; event canvas / edge marks sit lower) so magnet snap markers still read clearly. Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Overlay scrollbar sits at `z-index: 10` on the chart-column right edge so it paints **above** Card strips while visible. Gutter resize handle stays under strips (`z-index: 5`).
 
 **Gutter resize.** The `ew-resize` handle (`data-testid="gutter-resize-handle"`) lives on the swim body seam (`z-index: 5`), under Card strips (`z-index: 8`), so it is inactive across Card bands. Overview/axis rows do not host the handle. The handle is pinned to the **used** gutter grid column (`grid-column: 1 / 2`), not `left: var(--pr-gutter-width)`, so it stays aligned when the gutter column shrinks below the token. The end line must be explicit: for abspos children, a lone `grid-column: 1` resolves end to `auto` (container padding edge) and parks the handle on the far track edge. Card-strip labels use the same column formula as the swim row.
 
@@ -57,7 +59,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 1. **PR-SWIMVIEW-001** — Renders gutter and canvas side by side.
 2. **PR-SWIMVIEW-002** — Full-width Card strip at header Y; click emits `toggle-group`.
 3. **PR-SWIMVIEW-003** — Body hosts `gutter-resize-handle` under Card strips; body row uses `overflow: hidden` for scroll containment.
-4. **PR-SWIMVIEW-004** — Stacking: measure borders below Card strips (`z-index: 8`); swim cursor and Alt-measure chrome (`z-index: 9`) above Card strips; blue edge marks (`z-index: 10–11`) above the cursor / Alt-measure band; pin↔body Alt-measure bridge also at `z-index: 9`.
+4. **PR-SWIMVIEW-004** — Stacking: measure borders below Card strips (`z-index: 8`); swim cursor and Alt-measure chrome (`z-index: 9`) above Card strips; blue edge marks (`z-index: 10–11`) above the cursor / Alt-measure band; overlay scrollbar (`z-index: 10`) above Card strips on the chart-column edge; pin↔body Alt-measure bridge also at `z-index: 9`.
 5. **PR-SWIMVIEW-005** — `pointerenter` on a Card strip clears the swim cursor and emits `cursor` `null` immediately.
 6. **PR-SWIMVIEW-006** — Card strip fill/hover use `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` CSS vars (no hardcoded `rgb(42…)` / `rgb(50…)`).
 7. **PR-SWIMVIEW-007** — Parent `cursorXRatio` prop drives the swim cursor bar and the stack-level chart-column playhead (`stack-cursor`) so the line stays continuous through overview chrome.
@@ -90,6 +92,11 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 34. **PR-SWIMVIEW-034** — Unchanged live marquee coverage does not replace `livePreviewIds` (no extra canvas `multiSelectedIds` sync).
 35. **PR-SWIMVIEW-035** — Body canvas `view` is `{ startTime, endTime, scrollY }` only.
 36. **PR-SWIMVIEW-036** — A canvas `scroll-y` emit updates gutter `scrollTop` synchronously and repositions card strips by baking the scroll offset into their `top` (a reactive binding) — both land before parent `view.scrollY` catches up, within the same frame, so gutter / cards / canvas do not chase each other.
+37. **PR-SWIMVIEW-037** — Overlay scrollbar stays hidden until a body `scroll-y` starts.
+38. **PR-SWIMVIEW-038** — After scroll settles, scrollbar fades out (delayed hide + opacity transition).
+39. **PR-SWIMVIEW-039** — Overlay scrollbar paints above Card strips (`z-index: 10`).
+40. **PR-SWIMVIEW-040** — Visible scrollbar thumb drag drives body `scrollY`.
+41. **PR-SWIMVIEW-041** — No-op settled `scroll-y` (same Y) does not reveal the scrollbar.
 
 
 ## Visual
@@ -116,6 +123,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-10-20** — Auto-hide overlay scrollbar; above cards; thumb drag; ignore no-op settle (`PR-SWIMVIEW-037`…`041`).
 - **2026-09-22** — Body canvas `view` is the time window only (`PR-SWIMVIEW-035`).
 - **2026-09-18** — Unchanged live marquee coverage keeps `livePreviewIds` identity (`PR-SWIMVIEW-034`).
 - **2026-09-17** — PR-SWIMVIEW-033: collapse at max scroll clamps live `scrollY`; gutter clamp emits settled `update:scrollY`.
