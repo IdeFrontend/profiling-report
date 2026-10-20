@@ -18,6 +18,7 @@ vi.mock('@sudu-ide/code-review', () => ({
   newEditor: vi.fn(() => ({
     setModel: vi.fn(),
     setVScrollListener: vi.fn(),
+    setVScrollVisible: vi.fn(),
     setCaretListener: vi.fn(),
     setPosition: vi.fn(),
     getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
@@ -56,10 +57,13 @@ describe('SourceView', () => {
     vi.mocked(newEditor).mockClear();
   });
 
-  it('PR-SOURCE-001: renders dual panes without dock shell', () => {
+  it('PR-SOURCE-001: renders dual panes without dock shell', async () => {
     const wrapper = mount(SourceView, {
       props: { model: mockSourceCorrelation() },
     });
+    await flushPromises();
+    const { newEditor } = await import('@sudu-ide/code-review');
+    expect(vi.mocked(newEditor).mock.calls[0]?.[0]).toMatchObject({ disableParser: true });
     expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
     // Source keeps Sudu; SASS is a plain table (# · Address · Assembly · metrics).
     expect(wrapper.findAll('[data-testid="sudu-code-pane"]').length).toBe(1);
