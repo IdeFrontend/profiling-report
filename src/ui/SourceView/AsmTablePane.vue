@@ -8,7 +8,7 @@ import type { SourceFileModel } from '../../domain/types';
 import { SOURCE_TAB_EDITOR_FONT } from './sourceFonts';
 import SourceMetricsTable from './SourceMetricsTable.vue';
 
-/** Match Sudu’s default line box for 12px JetBrains Mono (~1.5× font size). */
+/** Match Sudu’s default line box for 12px monospace (~1.5× font size). */
 const ROW_H = Math.round(SOURCE_TAB_EDITOR_FONT.size * 1.5);
 
 const props = defineProps<{

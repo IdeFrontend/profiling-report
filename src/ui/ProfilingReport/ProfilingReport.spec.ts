@@ -15,17 +15,8 @@ import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
-vi.mock('../SourceView/sourceFonts', () => ({
-  ensureSourceTabFonts: vi.fn(async () => undefined),
-  SOURCE_TAB_CODICON_URL: '/sudu/codicon.ttf',
-  SOURCE_TAB_MONO_FAMILY: 'JetBrains Mono',
-  SOURCE_TAB_MONO_STACK: "'JetBrains Mono', ui-monospace, monospace",
-  SOURCE_TAB_EDITOR_FONT: { family: 'JetBrains Mono', size: 12, weight: 400 },
-}));
-
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
-  loadFonts: vi.fn(async () => []),
   newEditor: vi.fn(() => ({
     setModel: vi.fn(),
     setVScrollListener: vi.fn(),
@@ -42,7 +33,7 @@ vi.mock('@sudu-ide/code-review', () => ({
     getMaxVScrollPos: () => 0,
     getNumLines: () => 10,
     getFontSize: () => 12,
-    getFontFamily: () => 'JetBrains Mono',
+    getFontFamily: () => 'monospace',
     setVScrollPos: vi.fn(),
   })),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),

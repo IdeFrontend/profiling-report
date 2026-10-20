@@ -4,17 +4,8 @@ import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSour
 import SourceView from './SourceView.vue';
 import { resetSuduRuntimeForTests } from './suduRuntime';
 
-vi.mock('./sourceFonts', () => ({
-  ensureSourceTabFonts: vi.fn(async () => undefined),
-  SOURCE_TAB_CODICON_URL: '/sudu/codicon.ttf',
-  SOURCE_TAB_MONO_FAMILY: 'JetBrains Mono',
-  SOURCE_TAB_MONO_STACK: "'JetBrains Mono', ui-monospace, monospace",
-  SOURCE_TAB_EDITOR_FONT: { family: 'JetBrains Mono', size: 12, weight: 400 },
-}));
-
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
-  loadFonts: vi.fn(async () => []),
   newEditor: vi.fn(() => ({
     setModel: vi.fn(),
     setVScrollListener: vi.fn(),
@@ -32,7 +23,7 @@ vi.mock('@sudu-ide/code-review', () => ({
     getMaxVScrollPos: () => 0,
     getNumLines: () => 10,
     getFontSize: () => 12,
-    getFontFamily: () => 'JetBrains Mono',
+    getFontFamily: () => 'monospace',
     getVScrollPos: () => 0,
     setVScrollPos: vi.fn(),
   })),

@@ -8,7 +8,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Inputs
 
-**model** (`SourceCorrelationModel`) drives both panes, file select, navigate-by options, and correlation maps. Optional **locale**, **suduWorkerUrl** (default `/sudu/worker.js`), **suduCodiconUrl**.
+**model** (`SourceCorrelationModel`) drives both panes, file select, navigate-by options, and correlation maps. Optional **locale** and **suduWorkerUrl** (default `/sudu/worker.js`).
 
 ## Behavior
 
@@ -20,7 +20,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Navigate / search.** Search targets the **selected pane** only. Empty search is a no-op (find buttons disabled). **Source selected:** search runs in the Sudu editor (API not wired yet — TODO; metrics table is **not** highlighted). **SASS selected:** search runs in the **Assembly** column only; matching substrings use the Compute Load Analysis chip (`pr-field-match` / [UI-43](../../../docs/context/decisions/UI.md)); find next/prev walks those hits. **Sort navigate order** (asc/desc) jumps to the first Navigate By hot line for the selected pane. Scroll-to-top / scroll-to-bottom reset both panes to the first / last line and suppress cross-pane correlation highlights until the next caret selection. Metric cells stay uncolored (sketch has no heat tint — [UI-59](../../../docs/context/questions/UI.md)).
 
-**Sudu runtime.** Worker pool and fonts are process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. Before the first editor mount, `ensureSourceTabFonts` registers **JetBrains Mono** (weights 300/400/600; real family name — never aliased as Consolas, which breaks Safari canvas TextMetrics) via `FontFace` + `document.fonts.load`, then loads codicon from `suduCodiconUrl` (default `/sudu/codicon.ttf`). The editor theme sets `editorFont` to 12px JetBrains Mono (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync stays on regardless of the Source↔SASS link toggles.
+**Sudu runtime.** The worker pool is process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. The editor theme sets `editorFont` to 12px **`monospace`** with no fallback stack and no font assets (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync stays on regardless of the Source↔SASS link toggles.
 
 ## Acceptance Criteria
 
@@ -51,6 +51,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 - **2026-10-20** — Selected pane + scoped search: Source editor TODO / SASS Assembly chips (`PR-SOURCE-008`/`018`).
 - **2026-10-20** — Column resize trades with the next column so only the dragged divider moves (`PR-SOURCE-017`).
+- **2026-10-20** — Replace JetBrains Mono with bare `monospace`; drop all bundled font assets, including codicon.
 - **2026-10-20** — Remove dim-zeros, Source shortcuts, Redo Resolve, and bottom dock (`PR-SOURCE-001`/`007`/`010`).
 - **2026-10-19** — Resizable Source / SASS metrics columns (`PR-SOURCE-017`).
 - **2026-10-19** — Rework mislabeled CSV download → scroll-to-bottom; share Link views state across panes; keep asm caret + sibling highlights when sync starts from SASS (`PR-SOURCE-005`/`009`/`012`/`016`).
