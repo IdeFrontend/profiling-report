@@ -8,8 +8,6 @@
 
 export type SuduApi = typeof import('@sudu-ide/code-review');
 export type SuduWorkerPool = Awaited<ReturnType<SuduApi['newWorkerPool']>>;
-export type SuduLangOptions = ReturnType<SuduApi['newLangOptions']>;
-export type SuduEditorView = ReturnType<SuduApi['newEditor']>;
 
 type PoolKey = string;
 
@@ -24,8 +22,7 @@ export const ASCEND_C_LANG = 'ascend-c';
 
 /**
  * Resolve Sudu API. TeaVM installs factories on `globalThis`/`self`; Vite can
- * also serve a stale prebundle that omits newer named exports (e.g.
- * `newLangOptions` in 0.0.130-alpha4) — merge both so upgrades work after
+ * also serve a stale prebundle that omits newer named exports — merge both so upgrades work after
  * `rm -rf node_modules/.vite`.
  */
 export function loadSuduApi(): Promise<SuduApi> {
@@ -55,61 +52,6 @@ export function getSuduWorkerPool(
     pools.set(key, p);
   }
   return p;
-}
-
-type LangOptionsFactory = SuduApi['newLangOptions'];
-
-function resolveNewLangOptions(api: Pick<SuduApi, 'newLangOptions'>): LangOptionsFactory | null {
-  const fromApi = api.newLangOptions;
-  if (typeof fromApi === 'function') return fromApi;
-  const g = globalThis as typeof globalThis & { newLangOptions?: LangOptionsFactory };
-  return typeof g.newLangOptions === 'function' ? g.newLangOptions : null;
-}
-
-/**
- * Ascend C LangOptions — same recipe as code-review sample `langOptions.js`:
- * `disableAll()` then `enable('ascend-c')`. Cpp must stay off: when both are
- * enabled, Model.language() forces cpp and AscendC highlighting never runs.
- *
- * Returns null when `newLangOptions` is missing (stale Vite prebundle).
- */
-export function enableAscendC(api: Pick<SuduApi, 'newLangOptions'>): SuduLangOptions | null {
-  const create = resolveNewLangOptions(api);
-  if (!create) return null;
-  const langOptions = create();
-  langOptions.disableAll();
-  langOptions.enable(ASCEND_C_LANG);
-  return langOptions;
-}
-
-/**
- * Wire LangOptions onto a single editor.
- *
- * `@sudu-ide/code-review` `newEditor` ignores `EditArgs.langOptions` (demo-edit
- * and `newCodeReview` apply it). Mirror JsCodeReview: replace the component's
- * `$getLangOptions` supplier before setModel.
- */
-export function applySuduLangOptions(
-  editor: SuduEditorView,
-  langOptions: SuduLangOptions,
-): void {
-  const java = (langOptions as { $javaLangOptions?: unknown }).$javaLangOptions;
-  if (!java) return;
-  type EditorComponent = {
-    $getLangOptions?: { $get0?: () => unknown; $_02?: { $langOptions: unknown }; $_09?: unknown };
-  };
-  const component = (editor as { $editor0?: EditorComponent }).$editor0;
-  if (!component) return;
-  // Keep Editor0 in sync when the default lambda is still attached.
-  const editor0 = component.$getLangOptions?.$_02;
-  if (editor0) editor0.$langOptions = java;
-  // Same shape as JsCodeReview$_init_$lambda$_0_1 (Supplier.get → java LangOptions).
-  component.$getLangOptions = {
-    $_09: java,
-    $get0() {
-      return java;
-    },
-  };
 }
 
 /** Optional: call once when the host supplies a codicon font URL. */

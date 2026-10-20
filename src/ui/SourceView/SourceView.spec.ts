@@ -15,16 +15,10 @@ vi.mock('./sourceFonts', () => ({
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
   loadFonts: vi.fn(async () => []),
-  newLangOptions: vi.fn(() => ({
-    disableAll: vi.fn(),
-    enable: vi.fn(),
-    disable: vi.fn(),
-    enableAll: vi.fn(),
-    isEnabled: vi.fn(() => false),
-  })),
   newEditor: vi.fn(() => ({
     setModel: vi.fn(),
     setVScrollListener: vi.fn(),
+    setVScrollVisible: vi.fn(),
     setCaretListener: vi.fn(),
     setPosition: vi.fn(),
     getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
@@ -59,15 +53,17 @@ async function latestSuduEditor() {
 describe('SourceView', () => {
   beforeEach(async () => {
     resetSuduRuntimeForTests();
-    const { newEditor, newLangOptions } = await import('@sudu-ide/code-review');
+    const { newEditor } = await import('@sudu-ide/code-review');
     vi.mocked(newEditor).mockClear();
-    vi.mocked(newLangOptions).mockClear();
   });
 
-  it('PR-SOURCE-001: renders dual panes without dock shell', () => {
+  it('PR-SOURCE-001: renders dual panes without dock shell', async () => {
     const wrapper = mount(SourceView, {
       props: { model: mockSourceCorrelation() },
     });
+    await flushPromises();
+    const { newEditor } = await import('@sudu-ide/code-review');
+    expect(vi.mocked(newEditor).mock.calls[0]?.[0]).toMatchObject({ disableParser: true });
     expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
     // Source keeps Sudu; SASS is a plain table (# · Address · Assembly · metrics).
     expect(wrapper.findAll('[data-testid="sudu-code-pane"]').length).toBe(1);
@@ -82,22 +78,6 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="asm-table-pane"] [data-testid="source-metrics-head"]').exists()).toBe(
       true,
     );
-  });
-
-  it('enables Ascend C LangOptions when booting Sudu (code-review sample)', async () => {
-    mount(SourceView, { props: { model: mockSourceCorrelation() } });
-    await flushPromises();
-    const { newEditor, newLangOptions } = await import('@sudu-ide/code-review');
-    expect(newLangOptions).toHaveBeenCalled();
-    const results = vi.mocked(newLangOptions).mock.results;
-    const opts = results[results.length - 1]?.value as {
-      disableAll: ReturnType<typeof vi.fn>;
-      enable: ReturnType<typeof vi.fn>;
-    };
-    expect(opts.disableAll).toHaveBeenCalled();
-    expect(opts.enable).toHaveBeenCalledWith('ascend-c');
-    const args = vi.mocked(newEditor).mock.calls.at(-1)?.[0] as { langOptions?: unknown };
-    expect(args.langOptions).toBe(opts);
   });
 
   it('PR-SOURCE-002: mock badge visible for mock model', () => {

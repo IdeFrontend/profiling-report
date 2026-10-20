@@ -84,7 +84,10 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@sudu-ide/code-review": "0.0.130-alpha4",
+    "@sudu-ide/code-review": "0.0.132-ascendc",
     "sql.js": "^1.15.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }
