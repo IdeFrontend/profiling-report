@@ -22,8 +22,7 @@ export const ASCEND_C_LANG = 'ascend-c';
 
 /**
  * Resolve Sudu API. TeaVM installs factories on `globalThis`/`self`; Vite can
- * also serve a stale prebundle that omits newer named exports (e.g.
- * `newLangOptions` in 0.0.130-alpha4) — merge both so upgrades work after
+ * also serve a stale prebundle that omits newer named exports — merge both so upgrades work after
  * `rm -rf node_modules/.vite`.
  */
 export function loadSuduApi(): Promise<SuduApi> {

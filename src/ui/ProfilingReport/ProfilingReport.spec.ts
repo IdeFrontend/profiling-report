@@ -26,13 +26,6 @@ vi.mock('../SourceView/sourceFonts', () => ({
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
   loadFonts: vi.fn(async () => []),
-  newLangOptions: vi.fn(() => ({
-    disableAll: vi.fn(),
-    enable: vi.fn(),
-    disable: vi.fn(),
-    enableAll: vi.fn(),
-    isEnabled: vi.fn(() => false),
-  })),
   newEditor: vi.fn(() => ({
     setModel: vi.fn(),
     setVScrollListener: vi.fn(),

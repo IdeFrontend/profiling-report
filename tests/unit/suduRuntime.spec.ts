@@ -13,13 +13,6 @@ vi.mock('@sudu-ide/code-review', () => {
     loadFonts: vi.fn(async () => []),
     newEditor: vi.fn(),
     newTextModel: vi.fn(),
-    newLangOptions: vi.fn(() => ({
-      disableAll: vi.fn(),
-      enable: vi.fn(),
-      disable: vi.fn(),
-      enableAll: vi.fn(),
-      isEnabled: vi.fn(() => false),
-    })),
   };
 });
 
