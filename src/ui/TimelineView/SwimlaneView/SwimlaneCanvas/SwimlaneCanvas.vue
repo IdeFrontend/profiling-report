@@ -1169,9 +1169,18 @@ watch(
   () => props.view,
   () => {
     const y = props.view.scrollY;
-    // Ease / ensure-visible / live marquee own localScrollY. A delayed parent clone
-    // (settle lag, selection deep-watch) must not snap to a stale scrollY.
-    if (laneScrollEasing || scrollRaf || marqueePressActive || cancelEnsureScrollAnim) return;
+    // Ease / ensure-visible / live marquee / overlay thumb drag own localScrollY.
+    // A delayed parent clone (settle lag, selection deep-watch) must not snap to a
+    // stale scrollY.
+    if (
+      laneScrollEasing ||
+      scrollRaf ||
+      marqueePressActive ||
+      cancelEnsureScrollAnim ||
+      overlayScrollActive
+    ) {
+      return;
+    }
     localScrollY = y;
     scrollTargetY = y;
     localStartTime = props.view.startTime;
@@ -1204,7 +1213,7 @@ watch(
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY, () => props.contentTopPad],
   () => {
-    if (laneScrollEasing || scrollRaf) return;
+    if (laneScrollEasing || scrollRaf || overlayScrollActive) return;
     // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
     if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();

@@ -1063,17 +1063,13 @@ defineExpose({
         </div>
       </div>
 
-      <!-- Above Card strips (z-index 10); interactive only while --visible. -->
+      <!-- Above Card strips (z-index 9), below measure edge marks (10–11); pointer-only. -->
       <div
         v-if="scrollbarThumb"
         class="pr-body-scrollbar"
         :class="{ 'pr-body-scrollbar--visible': scrollbarVisible }"
         data-testid="body-scrollbar"
-        role="scrollbar"
-        :aria-valuenow="Math.round(liveScrollY)"
-        :aria-valuemin="0"
-        :aria-valuemax="Math.round(maxBodyScrollY())"
-        aria-orientation="vertical"
+        aria-hidden="true"
         @pointerdown="onScrollbarPointerDown"
         @pointermove="onScrollbarPointerMove"
         @pointerup="onScrollbarPointerUp"
@@ -1236,7 +1232,7 @@ defineExpose({
   right: 0;
   bottom: 0;
   width: 8px;
-  z-index: 10;
+  z-index: 9;
   pointer-events: none;
   opacity: 0;
   transition: opacity 500ms ease;

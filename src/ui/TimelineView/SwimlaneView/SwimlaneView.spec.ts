@@ -2508,7 +2508,7 @@ describe('SwimlaneView', () => {
 
   it('PR-SWIMVIEW-039: overlay scrollbar paints above Card strips', async () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-body-scrollbar\s*\{[^}]*z-index:\s*10/s);
+    expect(src).toMatch(/\.pr-body-scrollbar\s*\{[^}]*z-index:\s*9/s);
     expect(src).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/s);
     expect(src).toMatch(/\.pr-body-scrollbar--visible\s*\{[^}]*pointer-events:\s*auto/s);
   });
