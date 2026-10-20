@@ -30,6 +30,12 @@ import {
   loadSuduApi,
   type SuduWorkerPool,
 } from './suduRuntime';
+import {
+  ensureSourceColWidths,
+  SOURCE_COL_WIDTH_MIN,
+  startSourceColResize,
+} from './sourceColumnResize';
+import { t } from '../../i18n';
 
 const props = withDefaults(
   defineProps<{
@@ -130,6 +136,67 @@ function endIgnoreCaret() {
 }
 
 const metricColumns = computed(() => props.file.metricsColumns);
+const metricColIds = computed(() => metricColumns.value.map((c) => c.id));
+
+const metricColWidths = ref<Record<string, number>>(
+  ensureSourceColWidths(metricColIds.value),
+);
+
+watch(
+  metricColIds,
+  (ids) => {
+    metricColWidths.value = ensureSourceColWidths(ids, metricColWidths.value);
+  },
+  { deep: true },
+);
+
+function metricColStyle(colId: string): { width: string; minWidth: string } {
+  const ids = metricColIds.value;
+  const total = ids.reduce((sum, id) => sum + (metricColWidths.value[id] ?? 100), 0) || 1;
+  const px = metricColWidths.value[colId] ?? 100;
+  // Shares of preferred px — keeps the 20px header inside the pane (no H-scrollbar).
+  return {
+    width: `${(px / total) * 100}%`,
+    minWidth: `${SOURCE_COL_WIDTH_MIN}px`,
+  };
+}
+
+let metricResizeSession: ReturnType<typeof startSourceColResize> | null = null;
+
+function onMetricColResizeDown(colId: string, e: PointerEvent) {
+  if (e.button !== 0) return;
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  metricResizeSession = startSourceColResize({
+    startClientX: e.clientX,
+    startWidth: metricColWidths.value[colId] ?? 100,
+    onChange: (w) => {
+      metricColWidths.value = { ...metricColWidths.value, [colId]: w };
+    },
+  });
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function onMetricColResizeMove(e: PointerEvent) {
+  metricResizeSession?.move(e.clientX);
+}
+
+function onMetricColResizeUp() {
+  metricResizeSession?.end();
+  metricResizeSession = null;
+}
+
+const metricsTableRef = ref<InstanceType<typeof SourceMetricsTable> | null>(null);
+const headerColsEl = ref<HTMLElement | null>(null);
+
+function onMetricsScrollLeft(left: number) {
+  if (headerColsEl.value) headerColsEl.value.scrollLeft = left;
+}
+
+function onHeaderColsScroll() {
+  const left = headerColsEl.value?.scrollLeft ?? 0;
+  metricsTableRef.value?.setScrollLeft(left);
+}
 
 const paneStyle = computed(() => ({
   '--pr-editor-ratio': String(props.editorRatio ?? 0.45),
@@ -404,6 +471,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true;
   endIgnoreCaret();
+  metricResizeSession?.end();
+  metricResizeSession = null;
   tableScrollEl.value?.removeEventListener('scroll', onTableScroll);
   editor?.setVScrollListener(null);
   editor?.setCaretListener(null);
@@ -461,13 +530,19 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
         </table>
       </div>
       <div class="pr-sudu-pane__hsplit" />
-      <div class="pr-sudu-pane__hcols">
+      <div
+        ref="headerColsEl"
+        class="pr-sudu-pane__hcols"
+        data-testid="sudu-metrics-header-cols"
+        @scroll="onHeaderColsScroll"
+      >
         <table class="pr-sudu-pane__head-table">
           <colgroup>
             <col
               v-for="col in metricColumns"
               :key="col.id"
               :class="`pr-src-metrics__col--${col.id}`"
+              :style="metricColStyle(col.id)"
             >
           </colgroup>
           <thead>
@@ -476,9 +551,21 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
                 v-for="col in metricColumns"
                 :key="col.id"
                 :title="col.label"
+                class="pr-sudu-pane__metric-th"
                 :class="{ 'pr-sudu-pane__th-left': col.id === 'address' }"
               >
-                {{ col.label }}
+                <span class="pr-sudu-pane__th-label">{{ col.label }}</span>
+                <span
+                  class="pr-sudu-pane__col-resize"
+                  data-testid="source-col-resize"
+                  :data-col="col.id"
+                  role="separator"
+                  :aria-label="t('sourceResizeColumn')"
+                  @pointerdown="onMetricColResizeDown(col.id, $event)"
+                  @pointermove="onMetricColResizeMove"
+                  @pointerup="onMetricColResizeUp"
+                  @pointercancel="onMetricColResizeUp"
+                />
               </th>
             </tr>
           </thead>
@@ -520,6 +607,7 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
       <div class="pr-sudu-pane__splitter" />
       <div class="pr-sudu-pane__table">
         <SourceMetricsTable
+          ref="metricsTableRef"
           :file="file"
           :current-line="currentLine ?? null"
           :correlated-lines="correlatedLines"
@@ -530,6 +618,8 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
           :font-family="fontFamily"
           :font-size-css="fontSizeCss"
           :show-header="false"
+          v-model:column-widths="metricColWidths"
+          @scroll-left="onMetricsScrollLeft"
           @row-click="onRowClick"
         />
       </div>
@@ -596,12 +686,22 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
 }
 
 .pr-sudu-pane__hcols {
+  /* 20px title row — hide overflow; body scrollLeft is mirrored in JS. */
   overflow: hidden;
-  scrollbar-gutter: stable;
 }
 
 /* Shared header chrome with SASS `# · Address · …` row (same face / grey). */
-.pr-sudu-pane__source-head,
+.pr-sudu-pane__source-head {
+  width: 100%;
+  height: var(--pr-src-row-h);
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-family: var(--pr-src-font-family);
+  font-size: var(--pr-src-font-size);
+  line-height: var(--pr-src-row-h);
+  background: #2a2a2a;
+}
+
 .pr-sudu-pane__head-table {
   width: 100%;
   height: var(--pr-src-row-h);
@@ -627,6 +727,53 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
   text-overflow: ellipsis;
   height: var(--pr-src-row-h);
   background: #2a2a2a;
+}
+
+.pr-sudu-pane__metric-th {
+  position: relative;
+}
+
+.pr-sudu-pane__th-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 6px;
+}
+
+.pr-sudu-pane__col-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  z-index: 2;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Always-visible drag rail so the hit target isn't invisible until hover. */
+.pr-sudu-pane__col-resize::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: #555555;
+  pointer-events: none;
+}
+
+.pr-sudu-pane__col-resize:hover,
+.pr-sudu-pane__col-resize:active {
+  background: rgba(48, 120, 240, 0.2);
+}
+
+.pr-sudu-pane__col-resize:hover::before,
+.pr-sudu-pane__col-resize:active::before {
+  background: #3078f0;
+  width: 2px;
 }
 
 .pr-sudu-pane__col-line {
@@ -686,20 +833,4 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
   white-space: pre;
 }
 
-/*
- * Metrics-strip widths (header table sits outside SourceMetricsTable).
- * v930-source: the three metric headers read as similar weight, with Warp Occupancy
- * wide enough for the hatch bar (not the narrow leftover from label-start math).
- */
-:deep(.pr-src-metrics__col--instructionsExecuted) {
-  width: 28%;
-}
-
-:deep(.pr-src-metrics__col--samplingStall) {
-  width: 28%;
-}
-
-:deep(.pr-src-metrics__col--warpOccupancy) {
-  width: 44%;
-}
 </style>

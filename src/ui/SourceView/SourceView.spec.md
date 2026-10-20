@@ -12,7 +12,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Behavior
 
-**Layout.** Chrome matches [`v930-source/source-correlation`](../../../docs/ui/source/v930-source/source-correlation.jpeg): **first control bar** (Left/Right View, Search, action icons) sits on the **same row as the secondary tabs** via Teleport into ReportToolbar’s `source-chrome-host` (no extra margin/padding on that bar). Icons: find next/prev (thin chevrons), scroll-to-top / scroll-to-bottom, **two** navigate-sort buttons (asc + desc), dim-zeros, help; pane **Link views** uses interlocking chain links (**one shared on/off** for both panes). Per-pane bar: Source select, link-sync, **independent** Navigate By, **Redo Resolve** on the source side. Dual panes below: Source | SASS. **Source** is Sudu + metrics. **SASS** is table-only — `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy (capsule: hatch background, solid used fill, `%` at the right end). Dock: Inline Functions / Source Markers / Statistics ([UI-58](../../../docs/context/questions/UI.md)).
+**Layout.** Chrome matches [`v930-source/source-correlation`](../../../docs/ui/source/v930-source/source-correlation.jpeg): **first control bar** (Left/Right View, Search, action icons) sits on the **same row as the secondary tabs** via Teleport into ReportToolbar’s `source-chrome-host` (no extra margin/padding on that bar). Icons: find next/prev (thin chevrons), scroll-to-top / scroll-to-bottom, **two** navigate-sort buttons (asc + desc), dim-zeros, help; pane **Link views** uses interlocking chain links (**one shared on/off** for both panes). Per-pane bar: Source select, link-sync, **independent** Navigate By, **Redo Resolve** on the source side. Dual panes below: Source | SASS. **Source** is Sudu + metrics. **SASS** is table-only — `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy (capsule: hatch background, solid used fill, `%` at the right end). Metrics / SASS column headers are **user-resizable** (drag the column edge; Source metrics header stays aligned with the body). Dock: Inline Functions / Source Markers / Statistics ([UI-58](../../../docs/context/questions/UI.md)).
 
 **Correlation.** Selecting a source line highlights mapped asm rows and moves the asm caret to the first mapped instruction when Link views is on; selecting an asm line jumps back via `asmToSource` and highlights the full mapped asm sibling set. Programmatic Sudu caret echoes from an asm-driven `setLine` must not re-drive the asm pane (would snap to `mapped[0]`). Both Link views buttons toggle the same state. **Redo Resolve** re-applies mapping from the current (or first hot) source line ([UI-57](../../../docs/context/questions/UI.md)).
 
@@ -38,6 +38,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 14. **PR-SOURCE-014** — After an asm row click, a Sudu caret echo for the mapped source line does not snap the asm current row to `mapped[0]`.
 15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file).
 16. **PR-SOURCE-016** — Scroll-to-bottom moves both carets to the last lines and suppresses correlated highlights until the next selection.
+17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles (`source-col-resize`); dragging changes that column’s width.
 
 ## Design sketches
 
@@ -45,6 +46,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-19** — Resizable Source / SASS metrics columns (`PR-SOURCE-017`).
 - **2026-10-19** — Rework mislabeled CSV download → scroll-to-bottom; share Link views state across panes; keep asm caret + sibling highlights when sync starts from SASS (`PR-SOURCE-005`/`009`/`012`/`016`).
 - **2026-10-14** — File switch clears caret + correlation (`PR-SOURCE-015`).
 - **2026-10-14** — Find next/prev no-op when search empty; sort buttons jump to first Navigate By hot line.

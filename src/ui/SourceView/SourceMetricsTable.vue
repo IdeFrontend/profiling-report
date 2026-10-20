@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { SourceFileModel, SourceStallBreakdown } from '../../domain/types';
+import { t } from '../../i18n';
 import { SOURCE_TAB_MONO_STACK } from './sourceFonts';
+import {
+  ensureSourceColWidths,
+  SOURCE_COL_WIDTH_MIN,
+  startSourceColResize,
+} from './sourceColumnResize';
 
 const props = withDefaults(
   defineProps<{
@@ -26,6 +32,12 @@ const props = withDefaults(
     showHeader?: boolean;
     /** Leading `#` column (SASS table-only pane; Sudu owns line numbers on Source). */
     showLineNumbers?: boolean;
+    /**
+     * Controlled column widths (px). When omitted the table keeps its own map
+     * (Asm pane). Sudu pane passes a shared map so the external header stays aligned.
+     */
+    columnWidths?: Record<string, number> | null;
+    locale?: string;
   }>(),
   {
     correlatedLines: () => [],
@@ -36,11 +48,16 @@ const props = withDefaults(
     fontSizeCss: undefined,
     showHeader: true,
     showLineNumbers: false,
+    columnWidths: null,
+    locale: undefined,
   },
 );
 
 const emit = defineEmits<{
   'row-click': [line: number];
+  'update:columnWidths': [widths: Record<string, number>];
+  /** Horizontal scroll of the body — Sudu external header mirrors this. */
+  'scroll-left': [left: number];
 }>();
 
 const tip = ref<{
@@ -87,6 +104,97 @@ const matchSet = computed(() => new Set(props.matchLines ?? []));
  * (no Sudu); optional leading `#` via `showLineNumbers`.
  */
 const columns = computed(() => props.file.metricsColumns);
+
+const widthKeys = computed(() => {
+  const ids = columns.value.map((c) => c.id);
+  return props.showLineNumbers ? ['line', ...ids] : ids;
+});
+
+const localWidths = ref<Record<string, number>>(
+  ensureSourceColWidths(widthKeys.value),
+);
+
+watch(
+  widthKeys,
+  (keys) => {
+    localWidths.value = ensureSourceColWidths(keys, localWidths.value);
+  },
+  { deep: true },
+);
+
+const widths = computed(() =>
+  ensureSourceColWidths(widthKeys.value, props.columnWidths ?? localWidths.value),
+);
+
+/**
+ * Render preferred px as a share of the total so `table-layout: fixed` +
+ * `width: 100%` stays inside the pane (absolute px sums expand the table and
+ * spawn a horizontal scrollbar that ate the 20px header titles).
+ */
+function colStyle(colId: string): { width: string; minWidth: string } {
+  const keys = widthKeys.value;
+  const total = keys.reduce((sum, id) => sum + (widths.value[id] ?? 100), 0) || 1;
+  const px = widths.value[colId] ?? 100;
+  return {
+    width: `${(px / total) * 100}%`,
+    minWidth: `${SOURCE_COL_WIDTH_MIN}px`,
+  };
+}
+
+function setColWidth(colId: string, px: number) {
+  const next = { ...widths.value, [colId]: px };
+  if (props.columnWidths != null) {
+    emit('update:columnWidths', next);
+  } else {
+    localWidths.value = next;
+  }
+}
+
+let resizeSession: ReturnType<typeof startSourceColResize> | null = null;
+
+function onResizePointerDown(colId: string, e: PointerEvent) {
+  if (e.button !== 0) return;
+  const el = e.currentTarget as HTMLElement;
+  el.setPointerCapture?.(e.pointerId);
+  resizeSession = startSourceColResize({
+    startClientX: e.clientX,
+    startWidth: widths.value[colId] ?? 100,
+    onChange: (w) => setColWidth(colId, w),
+  });
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function onResizePointerMove(e: PointerEvent) {
+  resizeSession?.move(e.clientX);
+}
+
+function onResizePointerUp() {
+  resizeSession?.end();
+  resizeSession = null;
+}
+
+onBeforeUnmount(() => {
+  resizeSession?.end();
+  resizeSession = null;
+});
+
+const headEl = ref<HTMLElement | null>(null);
+const scrollEl = ref<HTMLElement | null>(null);
+
+function onBodyScroll() {
+  const left = scrollEl.value?.scrollLeft ?? 0;
+  if (headEl.value && headEl.value.scrollLeft !== left) headEl.value.scrollLeft = left;
+  emit('scroll-left', left);
+}
+
+/** Parent (Sudu header) can mirror horizontal scroll into the body. */
+function setScrollLeft(left: number) {
+  if (scrollEl.value) scrollEl.value.scrollLeft = left;
+  if (headEl.value) headEl.value.scrollLeft = left;
+}
+
+defineExpose({ setScrollLeft });
 
 function isTextCol(col: { id: string; kind: string }): boolean {
   return col.kind === 'text' || col.id === 'address' || col.id === 'assembly';
@@ -170,6 +278,7 @@ const styleVars = computed(() => {
   >
     <div
       v-if="showHeader"
+      ref="headEl"
       class="pr-src-metrics__head"
       data-testid="source-metrics-head"
     >
@@ -178,11 +287,13 @@ const styleVars = computed(() => {
           <col
             v-if="showLineNumbers"
             class="pr-src-metrics__col--line"
+            :style="colStyle('line')"
           >
           <col
             v-for="col in columns"
             :key="col.id"
             :class="`pr-src-metrics__col--${col.id}`"
+            :style="colStyle(col.id)"
           >
         </colgroup>
         <thead>
@@ -192,7 +303,18 @@ const styleVars = computed(() => {
               class="pr-src-metrics__line-th"
               title="#"
             >
-              #
+              <span class="pr-src-metrics__th-label">#</span>
+              <span
+                class="pr-src-metrics__col-resize"
+                data-testid="source-col-resize"
+                data-col="line"
+                role="separator"
+                :aria-label="t('sourceResizeColumn', locale)"
+                @pointerdown="onResizePointerDown('line', $event)"
+                @pointermove="onResizePointerMove"
+                @pointerup="onResizePointerUp"
+                @pointercancel="onResizePointerUp"
+              />
             </th>
             <th
               v-for="col in columns"
@@ -200,26 +322,41 @@ const styleVars = computed(() => {
               :title="col.label"
               :class="{ 'pr-src-metrics__left': isTextCol(col) }"
             >
-              {{ col.label }}
+              <span class="pr-src-metrics__th-label">{{ col.label }}</span>
+              <span
+                class="pr-src-metrics__col-resize"
+                data-testid="source-col-resize"
+                :data-col="col.id"
+                role="separator"
+                :aria-label="t('sourceResizeColumn', locale)"
+                @pointerdown="onResizePointerDown(col.id, $event)"
+                @pointermove="onResizePointerMove"
+                @pointerup="onResizePointerUp"
+                @pointercancel="onResizePointerUp"
+              />
             </th>
           </tr>
         </thead>
       </table>
     </div>
     <div
+      ref="scrollEl"
       class="pr-src-metrics__scroll"
       data-testid="source-metrics-scroll"
+      @scroll="onBodyScroll"
     >
       <table class="pr-src-metrics__table">
         <colgroup>
           <col
             v-if="showLineNumbers"
             class="pr-src-metrics__col--line"
+            :style="colStyle('line')"
           >
           <col
             v-for="col in columns"
             :key="col.id"
             :class="`pr-src-metrics__col--${col.id}`"
+            :style="colStyle(col.id)"
           >
         </colgroup>
         <tbody>
@@ -358,38 +495,37 @@ const styleVars = computed(() => {
 
 .pr-src-metrics__head {
   flex: 0 0 auto;
+  /* Titles live in a ~20px row — never show a scrollbar here; body drives scrollLeft. */
   overflow: hidden;
   border-bottom: 1px solid #333333;
   background: #2a2a2a;
-  scrollbar-gutter: stable;
 }
 
 .pr-src-metrics__scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: scroll;
-  overflow-x: hidden;
+  overflow-x: auto;
   scrollbar-gutter: stable;
 }
 
-.pr-src-metrics__scroll::-webkit-scrollbar,
-.pr-src-metrics__head::-webkit-scrollbar {
+.pr-src-metrics__scroll::-webkit-scrollbar {
   width: 12px;
+  height: 12px;
 }
 
-.pr-src-metrics__scroll::-webkit-scrollbar-track,
-.pr-src-metrics__head::-webkit-scrollbar-track {
+.pr-src-metrics__scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.pr-src-metrics__scroll::-webkit-scrollbar-thumb,
-.pr-src-metrics__head::-webkit-scrollbar-thumb {
+.pr-src-metrics__scroll::-webkit-scrollbar-thumb {
   background-color: rgb(107 106 107 / 50.2%);
   border: 1px solid transparent;
   background-clip: padding-box;
 }
 
 .pr-src-metrics__table {
+  /* Fill the pane; preferred col widths share space (table-layout: fixed). */
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
@@ -412,6 +548,7 @@ const styleVars = computed(() => {
 }
 
 .pr-src-metrics__table th {
+  position: relative;
   color: #b3b3b3;
   /* v930-source: metric headers and values are left-aligned (not spreadsheet-right). */
   text-align: left;
@@ -425,36 +562,50 @@ const styleVars = computed(() => {
   background: #2a2a2a;
 }
 
-/*
- * SASS full-table widths from v930-source header label starts:
- * # ~4.5% · Address ~6–10% · Assembly ~20%+ · Instr / Stall / Occ share the rest.
- * Address keeps a rem floor so hex stays readable at playground widths.
- * Source metrics-only panes ignore line/address/assembly (Sudu overrides the three metrics).
- */
-.pr-src-metrics__col--line {
-  width: 4.5%;
+.pr-src-metrics__th-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 6px;
 }
 
-.pr-src-metrics__col--address {
-  width: 10%;
-  min-width: 9rem;
+.pr-src-metrics__col-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  z-index: 2;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
 }
 
-.pr-src-metrics__col--assembly {
-  width: 40%;
+/* Always-visible drag rail so the hit target isn't invisible until hover. */
+.pr-src-metrics__col-resize::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: #555555;
+  pointer-events: none;
 }
 
-.pr-src-metrics__col--instructionsExecuted {
-  width: 14%;
+.pr-src-metrics__col-resize:hover,
+.pr-src-metrics__col-resize:active {
+  background: rgba(48, 120, 240, 0.2);
 }
 
-.pr-src-metrics__col--samplingStall {
-  width: 14%;
+.pr-src-metrics__col-resize:hover::before,
+.pr-src-metrics__col-resize:active::before {
+  background: #3078f0;
+  width: 2px;
 }
 
-.pr-src-metrics__col--warpOccupancy {
-  width: 16%;
-}
+/* Widths come from inline col styles (resizable); classes remain for targeting. */
 
 .pr-src-metrics__left {
   text-align: left !important;
