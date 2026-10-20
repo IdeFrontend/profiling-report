@@ -45,8 +45,20 @@
  */
 .pr-root {
   color-scheme: dark;
-  scrollbar-width: thin;
-  scrollbar-color: #5a5a5a transparent;
+}
+
+/*
+* Chromium only lets either the standard `scrollbar-*` properties *or* the
+* `::-webkit-scrollbar-*` pseudo elements below apply. `scrollbar-color`
+* inherits, so a non-auto value anywhere above an element makes the UA drop the
+* whole custom ruleset for it and paint its default chrome instead: a wide bar
+* whose track carries step buttons — the arrow squares the sketch has none of.
+* Auto here, on the root, keeps that inheritance out of the subtree (a host page
+* that sets `scrollbar-color` on `:root` would otherwise leak in).
+*/
+.pr-root {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
 }
 
 .pr-root ::-webkit-scrollbar {
@@ -73,6 +85,20 @@
 
 .pr-root ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/*
+* A few surfaces below size their own bars (`SourceMetricsTable`) or hide them
+* outright (the aside's tab strips, `LaneGutter`) with the standard properties;
+* those do not inherit from the root, so this is their base — the sibling of the
+* pseudo elements above, never both on one element (see the root block).
+*/
+
+/** Chromium in custom mode also paints the track's step buttons; collapse them. */
+.pr-root ::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .pr-root[data-theme='light'] {
