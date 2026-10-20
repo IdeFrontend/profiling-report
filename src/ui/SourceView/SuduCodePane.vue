@@ -107,11 +107,6 @@ let pendingLine: number | null = null;
 let ignoreCaret = false;
 let ignoreCaretFallback: ReturnType<typeof setTimeout> | null = null;
 
-/** Prefer ascend-c when LangOptions are wired; otherwise cpp so lexer still colors. */
-function suduModelLanguage(language: string | undefined): string {
-  return !language ? 'text' : language;
-}
-
 function beginIgnoreCaret() {
   ignoreCaret = true;
   if (ignoreCaretFallback != null) clearTimeout(ignoreCaretFallback);
@@ -244,7 +239,7 @@ async function boot() {
     model = api.newTextModel(
       pool,
       props.file.text,
-      suduModelLanguage(props.file.language),
+      props.file.language,
       { path: props.file.path },
     );
     editor.setModel(model);
@@ -416,7 +411,7 @@ watch(
     model = api.newTextModel(
       pool,
       file.text,
-      suduModelLanguage(file.language),
+      file.language,
       { path: file.path },
     );
     editor.setModel(model);
