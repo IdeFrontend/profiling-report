@@ -754,6 +754,7 @@ onBeforeUnmount(() => {
 }
 
 .pr-source-view__search {
+  position: relative;
   display: inline-flex;
   align-items: center;
   margin-left: 4px;
@@ -801,8 +802,20 @@ onBeforeUnmount(() => {
   color: #808080;
 }
 
+.pr-source-view__search-field input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* Room for the clear × when a query is present. */
+.pr-source-view__search:has(.pr-source-view__search-clear) input {
+  padding-right: 24px;
+}
+
 .pr-source-view__search-clear {
-  margin-left: 4px;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 22px;
   height: 22px;
   border: none;
