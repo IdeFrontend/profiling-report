@@ -5,8 +5,9 @@ import { t } from '../../i18n';
 import { SOURCE_TAB_MONO_STACK } from './sourceFonts';
 import {
   ensureSourceColWidths,
+  sourceColCanResize,
   SOURCE_COL_WIDTH_MIN,
-  startSourceColResize,
+  startSourceColBoundaryResize,
 } from './sourceColumnResize';
 
 const props = withDefaults(
@@ -127,9 +128,8 @@ const widths = computed(() =>
 );
 
 /**
- * Render preferred px as a share of the total so `table-layout: fixed` +
- * `width: 100%` stays inside the pane (absolute px sums expand the table and
- * spawn a horizontal scrollbar that ate the 20px header titles).
+ * Preferred px as a share of the total. Boundary drag trades width between
+ * neighbors so the total (and every other divider) stays put.
  */
 function colStyle(colId: string): { width: string; minWidth: string } {
   const keys = widthKeys.value;
@@ -141,8 +141,7 @@ function colStyle(colId: string): { width: string; minWidth: string } {
   };
 }
 
-function setColWidth(colId: string, px: number) {
-  const next = { ...widths.value, [colId]: px };
+function setWidths(next: Record<string, number>) {
   if (props.columnWidths != null) {
     emit('update:columnWidths', next);
   } else {
@@ -150,16 +149,19 @@ function setColWidth(colId: string, px: number) {
   }
 }
 
-let resizeSession: ReturnType<typeof startSourceColResize> | null = null;
+let resizeSession: ReturnType<typeof startSourceColBoundaryResize> | null = null;
 
 function onResizePointerDown(colId: string, e: PointerEvent) {
   if (e.button !== 0) return;
+  if (!sourceColCanResize(widthKeys.value, colId)) return;
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture?.(e.pointerId);
-  resizeSession = startSourceColResize({
+  resizeSession = startSourceColBoundaryResize({
     startClientX: e.clientX,
-    startWidth: widths.value[colId] ?? 100,
-    onChange: (w) => setColWidth(colId, w),
+    leftId: colId,
+    ids: widthKeys.value,
+    startWidths: widths.value,
+    onChange: setWidths,
   });
   e.preventDefault();
   e.stopPropagation();
@@ -305,6 +307,7 @@ const styleVars = computed(() => {
             >
               <span class="pr-src-metrics__th-label">#</span>
               <span
+                v-if="sourceColCanResize(widthKeys, 'line')"
                 class="pr-src-metrics__col-resize"
                 data-testid="source-col-resize"
                 data-col="line"
@@ -324,6 +327,7 @@ const styleVars = computed(() => {
             >
               <span class="pr-src-metrics__th-label">{{ col.label }}</span>
               <span
+                v-if="sourceColCanResize(widthKeys, col.id)"
                 class="pr-src-metrics__col-resize"
                 data-testid="source-col-resize"
                 :data-col="col.id"

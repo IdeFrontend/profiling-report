@@ -421,22 +421,30 @@ describe('SourceView', () => {
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
   });
 
-  it('PR-SOURCE-017: column resize handles drag to change SASS column width', async () => {
+  it('PR-SOURCE-017: column resize trades with the next col; other cols stay put', async () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     const asmHead = wrapper.find('[data-testid="asm-table-pane"] [data-testid="source-metrics-head"]');
     const handle = asmHead.find('[data-testid="source-col-resize"][data-col="assembly"]');
     expect(handle.exists()).toBe(true);
-    const col = asmHead.find('col.pr-src-metrics__col--assembly');
-    // Widths render as % of preferred-px total so the table fits the pane.
+    // Last column has no right neighbor — no handle.
+    expect(asmHead.find('[data-testid="source-col-resize"][data-col="warpOccupancy"]').exists()).toBe(
+      false,
+    );
     const pct = (el: { attributes: (n: string) => string | undefined }) =>
       Number.parseFloat((el.attributes('style') ?? '').match(/width:\s*([\d.]+)%/)?.[1] ?? '0');
-    const before = pct(col);
-    expect(before).toBeGreaterThan(0);
+    const assembly = asmHead.find('col.pr-src-metrics__col--assembly');
+    const instr = asmHead.find('col.pr-src-metrics__col--instructionsExecuted');
+    const stall = asmHead.find('col.pr-src-metrics__col--samplingStall');
+    const beforeAsm = pct(assembly);
+    const beforeInstr = pct(instr);
+    const beforeStall = pct(stall);
     await handle.trigger('pointerdown', { button: 0, clientX: 100, pointerId: 1 });
     await handle.trigger('pointermove', { clientX: 160, pointerId: 1 });
     await handle.trigger('pointerup', { pointerId: 1 });
     await wrapper.vm.$nextTick();
-    // assembly default 280 → 340; its share of the total must rise.
-    expect(pct(col)).toBeGreaterThan(before);
+    // Boundary assembly|instructionsExecuted moved; stall (further right) unchanged.
+    expect(pct(assembly)).toBeGreaterThan(beforeAsm);
+    expect(pct(instr)).toBeLessThan(beforeInstr);
+    expect(pct(stall)).toBeCloseTo(beforeStall, 5);
   });
 });

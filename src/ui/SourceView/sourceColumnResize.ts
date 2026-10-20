@@ -1,4 +1,4 @@
-import { clampPanelWidth, startHorizontalResize } from '../panelResize';
+import { clampPanelWidth, type HorizontalResizeSession } from '../panelResize';
 
 /** Default Source / SASS metrics column widths (px). */
 export const SOURCE_COL_WIDTH_DEFAULT: Record<string, number> = {
@@ -41,21 +41,69 @@ export function sourceColWidthsTotal(widths: Record<string, number>, ids: readon
   return ids.reduce((sum, id) => sum + (widths[id] ?? defaultSourceColWidth(id)), 0);
 }
 
+/** True when `colId` has a following column to trade width with. */
+export function sourceColCanResize(ids: readonly string[], colId: string): boolean {
+  const i = ids.indexOf(colId);
+  return i >= 0 && ids[i + 1] != null;
+}
+
 /**
- * Pointer-drag resize for one column. Returns the session so the caller can
- * forward pointermove / pointerup (same pattern as aside resize).
+ * Move the boundary between `leftId` and the next column by `deltaPx` (positive =
+ * grow left / shrink right). Total width is unchanged, so only that divider moves.
+ * No-op when `leftId` is the last column (no right neighbor to trade with).
  */
-export function startSourceColResize(opts: {
+export function applySourceColBoundaryDelta(
+  widths: Record<string, number>,
+  ids: readonly string[],
+  leftId: string,
+  deltaPx: number,
+): Record<string, number> {
+  const i = ids.indexOf(leftId);
+  const rightId = i >= 0 ? ids[i + 1] : undefined;
+  if (i < 0 || rightId == null || !Number.isFinite(deltaPx) || deltaPx === 0) {
+    return widths;
+  }
+
+  const left0 = widths[leftId] ?? defaultSourceColWidth(leftId);
+  const right0 = widths[rightId] ?? defaultSourceColWidth(rightId);
+
+  // left' = left0 + d, right' = right0 - d — clamp so both stay in [MIN, MAX].
+  let d = deltaPx;
+  d = Math.max(SOURCE_COL_WIDTH_MIN - left0, Math.min(SOURCE_COL_WIDTH_MAX - left0, d));
+  d = Math.max(right0 - SOURCE_COL_WIDTH_MAX, Math.min(right0 - SOURCE_COL_WIDTH_MIN, d));
+  d = Math.round(d);
+  if (d === 0) return widths;
+
+  return {
+    ...widths,
+    [leftId]: left0 + d,
+    [rightId]: right0 - d,
+  };
+}
+
+/**
+ * Pointer-drag on the right edge of `leftId`. Trades width with the next column
+ * so only that shared line moves. Returns null when there is no next column.
+ */
+export function startSourceColBoundaryResize(opts: {
   startClientX: number;
-  startWidth: number;
-  onChange: (width: number) => void;
-}): ReturnType<typeof startHorizontalResize> {
-  return startHorizontalResize({
-    startClientX: opts.startClientX,
-    startWidth: opts.startWidth,
-    min: SOURCE_COL_WIDTH_MIN,
-    max: SOURCE_COL_WIDTH_MAX,
-    direction: 1,
-    onChange: opts.onChange,
-  });
+  leftId: string;
+  ids: readonly string[];
+  startWidths: Record<string, number>;
+  onChange: (widths: Record<string, number>) => void;
+}): HorizontalResizeSession | null {
+  if (!sourceColCanResize(opts.ids, opts.leftId)) return null;
+
+  const start = ensureSourceColWidths(opts.ids, opts.startWidths);
+  return {
+    move(clientX: number) {
+      const delta = clientX - opts.startClientX;
+      const next = applySourceColBoundaryDelta(start, opts.ids, opts.leftId, delta);
+      opts.onChange(next);
+      return next[opts.leftId] ?? start[opts.leftId] ?? 0;
+    },
+    end() {
+      /* caller clears capture */
+    },
+  };
 }

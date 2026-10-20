@@ -38,7 +38,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 14. **PR-SOURCE-014** — After an asm row click, a Sudu caret echo for the mapped source line does not snap the asm current row to `mapped[0]`.
 15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file).
 16. **PR-SOURCE-016** — Scroll-to-bottom moves both carets to the last lines and suppresses correlated highlights until the next selection.
-17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles (`source-col-resize`); dragging changes that column’s width.
+17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles on every column except the last (`source-col-resize`); dragging trades width with the next column so only that divider moves.
 
 ## Design sketches
 
@@ -46,6 +46,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-20** — Column resize trades with the next column so only the dragged divider moves (`PR-SOURCE-017`).
 - **2026-10-20** — Remove dim-zeros, Source shortcuts, Redo Resolve, and bottom dock (`PR-SOURCE-001`/`007`/`010`).
 - **2026-10-19** — Resizable Source / SASS metrics columns (`PR-SOURCE-017`).
 - **2026-10-19** — Rework mislabeled CSV download → scroll-to-bottom; share Link views state across panes; keep asm caret + sibling highlights when sync starts from SASS (`PR-SOURCE-005`/`009`/`012`/`016`).

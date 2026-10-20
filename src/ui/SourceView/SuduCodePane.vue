@@ -32,8 +32,9 @@ import {
 } from './suduRuntime';
 import {
   ensureSourceColWidths,
+  sourceColCanResize,
   SOURCE_COL_WIDTH_MIN,
-  startSourceColResize,
+  startSourceColBoundaryResize,
 } from './sourceColumnResize';
 import { t } from '../../i18n';
 
@@ -154,23 +155,26 @@ function metricColStyle(colId: string): { width: string; minWidth: string } {
   const ids = metricColIds.value;
   const total = ids.reduce((sum, id) => sum + (metricColWidths.value[id] ?? 100), 0) || 1;
   const px = metricColWidths.value[colId] ?? 100;
-  // Shares of preferred px — keeps the 20px header inside the pane (no H-scrollbar).
+  // Shares of preferred px — boundary drag keeps the total fixed so other lines stay put.
   return {
     width: `${(px / total) * 100}%`,
     minWidth: `${SOURCE_COL_WIDTH_MIN}px`,
   };
 }
 
-let metricResizeSession: ReturnType<typeof startSourceColResize> | null = null;
+let metricResizeSession: ReturnType<typeof startSourceColBoundaryResize> | null = null;
 
 function onMetricColResizeDown(colId: string, e: PointerEvent) {
   if (e.button !== 0) return;
+  if (!sourceColCanResize(metricColIds.value, colId)) return;
   (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  metricResizeSession = startSourceColResize({
+  metricResizeSession = startSourceColBoundaryResize({
     startClientX: e.clientX,
-    startWidth: metricColWidths.value[colId] ?? 100,
-    onChange: (w) => {
-      metricColWidths.value = { ...metricColWidths.value, [colId]: w };
+    leftId: colId,
+    ids: metricColIds.value,
+    startWidths: metricColWidths.value,
+    onChange: (next) => {
+      metricColWidths.value = next;
     },
   });
   e.preventDefault();
@@ -556,6 +560,7 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
               >
                 <span class="pr-sudu-pane__th-label">{{ col.label }}</span>
                 <span
+                  v-if="sourceColCanResize(metricColIds, col.id)"
                   class="pr-sudu-pane__col-resize"
                   data-testid="source-col-resize"
                   :data-col="col.id"
