@@ -35,6 +35,8 @@ const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
 
 const hovered = ref<RooflinePoint | null>(null);
+/** Experimental: legend hover → emphasize that series' roof on the plot. */
+const legendHoverId = ref<string | null>(null);
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
 
@@ -79,6 +81,26 @@ const legendColCount = computed(() =>
 const legendGridStyle = computed(() => ({
   gridTemplateColumns: `28px repeat(${legendColCount.value}, max-content)`,
 }));
+
+/** Paint highlighted roof last so it sits above siblings. */
+const roofDrawOrder = computed(() => {
+  const list = [...seriesList.value];
+  const id = legendHoverId.value;
+  if (!id) return list;
+  const i = list.findIndex((s) => s.id === id);
+  if (i < 0) return list;
+  const [hit] = list.splice(i, 1);
+  list.push(hit!);
+  return list;
+});
+
+function roofHighlightClass(id: string): Record<string, boolean> {
+  const hover = legendHoverId.value;
+  return {
+    'pr-roofline__roof-g--lit': hover === id,
+    'pr-roofline__roof-g--dim': hover != null && hover !== id,
+  };
+}
 
 /** Log domain from points + roofs. */
 const domains = computed(() => {
@@ -245,6 +267,11 @@ const tooltipText = computed(() => {
               v-for="s in aivSeries"
               :key="s.id"
               class="pr-roofline__leg-item"
+              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+              data-testid="roofline-leg-item"
+              :data-series-id="s.id"
+              @mouseenter="legendHoverId = s.id"
+              @mouseleave="legendHoverId = null"
             >
               <span
                 class="pr-roofline__leg-swatch"
@@ -265,6 +292,11 @@ const tooltipText = computed(() => {
               v-for="s in aicSeries"
               :key="s.id"
               class="pr-roofline__leg-item"
+              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+              data-testid="roofline-leg-item"
+              :data-series-id="s.id"
+              @mouseenter="legendHoverId = s.id"
+              @mouseleave="legendHoverId = null"
             >
               <span
                 class="pr-roofline__leg-swatch"
@@ -370,9 +402,12 @@ const tooltipText = computed(() => {
             fill="url(#pr-roofline-area)"
           />
           <g
-            v-for="s in seriesList"
+            v-for="s in roofDrawOrder"
             :key="s.id"
+            class="pr-roofline__roof-g"
+            :class="roofHighlightClass(s.id)"
             data-testid="roofline-roof"
+            :data-series-id="s.id"
           >
             <path
               class="pr-roofline__roof"
@@ -409,9 +444,12 @@ const tooltipText = computed(() => {
             />
           </g>
           <circle
-            v-for="s in seriesList"
+            v-for="s in roofDrawOrder"
             :key="`knee-${s.id}`"
             data-testid="roofline-knee"
+            class="pr-roofline__knee"
+            :class="roofHighlightClass(s.id)"
+            :data-series-id="s.id"
             :cx="roofSegments(s).ridgeX"
             :cy="roofSegments(s).ridgeY"
             r="3.5"
@@ -548,6 +586,11 @@ const tooltipText = computed(() => {
   gap: 4px;
   color: #8a8a8a;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.pr-roofline__leg-item--lit {
+  color: #d0d0d0;
 }
 
 .pr-roofline__leg-pad {
@@ -591,10 +634,32 @@ const tooltipText = computed(() => {
   stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
+  transition: stroke-width 80ms ease, opacity 80ms ease;
 }
 
 .pr-roofline__roof--dashed {
   stroke-dasharray: 4 3;
+}
+
+/* Experimental: legend hover dims other roofs and thickens the match. */
+.pr-roofline__roof-g--dim {
+  opacity: 0.28;
+}
+
+.pr-roofline__roof-g--lit .pr-roofline__roof {
+  stroke-width: 3.25;
+}
+
+.pr-roofline__knee {
+  transition: opacity 80ms ease, stroke-width 80ms ease;
+}
+
+.pr-roofline__knee.pr-roofline__roof-g--dim {
+  opacity: 0.28;
+}
+
+.pr-roofline__knee.pr-roofline__roof-g--lit {
+  stroke-width: 2.5;
 }
 
 .pr-roofline__point {

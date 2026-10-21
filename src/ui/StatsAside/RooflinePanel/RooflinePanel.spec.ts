@@ -204,6 +204,46 @@ describe('RooflinePanel', () => {
     expect(wrapper.findAll('.pr-roofline__leg-pad')).toHaveLength(1);
   });
 
+  it('experimental: legend hover highlights the matching roof', async () => {
+    const multi: RooflineViewModel = {
+      ...sample,
+      series: [
+        {
+          id: 'aiv-fp16',
+          group: 'aiv',
+          label: 'AIV fp16',
+          color: '#8C78F0',
+          peakComputeTops: 10,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'solid',
+        },
+        {
+          id: 'aic-fp32',
+          group: 'aic',
+          label: 'AIC fp32',
+          color: '#B4E04A',
+          peakComputeTops: 20,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'solid',
+        },
+      ],
+    };
+    const wrapper = mount(RooflinePanel, { props: { model: multi } });
+    const leg = wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]');
+    await leg.trigger('mouseenter');
+    const roofs = wrapper.findAll('[data-testid="roofline-roof"]');
+    const lit = roofs.find((r) => r.classes().includes('pr-roofline__roof-g--lit'));
+    const dim = roofs.filter((r) => r.classes().includes('pr-roofline__roof-g--dim'));
+    expect(lit?.attributes('data-series-id')).toBe('aiv-fp16');
+    expect(dim).toHaveLength(1);
+    expect(dim[0]!.attributes('data-series-id')).toBe('aic-fp32');
+    // Highlighted series is painted last (on top).
+    expect(roofs[roofs.length - 1]!.attributes('data-series-id')).toBe('aiv-fp16');
+    await leg.trigger('mouseleave');
+    expect(wrapper.find('.pr-roofline__roof-g--lit').exists()).toBe(false);
+    expect(wrapper.find('.pr-roofline__roof-g--dim').exists()).toBe(false);
+  });
+
   it('PR-ROOF-004: hover point shows tooltip inside card without layout jump', async () => {
     const wrapper = mount(RooflinePanel, { props: { model: sample } });
     const card = wrapper.get('.pr-roofline__card');
