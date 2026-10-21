@@ -52,7 +52,7 @@ Under [decisions/interim/](decisions/interim/) until Product/data spec completes
 | Phase | Intent |
 |-------|--------|
 | **MVP** | Narrow viewer: timeline shell + swimlane + core stats/PIPE + basic interactions (see [FEATURE_MATRIX.md](../ui/FEATURE_MATRIX.md)) |
-| **Phase 2+** | Remaining sketch features remain **in product scope**: product-final hardware inventory, memory topology SVG, dependency graph, multiselect, source/details/cache tabs, roofline tabs/L2 beyond DATA-37*, etc. |
+| **Phase 2+** | Remaining sketch features remain **in product scope**: product-final hardware inventory, memory topology SVG, dependency graph, multiselect, roofline tabs/L2 beyond DATA-37*, etc. Tab chrome follows [UI-37](decisions/UI.md): Timeline active, Source disabled, Details and Cache omitted, no tab surfaces this phase. |
 
 ## Design references
 
