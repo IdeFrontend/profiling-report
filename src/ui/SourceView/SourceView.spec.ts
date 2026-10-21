@@ -694,4 +694,33 @@ describe('SourceView', () => {
     expect(wrapper.get('[data-testid="source-view"]').attributes('data-pane-bars')).toBe('one');
     wrapper.unmount();
   });
+
+  it('PR-SOURCE-023: left pane hides columns until the editor geometry is ready', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    const original = vi.mocked(newEditor).getMockImplementation();
+    let editorHeight = 0;
+    vi.mocked(newEditor).mockImplementationOnce(() => {
+      const ed = original?.() ?? {};
+      return { ...ed, getEditorHeight: () => editorHeight };
+    });
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    await flushPromises();
+    const pane = wrapper.get('[data-testid="sudu-code-pane"]');
+    expect(pane.classes()).toContain('pr-sudu-pane--loading');
+    expect(pane.attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-testid="sudu-loading"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="sudu-metrics-header-row"]').exists()).toBe(true);
+    expect(pane.find('.pr-sudu-pane__stage').exists()).toBe(true);
+
+    editorHeight = 200;
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    await wrapper.vm.$nextTick();
+    expect(pane.classes()).not.toContain('pr-sudu-pane--loading');
+    expect(wrapper.find('[data-testid="sudu-loading"]').exists()).toBe(false);
+    expect(pane.attributes('aria-busy')).toBe('false');
+    expect(wrapper.find('[data-testid="sudu-editor-host"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="source-metrics"]')[0]!.find('tr[data-line="1"]').exists()).toBe(true);
+    if (original) vi.mocked(newEditor).mockImplementation(original);
+    wrapper.unmount();
+  });
 });
