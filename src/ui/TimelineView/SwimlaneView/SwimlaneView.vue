@@ -491,6 +491,15 @@ const scrollbarThumb = computed(() => {
   return { height: thumbH, top: track * (y / maxY) };
 });
 
+// v-if unmounts the overlay when overflow ends; clear visible + timer so a later
+// remount cannot flash `--visible` without a new scroll-y (PR-SWIMVIEW-042).
+watch(scrollbarThumb, (thumb) => {
+  if (thumb != null) return;
+  scrollbarVisible.value = false;
+  clearScrollbarHideTimer();
+  scrollbarDrag = null;
+});
+
 function clearScrollbarHideTimer(): void {
   if (!scrollbarHideTimer) return;
   clearTimeout(scrollbarHideTimer);
@@ -1074,6 +1083,7 @@ defineExpose({
         @pointermove="onScrollbarPointerMove"
         @pointerup="onScrollbarPointerUp"
         @pointercancel="onScrollbarPointerUp"
+        @wheel.prevent="onStripWheel"
       >
         <div
           class="pr-body-scrollbar__thumb"

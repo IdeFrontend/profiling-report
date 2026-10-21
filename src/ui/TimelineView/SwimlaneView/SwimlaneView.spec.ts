@@ -2615,4 +2615,63 @@ describe('SwimlaneView', () => {
     expect(settled!.at(-1)![0] as number).toBeGreaterThan(10);
     wrapper.unmount();
   });
+
+  it('PR-SWIMVIEW-042: clearing overflow resets scrollbar visibility before remount', async () => {
+    const tallLanes = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      color: '#f00',
+      utilization: 0.5,
+    }));
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [{ id: 'card0', name: 'Card0', lanes: tallLanes }],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: tallLanes.map((l) => ({ id: l.id, name: l.name, events: [] })),
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const body = wrapper.get('[data-testid="swim-body"]').element as HTMLElement;
+    Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
+
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 40);
+    await nextTick();
+    expect(wrapper.get('[data-testid="body-scrollbar"]').classes()).toContain(
+      'pr-body-scrollbar--visible',
+    );
+
+    // Collapse removes overflow → thumb null → unmount; visibility must clear.
+    await wrapper.setProps({ collapsedIds: ['card0'] });
+    await nextTick();
+    expect(wrapper.find('[data-testid="body-scrollbar"]').exists()).toBe(false);
+
+    // Remount without a new scroll-y must not flash --visible (PR-SWIMVIEW-037).
+    await wrapper.setProps({ collapsedIds: [] });
+    await nextTick();
+    expect(wrapper.find('[data-testid="body-scrollbar"]').exists()).toBe(true);
+    expect(wrapper.find('.pr-body-scrollbar--visible').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-SWIMVIEW-043: visible scrollbar strip forwards wheel to the body canvas', async () => {
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(
+      /data-testid="body-scrollbar"[\s\S]*?@wheel\.prevent="onStripWheel"/,
+    );
+  });
 });
