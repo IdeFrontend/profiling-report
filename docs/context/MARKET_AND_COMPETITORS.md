@@ -57,7 +57,7 @@ NVIDIA does **not** ship an Ascend `.npu-rep` viewer. The relationship is **inte
 | SM / warp occupancy & pipeline util | PIPE occupancy bars; lane gutter util (Cube / Vector / MTE / …) |
 | Memory workload chart | `Memory*.csv` + memory topology (P2) |
 | Roofline | `ArithmeticUtilization` + `RooflinePanel` (P2) |
-| Source ↔ SASS / instruction mix | Insight Source on `.bin`; secondary tabs S9 (P2) — not MVP for `.npu-rep` |
+| Source ↔ SASS / instruction mix | Insight Source on `.bin`. Report chrome does not map source ([UI-37](decisions/UI.md)); S9 is the MVP tab strip, not instruction mix |
 | Guided rules / expert tips | Not in scope for v1 library |
 | Nsight Systems multi-lane timeline | Swimlane from embedded Chrome Trace; PyPTO-like interactions |
 | `ncu` / `nsys` CLI + proprietary reports | CANN / msprof-style producers + `.npu-rep` container; MSTT opens file |
