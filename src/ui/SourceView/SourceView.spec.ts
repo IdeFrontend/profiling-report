@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
+import { t } from '../../i18n';
 import SourceView from './SourceView.vue';
 import { resetSuduRuntimeForTests } from './suduRuntime';
 
@@ -773,7 +774,11 @@ describe('SourceView', () => {
     await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmCurrent()).toBe(asmInstr[0]!.line);
-    expect(wrapper.find('[data-testid="source-sort-asc"]').classes()).toContain('pr-source-view__icon-btn--on');
+    // Action buttons — never stay in the selected/pressed chrome.
+    expect(wrapper.find('[data-testid="source-sort-asc"]').classes()).not.toContain(
+      'pr-source-view__icon-btn--on',
+    );
+    expect(wrapper.find('[data-testid="source-sort-asc"]').attributes('aria-pressed')).toBeUndefined();
 
     await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
     await wrapper.vm.$nextTick();
@@ -786,7 +791,16 @@ describe('SourceView', () => {
     await wrapper.find('[data-testid="source-sort-desc"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmCurrent()).toBe(descNext);
-    expect(wrapper.find('[data-testid="source-sort-desc"]').classes()).toContain('pr-source-view__icon-btn--on');
+    expect(wrapper.find('[data-testid="source-sort-desc"]').classes()).not.toContain(
+      'pr-source-view__icon-btn--on',
+    );
+    expect(wrapper.find('[data-testid="source-sort-desc"]').attributes('aria-pressed')).toBeUndefined();
+    expect(wrapper.find('[data-testid="source-sort-asc"]').attributes('aria-label')).toBe(
+      t('sourceSortAsc'),
+    );
+    expect(wrapper.find('[data-testid="source-sort-desc"]').attributes('aria-label')).toBe(
+      t('sourceSortDesc'),
+    );
 
     // Last desc line wraps to the highest.
     await asmTable.find(`tr[data-line="${asmDesc[asmDesc.length - 1]!.line}"]`).trigger('click');

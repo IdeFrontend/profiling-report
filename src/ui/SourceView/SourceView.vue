@@ -497,9 +497,7 @@ onBeforeUnmount(() => {
             type="button"
             class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-sort-asc"
-            :class="{ 'pr-source-view__icon-btn--on': !sortDesc }"
-            :aria-label="t('sourceSortMetric', locale)"
-            :aria-pressed="!sortDesc"
+            :aria-label="t('sourceSortAsc', locale)"
             @click="setNavigateSort(false)"
           >
             <PrIcon name="sort-asc" />
@@ -508,9 +506,7 @@ onBeforeUnmount(() => {
             type="button"
             class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-sort-desc"
-            :class="{ 'pr-source-view__icon-btn--on': sortDesc }"
-            :aria-label="t('sourceSortMetric', locale)"
-            :aria-pressed="sortDesc"
+            :aria-label="t('sourceSortDesc', locale)"
             @click="setNavigateSort(true)"
           >
             <PrIcon name="sort-desc" />
