@@ -89,7 +89,6 @@ function onSourceFileChange(fileId: string) {
   selectedFileId.value = fileId;
   sourceLine.value = null;
   asmLine.value = null;
-  searchQuery.value = '';
   correlationSuppressed.value = false;
 }
 

@@ -467,6 +467,10 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
 
+    const search = wrapper.get('[data-testid="source-search"]');
+    await search.setValue('FFMA');
+    await wrapper.vm.$nextTick();
+
     const fileSelect = wrapper.find('[data-testid="source-file-select"]');
     await fileSelect.trigger('click');
     const otherOpt = document.querySelector(
@@ -478,6 +482,7 @@ describe('SourceView', () => {
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    expect((search.element as HTMLInputElement).value).toBe('FFMA');
   });
 
   it('PR-SOURCE-017: column resize trades with the next col; other cols stay put', async () => {

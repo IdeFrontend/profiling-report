@@ -42,7 +42,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 12. **PR-SOURCE-012** — Scroll-to-top clears correlated row highlights while both carets sit at line 1; a later row click restores correlation. Scroll-to-bottom likewise suppresses correlation at the last lines.
 13. **PR-SOURCE-013** — SASS pane renders `asm-table-pane` (no Sudu) with column order `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy.
 14. **PR-SOURCE-014** — After an asm row click, Sudu caret echoes for the mapped source line do not snap the asm current row to `mapped[0]` or steal pane selection (no timer gate — absorb + same-group stay).
-15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file).
+15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file). The shared search query is kept.
 16. **PR-SOURCE-016** — Scroll-to-bottom moves both carets to the last lines and suppresses correlated highlights until the next selection.
 17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles on every column except the last (`source-col-resize`); dragging trades width with the next column so only that divider moves.
 18. **PR-SOURCE-018** — Exactly one pane is selected (`source-pane-source` / `source-pane-asm`); Source is default; pane click switches; clicks outside panes keep the selection; selected pane has accent border class `pr-source-view__pane--selected`; unselected pane border is transparent (no muted blue frame).
