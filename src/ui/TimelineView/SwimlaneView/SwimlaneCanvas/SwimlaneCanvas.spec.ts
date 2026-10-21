@@ -4078,7 +4078,8 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-115: folded cards above a fully-visible selection do not ensure-scroll on dock grow', async () => {
+  // Fixture collapses a folder lane (not a Card/process header); same fold-shift math either way.
+  it('PR-CANVAS-115: collapsed folder above a fully-visible selection does not ensure-scroll on dock grow', async () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frames.push(cb);
@@ -4088,6 +4089,7 @@ describe('SwimlaneCanvas', () => {
     let now = 0;
     vi.spyOn(performance, 'now').mockImplementation(() => now);
 
+    const gestureStartH = 200;
     const collapsedLeafCount = 10;
     const closedHeight = collapsedLeafCount * LANE_HEIGHT;
     const children = Array.from({ length: collapsedLeafCount }, (_, i) => ({
@@ -4130,9 +4132,16 @@ describe('SwimlaneCanvas', () => {
       attachTo: document.body,
     });
     const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
-    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    const box = {
+      left: 0,
+      top: 100,
+      width: 400,
+      height: gestureStartH,
+      right: 400,
+      bottom: 100 + gestureStartH,
+    };
     Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
-    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: gestureStartH, configurable: true });
     Object.defineProperty(wrap, 'getBoundingClientRect', {
       configurable: true,
       value: () => ({ ...box }),
@@ -4155,6 +4164,8 @@ describe('SwimlaneCanvas', () => {
     const shrinkH = visualBottom + 20;
     expect(visualBottom).toBeLessThan(shrinkH);
     expect(layoutEv!.y + LANE_HEIGHT).toBeGreaterThan(shrinkH);
+    // Arms post-commit ensure (settled wrap shorter than gesture-start height).
+    expect(shrinkH).toBeLessThan(gestureStartH);
 
     const rect = vm.eventScreenRect('e1')!;
     expect(rect).toBeTruthy();
