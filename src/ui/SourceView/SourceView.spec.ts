@@ -723,4 +723,88 @@ describe('SourceView', () => {
     if (original) vi.mocked(newEditor).mockImplementation(original);
     wrapper.unmount();
   });
+
+  it('PR-SOURCE-024: asc/desc step the selected pane by its Navigate By metric', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
+    await flushPromises();
+
+    function ordered(file: { lines: { line: number; values: Record<string, number | string | null> }[] }, col: string, desc: boolean) {
+      const rows = file.lines
+        .filter((l) => {
+          const v = l.values[col];
+          return typeof v === 'number' ? v !== 0 : v != null && v !== '';
+        })
+        .map((l) => ({
+          line: l.line,
+          value: typeof l.values[col] === 'number' ? l.values[col] : 0,
+        }));
+      rows.sort((a, b) => {
+        if (a.value !== b.value) return desc ? b.value - a.value : a.value - b.value;
+        return desc ? b.line - a.line : a.line - b.line;
+      });
+      return rows;
+    }
+
+    const asmInstr = ordered(model.assembly, 'instructionsExecuted', false);
+    const asmStall = ordered(model.assembly, 'samplingStall', false);
+    expect(asmInstr[0]!.line).not.toBe(asmStall[0]!.line);
+
+    await wrapper.find('[data-testid="source-link-asm"]').trigger('click');
+    await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
+    // Other pane's Navigate By must not steer this walk.
+    await wrapper.get('[data-testid="source-navigate-by"]').trigger('click');
+    (document.querySelector(
+      '[data-testid="source-navigate-by-menu"] [data-value="samplingStall"]',
+    ) as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    const asmCurrent = () => {
+      const row = asmTable.find('tr.pr-src-metrics__row--current');
+      return row.exists() ? Number(row.attributes('data-line')) : null;
+    };
+
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(asmInstr[0]!.line);
+    expect(wrapper.find('[data-testid="source-sort-asc"]').classes()).toContain('pr-source-view__icon-btn--on');
+
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(asmInstr[1]!.line);
+    expect(asmInstr[1]!.value).toBeGreaterThanOrEqual(asmInstr[0]!.value);
+
+    const asmDesc = ordered(model.assembly, 'instructionsExecuted', true);
+    const from = asmCurrent()!;
+    const descNext = asmDesc[(asmDesc.findIndex((r) => r.line === from) + 1) % asmDesc.length]!.line;
+    await wrapper.find('[data-testid="source-sort-desc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(descNext);
+    expect(wrapper.find('[data-testid="source-sort-desc"]').classes()).toContain('pr-source-view__icon-btn--on');
+
+    // Last desc line wraps to the highest.
+    await asmTable.find(`tr[data-line="${asmDesc[asmDesc.length - 1]!.line}"]`).trigger('click');
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-testid="source-sort-desc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(asmDesc[0]!.line);
+
+    // Source pane uses its own Navigate By, not the asm selector.
+    await wrapper.find('[data-testid="source-pane-source"]').trigger('pointerdown');
+    await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
+    (document.querySelector(
+      '[data-testid="source-asm-navigate-by-menu"] [data-value="warpOccupancy"]',
+    ) as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    const sourceStall = ordered(model.files[0]!, 'samplingStall', false);
+    const sourceWarp = ordered(model.files[0]!, 'warpOccupancy', false);
+    expect(sourceStall[0]!.line).not.toBe(sourceWarp[0]!.line);
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    const sourceRow = sourceTable.find('tr.pr-src-metrics__row--current');
+    expect(Number(sourceRow.attributes('data-line'))).toBe(sourceStall[0]!.line);
+    wrapper.unmount();
+  });
 });

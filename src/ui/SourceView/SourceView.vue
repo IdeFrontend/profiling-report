@@ -148,16 +148,28 @@ function metricValue(file: SourceFileModel, line: number, colId: string): number
   return typeof v === 'number' ? v : 0;
 }
 
-/** Hot lines for Navigate By (non-zero metric), ordered by sort toggle. */
+/** Hot lines for Navigate By (non-zero metric), ordered by the active asc/desc toggle. */
 function hotLines(file: SourceFileModel, col: string): number[] {
+  const desc = sortDesc.value;
   const rows = file.lines
     .filter((l) => {
       const v = l.values[col];
       return typeof v === 'number' ? v !== 0 : v != null && v !== '';
     })
     .map((l) => ({ line: l.line, value: metricValue(file, l.line, col) }));
-  rows.sort((a, b) => (sortDesc.value ? b.value - a.value : a.value - b.value));
+  rows.sort((a, b) => {
+    if (a.value !== b.value) return desc ? b.value - a.value : a.value - b.value;
+    return desc ? b.line - a.line : a.line - b.line;
+  });
   return rows.map((r) => r.line);
+}
+
+/** Next hotspot in `lines`. Missing/unknown current starts at the first; the end wraps. */
+function nextHotLine(lines: number[], current: number | null): number | null {
+  if (lines.length === 0) return null;
+  const i = current == null ? -1 : lines.indexOf(current);
+  if (i < 0) return lines[0]!;
+  return lines[(i + 1) % lines.length]!;
 }
 
 function onSourceLine(line: number) {
@@ -260,20 +272,22 @@ function findStep(dir: 1 | -1) {
 }
 
 /**
- * Sort Navigate By order (asc/desc). Toggles order and jumps to the first hot
- * line in that order for the selected pane so the control is immediately useful.
+ * Step the selected pane along its Navigate By metric.
+ * Asc walks increasing values; desc walks decreasing values. The other pane's
+ * Navigate By is ignored. No caret, or a caret that is not a hotspot, starts
+ * at the first line of that order; otherwise the next line, wrapping.
  */
 function setNavigateSort(desc: boolean) {
   sortDesc.value = desc;
   if (selectedPane.value === 'asm') {
-    const hot = hotLines(props.model.assembly, asmNavigateBy.value);
-    if (hot[0] != null) jumpAsm(hot[0]);
+    const next = nextHotLine(hotLines(props.model.assembly, asmNavigateBy.value), asmLine.value);
+    if (next != null) jumpAsm(next);
     return;
   }
   const file = sourceFile.value;
   if (!file) return;
-  const hot = hotLines(file, sourceNavigateBy.value);
-  if (hot[0] != null) jumpSource(hot[0]);
+  const next = nextHotLine(hotLines(file, sourceNavigateBy.value), sourceLine.value);
+  if (next != null) jumpSource(next);
 }
 
 function scrollTop() {
