@@ -705,9 +705,9 @@ describe('SourceView', () => {
     const { newEditor } = await import('@sudu-ide/code-review');
     const original = vi.mocked(newEditor).getMockImplementation();
     let editorHeight = 0;
-    vi.mocked(newEditor).mockImplementationOnce(() => {
-      const ed = original?.() ?? {};
-      return { ...ed, getEditorHeight: () => editorHeight };
+    vi.mocked(newEditor).mockImplementationOnce((args) => {
+      const ed = (original?.(args) ?? {}) as unknown as Record<string, unknown>;
+      return { ...ed, getEditorHeight: () => editorHeight } as ReturnType<typeof newEditor>;
     });
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     await flushPromises();
