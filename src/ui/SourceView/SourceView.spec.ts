@@ -44,6 +44,20 @@ vi.mock('@sudu-ide/code-review', () => ({
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
 }));
 
+async function pickNavigate(
+  wrapper: { get: (sel: string) => { trigger: (ev: string) => Promise<void> }; vm: { $nextTick: () => Promise<void> } },
+  testId: string,
+  value: string,
+) {
+  await wrapper.get(`[data-testid="${testId}"]`).trigger('click');
+  const item = document.querySelector(
+    `[data-testid="${testId}-menu"] [data-value="${value}"]`,
+  ) as HTMLElement | null;
+  expect(item).not.toBeNull();
+  item!.click();
+  await wrapper.vm.$nextTick();
+}
+
 async function latestSuduEditor() {
   const { newEditor } = await import('@sudu-ide/code-review');
   const results = vi.mocked(newEditor).mock.results;
@@ -333,19 +347,49 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-dock-stats"]').exists()).toBe(false);
   });
 
-  it('PR-SOURCE-011: asm Navigate By is enabled and independent', async () => {
+  it('PR-SOURCE-011: linked Navigate By selects a shared metric on both panes', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
-    const asmNav = wrapper.find('[data-testid="source-asm-navigate-by"]');
+    const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
+    const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
     expect(asmNav.attributes('disabled')).toBeUndefined();
-    await asmNav.trigger('click');
-    const stall = document.querySelector(
-      '[data-testid="source-asm-navigate-by-menu"] [data-value="samplingStall"]',
-    ) as HTMLElement;
-    stall.click();
-    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="source-link-asm"]').attributes('aria-pressed')).toBe('true');
+
+    await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
     expect(asmNav.text()).toContain('Sampling Stall');
-    expect(wrapper.find('[data-testid="source-navigate-by"]').text()).toContain('Instructions Executed');
+    expect(sourceNav.text()).toContain('Sampling Stall');
+
+    await pickNavigate(wrapper, 'source-navigate-by', 'warpOccupancy');
+    expect(sourceNav.text()).toContain('Warp Occupancy');
+    expect(asmNav.text()).toContain('Warp Occupancy');
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-025: Navigate By stays put when unlinked or the metric is missing', async () => {
+    const model = mockSourceCorrelation();
+    model.assembly = {
+      ...model.assembly,
+      metricsColumns: model.assembly.metricsColumns.filter((c) => c.id !== 'warpOccupancy'),
+    };
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
+    const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
+    const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
+
+    await wrapper.get('[data-testid="source-link-source"]').trigger('click');
+    await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
+    expect(asmNav.text()).toContain('Sampling Stall');
+    expect(sourceNav.text()).toContain('Instructions Executed');
+
+    await wrapper.get('[data-testid="source-link-source"]').trigger('click');
+    await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
+    expect(
+      document.querySelector('[data-testid="source-asm-navigate-by-menu"] [data-value="warpOccupancy"]'),
+    ).toBeNull();
+    await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
+
+    await pickNavigate(wrapper, 'source-navigate-by', 'warpOccupancy');
+    expect(sourceNav.text()).toContain('Warp Occupancy');
+    expect(asmNav.text()).toContain('Sampling Stall');
     wrapper.unmount();
   });
 

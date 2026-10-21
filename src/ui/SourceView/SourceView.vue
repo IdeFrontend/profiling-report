@@ -13,6 +13,23 @@ import SuduCodePane from './SuduCodePane.vue';
 /** ReportToolbar mounts `[data-testid=source-chrome-host]` on the tab row. */
 const SOURCE_CHROME_HOST = "[data-testid='source-chrome-host']";
 
+/** Dropdown entries: `navigateBy` ids that this pane has a column for. */
+function navigateOptions(
+  navigateBy: readonly string[],
+  columns: readonly { id: string; label: string }[] | undefined,
+): { id: string; label: string }[] {
+  const byId = new Map((columns ?? []).map((c) => [c.id, c.label]));
+  return navigateBy.filter((id) => byId.has(id)).map((id) => ({ id, label: byId.get(id) ?? id }));
+}
+
+function firstListedNavigate(
+  navigateBy: readonly string[],
+  columns: readonly { id: string }[] | undefined,
+): string {
+  const present = new Set((columns ?? []).map((c) => c.id));
+  return navigateBy.find((id) => present.has(id)) ?? navigateBy[0] ?? 'instructionsExecuted';
+}
+
 const props = withDefaults(
   defineProps<{
     model: SourceCorrelationModel;
@@ -39,8 +56,12 @@ type PaneApi = {
 };
 
 const selectedFileId = ref(props.model.files[0]?.id ?? '');
-const sourceNavigateBy = ref(props.model.navigateBy[0] ?? 'instructionsExecuted');
-const asmNavigateBy = ref(props.model.navigateBy[0] ?? 'instructionsExecuted');
+const sourceNavigateBy = ref(
+  firstListedNavigate(props.model.navigateBy, props.model.files[0]?.metricsColumns),
+);
+const asmNavigateBy = ref(
+  firstListedNavigate(props.model.navigateBy, props.model.assembly.metricsColumns),
+);
 const sourceLine = ref<number | null>(null);
 const asmLine = ref<number | null>(null);
 const sourcePane = ref<PaneApi | null>(null);
@@ -75,8 +96,8 @@ watch(
   () => props.model,
   (m) => {
     selectedFileId.value = m.files[0]?.id ?? '';
-    sourceNavigateBy.value = m.navigateBy[0] ?? 'instructionsExecuted';
-    asmNavigateBy.value = m.navigateBy[0] ?? 'instructionsExecuted';
+    sourceNavigateBy.value = firstListedNavigate(m.navigateBy, m.files[0]?.metricsColumns);
+    asmNavigateBy.value = firstListedNavigate(m.navigateBy, m.assembly.metricsColumns);
     sourceLine.value = null;
     asmLine.value = null;
     searchQuery.value = '';
@@ -327,18 +348,29 @@ const asmFileOptions = computed(() => [
 ]);
 
 const sourceNavigateOptions = computed(() =>
-  props.model.navigateBy.map((id) => {
-    const col = sourceFile.value?.metricsColumns.find((c) => c.id === id);
-    return { id, label: col?.label ?? id };
-  }),
+  navigateOptions(props.model.navigateBy, sourceFile.value?.metricsColumns),
 );
 
 const asmNavigateOptions = computed(() =>
-  props.model.navigateBy.map((id) => {
-    const col = props.model.assembly.metricsColumns.find((c) => c.id === id);
-    return { id, label: col?.label ?? id };
-  }),
+  navigateOptions(props.model.navigateBy, props.model.assembly.metricsColumns),
 );
+
+/**
+ * Link views mirrors a Navigate By pick onto the other pane only when that
+ * pane's dropdown lists the same metric. A missing metric leaves the other
+ * pane alone; Link views off never mirrors.
+ */
+function setSourceNavigateBy(id: string) {
+  sourceNavigateBy.value = id;
+  if (!linkViews.value) return;
+  if (asmNavigateOptions.value.some((o) => o.id === id)) asmNavigateBy.value = id;
+}
+
+function setAsmNavigateBy(id: string) {
+  asmNavigateBy.value = id;
+  if (!linkViews.value) return;
+  if (sourceNavigateOptions.value.some((o) => o.id === id)) sourceNavigateBy.value = id;
+}
 
 /** True once ReportToolbar’s tab-row host is in the DOM (Teleport target). */
 const chromeHostReady = ref(false);
@@ -580,7 +612,7 @@ onBeforeUnmount(() => {
               :model-value="sourceNavigateBy"
               :options="sourceNavigateOptions"
               test-id="source-navigate-by"
-              @update:model-value="sourceNavigateBy = $event"
+              @update:model-value="setSourceNavigateBy"
             />
           </div>
         </div>
@@ -633,7 +665,7 @@ onBeforeUnmount(() => {
               :model-value="asmNavigateBy"
               :options="asmNavigateOptions"
               test-id="source-asm-navigate-by"
-              @update:model-value="asmNavigateBy = $event"
+              @update:model-value="setAsmNavigateBy"
             />
           </div>
         </div>
