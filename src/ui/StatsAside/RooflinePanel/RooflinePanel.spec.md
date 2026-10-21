@@ -25,9 +25,10 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 3. **PR-ROOF-002** — Shows mix labels when present.
 4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix at plot top; **TOps/s** start-anchored at SVG `x=0` (same vertical line as card title / AIV / AIC); **Ops/Byte** grid-aligned; markers not clipped; SVG display width tracks the card (`width: 100%`).
 5. **PR-ROOF-003** — Empty points → no chart SVG.
-6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved so the card does not shift on hover.
+6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved under the SVG (not absolutely overlaid) so the card does not shift on hover and x-tick / Ops/Byte labels stay visible.
 7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
 8. **PR-ROOF-006** — Legend under the in-card **Roofline** title with **10px** title→legend gap; shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`.
+9. **PR-ROOF-007** — Log domains are data-driven decade floors/ceils with **no** hard X/Y cap; chip-scale formula peaks and ridges beyond the product crop (`100K` Ops/Byte / `1e5` TOps/s) still fit on-axis.
 
 ## Visual
 
@@ -39,7 +40,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 | Raised card | Uniform `#262626` for header + plot + tick gutters; `8px` radius; soft inset top highlight (no outer border) |
 | Chart title | **Roofline** `12px` / `600` / `#ffffff` (card header top-left) |
 | Plot well | `#262626` (same as card) |
-| Insets | Card pad **8px 8px 2px**; title, legend, TOps/s, and SVG share the left edge |
+| Insets | Card pad **8px 8px 6px**; title, legend, TOps/s, and SVG share the left edge |
 | Legend | **10px** below chart title; one grid `28px + repeat(n, max-content)` across AIV then AIC rows so nth swatches align; heads `#c4c4c4`, labels `#8a8a8a`, `11px`; 8×8 swatches with **2px** radius + full series labels |
 | Roof / points | `#3078f0`; roof stroke `2px`; hollow vertex markers on roof polyline |
 | Area wash | Vertical `#3078f0` under ridge: 16% → 10% @40% → 5% @75% → 0% at floor |
@@ -47,7 +48,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 | Axis / ticks | `#999999` `9px`; ticks as decimals; x ticks at `plotBottom + 16`; y ticks at tick line `+ 4`; **TOps/s** start-anchored at SVG `x=0` (hanging, bottom `12px` above plot top); **Ops/Byte** start-anchored `4px` right of plot on bottom grid line |
 | Chart SVG | Intrinsic **`440×303`** viewBox @ **480px** aside; CSS `width: 100%` |
 | Plot inset | `PAD` `{ l: 47, r: 66, t: 28, b: 39 }` — sketch `{34,48,20,28}` scaled by `440/320`; plot frame has no stroke |
-| Header→plot | Title→legend **10px**; card→SVG **6px**; tip overlays card bottom |
+| Header→plot | Title→legend **10px**; card→SVG **6px**; reserved tip band below SVG (in flow, not absolute) |
 | Grid | `#4a5568` (blue-grey; visible on `#262626` well) |
 | Markers | Data + roof vertex circles render **outside** plot clip so edge markers are not cropped |
 

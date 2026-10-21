@@ -96,9 +96,11 @@ const domains = computed(() => {
   }
   return {
     xMin: niceFloor(xs.length ? Math.min(...xs) : 1e-3, 1e-3),
-    xMax: niceCeil(xs.length ? Math.max(...xs) : 1, 1e3),
+    // Data-driven decade ceil — no sketch-sized hard cap (chip formula peaks / ridges
+    // can exceed the product crop's 100K Ops/Byte and 1e5 TOps/s).
+    xMax: niceCeil(xs.length ? Math.max(...xs) : 1),
     yMin: niceFloor(ys.length ? Math.min(...ys) : 1e-3, 1e-4),
-    yMax: niceCeil(ys.length ? Math.max(...ys) : 1, 1e5),
+    yMax: niceCeil(ys.length ? Math.max(...ys) : 1),
   };
 });
 
@@ -107,9 +109,9 @@ function niceFloor(v: number, floor: number): number {
   return Math.max(floor, 10 ** Math.floor(Math.log10(v)));
 }
 
-function niceCeil(v: number, cap: number): number {
+function niceCeil(v: number): number {
   if (!(v > 0)) return 1;
-  return Math.min(cap, 10 ** Math.ceil(Math.log10(v)));
+  return 10 ** Math.ceil(Math.log10(v));
 }
 
 function clampLog(v: number, min: number, max: number): number {
@@ -482,12 +484,11 @@ const tooltipText = computed(() => {
 /* Whole card (header + plot + tick gutters) — sketch uniform #262626.
    Title / legend / SVG share the same horizontal inset (card pad only). */
 .pr-roofline__card {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  padding: 8px 8px 2px;
+  padding: 8px 8px 6px;
   border-radius: 8px;
   background: #262626;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -620,12 +621,11 @@ const tooltipText = computed(() => {
   fill: #ffffff;
 }
 
-/* Overlay the tip on the card bottom so an empty slot does not pad the card. */
+/* Reserved band below the SVG so hover never covers x-ticks / Ops/Byte. */
 .pr-roofline__tip {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 6px;
+  flex: 0 0 auto;
+  min-height: calc(11px * 1.2);
+  padding: 0;
   font-size: 11px;
   line-height: 1.2;
   color: #d0d8e0;

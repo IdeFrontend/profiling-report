@@ -209,11 +209,40 @@ describe('RooflinePanel', () => {
     const card = wrapper.get('.pr-roofline__card');
     const tip = wrapper.get('[data-testid="roofline-tooltip"]');
     expect(card.element.contains(tip.element)).toBe(true);
+    // Tip is a reserved in-flow band under the SVG (not absolute over ticks).
+    const src = (await import('./RooflinePanel.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-roofline__tip\s*\{[^}]*min-height:\s*calc\(11px\s*\*\s*1\.2\)/s,
+    );
+    expect(src).not.toMatch(/\.pr-roofline__tip\s*\{[^}]*position:\s*absolute/s);
 
     const heightBefore = card.element.getBoundingClientRect().height;
     await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
     expect(tip.text()).toContain('Ops/Byte');
     expect(tip.text()).toContain('TOps/s');
     expect(card.element.getBoundingClientRect().height).toBe(heightBefore);
+  });
+
+  it('PR-ROOF-007: log domains have no hard X/Y cap for chip-scale roofs', () => {
+    // Ridge = peakCompute * 1000 / BW = 5e5 * 1000 / 1600 ≈ 3.125e5 → decade ceil 1e6.
+    const huge: RooflineViewModel = {
+      ...sample,
+      series: [
+        {
+          id: 'aic-int8-fp8',
+          group: 'aic',
+          label: 'AIC int8 fp8',
+          color: '#F0A020',
+          peakComputeTops: 500_000,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'dashed',
+        },
+      ],
+    };
+    const wrapper = mount(RooflinePanel, { props: { model: huge } });
+    const tickTexts = wrapper.findAll('.pr-roofline__tick').map((n) => n.text());
+    // Old caps (X 1e3 / Y 1e5) would stop at 1K / 100K and omit these.
+    expect(tickTexts).toContain('100K');
+    expect(tickTexts).toContain('1000K');
   });
 });

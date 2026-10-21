@@ -983,4 +983,58 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(model?.points[0]?.intensity).toBeCloseTo(2e7 / 1024 / 1024, 6);
     expect(rooflineFromRows([], mem)).toBeUndefined();
   });
+
+  it('PR-VM-009b: HardwareInfo Roofline JSON series + measured points', () => {
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = [
+      JSON.stringify({
+        category: 'Roofline',
+        aiv_simd_b16: { p_peak: 2.7e13, b_peak: 1600, w: 1e9, t: 1e-3, q: 1e6 },
+        aic_b8: { p_peak: 8.65e14, b_peak: 1600, w: 2e9, t: 2e-3, q: 2e6 },
+      }),
+    ].join('\n');
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    // JSON measured points win over GM when present.
+    expect(model!.points.map((p) => p.id).sort()).toEqual(['aic_b8', 'aiv_simd_b16']);
+    expect(model!.series.map((s) => s.id)).toEqual(['aiv-fp16', 'aic-int8-fp8']);
+    const aiv = model!.series.find((s) => s.id === 'aiv-fp16')!;
+    expect(aiv.peakComputeTops).toBeCloseTo(2.7e13 / 1e12, 6);
+    expect(aiv.peakBandwidthGBs).toBe(1600);
+    const aic = model!.series.find((s) => s.id === 'aic-int8-fp8')!;
+    expect(aic.peakComputeTops).toBeCloseTo(8.65e14 / 1e12, 5);
+    // intensity = w/q, performance = w/t/1e12
+    const pt = model!.points.find((p) => p.id === 'aiv_simd_b16')!;
+    expect(pt.intensity).toBeCloseTo(1e9 / 1e6, 6);
+    expect(pt.performance).toBeCloseTo(1e9 / 1e-3 / 1e12, 6);
+  });
+
+  it('PR-VM-009c: §11.8.1 formula peaks from HardwareInfo counts exceed example catalog', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    // cube=25, vector=50, 1650 MHz → int8/fp8 well above the panel's former 1e5 Y cap.
+    const int8 = peakComputeTopsFromFormula('aic-int8-fp8', 25, 50, 1650);
+    expect(int8).toBeCloseTo((25 * 8192 * 2 * 1650) / 1000, 6);
+    expect(int8).toBeGreaterThan(1e5);
+
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      ai_cube_count: 25,
+      ai_vector_count: 50,
+      ai_core_frequency_MHZ: [1650],
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(int8, 6);
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650),
+      6,
+    );
+    // Ridge intensity for int8 exceeds the former X cap of 1e3.
+    const ridge = (series['aic-int8-fp8']!.peakComputeTops * 1000) / series['aic-int8-fp8']!.peakBandwidthGBs;
+    expect(ridge).toBeGreaterThan(1e3);
+  });
 });
