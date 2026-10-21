@@ -436,15 +436,14 @@ const styleVars = computed(() => {
               </template>
             </td>
           </tr>
+          <!-- Scroll extent only: match Sudu’s trailing blank lines as empty space (no ~ / hover). -->
           <tr
-            v-for="i in fillerRows ?? 0"
-            :key="`f-${i}`"
+            v-if="(fillerRows ?? 0) > 0"
             class="pr-src-metrics__filler"
-            :style="{ height: `${rowHeightCss || 20}px` }"
+            aria-hidden="true"
+            :style="{ height: `${(fillerRows ?? 0) * (rowHeightCss || 20)}px` }"
           >
-            <td :colspan="colSpan">
-              ~
-            </td>
+            <td :colspan="colSpan" />
           </tr>
         </tbody>
       </table>
@@ -750,9 +749,14 @@ tr:hover td {
   background: #323232;
 }
 
+.pr-src-metrics__filler,
 .pr-src-metrics__filler td {
-  color: #4a4a4a;
-  text-align: center;
+  pointer-events: none;
+  cursor: default;
+}
+
+.pr-src-metrics__filler:hover td {
+  background: transparent;
 }
 
 /* Stall breakdown tip — v930-source: padded card, pill header row, hatch bars.
