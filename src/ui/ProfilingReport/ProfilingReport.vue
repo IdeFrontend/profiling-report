@@ -138,8 +138,6 @@ const props = withDefaults(defineProps<{
   environment?: 'vscode' | 'browser' | (string & {});
   /** Same-origin URL for the Sudu TeaVM worker (Source tab). */
   suduWorkerUrl?: string;
-  /** Optional codicon font URL for Sudu `loadFonts`. */
-  suduCodiconUrl?: string;
 }>(), {
   title: undefined,
   source: undefined,
@@ -158,7 +156,6 @@ const props = withDefaults(defineProps<{
   capabilities: undefined,
   environment: undefined,
   suduWorkerUrl: '/sudu/worker.js',
-  suduCodiconUrl: '/sudu/codicon.ttf',
 });
 
 const emit = defineEmits<{
@@ -1816,7 +1813,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :model="report.sourceCorrelation"
           :locale="locale"
           :sudu-worker-url="suduWorkerUrl"
-          :sudu-codicon-url="suduCodiconUrl"
           :user-guide-url="userGuideUrl"
           @open-user-guide="emit('open-user-guide', $event)"
         />

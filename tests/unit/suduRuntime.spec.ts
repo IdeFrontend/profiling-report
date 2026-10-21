@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resetSourceTabFontsForTests } from '../../src/ui/SourceView/sourceFonts';
 import {
   getSuduWorkerPool,
   loadSuduApi,
@@ -10,7 +9,6 @@ vi.mock('@sudu-ide/code-review', () => {
   const newWorkerPool = vi.fn(async () => ({ getNumThreads: () => 3 }));
   return {
     newWorkerPool,
-    loadFonts: vi.fn(async () => []),
     newEditor: vi.fn(),
     newTextModel: vi.fn(),
   };
@@ -19,7 +17,6 @@ vi.mock('@sudu-ide/code-review', () => {
 describe('suduRuntime cache', () => {
   afterEach(() => {
     resetSuduRuntimeForTests();
-    resetSourceTabFontsForTests();
     vi.clearAllMocks();
   });
 

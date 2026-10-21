@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { SourceFileModel, SourceStallBreakdown } from '../../domain/types';
 import { t } from '../../i18n';
 import { highlightParts } from '../searchHighlight';
-import { SOURCE_TAB_MONO_STACK } from './sourceFonts';
+import { SOURCE_TAB_MONO_FAMILY } from './sourceFonts';
 import {
   ensureSourceColWidths,
   sourceColCanResize,
@@ -280,9 +280,7 @@ const styleVars = computed(() => {
   const s: Record<string, string> = {};
   if (props.rowHeightCss > 0) s['--pr-src-row-h'] = `${props.rowHeightCss}px`;
   if (props.fontSizeCss && props.fontSizeCss > 0) s['--pr-src-font-size'] = `${props.fontSizeCss}px`;
-  s['--pr-src-font-family'] = props.fontFamily
-    ? `${props.fontFamily}, ${SOURCE_TAB_MONO_STACK}`
-    : SOURCE_TAB_MONO_STACK;
+  s['--pr-src-font-family'] = props.fontFamily || SOURCE_TAB_MONO_FAMILY;
   return s;
 });
 </script>
@@ -512,7 +510,7 @@ const styleVars = computed(() => {
   height: 100%;
   --pr-src-row-h: 20px;
   --pr-src-font-size: 12px;
-  --pr-src-font-family: 'JetBrains Mono', ui-monospace, monospace;
+  --pr-src-font-family: monospace;
   /* Sketch metrics plane is #1E1E1E (slightly above editor #1A1A1A). */
   --table-bg: #1e1e1e;
   background: var(--table-bg);

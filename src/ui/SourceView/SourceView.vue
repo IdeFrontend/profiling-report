@@ -6,7 +6,6 @@ import PrIcon from '../PrIcon.vue';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import AsmTablePane from './AsmTablePane.vue';
 import SuduCodePane from './SuduCodePane.vue';
-import './sourceFonts.css';
 
 /** ReportToolbar mounts `[data-testid=source-chrome-host]` on the tab row. */
 const SOURCE_CHROME_HOST = "[data-testid='source-chrome-host']";
@@ -16,13 +15,11 @@ const props = withDefaults(
     model: SourceCorrelationModel;
     locale?: string;
     suduWorkerUrl?: string;
-    suduCodiconUrl?: string;
     userGuideUrl?: string;
   }>(),
   {
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
-    suduCodiconUrl: '/sudu/codicon.ttf',
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
   },
 );
@@ -569,7 +566,6 @@ onBeforeUnmount(() => {
           class="pr-source-view__pane-body"
           :file="sourceFile"
           :worker-url="suduWorkerUrl"
-          :codicon-url="suduCodiconUrl"
           :current-line="sourceLine"
           :correlated-lines="correlatedSource"
           :editor-ratio="0.62"
@@ -663,7 +659,6 @@ onBeforeUnmount(() => {
   --pr-src-control-h: 28px;
   --pr-src-control-radius: 6px;
   --pr-src-ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --pr-src-mono-font: 'JetBrains Mono', ui-monospace, monospace;
 
   display: flex;
   flex-direction: column;

@@ -12,7 +12,6 @@ export type SuduWorkerPool = Awaited<ReturnType<SuduApi['newWorkerPool']>>;
 type PoolKey = string;
 
 const pools = new Map<PoolKey, Promise<SuduWorkerPool>>();
-let fontsPromise: Promise<FontFace[]> | null = null;
 let apiPromise: Promise<SuduApi> | null = null;
 
 export const DEFAULT_SUDU_THREADS = 3;
@@ -54,14 +53,8 @@ export function getSuduWorkerPool(
   return p;
 }
 
-/** Optional: call once when the host supplies a codicon font URL. */
-export function ensureSuduFonts(codiconUrl: string): Promise<FontFace[]> {
-  return (fontsPromise ??= loadSuduApi().then((api) => api.loadFonts(codiconUrl)));
-}
-
 /** Test helper — clears module caches (does not terminate live workers). */
 export function resetSuduRuntimeForTests(): void {
   pools.clear();
-  fontsPromise = null;
   apiPromise = null;
 }

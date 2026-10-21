@@ -18,9 +18,8 @@ import {
   type EditorGeometry,
 } from './editorTableSync';
 import {
-  ensureSourceTabFonts,
   SOURCE_TAB_EDITOR_FONT,
-  SOURCE_TAB_MONO_STACK,
+  SOURCE_TAB_MONO_FAMILY,
 } from './sourceFonts';
 import {
   getSuduWorkerPool,
@@ -39,7 +38,6 @@ const props = withDefaults(
   defineProps<{
     file: SourceFileModel;
     workerUrl: string;
-    codiconUrl?: string;
     /** Editor flex share (0–1). */
     editorRatio?: number;
     currentLine?: number | null;
@@ -50,7 +48,6 @@ const props = withDefaults(
     followScroll?: boolean;
   }>(),
   {
-    codiconUrl: undefined,
     editorRatio: 0.62,
     currentLine: null,
     correlatedLines: () => [],
@@ -196,9 +193,7 @@ const paneStyle = computed(() => ({
   '--pr-editor-ratio': String(props.editorRatio ?? 0.45),
   '--pr-src-row-h': `${rowH.value || 20}px`,
   '--pr-src-font-size': `${fontSizeCss.value || 12}px`,
-  '--pr-src-font-family': fontFamily.value
-    ? `${fontFamily.value}, ${SOURCE_TAB_MONO_STACK}`
-    : SOURCE_TAB_MONO_STACK,
+  '--pr-src-font-family': fontFamily.value || SOURCE_TAB_MONO_FAMILY,
 }));
 
 /** Lines to paint as correlated bands under the canvas (excludes current). */
@@ -215,8 +210,6 @@ function overlayTopCss(line: number): string {
 async function boot() {
   loadError.value = null;
   try {
-    await ensureSourceTabFonts(props.codiconUrl);
-    if (disposed) return;
     const api = await loadSuduApi();
     if (disposed) return;
     pool = await getSuduWorkerPool(props.workerUrl);
@@ -624,7 +617,7 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
   --pr-splitter-w: 1px;
   --pr-src-row-h: 20px;
   --pr-src-font-size: 12px;
-  --pr-src-font-family: 'JetBrains Mono', ui-monospace, monospace;
+  --pr-src-font-family: monospace;
 }
 
 /* Same flex recipe as #header-row / #panes in sudu standalone-sample. */
