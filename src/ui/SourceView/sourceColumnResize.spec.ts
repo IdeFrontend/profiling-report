@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   applySourceColBoundaryDelta,
   clampSourceColWidth,
   ensureSourceColWidths,
   sourceColCanResize,
   sourceColWidthsTotal,
+  startSourceColBoundaryResize,
   SOURCE_COL_WIDTH_MAX,
   SOURCE_COL_WIDTH_MIN,
 } from './sourceColumnResize';
@@ -50,5 +51,23 @@ describe('sourceColumnResize', () => {
     expect(applySourceColBoundaryDelta(start, ids, 'b', 40)).toBe(start);
     expect(sourceColCanResize(ids, 'a')).toBe(true);
     expect(sourceColCanResize(ids, 'b')).toBe(false);
+  });
+
+  it('scales pointer delta by preferredTotal/trackWidth so the divider tracks the mouse', () => {
+    const ids = ['a', 'b'] as const;
+    const start = { a: 200, b: 200 }; // preferred total 400
+    const onChange = vi.fn();
+    // Laid-out table is half as wide — raw 20px mouse must become 40 preferred-px.
+    const session = startSourceColBoundaryResize({
+      startClientX: 100,
+      leftId: 'a',
+      ids,
+      startWidths: start,
+      onChange,
+      trackWidthPx: 200,
+    });
+    expect(session).not.toBeNull();
+    session!.move(120);
+    expect(onChange).toHaveBeenCalledWith({ a: 240, b: 160 });
   });
 });

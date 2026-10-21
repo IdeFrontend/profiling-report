@@ -158,18 +158,41 @@ function setWidths(next: Record<string, number>) {
 
 let resizeSession: ReturnType<typeof startSourceColBoundaryResize> | null = null;
 
+function endResizeSession() {
+  if (!resizeSession) return;
+  resizeSession.end();
+  resizeSession = null;
+  window.removeEventListener('pointermove', onResizeWindowMove);
+  window.removeEventListener('pointerup', onResizeWindowUp);
+  window.removeEventListener('pointercancel', onResizeWindowUp);
+}
+
+function onResizeWindowMove(e: PointerEvent) {
+  resizeSession?.move(e.clientX);
+}
+
+function onResizeWindowUp() {
+  endResizeSession();
+}
+
 function onResizePointerDown(colId: string, e: PointerEvent) {
   if (e.button !== 0) return;
   if (!sourceColCanResize(widthKeys.value, colId)) return;
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture?.(e.pointerId);
+  const table = el.closest('table');
+  endResizeSession();
   resizeSession = startSourceColBoundaryResize({
     startClientX: e.clientX,
     leftId: colId,
     ids: widthKeys.value,
     startWidths: widths.value,
     onChange: setWidths,
+    trackWidthPx: table?.clientWidth,
   });
+  window.addEventListener('pointermove', onResizeWindowMove);
+  window.addEventListener('pointerup', onResizeWindowUp);
+  window.addEventListener('pointercancel', onResizeWindowUp);
   e.preventDefault();
   e.stopPropagation();
 }
@@ -179,13 +202,11 @@ function onResizePointerMove(e: PointerEvent) {
 }
 
 function onResizePointerUp() {
-  resizeSession?.end();
-  resizeSession = null;
+  endResizeSession();
 }
 
 onBeforeUnmount(() => {
-  resizeSession?.end();
-  resizeSession = null;
+  endResizeSession();
 });
 
 const headEl = ref<HTMLElement | null>(null);

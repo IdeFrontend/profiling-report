@@ -161,10 +161,30 @@ function metricColStyle(colId: string): { width: string; minWidth: string } {
 
 let metricResizeSession: ReturnType<typeof startSourceColBoundaryResize> | null = null;
 
+function endMetricResizeSession() {
+  if (!metricResizeSession) return;
+  metricResizeSession.end();
+  metricResizeSession = null;
+  window.removeEventListener('pointermove', onMetricResizeWindowMove);
+  window.removeEventListener('pointerup', onMetricResizeWindowUp);
+  window.removeEventListener('pointercancel', onMetricResizeWindowUp);
+}
+
+function onMetricResizeWindowMove(e: PointerEvent) {
+  metricResizeSession?.move(e.clientX);
+}
+
+function onMetricResizeWindowUp() {
+  endMetricResizeSession();
+}
+
 function onMetricColResizeDown(colId: string, e: PointerEvent) {
   if (e.button !== 0) return;
   if (!sourceColCanResize(metricColIds.value, colId)) return;
-  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  const el = e.currentTarget as HTMLElement;
+  el.setPointerCapture?.(e.pointerId);
+  const table = el.closest('table');
+  endMetricResizeSession();
   metricResizeSession = startSourceColBoundaryResize({
     startClientX: e.clientX,
     leftId: colId,
@@ -173,7 +193,11 @@ function onMetricColResizeDown(colId: string, e: PointerEvent) {
     onChange: (next) => {
       metricColWidths.value = next;
     },
+    trackWidthPx: table?.clientWidth,
   });
+  window.addEventListener('pointermove', onMetricResizeWindowMove);
+  window.addEventListener('pointerup', onMetricResizeWindowUp);
+  window.addEventListener('pointercancel', onMetricResizeWindowUp);
   e.preventDefault();
   e.stopPropagation();
 }
@@ -183,8 +207,7 @@ function onMetricColResizeMove(e: PointerEvent) {
 }
 
 function onMetricColResizeUp() {
-  metricResizeSession?.end();
-  metricResizeSession = null;
+  endMetricResizeSession();
 }
 
 const metricsTableRef = ref<InstanceType<typeof SourceMetricsTable> | null>(null);
@@ -524,8 +547,7 @@ onBeforeUnmount(() => {
   ignoreCaret = false;
   closeCopyMenu();
   detachCopyMenuListeners();
-  metricResizeSession?.end();
-  metricResizeSession = null;
+  endMetricResizeSession();
   tableScrollEl.value?.removeEventListener('scroll', onTableScroll);
   editor?.setVScrollListener(null);
   editor?.setCaretListener(null);

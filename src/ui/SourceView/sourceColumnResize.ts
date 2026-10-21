@@ -84,6 +84,11 @@ export function applySourceColBoundaryDelta(
 /**
  * Pointer-drag on the right edge of `leftId`. Trades width with the next column
  * so only that shared line moves. Returns null when there is no next column.
+ *
+ * Column layout uses preferred-px as % of the table. A raw pointer delta is in
+ * CSS px of the laid-out table, so without scaling the divider lags the mouse
+ * whenever preferredTotal ≠ trackWidthPx. Pass `trackWidthPx` (table clientWidth)
+ * to keep the boundary under the cursor 1:1.
  */
 export function startSourceColBoundaryResize(opts: {
   startClientX: number;
@@ -91,13 +96,20 @@ export function startSourceColBoundaryResize(opts: {
   ids: readonly string[];
   startWidths: Record<string, number>;
   onChange: (widths: Record<string, number>) => void;
+  /** Laid-out table width in CSS px (clientWidth). */
+  trackWidthPx?: number;
 }): HorizontalResizeSession | null {
   if (!sourceColCanResize(opts.ids, opts.leftId)) return null;
 
   const start = ensureSourceColWidths(opts.ids, opts.startWidths);
+  const preferredTotal = sourceColWidthsTotal(start, opts.ids);
+  const track =
+    opts.trackWidthPx != null && opts.trackWidthPx > 0 ? opts.trackWidthPx : preferredTotal;
+  const scale = preferredTotal / track;
+
   return {
     move(clientX: number) {
-      const delta = clientX - opts.startClientX;
+      const delta = (clientX - opts.startClientX) * scale;
       const next = applySourceColBoundaryDelta(start, opts.ids, opts.leftId, delta);
       opts.onChange(next);
       return next[opts.leftId] ?? start[opts.leftId] ?? 0;
