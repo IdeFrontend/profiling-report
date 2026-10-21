@@ -14,13 +14,13 @@ Log-log roofline bottleneck chart (npu-compute §11.8). `StatsAside` mounts it w
 
 ## Behavior
 
-Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws per-series theoretical roofs (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points (solid/hollow circles), hollow square knees, and op-mix labels. Hover on a point shows intensity + performance; legend hover (experimental) highlights that series' roof. Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).
+Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws per-series theoretical roofs (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points as circles (off the roofs), filled rounded-square knees on each ridge, and op-mix labels. Hover on a point shows intensity + performance; legend hover (experimental) highlights that series' roof. Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).
 
 Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 
 ## Acceptance Criteria
 
-1. **PR-ROOF-001** — Renders chart with at least one point, a roof path, and a hollow **rounded-square** knee marker per series (`rx=2`, same as legend swatches).
+1. **PR-ROOF-001** — Renders chart with at least one measured point, a roof path, and a **filled rounded-square** knee per series. Sketch rule (`report-stats-duration-source`): **circles** for measured points off the roofs; **filled rounded squares** (`8×8`, `rx=2`, legend-matched, series-color fill) for ridge knees on the lines. Hollow measured points fill `#262626`.
 2. **PR-ROOF-001b** — Raised chart card includes under-roof `#3078f0` gradient wash.
 3. **PR-ROOF-002** — Shows mix labels when present.
 4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix and **TOps/s** share one alphabetic baseline just above the plot; **TOps/s** start-anchored at SVG `x=0` (same vertical line as aside title / AIV / AIC); **Ops/Byte** grid-aligned; markers not clipped; SVG display width tracks the card (`width: 100%`).
@@ -51,7 +51,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 | Plot inset | `PAD` `{ l: 47, r: 66, t: 28, b: 39 }` — sketch `{34,48,20,28}` scaled by `440/320`; plot frame has no stroke |
 | Header→plot | Legend at card top; card→SVG **6px**; reserved tip band below SVG (in flow, not absolute) |
 | Grid | `#4a5568` (blue-grey; visible on `#262626` well) |
-| Markers | Measured points = filled/hollow **circles** (`r=4`, series color). Roof knees = hollow **rounded squares** (`7×7`, `rx=2` like legend swatches, fill `#262626`, series stroke). Both render **outside** plot clip so edge marks are not cropped |
+| Markers | Measured points (off roofs) = filled/hollow **circles** (`r=4`, series color). Roof knees (on ridges) = **filled rounded squares** (`8×8`, `rx=2` like legend, series-color fill+stroke). Both render **outside** plot clip so edge marks are not cropped |
 
 ## Dependencies
 

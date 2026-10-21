@@ -65,7 +65,7 @@ Code: `rooflineFromRows` / `buildRooflineViewModel` in `src/adapters/roofline.ts
 
 ### Legend (UI)
 
-At the top of the raised card (**no** duplicate in-card **Roofline** title — the aside `h4` is enough), left-aligned with **TOps/s**. One CSS grid for both rows so the nth AIV / AIC swatches share a vertical edge (e.g. AIV bp16 with AIC int32 fp32). Group heads `#c4c4c4`, series labels `#8a8a8a`. Roofs use the same series colors (`2px`; dashed series dash slope + plateau). Hollow **rounded-square** knees at each ridge (`rx=2`, same as legend swatches); measured points are series-colored circles. Legend hover (experimental) thickens that roof and dims the others.
+At the top of the raised card (**no** duplicate in-card **Roofline** title — the aside `h4` is enough), left-aligned with **TOps/s**. One CSS grid for both rows so the nth AIV / AIC swatches share a vertical edge (e.g. AIV bp16 with AIC int32 fp32). Group heads `#c4c4c4`, series labels `#8a8a8a`. Roofs use the same series colors (`2px`; dashed series dash slope + plateau). Marker shapes follow the product stats sketch: **circles** for measured points off the roofs; **filled rounded-square** knees on each ridge (`8×8`, `rx=2`, series color, same as legend). Legend hover (experimental) thickens that roof and dims the others.
 
 | Group | Series (colors) |
 | --- | --- |

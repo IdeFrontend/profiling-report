@@ -46,16 +46,18 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('[data-testid="roofline-panel"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="roofline-chart"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="roofline-roof"]').exists()).toBe(true);
-    expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(1);
+    const points = wrapper.findAll('[data-testid="roofline-point"]');
+    expect(points).toHaveLength(1);
+    // Measured points off the roofs are circles; ridge knees are filled rounded squares.
+    expect(points[0]!.element.tagName.toLowerCase()).toBe('circle');
+    expect(points[0]!.attributes('r')).toBe('4');
+    expect(points[0]!.attributes('fill')).toBe(sample.points[0]!.color);
     const knees = wrapper.findAll('[data-testid="roofline-knee"]');
     expect(knees).toHaveLength(sample.series.length);
-    // Sketch ridge marks are hollow rounded squares (legend swatch radius), not circles.
     expect(knees[0]!.element.tagName.toLowerCase()).toBe('rect');
-    expect(knees[0]!.attributes('width')).toBe('7');
-    expect(knees[0]!.attributes('height')).toBe('7');
+    expect(knees[0]!.attributes('width')).toBe('8');
     expect(knees[0]!.attributes('rx')).toBe('2');
-    expect(knees[0]!.attributes('ry')).toBe('2');
-    expect(knees[0]!.attributes('fill')).toBe('#262626');
+    expect(knees[0]!.attributes('fill')).toBe(sample.series[0]!.color);
     expect(knees[0]!.attributes('stroke')).toBe(sample.series[0]!.color);
     expect(knees[0]!.attributes('pointer-events')).toBe('none');
   });

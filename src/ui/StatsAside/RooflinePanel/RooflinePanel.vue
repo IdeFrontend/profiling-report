@@ -37,9 +37,13 @@ const opsY = plotBottomY;
 const hovered = ref<RooflinePoint | null>(null);
 /** Experimental: legend hover → emphasize that series' roof on the plot. */
 const legendHoverId = ref<string | null>(null);
-/** Sketch hollow square at each roof ridge (knee); rx matches legend 8×8 / 2px. */
-const KNEE = 7;
+/**
+ * Sketch (report-stats-duration-source): filled rounded-square knees on the
+ * roof ridges; measured points off the lines are filled circles.
+ */
+const KNEE = 8;
 const KNEE_RX = 2;
+const POINT_R = 4;
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
 
@@ -430,24 +434,22 @@ const tooltipText = computed(() => {
         </g>
         <!-- Markers sit outside plot clip so edge marks are not cropped. -->
         <g class="pr-roofline__markers">
-          <g
+          <!-- Measured points (off the roofs): filled/hollow circles, series color. -->
+          <circle
             v-for="p in model.points"
             :key="p.id"
-          >
-            <circle
-              data-testid="roofline-point"
-              :cx="xToPx(p.intensity)"
-              :cy="yToPx(p.performance)"
-              r="4"
-              class="pr-roofline__point"
-              :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
-              :fill="p.style === 'hollow' ? '#262626' : p.color"
-              :stroke="p.color"
-              @mouseenter="hovered = p"
-              @mouseleave="hovered = null"
-            />
-          </g>
-          <!-- Sketch: hollow square at each roof ridge (knee); rx matches legend swatch. -->
+            data-testid="roofline-point"
+            class="pr-roofline__point"
+            :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
+            :cx="xToPx(p.intensity)"
+            :cy="yToPx(p.performance)"
+            :r="POINT_R"
+            :fill="p.style === 'hollow' ? '#262626' : p.color"
+            :stroke="p.color"
+            @mouseenter="hovered = p"
+            @mouseleave="hovered = null"
+          />
+          <!-- Roof ridge knees (on the lines): filled rounded squares like legend. -->
           <rect
             v-for="s in roofDrawOrder"
             :key="`knee-${s.id}`"
@@ -461,7 +463,7 @@ const tooltipText = computed(() => {
             :height="KNEE"
             :rx="KNEE_RX"
             :ry="KNEE_RX"
-            fill="#262626"
+            :fill="s.color"
             :stroke="s.color"
             pointer-events="none"
           />
