@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import PrIcon from '../PrIcon.vue';
 import CloseButton from '../CloseButton.vue';
+import ToolbarSearch from './ToolbarSearch.vue';
 import type { ReportOperator, TimeDisplayMode } from '../../domain/types';
 import Chevron from '../Chevron.vue';
 import {
@@ -92,14 +93,6 @@ function openUserGuide() {
   const url = props.userGuideUrl;
   emit('open-user-guide', url);
   window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-const searchInputRef = ref<HTMLInputElement | null>(null);
-
-/** Clear query and keep focus on the input (button unmounts when empty). */
-function clearSearch() {
-  emit('update:searchQuery', '');
-  void nextTick(() => searchInputRef.value?.focus());
 }
 
 const atDepthMax = computed(() => props.dependencyDepth >= MAX_DEPENDENCY_DEPTH);
@@ -480,37 +473,11 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       ref="toolbarRef"
       class="pr-toolbar"
     >
-      <div class="pr-toolbar__search">
-        <label class="pr-toolbar__search-field">
-          <span class="pr-toolbar__sr">{{ t('searchLabel', locale) }}</span>
-          <PrIcon
-            name="search"
-            class="pr-toolbar__search-icon"
-            data-testid="search-magnifier"
-          />
-          <input
-            ref="searchInputRef"
-            data-testid="search-input"
-            type="search"
-            :value="searchQuery"
-            :placeholder="t('searchPlaceholder', locale)"
-            @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
-          >
-        </label>
-        <button
-          v-if="searchQuery.length > 0"
-          type="button"
-          class="pr-toolbar__search-clear"
-          data-testid="search-clear"
-          :aria-label="t('searchClear', locale)"
-          @mousedown.prevent
-          @click="clearSearch"
-          @keydown.enter.prevent="clearSearch"
-          @keydown.space.prevent="clearSearch"
-        >
-          ×
-        </button>
-      </div>
+      <ToolbarSearch
+        :model-value="searchQuery"
+        :locale="locale"
+        @update:model-value="emit('update:searchQuery', $event)"
+      />
 
       <div
         class="pr-toolbar__zoom pr-toolbar__zoom-pill"
@@ -1254,83 +1221,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   flex-shrink: 0;
 }
 
-/* Search pill — ReportToolbar.spec Visual */
-.pr-toolbar__search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: var(--pr-toolbar-h);
-}
-
-.pr-toolbar__search-field {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: var(--pr-toolbar-h);
-}
-
-.pr-toolbar__search-icon {
-  position: absolute;
-  left: 10px;
-  color: #9a9a9a;
-  pointer-events: none;
-  display: block;
-}
-
-.pr-toolbar__search input {
-  box-sizing: border-box;
-  width: 190px;
-  height: var(--pr-toolbar-h);
-  padding: 0 12px 0 32px;
-  border: 0;
-  border-radius: 4px;
-  background: #2a2a2a;
-  color: #e0e0e0;
-  font-size: 12px;
-}
-
-/* Room for the clear × when a query is present. */
-.pr-toolbar__search:has(.pr-toolbar__search-clear) input {
-  padding-right: 28px;
-}
-
-.pr-toolbar__search input::placeholder {
-  color: #808080;
-}
-
-.pr-toolbar__search input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-}
-
-.pr-toolbar__search-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: #9a9a9a;
-  font-size: 14px;
-  line-height: 1;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-
-.pr-toolbar__search-clear:focus {
-  outline: none;
-}
-
-.pr-toolbar__search-clear:hover {
-  color: #d0d0d0;
-}
-
-.pr-toolbar__search-clear:focus-visible {
-  outline: 2px solid var(--pr-playhead, #3078f0);
-  outline-offset: 1px;
-  border-radius: 2px;
-}
-
 /* Zoom compound pill */
 .pr-toolbar__zoom-pill {
   display: flex;
@@ -1737,17 +1627,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 
 /* Chrome draws its focus ring on click for text and range inputs, not just on
    keyboard entry, so suppress the default and re-add it for :focus-visible only. */
-.pr-toolbar__search input:focus,
 .pr-toolbar__slider:focus,
 .pr-toolbar__display-field input[type='number']:focus,
 .pr-toolbar__display-field select:focus {
   outline: none;
-}
-
-/* Inset ring: outer outline would clip on the left under toolbar overflow-x: clip. */
-.pr-toolbar__search input:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--pr-playhead, #3078f0);
 }
 
 .pr-toolbar__slider:focus-visible,
@@ -1755,14 +1638,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 .pr-toolbar__display-field select:focus-visible {
   outline: 2px solid var(--pr-playhead, #3078f0);
   outline-offset: 1px;
-}
-
-.pr-toolbar__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
 }
 
 /* Shortcut-help (快捷键说明) — PyPTO layout/glyphs; dismiss matches 显示控制. */

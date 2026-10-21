@@ -3,8 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
+import ToolbarSearch from '../ReportToolbar/ToolbarSearch.vue';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import AsmTablePane from './AsmTablePane.vue';
+import SourcePillSelect from './SourcePillSelect.vue';
 import SuduCodePane from './SuduCodePane.vue';
 
 /** ReportToolbar mounts `[data-testid=source-chrome-host]` on the tab row. */
@@ -299,6 +301,17 @@ function openUserGuide() {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+const leftViewOptions = [{ id: 'source', label: 'Source' }];
+const rightViewOptions = [{ id: 'sass', label: 'SASS' }];
+
+const sourceFileOptions = computed(() =>
+  props.model.files.map((f) => ({ id: f.id, label: f.path })),
+);
+
+const asmFileOptions = computed(() => [
+  { id: props.model.assembly.id, label: props.model.assembly.path },
+]);
+
 const sourceNavigateOptions = computed(() =>
   props.model.navigateBy.map((id) => {
     const col = sourceFile.value?.metricsColumns.find((c) => c.id === id);
@@ -358,61 +371,28 @@ onBeforeUnmount(() => {
         class="pr-source-view__views-row"
         data-testid="source-view-toolbar"
       >
-        <label class="pr-source-view__field">
-          <span>{{ t('sourceLeftView', locale) }}:</span>
-          <select
-            class="pr-block-pill pr-source-view__select"
-            data-testid="source-left-view"
-            disabled
-            :aria-label="t('sourceLeftView', locale)"
-          >
-            <option selected>
-              Source
-            </option>
-          </select>
-        </label>
-        <label class="pr-source-view__field">
-          <span>{{ t('sourceRightView', locale) }}:</span>
-          <select
-            class="pr-block-pill pr-source-view__select"
-            data-testid="source-right-view"
-            disabled
-            :aria-label="t('sourceRightView', locale)"
-          >
-            <option selected>
-              SASS
-            </option>
-          </select>
-        </label>
+        <SourcePillSelect
+          :caption="t('sourceLeftView', locale)"
+          model-value="source"
+          :options="leftViewOptions"
+          test-id="source-left-view"
+        />
+        <SourcePillSelect
+          :caption="t('sourceRightView', locale)"
+          model-value="sass"
+          :options="rightViewOptions"
+          test-id="source-right-view"
+        />
 
-        <div class="pr-source-view__search">
-          <label class="pr-source-view__search-field">
-            <span class="pr-source-view__sr">{{ t('searchLabel', locale) }}</span>
-            <PrIcon
-              name="search"
-              class="pr-source-view__search-icon"
-            />
-            <input
-              data-testid="source-search"
-              type="search"
-              :value="searchQuery"
-              :placeholder="t('searchPlaceholder', locale)"
-              @input="searchQuery = ($event.target as HTMLInputElement).value"
-              @keydown.enter.prevent="findStep(1)"
-            >
-          </label>
-          <button
-            v-if="searchQuery.length > 0"
-            type="button"
-            class="pr-source-view__search-clear"
-            data-testid="source-search-clear"
-            :aria-label="t('searchClear', locale)"
-            @mousedown.prevent
-            @click="searchQuery = ''"
-          >
-            ×
-          </button>
-        </div>
+        <ToolbarSearch
+          :model-value="searchQuery"
+          :locale="locale"
+          input-test-id="source-search"
+          clear-test-id="source-search-clear"
+          icon-test-id="source-search-magnifier"
+          @update:model-value="searchQuery = $event"
+          @submit="findStep(1)"
+        />
 
         <div
           class="pr-source-view__actions"
@@ -505,23 +485,13 @@ onBeforeUnmount(() => {
         @pointerdown="selectPane('source')"
       >
         <div class="pr-source-view__pane-bar">
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceFile', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-file-select"
-              :value="selectedFileId"
-              @change="onSourceFileChange(($event.target as HTMLSelectElement).value)"
-            >
-              <option
-                v-for="f in model.files"
-                :key="f.id"
-                :value="f.id"
-              >
-                {{ f.path }}
-              </option>
-            </select>
-          </label>
+          <SourcePillSelect
+            :caption="t('sourceFile', locale)"
+            :model-value="selectedFileId"
+            :options="sourceFileOptions"
+            test-id="source-file-select"
+            @update:model-value="onSourceFileChange"
+          />
           <button
             type="button"
             class="pr-source-view__icon-btn"
@@ -533,23 +503,13 @@ onBeforeUnmount(() => {
           >
             <PrIcon name="link" />
           </button>
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceNavigateBy', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-navigate-by"
-              :value="sourceNavigateBy"
-              @change="sourceNavigateBy = ($event.target as HTMLSelectElement).value"
-            >
-              <option
-                v-for="opt in sourceNavigateOptions"
-                :key="opt.id"
-                :value="opt.id"
-              >
-                {{ opt.label }}
-              </option>
-            </select>
-          </label>
+          <SourcePillSelect
+            :caption="t('sourceNavigateBy', locale)"
+            :model-value="sourceNavigateBy"
+            :options="sourceNavigateOptions"
+            test-id="source-navigate-by"
+            @update:model-value="sourceNavigateBy = $event"
+          />
         </div>
         <!-- v930-source: # + Source ≈ 63% of the left pane; metrics strip takes the rest. -->
         <SuduCodePane
@@ -571,19 +531,12 @@ onBeforeUnmount(() => {
         @pointerdown="selectPane('asm')"
       >
         <div class="pr-source-view__pane-bar">
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceFile', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-asm-select"
-              disabled
-              :aria-label="t('sourceFile', locale)"
-            >
-              <option selected>
-                {{ model.assembly.path }}
-              </option>
-            </select>
-          </label>
+          <SourcePillSelect
+            :caption="t('sourceFile', locale)"
+            :model-value="model.assembly.id"
+            :options="asmFileOptions"
+            test-id="source-asm-select"
+          />
           <button
             type="button"
             class="pr-source-view__icon-btn"
@@ -595,23 +548,13 @@ onBeforeUnmount(() => {
           >
             <PrIcon name="link" />
           </button>
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceNavigateBy', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-asm-navigate-by"
-              :value="asmNavigateBy"
-              @change="asmNavigateBy = ($event.target as HTMLSelectElement).value"
-            >
-              <option
-                v-for="opt in asmNavigateOptions"
-                :key="opt.id"
-                :value="opt.id"
-              >
-                {{ opt.label }}
-              </option>
-            </select>
-          </label>
+          <SourcePillSelect
+            :caption="t('sourceNavigateBy', locale)"
+            :model-value="asmNavigateBy"
+            :options="asmNavigateOptions"
+            test-id="source-asm-navigate-by"
+            @update:model-value="asmNavigateBy = $event"
+          />
         </div>
         <!-- SASS: Address + Assembly are table cells (sketch) — no Sudu editor. -->
         <AsmTablePane
@@ -705,15 +648,9 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.pr-source-view__field {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--pr-src-label);
-}
-
-/* Match search height/radius; keep shared pill chevron from tokens.css. */
-.pr-source-view__select {
+/* Match search height/radius; keep shared pill chevron from tokens.css.
+   Trigger lives in SourcePillSelect — :deep so the closed control stays this pill. */
+:deep(.pr-source-view__select) {
   box-sizing: border-box;
   height: var(--pr-src-control-h, 28px);
   max-width: 220px;
@@ -724,90 +661,6 @@ onBeforeUnmount(() => {
   color: var(--pr-src-text, #c8c8c8);
   font-size: 12px;
   line-height: calc(var(--pr-src-control-h, 28px) - 2px);
-}
-
-.pr-source-view__select:disabled {
-  opacity: 0.85;
-  cursor: default;
-}
-
-.pr-source-view__search {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  gap: 0;
-}
-
-.pr-source-view__search-field {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--pr-src-control-h, 28px);
-  min-width: 180px;
-  padding: 0 8px;
-  border: 1px solid var(--pr-src-divider);
-  border-radius: var(--pr-src-control-radius, 6px);
-  background: var(--pr-src-bg-control);
-  color: var(--pr-src-label);
-}
-
-.pr-source-view__search-field:focus-within {
-  border-color: var(--pr-src-accent);
-  box-shadow: inset 0 0 0 1px var(--pr-src-accent);
-}
-
-.pr-source-view__search-icon {
-  flex: 0 0 14px;
-  width: 14px;
-  height: 14px;
-}
-
-.pr-source-view__search-field input {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--pr-src-text);
-  font-family: inherit;
-  font-size: 12px;
-}
-
-.pr-source-view__search-field input::placeholder {
-  color: #808080;
-}
-
-.pr-source-view__search-field input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-}
-
-/* Room for the clear × when a query is present. */
-.pr-source-view__search:has(.pr-source-view__search-clear) input {
-  padding-right: 24px;
-}
-
-.pr-source-view__search-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: 2px;
-  background: transparent;
-  color: var(--pr-src-label);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.pr-source-view__search-clear:hover {
-  color: #ffffff;
-  background: #363636;
 }
 
 .pr-source-view__actions {
@@ -848,18 +701,6 @@ onBeforeUnmount(() => {
   background: #1e2a3e;
 }
 
-.pr-source-view__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .pr-source-view__mock {
   padding: 1px 8px;
   border-radius: 2px;
@@ -886,8 +727,8 @@ onBeforeUnmount(() => {
 .pr-source-view__pane-body {
   flex: 1 1 auto;
   min-height: 0;
-  /* Unselected frame; selected pane uses accent (sketch #317FFF / #3078F0). */
-  border: 2px solid #2e4a7a;
+  /* Blue frame only on the selected pane; keep the 2px box so content does not shift. */
+  border: 2px solid transparent;
   border-radius: 6px;
   overflow: hidden;
   background: var(--pr-src-bg-body);

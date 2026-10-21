@@ -289,6 +289,11 @@ describe('SourceView', () => {
     await wrapper.find('[data-testid="source-search"]').trigger('pointerdown');
     await wrapper.vm.$nextTick();
     expect(asmPane.classes()).toContain('pr-source-view__pane--selected');
+
+    const src = (await import('./SourceView.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-source-view__pane-body\s*\{[^}]*border:\s*2px solid transparent/);
+    expect(src).toMatch(/pane--selected \.pr-source-view__pane-body\s*\{[^}]*border-color:\s*var\(--pr-src-accent/);
+    expect(src).not.toMatch(/#2e4a7a/);
   });
 
   it('PR-SOURCE-009: shared Link views off keeps source click from moving asm caret', async () => {
@@ -327,14 +332,18 @@ describe('SourceView', () => {
 
   it('PR-SOURCE-011: asm Navigate By is enabled and independent', async () => {
     const model = mockSourceCorrelation();
-    const wrapper = mount(SourceView, { props: { model } });
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     const asmNav = wrapper.find('[data-testid="source-asm-navigate-by"]');
     expect(asmNav.attributes('disabled')).toBeUndefined();
-    await asmNav.setValue('samplingStall');
-    expect((asmNav.element as HTMLSelectElement).value).toBe('samplingStall');
-    expect((wrapper.find('[data-testid="source-navigate-by"]').element as HTMLSelectElement).value).toBe(
-      'instructionsExecuted',
-    );
+    await asmNav.trigger('click');
+    const stall = document.querySelector(
+      '[data-testid="source-asm-navigate-by-menu"] [data-value="samplingStall"]',
+    ) as HTMLElement;
+    stall.click();
+    await wrapper.vm.$nextTick();
+    expect(asmNav.text()).toContain('Sampling Stall');
+    expect(wrapper.find('[data-testid="source-navigate-by"]').text()).toContain('Instructions Executed');
+    wrapper.unmount();
   });
 
   it('PR-SOURCE-012: scroll-to-top suppresses correlated highlights until next click', async () => {
@@ -456,11 +465,14 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
 
-    await wrapper.find('[data-testid="source-file-select"]').setValue('other.cpp');
+    const fileSelect = wrapper.find('[data-testid="source-file-select"]');
+    await fileSelect.trigger('click');
+    const otherOpt = document.querySelector(
+      '[data-testid="source-file-select-menu"] [data-value="other.cpp"]',
+    ) as HTMLElement;
+    otherOpt.click();
     await wrapper.vm.$nextTick();
-    expect((wrapper.find('[data-testid="source-file-select"]').element as HTMLSelectElement).value).toBe(
-      'other.cpp',
-    );
+    expect(fileSelect.text()).toContain('other.cpp');
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
@@ -491,5 +503,73 @@ describe('SourceView', () => {
     expect(pct(assembly)).toBeGreaterThan(beforeAsm);
     expect(pct(instr)).toBeLessThan(beforeInstr);
     expect(pct(stall)).toBeCloseTo(beforeStall, 5);
+  });
+
+  it('PR-SOURCE-019: single-item dropdowns open; popup uses the metric menu', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
+    const ids = [
+      'source-left-view',
+      'source-right-view',
+      'source-file-select',
+      'source-navigate-by',
+      'source-asm-select',
+      'source-asm-navigate-by',
+    ];
+    for (const id of ids) {
+      const trigger = wrapper.get(`[data-testid="${id}"]`);
+      expect(trigger.element.tagName).toBe('BUTTON');
+      expect(trigger.attributes('disabled')).toBeUndefined();
+      expect(trigger.classes()).toContain('pr-block-pill');
+    }
+
+    await wrapper.get('[data-testid="source-left-view"]').trigger('click');
+    const menu = document.querySelector('[data-testid="source-left-view-menu"]');
+    expect(menu).toBeTruthy();
+    expect(menu?.classList.contains('pr-source-select__menu')).toBe(true);
+    const options = menu!.querySelectorAll('[data-testid="source-left-view-option"]');
+    expect(options).toHaveLength(1);
+    expect(options[0]?.classList.contains('pr-source-select__option--selected')).toBe(true);
+    expect(options[0]?.textContent).toContain('Source');
+
+    await wrapper.get('[data-testid="source-asm-select"]').trigger('click');
+    const asmMenu = document.querySelector('[data-testid="source-asm-select-menu"]');
+    expect(asmMenu?.querySelectorAll('[data-testid="source-asm-select-option"]')).toHaveLength(1);
+    expect(asmMenu?.querySelector('.pr-source-select__option--selected')?.textContent).toContain(
+      'sharpen[abi:v1,mock-ascendc]',
+    );
+
+    const popup = (await import('./SourcePillSelect.vue?raw')).default as string;
+    expect(popup).toMatch(/\.pr-source-select__menu\s*\{[^}]*background:\s*#2a2a2a/);
+    expect(popup).toMatch(/\.pr-source-select__option--selected\s*\{[^}]*background:\s*#3078f0/);
+    expect(popup).toMatch(/border-radius:\s*4px/);
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-020: search reuses the timeline control; clear does not widen it', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    expect(wrapper.find('.pr-source-view__search').exists()).toBe(false);
+    expect(wrapper.find('.pr-toolbar__search').exists()).toBe(true);
+    const search = wrapper.find('[data-testid="source-search"]');
+    await search.setValue('FFMA');
+    await wrapper.vm.$nextTick();
+    const clear = wrapper.find('[data-testid="source-search-clear"]');
+    expect(clear.exists()).toBe(true);
+    expect(clear.element.parentElement?.classList.contains('pr-toolbar__search')).toBe(true);
+
+    const src = (await import('../ReportToolbar/ToolbarSearch.vue?raw')).default as string;
+    expect(src).toMatch(/width:\s*190px/);
+    expect(src).toMatch(/box-sizing:\s*border-box/);
+    expect(src).toMatch(/\.pr-toolbar__search-clear\s*\{[^}]*position:\s*absolute/);
+    expect(src).toMatch(/flex:\s*0 0 190px/);
+    const view = (await import('./SourceView.vue?raw')).default as string;
+    expect(view).not.toMatch(/pr-source-view__search/);
+    expect(view).toContain('ToolbarSearch');
+
+    await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
+    await search.trigger('keydown', { key: 'Enter' });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findAll('[data-testid="source-metrics"]')[1]!.findAll('tr.pr-src-metrics__row--current').length).toBe(
+      1,
+    );
   });
 });
