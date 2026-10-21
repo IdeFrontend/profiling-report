@@ -15,6 +15,11 @@ batches:
         original_name: "930版本-性能调优_打开报告统计.jpeg"
         scenes: [report-stats, aside]
         components: [StatsAside, StatsSummaryPanel, RooflinePanel, CsvFieldListPanel]
+      - id: roofline-card-2026-10-15
+        path: v930/roofline-card-2026-10-15.png
+        original_name: "screenshot-2026-10-15-12-25-14.png"
+        scenes: [report-stats, roofline]
+        components: [RooflinePanel]
       - id: report-stats-scrolled
         path: v930/report-stats-scrolled.jpeg
         original_name: "930版本-性能调优_报告统计-滚动到底部.jpeg"

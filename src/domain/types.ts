@@ -200,11 +200,14 @@ export interface CsvTableModel {
 export interface RooflinePoint {
   id: string;
   label: string;
-  /** Arithmetic intensity (Ops/Byte). */
+  /** Arithmetic intensity I = w/q (Ops/Byte). */
   intensity: number;
-  /** Achieved performance (TOps/s). */
+  /** Achieved performance P = w/t (TOps/s). */
   performance: number;
   style: 'solid' | 'hollow';
+  /** Series color — points match their dtype roof. */
+  color: string;
+  seriesId?: string;
 }
 
 export interface RooflineMixLabel {
@@ -213,12 +216,29 @@ export interface RooflineMixLabel {
   percent: number;
 }
 
-/** M2 interim roofline model (DATA-37a–f). Omit when undecidable. */
+/** One theoretical roof (AIV/AIC × dtype). */
+export interface RooflineSeries {
+  id: string;
+  group: 'aiv' | 'aic';
+  label: string;
+  color: string;
+  /** Peak compute plateau (TOps/s) — `p_peak`. */
+  peakComputeTops: number;
+  /** Peak bandwidth (GB/s) — `b_peak`; product default 1600 (= 1.6 T/s). */
+  peakBandwidthGBs: number;
+  /** Rising (memory-bound) segment style. */
+  slopeStyle: 'solid' | 'dashed';
+}
+
+/**
+ * Roofline chart model (npu-compute §11.8). Prefer HardwareInfo Roofline category;
+ * else roofs from §11.8.1 + GM from ArithmeticUtilization + Memory. Omit when no points.
+ * Tabs (内存单元/通路/搬运) omitted.
+ */
 export interface RooflineViewModel {
   points: RooflinePoint[];
   mixLabels: RooflineMixLabel[];
-  peakComputeTops: number;
-  peakBandwidthGBs: number;
+  series: RooflineSeries[];
 }
 
 export interface HardwareField {

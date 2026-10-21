@@ -355,3 +355,83 @@ Format and statuses: [README.md](README.md).
   2. **No dedicated `ArchDiagramModel` / biprof chrome.** The emulate Architecture Diagram **stays** the projection of `ArchDiagramMetrics` onto the shared plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](interim/DATA.md)); a richer model is not built, so the slot-map question stays open as [DATA-48](../questions/DATA.md).
 - **Specs:** [memory-topology § Memory Utilization Heatmap](../../views/memory-topology.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-025, [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [product-sections](../../views/product-sections.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md), [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
 - **Source:** Product (2026-10-01) via the memory-heatmap plan ("its own surface, not a second topology") + the Sept 30 M4 lock (Architecture Diagram and heatmap are separate product surfaces). Retires the DATA-49 row; the two data gaps it exposed are filed as [DATA-50](../questions/DATA.md) (`MemoryType` → unit) and [DATA-51](../questions/DATA.md) (capacity fields).
+
+---
+
+## DATA-37 (was: Q11)
+
+- **Resolved:** 2026-10-19
+- **Question:** Which file, field, and formula feeds each element of the Roofline chart (axes, GM/L2 points, roofs, mix labels, tabs)?
+- **Decision:**
+  1. **Axes:** Prefer `HardwareInfo.jsonl` category `Roofline` series (`w`, `t`, `q`, `p_peak`, `b_peak`). Intensity `I = w / q` (Ops/Byte); performance `P = w / t` (ops/s → TOps/s via `/ 1e12`). Else GM from ArithmeticUtilization + Memory: `P = fops / timeUs / 1e6`, `I = fops / ((read+write KB) × 1024)` (Vector preferred; Cube when Vector fops absent).
+  2. **Roofs:** Multi-series AIV/AIC dtype roofs. Theoretical = `min(p_peak, b_peak × I / 1000)` with default `b_peak = 1600` GB/s. When JSON absent, `p_peak` from §11.8.1 formulas (cube/vector counts × frequency) or product example ceilings.
+  3. **L2 measured point:** **Omit** (no L2 byte traffic field).
+  4. **Op-mix:** Normalize non-zero Vector `aiv_vec_{fp32,fp16,int32,int16,misc}_ratio` (or Cube `aic_cube_*`) to %; dominant series colors the GM point.
+  5. **Tabs 内存单元 / 通路 / 搬运:** **Omit** (single chart; multi-series legend replaces tabs).
+  6. **Capability:** Adapter derives `roofline` when points exist; host `capabilities` overrides wholesale.
+- **Specs:** [roofline](../../views/roofline.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-009, [RooflinePanel.spec.md](../../../src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)
+- **Source:** Product npu-compute §11.8 + screenshot `docs/ui/source/v930/roofline-card-2026-10-15.png` (2026-10-15). Supersedes interim DATA-37a…f and aliases DATA-11…DATA-17.
+
+---
+
+## DATA-11 (was: HQ / Q11 axes)
+
+- **Resolved:** 2026-10-19
+- **Decision:** Axes are Ops/Byte × TOps/s (not pipe busy rates). See [DATA-37](./DATA.md#data-37-was-q11).
+- **Specs:** [roofline](../../views/roofline.md)
+- **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-11.png`.
+
+---
+
+## DATA-12 (was: HQ X Ops/Byte)
+
+- **Resolved:** 2026-10-19
+- **Decision:** `I = w / q` from HardwareInfo Roofline, else GM `fops / bytes` — [DATA-37](./DATA.md#data-37-was-q11).
+- **Specs:** [roofline](../../views/roofline.md)
+- **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-12.png`.
+
+---
+
+## DATA-13 (was: HQ Y TOps/s)
+
+- **Resolved:** 2026-10-19
+- **Decision:** `P = w / t / 1e12` from HardwareInfo Roofline, else GM `fops / timeUs / 1e6` — [DATA-37](./DATA.md#data-37-was-q11).
+- **Specs:** [roofline](../../views/roofline.md)
+- **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-13.png`.
+
+---
+
+## DATA-14 (was: HQ roof lines)
+
+- **Resolved:** 2026-10-19
+- **Decision:** Multi-series `min(p_peak, b_peak × I / 1000)`, default `b_peak = 1600` — [DATA-37](./DATA.md#data-37-was-q11).
+- **Specs:** [roofline](../../views/roofline.md)
+- **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-14.png`.
+
+---
+
+## DATA-15 (was: HQ L2 bytes)
+
+- **Resolved:** 2026-10-19
+- **Decision:** **Omit** the L2 measured point — [DATA-37](./DATA.md#data-37-was-q11).
+- **Specs:** [roofline](../../views/roofline.md)
+- **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-15.png`.
+
+---
+
+## DATA-16 (was: HQ mix labels)
+
+- **Resolved:** 2026-10-19
+- **Decision:** Normalize non-zero Vector/Cube dtype ratios to % — [DATA-37](./DATA.md#data-37-was-q11).
+- **Specs:** [roofline](../../views/roofline.md)
+- **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-16.png`.
+
+---
+
+## DATA-17 (was: HQ roofline tabs)
+
+- **Resolved:** 2026-10-19
+- **Decision:** **Omit** tabs; single multi-series chart — [DATA-37](./DATA.md#data-37-was-q11).
+- **Specs:** [roofline](../../views/roofline.md)
+- **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-17.png`.
+
