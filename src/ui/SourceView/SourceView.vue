@@ -728,7 +728,7 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
+  gap: 0 10px;
   padding: 5px 10px;
   background: var(--pr-src-bg-deep);
   min-width: 0;
@@ -753,6 +753,11 @@ onBeforeUnmount(() => {
 
 .pr-source-view--pane-bars-two .pr-source-view__pane-bar-break {
   display: block;
+}
+
+/* One 8px row gap. A zero-height flex break would add row-gap on both sides. */
+.pr-source-view--pane-bars-two .pr-source-view__pane-bar-nav {
+  margin-top: 8px;
 }
 
 /* Match search height/radius; keep shared pill chevron from tokens.css.

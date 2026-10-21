@@ -59,6 +59,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-21** — Copy includes a last-line `selectLine` range (`lineCount`, 0). Wrapped pane bars use one 8px row gap (`PR-SOURCE-021`/`022`).
 - **2026-10-21** — Asc/desc buttons step through the selected pane’s Navigate By hot lines (`PR-SOURCE-024`).
 - **2026-10-21** — Left pane keeps the editor and metrics columns hidden behind a centered loading indicator until Sudu geometry is ready (`PR-SOURCE-023`).
 - **2026-10-21** — Pane bars wrap together: if either Source toolbar needs two lines, both put Navigate By on the second line (`PR-SOURCE-022`).

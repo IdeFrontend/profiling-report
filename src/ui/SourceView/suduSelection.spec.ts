@@ -32,4 +32,15 @@ describe('selectedTextFromSudu', () => {
   it('joins a multi-line range with newlines', () => {
     expect(selectedTextFromSudu(editor(text, [0, 3], [2, 2]))).toBe('ha\nbeta\nga');
   });
+
+  it('treats (lineCount, 0) as the exclusive end of the last line', () => {
+    expect(selectedTextFromSudu(editor(text, [2, 0], [3, 0]))).toBe('gamma\n');
+    expect(selectedTextFromSudu(editor(text, [3, 0], [2, 0]))).toBe('gamma\n');
+    expect(selectedTextFromSudu(editor(text, [1, 2], [3, 0]))).toBe('ta\ngamma\n');
+    expect(selectedTextFromSudu(editor(text, [0, 0], [1, 0]))).toBe('alpha\n');
+    expect(selectedTextFromSudu(editor(text, [0, 3], [2, 2]))).toBe('ha\nbeta\nga');
+    expect(selectedTextFromSudu(editor(text, [1, 2], [1, 2]))).toBeNull();
+    expect(selectedTextFromSudu(editor(text, [2, 0], [4, 0]))).toBeNull();
+    expect(selectedTextFromSudu(editor(text, [2, 0], [3, 1]))).toBeNull();
+  });
 });

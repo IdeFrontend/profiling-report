@@ -30,14 +30,19 @@ export function selectedTextFromSudu(editor: object | null): string | null {
   const lines = text.split('\n');
   const left = posBefore(start, end) ? start : end;
   const right = left === start ? end : start;
-  if (left.line < 0 || right.line >= lines.length) return null;
+  // Sudu selectLine on the last line ends at (lineCount, 0): exclusive end of
+  // the document. Same shape as (line+1, 0) on an earlier line — that line's
+  // text plus a trailing newline. A non-zero char past the last line is not.
+  const eof = right.line === lines.length && right.char === 0;
+  if (left.line < 0 || left.line >= lines.length) return null;
+  if (right.line > lines.length || (right.line === lines.length && !eof)) return null;
   const first = lines[left.line];
-  const last = lines[right.line];
-  if (first == null || last == null) return null;
+  if (first == null) return null;
   if (left.line === right.line) return first.slice(left.char, right.char);
   const parts = [first.slice(left.char)];
-  for (let i = left.line + 1; i < right.line; i++) parts.push(lines[i] ?? '');
-  parts.push(last.slice(0, right.char));
+  const limit = eof ? lines.length : right.line;
+  for (let i = left.line + 1; i < limit; i++) parts.push(lines[i] ?? '');
+  parts.push(eof ? '' : (lines[right.line] ?? '').slice(0, right.char));
   return parts.join('\n');
 }
 
