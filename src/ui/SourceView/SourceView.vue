@@ -49,7 +49,11 @@ const searchQuery = ref('');
 /** Shared Link Views state — both pane toggles stay in sync. */
 const linkViews = ref(true);
 const sortDesc = ref(true);
-const activePane = ref<'source' | 'asm'>('source');
+/**
+ * Which dual pane owns chrome actions (search / sort). Always one of the two;
+ * defaults to Source. Clicks outside the panes do not clear it.
+ */
+const selectedPane = ref<'source' | 'asm'>('source');
 /**
  * After scroll-to-top/bottom both carets are forced independently. Suppress
  * cross-pane correlation highlights until the user selects a line again so we
@@ -132,28 +136,26 @@ const correlatedSource = computed(() => {
 
 const sourceTextLines = computed(() => (sourceFile.value?.text ?? '').split(/\r?\n/));
 
-const sourceMatchLines = computed(() => matchLinesIn(sourceTextLines.value, searchQuery.value));
-/** Search Address + Assembly cells (SASS is table-only — no editor buffer for the query). */
+/**
+ * Right-pane search hits: Assembly column only (CLA-style substring chips).
+ * Empty / Source-selected → no table marks.
+ */
 const asmMatchLines = computed(() => {
+  if (selectedPane.value !== 'asm') return [];
   const needle = searchQuery.value.trim().toLowerCase();
   if (!needle) return [];
   return props.model.assembly.lines
-    .filter((row) => {
-      const addr = String(row.values.address ?? '').toLowerCase();
-      const asm = String(row.values.assembly ?? '').toLowerCase();
-      return addr.includes(needle) || asm.includes(needle);
-    })
+    .filter((row) => String(row.values.assembly ?? '').toLowerCase().includes(needle))
     .map((row) => row.line);
 });
 
-function matchLinesIn(lines: string[], q: string): number[] {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return [];
-  const out: number[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i]!.toLowerCase().includes(needle)) out.push(i + 1);
-  }
-  return out;
+/** Query forwarded to the asm table for UI-43 navy chips on Assembly text. */
+const asmSearchQuery = computed(() =>
+  selectedPane.value === 'asm' ? searchQuery.value.trim() : '',
+);
+
+function selectPane(pane: 'source' | 'asm') {
+  selectedPane.value = pane;
 }
 
 function metricValue(file: SourceFileModel, line: number, colId: string): number {
@@ -182,7 +184,7 @@ function onSourceLine(line: number) {
     endSync();
     return;
   }
-  activePane.value = 'source';
+  selectedPane.value = 'source';
   sourceLine.value = line;
   if (!linkViews.value) return;
   const file = sourceFile.value;
@@ -208,7 +210,7 @@ function onAsmLine(line: number) {
     endSync();
     return;
   }
-  activePane.value = 'asm';
+  selectedPane.value = 'asm';
   asmLine.value = line;
   if (!linkViews.value) return;
   const hit = props.model.asmToSource[line];
@@ -248,28 +250,30 @@ function cycleLine(lines: number[], current: number | null, dir: 1 | -1): number
   return lines[lines.length - 1]!;
 }
 
-/** Find next/prev only walk text matches — empty search is a no-op. */
+/**
+ * Find next/prev walks matches in the selected pane only — empty search is a no-op.
+ * Source pane: editor find (Sudu API not wired yet). Asm pane: Assembly column.
+ */
 function findStep(dir: 1 | -1) {
   const q = searchQuery.value.trim();
   if (!q) return;
-  if (activePane.value === 'asm') {
+  if (selectedPane.value === 'asm') {
     const next = cycleLine(asmMatchLines.value, asmLine.value, dir);
     if (next != null) jumpAsm(next);
     return;
   }
-  const file = sourceFile.value;
-  if (!file) return;
-  const next = cycleLine(sourceMatchLines.value, sourceLine.value, dir);
-  if (next != null) jumpSource(next);
+  // TODO(source-search): Sudu editor has no find/highlight API yet — wire when available.
+  // Until then Source-selected search does not mark the metrics table or move the caret.
+  void dir;
 }
 
 /**
  * Sort Navigate By order (asc/desc). Toggles order and jumps to the first hot
- * line in that order for the active pane so the control is immediately useful.
+ * line in that order for the selected pane so the control is immediately useful.
  */
 function setNavigateSort(desc: boolean) {
   sortDesc.value = desc;
-  if (activePane.value === 'asm') {
+  if (selectedPane.value === 'asm') {
     const hot = hotLines(props.model.assembly, asmNavigateBy.value);
     if (hot[0] != null) jumpAsm(hot[0]);
     return;
@@ -507,7 +511,9 @@ onBeforeUnmount(() => {
     <div class="pr-source-view__panes">
       <div
         class="pr-source-view__pane"
-        :class="{ 'pr-source-view__pane--active': activePane === 'source' }"
+        :class="{ 'pr-source-view__pane--selected': selectedPane === 'source' }"
+        data-testid="source-pane-source"
+        @pointerdown="selectPane('source')"
       >
         <div class="pr-source-view__pane-bar">
           <label class="pr-source-view__field">
@@ -566,14 +572,15 @@ onBeforeUnmount(() => {
           :codicon-url="suduCodiconUrl"
           :current-line="sourceLine"
           :correlated-lines="correlatedSource"
-          :match-lines="sourceMatchLines"
           :editor-ratio="0.62"
           @update:current-line="onSourceLine"
         />
       </div>
       <div
         class="pr-source-view__pane"
-        :class="{ 'pr-source-view__pane--active': activePane === 'asm' }"
+        :class="{ 'pr-source-view__pane--selected': selectedPane === 'asm' }"
+        data-testid="source-pane-asm"
+        @pointerdown="selectPane('asm')"
       >
         <div class="pr-source-view__pane-bar">
           <label class="pr-source-view__field">
@@ -626,6 +633,7 @@ onBeforeUnmount(() => {
           :current-line="asmLine"
           :correlated-lines="correlatedAsm"
           :match-lines="asmMatchLines"
+          :search-query="asmSearchQuery"
           @update:current-line="onAsmLine"
         />
       </div>
@@ -891,14 +899,14 @@ onBeforeUnmount(() => {
 .pr-source-view__pane-body {
   flex: 1 1 auto;
   min-height: 0;
-  /* v930-source: both panes share the same framed header chrome. */
-  border: 2px solid var(--pr-src-border);
+  /* Unselected frame; selected pane uses accent (sketch #317FFF / #3078F0). */
+  border: 2px solid #2e4a7a;
   border-radius: 6px;
   overflow: hidden;
   background: var(--pr-src-bg-body);
 }
 
-.pr-source-view__pane--active .pr-source-view__pane-body {
-  border-color: var(--pr-src-accent);
+.pr-source-view__pane--selected .pr-source-view__pane-body {
+  border-color: var(--pr-src-accent, #3078f0);
 }
 </style>

@@ -203,30 +203,63 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-asm-navigate-by"]').classes()).toContain('pr-block-pill');
   });
 
-  it('PR-SOURCE-008: empty find is a no-op; query find walks matches; sort jumps hot', async () => {
+  it('PR-SOURCE-008: Source-selected search does not mark tables; Asm search chips + find', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     const search = wrapper.find('[data-testid="source-search"]');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     const findNext = wrapper.find('[data-testid="source-find-next"]');
 
     expect(findNext.attributes('disabled')).toBeDefined();
-    await findNext.trigger('click');
-    await wrapper.vm.$nextTick();
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
-
+    // Default selected pane is Source — query must not paint either metrics table.
     await search.setValue('sharpen');
     await wrapper.vm.$nextTick();
     expect(findNext.attributes('disabled')).toBeUndefined();
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--match').length).toBeGreaterThan(0);
+    expect(sourceTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
+    expect(asmTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
     await findNext.trigger('click');
     await wrapper.vm.$nextTick();
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
+    // Editor find is TODO — caret stays put on Source-selected search.
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+
+    // Select SASS pane → Assembly-column search with CLA chips.
+    await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
+    await search.setValue('FFMA');
+    await wrapper.vm.$nextTick();
+    expect(asmTable.findAll('[data-testid="source-asm-match"]').length).toBeGreaterThan(0);
+    // Address-only needles do not match.
+    await search.setValue('00007f7b');
+    await wrapper.vm.$nextTick();
+    expect(asmTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
+
+    await search.setValue('FFMA');
+    await findNext.trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
 
     await search.setValue('');
     await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
     await wrapper.vm.$nextTick();
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
+    expect(asmTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
+  });
+
+  it('PR-SOURCE-018: one pane selected (Source default); outside click keeps selection', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    const sourcePane = wrapper.find('[data-testid="source-pane-source"]');
+    const asmPane = wrapper.find('[data-testid="source-pane-asm"]');
+    expect(sourcePane.classes()).toContain('pr-source-view__pane--selected');
+    expect(asmPane.classes()).not.toContain('pr-source-view__pane--selected');
+
+    await asmPane.trigger('pointerdown');
+    await wrapper.vm.$nextTick();
+    expect(asmPane.classes()).toContain('pr-source-view__pane--selected');
+    expect(sourcePane.classes()).not.toContain('pr-source-view__pane--selected');
+
+    // Chrome / search is outside the panes — must not clear selection.
+    await wrapper.find('[data-testid="source-search"]').trigger('pointerdown');
+    await wrapper.vm.$nextTick();
+    expect(asmPane.classes()).toContain('pr-source-view__pane--selected');
   });
 
   it('PR-SOURCE-009: shared Link views off keeps source click from moving asm caret', async () => {

@@ -14,9 +14,11 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Layout.** Chrome matches [`v930-source/source-correlation`](../../../docs/ui/source/v930-source/source-correlation.jpeg): **first control bar** (Left/Right View, Search, action icons) sits on the **same row as the secondary tabs** via Teleport into ReportToolbar’s `source-chrome-host` (no extra margin/padding on that bar). Icons: find next/prev (thin chevrons), scroll-to-top / scroll-to-bottom, **two** navigate-sort buttons (asc + desc), help. No dim-zeros toggle, no Source shortcuts popover, no Redo Resolve, and **no** bottom dock (Inline Functions / Source Markers / Statistics). Pane **Link views** uses interlocking chain links (**one shared on/off** for both panes). Per-pane bar: Source select, link-sync, **independent** Navigate By. Dual panes below: Source | SASS. **Source** is Sudu + metrics. **SASS** is table-only — `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy (capsule: hatch background, solid used fill, `%` at the right end). Metrics / SASS column headers are **user-resizable** (drag the column edge; Source metrics header stays aligned with the body).
 
+**Selected pane.** Exactly one of the two panes is selected at all times (Source by default). Clicking a pane (or a line inside it) selects it; clicks outside the panes (toolbar, search, aside) do **not** change selection. The selected pane uses the accent blue border (`#3078F0` / sketch `#317FFF`); the other keeps the muted frame (`#2e4a7a`).
+
 **Correlation.** Selecting a source line highlights mapped asm rows and moves the asm caret to the first mapped instruction when Link views is on; selecting an asm line jumps back via `asmToSource` and highlights the full mapped asm sibling set. Programmatic Sudu caret echoes from an asm-driven `setLine` must not re-drive the asm pane (would snap to `mapped[0]`). Both Link views buttons toggle the same state.
 
-**Navigate / search.** Find next/prev (and Enter) walk **text matches** only — with an empty search box they do nothing (buttons disabled). **Sort navigate order** (asc/desc) sets the Navigate By metric order and jumps to the first hot line in that order for the active pane. With a query, matches are marked on metrics rows and find advances among them. Scroll-to-top / scroll-to-bottom reset both panes to the first / last line and suppress cross-pane correlation highlights until the next caret selection. Metric cells stay uncolored (sketch has no heat tint — [UI-59](../../../docs/context/questions/UI.md)).
+**Navigate / search.** Search targets the **selected pane** only. Empty search is a no-op (find buttons disabled). **Source selected:** search runs in the Sudu editor (API not wired yet — TODO; metrics table is **not** highlighted). **SASS selected:** search runs in the **Assembly** column only; matching substrings use the Compute Load Analysis chip (`pr-field-match` / [UI-43](../../../docs/context/decisions/UI.md)); find next/prev walks those hits. **Sort navigate order** (asc/desc) jumps to the first Navigate By hot line for the selected pane. Scroll-to-top / scroll-to-bottom reset both panes to the first / last line and suppress cross-pane correlation highlights until the next caret selection. Metric cells stay uncolored (sketch has no heat tint — [UI-59](../../../docs/context/questions/UI.md)).
 
 **Sudu runtime.** Worker pool and fonts are process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. Before the first editor mount, `ensureSourceTabFonts` registers **JetBrains Mono** (weights 300/400/600; real family name — never aliased as Consolas, which breaks Safari canvas TextMetrics) via `FontFace` + `document.fonts.load`, then loads codicon from `suduCodiconUrl` (default `/sudu/codicon.ttf`). The editor theme sets `editorFont` to 12px JetBrains Mono (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync stays on regardless of the Source↔SASS link toggles.
 
@@ -29,7 +31,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 5. **PR-SOURCE-005** — Asm row click keeps the chosen asm current line, marks the mapped source line (metrics + editor overlay), and highlights the full mapped asm sibling set (no snap to first mapped insn).
 6. **PR-SOURCE-006** — Selecting an unmapped source line clears asm current/correlated highlights.
 7. **PR-SOURCE-007** — Toolbar exposes search, action icons (incl. scroll-to-top/bottom), and shared link toggles (`source-search`, `source-toolbar-actions`, `source-scroll-top`, `source-scroll-bottom`, `source-link-source`, `source-link-asm`). Does **not** expose dim-zeros, Source shortcuts, or Redo Resolve.
-8. **PR-SOURCE-008** — Find next/prev with empty search do nothing (disabled); with a query, marks matching rows and Enter/find-next advances among them. Sort asc/desc jumps to the first Navigate By hot line in that order.
+8. **PR-SOURCE-008** — Source-selected search does not mark metrics tables (editor find TODO). SASS-selected search highlights Assembly substrings (`source-asm-match` / `pr-field-match`) and find next/prev walks those hits; Address-only needles do not match. Sort asc/desc jumps to the first Navigate By hot line for the selected pane.
 9. **PR-SOURCE-009** — Turning off either Link views toggle (shared state) keeps source selection from moving the asm caret; both buttons stay in sync.
 10. **PR-SOURCE-010** — Bottom dock (Inline Functions / Source Markers / Statistics) is **not** rendered.
 11. **PR-SOURCE-011** — Asm Navigate By select is enabled and independent of the source pane’s Navigate By.
@@ -39,6 +41,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file).
 16. **PR-SOURCE-016** — Scroll-to-bottom moves both carets to the last lines and suppresses correlated highlights until the next selection.
 17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles on every column except the last (`source-col-resize`); dragging trades width with the next column so only that divider moves.
+18. **PR-SOURCE-018** — Exactly one pane is selected (`source-pane-source` / `source-pane-asm`); Source is default; pane click switches; clicks outside panes keep the selection; selected pane has accent border class `pr-source-view__pane--selected`.
 
 ## Design sketches
 
@@ -46,6 +49,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-20** — Selected pane + scoped search: Source editor TODO / SASS Assembly chips (`PR-SOURCE-008`/`018`).
 - **2026-10-20** — Column resize trades with the next column so only the dragged divider moves (`PR-SOURCE-017`).
 - **2026-10-20** — Remove dim-zeros, Source shortcuts, Redo Resolve, and bottom dock (`PR-SOURCE-001`/`007`/`010`).
 - **2026-10-19** — Resizable Source / SASS metrics columns (`PR-SOURCE-017`).

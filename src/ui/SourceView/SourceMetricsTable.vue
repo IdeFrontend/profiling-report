@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { SourceFileModel, SourceStallBreakdown } from '../../domain/types';
 import { t } from '../../i18n';
+import { highlightParts } from '../searchHighlight';
 import { SOURCE_TAB_MONO_STACK } from './sourceFonts';
 import {
   ensureSourceColWidths,
@@ -19,6 +20,11 @@ const props = withDefaults(
     correlatedLines?: number[];
     /** Search hits to mark (does not remove rows — keeps editor sync). */
     matchLines?: number[];
+    /**
+     * When set (SASS Assembly search), matching substrings in the Assembly
+     * column use the CLA navy chip (`pr-field-match` / UI-43).
+     */
+    searchQuery?: string;
     /** When set, rows with a zero/empty value in this metric are dimmed. */
     dimZeroFor?: string | null;
     rowHeightCss: number;
@@ -43,6 +49,7 @@ const props = withDefaults(
   {
     correlatedLines: () => [],
     matchLines: () => [],
+    searchQuery: '',
     dimZeroFor: null,
     fillerRows: 0,
     fontFamily: null,
@@ -226,6 +233,14 @@ function cellText(line: number, colId: string): string {
   return String(v);
 }
 
+/** Assembly search chips (same tokens as Compute Load CSV field list). */
+function assemblyHighlightParts(line: number) {
+  const text = cellText(line, 'assembly');
+  const q = props.searchQuery?.trim() ?? '';
+  if (!q || !matchSet.value.has(line)) return [{ text, match: false as const }];
+  return highlightParts(text, q);
+}
+
 function barWidth(line: number, colId: string): number {
   const row = props.file.lines.find((l) => l.line === line);
   const v = row?.values[colId];
@@ -407,6 +422,14 @@ const styleVars = computed(() => {
                   />
                   <span class="pr-src-metrics__bar-label">{{ cellText(row.line, col.id) }}</span>
                 </span>
+              </template>
+              <template v-else-if="col.id === 'assembly' && searchQuery.trim()">
+                <span
+                  v-for="(part, i) in assemblyHighlightParts(row.line)"
+                  :key="i"
+                  :class="{ 'pr-field-match': part.match }"
+                  :data-testid="part.match ? 'source-asm-match' : undefined"
+                >{{ part.text }}</span>
               </template>
               <template v-else>
                 {{ cellText(row.line, col.id) }}
@@ -705,10 +728,7 @@ const styleVars = computed(() => {
   background: #252830;
 }
 
-.pr-src-metrics__row--match td {
-  outline: 1px solid #6a6a6a;
-  outline-offset: -1px;
-}
+/* Match rows stay unmarked as a block — Assembly uses `pr-field-match` chips (UI-43). */
 
 .pr-src-metrics__row--dim td {
   opacity: 0.35;

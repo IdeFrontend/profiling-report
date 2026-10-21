@@ -16,6 +16,8 @@ const props = defineProps<{
   currentLine?: number | null;
   correlatedLines?: number[];
   matchLines?: number[];
+  /** When set, Assembly cells paint UI-43 substring chips for this query. */
+  searchQuery?: string;
   dimZeroFor?: string | null;
 }>();
 
@@ -65,6 +67,7 @@ defineExpose({ setLine, scrollToTop, scrollToBottom });
       :current-line="currentLine ?? null"
       :correlated-lines="correlatedLines"
       :match-lines="matchLines"
+      :search-query="searchQuery"
       :dim-zero-for="dimZeroFor"
       :row-height-css="ROW_H"
       :filler-rows="0"
