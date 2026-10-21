@@ -197,6 +197,31 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-icon\s*\{[^}]*height:\s*16px/);
   });
 
+  it('PR-TOOLBAR-028: icon actions tip via aria-label CSS, not native title', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const measure = wrapper.find('[data-testid="toggle-measure"]');
+    expect(measure.attributes('title')).toBeUndefined();
+    expect(measure.attributes('aria-label')).toBe(t('measure'));
+    expect(measure.classes()).toContain('pr-icon-tip');
+
+    const zoomOut = wrapper.find('[data-testid="zoom-out"]');
+    expect(zoomOut.attributes('title')).toBeUndefined();
+    expect(zoomOut.attributes('aria-label')).toBe(t('zoomOut'));
+    expect(zoomOut.classes()).toContain('pr-icon-tip');
+
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const tipCss = readFileSync(resolve(__dirname, '../tokens.css'), 'utf8');
+    expect(tipCss).toMatch(/\.pr-icon-tip::after\s*\{[^}]*content:\s*attr\(aria-label\)/);
+    expect(tipCss).toMatch(
+      /\.pr-icon-tip:hover:not\(:disabled\):not\(\[aria-expanded='true'\]\)::after/,
+    );
+    expect(tipCss).toMatch(/\.pr-icon-tip\[data-toolbar-clip\]::after/);
+    const guide = wrapper.find('[data-testid="open-user-guide"]');
+    expect(guide.attributes('data-toolbar-clip')).toBeDefined();
+    expect(guide.classes()).toContain('pr-icon-tip');
+  });
+
   it('PR-TOOLBAR-017: connection-level help explains on hover, not via title', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');

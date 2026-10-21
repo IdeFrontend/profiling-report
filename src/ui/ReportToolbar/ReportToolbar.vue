@@ -486,8 +486,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         <button
           type="button"
           data-testid="zoom-out"
-          class="pr-toolbar__zoom-btn"
-          :title="t('zoomOut', locale)"
+          class="pr-toolbar__zoom-btn pr-icon-tip"
+          :aria-label="t('zoomOut', locale)"
           @click="emit('zoom-out')"
         >
           <PrIcon name="zoom-out" />
@@ -505,8 +505,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         <button
           type="button"
           data-testid="zoom-in"
-          class="pr-toolbar__zoom-btn"
-          :title="t('zoomIn', locale)"
+          class="pr-toolbar__zoom-btn pr-icon-tip"
+          :aria-label="t('zoomIn', locale)"
           @click="emit('zoom-in')"
         >
           <PrIcon name="zoom-in" />
@@ -520,13 +520,13 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         <button
           ref="shortcutTriggerRef"
           type="button"
-          class="pr-toolbar__icon-btn"
+          class="pr-toolbar__icon-btn pr-icon-tip"
           data-testid="toggle-shortcuts"
           data-toolbar-clip
           :aria-expanded="shortcutHelpOpen"
           :aria-pressed="shortcutHelpOpen"
           :class="{ 'pr-toolbar__icon-btn--on': shortcutHelpOpen }"
-          :title="t('shortcuts', locale)"
+          :aria-label="t('shortcuts', locale)"
           @click="toggleShortcutHelp"
         >
           <PrIcon name="keyboard" />
@@ -766,8 +766,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         type="button"
         data-testid="zoom-to-fit"
         data-toolbar-clip
-        class="pr-toolbar__icon-btn"
-        :title="t('zoomFit', locale)"
+        class="pr-toolbar__icon-btn pr-icon-tip"
+        :aria-label="t('zoomFit', locale)"
         @click="emit('zoom-to-fit')"
       >
         <svg
@@ -798,13 +798,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 
       <button
         type="button"
-        class="pr-toolbar__icon-btn"
+        class="pr-toolbar__icon-btn pr-icon-tip"
         data-testid="toggle-measure"
         data-toolbar-clip
         :aria-pressed="measureMode"
         :aria-label="t('measure', locale)"
         :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
-        :title="t('measure', locale)"
         @click="emit('update:measureMode', !measureMode)"
       >
         <PrIcon
@@ -819,13 +818,13 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       >
         <button
           type="button"
-          class="pr-toolbar__icon-btn"
+          class="pr-toolbar__icon-btn pr-icon-tip"
           data-testid="toggle-display-control"
           data-toolbar-clip
           :aria-expanded="displayControlOpen"
           :aria-pressed="displayControlOpen"
           :class="{ 'pr-toolbar__icon-btn--on': displayControlOpen }"
-          :title="t('displayControl', locale)"
+          :aria-label="t('displayControl', locale)"
           @click="toggleDisplayControl"
         >
           <PrIcon name="display-config" />
@@ -933,12 +932,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       <button
         v-if="asideAvailable"
         type="button"
-        class="pr-toolbar__icon-btn"
+        class="pr-toolbar__icon-btn pr-icon-tip"
         data-testid="toggle-aside"
         data-toolbar-clip
         :aria-pressed="asideVisible"
+        :aria-label="t('stats', locale)"
         :class="{ 'pr-toolbar__icon-btn--on': asideVisible }"
-        :title="t('stats', locale)"
         @click="emit('update:asideVisible', !asideVisible)"
       >
         <PrIcon name="stats" />
@@ -947,11 +946,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       <button
         v-if="htmlExportAvailable"
         type="button"
-        class="pr-toolbar__icon-btn"
+        class="pr-toolbar__icon-btn pr-icon-tip"
         data-testid="export-html"
         data-toolbar-clip
         :aria-label="t('exportHtml', locale)"
-        :title="t('exportHtml', locale)"
         @click="emit('export-html')"
       >
         <svg
@@ -979,11 +977,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 
       <button
         type="button"
-        class="pr-toolbar__icon-btn"
+        class="pr-toolbar__icon-btn pr-icon-tip"
         data-testid="open-user-guide"
         data-toolbar-clip
         :aria-label="t('userGuide', locale)"
-        :title="t('userGuide', locale)"
         @click="openUserGuide"
       >
         <PrIcon name="help" />

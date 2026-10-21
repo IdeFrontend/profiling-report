@@ -467,9 +467,9 @@ onBeforeUnmount(() => {
         >
           <button
             type="button"
-            class="pr-source-view__icon-btn"
+            class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-find-next"
-            :title="t('sourceFindNext', locale)"
+            :aria-label="t('sourceFindNext', locale)"
             :disabled="!searchQuery.trim()"
             @click="findStep(1)"
           >
@@ -477,9 +477,9 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn"
+            class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-find-prev"
-            :title="t('sourceFindPrev', locale)"
+            :aria-label="t('sourceFindPrev', locale)"
             :disabled="!searchQuery.trim()"
             @click="findStep(-1)"
           >
@@ -487,19 +487,19 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn"
+            class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-scroll-top"
-            :title="t('sourceScrollTop', locale)"
+            :aria-label="t('sourceScrollTop', locale)"
             @click="scrollTop"
           >
             <PrIcon name="to-top" />
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn"
+            class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-sort-asc"
             :class="{ 'pr-source-view__icon-btn--on': !sortDesc }"
-            :title="t('sourceSortMetric', locale)"
+            :aria-label="t('sourceSortMetric', locale)"
             :aria-pressed="!sortDesc"
             @click="setNavigateSort(false)"
           >
@@ -507,10 +507,10 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn"
+            class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-sort-desc"
             :class="{ 'pr-source-view__icon-btn--on': sortDesc }"
-            :title="t('sourceSortMetric', locale)"
+            :aria-label="t('sourceSortMetric', locale)"
             :aria-pressed="sortDesc"
             @click="setNavigateSort(true)"
           >
@@ -518,18 +518,18 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn"
+            class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-scroll-bottom"
-            :title="t('sourceScrollBottom', locale)"
+            :aria-label="t('sourceScrollBottom', locale)"
             @click="scrollBottom"
           >
             <PrIcon name="to-bottom" />
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--end"
             data-testid="source-user-guide"
-            :title="t('userGuide', locale)"
+            :aria-label="t('userGuide', locale)"
             @click="openUserGuide"
           >
             <PrIcon name="help" />
@@ -568,10 +568,10 @@ onBeforeUnmount(() => {
             />
             <button
               type="button"
-              class="pr-source-view__icon-btn"
+              class="pr-source-view__icon-btn pr-icon-tip"
               data-testid="source-link-source"
               :class="{ 'pr-source-view__icon-btn--on': linkViews }"
-              :title="t('sourceLinkSync', locale)"
+              :aria-label="t('sourceLinkSync', locale)"
               :aria-pressed="linkViews"
               @click="toggleLinkViews"
             >
@@ -621,10 +621,10 @@ onBeforeUnmount(() => {
             />
             <button
               type="button"
-              class="pr-source-view__icon-btn"
+              class="pr-source-view__icon-btn pr-icon-tip"
               data-testid="source-link-asm"
               :class="{ 'pr-source-view__icon-btn--on': linkViews }"
-              :title="t('sourceLinkSync', locale)"
+              :aria-label="t('sourceLinkSync', locale)"
               :aria-pressed="linkViews"
               @click="toggleLinkViews"
             >

@@ -215,3 +215,52 @@
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+/*
+ * Instant tip for icon-only chrome buttons.
+ * Native `title` waits ~1s and draws light-mode OS chrome (AC-20.2) — use
+ * `aria-label` + this class instead. Tip hides while a popover is expanded.
+ */
+.pr-icon-tip {
+  position: relative;
+}
+
+.pr-icon-tip::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  /* Below the control: toolbar `overflow-x: clip` still lets menus paint downward
+     (overflow-y stays visible); tips above the strip are clipped. */
+  top: calc(100% + 6px);
+  z-index: 30;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 220px;
+  padding: 4px 8px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  color: #e6e6e6;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.pr-icon-tip:hover:not(:disabled):not([aria-expanded='true'])::after,
+.pr-icon-tip:focus-visible:not(:disabled):not([aria-expanded='true'])::after {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Trailing strip actions sit against `overflow-x: clip` — grow the tip leftward
+   so it is not cropped by the chrome's right edge. */
+.pr-icon-tip[data-toolbar-clip]::after,
+.pr-icon-tip--end::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
