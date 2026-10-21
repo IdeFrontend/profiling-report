@@ -606,11 +606,9 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
 }
 
 /**
- * UI-32 secondary: `{blockDim} Blocks / {coreCount} 核` (DATA-1).
- * Fallback order: blocks/core → `blockDim` → `opName`. Each form carries the tooltip
- * that says which quantity the line reports (PR-STATS-040).
- * 2026-10-15 mock: secondary sits on the value row (right); bar returns only when
- * `durationBreakdown` is set (3-segment 头开销/计算/通信).
+ * UI-32 secondary: `{blockDim} Blocks / {coreCount} 核` (DATA-1) on the value row
+ * only when `durationBreakdown` is absent (2026-10-21 mock drops secondary once the
+ * segmented bar is shown). Fallback order: blocks/core → `blockDim` → `opName`.
  */
 const durationSecondary = computed<{ text: string; tip: CardTip } | null>(() => {
   const s = summary.value;
@@ -646,17 +644,6 @@ const durationSegments = computed(() => {
     { id: 'compute' as const, pct: (compute / total) * 100 },
     { id: 'communication' as const, pct: (communication / total) * 100 },
   ];
-});
-
-const breakdownIterations = computed(() => {
-  const b = durationBreakdown.value;
-  if (b?.iterationsPerCore != null && b.iterationsPerCore !== '') {
-    return String(b.iterationsPerCore);
-  }
-  const s = summary.value;
-  if (s?.mixBlockDim != null && s.mixBlockDim !== '') return String(s.mixBlockDim);
-  if (s?.blockDim != null && s.blockDim !== '') return String(s.blockDim);
-  return null;
 });
 
 function formatBreakdownTime(us: number): string {
@@ -1018,7 +1005,7 @@ const detailTestId = computed(() => {
               <span class="pr-card__unit">{{ durationParts.unit }}</span>
             </div>
             <div
-              v-if="durationSecondary"
+              v-if="durationSecondary && !durationSegments"
               class="pr-card__value-meta"
               data-testid="stats-duration-secondary"
               v-bind="tipBind(durationSecondary.tip, { focusable: true })"
@@ -1647,13 +1634,6 @@ const detailTestId = computed(() => {
         <div class="pr-duration-tooltip__row">
           <span>{{ t('durationOverheadTime', locale) }}</span>
           <span>{{ formatBreakdownTime(durationBreakdown.overheadUs) }}</span>
-        </div>
-        <div
-          v-if="breakdownIterations != null"
-          class="pr-duration-tooltip__row"
-        >
-          <span>{{ t('durationIterationsLabel', locale) }}</span>
-          <span>{{ t('durationIterationsCount', locale).replace('{n}', breakdownIterations) }}</span>
         </div>
       </div>
     </Teleport>

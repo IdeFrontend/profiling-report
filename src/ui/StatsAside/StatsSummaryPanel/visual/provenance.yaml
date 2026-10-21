@@ -1,5 +1,4 @@
-component: StatsSummaryPanel
-source_primary: v930/report-stats-open
+# Crops for Stats summary / duration card visuals.
 crops:
   summary-cards.png:
     source: v930/report-stats-open
@@ -7,12 +6,12 @@ crops:
     box: { x: 5776, y: 355, w: 1850, h: 1140 }
   duration-card.png:
     source: report-stats-duration-source.png
-    region: "整体耗时 card — label, value + secondary, segmented bar, legend"
-    note: "2026-10-15 Product mock"
+    region: "整体耗时 card — label, value, segmented bar, legend"
+    note: "2026-10-21 Product mock (screenshot-2026-10-21-15-37-05)"
   duration-card-tooltip.png:
     source: report-stats-duration-source.png
-    region: "整体耗时 card + hover tooltip (计算/通信/通算重叠/头开销/迭代)"
-    note: "2026-10-15 Product mock; sketch typo 头开销时间时间 → UI label 头开销时间"
+    region: "报告统计 frame with 整体耗时 hover list (计算/通信/通算重叠/头开销 times)"
+    note: "2026-10-21 Product mock; tooltip has no 迭代/核 row"
   report-stats-duration-source.png:
-    source: screenshot-2026-10-15-12-24-54(3).png
+    source: screenshot-2026-10-21-15-37-05(1).jpeg
     region: "Full 报告统计 frame used for duration-card rework"

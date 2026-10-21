@@ -35,3 +35,7 @@ PLAN.md
 # Local Product dictionary (not committed)
 npu-compute*.pdf
 .tmp-pdf/
+# Local Product screenshots (crops live under src/ui/**/visual/)
+screenshot-2026-*.jpeg
+screenshot-2026-*.jpg
+screenshot-2026-*.png
