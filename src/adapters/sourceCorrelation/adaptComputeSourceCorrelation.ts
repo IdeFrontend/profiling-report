@@ -3,6 +3,7 @@ import type {
   SourceFileModel,
   SourceLineMetrics,
   SourceMetricsColumn,
+  SourceStallBreakdown,
 } from '../../domain/types';
 import { parseObjdump, normalizePc } from './parseObjdump';
 import { parseSymbolizer } from './parseSymbolizer';
@@ -164,6 +165,8 @@ export function adaptComputeSourceCorrelation(
 
   const sourceMetrics = emptyMetrics(sourceLineCount);
   const sourceStallByLine = new Map<number, number>();
+  /** Per source line: stall reason → summed sample count (for Sampling Stall tooltip). */
+  const sourceBreakdownByLine = new Map<number, Map<string, number>>();
 
   const asmLines: SourceLineMetrics[] = insns.map((insn, i) => {
     const stall = stallByPc.get(insn.pc);
@@ -174,6 +177,16 @@ export function adaptComputeSourceCorrelation(
         site.line,
         (sourceStallByLine.get(site.line) ?? 0) + samplingStall,
       );
+      if (stall?.stallBreakdown?.length) {
+        let parts = sourceBreakdownByLine.get(site.line);
+        if (!parts) {
+          parts = new Map();
+          sourceBreakdownByLine.set(site.line, parts);
+        }
+        for (const row of stall.stallBreakdown) {
+          parts.set(row.metric, (parts.get(row.metric) ?? 0) + row.value);
+        }
+      }
     }
     return {
       line: i + 1,
@@ -192,6 +205,16 @@ export function adaptComputeSourceCorrelation(
     if (line < 1 || line > sourceMetrics.length) continue;
     const row = sourceMetrics[line - 1]!;
     row.values.samplingStall = stall;
+    const parts = sourceBreakdownByLine.get(line);
+    if (!parts?.size) continue;
+    const stallBreakdown: SourceStallBreakdown[] = [...parts.entries()]
+      .map(([metric, value]) => ({
+        metric,
+        value,
+        percent: stall > 0 ? (value / stall) * 100 : 0,
+      }))
+      .filter((r) => r.value > 0);
+    if (stallBreakdown.length) row.stallBreakdown = stallBreakdown;
   }
 
   const sourceFile: SourceFileModel = {

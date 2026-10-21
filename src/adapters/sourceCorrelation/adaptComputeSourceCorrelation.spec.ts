@@ -37,6 +37,9 @@ describe('adaptComputeSourceCorrelation', () => {
     const hot = model!.assembly.lines.find((l) => l.values.address?.toString().endsWith('00000268'));
     expect(hot?.values.samplingStall).toBe(15504);
     expect(hot?.stallBreakdown?.length).toBeGreaterThan(0);
+    // Source Sampling Stall tooltip needs rolled-up stallBreakdown (not only the total).
+    const srcHot = model!.files[0]!.lines.find((l) => (l.values.samplingStall as number) > 0);
+    expect(srcHot?.stallBreakdown?.length).toBeGreaterThan(0);
   });
 
   it('PR-SRC-006: symbolizer Line>0 fills maps; Line 0 stays unmapped', () => {
