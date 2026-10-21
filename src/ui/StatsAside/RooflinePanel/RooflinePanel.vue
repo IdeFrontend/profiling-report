@@ -11,17 +11,12 @@ import {
   ROOFLINE_X_TICK_BELOW_PLOT as X_TICK_BELOW_PLOT,
   ROOFLINE_Y_TICK_LABEL_DY as Y_TICK_LABEL_DY,
 } from './rooflineLayout';
-import type { RooflinePoint, RooflineViewModel } from '../../../domain/types';
+import type { RooflinePoint, RooflineSeries, RooflineViewModel } from '../../../domain/types';
 
 const props = defineProps<{
   model: RooflineViewModel;
   locale?: string;
 }>();
-
-const X_MIN = 1e-4;
-const X_MAX = 100;
-const Y_MIN = 1e-4;
-const Y_MAX = 10;
 
 const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
@@ -32,7 +27,8 @@ const mixY = PAD.t + MIX_TOP_INSET;
 const AXIS_FONT_PX = 9;
 
 const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
-const topsX = PAD.l;
+/** Left edge of TOps/s matches the card title / AIV / AIC (not end-anchored at the plot). */
+const topsX = 0;
 const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT - AXIS_FONT_PX;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
@@ -41,66 +37,164 @@ const hovered = ref<RooflinePoint | null>(null);
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
 
+/**
+ * Normalize series for draw. Hosts may still pass the interim M2 shape
+ * (`peakComputeTops` / `peakBandwidthGBs` on the root, no `series`).
+ */
+const seriesList = computed((): RooflineSeries[] => {
+  const listed = props.model.series;
+  if (listed && listed.length > 0) return listed;
+  const legacy = props.model as RooflineViewModel & {
+    peakComputeTops?: number;
+    peakBandwidthGBs?: number;
+  };
+  if (
+    legacy.peakComputeTops != null &&
+    legacy.peakComputeTops > 0 &&
+    legacy.peakBandwidthGBs != null &&
+    legacy.peakBandwidthGBs > 0
+  ) {
+    return [
+      {
+        id: 'legacy',
+        group: 'aic',
+        label: 'Peak',
+        color: '#E53935',
+        peakComputeTops: legacy.peakComputeTops,
+        peakBandwidthGBs: legacy.peakBandwidthGBs,
+        slopeStyle: 'solid',
+      },
+    ];
+  }
+  return [];
+});
+
+const aivSeries = computed(() => seriesList.value.filter((s) => s.group === 'aiv'));
+const aicSeries = computed(() => seriesList.value.filter((s) => s.group === 'aic'));
+/** Shared legend columns so nth AIV / AIC swatches share a vertical edge. */
+const legendColCount = computed(() =>
+  Math.max(aivSeries.value.length, aicSeries.value.length, 1),
+);
+const legendGridStyle = computed(() => ({
+  gridTemplateColumns: `28px repeat(${legendColCount.value}, max-content)`,
+}));
+
+/** Log domain from points + roofs. */
+const domains = computed(() => {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const p of props.model.points) {
+    if (p.intensity > 0) xs.push(p.intensity);
+    if (p.performance > 0) ys.push(p.performance);
+  }
+  for (const s of seriesList.value) {
+    if (s.peakComputeTops > 0) ys.push(s.peakComputeTops);
+    if (s.peakBandwidthGBs > 0 && s.peakComputeTops > 0) {
+      const ridge = (s.peakComputeTops * 1000) / s.peakBandwidthGBs;
+      if (ridge > 0) xs.push(ridge);
+    }
+  }
+  // Data-driven decade floors/ceils — no hard cap. Force ≥1 decade of span so a
+  // lone power-of-ten value cannot collapse the log map to NaN. 1e-3 / 1e-4 are
+  // empty-data fallbacks only; real samples keep their own decade.
+  const xMin = xs.length ? niceFloor(Math.min(...xs)) : 1e-3;
+  let xMax = niceCeil(xs.length ? Math.max(...xs) : 1);
+  if (xMax <= xMin) xMax = xMin * 10;
+  const yMin = ys.length ? niceFloor(Math.min(...ys)) : 1e-4;
+  let yMax = niceCeil(ys.length ? Math.max(...ys) : 1);
+  if (yMax <= yMin) yMax = yMin * 10;
+  return { xMin, xMax, yMin, yMax };
+});
+
+function niceFloor(v: number): number {
+  if (!(v > 0)) return 1e-3;
+  return 10 ** Math.floor(Math.log10(v));
+}
+
+function niceCeil(v: number): number {
+  if (!(v > 0)) return 1;
+  return 10 ** Math.ceil(Math.log10(v));
+}
+
 function clampLog(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
 function xToPx(intensity: number): number {
-  const v = clampLog(intensity, X_MIN, X_MAX);
-  const t = (Math.log10(v) - Math.log10(X_MIN)) / (Math.log10(X_MAX) - Math.log10(X_MIN));
+  const { xMin, xMax } = domains.value;
+  const v = clampLog(intensity, xMin, xMax);
+  const t = (Math.log10(v) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin));
   return PAD.l + t * plotW;
 }
 
 function yToPx(perf: number): number {
-  const v = clampLog(perf, Y_MIN, Y_MAX);
-  const t = (Math.log10(v) - Math.log10(Y_MIN)) / (Math.log10(Y_MAX) - Math.log10(Y_MIN));
+  const { yMin, yMax } = domains.value;
+  const v = clampLog(perf, yMin, yMax);
+  const t = (Math.log10(v) - Math.log10(yMin)) / (Math.log10(yMax) - Math.log10(yMin));
   return PAD.t + (1 - t) * plotH;
 }
 
-/** DATA-37d: roof TOps/s at intensity. */
-function roofPerf(intensity: number): number {
-  const bwLimited = (props.model.peakBandwidthGBs * intensity) / 1000;
-  return Math.min(props.model.peakComputeTops, bwLimited);
+/** Roof TOps/s at intensity: min(p_peak, b_peak_GBs * I / 1000). */
+function roofPerf(s: RooflineSeries, intensity: number): number {
+  const bwLimited = (s.peakBandwidthGBs * intensity) / 1000;
+  return Math.min(s.peakComputeTops, bwLimited);
 }
 
-/** Roof polyline points in plot space (log-clamped). */
-const roofPoints = computed(() => {
-  const ridge =
-    (props.model.peakComputeTops * 1000) / Math.max(props.model.peakBandwidthGBs, 1e-12);
-  const xs = [X_MIN, ridge, X_MAX].map((x) => clampLog(x, X_MIN, X_MAX));
-  const unique = [...new Set(xs.map((x) => x.toPrecision(8)))].map(Number);
-  return unique.map((x) => ({ x: xToPx(x), y: yToPx(roofPerf(x)) }));
-});
+function roofSegments(s: RooflineSeries): { slope: string; plateau: string; ridgeX: number; ridgeY: number } {
+  const { xMin, xMax } = domains.value;
+  const ridge = clampLog(
+    (s.peakComputeTops * 1000) / Math.max(s.peakBandwidthGBs, 1e-12),
+    xMin,
+    xMax,
+  );
+  const yRidge = yToPx(roofPerf(s, ridge));
+  const xRidge = xToPx(ridge);
+  const slope = `M ${xToPx(xMin)},${yToPx(roofPerf(s, xMin))} L ${xRidge},${yRidge}`;
+  const plateau = `M ${xRidge},${yRidge} L ${xToPx(xMax)},${yToPx(roofPerf(s, xMax))}`;
+  return { slope, plateau, ridgeX: xRidge, ridgeY: yRidge };
+}
 
-const roofPath = computed(() => {
-  const pts = roofPoints.value.map((p) => `${p.x},${p.y}`);
-  return `M ${pts.join(' L ')}`;
-});
-
-/** Closed area under the roof for the sketch gradient wash (v930 detail-strip-raised). */
+/** Closed area under the topmost roof for the wash (highest plateau). */
 const roofAreaPath = computed(() => {
-  const pts = roofPoints.value;
-  if (pts.length < 2) return '';
+  const series = seriesList.value;
+  if (!series.length) return '';
+  const top = series.reduce((a, b) => (b.peakComputeTops > a.peakComputeTops ? b : a));
+  const { xMin, xMax } = domains.value;
+  const ridge = clampLog(
+    (top.peakComputeTops * 1000) / Math.max(top.peakBandwidthGBs, 1e-12),
+    xMin,
+    xMax,
+  );
+  const pts = [
+    { x: xToPx(xMin), y: yToPx(roofPerf(top, xMin)) },
+    { x: xToPx(ridge), y: yToPx(roofPerf(top, ridge)) },
+    { x: xToPx(xMax), y: yToPx(roofPerf(top, xMax)) },
+  ];
   const bottom = PAD.t + plotH;
   const line = pts.map((p) => `${p.x},${p.y}`).join(' L ');
-  const last = pts[pts.length - 1]!;
-  const first = pts[0]!;
-  return `M ${line} L ${last.x},${bottom} L ${first.x},${bottom} Z`;
+  return `M ${line} L ${pts[2]!.x},${bottom} L ${pts[0]!.x},${bottom} Z`;
 });
 
-/** Highest roof Y — gradient 0% must sit on the ridge, not the plot frame top. */
 const roofTopY = computed(() => {
-  const pts = roofPoints.value;
-  if (!pts.length) return PAD.t;
-  return Math.min(...pts.map((p) => p.y));
+  if (!seriesList.value.length) return PAD.t;
+  return Math.min(...seriesList.value.map((s) => roofSegments(s).ridgeY));
 });
 
-const xTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100];
-const yTicks = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10];
+const xTicks = computed(() => logTicks(domains.value.xMin, domains.value.xMax));
+const yTicks = computed(() => logTicks(domains.value.yMin, domains.value.yMax));
+
+function logTicks(min: number, max: number): number[] {
+  const out: number[] = [];
+  const start = Math.ceil(Math.log10(min) - 1e-9);
+  const end = Math.floor(Math.log10(max) + 1e-9);
+  for (let e = start; e <= end; e++) out.push(10 ** e);
+  return out.length > 0 ? out : [min, max];
+}
 
 function fmtTick(v: number): string {
+  if (v >= 1000) return `${v / 1000}K`.replace('.0K', 'K');
   if (v >= 1) return String(v);
-  // Sketch uses decimals (0.0001 / 0.001 / 0.01 / 0.1), not 1e-n.
+  if (v >= 0.001) return v.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
   const digits = Math.max(0, -Math.floor(Math.log10(v)));
   return v.toFixed(digits);
 }
@@ -120,7 +214,9 @@ const mixParts = computed(() =>
 );
 
 const tooltipText = computed(() => {
-  const p = hovered.value;
+  const id = hovered.value?.id;
+  if (!id) return '';
+  const p = props.model.points.find((pt) => pt.id === id);
   if (!p) return '';
   return `${p.label}: ${fmtVal(p.intensity)} Ops/Byte, ${fmtVal(p.performance)} TOps/s`;
 });
@@ -137,19 +233,52 @@ const tooltipText = computed(() => {
     </h4>
     <div class="pr-roofline__card">
       <div class="pr-roofline__card-head">
-        <span class="pr-roofline__chart-title">GM/L2</span>
-        <div class="pr-roofline__legend">
-          <span
-            v-for="p in model.points"
-            :key="p.id"
-            class="pr-roofline__leg-item"
-          >
+        <span class="pr-roofline__chart-title">Roofline</span>
+        <div
+          class="pr-roofline__legend"
+          data-testid="roofline-legend"
+          :style="legendGridStyle"
+        >
+          <template v-if="aivSeries.length">
+            <span class="pr-roofline__leg-head">AIV:</span>
             <span
-              class="pr-roofline__leg-dot"
-              :class="{ 'pr-roofline__leg-dot--hollow': p.style === 'hollow' }"
+              v-for="s in aivSeries"
+              :key="s.id"
+              class="pr-roofline__leg-item"
+            >
+              <span
+                class="pr-roofline__leg-swatch"
+                :style="{ background: s.color }"
+              />
+              {{ s.label }}
+            </span>
+            <span
+              v-for="n in Math.max(0, legendColCount - aivSeries.length)"
+              :key="`aiv-pad-${n}`"
+              class="pr-roofline__leg-pad"
+              aria-hidden="true"
             />
-            {{ p.label }}
-          </span>
+          </template>
+          <template v-if="aicSeries.length">
+            <span class="pr-roofline__leg-head">AIC:</span>
+            <span
+              v-for="s in aicSeries"
+              :key="s.id"
+              class="pr-roofline__leg-item"
+            >
+              <span
+                class="pr-roofline__leg-swatch"
+                :style="{ background: s.color }"
+              />
+              {{ s.label }}
+            </span>
+            <span
+              v-for="n in Math.max(0, legendColCount - aicSeries.length)"
+              :key="`aic-pad-${n}`"
+              class="pr-roofline__leg-pad"
+              aria-hidden="true"
+            />
+          </template>
         </div>
       </div>
       <svg
@@ -240,23 +369,28 @@ const tooltipText = computed(() => {
             :d="roofAreaPath"
             fill="url(#pr-roofline-area)"
           />
-          <path
+          <g
+            v-for="s in seriesList"
+            :key="s.id"
             data-testid="roofline-roof"
-            class="pr-roofline__roof"
-            :d="roofPath"
-            fill="none"
-          />
+          >
+            <path
+              class="pr-roofline__roof"
+              :class="{ 'pr-roofline__roof--dashed': s.slopeStyle === 'dashed' }"
+              :d="roofSegments(s).slope"
+              fill="none"
+              :stroke="s.color"
+            />
+            <path
+              class="pr-roofline__roof"
+              :d="roofSegments(s).plateau"
+              fill="none"
+              :stroke="s.color"
+            />
+          </g>
         </g>
         <!-- Markers sit outside plot clip so edge circles are not cropped. -->
         <g class="pr-roofline__markers">
-          <circle
-            v-for="(rp, idx) in roofPoints"
-            :key="`rv-${idx}`"
-            class="pr-roofline__roof-vertex"
-            :cx="rp.x"
-            :cy="rp.y"
-            r="4"
-          />
           <g
             v-for="p in model.points"
             :key="p.id"
@@ -268,10 +402,24 @@ const tooltipText = computed(() => {
               r="4"
               class="pr-roofline__point"
               :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
+              :fill="p.style === 'hollow' ? '#262626' : p.color"
+              :stroke="p.color"
               @mouseenter="hovered = p"
               @mouseleave="hovered = null"
             />
           </g>
+          <circle
+            v-for="s in seriesList"
+            :key="`knee-${s.id}`"
+            data-testid="roofline-knee"
+            :cx="roofSegments(s).ridgeX"
+            :cy="roofSegments(s).ridgeY"
+            r="3.5"
+            fill="#262626"
+            :stroke="s.color"
+            stroke-width="1.5"
+            pointer-events="none"
+          />
         </g>
         <text
           v-if="mixParts.length"
@@ -313,12 +461,12 @@ const tooltipText = computed(() => {
           text-anchor="start"
           dominant-baseline="middle"
         >Ops/Byte</text>
-        <!-- TOps/s: ends at left grid line, 9px above plot top. -->
+        <!-- TOps/s: left edge aligns with card title / AIV / AIC. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
           :x="topsX"
           :y="topsY"
-          text-anchor="end"
+          text-anchor="start"
           dominant-baseline="hanging"
         >TOps/s</text>
       </svg>
@@ -350,13 +498,14 @@ const tooltipText = computed(() => {
   color: #ffffff;
 }
 
-/* Whole card (header + plot + tick gutters) — sketch uniform #262626. */
+/* Whole card (header + plot + tick gutters) — sketch uniform #262626.
+   Title / legend / SVG share the same horizontal inset (card pad only). */
 .pr-roofline__card {
   display: flex;
   flex-direction: column;
-  gap: 8px; /* 6px under GM/L2 before plot (was 2px) */
+  gap: 6px;
   min-width: 0;
-  padding: 6px 8px 4px;
+  padding: 8px 8px 6px;
   border-radius: 8px;
   background: #262626;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -364,49 +513,61 @@ const tooltipText = computed(() => {
 
 .pr-roofline__card-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 2px;
+  flex-direction: column;
+  align-items: flex-start;
+  /* Title → legend: product sketch gap (~10–12px). */
+  gap: 10px;
+  padding: 0;
   min-width: 0;
+  width: 100%;
 }
 
 .pr-roofline__chart-title {
-  flex: 0 0 auto;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.2;
   color: #ffffff;
 }
 
+/*
+ * Under the card title. One grid for both rows so the nth AIV / AIC swatches
+ * share a vertical edge (e.g. AIV bp16 with AIC int32 fp32).
+ */
 .pr-roofline__legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 12px;
+  display: grid;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
   min-width: 0;
+  width: max-content;
+  max-width: 100%;
   font-size: 11px;
   line-height: 1.2;
-  color: #9a9a9a;
+}
+
+.pr-roofline__leg-head {
+  color: #c4c4c4;
+  font-weight: 400;
 }
 
 .pr-roofline__leg-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: #9a9a9a;
+  gap: 4px;
+  color: #8a8a8a;
+  white-space: nowrap;
 }
 
-.pr-roofline__leg-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #3078f0;
-  border: 1.5px solid #3078f0;
-  box-sizing: border-box;
+.pr-roofline__leg-pad {
+  /* Empty cell so a shorter row still advances the grid to the next row cleanly. */
+  min-width: 0;
 }
 
-.pr-roofline__leg-dot--hollow {
-  background: transparent;
+.pr-roofline__leg-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 auto;
 }
 
 .pr-roofline__svg {
@@ -435,23 +596,18 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__roof {
-  stroke: #3078f0;
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
-.pr-roofline__roof-vertex {
-  fill: #262626;
-  stroke: #3078f0;
-  stroke-width: 1.75;
-  pointer-events: none;
+.pr-roofline__roof--dashed {
+  stroke-dasharray: 4 3;
 }
 
 .pr-roofline__point {
-  fill: #3078f0;
-  stroke: #3078f0;
   cursor: pointer;
+  stroke-width: 1.5;
 }
 
 .pr-roofline__point--hollow {
@@ -482,13 +638,15 @@ const tooltipText = computed(() => {
   fill: #ffffff;
 }
 
+/* Reserved band below the SVG so hover never covers x-ticks / Ops/Byte. */
 .pr-roofline__tip {
   flex: 0 0 auto;
   min-height: calc(11px * 1.2);
-  padding: 0 2px;
+  padding: 0;
   font-size: 11px;
   line-height: 1.2;
   color: #d0d8e0;
+  pointer-events: none;
   visibility: hidden;
 }
 

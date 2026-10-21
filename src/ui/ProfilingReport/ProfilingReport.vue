@@ -803,8 +803,8 @@ function onGutterMetricChange(payload: { cardId: string; metric: GutterMetric })
  * Aside has content when any of: duration card, I/O bandwidth cards,
  * pipe occupancy, compute/memory CSV tables, hardware details, labelled topology,
  * or joined performance hints is present.
- * Roofline counts only when the `roofline` capability opts it in (Phase 2, out of the current
- * release), so points alone never open the aside.
+ * Roofline counts only when the `roofline` capability is present (adapter-derived when points
+ * exist, or host-passed), so points alone without the flag never open the aside.
  * Name/type alone do not open the aside (DATA-33a). Must stay in sync with StatsAside.
  */
 function reportHasAsideContent(

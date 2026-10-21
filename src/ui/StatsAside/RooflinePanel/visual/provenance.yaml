@@ -1,9 +1,9 @@
 component: RooflinePanel
-source_primary: v930/report-stats-open
-source_secondary:
-  - v930/detail-strip-raised  # raised card chrome + under-roof wash cross-check
+source_primary: v930/roofline-card-2026-10-15
 crops:
   roofline.png:
-    source: v930/report-stats-open
-    region: "Roofline瓶颈分析 — tabs + GM/L2 log-log chart including Ops/Byte axis"
-    box: { x: 5790, y: 1460, w: 1870, h: 1360 }
+    source: v930/roofline-card-2026-10-15
+    region: "Roofline瓶颈分析 — multi-series AIV/AIC log-log chart (tabs in frame omitted in UI)"
+  roofline-spec.png:
+    source: v930/roofline-card-2026-10-15
+    region: "Same frame with Product callouts — omit tabs; color points by series"

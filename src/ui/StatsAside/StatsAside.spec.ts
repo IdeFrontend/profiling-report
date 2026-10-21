@@ -8,7 +8,7 @@ import {
   firstLabelledMemoryTopology,
 } from '../../adapters/memoryTopology';
 import { parseRep } from '../../adapters/parseRep';
-import type { ReportViewModel } from '../../domain/types';
+import type { ReportViewModel, RooflineViewModel } from '../../domain/types';
 import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
 import { t } from '../../i18n';
 
@@ -318,6 +318,184 @@ describe('StatsAside', () => {
     expect(wrapper.get('[data-testid="csv-field-list"]').text()).toContain('1.7');
   });
 
+  it('PR-STATS-014e: a picked block keeps All chip-level roofs and swaps only the GM point', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['roofline'],
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          roofline: {
+            points: [
+              {
+                id: 'gm',
+                label: 'GM All',
+                intensity: 0.1,
+                performance: 0.01,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
+            mixLabels: [{ id: 'fp32', label: 'Vec_FP32', percent: 100 }],
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 99,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ],
+          },
+          computeTables: [
+            {
+              fileName: 'ArithmeticUtilization.csv',
+              headers: [
+                'block_id',
+                'aiv_time(us)',
+                'aiv_vec_fops',
+                'aiv_vec_fp32_ratio',
+              ],
+              rows: [
+                {
+                  block_id: '0',
+                  'aiv_time(us)': '2',
+                  aiv_vec_fops: '4000',
+                  aiv_vec_fp32_ratio: '1',
+                },
+                {
+                  block_id: '1',
+                  'aiv_time(us)': '2',
+                  aiv_vec_fops: '8000',
+                  aiv_vec_fp32_ratio: '1',
+                },
+              ],
+              blockIds: ['0', '1'],
+            },
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.5' },
+                { block_id: '1', aiv_vec_ratio: '0.6' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: [
+                'block_id',
+                'read_main_memory_datas(KB)',
+                'write_main_memory_datas(KB)',
+              ],
+              rows: [
+                {
+                  block_id: '0',
+                  'read_main_memory_datas(KB)': '1',
+                  'write_main_memory_datas(KB)': '1',
+                },
+                {
+                  block_id: '1',
+                  'read_main_memory_datas(KB)': '2',
+                  'write_main_memory_datas(KB)': '2',
+                },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    await pickPipeBlock(wrapper, '0');
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    // Chip-level series from All must survive — example catalog would list every AIV/AIC dtype.
+    const legend = wrapper.get('[data-testid="roofline-legend"]');
+    expect(legend.text()).toContain('AIV');
+    expect(legend.text()).toContain('fp32');
+    expect(legend.text()).not.toContain('AIC');
+    expect(wrapper.findAll('[data-testid="roofline-roof"]')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="roofline-point"]').exists()).toBe(true);
+  });
+
+  it('PR-STATS-014e: a picked block keeps an interim root roof', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['roofline'],
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          roofline: {
+            points: [
+              {
+                id: 'gm',
+                label: 'GM All',
+                intensity: 0.1,
+                performance: 0.01,
+                style: 'solid',
+                color: '#E53935',
+              },
+            ],
+            mixLabels: [],
+            series: [],
+            peakComputeTops: 7,
+            peakBandwidthGBs: 800,
+          } as unknown as RooflineViewModel,
+          computeTables: [
+            {
+              fileName: 'ArithmeticUtilization.csv',
+              headers: ['block_id', 'aiv_time(us)', 'aiv_vec_fops', 'aiv_vec_fp32_ratio'],
+              rows: [
+                {
+                  block_id: '0',
+                  'aiv_time(us)': '2',
+                  aiv_vec_fops: '4000',
+                  aiv_vec_fp32_ratio: '1',
+                },
+              ],
+              blockIds: ['0', '1'],
+            },
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+              blockIds: ['0', '1'],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'read_main_memory_datas(KB)', 'write_main_memory_datas(KB)'],
+              rows: [
+                {
+                  block_id: '0',
+                  'read_main_memory_datas(KB)': '1',
+                  'write_main_memory_datas(KB)': '1',
+                },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+        }),
+      },
+    });
+    await pickPipeBlock(wrapper, '0');
+    const legend = wrapper.get('[data-testid="roofline-legend"]').text();
+    expect(legend).toContain('Peak');
+    expect(legend).not.toContain('int8');
+    expect(wrapper.findAll('[data-testid="roofline-roof"]')).toHaveLength(1);
+  });
+
   it('PR-STATS-014d (DATA-29): a picked block with no data blanks the tile — never the All aggregate', async () => {
     const wrapper = mount(StatsAside, {
       props: {
@@ -335,10 +513,29 @@ describe('StatsAside', () => {
             sides: [{ side: 'aic', measuredTflops: 10, peakTflops: 20 }],
           },
           roofline: {
-            points: [{ id: 'gm', label: 'GM', intensity: 1, performance: 1, style: 'solid' }],
+            points: [
+              {
+                id: 'gm',
+                label: 'GM',
+                intensity: 1,
+                performance: 1,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
             mixLabels: [],
-            peakComputeTops: 1,
-            peakBandwidthGBs: 1600,
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ],
           },
           computeTables: [
             {
@@ -1642,11 +1839,22 @@ describe('StatsAside', () => {
             intensity: 0.09,
             performance: 0.002,
             style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
           },
         ],
         mixLabels: [],
-        peakComputeTops: 1,
-        peakBandwidthGBs: 16,
+        series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ]
       },
     });
 
@@ -1656,7 +1864,7 @@ describe('StatsAside', () => {
     expect(withRoof.find('[data-testid="stats-roofline"]').exists()).toBe(true);
     expect(withRoof.find('[data-testid="roofline-panel"]').exists()).toBe(true);
 
-    // Phase 2 opt-in: the current release hides the card, points or not.
+    // Without the capability the card stays hidden even when points exist.
     const unflagged = mount(StatsAside, { props: { report: roofReport } });
     expect(unflagged.find('[data-testid="stats-roofline"]').exists()).toBe(false);
 
@@ -2432,10 +2640,29 @@ describe('StatsAside', () => {
           summary: { taskDurationUs: 1, opType: 'cube' },
           pipeOccupancy: pipes,
           roofline: {
-            points: [{ id: 'p1', label: 'x', intensity: 1, performance: 1, style: 'solid' }],
+            points: [
+              {
+                id: 'p1',
+                label: 'x',
+                intensity: 1,
+                performance: 1,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
             mixLabels: [],
-            peakComputeTops: 10,
-            peakBandwidthGBs: 1000,
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ],
           },
           memoryTopology: {
             nodes: [{ id: 'gm', label: 'GM' }, { id: 'l2', label: 'L2 Cache' }],

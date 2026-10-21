@@ -67,55 +67,6 @@ images:
       - label: "DATA-10 负载均衡度"
         box: { x: 420, y: 140, w: 280, h: 80 }
 
-  data-11:
-    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-11 chart (not pipe ratios)"
-        box: { x: 150, y: 470, w: 1550, h: 740 }
-
-  data-12:
-    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-12 X Ops/Byte"
-        box: { x: 80, y: 1235, w: 1780, h: 90 }
-
-  data-13:
-    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-13 Y TOps/s"
-        box: { x: 0, y: 360, w: 140, h: 840 }
-
-  data-14:
-    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-14 roof"
-        box: { x: 150, y: 470, w: 1550, h: 740 }
-
-  data-15:
-    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-15 L2"
-        box: { x: 1180, y: 410, w: 430, h: 50 }
-
-  data-16:
-    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-16 mix"
-        box: { x: 430, y: 610, w: 1000, h: 70 }
-
-  data-17:
-    source_file: src/ui/StatsAside/RooflinePanel/visual/roofline.png
-    maxWidth: 900
-    highlights:
-      - label: "DATA-17 tabs"
-        box: { x: 10, y: 195, w: 1000, h: 90 }
-
   data-19:
     source_file: src/ui/StatsAside/CsvFieldListPanel/visual/compute-detail-tabs.png
     maxWidth: 900

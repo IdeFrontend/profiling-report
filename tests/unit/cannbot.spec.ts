@@ -20,7 +20,7 @@ function makeFullReport(): ReportViewModel {
     computeCard: {
       sides: [{ side: 'aic', measuredTflops: 172, peakTflops: 320 }],
     },
-    roofline: { points: [], mixLabels: [], peakComputeTops: 256, peakBandwidthGBs: 1200 },
+    roofline: { points: [], mixLabels: [], series: [] },
     hardwareDetails: { sections: [] },
     memoryTopology: { nodes: [], edges: [] },
   };

@@ -299,17 +299,14 @@ describe('PR-UI: ProfilingReport feature contract', () => {
 
   it('PR-ROOT-004: auto-loaded source applies the adapter capabilities, the prop overrides', async () => {
     // out.rep carries roofline points, hardwareDetails and memoryDiagram; loadReportSource
-    // derives the latter two, so a host passing only `source` must still get them.
-    // `roofline` is Phase 2, out of the current release — it is opt-in and never derived.
+    // derives all three, so a host passing only `source` must still get them.
     const auto = mount(ProfilingReport, { props: { source: loadOutRepBuffer() } });
     await flushPromises();
     expect(
       auto.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
-    ).toBe('hardwareDetails,memoryDiagram');
-    // The attribute alone is not the contract — out.rep has roofline points, and the
-    // card must not reach the DOM without the flag (the aside is open: duration/PIPE).
-    expect(auto.find('[data-testid="stats-roofline"]').exists()).toBe(false);
-    expect(auto.find('[data-testid="roofline-panel"]').exists()).toBe(false);
+    ).toBe('roofline,hardwareDetails,memoryDiagram');
+    expect(auto.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    expect(auto.find('[data-testid="roofline-panel"]').exists()).toBe(true);
 
     const overridden = mount(ProfilingReport, {
       props: { source: loadOutRepBuffer(), capabilities: ['roofline'] },
@@ -318,7 +315,6 @@ describe('PR-UI: ProfilingReport feature contract', () => {
     expect(
       overridden.find('[data-testid="profiling-report"]').attributes('data-capabilities'),
     ).toBe('roofline');
-    // …and the same wiring renders it once the host opts in.
     expect(overridden.find('[data-testid="stats-roofline"]').exists()).toBe(true);
     expect(overridden.find('[data-testid="roofline-panel"]').exists()).toBe(true);
 
