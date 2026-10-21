@@ -14,6 +14,7 @@ import { normalizeMeasureRange, panBy, zoomAt } from '../../../../domain/viewSta
 import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
+  collapseShiftY,
   computeAltMeasureDelta,
   computeAltMeasureGap,
   visualContentHeight,
@@ -23,6 +24,7 @@ import {
   findExactEdgeMatchesAt,
   findHoverGap,
   findLaidOutEvent,
+  IDLE_COLLAPSE,
   LANE_HEIGHT,
   laneAtContentY,
   laneIdAtPoint,
@@ -1543,14 +1545,18 @@ function selectionRangeContentYForCommit(
 ): { top: number; bottom: number } {
   const layout = backend.getLayout();
   const pad = props.contentTopPad ?? 0;
+  // Event items stay on the expanded base; paint/hit use collapseShiftY — same here
+  // so folded Cards/folders above the selection do not inflate the ensure-scroll target.
+  const fold = layout.collapse ?? IDLE_COLLAPSE;
   let top = Infinity;
   let bottom = -Infinity;
   for (const ev of commitEvents) {
     const item = findLaidOutEvent(layout, ev.id);
     // item.y is layout/content space; ensure compares wrap space.
     if (!item) continue;
-    top = Math.min(top, item.y + pad);
-    bottom = Math.max(bottom, item.y + LANE_HEIGHT + pad);
+    const y = collapseShiftY(item.y, fold);
+    top = Math.min(top, y + pad);
+    bottom = Math.max(bottom, y + LANE_HEIGHT + pad);
   }
   if (Number.isFinite(bottom) && Number.isFinite(top)) return { top, bottom };
   const wrapTop = localScrollY + Math.min(rect.y0, rect.y1);

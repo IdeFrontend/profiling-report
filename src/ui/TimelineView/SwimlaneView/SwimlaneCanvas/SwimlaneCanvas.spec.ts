@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
+import { collapseShiftY, IDLE_COLLAPSE, LANE_HEIGHT } from '../../../../swimlane/layout';
 import { ALT_MEASURE_FIND_EVENT_KEY } from '../altMeasureShared';
 import type { SwimEvent } from '../../../../domain/types';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
@@ -4000,7 +4001,83 @@ describe('SwimlaneCanvas', () => {
       y1: 10,
     }).bottom;
     // Layout y + LANE_HEIGHT is content space; wrap space adds contentTopPad.
-    expect(withPad).toBe(layoutEv!.y + 22 + 80);
+    expect(withPad).toBe(layoutEv!.y + LANE_HEIGHT + 80);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-115: selection range Y is fold-shifted when Cards/folders above are collapsed', async () => {
+    const children = Array.from({ length: 10 }, (_, i) => ({
+      id: `leaf-${i}`,
+      name: `L${i}`,
+      events: [{ id: `ae-${i}`, name: 'a', startTime: 0, duration: 10 }],
+    }));
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'above',
+              name: 'Above',
+              threads: [{ id: 'folder', name: 'Folder', events: [], children }],
+            },
+            {
+              id: 'below',
+              name: 'Below',
+              threads: [
+                {
+                  id: 't-below',
+                  name: 'T',
+                  events: [{ id: 'e1', name: 'busy', startTime: 200, duration: 300 }],
+                },
+              ],
+            },
+          ],
+        },
+        collapsedIds: ['folder'],
+        contentTopPad: 40,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as unknown as {
+      selectionRangeContentYForCommit: (
+        events: { id: string }[],
+        rect: { x0: number; y0: number; x1: number; y1: number },
+      ) => { top: number; bottom: number };
+      renderer: () => {
+        getLayout: () => {
+          events: { id: string; y: number }[];
+          collapse?: Parameters<typeof collapseShiftY>[1];
+        };
+      };
+    };
+    const layout = vm.renderer().getLayout();
+    const layoutEv = layout.events.find((e) => e.id === 'e1');
+    expect(layoutEv).toBeTruthy();
+    const fold = layout.collapse ?? IDLE_COLLAPSE;
+    const visualY = collapseShiftY(layoutEv!.y, fold);
+    // Collapsed folder above must actually shift the event — otherwise the regression is vacuous.
+    expect(visualY).toBeLessThan(layoutEv!.y);
+
+    const range = vm.selectionRangeContentYForCommit([{ id: 'e1' } as never], {
+      x0: 0,
+      y0: 0,
+      x1: 10,
+      y1: 10,
+    });
+    expect(range.top).toBe(visualY + 40);
+    expect(range.bottom).toBe(visualY + LANE_HEIGHT + 40);
+    // Pre-fix would have used expanded-base item.y and overscrolled.
+    expect(range.top).not.toBe(layoutEv!.y + 40);
     wrapper.unmount();
   });
 
