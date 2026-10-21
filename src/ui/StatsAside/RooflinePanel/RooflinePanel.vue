@@ -37,6 +37,9 @@ const opsY = plotBottomY;
 const hovered = ref<RooflinePoint | null>(null);
 /** Experimental: legend hover → emphasize that series' roof on the plot. */
 const legendHoverId = ref<string | null>(null);
+/** Sketch hollow square at each roof ridge (knee); rx matches legend 8×8 / 2px. */
+const KNEE = 7;
+const KNEE_RX = 2;
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
 
@@ -418,13 +421,14 @@ const tooltipText = computed(() => {
             />
             <path
               class="pr-roofline__roof"
+              :class="{ 'pr-roofline__roof--dashed': s.slopeStyle === 'dashed' }"
               :d="roofSegments(s).plateau"
               fill="none"
               :stroke="s.color"
             />
           </g>
         </g>
-        <!-- Markers sit outside plot clip so edge circles are not cropped. -->
+        <!-- Markers sit outside plot clip so edge marks are not cropped. -->
         <g class="pr-roofline__markers">
           <g
             v-for="p in model.points"
@@ -443,19 +447,22 @@ const tooltipText = computed(() => {
               @mouseleave="hovered = null"
             />
           </g>
-          <circle
+          <!-- Sketch: hollow square at each roof ridge (knee); rx matches legend swatch. -->
+          <rect
             v-for="s in roofDrawOrder"
             :key="`knee-${s.id}`"
             data-testid="roofline-knee"
             class="pr-roofline__knee"
             :class="roofHighlightClass(s.id)"
             :data-series-id="s.id"
-            :cx="roofSegments(s).ridgeX"
-            :cy="roofSegments(s).ridgeY"
-            r="3.5"
+            :x="roofSegments(s).ridgeX - KNEE / 2"
+            :y="roofSegments(s).ridgeY - KNEE / 2"
+            :width="KNEE"
+            :height="KNEE"
+            :rx="KNEE_RX"
+            :ry="KNEE_RX"
             fill="#262626"
             :stroke="s.color"
-            stroke-width="1.5"
             pointer-events="none"
           />
         </g>
@@ -631,7 +638,7 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__roof {
-  stroke-width: 1.75;
+  stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
   transition: stroke-width 80ms ease, opacity 80ms ease;
@@ -647,10 +654,11 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__roof-g--lit .pr-roofline__roof {
-  stroke-width: 3.25;
+  stroke-width: 3.5;
 }
 
 .pr-roofline__knee {
+  stroke-width: 1.5;
   transition: opacity 80ms ease, stroke-width 80ms ease;
 }
 

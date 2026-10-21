@@ -49,6 +49,12 @@ describe('RooflinePanel', () => {
     expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(1);
     const knees = wrapper.findAll('[data-testid="roofline-knee"]');
     expect(knees).toHaveLength(sample.series.length);
+    // Sketch ridge marks are hollow rounded squares (legend swatch radius), not circles.
+    expect(knees[0]!.element.tagName.toLowerCase()).toBe('rect');
+    expect(knees[0]!.attributes('width')).toBe('7');
+    expect(knees[0]!.attributes('height')).toBe('7');
+    expect(knees[0]!.attributes('rx')).toBe('2');
+    expect(knees[0]!.attributes('ry')).toBe('2');
     expect(knees[0]!.attributes('fill')).toBe('#262626');
     expect(knees[0]!.attributes('stroke')).toBe(sample.series[0]!.color);
     expect(knees[0]!.attributes('pointer-events')).toBe('none');
@@ -204,7 +210,7 @@ describe('RooflinePanel', () => {
     expect(wrapper.findAll('.pr-roofline__leg-pad')).toHaveLength(1);
   });
 
-  it('experimental: legend hover highlights the matching roof', async () => {
+  it('PR-ROOF-008: legend hover highlights the matching roof', async () => {
     const multi: RooflineViewModel = {
       ...sample,
       series: [
@@ -215,7 +221,7 @@ describe('RooflinePanel', () => {
           color: '#8C78F0',
           peakComputeTops: 10,
           peakBandwidthGBs: 1600,
-          slopeStyle: 'solid',
+          slopeStyle: 'dashed',
         },
         {
           id: 'aic-fp32',
@@ -229,6 +235,10 @@ describe('RooflinePanel', () => {
       ],
     };
     const wrapper = mount(RooflinePanel, { props: { model: multi } });
+    // Dashed series apply dash to both slope and plateau paths.
+    const dashedRoof = wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]');
+    expect(dashedRoof.findAll('.pr-roofline__roof--dashed')).toHaveLength(2);
+
     const leg = wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]');
     await leg.trigger('mouseenter');
     const roofs = wrapper.findAll('[data-testid="roofline-roof"]');
@@ -239,6 +249,9 @@ describe('RooflinePanel', () => {
     expect(dim[0]!.attributes('data-series-id')).toBe('aic-fp32');
     // Highlighted series is painted last (on top).
     expect(roofs[roofs.length - 1]!.attributes('data-series-id')).toBe('aiv-fp16');
+    expect(
+      wrapper.get('[data-testid="roofline-knee"][data-series-id="aic-fp32"]').classes(),
+    ).toContain('pr-roofline__roof-g--dim');
     await leg.trigger('mouseleave');
     expect(wrapper.find('.pr-roofline__roof-g--lit').exists()).toBe(false);
     expect(wrapper.find('.pr-roofline__roof-g--dim').exists()).toBe(false);

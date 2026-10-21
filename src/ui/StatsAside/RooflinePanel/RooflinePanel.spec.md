@@ -14,13 +14,13 @@ Log-log roofline bottleneck chart (npu-compute §11.8). `StatsAside` mounts it w
 
 ## Behavior
 
-Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws the theoretical roof (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points (solid/hollow), and op-mix labels. Hover on a point shows intensity + performance. Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).
+Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws per-series theoretical roofs (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points (solid/hollow circles), hollow square knees, and op-mix labels. Hover on a point shows intensity + performance; legend hover (experimental) highlights that series' roof. Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).
 
 Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 
 ## Acceptance Criteria
 
-1. **PR-ROOF-001** — Renders chart with at least one point, a roof path, and a hollow knee marker per series.
+1. **PR-ROOF-001** — Renders chart with at least one point, a roof path, and a hollow **rounded-square** knee marker per series (`rx=2`, same as legend swatches).
 2. **PR-ROOF-001b** — Raised chart card includes under-roof `#3078f0` gradient wash.
 3. **PR-ROOF-002** — Shows mix labels when present.
 4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix and **TOps/s** share one alphabetic baseline just above the plot; **TOps/s** start-anchored at SVG `x=0` (same vertical line as aside title / AIV / AIC); **Ops/Byte** grid-aligned; markers not clipped; SVG display width tracks the card (`width: 100%`).
@@ -29,6 +29,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
 8. **PR-ROOF-006** — Legend at the top of the raised card (**no** in-card **Roofline** chart title — aside `h4` is enough); shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`.
 9. **PR-ROOF-007** — Log domains are data-driven decade floors/ceils with **no** hard X/Y cap (including no `1e-3` / `1e-4` floor once samples exist); chip-scale peaks and ridges beyond the product crop (`100K` Ops/Byte / `1e5` TOps/s) still fit on-axis. When floor===ceil (lone power-of-ten), open **one decade** of span so SVG coordinates stay finite (**PR-ROOF-007b**).
+10. **PR-ROOF-008** — Legend hover (experimental): hovering a legend series thickens that roof (slope + plateau) and dims the other roofs / knees; leaving the item clears the highlight.
 
 ## Visual
 
@@ -41,16 +42,16 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 | Chart title | **Omitted** inside the card (aside title only) |
 | Plot well | `#262626` (same as card) |
 | Insets | Card pad **8px 8px 6px**; legend, TOps/s, and SVG share the left edge |
-| Legend | Top of raised card; one grid `28px + repeat(n, max-content)` across AIV then AIC rows so nth swatches align; heads `#c4c4c4`, labels `#8a8a8a`, `12px`; 8×8 swatches with **2px** radius + full series labels |
-| Roof / points | `#3078f0`; roof stroke `2px`; hollow vertex markers on roof polyline |
-| Area wash | Vertical `#3078f0` under ridge: 16% → 10% @40% → 5% @75% → 0% at floor |
+| Legend | Top of raised card; one grid `28px + repeat(n, max-content)` across AIV then AIC rows so nth swatches align; heads `#c4c4c4`, labels `#8a8a8a`, `12px`; 8×8 swatches with **2px** radius + full series labels; hover highlights the matching roof (**PR-ROOF-008**) |
+| Roof | Per-series stroke color (AIV/AIC legend palette); stroke **`2px`** ( lit **`3.5px`** on legend hover); dashed series dash **both** slope and plateau (`4 3`) |
+| Area wash | Vertical `#3078f0` under the topmost ridge: 16% → 10% @40% → 5% @75% → 0% at floor |
 | Mix annotation | Two-tone on the **TOps/s** row (shared alphabetic baseline, centered): names `#999999`, percents `#ffffff`, `12px`; `label (percent.toFixed(6)%)`, comma-separated |
 | Axis / ticks | `#999999` `12px`; ticks as decimals; x ticks at `plotBottom + 16`; y ticks at tick line `+ 4`; **TOps/s** start-anchored at SVG `x=0` (alphabetic baseline `PAD.t − TOPS_GAP`); **Ops/Byte** start-anchored `4px` right of plot on bottom grid line |
 | Chart SVG | Intrinsic **`440×303`** viewBox @ **480px** aside; CSS `width: 100%` |
 | Plot inset | `PAD` `{ l: 47, r: 66, t: 28, b: 39 }` — sketch `{34,48,20,28}` scaled by `440/320`; plot frame has no stroke |
 | Header→plot | Legend at card top; card→SVG **6px**; reserved tip band below SVG (in flow, not absolute) |
 | Grid | `#4a5568` (blue-grey; visible on `#262626` well) |
-| Markers | Data + roof vertex circles render **outside** plot clip so edge markers are not cropped |
+| Markers | Measured points = filled/hollow **circles** (`r=4`, series color). Roof knees = hollow **rounded squares** (`7×7`, `rx=2` like legend swatches, fill `#262626`, series stroke). Both render **outside** plot clip so edge marks are not cropped |
 
 ## Dependencies
 
@@ -58,6 +59,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Changelog
 
+- **2026-10-21** — Multi-series roof tokens: per-series stroke (not `#3078f0`), `2px` roofs, dashed slope+plateau, square knees; experimental legend→roof highlight (PR-ROOF-008).
 - **2026-09-14** — Out of the current release: kept in code, hidden behind the opt-in `roofline` capability in `StatsAside` (no surface change to the panel itself).
 - **2026-09-02** — Chart SVG uses `width: 100%` (viewBox stays **440×303**) so aside scroll never needs a horizontal bar.
 - **2026-09-02** — Aside **480px** (Product); chart **440×303** from content well.
