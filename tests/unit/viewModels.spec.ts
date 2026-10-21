@@ -984,7 +984,8 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(rooflineFromRows([], mem)).toBeUndefined();
   });
 
-  it('PR-VM-009b: HardwareInfo Roofline JSON series + measured points', () => {
+  it('PR-VM-009b: HardwareInfo Roofline JSON overlays full catalog + measured points', async () => {
+    const { ROOFLINE_SERIES_META } = await import('../../src/adapters/roofline');
     const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
     const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
     const hw = [
@@ -996,18 +997,41 @@ describe('PR-VM: report view-models (interim)', () => {
     ].join('\n');
     const model = rooflineFromRows(arith, mem, hw);
     expect(model).toBeDefined();
-    // JSON measured points win over GM when present.
+    // JSON measured points win over GM when present; labels are producer keys.
     expect(model!.points.map((p) => p.id).sort()).toEqual(['aic_b8', 'aiv_simd_b16']);
-    expect(model!.series.map((s) => s.id)).toEqual(['aiv-fp16', 'aic-int8-fp8']);
+    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.label).toBe('aiv_simd_b16');
+    // Sparse JSON overlays the full AIV+AIC legend (does not replace it).
+    expect(model!.series.map((s) => s.id)).toEqual(Object.keys(ROOFLINE_SERIES_META));
     const aiv = model!.series.find((s) => s.id === 'aiv-fp16')!;
     expect(aiv.peakComputeTops).toBeCloseTo(2.7e13 / 1e12, 6);
     expect(aiv.peakBandwidthGBs).toBe(1600);
     const aic = model!.series.find((s) => s.id === 'aic-int8-fp8')!;
     expect(aic.peakComputeTops).toBeCloseTo(8.65e14 / 1e12, 5);
-    // intensity = w/q, performance = w/t/1e12
+    // Unmentioned dtypes keep example-catalog ceilings.
+    expect(model!.series.find((s) => s.id === 'aiv-fp32')!.peakComputeTops).toBeCloseTo(
+      13516800000000 / 1e12,
+      6,
+    );
     const pt = model!.points.find((p) => p.id === 'aiv_simd_b16')!;
     expect(pt.intensity).toBeCloseTo(1e9 / 1e6, 6);
     expect(pt.performance).toBeCloseTo(1e9 / 1e-3 / 1e12, 6);
+  });
+
+  it('PR-VM-009b: colliding JSON keys keep max p_peak and distinct point labels', () => {
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'Roofline',
+      aiv_simd_b32: { p_peak: 1e13, b_peak: 800, w: 1e9, t: 1e-3, q: 1e6 },
+      aiv_simt_b32: { p_peak: 2e13, b_peak: 1600, w: 2e9, t: 2e-3, q: 2e6 },
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const fp32 = model!.series.find((s) => s.id === 'aiv-fp32')!;
+    // Max p_peak wins (simt 2e13), with that entry's b_peak.
+    expect(fp32.peakComputeTops).toBeCloseTo(2e13 / 1e12, 6);
+    expect(fp32.peakBandwidthGBs).toBe(1600);
+    expect(model!.points.map((p) => p.label).sort()).toEqual(['aiv_simd_b32', 'aiv_simt_b32']);
   });
 
   it('PR-VM-009c: §11.8.1 formula peaks from HardwareInfo counts exceed example catalog', async () => {
@@ -1036,5 +1060,25 @@ describe('PR-VM: report view-models (interim)', () => {
     // Ridge intensity for int8 exceeds the former X cap of 1e3.
     const ridge = (series['aic-int8-fp8']!.peakComputeTops * 1000) / series['aic-int8-fp8']!.peakBandwidthGBs;
     expect(ridge).toBeGreaterThan(1e3);
+  });
+
+  it('PR-VM-009c: cube-only HardwareInfo still formulas AIC (AIV keeps examples)', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      ai_cube_count: 25,
+      ai_core_frequency_MHZ: [1650],
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aic-int8-fp8', 25, 0, 1650),
+      6,
+    );
+    // No vector count → AIV stays on the example catalog.
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(27033600000000 / 1e12, 6);
   });
 });

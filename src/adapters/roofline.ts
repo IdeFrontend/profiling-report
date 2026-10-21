@@ -180,19 +180,29 @@ export function peakComputeTopsFromFormula(
   }
 }
 
+/** AIV formulas need vector+freq; AIC formulas need cube+freq (not both sides). */
+function canFormulaForId(
+  id: RooflineSeriesId,
+  cubeNum: number | undefined,
+  vectorNum: number | undefined,
+  frequencyMhz: number | undefined,
+): boolean {
+  if (frequencyMhz == null || !(frequencyMhz > 0)) return false;
+  if (id.startsWith('aiv-')) return vectorNum != null && vectorNum > 0;
+  return cubeNum != null && cubeNum > 0;
+}
+
 function defaultSeriesCatalog(
   cubeNum: number | undefined,
   vectorNum: number | undefined,
   frequencyMhz: number | undefined,
 ): RooflineSeries[] {
   const ids = Object.keys(ROOFLINE_SERIES_META) as RooflineSeriesId[];
-  const canFormula =
-    cubeNum != null && cubeNum > 0 && vectorNum != null && vectorNum > 0 && frequencyMhz != null && frequencyMhz > 0;
   return ids.map((id) => {
-    if (canFormula) {
+    if (canFormulaForId(id, cubeNum, vectorNum, frequencyMhz)) {
       return seriesFromMeta(
         id,
-        peakComputeTopsFromFormula(id, cubeNum!, vectorNum!, frequencyMhz!),
+        peakComputeTopsFromFormula(id, cubeNum ?? 0, vectorNum ?? 0, frequencyMhz!),
         ROOFLINE_B_PEAK_GBS,
       );
     }
@@ -240,7 +250,11 @@ function parseRooflineJsonl(text: string): {
     const bPeak = typeof m.b_peak === 'number' ? m.b_peak : ROOFLINE_B_PEAK_GBS;
     const peakTops =
       pPeakOps != null && pPeakOps > 0 ? pPeakOps / OPS_PER_TOPS : EXAMPLE_PEAK_TOPS[seriesId].peakComputeTops;
-    seriesById.set(seriesId, seriesFromMeta(seriesId, peakTops, bPeak));
+    // Many producer keys map to one legend series — keep the max p_peak (and its b_peak).
+    const prev = seriesById.get(seriesId);
+    if (!prev || peakTops > prev.peakComputeTops) {
+      seriesById.set(seriesId, seriesFromMeta(seriesId, peakTops, bPeak));
+    }
 
     const w = typeof m.w === 'number' ? m.w : undefined;
     const t = typeof m.t === 'number' ? m.t : undefined;
@@ -252,7 +266,8 @@ function parseRooflineJsonl(text: string): {
     const meta = ROOFLINE_SERIES_META[seriesId];
     points.push({
       id: key,
-      label: meta.label,
+      // Disambiguate when several JSON keys share one seriesId / legend color.
+      label: key,
       intensity,
       performance,
       style: 'solid',
@@ -262,7 +277,7 @@ function parseRooflineJsonl(text: string): {
   }
 
   if (seriesById.size === 0) return undefined;
-  // Keep legend order.
+  // Keep legend order (sparse — caller merges onto the full catalog).
   const ordered = (Object.keys(ROOFLINE_SERIES_META) as RooflineSeriesId[])
     .filter((id) => seriesById.has(id))
     .map((id) => seriesById.get(id)!);
@@ -375,6 +390,11 @@ export function rooflineFromRows(
 
   if (points.length === 0) return undefined;
 
-  const series = fromJson && fromJson.series.length > 0 ? fromJson.series : catalog;
+  // Overlay JSON peaks onto the full AIV+AIC catalog so a sparse Roofline category
+  // cannot blank the rest of the product legend.
+  const series =
+    fromJson && fromJson.series.length > 0
+      ? catalog.map((base) => fromJson.series.find((s) => s.id === base.id) ?? base)
+      : catalog;
   return { points, mixLabels, series };
 }

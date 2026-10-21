@@ -245,4 +245,29 @@ describe('RooflinePanel', () => {
     expect(tickTexts).toContain('100K');
     expect(tickTexts).toContain('1000K');
   });
+
+  it('PR-ROOF-007b: lone power-of-ten point still yields finite coordinates', () => {
+    // niceFloor(1)=niceCeil(1)=1 → without a decade guard, log map divides by zero.
+    const lone: RooflineViewModel = {
+      points: [
+        {
+          id: 'gm',
+          label: 'GM',
+          intensity: 1,
+          performance: 1,
+          style: 'solid',
+          color: '#32BE8C',
+        },
+      ],
+      mixLabels: [],
+      series: [],
+    };
+    const wrapper = mount(RooflinePanel, { props: { model: lone } });
+    const pt = wrapper.get('[data-testid="roofline-point"]');
+    expect(Number.isFinite(Number(pt.attributes('cx')))).toBe(true);
+    expect(Number.isFinite(Number(pt.attributes('cy')))).toBe(true);
+    expect(wrapper.findAll('.pr-roofline__tick').map((n) => n.text())).toEqual(
+      expect.arrayContaining(['1', '10']),
+    );
+  });
 });

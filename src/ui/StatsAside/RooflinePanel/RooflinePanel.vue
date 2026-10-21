@@ -94,14 +94,15 @@ const domains = computed(() => {
       if (ridge > 0) xs.push(ridge);
     }
   }
-  return {
-    xMin: niceFloor(xs.length ? Math.min(...xs) : 1e-3, 1e-3),
-    // Data-driven decade ceil — no sketch-sized hard cap (chip formula peaks / ridges
-    // can exceed the product crop's 100K Ops/Byte and 1e5 TOps/s).
-    xMax: niceCeil(xs.length ? Math.max(...xs) : 1),
-    yMin: niceFloor(ys.length ? Math.min(...ys) : 1e-3, 1e-4),
-    yMax: niceCeil(ys.length ? Math.max(...ys) : 1),
-  };
+  // Data-driven decade floors/ceils — no sketch-sized hard cap. Force ≥1 decade of
+  // span so a lone power-of-ten value cannot collapse the log map to NaN.
+  const xMin = niceFloor(xs.length ? Math.min(...xs) : 1e-3, 1e-3);
+  let xMax = niceCeil(xs.length ? Math.max(...xs) : 1);
+  if (xMax <= xMin) xMax = xMin * 10;
+  const yMin = niceFloor(ys.length ? Math.min(...ys) : 1e-3, 1e-4);
+  let yMax = niceCeil(ys.length ? Math.max(...ys) : 1);
+  if (yMax <= yMin) yMax = yMin * 10;
+  return { xMin, xMax, yMin, yMax };
 });
 
 function niceFloor(v: number, floor: number): number {

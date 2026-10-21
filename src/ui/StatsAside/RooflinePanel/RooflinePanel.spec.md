@@ -28,7 +28,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved under the SVG (not absolutely overlaid) so the card does not shift on hover and x-tick / Ops/Byte labels stay visible.
 7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
 8. **PR-ROOF-006** — Legend under the in-card **Roofline** title with **10px** title→legend gap; shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`.
-9. **PR-ROOF-007** — Log domains are data-driven decade floors/ceils with **no** hard X/Y cap; chip-scale formula peaks and ridges beyond the product crop (`100K` Ops/Byte / `1e5` TOps/s) still fit on-axis.
+9. **PR-ROOF-007** — Log domains are data-driven decade floors/ceils with **no** hard X/Y cap; chip-scale formula peaks and ridges beyond the product crop (`100K` Ops/Byte / `1e5` TOps/s) still fit on-axis. When floor===ceil (lone power-of-ten), open **one decade** of span so SVG coordinates stay finite (**PR-ROOF-007b**).
 
 ## Visual
 
