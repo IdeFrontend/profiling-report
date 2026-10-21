@@ -30,6 +30,7 @@ const emit = defineEmits<{
 
 type PaneApi = {
   setLine: (n: number) => void;
+  clearLine?: () => void;
   scrollToTop: () => void;
   scrollToBottom: () => void;
 };
@@ -58,27 +59,10 @@ const selectedPane = ref<'source' | 'asm'>('source');
  */
 const correlationSuppressed = ref(false);
 /**
- * Which pane initiated the latest cross-pane sync. Blocks caret/selection echoes
- * from bouncing back (asm click → source setLine → Sudu caret → onSourceLine
- * would otherwise snap asm to mapped[0]).
+ * Which pane initiated the latest cross-pane sync. Cleared when the echo is
+ * absorbed — no timer (timers raced real Sudu caret/paint).
  */
 const syncOrigin = ref<'source' | 'asm' | null>(null);
-let syncOriginClear: ReturnType<typeof setTimeout> | null = null;
-
-function endSync() {
-  syncOrigin.value = null;
-  if (syncOriginClear != null) {
-    clearTimeout(syncOriginClear);
-    syncOriginClear = null;
-  }
-}
-
-function beginSync(origin: 'source' | 'asm') {
-  syncOrigin.value = origin;
-  if (syncOriginClear != null) clearTimeout(syncOriginClear);
-  // Sudu can echo caret after paint; keep the gate longer than ignoreCaret (50ms).
-  syncOriginClear = setTimeout(endSync, 300);
-}
 
 function toggleLinkViews() {
   linkViews.value = !linkViews.value;
@@ -175,11 +159,17 @@ function hotLines(file: SourceFileModel, col: string): number[] {
 
 function onSourceLine(line: number) {
   correlationSuppressed.value = false;
-  // Programmatic source caret from an asm-driven sync — keep asm where the user put it.
+  // Asm-driven setLine echo — keep asm caret; clear the gate (no timer).
   if (syncOrigin.value === 'asm') {
     sourceLine.value = line;
-    endSync();
+    syncOrigin.value = null;
     return;
+  }
+  // Late caret echo for the same mapped group: keep asm sibling, do not steal pane.
+  if (sourceLine.value === line && asmLine.value != null && linkViews.value) {
+    const file = sourceFile.value;
+    const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
+    if (mapped.includes(asmLine.value)) return;
   }
   selectedPane.value = 'source';
   sourceLine.value = line;
@@ -187,13 +177,13 @@ function onSourceLine(line: number) {
   const file = sourceFile.value;
   const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
   if (mapped.length > 0) {
-    beginSync('source');
-    // Keep the asm caret if it already belongs to this source line (late Sudu echo
-    // after an asm→source jump must not snap to mapped[0]).
+    syncOrigin.value = 'source';
+    // Keep the asm caret if it already belongs to this source line.
     const stay = asmLine.value != null && mapped.includes(asmLine.value);
     const target = stay ? asmLine.value! : mapped[0]!;
     asmLine.value = target;
     asmPane.value?.setLine(target);
+    syncOrigin.value = null; // asm setLine does not echo selection
   } else {
     // Unmapped: clear opposite highlight so a stale pair is not shown.
     asmLine.value = null;
@@ -204,7 +194,7 @@ function onAsmLine(line: number) {
   correlationSuppressed.value = false;
   if (syncOrigin.value === 'source') {
     asmLine.value = line;
-    endSync();
+    syncOrigin.value = null;
     return;
   }
   selectedPane.value = 'asm';
@@ -213,12 +203,14 @@ function onAsmLine(line: number) {
   const hit = props.model.asmToSource[line];
   if (hit) {
     if (hit.fileId !== selectedFileId.value) selectedFileId.value = hit.fileId;
-    beginSync('asm');
+    syncOrigin.value = 'asm';
     sourceLine.value = hit.line;
-    // Prefer imperative setLine; SuduCodePane also watches currentLine + revealLine.
+    // Imperative setLine; SuduCodePane also watches currentLine (sample: setPosition only).
     sourcePane.value?.setLine(hit.line);
   } else {
+    // No mapped source — clear metrics current row and Sudu caret/current-line paint.
     sourceLine.value = null;
+    sourcePane.value?.clearLine?.();
   }
 }
 

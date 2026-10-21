@@ -6,27 +6,40 @@ import { resetSuduRuntimeForTests } from './suduRuntime';
 
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
-  newEditor: vi.fn(() => ({
-    setModel: vi.fn(),
-    setVScrollListener: vi.fn(),
-    setVScrollVisible: vi.fn(),
-    setCaretListener: vi.fn(),
-    setPosition: vi.fn(),
-    getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
-    revealLine: vi.fn(),
-    revealLineInCenter: vi.fn(),
-    focus: vi.fn(),
-    dispose: vi.fn(),
-    getDevicePixelRatio: () => 1,
-    getLineHeight: () => 18,
-    getEditorHeight: () => 200,
-    getMaxVScrollPos: () => 0,
-    getNumLines: () => 10,
-    getFontSize: () => 12,
-    getFontFamily: () => 'monospace',
-    getVScrollPos: () => 0,
-    setVScrollPos: vi.fn(),
-  })),
+  // Mirror real Sudu: setPosition notifies setCaretListener when the line changes.
+  newEditor: vi.fn(() => {
+    let caretListener: ((lineNumber: number) => void) | null = null;
+    let position = { lineNumber: 1, column: 1 };
+    return {
+      setModel: vi.fn(),
+      setVScrollListener: vi.fn(),
+      setVScrollVisible: vi.fn(),
+      setCaretListener: vi.fn((cb: ((lineNumber: number) => void) | null) => {
+        caretListener = cb;
+      }),
+      setPosition: vi.fn((pos: { lineNumber: number; column: number }) => {
+        const prev = position.lineNumber;
+        position = pos;
+        if (caretListener && pos.lineNumber !== prev) caretListener(pos.lineNumber);
+      }),
+      getPosition: vi.fn(() => position),
+      revealLine: vi.fn(),
+      revealLineInCenter: vi.fn(),
+      focus: vi.fn(),
+      setTheme: vi.fn(),
+      hasFocus: vi.fn(() => false),
+      dispose: vi.fn(),
+      getDevicePixelRatio: () => 1,
+      getLineHeight: () => 18,
+      getEditorHeight: () => 200,
+      getMaxVScrollPos: () => 0,
+      getNumLines: () => 10,
+      getFontSize: () => 12,
+      getFontFamily: () => 'monospace',
+      getVScrollPos: () => 0,
+      setVScrollPos: vi.fn(),
+    };
+  }),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
 }));
 
@@ -36,7 +49,8 @@ async function latestSuduEditor() {
   const last = results[results.length - 1]?.value as {
     setPosition: ReturnType<typeof vi.fn>;
     revealLine: ReturnType<typeof vi.fn>;
-    revealLineInCenter: ReturnType<typeof vi.fn>;
+    focus: ReturnType<typeof vi.fn>;
+    setTheme: ReturnType<typeof vi.fn>;
   };
   return last;
 }
@@ -147,13 +161,37 @@ describe('SourceView', () => {
     expect(
       asmTable.findAll('tr.pr-src-metrics__row--correlated').map((r) => Number(r.attributes('data-line'))),
     ).toEqual([1, 2, 3, 4, 5]);
-    // Sudu caret must move + reveal (asm → source), not only metrics highlight.
+    // Sudu caret moves + gains focus so drawCaret paints the selection (no custom overlay).
     const ed = await latestSuduEditor();
     expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 46, column: 1 });
-    expect(ed.revealLineInCenter).toHaveBeenCalledWith(46);
-    // Canvas overlay marks the mapped source line even when focus stays on asm.
-    const overlay = wrapper.find('[data-testid="sudu-current-line-overlay"]');
-    expect(overlay.exists()).toBe(true);
+    expect(ed.revealLine).toHaveBeenCalledWith(46);
+    expect(ed.focus).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="sudu-current-line-overlay"]').exists()).toBe(false);
+  });
+
+  it('PR-SOURCE-006b: unmapped asm row clears source metrics and Sudu current-line theme', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    // Mapped first so the editor has a caret/theme to clear.
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await flushPromises();
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
+    const ed = await latestSuduEditor();
+    ed.setTheme.mockClear();
+    // Mock asm line 99 is unmapped (no asmToSource entry).
+    const unmapped =
+      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+    expect(unmapped).not.toBeNull();
+    await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
+    await flushPromises();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    expect(ed.setTheme).toHaveBeenCalled();
+    const theme = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number | string, string>;
+    // CurrentLineBackground overridden to editor plane so Sudu stop painting the old line.
+    expect(theme[14]).toBe('#1a1a1a');
   });
 
   it('PR-SOURCE-006: unmapped source line clears asm highlight', async () => {
@@ -378,20 +416,23 @@ describe('SourceView', () => {
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
   });
 
-  it('PR-SOURCE-014b: late caret echo after syncOrigin expires still keeps asm caret', async () => {
-    vi.useFakeTimers();
+  it('PR-SOURCE-014b: second caret echo for the same mapped group keeps asm caret', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     await asmTable.find('tr[data-line="2"]').trigger('click');
     await wrapper.vm.$nextTick();
-    // Past the syncOrigin safety window — echo must still not snap via mapped[0].
-    vi.advanceTimersByTime(400);
-    await wrapper.findComponent({ name: 'SuduCodePane' }).vm.$emit('update:currentLine', 46);
+    const sudu = wrapper.findComponent({ name: 'SuduCodePane' });
+    // First echo clears syncOrigin; a second echo must still not snap via mapped[0] / steal pane.
+    await sudu.vm.$emit('update:currentLine', 46);
+    await wrapper.vm.$nextTick();
+    await sudu.vm.$emit('update:currentLine', 46);
     await wrapper.vm.$nextTick();
     expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
     expect(asmTable.find('tr[data-line="1"]').classes()).not.toContain('pr-src-metrics__row--current');
-    vi.useRealTimers();
+    expect(wrapper.find('[data-testid="source-pane-asm"]').classes()).toContain(
+      'pr-source-view__pane--selected',
+    );
   });
 
   it('PR-SOURCE-015: switching Source file clears caret and correlation', async () => {

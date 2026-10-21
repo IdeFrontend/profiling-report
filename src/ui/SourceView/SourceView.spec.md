@@ -20,7 +20,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Navigate / search.** Search targets the **selected pane** only. Empty search is a no-op (find buttons disabled). **Source selected:** search runs in the Sudu editor (API not wired yet — TODO; metrics table is **not** highlighted). **SASS selected:** search runs in the **Assembly** column only; matching substrings use the Compute Load Analysis chip (`pr-field-match` / [UI-43](../../../docs/context/decisions/UI.md)); find next/prev walks those hits. **Sort navigate order** (asc/desc) jumps to the first Navigate By hot line for the selected pane. Scroll-to-top / scroll-to-bottom reset both panes to the first / last line and suppress cross-pane correlation highlights until the next caret selection. Metric cells stay uncolored (sketch has no heat tint — [UI-59](../../../docs/context/questions/UI.md)).
 
-**Sudu runtime.** The worker pool is process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. The editor theme sets `editorFont` to 12px **`monospace`** with no fallback stack and no font assets (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync stays on regardless of the Source↔SASS link toggles.
+**Sudu runtime.** The worker pool is process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. The editor theme sets `editorFont` to 12px **`monospace`** with no fallback stack and no font assets (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync follows `editorAndTable.js` (device-px vscroll ↔ CSS table scroll; row click = `setPosition` + `focus`; caret listener drives selection). **No custom canvas line overlays** — Sudu paints the current line. Editor ↔ metrics scroll stays on regardless of the Source↔SASS link toggles.
 
 ## Acceptance Criteria
 
@@ -28,8 +28,8 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 2. **PR-SOURCE-002** — Mock model shows `source-mock-badge`.
 3. **PR-SOURCE-003** — Source row click updates correlated asm highlight set.
 4. **PR-SOURCE-004** — Hovering a sampling-stall metric cell shows `stall-tooltip`.
-5. **PR-SOURCE-005** — Asm row click keeps the chosen asm current line, marks the mapped source line (metrics + editor overlay), and highlights the full mapped asm sibling set (no snap to first mapped insn).
-6. **PR-SOURCE-006** — Selecting an unmapped source line clears asm current/correlated highlights.
+5. **PR-SOURCE-005** — Asm row click keeps the chosen asm current line, moves the Sudu caret with `setPosition` + `revealLine` + `focus` (Sudu only paints the caret while focused — no custom canvas overlay), marks the mapped source metrics row, and highlights the full mapped asm sibling set (no snap to first mapped insn).
+6. **PR-SOURCE-006** — Selecting an unmapped source line clears asm current/correlated highlights. Unmapped asm row clears source metrics current row and Sudu current-line paint (`clearLine` / theme override; Sudu has no clearSelection API).
 7. **PR-SOURCE-007** — Toolbar exposes search, action icons (incl. scroll-to-top/bottom), and shared link toggles (`source-search`, `source-toolbar-actions`, `source-scroll-top`, `source-scroll-bottom`, `source-link-source`, `source-link-asm`). Does **not** expose dim-zeros, Source shortcuts, or Redo Resolve.
 8. **PR-SOURCE-008** — Source-selected search does not mark metrics tables (editor find TODO). SASS-selected search highlights Assembly substrings (`source-asm-match` / `pr-field-match`) and find next/prev walks those hits; Address-only needles do not match. Sort asc/desc jumps to the first Navigate By hot line for the selected pane.
 9. **PR-SOURCE-009** — Turning off either Link views toggle (shared state) keeps source selection from moving the asm caret; both buttons stay in sync.
@@ -37,7 +37,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 11. **PR-SOURCE-011** — Asm Navigate By select is enabled and independent of the source pane’s Navigate By.
 12. **PR-SOURCE-012** — Scroll-to-top clears correlated row highlights while both carets sit at line 1; a later row click restores correlation. Scroll-to-bottom likewise suppresses correlation at the last lines.
 13. **PR-SOURCE-013** — SASS pane renders `asm-table-pane` (no Sudu) with column order `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy.
-14. **PR-SOURCE-014** — After an asm row click, a Sudu caret echo for the mapped source line does not snap the asm current row to `mapped[0]`.
+14. **PR-SOURCE-014** — After an asm row click, Sudu caret echoes for the mapped source line do not snap the asm current row to `mapped[0]` or steal pane selection (no timer gate — absorb + same-group stay).
 15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file).
 16. **PR-SOURCE-016** — Scroll-to-bottom moves both carets to the last lines and suppresses correlated highlights until the next selection.
 17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles on every column except the last (`source-col-resize`); dragging trades width with the next column so only that divider moves.
@@ -49,6 +49,8 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-21** — Drop syncOrigin / ignoreCaret timers; absorb echo + same-group stay (`PR-SOURCE-014`).
+- **2026-10-21** — Align editor↔table sync with code-review `editorAndTable` sample; drop custom Sudu line overlays (`PR-SOURCE-005`).
 - **2026-10-20** — Selected pane + scoped search: Source editor TODO / SASS Assembly chips (`PR-SOURCE-008`/`018`).
 - **2026-10-20** — Column resize trades with the next column so only the dragged divider moves (`PR-SOURCE-017`).
 - **2026-10-20** — Replace JetBrains Mono with bare `monospace`; drop all bundled font assets, including codicon.

@@ -34,6 +34,30 @@ import {
 } from './sourceColumnResize';
 import { t } from '../../i18n';
 
+/** Match `.pr-sudu-pane__editor` canvas plane. */
+const SUDU_EDITOR_BG = '#1a1a1a';
+/** `ThemeColor.CurrentLineBorder` / `CurrentLineBackground` (const enum → number). */
+const SUDU_THEME_CURRENT_LINE_BORDER = 13;
+const SUDU_THEME_CURRENT_LINE_BG = 14;
+
+function suduEditorTheme(opts?: { hideCurrentLine?: boolean }) {
+  return {
+    baseTheme: 'dark' as const,
+    editorFont: {
+      family: SOURCE_TAB_EDITOR_FONT.family,
+      size: SOURCE_TAB_EDITOR_FONT.size,
+      weight: SOURCE_TAB_EDITOR_FONT.weight,
+    },
+    ...(opts?.hideCurrentLine
+      ? {
+          // Sudu keeps painting currentLineBg after blur; match the canvas so it disappears.
+          [SUDU_THEME_CURRENT_LINE_BORDER]: SUDU_EDITOR_BG,
+          [SUDU_THEME_CURRENT_LINE_BG]: SUDU_EDITOR_BG,
+        }
+      : {}),
+  };
+}
+
 const props = withDefaults(
   defineProps<{
     file: SourceFileModel;
@@ -84,8 +108,6 @@ const fontSizeCss = ref(12);
 const fontFamily = ref<string | null>(null);
 const ready = ref(false);
 const loadError = ref<string | null>(null);
-/** CSS px scroll of the Sudu canvas — drives the current/correlated line overlays. */
-const editorScrollCss = ref(0);
 
 type EditorView = Awaited<ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newEditor']>>;
 type TextModel = ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newTextModel']>;
@@ -98,30 +120,11 @@ let disposed = false;
 /** Selection requested before Sudu finished booting — applied in boot(). */
 let pendingLine: number | null = null;
 /**
- * Suppress caret→emit while setLine / setPosition is programmatic.
- * Sudu often echoes the caret asynchronously *after* a Vue nextTick, so we
- * swallow the next caret event (and fall back to clearing on nextTick).
+ * Suppress caret→emit while setLine is programmatic (asm→source). Cleared
+ * synchronously after setPosition/reveal — Sudu’s caret listener is sync with
+ * setPosition (standalone-sample); no timer.
  */
 let ignoreCaret = false;
-let ignoreCaretFallback: ReturnType<typeof setTimeout> | null = null;
-
-function beginIgnoreCaret() {
-  ignoreCaret = true;
-  if (ignoreCaretFallback != null) clearTimeout(ignoreCaretFallback);
-  // Real Sudu can emit after paint; keep the gate open briefly as a safety net.
-  ignoreCaretFallback = setTimeout(() => {
-    ignoreCaret = false;
-    ignoreCaretFallback = null;
-  }, 50);
-}
-
-function endIgnoreCaret() {
-  ignoreCaret = false;
-  if (ignoreCaretFallback != null) {
-    clearTimeout(ignoreCaretFallback);
-    ignoreCaretFallback = null;
-  }
-}
 
 const metricColumns = computed(() => props.file.metricsColumns);
 const metricColIds = computed(() => metricColumns.value.map((c) => c.id));
@@ -196,17 +199,6 @@ const paneStyle = computed(() => ({
   '--pr-src-font-family': fontFamily.value || SOURCE_TAB_MONO_FAMILY,
 }));
 
-/** Lines to paint as correlated bands under the canvas (excludes current). */
-const overlayCorrelated = computed(() => {
-  const cur = props.currentLine;
-  return (props.correlatedLines ?? []).filter((n) => n !== cur);
-});
-
-function overlayTopCss(line: number): string {
-  const h = rowH.value || 20;
-  return `${(line - 1) * h - editorScrollCss.value}px`;
-}
-
 async function boot() {
   loadError.value = null;
   try {
@@ -223,14 +215,7 @@ async function boot() {
       // Sample also passes disableParser: true; single-editor default is already on.
       disableParser: true,
       // Theme object (not bare 'dark') so editorFont overrides Sudu’s 16px/300 default.
-      theme: {
-        baseTheme: 'dark',
-        editorFont: {
-          family: SOURCE_TAB_EDITOR_FONT.family,
-          size: SOURCE_TAB_EDITOR_FONT.size,
-          weight: SOURCE_TAB_EDITOR_FONT.weight,
-        },
-      },
+      theme: suduEditorTheme(),
     });
     editor.setVScrollVisible(false);
     model = api.newTextModel(
@@ -285,23 +270,18 @@ function waitForGeom() {
 
 function wireSync() {
   if (!editor) return;
+  // Match standalone-sample/editorAndTable.js: device-px vscroll ↔ CSS table scroll.
   editor.setVScrollListener((vScrollPos: number) => {
-    if (geom.value.dpr > 0) {
-      editorScrollCss.value = cssScrollFromDevice(vScrollPos, geom.value.dpr);
-    }
     if (vScrollPos === pendingEcho) return;
     if (props.followScroll === false) return;
     const scroll = tableScrollEl.value;
     if (!scroll || !(geom.value.dpr > 0)) return;
-    const target = editorScrollCss.value;
+    const target = cssScrollFromDevice(vScrollPos, geom.value.dpr);
     if (Math.abs(scroll.scrollTop - target) >= 0.5) scroll.scrollTop = target;
   });
+  // Caret movement is synchronous with Sudu; table current-row + parent sync follow it.
   editor.setCaretListener((lineNumber: number) => {
-    if (ignoreCaret) {
-      // Absorb the programmatic echo so parent sync does not bounce back.
-      endIgnoreCaret();
-      return;
-    }
+    if (ignoreCaret) return;
     emit('update:currentLine', lineNumber);
   });
 }
@@ -311,59 +291,57 @@ function onTableScroll() {
   if (!editor || !(geom.value.dpr > 0)) return;
   const scroll = tableScrollEl.value;
   if (!scroll) return;
-  editorScrollCss.value = scroll.scrollTop;
   const devicePos = deviceScrollFromCss(scroll.scrollTop, geom.value.dpr);
   pendingEcho = devicePos;
   editor.setVScrollPos(devicePos);
   pendingEcho = -1;
 }
 
+/**
+ * Metrics row click — same as the sample: move caret only; Sudu keeps it visible
+ * with minimum scroll, paints the current-line highlight, and setCaretListener
+ * notifies the parent (no custom canvas overlay, no revealLineInCenter).
+ */
 function onRowClick(line: number) {
-  // Emit selection from the click; ignore the caret echo from setPosition.
   emit('row-click', line);
-  if (editor) {
-    beginIgnoreCaret();
-    editor.setPosition({ lineNumber: line, column: 1 });
-    editor.revealLine(line);
-    editor.focus();
+  if (!editor) {
     emit('update:currentLine', line);
-  } else {
-    emit('update:currentLine', line);
+    return;
   }
+  editor.setPosition({ lineNumber: line, column: 1 });
+  editor.focus();
 }
 
-/** Scroll metrics so `line` is visible (setPosition alone may not fire vscroll). */
-function scrollMetricsToLine(line: number) {
-  const scroll = tableScrollEl.value;
-  const h = rowH.value || 20;
-  if (!scroll || !(h > 0)) return;
-  const top = (line - 1) * h;
-  const bottom = top + h;
-  const view = scroll.clientHeight;
-  // Center when jumping from the other pane so the mapped row is easy to spot.
-  if (top < scroll.scrollTop || bottom > scroll.scrollTop + view) {
-    scroll.scrollTop = Math.max(0, top - Math.max(0, (view - h) / 2));
-    editorScrollCss.value = scroll.scrollTop;
-  }
-}
-
-function syncOverlayScroll() {
-  if (!editor || !(geom.value.dpr > 0) || typeof editor.getVScrollPos !== 'function') return;
-  editorScrollCss.value = cssScrollFromDevice(editor.getVScrollPos(), geom.value.dpr);
-}
-
-/** Move caret without emitting — parent already owns the line state. */
+/**
+ * Drive caret from the other pane (asm → source).
+ * Sudu only paints the caret while focused (`drawCaret` gates on hasFocus) — so
+ * focus() is required for the line to look selected. Caret listener may emit;
+ * SourceView’s syncOrigin / same-group stay absorbs the bounce (no ignoreCaret).
+ */
 function setLine(line: number) {
   if (!editor) return;
-  beginIgnoreCaret();
+  editor.setTheme(suduEditorTheme());
   editor.setPosition({ lineNumber: line, column: 1 });
-  // Prefer center reveal so the mapped line is obvious when focus stays on asm.
-  if (typeof editor.revealLineInCenter === 'function') editor.revealLineInCenter(line);
-  else editor.revealLine(line);
-  scrollMetricsToLine(line);
-  syncOverlayScroll();
-  // revealLine can settle scroll on the next frame — resync the overlay band.
-  requestAnimationFrame(syncOverlayScroll);
+  editor.revealLine(line);
+  editor.focus();
+}
+
+/**
+ * Drop editor selection when the opposite pane has no mapped source line.
+ * Sudu has no clearSelection API: blur hides the caret; theme override hides
+ * currentLineBg (still painted for caretLine after blur).
+ */
+function clearLine() {
+  pendingLine = null;
+  if (!editor) return;
+  ignoreCaret = true;
+  try {
+    editor.setTheme(suduEditorTheme({ hideCurrentLine: true }));
+    const canvas = editorHost.value?.querySelector('canvas');
+    if (canvas instanceof HTMLElement) canvas.blur();
+  } finally {
+    ignoreCaret = false;
+  }
 }
 
 /** Queue a line until Sudu finishes booting, then apply. */
@@ -381,10 +359,14 @@ function scrollToTop() {
   const scroll = tableScrollEl.value;
   if (scroll) scroll.scrollTop = 0;
   if (!editor) return;
-  beginIgnoreCaret();
-  editor.setVScrollPos(0);
-  editor.setPosition({ lineNumber: 1, column: 1 });
-  editor.revealLine(1);
+  ignoreCaret = true;
+  try {
+    editor.setVScrollPos(0);
+    editor.setPosition({ lineNumber: 1, column: 1 });
+    editor.revealLine(1);
+  } finally {
+    ignoreCaret = false;
+  }
 }
 
 /** Scroll editor + metrics table to the bottom without emitting caret (parent owns line). */
@@ -392,11 +374,15 @@ function scrollToBottom() {
   const scroll = tableScrollEl.value;
   if (scroll) scroll.scrollTop = scroll.scrollHeight;
   if (!editor) return;
-  beginIgnoreCaret();
-  const last = Math.max(1, editor.getNumLines());
-  editor.setVScrollPos(editor.getMaxVScrollPos());
-  editor.setPosition({ lineNumber: last, column: 1 });
-  editor.revealLine(last);
+  ignoreCaret = true;
+  try {
+    const last = Math.max(1, editor.getNumLines());
+    editor.setVScrollPos(editor.getMaxVScrollPos());
+    editor.setPosition({ lineNumber: last, column: 1 });
+    editor.revealLine(last);
+  } finally {
+    ignoreCaret = false;
+  }
 }
 
 watch(
@@ -422,18 +408,18 @@ watch(
 watch(
   () => props.currentLine,
   (line) => {
-    if (line == null || disposed) return;
+    if (disposed) return;
+    if (line == null) {
+      clearLine();
+      return;
+    }
     if (!editor) {
       pendingLine = line;
       return;
     }
     const pos = editor.getPosition?.();
-    if (pos && pos.lineNumber === line) {
-      // Still reveal — caret may be on-line but scrolled out of view.
-      editor.revealLine(line);
-      scrollMetricsToLine(line);
-      return;
-    }
+    // Already on the line — setPosition is a no-op for caret; do not fight scroll.
+    if (pos && pos.lineNumber === line) return;
     setLine(line);
   },
 );
@@ -448,7 +434,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   disposed = true;
-  endIgnoreCaret();
+  ignoreCaret = false;
   metricResizeSession?.end();
   metricResizeSession = null;
   tableScrollEl.value?.removeEventListener('scroll', onTableScroll);
@@ -460,7 +446,7 @@ onBeforeUnmount(() => {
   model = null;
 });
 
-defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId });
+defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, containerId });
 </script>
 
 <template>
@@ -558,25 +544,6 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
         class="pr-sudu-pane__editor"
         data-testid="sudu-editor-host"
       >
-        <!-- Sudu caret is easy to miss when focus stays on the asm pane; paint bands. -->
-        <div
-          class="pr-sudu-pane__overlays"
-          data-testid="sudu-line-overlays"
-          aria-hidden="true"
-        >
-          <div
-            v-for="line in overlayCorrelated"
-            :key="`c-${line}`"
-            class="pr-sudu-pane__overlay pr-sudu-pane__overlay--correlated"
-            :style="{ top: overlayTopCss(line), height: `${rowH || 20}px` }"
-          />
-          <div
-            v-if="currentLine != null"
-            class="pr-sudu-pane__overlay pr-sudu-pane__overlay--current"
-            data-testid="sudu-current-line-overlay"
-            :style="{ top: overlayTopCss(currentLine), height: `${rowH || 20}px` }"
-          />
-        </div>
         <pre
           v-if="loadError"
           class="pr-sudu-pane__fallback"
@@ -779,30 +746,6 @@ defineExpose({ setLine: setLineOrQueue, scrollToTop, scrollToBottom, containerId
   height: 100%;
   background: #1a1a1a;
   overflow: hidden;
-}
-
-.pr-sudu-pane__overlays {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.pr-sudu-pane__overlay {
-  position: absolute;
-  left: 0;
-  right: 0;
-  box-sizing: border-box;
-}
-
-.pr-sudu-pane__overlay--correlated {
-  background: rgba(48, 120, 240, 0.12);
-}
-
-.pr-sudu-pane__overlay--current {
-  background: rgba(48, 120, 240, 0.22);
-  box-shadow: inset 2px 0 0 #3078f0;
 }
 
 .pr-sudu-pane__table {
