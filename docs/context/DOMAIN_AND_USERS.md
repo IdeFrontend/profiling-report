@@ -70,7 +70,7 @@ flowchart LR
 | Core imbalance | Do some `block_id`s lag? | Gutter hierarchy + per-lane util; CSV keyed by block | **S4** · M |
 | Memory path pressure | Is L1 / UB / GM / HBM the limiter? | Static SVG + data-driven labels | **S6** · P2 ([UI-38](decisions/UI.md)) |
 | Sync / deps | Why is this interval waiting? | Dependency links + detail graph | **S8** · P2 ([DATA-36](questions/DATA.md)) |
-| Source ↔ insn | Which line caused this stall? | Insight Source/Cache on `.bin`; optional later tabs | **S9** · P2 / Insight |
+| Source ↔ insn | Which line caused this stall? | Insight Source/Cache on `.bin` (not this library) | Insight |
 | Wrong hardware context | Which chip / HBM / core count was this run? | Hardware aside | **Out of MVP** ([DATA-34](decisions/DATA.md)) |
 | Fixture thinner than sketches | Why don’t I see multi-core instruction Gantt? | Target = sketches ([DATA-31](questions/DATA.md)); render available lanes; hide empty charts ([DATA-32](decisions/DATA.md)) | Interim `out.rep` until golden |
 
