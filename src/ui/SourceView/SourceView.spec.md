@@ -12,7 +12,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Behavior
 
-**Layout.** Chrome matches [`v930-source/source-correlation`](../../../docs/ui/source/v930-source/source-correlation.jpeg): **first control bar** (Left/Right View, Search, action icons) sits on the **same row as the secondary tabs** via Teleport into ReportToolbar’s `source-chrome-host` (no extra margin/padding on that bar). Icons: find next/prev (thin chevrons), scroll-to-top / scroll-to-bottom, **two** navigate-sort buttons (asc + desc), help. No dim-zeros toggle, no Source shortcuts popover, no Redo Resolve, and **no** bottom dock (Inline Functions / Source Markers / Statistics). Pane **Link views** uses interlocking chain links (**one shared on/off** for both panes). Per-pane bar: Source select, link-sync, **independent** Navigate By. Dual panes below: Source | SASS. **Source** is Sudu + metrics. **SASS** is table-only — `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy (capsule: hatch background, solid used fill, `%` at the right end). Metrics / SASS column headers are **user-resizable** (drag the column edge; Source metrics header stays aligned with the body).
+**Layout.** Chrome matches [`v930-source/source-correlation`](../../../docs/ui/source/v930-source/source-correlation.jpeg): **first control bar** (Left/Right View, Search, action icons) sits on the **same row as the secondary tabs** via Teleport into ReportToolbar’s `source-chrome-host` (no extra margin/padding on that bar). Icons: find next/prev (thin chevrons), scroll-to-top / scroll-to-bottom, **two** navigate-sort buttons (asc + desc), help. No dim-zeros toggle, no Source shortcuts popover, no Redo Resolve, and **no** bottom dock (Inline Functions / Source Markers / Statistics). Pane **Link views** uses interlocking chain links (**one shared on/off** for both panes). Per-pane bar: Source select, link-sync, Navigate By. While Link views is on, choosing a Navigate By metric that the other pane’s dropdown also lists selects that metric there too; a metric the other dropdown does not list leaves that pane’s selection unchanged. With Link views off, each pane keeps its own Navigate By. Dual panes below: Source | SASS. **Source** is Sudu + metrics. **SASS** is table-only — `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy (capsule: hatch background, solid used fill, `%` at the right end). Metrics / SASS column headers are **user-resizable** (drag the column edge; Source metrics header stays aligned with the body).
 
 **Selected pane.** Exactly one of the two panes is selected at all times (Source by default). Clicking a pane (or a line inside it) selects it; clicks outside the panes (toolbar, search, aside) do **not** change selection. The selected pane uses the accent blue border (`#3078F0` / sketch `#317FFF`). The unselected pane has no blue border.
 
@@ -38,7 +38,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 8. **PR-SOURCE-008** — Source-selected search does not mark metrics tables (editor find TODO). SASS-selected search highlights Assembly substrings (`source-asm-match` / `pr-field-match`) and find next/prev walks those hits; Address-only needles do not match.
 9. **PR-SOURCE-009** — Turning off either Link views toggle (shared state) keeps source selection from moving the asm caret; both buttons stay in sync.
 10. **PR-SOURCE-010** — Bottom dock (Inline Functions / Source Markers / Statistics) is **not** rendered.
-11. **PR-SOURCE-011** — Asm Navigate By select is enabled and independent of the source pane’s Navigate By.
+11. **PR-SOURCE-011** — Asm Navigate By stays enabled. With Link views on, a metric listed in both dropdowns is selected in both panes.
 12. **PR-SOURCE-012** — Scroll-to-top clears correlated row highlights while both carets sit at line 1; a later row click restores correlation. Scroll-to-bottom likewise suppresses correlation at the last lines.
 13. **PR-SOURCE-013** — SASS pane renders `asm-table-pane` (no Sudu) with column order `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy.
 14. **PR-SOURCE-014** — After an asm row click, Sudu caret echoes for the mapped source line do not snap the asm current row to `mapped[0]` or steal pane selection (no timer gate — absorb + same-group stay).
@@ -52,6 +52,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 22. **PR-SOURCE-022** — Pane bars share one wrap. When either pane’s Source + link + Navigate By does not fit, both bars put Navigate By on the second line. When both fit, both stay on one line.
 23. **PR-SOURCE-023** — While the Sudu editor is initializing, the left pane shows a centered loading indicator (`sudu-loading`) and hides the editor and metrics columns. When geometry is ready, the editor and the metrics table appear together.
 24. **PR-SOURCE-024** — Asc/desc buttons step the selected pane through its Navigate By hot lines (increasing or decreasing metric, ties by line number, wrap). Neither button keeps `pr-source-view__icon-btn--on` / `aria-pressed`. Distinct `sourceSortAsc` / `sourceSortDesc` labels. The other pane’s Navigate By is not used.
+25. **PR-SOURCE-025** — Link views off keeps the other pane’s Navigate By. A metric missing from the other dropdown is not applied there.
 
 ## Design sketches
 
@@ -59,6 +60,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-21** — Link views mirrors Navigate By when both panes list the metric (`PR-SOURCE-011`/`025`).
 - **2026-10-21** — Copy includes a last-line `selectLine` range (`lineCount`, 0). Wrapped pane bars use one 8px row gap (`PR-SOURCE-021`/`022`).
 - **2026-10-21** — Asc/desc buttons step through the selected pane’s Navigate By hot lines (`PR-SOURCE-024`).
 - **2026-10-21** — Left pane keeps the editor and metrics columns hidden behind a centered loading indicator until Sudu geometry is ready (`PR-SOURCE-023`).
