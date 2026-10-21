@@ -379,6 +379,8 @@ let localEndTime = props.view.endTime;
 let scrollTargetY = props.view.scrollY;
 let scrollRaf = 0;
 let laneScrollEasing = false;
+/** Overlay scrollbar drag — keeps paintView on localScrollY until settle. */
+let overlayScrollActive = false;
 
 /**
  * Programmatic / marquee scroll: same-turn localScrollY + flush-paint (PR-CANVAS-110).
@@ -393,6 +395,26 @@ function emitScrollY(y: number, settled = false): void {
   // would leave the canvas one frame behind and look like scroll chase.
   applyViewState();
   flushPaint();
+}
+
+/**
+ * Parent overlay scrollbar: cancel wheel ease, paint from localScrollY, emit scroll-y.
+ * Distinct from setScrollY (adopt parent Y without re-emitting).
+ */
+function driveScrollY(y: number, settled = false): void {
+  if (scrollRaf) {
+    cancelAnimationFrame(scrollRaf);
+    scrollRaf = 0;
+  }
+  laneScrollEasing = false;
+  const clamped = Math.max(0, Math.min(maxScrollY(), y));
+  overlayScrollActive = !settled;
+  localScrollY = clamped;
+  scrollTargetY = clamped;
+  applyViewState();
+  flushPaint();
+  emit('scroll-y', clamped, settled);
+  if (settled) overlayScrollActive = false;
 }
 
 /** Model time bounds for local pan/zoom. Clamps `maxTime` to `minTime + 1` for a
@@ -568,7 +590,11 @@ function paintView(): SwimlaneViewWindow {
   // Do not use a lag heuristic — resize may clamp local while props.view.scrollY is still
   // the parent value (PR-CANVAS-074).
   const useLocalY =
-    laneScrollEasing || marqueePressActive || scrollRaf !== 0 || cancelEnsureScrollAnim != null;
+    laneScrollEasing ||
+    marqueePressActive ||
+    scrollRaf !== 0 ||
+    cancelEnsureScrollAnim != null ||
+    overlayScrollActive;
   const useLocalT = marqueePressActive;
   const raw = useLocalY ? localScrollY : props.view.scrollY;
   return {
@@ -1058,6 +1084,7 @@ onBeforeUnmount(() => {
   if (scrollRaf) cancelAnimationFrame(scrollRaf);
   scrollRaf = 0;
   laneScrollEasing = false;
+  overlayScrollActive = false;
   backend.dispose();
   overlay.dispose();
 });
@@ -1142,9 +1169,18 @@ watch(
   () => props.view,
   () => {
     const y = props.view.scrollY;
-    // Ease / ensure-visible / live marquee own localScrollY. A delayed parent clone
-    // (settle lag, selection deep-watch) must not snap to a stale scrollY.
-    if (laneScrollEasing || scrollRaf || marqueePressActive || cancelEnsureScrollAnim) return;
+    // Ease / ensure-visible / live marquee / overlay thumb drag own localScrollY.
+    // A delayed parent clone (settle lag, selection deep-watch) must not snap to a
+    // stale scrollY.
+    if (
+      laneScrollEasing ||
+      scrollRaf ||
+      marqueePressActive ||
+      cancelEnsureScrollAnim ||
+      overlayScrollActive
+    ) {
+      return;
+    }
     localScrollY = y;
     scrollTargetY = y;
     localStartTime = props.view.startTime;
@@ -1177,7 +1213,7 @@ watch(
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY, () => props.contentTopPad],
   () => {
-    if (laneScrollEasing || scrollRaf) return;
+    if (laneScrollEasing || scrollRaf || overlayScrollActive) return;
     // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
     if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
@@ -3176,6 +3212,8 @@ defineExpose({
   handleWheel: onWheel,
   /** Keep canvas scroll locked to gutter/cards when parent drives scrollY. */
   setScrollY,
+  /** Overlay scrollbar drag — cancels wheel ease and emits scroll-y. */
+  driveScrollY,
   magnetizeAtClient,
   magnetizeAtClientLocal,
   clearEdgeSnapHighlight,
