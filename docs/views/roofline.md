@@ -42,15 +42,15 @@ No usable points → hide panel ([DATA-30](../context/decisions/DATA.md)). Adapt
 | Theoretical roof | `min(p_peak, b_peak × I / 1000)` per dtype series |
 | L2 series | **Omit** |
 
-**`p_peak` formulas** (frequency in MHz → TFLOPS):
+**`p_peak` formulas** (frequency in MHz → TOps/s). Divide by `1e6`. A `/ 1000` reading is ~1000× this axis and does not match example ceilings or `p_peak / 1e12`.
 
 | Executor | Dtype | Formula |
 | --- | --- | --- |
-| cube | fp16/bf16 | `cube_num × 4096 × 2 × frequency / 1000` |
-| cube | tf32/hf32 | `cube_num × 2048 × 2 × frequency / 1000` |
-| cube | int8/fp8 | `cube_num × 8192 × 2 × frequency / 1000` |
-| vector | fp16/bf16 | `vector_num × 128 × 2 × frequency / 1000` |
-| vector | fp32 / int32 | `vector_num × 64 × 2 × frequency / 1000` |
+| cube | fp16/bf16 | `cube_num × 4096 × 2 × frequency / 1e6` |
+| cube | tf32/hf32 | `cube_num × 2048 × 2 × frequency / 1e6` |
+| cube | int8/fp8 | `cube_num × 8192 × 2 × frequency / 1e6` |
+| vector | fp16/bf16 | `vector_num × 128 × 2 × frequency / 1e6` |
+| vector | fp32 / int32 | `vector_num × 64 × 2 × frequency / 1e6` |
 
 ## Compute fill
 

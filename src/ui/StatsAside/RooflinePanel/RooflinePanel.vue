@@ -94,20 +94,21 @@ const domains = computed(() => {
       if (ridge > 0) xs.push(ridge);
     }
   }
-  // Data-driven decade floors/ceils — no sketch-sized hard cap. Force ≥1 decade of
-  // span so a lone power-of-ten value cannot collapse the log map to NaN.
-  const xMin = niceFloor(xs.length ? Math.min(...xs) : 1e-3, 1e-3);
+  // Data-driven decade floors/ceils — no hard cap. Force ≥1 decade of span so a
+  // lone power-of-ten value cannot collapse the log map to NaN. 1e-3 / 1e-4 are
+  // empty-data fallbacks only; real samples keep their own decade.
+  const xMin = xs.length ? niceFloor(Math.min(...xs)) : 1e-3;
   let xMax = niceCeil(xs.length ? Math.max(...xs) : 1);
   if (xMax <= xMin) xMax = xMin * 10;
-  const yMin = niceFloor(ys.length ? Math.min(...ys) : 1e-3, 1e-4);
+  const yMin = ys.length ? niceFloor(Math.min(...ys)) : 1e-4;
   let yMax = niceCeil(ys.length ? Math.max(...ys) : 1);
   if (yMax <= yMin) yMax = yMin * 10;
   return { xMin, xMax, yMin, yMax };
 });
 
-function niceFloor(v: number, floor: number): number {
-  if (!(v > 0)) return floor;
-  return Math.max(floor, 10 ** Math.floor(Math.log10(v)));
+function niceFloor(v: number): number {
+  if (!(v > 0)) return 1e-3;
+  return 10 ** Math.floor(Math.log10(v));
 }
 
 function niceCeil(v: number): number {

@@ -1068,12 +1068,16 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.intensity).toBeCloseTo(1e9 / 1e6, 6);
   });
 
-  it('PR-VM-009c: §11.8.1 formula peaks from HardwareInfo counts exceed example catalog', async () => {
+  it('PR-VM-009c: §11.8.1 formula peaks are TOps/s (/ 1e6), not the /1000 print scale', async () => {
     const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
-    // cube=25, vector=50, 1650 MHz → int8/fp8 well above the panel's former 1e5 Y cap.
+    // cube=25, vector=50, 1650 MHz. /1000 would be ~675840 and blow the TOps/s axis.
     const int8 = peakComputeTopsFromFormula('aic-int8-fp8', 25, 50, 1650);
-    expect(int8).toBeCloseTo((25 * 8192 * 2 * 1650) / 1000, 6);
-    expect(int8).toBeGreaterThan(1e5);
+    expect(int8).toBeCloseTo((25 * 8192 * 2 * 1650) / 1e6, 6);
+    expect(int8).toBeLessThan(1e4);
+    expect(peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650)).toBeCloseTo(
+      (50 * 128 * 2 * 1650) / 1e6,
+      6,
+    );
 
     const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
     const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
@@ -1091,9 +1095,8 @@ describe('PR-VM: report view-models (interim)', () => {
       peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650),
       6,
     );
-    // Ridge intensity for int8 exceeds the former X cap of 1e3.
     const ridge = (series['aic-int8-fp8']!.peakComputeTops * 1000) / series['aic-int8-fp8']!.peakBandwidthGBs;
-    expect(ridge).toBeGreaterThan(1e3);
+    expect(ridge).toBeCloseTo((int8 * 1000) / 1600, 6);
   });
 
   it('PR-VM-009c: cube-only HardwareInfo still formulas AIC (AIV keeps examples)', async () => {
@@ -1114,5 +1117,29 @@ describe('PR-VM: report view-models (interim)', () => {
     );
     // No vector count → AIV stays on the example catalog.
     expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(27033600000000 / 1e12, 6);
+  });
+
+  it('PR-VM-009c: spaced product HardwareInfo keys feed the formula', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      'ai cube count': 25,
+      'ai vector count': 50,
+      'ai cube frequency(MHZ)': 1650,
+      'ai vector frequency(MHZ)': 1650,
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650),
+      6,
+    );
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aic-int8-fp8', 25, 50, 1650),
+      6,
+    );
   });
 });

@@ -246,6 +246,23 @@ describe('RooflinePanel', () => {
     expect(tickTexts).toContain('1000K');
   });
 
+  it('PR-ROOF-007: intensities below 1e-3 stay on their own decade', () => {
+    const low: RooflineViewModel = {
+      points: [
+        { id: 'lo', label: 'lo', intensity: 1e-4, performance: 1, style: 'solid', color: '#32BE8C' },
+        { id: 'hi', label: 'hi', intensity: 1e-3, performance: 1, style: 'solid', color: '#8C78F0' },
+      ],
+      mixLabels: [],
+      series: [],
+    };
+    const wrapper = mount(RooflinePanel, { props: { model: low } });
+    const cxs = wrapper.findAll('[data-testid="roofline-point"]').map((n) => Number(n.attributes('cx')));
+    expect(Math.max(...cxs) - Math.min(...cxs)).toBeGreaterThan(10);
+    expect(wrapper.findAll('.pr-roofline__tick').map((n) => n.text())).toEqual(
+      expect.arrayContaining(['0.0001', '0.001']),
+    );
+  });
+
   it('PR-ROOF-007b: lone power-of-ten point still yields finite coordinates', () => {
     // niceFloor(1)=niceCeil(1)=1 → without a decade guard, log map divides by zero.
     const lone: RooflineViewModel = {

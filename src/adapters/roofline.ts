@@ -19,6 +19,9 @@ export const ROOFLINE_B_PEAK_GBS = 1600;
 /** Ops/s → TOps/s. */
 const OPS_PER_TOPS = 1e12;
 
+/** MHz × MACs/cycle → TOps/s. The §11.8.1 print form `/ 1000` is 1000× this axis. */
+const MHZ_MAC_TO_TOPS = 1e6;
+
 export type RooflineSeriesId =
   | 'aiv-fp16'
   | 'aiv-bp16'
@@ -154,7 +157,7 @@ function seriesFromMeta(
   };
 }
 
-/** §11.8.1 p_peak (TFLOPS = TOps/s). frequency in MHz. */
+/** §11.8.1 p_peak in TOps/s. `frequencyMhz` is MHz. */
 export function peakComputeTopsFromFormula(
   id: RooflineSeriesId,
   cubeNum: number,
@@ -165,18 +168,18 @@ export function peakComputeTopsFromFormula(
   switch (id) {
     case 'aiv-fp16':
     case 'aiv-bp16':
-      return (vectorNum * 128 * 2 * f) / 1000;
+      return (vectorNum * 128 * 2 * f) / MHZ_MAC_TO_TOPS;
     case 'aiv-fp32':
-      return (vectorNum * 64 * 2 * f) / 1000;
+      return (vectorNum * 64 * 2 * f) / MHZ_MAC_TO_TOPS;
     case 'aic-int16-fp16':
-      return (cubeNum * 4096 * 2 * f) / 1000;
+      return (cubeNum * 4096 * 2 * f) / MHZ_MAC_TO_TOPS;
     case 'aic-int32-fp32':
-      return (cubeNum * 2048 * 2 * f) / 1000;
+      return (cubeNum * 2048 * 2 * f) / MHZ_MAC_TO_TOPS;
     case 'aic-fp32':
       // Same plateau family as int32/fp32 cube path when producer does not split further.
-      return (cubeNum * 2048 * 2 * f) / 1000;
+      return (cubeNum * 2048 * 2 * f) / MHZ_MAC_TO_TOPS;
     case 'aic-int8-fp8':
-      return (cubeNum * 8192 * 2 * f) / 1000;
+      return (cubeNum * 8192 * 2 * f) / MHZ_MAC_TO_TOPS;
   }
 }
 
@@ -300,6 +303,39 @@ function parseRooflineJsonl(text: string): {
   return { series: ordered, points };
 }
 
+/** Same fold as `adaptRep` HardwareInfo keys. Not imported: that module already imports this one. */
+function normalizeHwKey(key: string): string {
+  return key
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[\s-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
+function positiveHwNumber(value: unknown): number | undefined {
+  if (Array.isArray(value)) {
+    let best: number | undefined;
+    for (const item of value) {
+      const n = positiveHwNumber(item);
+      if (n != null && (best == null || n > best)) best = n;
+    }
+    return best;
+  }
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+const HW_FREQ_KEYS = [
+  'ai_core_frequency_mhz',
+  'ai_cube_frequency_mhz',
+  'ai_vector_frequency_mhz',
+  'aic_core_frequency_mhz',
+  // `(MHZ)` is stripped by normalizeHwKey, so the sample producer lands here.
+  'ai_cube_frequency',
+  'ai_vector_frequency',
+];
+
 function parseHardwareCounts(jsonlText: string | undefined): {
   cubeNum?: number;
   vectorNum?: number;
@@ -316,18 +352,22 @@ function parseHardwareCounts(jsonlText: string | undefined): {
     } catch {
       continue;
     }
-    if (String(obj.category ?? '') !== 'AI Core Information') continue;
-    const cubes = Number(obj.ai_cube_count);
-    const vectors = Number(obj.ai_vector_count);
-    if (Number.isFinite(cubes) && cubes > 0) cubeNum = cubes;
-    if (Number.isFinite(vectors) && vectors > 0) vectorNum = vectors;
-    const freqRaw = obj.ai_core_frequency_MHZ;
-    if (Array.isArray(freqRaw) && freqRaw.length > 0) {
-      const nums = freqRaw.map(Number).filter((n) => Number.isFinite(n) && n > 0);
-      if (nums.length) frequencyMhz = Math.max(...nums);
-    } else {
-      const n = Number(freqRaw);
-      if (Number.isFinite(n) && n > 0) frequencyMhz = n;
+    if (!normalizeHwKey(String(obj.category ?? '')).includes('ai_core')) continue;
+    const fields: Record<string, number> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const norm = normalizeHwKey(key);
+      if (norm === 'category') continue;
+      const n = positiveHwNumber(value);
+      if (n == null) continue;
+      fields[norm] = fields[norm] == null ? n : Math.max(fields[norm], n);
+    }
+    const cube = fields.ai_cube_count ?? fields.aic_cube_count;
+    const vector = fields.ai_vector_count ?? fields.aic_vector_count;
+    if (cube != null) cubeNum = cube;
+    if (vector != null) vectorNum = vector;
+    for (const key of HW_FREQ_KEYS) {
+      const n = fields[key];
+      if (n != null && (frequencyMhz == null || n > frequencyMhz)) frequencyMhz = n;
     }
   }
   return { cubeNum, vectorNum, frequencyMhz };
