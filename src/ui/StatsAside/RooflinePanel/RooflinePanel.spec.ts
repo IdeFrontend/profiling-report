@@ -120,7 +120,7 @@ describe('RooflinePanel', () => {
     const tops = wrapper.get('.pr-roofline__axis--y');
     expect(Number(tops.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT - 9);
     expect(Number(tops.attributes('y')) + 9).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
-    // Left edge aligns with card title / AIV / AIC (not end-anchored at the plot).
+    // Left edge aligns with aside title / AIV / AIC (not end-anchored at the plot).
     expect(Number(tops.attributes('x'))).toBe(0);
     expect(tops.attributes('dominant-baseline')).toBe('hanging');
     expect(tops.attributes('text-anchor')).toBe('start');
@@ -151,7 +151,7 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('[data-testid="roofline-roof"]').exists()).toBe(true);
   });
 
-  it('PR-ROOF-006: legend under title, left-aligned AIV/AIC rows', async () => {
+  it('PR-ROOF-006: legend at card top, left-aligned AIV/AIC rows (no in-card title)', async () => {
     const multi: RooflineViewModel = {
       ...sample,
       series: [
@@ -186,16 +186,11 @@ describe('RooflinePanel', () => {
     };
     const wrapper = mount(RooflinePanel, { props: { model: multi } });
     const head = wrapper.get('.pr-roofline__card-head');
-    const title = wrapper.get('.pr-roofline__chart-title');
     const legend = wrapper.get('[data-testid="roofline-legend"]');
     expect(head.element.contains(legend.element)).toBe(true);
-    // Title precedes legend in DOM (column stack, not a side-by-side header).
-    expect(
-      title.element.compareDocumentPosition(legend.element) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(wrapper.find('.pr-roofline__chart-title').exists()).toBe(false);
     const src = (await import('./RooflinePanel.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-roofline__card-head\s*\{[^}]*flex-direction:\s*column/s);
-    expect(src).toMatch(/\.pr-roofline__card-head\s*\{[^}]*gap:\s*10px/s);
+    expect(src).not.toMatch(/pr-roofline__chart-title/);
     expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*display:\s*grid/s);
     expect(src).toMatch(/\.pr-roofline__leg-head\s*\{[^}]*color:\s*#c4c4c4/s);
     expect(src).toMatch(/\.pr-roofline__leg-item\s*\{[^}]*color:\s*#8a8a8a/s);

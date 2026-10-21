@@ -27,7 +27,7 @@ const mixY = PAD.t + MIX_TOP_INSET;
 const AXIS_FONT_PX = 9;
 
 const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
-/** Left edge of TOps/s matches the card title / AIV / AIC (not end-anchored at the plot). */
+/** Left edge of TOps/s matches the aside title / AIV / AIC (not end-anchored at the plot). */
 const topsX = 0;
 const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT - AXIS_FONT_PX;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
@@ -233,7 +233,6 @@ const tooltipText = computed(() => {
     </h4>
     <div class="pr-roofline__card">
       <div class="pr-roofline__card-head">
-        <span class="pr-roofline__chart-title">Roofline</span>
         <div
           class="pr-roofline__legend"
           data-testid="roofline-legend"
@@ -461,7 +460,7 @@ const tooltipText = computed(() => {
           text-anchor="start"
           dominant-baseline="middle"
         >Ops/Byte</text>
-        <!-- TOps/s: left edge aligns with card title / AIV / AIC. -->
+        <!-- TOps/s: left edge aligns with aside title / AIV / AIC. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
           :x="topsX"
@@ -515,23 +514,14 @@ const tooltipText = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  /* Title → legend: product sketch gap (~10–12px). */
-  gap: 10px;
   padding: 0;
   min-width: 0;
   width: 100%;
 }
 
-.pr-roofline__chart-title {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: #ffffff;
-}
-
 /*
- * Under the card title. One grid for both rows so the nth AIV / AIC swatches
- * share a vertical edge (e.g. AIV bp16 with AIC int32 fp32).
+ * Top of the raised card (no in-card chart title). One grid for both rows so
+ * the nth AIV / AIC swatches share a vertical edge.
  */
 .pr-roofline__legend {
   display: grid;
