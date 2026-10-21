@@ -1142,4 +1142,45 @@ describe('PR-VM: report view-models (interim)', () => {
       6,
     );
   });
+
+  it('PR-VM-009c: cube and vector clocks stay on their own side', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      ai_cube_count: 36,
+      ai_vector_count: 72,
+      'ai cube frequency(MHZ)': 1800,
+      'ai vector frequency(MHZ)': 1000,
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aic-int8-fp8', 36, 72, 1800),
+      6,
+    );
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 36, 72, 1000),
+      6,
+    );
+    expect(series['aiv-fp16']!.peakComputeTops).not.toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 36, 72, 1800),
+      3,
+    );
+  });
+
+  it('PR-VM-009b: non-positive b_peak keeps the default bandwidth', () => {
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'Roofline',
+      aiv_simd_b16: { p_peak: 2.7e13, b_peak: 0, w: 1e9, t: 1e-3, q: 1e6 },
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    const aiv = model!.series.find((s) => s.id === 'aiv-fp16')!;
+    expect(aiv.peakComputeTops).toBeCloseTo(2.7e13 / 1e12, 6);
+    expect(aiv.peakBandwidthGBs).toBe(1600);
+  });
 });

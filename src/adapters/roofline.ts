@@ -198,10 +198,12 @@ function canFormulaForId(
 function defaultSeriesCatalog(
   cubeNum: number | undefined,
   vectorNum: number | undefined,
-  frequencyMhz: number | undefined,
+  cubeFrequencyMhz: number | undefined,
+  vectorFrequencyMhz: number | undefined,
 ): RooflineSeries[] {
   const ids = Object.keys(ROOFLINE_SERIES_META) as RooflineSeriesId[];
   return ids.map((id) => {
+    const frequencyMhz = id.startsWith('aiv-') ? vectorFrequencyMhz : cubeFrequencyMhz;
     if (canFormulaForId(id, cubeNum, vectorNum, frequencyMhz)) {
       return seriesFromMeta(
         id,
@@ -255,7 +257,7 @@ function parseRooflineJsonl(text: string): {
     // substitute EXAMPLE_PEAK_TOPS — that clobbers §11.8.1 formula roofs.
     if (pPeakOps != null && pPeakOps > 0) {
       const peakTops = pPeakOps / OPS_PER_TOPS;
-      const bPeak = typeof m.b_peak === 'number' ? m.b_peak : ROOFLINE_B_PEAK_GBS;
+      const bPeak = typeof m.b_peak === 'number' && m.b_peak > 0 ? m.b_peak : ROOFLINE_B_PEAK_GBS;
       // Many producer keys map to one legend series — keep the max p_peak (and its b_peak).
       const prev = seriesById.get(seriesId);
       if (!prev || peakTops > prev.peakComputeTops) {
@@ -326,25 +328,17 @@ function positiveHwNumber(value: unknown): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-const HW_FREQ_KEYS = [
-  'ai_core_frequency_mhz',
-  'ai_cube_frequency_mhz',
-  'ai_vector_frequency_mhz',
-  'aic_core_frequency_mhz',
-  // `(MHZ)` is stripped by normalizeHwKey, so the sample producer lands here.
-  'ai_cube_frequency',
-  'ai_vector_frequency',
-];
-
 function parseHardwareCounts(jsonlText: string | undefined): {
   cubeNum?: number;
   vectorNum?: number;
-  frequencyMhz?: number;
+  cubeFrequencyMhz?: number;
+  vectorFrequencyMhz?: number;
 } {
   if (!jsonlText) return {};
   let cubeNum: number | undefined;
   let vectorNum: number | undefined;
-  let frequencyMhz: number | undefined;
+  let cubeFrequencyMhz: number | undefined;
+  let vectorFrequencyMhz: number | undefined;
   for (const line of jsonlText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
     let obj: Record<string, unknown>;
     try {
@@ -365,12 +359,16 @@ function parseHardwareCounts(jsonlText: string | undefined): {
     const vector = fields.ai_vector_count ?? fields.aic_vector_count;
     if (cube != null) cubeNum = cube;
     if (vector != null) vectorNum = vector;
-    for (const key of HW_FREQ_KEYS) {
-      const n = fields[key];
-      if (n != null && (frequencyMhz == null || n > frequencyMhz)) frequencyMhz = n;
-    }
+    // Side clocks win. A shared core clock fills only a side that has none.
+    const coreFreq = fields.ai_core_frequency_mhz ?? fields.aic_core_frequency_mhz;
+    const cubeFreq = fields.ai_cube_frequency_mhz ?? fields.ai_cube_frequency;
+    const vectorFreq = fields.ai_vector_frequency_mhz ?? fields.ai_vector_frequency;
+    if (cubeFreq != null) cubeFrequencyMhz = cubeFreq;
+    else if (coreFreq != null) cubeFrequencyMhz = coreFreq;
+    if (vectorFreq != null) vectorFrequencyMhz = vectorFreq;
+    else if (coreFreq != null) vectorFrequencyMhz = coreFreq;
   }
-  return { cubeNum, vectorNum, frequencyMhz };
+  return { cubeNum, vectorNum, cubeFrequencyMhz, vectorFrequencyMhz };
 }
 
 function measuredGmPoint(
@@ -429,7 +427,12 @@ export function rooflineFromRows(
 ): RooflineViewModel | undefined {
   const fromJson = hardwareInfoJsonlText ? parseRooflineJsonl(hardwareInfoJsonlText) : undefined;
   const counts = parseHardwareCounts(hardwareInfoJsonlText);
-  const catalog = defaultSeriesCatalog(counts.cubeNum, counts.vectorNum, counts.frequencyMhz);
+  const catalog = defaultSeriesCatalog(
+    counts.cubeNum,
+    counts.vectorNum,
+    counts.cubeFrequencyMhz,
+    counts.vectorFrequencyMhz,
+  );
 
   let mixLabels: RooflineMixLabel[] = [];
   let points: RooflinePoint[] = [];
