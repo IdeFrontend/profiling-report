@@ -197,8 +197,8 @@ test('PR-MEMTOP-014: the overlay drops the bar strip the aside keeps', async ({ 
     '[data-testid="topology-fullscreen-overlay"] [data-testid="memory-topology-panel"]',
   );
   await expect(overlay).toBeVisible();
-  // The export's fullscreen frame has no `#313131` lift: the controls sit straight on the card.
-  expect(await barBackground(overlay)).toBe('rgba(0, 0, 0, 0)');
+  // Fullscreen drops the aside `#313131` strip and paints a `#262626` pill (1030 sketch).
+  expect(await barBackground(overlay)).toBe('rgb(38, 38, 38)');
 });
 
 /**
