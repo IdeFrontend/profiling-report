@@ -77,7 +77,7 @@ describe('ReportToolbar', () => {
     expect(wrapper.find('[data-testid="search-clear"]').exists()).toBe(false);
     wrapper.unmount();
 
-    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    const src = (await import('./ToolbarSearch.vue?raw')).default as string;
     expect(src).toMatch(
       /\.pr-toolbar__search input:focus-visible\s*\{[^}]*box-shadow:\s*inset 0 0 0 2px/,
     );
@@ -230,7 +230,8 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*flex-wrap:\s*nowrap/);
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*overflow-x:\s*clip/);
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*max-width:\s*100%/);
-    expect(src).toMatch(/\.pr-toolbar__search input[\s\S]*?background:\s*#2a2a2a/);
+    const searchSrc = (await import('./ToolbarSearch.vue?raw')).default as string;
+    expect(searchSrc).toMatch(/\.pr-toolbar__search input[\s\S]*?background:\s*#2a2a2a/);
     expect(src).toMatch(/\.pr-toolbar__zoom-pill[\s\S]*?background:\s*#363636/);
     expect(src).toMatch(/#ffffff\s+0%/); // filled track
     expect(src).toMatch(/#1a1a1a\s+var\(--pr-zoom-fill/); // unfilled webkit

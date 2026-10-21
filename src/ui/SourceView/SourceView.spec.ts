@@ -167,6 +167,8 @@ describe('SourceView', () => {
     expect(ed.revealLine).toHaveBeenCalledWith(46);
     expect(ed.focus).toHaveBeenCalled();
     expect(wrapper.find('[data-testid="sudu-current-line-overlay"]').exists()).toBe(false);
+    const pane = (await import('./SuduCodePane.vue?raw')).default as string;
+    expect(pane).not.toContain('pr-sudu-pane__overlay--current');
   });
 
   it('PR-SOURCE-006b: unmapped asm row clears source metrics and Sudu current-line theme', async () => {
@@ -289,6 +291,11 @@ describe('SourceView', () => {
     await wrapper.find('[data-testid="source-search"]').trigger('pointerdown');
     await wrapper.vm.$nextTick();
     expect(asmPane.classes()).toContain('pr-source-view__pane--selected');
+
+    const src = (await import('./SourceView.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-source-view__pane-body\s*\{[^}]*border:\s*2px solid transparent/);
+    expect(src).toMatch(/pane--selected \.pr-source-view__pane-body\s*\{[^}]*border-color:\s*var\(--pr-src-accent/);
+    expect(src).not.toMatch(/#2e4a7a/);
   });
 
   it('PR-SOURCE-009: shared Link views off keeps source click from moving asm caret', async () => {
@@ -327,14 +334,18 @@ describe('SourceView', () => {
 
   it('PR-SOURCE-011: asm Navigate By is enabled and independent', async () => {
     const model = mockSourceCorrelation();
-    const wrapper = mount(SourceView, { props: { model } });
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     const asmNav = wrapper.find('[data-testid="source-asm-navigate-by"]');
     expect(asmNav.attributes('disabled')).toBeUndefined();
-    await asmNav.setValue('samplingStall');
-    expect((asmNav.element as HTMLSelectElement).value).toBe('samplingStall');
-    expect((wrapper.find('[data-testid="source-navigate-by"]').element as HTMLSelectElement).value).toBe(
-      'instructionsExecuted',
-    );
+    await asmNav.trigger('click');
+    const stall = document.querySelector(
+      '[data-testid="source-asm-navigate-by-menu"] [data-value="samplingStall"]',
+    ) as HTMLElement;
+    stall.click();
+    await wrapper.vm.$nextTick();
+    expect(asmNav.text()).toContain('Sampling Stall');
+    expect(wrapper.find('[data-testid="source-navigate-by"]').text()).toContain('Instructions Executed');
+    wrapper.unmount();
   });
 
   it('PR-SOURCE-012: scroll-to-top suppresses correlated highlights until next click', async () => {
@@ -456,11 +467,14 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
 
-    await wrapper.find('[data-testid="source-file-select"]').setValue('other.cpp');
+    const fileSelect = wrapper.find('[data-testid="source-file-select"]');
+    await fileSelect.trigger('click');
+    const otherOpt = document.querySelector(
+      '[data-testid="source-file-select-menu"] [data-value="other.cpp"]',
+    ) as HTMLElement;
+    otherOpt.click();
     await wrapper.vm.$nextTick();
-    expect((wrapper.find('[data-testid="source-file-select"]').element as HTMLSelectElement).value).toBe(
-      'other.cpp',
-    );
+    expect(fileSelect.text()).toContain('other.cpp');
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
@@ -491,5 +505,306 @@ describe('SourceView', () => {
     expect(pct(assembly)).toBeGreaterThan(beforeAsm);
     expect(pct(instr)).toBeLessThan(beforeInstr);
     expect(pct(stall)).toBeCloseTo(beforeStall, 5);
+  });
+
+  it('PR-SOURCE-019: single-item dropdowns open; popup uses the metric menu', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
+    const ids = [
+      'source-left-view',
+      'source-right-view',
+      'source-file-select',
+      'source-navigate-by',
+      'source-asm-select',
+      'source-asm-navigate-by',
+    ];
+    for (const id of ids) {
+      const trigger = wrapper.get(`[data-testid="${id}"]`);
+      expect(trigger.element.tagName).toBe('BUTTON');
+      expect(trigger.attributes('disabled')).toBeUndefined();
+      expect(trigger.classes()).toContain('pr-block-pill');
+    }
+
+    await wrapper.get('[data-testid="source-left-view"]').trigger('click');
+    const menu = document.querySelector('[data-testid="source-left-view-menu"]');
+    expect(menu).toBeTruthy();
+    expect(menu?.classList.contains('pr-source-select__menu')).toBe(true);
+    const options = menu!.querySelectorAll('[data-testid="source-left-view-option"]');
+    expect(options).toHaveLength(1);
+    expect(options[0]?.classList.contains('pr-source-select__option--selected')).toBe(true);
+    expect(options[0]?.textContent).toContain('Source');
+
+    await wrapper.get('[data-testid="source-asm-select"]').trigger('click');
+    const asmMenu = document.querySelector('[data-testid="source-asm-select-menu"]');
+    expect(asmMenu?.querySelectorAll('[data-testid="source-asm-select-option"]')).toHaveLength(1);
+    expect(asmMenu?.querySelector('.pr-source-select__option--selected')?.textContent).toContain(
+      'sharpen[abi:v1,mock-ascendc]',
+    );
+
+    const popup = (await import('./SourcePillSelect.vue?raw')).default as string;
+    expect(popup).toMatch(/\.pr-source-select__menu\s*\{[^}]*background:\s*#2a2a2a/);
+    expect(popup).toMatch(/\.pr-source-select__option--selected\s*\{[^}]*background:\s*#3078f0/);
+    expect(popup).toMatch(/border-radius:\s*4px/);
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-020: search reuses the timeline control; clear does not widen it', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    expect(wrapper.find('.pr-source-view__search').exists()).toBe(false);
+    expect(wrapper.find('.pr-toolbar__search').exists()).toBe(true);
+    const search = wrapper.find('[data-testid="source-search"]');
+    await search.setValue('FFMA');
+    await wrapper.vm.$nextTick();
+    const clear = wrapper.find('[data-testid="source-search-clear"]');
+    expect(clear.exists()).toBe(true);
+    expect(clear.element.parentElement?.classList.contains('pr-toolbar__search')).toBe(true);
+
+    const src = (await import('../ReportToolbar/ToolbarSearch.vue?raw')).default as string;
+    expect(src).toMatch(/width:\s*190px/);
+    expect(src).toMatch(/box-sizing:\s*border-box/);
+    expect(src).toMatch(/\.pr-toolbar__search-clear\s*\{[^}]*position:\s*absolute/);
+    expect(src).toMatch(/flex:\s*0 0 190px/);
+    const view = (await import('./SourceView.vue?raw')).default as string;
+    expect(view).not.toMatch(/pr-source-view__search/);
+    expect(view).toContain('ToolbarSearch');
+
+    await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
+    await search.trigger('keydown', { key: 'Enter' });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findAll('[data-testid="source-metrics"]')[1]!.findAll('tr.pr-src-metrics__row--current').length).toBe(
+      1,
+    );
+  });
+
+  it('PR-SOURCE-021: editor context menu is Copy only and copies the selection', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    await flushPromises();
+    const ed = await latestSuduEditor() as {
+      getText?: () => string;
+      $editor0?: {
+        $model: {
+          $selection: {
+            $startPos: { $line: number; $charPos: number };
+            $endPos: { $line: number; $charPos: number };
+          };
+        };
+      };
+    };
+    ed.getText = () => 'alpha\nbeta';
+    ed.$editor0 = {
+      $model: {
+        $selection: {
+          $startPos: { $line: 0, $charPos: 1 },
+          $endPos: { $line: 0, $charPos: 4 },
+        },
+      },
+    };
+    const writeText = vi.fn(async () => {});
+    const prevClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    const host = wrapper.get('[data-testid="sudu-editor-host"]');
+    let bubbled = false;
+    host.element.addEventListener('contextmenu', () => {
+      bubbled = true;
+    });
+    const opened = host.element.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 40,
+    }));
+    await wrapper.vm.$nextTick();
+    expect(opened).toBe(false);
+    expect(bubbled).toBe(false);
+
+    const menu = document.querySelector('[data-testid="sudu-context-menu"]');
+    expect(menu).toBeTruthy();
+    expect(menu?.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
+    expect(menu?.textContent).toContain('Copy');
+    expect(menu?.textContent ?? '').not.toMatch(/Go to|Align With|Language|Settings/);
+
+    document.querySelector<HTMLButtonElement>('[data-testid="sudu-context-copy"]')?.click();
+    await flushPromises();
+    expect(writeText).toHaveBeenCalledWith('lph');
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeNull();
+
+    writeText.mockClear();
+    ed.$editor0!.$model.$selection.$endPos = { $line: 0, $charPos: 1 };
+    host.element.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 40,
+    }));
+    await wrapper.vm.$nextTick();
+    document.querySelector<HTMLButtonElement>('[data-testid="sudu-context-copy"]')?.click();
+    await flushPromises();
+    expect(writeText).not.toHaveBeenCalled();
+
+    host.element.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 12,
+      clientY: 12,
+    }));
+    await wrapper.vm.$nextTick();
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeTruthy();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await wrapper.vm.$nextTick();
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeNull();
+
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: prevClipboard });
+    wrapper.unmount();
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeNull();
+  });
+
+  it('PR-SOURCE-022: both pane bars wrap together when one overflows', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
+    await flushPromises();
+    const bars = wrapper.findAll('[data-testid="source-pane-bar"]');
+    expect(bars).toHaveLength(2);
+
+    function box(el: Element, width: number, which: 'client' | 'offset') {
+      Object.defineProperty(el, which === 'client' ? 'clientWidth' : 'offsetWidth', {
+        configurable: true,
+        value: width,
+      });
+    }
+
+    const [left, right] = bars.map((b) => b.element);
+    // Left fits; right Source + Navigate By does not.
+    box(left!, 600, 'client');
+    box(left!.querySelector('.pr-source-view__pane-bar-lead')!, 200, 'offset');
+    box(left!.querySelector('.pr-source-view__pane-bar-nav')!, 180, 'offset');
+    box(right!, 600, 'client');
+    box(right!.querySelector('.pr-source-view__pane-bar-lead')!, 450, 'offset');
+    box(right!.querySelector('.pr-source-view__pane-bar-nav')!, 180, 'offset');
+    window.dispatchEvent(new Event('resize'));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="source-view"]').attributes('data-pane-bars')).toBe('two');
+    expect(wrapper.get('[data-testid="source-view"]').classes()).toContain('pr-source-view--pane-bars-two');
+    expect(wrapper.findAll('.pr-source-view__pane-bar-break')).toHaveLength(2);
+
+    box(right!.querySelector('.pr-source-view__pane-bar-lead')!, 200, 'offset');
+    window.dispatchEvent(new Event('resize'));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="source-view"]').attributes('data-pane-bars')).toBe('one');
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-023: left pane hides columns until the editor geometry is ready', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    const original = vi.mocked(newEditor).getMockImplementation();
+    let editorHeight = 0;
+    vi.mocked(newEditor).mockImplementationOnce(() => {
+      const ed = original?.() ?? {};
+      return { ...ed, getEditorHeight: () => editorHeight };
+    });
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    await flushPromises();
+    const pane = wrapper.get('[data-testid="sudu-code-pane"]');
+    expect(pane.classes()).toContain('pr-sudu-pane--loading');
+    expect(pane.attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-testid="sudu-loading"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="sudu-metrics-header-row"]').exists()).toBe(true);
+    expect(pane.find('.pr-sudu-pane__stage').exists()).toBe(true);
+
+    editorHeight = 200;
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    await wrapper.vm.$nextTick();
+    expect(pane.classes()).not.toContain('pr-sudu-pane--loading');
+    expect(wrapper.find('[data-testid="sudu-loading"]').exists()).toBe(false);
+    expect(pane.attributes('aria-busy')).toBe('false');
+    expect(wrapper.find('[data-testid="sudu-editor-host"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="source-metrics"]')[0]!.find('tr[data-line="1"]').exists()).toBe(true);
+    if (original) vi.mocked(newEditor).mockImplementation(original);
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-024: asc/desc step the selected pane by its Navigate By metric', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
+    await flushPromises();
+
+    function ordered(file: { lines: { line: number; values: Record<string, number | string | null> }[] }, col: string, desc: boolean) {
+      const rows = file.lines
+        .filter((l) => {
+          const v = l.values[col];
+          return typeof v === 'number' ? v !== 0 : v != null && v !== '';
+        })
+        .map((l) => ({
+          line: l.line,
+          value: typeof l.values[col] === 'number' ? l.values[col] : 0,
+        }));
+      rows.sort((a, b) => {
+        if (a.value !== b.value) return desc ? b.value - a.value : a.value - b.value;
+        return desc ? b.line - a.line : a.line - b.line;
+      });
+      return rows;
+    }
+
+    const asmInstr = ordered(model.assembly, 'instructionsExecuted', false);
+    const asmStall = ordered(model.assembly, 'samplingStall', false);
+    expect(asmInstr[0]!.line).not.toBe(asmStall[0]!.line);
+
+    await wrapper.find('[data-testid="source-link-asm"]').trigger('click');
+    await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
+    // Other pane's Navigate By must not steer this walk.
+    await wrapper.get('[data-testid="source-navigate-by"]').trigger('click');
+    (document.querySelector(
+      '[data-testid="source-navigate-by-menu"] [data-value="samplingStall"]',
+    ) as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    const asmCurrent = () => {
+      const row = asmTable.find('tr.pr-src-metrics__row--current');
+      return row.exists() ? Number(row.attributes('data-line')) : null;
+    };
+
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(asmInstr[0]!.line);
+    expect(wrapper.find('[data-testid="source-sort-asc"]').classes()).toContain('pr-source-view__icon-btn--on');
+
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(asmInstr[1]!.line);
+    expect(asmInstr[1]!.value).toBeGreaterThanOrEqual(asmInstr[0]!.value);
+
+    const asmDesc = ordered(model.assembly, 'instructionsExecuted', true);
+    const from = asmCurrent()!;
+    const descNext = asmDesc[(asmDesc.findIndex((r) => r.line === from) + 1) % asmDesc.length]!.line;
+    await wrapper.find('[data-testid="source-sort-desc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(descNext);
+    expect(wrapper.find('[data-testid="source-sort-desc"]').classes()).toContain('pr-source-view__icon-btn--on');
+
+    // Last desc line wraps to the highest.
+    await asmTable.find(`tr[data-line="${asmDesc[asmDesc.length - 1]!.line}"]`).trigger('click');
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-testid="source-sort-desc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(asmDesc[0]!.line);
+
+    // Source pane uses its own Navigate By, not the asm selector.
+    await wrapper.find('[data-testid="source-pane-source"]').trigger('pointerdown');
+    await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
+    (document.querySelector(
+      '[data-testid="source-asm-navigate-by-menu"] [data-value="warpOccupancy"]',
+    ) as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    const sourceStall = ordered(model.files[0]!, 'samplingStall', false);
+    const sourceWarp = ordered(model.files[0]!, 'warpOccupancy', false);
+    expect(sourceStall[0]!.line).not.toBe(sourceWarp[0]!.line);
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    const sourceRow = sourceTable.find('tr.pr-src-metrics__row--current');
+    expect(Number(sourceRow.attributes('data-line'))).toBe(sourceStall[0]!.line);
+    wrapper.unmount();
   });
 });

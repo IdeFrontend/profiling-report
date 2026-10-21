@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
+import ToolbarSearch from '../ReportToolbar/ToolbarSearch.vue';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import AsmTablePane from './AsmTablePane.vue';
+import { paneBarsUseTwoLines } from './paneBarLayout';
+import SourcePillSelect from './SourcePillSelect.vue';
 import SuduCodePane from './SuduCodePane.vue';
 
 /** ReportToolbar mounts `[data-testid=source-chrome-host]` on the tab row. */
@@ -145,16 +148,28 @@ function metricValue(file: SourceFileModel, line: number, colId: string): number
   return typeof v === 'number' ? v : 0;
 }
 
-/** Hot lines for Navigate By (non-zero metric), ordered by sort toggle. */
+/** Hot lines for Navigate By (non-zero metric), ordered by the active asc/desc toggle. */
 function hotLines(file: SourceFileModel, col: string): number[] {
+  const desc = sortDesc.value;
   const rows = file.lines
     .filter((l) => {
       const v = l.values[col];
       return typeof v === 'number' ? v !== 0 : v != null && v !== '';
     })
     .map((l) => ({ line: l.line, value: metricValue(file, l.line, col) }));
-  rows.sort((a, b) => (sortDesc.value ? b.value - a.value : a.value - b.value));
+  rows.sort((a, b) => {
+    if (a.value !== b.value) return desc ? b.value - a.value : a.value - b.value;
+    return desc ? b.line - a.line : a.line - b.line;
+  });
   return rows.map((r) => r.line);
+}
+
+/** Next hotspot in `lines`. Missing/unknown current starts at the first; the end wraps. */
+function nextHotLine(lines: number[], current: number | null): number | null {
+  if (lines.length === 0) return null;
+  const i = current == null ? -1 : lines.indexOf(current);
+  if (i < 0) return lines[0]!;
+  return lines[(i + 1) % lines.length]!;
 }
 
 function onSourceLine(line: number) {
@@ -257,20 +272,22 @@ function findStep(dir: 1 | -1) {
 }
 
 /**
- * Sort Navigate By order (asc/desc). Toggles order and jumps to the first hot
- * line in that order for the selected pane so the control is immediately useful.
+ * Step the selected pane along its Navigate By metric.
+ * Asc walks increasing values; desc walks decreasing values. The other pane's
+ * Navigate By is ignored. No caret, or a caret that is not a hotspot, starts
+ * at the first line of that order; otherwise the next line, wrapping.
  */
 function setNavigateSort(desc: boolean) {
   sortDesc.value = desc;
   if (selectedPane.value === 'asm') {
-    const hot = hotLines(props.model.assembly, asmNavigateBy.value);
-    if (hot[0] != null) jumpAsm(hot[0]);
+    const next = nextHotLine(hotLines(props.model.assembly, asmNavigateBy.value), asmLine.value);
+    if (next != null) jumpAsm(next);
     return;
   }
   const file = sourceFile.value;
   if (!file) return;
-  const hot = hotLines(file, sourceNavigateBy.value);
-  if (hot[0] != null) jumpSource(hot[0]);
+  const next = nextHotLine(hotLines(file, sourceNavigateBy.value), sourceLine.value);
+  if (next != null) jumpSource(next);
 }
 
 function scrollTop() {
@@ -299,6 +316,17 @@ function openUserGuide() {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+const leftViewOptions = [{ id: 'source', label: 'Source' }];
+const rightViewOptions = [{ id: 'sass', label: 'SASS' }];
+
+const sourceFileOptions = computed(() =>
+  props.model.files.map((f) => ({ id: f.id, label: f.path })),
+);
+
+const asmFileOptions = computed(() => [
+  { id: props.model.assembly.id, label: props.model.assembly.path },
+]);
+
 const sourceNavigateOptions = computed(() =>
   props.model.navigateBy.map((id) => {
     const col = sourceFile.value?.metricsColumns.find((c) => c.id === id);
@@ -316,14 +344,61 @@ const asmNavigateOptions = computed(() =>
 /** True once ReportToolbar’s tab-row host is in the DOM (Teleport target). */
 const chromeHostReady = ref(false);
 let chromeHostObserver: MutationObserver | null = null;
+const panesEl = ref<HTMLElement | null>(null);
+/** Shared one-line / two-line mode for both pane bars. */
+const paneBarsTwoLine = ref(false);
+let paneBarObserver: ResizeObserver | null = null;
+
+function paneBarBox(bar: HTMLElement): { lead: number; nav: number; available: number } | null {
+  const lead = bar.querySelector<HTMLElement>('.pr-source-view__pane-bar-lead');
+  const nav = bar.querySelector<HTMLElement>('.pr-source-view__pane-bar-nav');
+  if (!lead || !nav) return null;
+  const style = getComputedStyle(bar);
+  const pad = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+  return {
+    lead: lead.offsetWidth,
+    nav: nav.offsetWidth,
+    available: Math.max(0, bar.clientWidth - pad),
+  };
+}
+
+function syncPaneBars() {
+  const root = panesEl.value;
+  if (!root) return;
+  const boxes = [...root.querySelectorAll<HTMLElement>('[data-testid="source-pane-bar"]')]
+    .map(paneBarBox)
+    .filter((box): box is NonNullable<typeof box> => box != null);
+  const bar = root.querySelector<HTMLElement>('[data-testid="source-pane-bar"]');
+  const gap = bar ? parseFloat(getComputedStyle(bar).columnGap) || 0 : 0;
+  paneBarsTwoLine.value = paneBarsUseTwoLines(boxes, gap);
+}
+
+function bindPaneBarObserver() {
+  paneBarObserver?.disconnect();
+  paneBarObserver = null;
+  const root = panesEl.value;
+  if (!root || typeof ResizeObserver === 'undefined') return;
+  paneBarObserver = new ResizeObserver(() => syncPaneBars());
+  paneBarObserver.observe(root);
+  root.querySelectorAll('.pr-source-view__pane-bar, .pr-source-view__pane-bar-lead, .pr-source-view__pane-bar-nav')
+    .forEach((el) => paneBarObserver?.observe(el));
+}
 
 function refreshChromeHost() {
   chromeHostReady.value = typeof document !== 'undefined'
     && document.querySelector(SOURCE_CHROME_HOST) != null;
 }
 
+watch(
+  () => [selectedFileId.value, props.model.assembly.path, sourceNavigateBy.value, asmNavigateBy.value],
+  () => { void nextTick(syncPaneBars); },
+);
+
 onMounted(() => {
   refreshChromeHost();
+  syncPaneBars();
+  bindPaneBarObserver();
+  window.addEventListener('resize', syncPaneBars);
   if (!chromeHostReady.value && typeof MutationObserver !== 'undefined') {
     chromeHostObserver = new MutationObserver(() => {
       refreshChromeHost();
@@ -339,14 +414,19 @@ onMounted(() => {
 onBeforeUnmount(() => {
   chromeHostObserver?.disconnect();
   chromeHostObserver = null;
+  paneBarObserver?.disconnect();
+  paneBarObserver = null;
+  window.removeEventListener('resize', syncPaneBars);
 });
 </script>
 
 <template>
   <div
     class="pr-source-view"
+    :class="{ 'pr-source-view--pane-bars-two': paneBarsTwoLine }"
     data-testid="source-view"
     :data-mock="model.mock ? 'true' : 'false'"
+    :data-pane-bars="paneBarsTwoLine ? 'two' : 'one'"
   >
     <!-- First control bar lives on the ReportToolbar tab row (no extra margin).
          When the host is absent (unit tests), Teleport stays disabled and renders in place. -->
@@ -358,61 +438,28 @@ onBeforeUnmount(() => {
         class="pr-source-view__views-row"
         data-testid="source-view-toolbar"
       >
-        <label class="pr-source-view__field">
-          <span>{{ t('sourceLeftView', locale) }}:</span>
-          <select
-            class="pr-block-pill pr-source-view__select"
-            data-testid="source-left-view"
-            disabled
-            :aria-label="t('sourceLeftView', locale)"
-          >
-            <option selected>
-              Source
-            </option>
-          </select>
-        </label>
-        <label class="pr-source-view__field">
-          <span>{{ t('sourceRightView', locale) }}:</span>
-          <select
-            class="pr-block-pill pr-source-view__select"
-            data-testid="source-right-view"
-            disabled
-            :aria-label="t('sourceRightView', locale)"
-          >
-            <option selected>
-              SASS
-            </option>
-          </select>
-        </label>
+        <SourcePillSelect
+          :caption="t('sourceLeftView', locale)"
+          model-value="source"
+          :options="leftViewOptions"
+          test-id="source-left-view"
+        />
+        <SourcePillSelect
+          :caption="t('sourceRightView', locale)"
+          model-value="sass"
+          :options="rightViewOptions"
+          test-id="source-right-view"
+        />
 
-        <div class="pr-source-view__search">
-          <label class="pr-source-view__search-field">
-            <span class="pr-source-view__sr">{{ t('searchLabel', locale) }}</span>
-            <PrIcon
-              name="search"
-              class="pr-source-view__search-icon"
-            />
-            <input
-              data-testid="source-search"
-              type="search"
-              :value="searchQuery"
-              :placeholder="t('searchPlaceholder', locale)"
-              @input="searchQuery = ($event.target as HTMLInputElement).value"
-              @keydown.enter.prevent="findStep(1)"
-            >
-          </label>
-          <button
-            v-if="searchQuery.length > 0"
-            type="button"
-            class="pr-source-view__search-clear"
-            data-testid="source-search-clear"
-            :aria-label="t('searchClear', locale)"
-            @mousedown.prevent
-            @click="searchQuery = ''"
-          >
-            ×
-          </button>
-        </div>
+        <ToolbarSearch
+          :model-value="searchQuery"
+          :locale="locale"
+          input-test-id="source-search"
+          clear-test-id="source-search-clear"
+          icon-test-id="source-search-magnifier"
+          @update:model-value="searchQuery = $event"
+          @submit="findStep(1)"
+        />
 
         <div
           class="pr-source-view__actions"
@@ -497,59 +544,50 @@ onBeforeUnmount(() => {
       </div>
     </Teleport>
 
-    <div class="pr-source-view__panes">
+    <div
+      ref="panesEl"
+      class="pr-source-view__panes"
+    >
       <div
         class="pr-source-view__pane"
         :class="{ 'pr-source-view__pane--selected': selectedPane === 'source' }"
         data-testid="source-pane-source"
         @pointerdown="selectPane('source')"
       >
-        <div class="pr-source-view__pane-bar">
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceFile', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-file-select"
-              :value="selectedFileId"
-              @change="onSourceFileChange(($event.target as HTMLSelectElement).value)"
+        <div
+          class="pr-source-view__pane-bar"
+          data-testid="source-pane-bar"
+        >
+          <div class="pr-source-view__pane-bar-lead">
+            <SourcePillSelect
+              :caption="t('sourceFile', locale)"
+              :model-value="selectedFileId"
+              :options="sourceFileOptions"
+              test-id="source-file-select"
+              @update:model-value="onSourceFileChange"
+            />
+            <button
+              type="button"
+              class="pr-source-view__icon-btn"
+              data-testid="source-link-source"
+              :class="{ 'pr-source-view__icon-btn--on': linkViews }"
+              :title="t('sourceLinkSync', locale)"
+              :aria-pressed="linkViews"
+              @click="toggleLinkViews"
             >
-              <option
-                v-for="f in model.files"
-                :key="f.id"
-                :value="f.id"
-              >
-                {{ f.path }}
-              </option>
-            </select>
-          </label>
-          <button
-            type="button"
-            class="pr-source-view__icon-btn"
-            data-testid="source-link-source"
-            :class="{ 'pr-source-view__icon-btn--on': linkViews }"
-            :title="t('sourceLinkSync', locale)"
-            :aria-pressed="linkViews"
-            @click="toggleLinkViews"
-          >
-            <PrIcon name="link" />
-          </button>
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceNavigateBy', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-navigate-by"
-              :value="sourceNavigateBy"
-              @change="sourceNavigateBy = ($event.target as HTMLSelectElement).value"
-            >
-              <option
-                v-for="opt in sourceNavigateOptions"
-                :key="opt.id"
-                :value="opt.id"
-              >
-                {{ opt.label }}
-              </option>
-            </select>
-          </label>
+              <PrIcon name="link" />
+            </button>
+          </div>
+          <div class="pr-source-view__pane-bar-break" />
+          <div class="pr-source-view__pane-bar-nav">
+            <SourcePillSelect
+              :caption="t('sourceNavigateBy', locale)"
+              :model-value="sourceNavigateBy"
+              :options="sourceNavigateOptions"
+              test-id="source-navigate-by"
+              @update:model-value="sourceNavigateBy = $event"
+            />
+          </div>
         </div>
         <!-- v930-source: # + Source ≈ 63% of the left pane; metrics strip takes the rest. -->
         <SuduCodePane
@@ -570,48 +608,39 @@ onBeforeUnmount(() => {
         data-testid="source-pane-asm"
         @pointerdown="selectPane('asm')"
       >
-        <div class="pr-source-view__pane-bar">
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceFile', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-asm-select"
-              disabled
-              :aria-label="t('sourceFile', locale)"
+        <div
+          class="pr-source-view__pane-bar"
+          data-testid="source-pane-bar"
+        >
+          <div class="pr-source-view__pane-bar-lead">
+            <SourcePillSelect
+              :caption="t('sourceFile', locale)"
+              :model-value="model.assembly.id"
+              :options="asmFileOptions"
+              test-id="source-asm-select"
+            />
+            <button
+              type="button"
+              class="pr-source-view__icon-btn"
+              data-testid="source-link-asm"
+              :class="{ 'pr-source-view__icon-btn--on': linkViews }"
+              :title="t('sourceLinkSync', locale)"
+              :aria-pressed="linkViews"
+              @click="toggleLinkViews"
             >
-              <option selected>
-                {{ model.assembly.path }}
-              </option>
-            </select>
-          </label>
-          <button
-            type="button"
-            class="pr-source-view__icon-btn"
-            data-testid="source-link-asm"
-            :class="{ 'pr-source-view__icon-btn--on': linkViews }"
-            :title="t('sourceLinkSync', locale)"
-            :aria-pressed="linkViews"
-            @click="toggleLinkViews"
-          >
-            <PrIcon name="link" />
-          </button>
-          <label class="pr-source-view__field">
-            <span>{{ t('sourceNavigateBy', locale) }}:</span>
-            <select
-              class="pr-block-pill pr-source-view__select"
-              data-testid="source-asm-navigate-by"
-              :value="asmNavigateBy"
-              @change="asmNavigateBy = ($event.target as HTMLSelectElement).value"
-            >
-              <option
-                v-for="opt in asmNavigateOptions"
-                :key="opt.id"
-                :value="opt.id"
-              >
-                {{ opt.label }}
-              </option>
-            </select>
-          </label>
+              <PrIcon name="link" />
+            </button>
+          </div>
+          <div class="pr-source-view__pane-bar-break" />
+          <div class="pr-source-view__pane-bar-nav">
+            <SourcePillSelect
+              :caption="t('sourceNavigateBy', locale)"
+              :model-value="asmNavigateBy"
+              :options="asmNavigateOptions"
+              test-id="source-asm-navigate-by"
+              @update:model-value="asmNavigateBy = $event"
+            />
+          </div>
         </div>
         <!-- SASS: Address + Assembly are table cells (sketch) — no Sudu editor. -->
         <AsmTablePane
@@ -699,21 +728,41 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
+  gap: 0 10px;
   padding: 5px 10px;
   background: var(--pr-src-bg-deep);
   min-width: 0;
 }
 
-.pr-source-view__field {
-  display: inline-flex;
+.pr-source-view__pane-bar-lead,
+.pr-source-view__pane-bar-nav {
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 6px;
-  color: var(--pr-src-label);
+  gap: 10px;
+  width: max-content;
+  max-width: 100%;
 }
 
-/* Match search height/radius; keep shared pill chevron from tokens.css. */
-.pr-source-view__select {
+/* Hidden until both bars switch together. flex-basis 100% drops Navigate By. */
+.pr-source-view__pane-bar-break {
+  display: none;
+  flex: 0 0 100%;
+  height: 0;
+}
+
+.pr-source-view--pane-bars-two .pr-source-view__pane-bar-break {
+  display: block;
+}
+
+/* One 8px row gap. A zero-height flex break would add row-gap on both sides. */
+.pr-source-view--pane-bars-two .pr-source-view__pane-bar-nav {
+  margin-top: 8px;
+}
+
+/* Match search height/radius; keep shared pill chevron from tokens.css.
+   Trigger lives in SourcePillSelect — :deep so the closed control stays this pill. */
+:deep(.pr-source-view__select) {
   box-sizing: border-box;
   height: var(--pr-src-control-h, 28px);
   max-width: 220px;
@@ -724,90 +773,6 @@ onBeforeUnmount(() => {
   color: var(--pr-src-text, #c8c8c8);
   font-size: 12px;
   line-height: calc(var(--pr-src-control-h, 28px) - 2px);
-}
-
-.pr-source-view__select:disabled {
-  opacity: 0.85;
-  cursor: default;
-}
-
-.pr-source-view__search {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  gap: 0;
-}
-
-.pr-source-view__search-field {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--pr-src-control-h, 28px);
-  min-width: 180px;
-  padding: 0 8px;
-  border: 1px solid var(--pr-src-divider);
-  border-radius: var(--pr-src-control-radius, 6px);
-  background: var(--pr-src-bg-control);
-  color: var(--pr-src-label);
-}
-
-.pr-source-view__search-field:focus-within {
-  border-color: var(--pr-src-accent);
-  box-shadow: inset 0 0 0 1px var(--pr-src-accent);
-}
-
-.pr-source-view__search-icon {
-  flex: 0 0 14px;
-  width: 14px;
-  height: 14px;
-}
-
-.pr-source-view__search-field input {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--pr-src-text);
-  font-family: inherit;
-  font-size: 12px;
-}
-
-.pr-source-view__search-field input::placeholder {
-  color: #808080;
-}
-
-.pr-source-view__search-field input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-}
-
-/* Room for the clear × when a query is present. */
-.pr-source-view__search:has(.pr-source-view__search-clear) input {
-  padding-right: 24px;
-}
-
-.pr-source-view__search-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: 2px;
-  background: transparent;
-  color: var(--pr-src-label);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.pr-source-view__search-clear:hover {
-  color: #ffffff;
-  background: #363636;
 }
 
 .pr-source-view__actions {
@@ -848,18 +813,6 @@ onBeforeUnmount(() => {
   background: #1e2a3e;
 }
 
-.pr-source-view__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .pr-source-view__mock {
   padding: 1px 8px;
   border-radius: 2px;
@@ -886,8 +839,8 @@ onBeforeUnmount(() => {
 .pr-source-view__pane-body {
   flex: 1 1 auto;
   min-height: 0;
-  /* Unselected frame; selected pane uses accent (sketch #317FFF / #3078F0). */
-  border: 2px solid #2e4a7a;
+  /* Blue frame only on the selected pane; keep the 2px box so content does not shift. */
+  border: 2px solid transparent;
   border-radius: 6px;
   overflow: hidden;
   background: var(--pr-src-bg-body);

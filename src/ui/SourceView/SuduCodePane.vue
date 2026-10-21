@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -33,6 +34,7 @@ import {
   startSourceColBoundaryResize,
 } from './sourceColumnResize';
 import { t } from '../../i18n';
+import { selectedTextFromSudu } from './suduSelection';
 
 /** Match `.pr-sudu-pane__editor` canvas plane. */
 const SUDU_EDITOR_BG = '#1a1a1a';
@@ -91,6 +93,9 @@ const containerId = `pr-sudu-${domId}`;
 const rootEl = ref<HTMLElement | null>(null);
 const editorHost = ref<HTMLElement | null>(null);
 const tableScrollEl = ref<HTMLElement | null>(null);
+const copyMenu = ref<{ x: number; y: number } | null>(null);
+const copyMenuEl = ref<HTMLElement | null>(null);
+const copyMenuStyle = ref<Record<string, string>>({ position: 'fixed', left: '0px', top: '0px' });
 
 const geom = ref<EditorGeometry>({
   dpr: 0,
@@ -108,6 +113,8 @@ const fontSizeCss = ref(12);
 const fontFamily = ref<string | null>(null);
 const ready = ref(false);
 const loadError = ref<string | null>(null);
+/** Hide editor + metrics together until Sudu has real geometry. The host stays laid out so boot can measure. */
+const showLoading = computed(() => !ready.value && loadError.value == null);
 
 type EditorView = Awaited<ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newEditor']>>;
 type TextModel = ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newTextModel']>;
@@ -297,6 +304,86 @@ function onTableScroll() {
   pendingEcho = -1;
 }
 
+function onEditorContextMenu(e: MouseEvent) {
+  copyMenu.value = { x: e.clientX, y: e.clientY };
+  copyMenuStyle.value = { position: 'fixed', left: `${e.clientX}px`, top: `${e.clientY}px` };
+  void nextTick(() => clampCopyMenu(e.clientX, e.clientY));
+}
+
+function clampCopyMenu(x: number, y: number) {
+  const el = copyMenuEl.value;
+  if (!el || !copyMenu.value) return;
+  const { width, height } = el.getBoundingClientRect();
+  const left = Math.max(4, Math.min(x + width > window.innerWidth ? x - width : x, window.innerWidth - width - 4));
+  const top = Math.max(4, Math.min(y + height > window.innerHeight ? y - height : y, window.innerHeight - height - 4));
+  copyMenuStyle.value = { position: 'fixed', left: `${left}px`, top: `${top}px` };
+}
+
+function closeCopyMenu() {
+  copyMenu.value = null;
+}
+
+function onCopyMenuPointerDown(e: PointerEvent) {
+  if (!copyMenu.value) return;
+  const node = e.target as Node | null;
+  if (node && copyMenuEl.value?.contains(node)) return;
+  closeCopyMenu();
+}
+
+function onCopyMenuKeydown(e: KeyboardEvent) {
+  if (!copyMenu.value || e.key !== 'Escape') return;
+  e.preventDefault();
+  closeCopyMenu();
+}
+
+function detachCopyMenuListeners() {
+  document.removeEventListener('pointerdown', onCopyMenuPointerDown, true);
+  document.removeEventListener('keydown', onCopyMenuKeydown, true);
+  window.removeEventListener('scroll', closeCopyMenu, true);
+}
+
+/** Copy the editor range. A caret with no range leaves the clipboard alone. */
+function onCopySelection() {
+  const text = selectedTextFromSudu(editor);
+  closeCopyMenu();
+  if (!text) return;
+  const write = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+  if (write) {
+    void write(text).catch(() => fallbackCopy(text));
+    return;
+  }
+  fallbackCopy(text);
+}
+
+function fallbackCopy(text: string) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+  } finally {
+    ta.remove();
+  }
+}
+
+watch(
+  copyMenu,
+  (open) => {
+    if (open) {
+      document.addEventListener('pointerdown', onCopyMenuPointerDown, true);
+      document.addEventListener('keydown', onCopyMenuKeydown, true);
+      window.addEventListener('scroll', closeCopyMenu, true);
+    } else {
+      detachCopyMenuListeners();
+    }
+  },
+  { flush: 'sync' },
+);
+
 /**
  * Metrics row click — same as the sample: move caret only; Sudu keeps it visible
  * with minimum scroll, paints the current-line highlight, and setCaretListener
@@ -435,6 +522,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true;
   ignoreCaret = false;
+  closeCopyMenu();
+  detachCopyMenuListeners();
   metricResizeSession?.end();
   metricResizeSession = null;
   tableScrollEl.value?.removeEventListener('scroll', onTableScroll);
@@ -458,123 +547,161 @@ defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, 
   <div
     ref="rootEl"
     class="pr-sudu-pane"
+    :class="{ 'pr-sudu-pane--loading': showLoading }"
     data-testid="sudu-code-pane"
     :style="paneStyle"
+    :aria-busy="showLoading"
   >
-    <div
-      class="pr-sudu-pane__header-row"
-      data-testid="sudu-metrics-header-row"
-    >
-      <!-- Sketch: # + Source sit over the editor gutter/code (not an empty pad). -->
+    <div class="pr-sudu-pane__stage">
       <div
-        class="pr-sudu-pane__hpad"
-        data-testid="sudu-source-header-titles"
+        class="pr-sudu-pane__header-row"
+        data-testid="sudu-metrics-header-row"
       >
-        <table class="pr-sudu-pane__source-head">
-          <colgroup>
-            <col class="pr-sudu-pane__col-line">
-            <col class="pr-sudu-pane__col-source">
-          </colgroup>
-          <thead>
-            <tr>
-              <th
-                class="pr-sudu-pane__th-left"
-                title="#"
-              >
-                #
-              </th>
-              <th
-                class="pr-sudu-pane__th-left"
-                title="Source"
-              >
-                Source
-              </th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-      <div class="pr-sudu-pane__hsplit" />
-      <div
-        ref="headerColsEl"
-        class="pr-sudu-pane__hcols"
-        data-testid="sudu-metrics-header-cols"
-        @scroll="onHeaderColsScroll"
-      >
-        <table class="pr-sudu-pane__head-table">
-          <colgroup>
-            <col
-              v-for="col in metricColumns"
-              :key="col.id"
-              :class="`pr-src-metrics__col--${col.id}`"
-              :style="metricColStyle(col.id)"
-            >
-          </colgroup>
-          <thead>
-            <tr>
-              <th
+        <!-- Sketch: # + Source sit over the editor gutter/code (not an empty pad). -->
+        <div
+          class="pr-sudu-pane__hpad"
+          data-testid="sudu-source-header-titles"
+        >
+          <table class="pr-sudu-pane__source-head">
+            <colgroup>
+              <col class="pr-sudu-pane__col-line">
+              <col class="pr-sudu-pane__col-source">
+            </colgroup>
+            <thead>
+              <tr>
+                <th
+                  class="pr-sudu-pane__th-left"
+                  title="#"
+                >
+                  #
+                </th>
+                <th
+                  class="pr-sudu-pane__th-left"
+                  title="Source"
+                >
+                  Source
+                </th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+        <div class="pr-sudu-pane__hsplit" />
+        <div
+          ref="headerColsEl"
+          class="pr-sudu-pane__hcols"
+          data-testid="sudu-metrics-header-cols"
+          @scroll="onHeaderColsScroll"
+        >
+          <table class="pr-sudu-pane__head-table">
+            <colgroup>
+              <col
                 v-for="col in metricColumns"
                 :key="col.id"
-                :title="col.label"
-                class="pr-sudu-pane__metric-th"
-                :class="{ 'pr-sudu-pane__th-left': col.id === 'address' }"
+                :class="`pr-src-metrics__col--${col.id}`"
+                :style="metricColStyle(col.id)"
               >
-                <span class="pr-sudu-pane__th-label">{{ col.label }}</span>
-                <span
-                  v-if="sourceColCanResize(metricColIds, col.id)"
-                  class="pr-sudu-pane__col-resize"
-                  data-testid="source-col-resize"
-                  :data-col="col.id"
-                  role="separator"
-                  :aria-label="t('sourceResizeColumn')"
-                  @pointerdown="onMetricColResizeDown(col.id, $event)"
-                  @pointermove="onMetricColResizeMove"
-                  @pointerup="onMetricColResizeUp"
-                  @pointercancel="onMetricColResizeUp"
-                />
-              </th>
-            </tr>
-          </thead>
-        </table>
+            </colgroup>
+            <thead>
+              <tr>
+                <th
+                  v-for="col in metricColumns"
+                  :key="col.id"
+                  :title="col.label"
+                  class="pr-sudu-pane__metric-th"
+                  :class="{ 'pr-sudu-pane__th-left': col.id === 'address' }"
+                >
+                  <span class="pr-sudu-pane__th-label">{{ col.label }}</span>
+                  <span
+                    v-if="sourceColCanResize(metricColIds, col.id)"
+                    class="pr-sudu-pane__col-resize"
+                    data-testid="source-col-resize"
+                    :data-col="col.id"
+                    role="separator"
+                    :aria-label="t('sourceResizeColumn')"
+                    @pointerdown="onMetricColResizeDown(col.id, $event)"
+                    @pointermove="onMetricColResizeMove"
+                    @pointerup="onMetricColResizeUp"
+                    @pointercancel="onMetricColResizeUp"
+                  />
+                </th>
+              </tr>
+            </thead>
+          </table>
+        </div>
       </div>
-    </div>
 
-    <div class="pr-sudu-pane__body">
-      <div
-        ref="editorHost"
-        class="pr-sudu-pane__editor"
-        data-testid="sudu-editor-host"
-      >
-        <pre
-          v-if="loadError"
-          class="pr-sudu-pane__fallback"
-          data-testid="sudu-fallback"
-        >{{ file.text }}</pre>
-      </div>
-      <div class="pr-sudu-pane__splitter" />
-      <div class="pr-sudu-pane__table">
-        <SourceMetricsTable
-          ref="metricsTableRef"
-          :file="file"
-          :current-line="currentLine ?? null"
-          :correlated-lines="correlatedLines"
-          :match-lines="matchLines"
-          :dim-zero-for="dimZeroFor"
-          :row-height-css="rowH"
-          :filler-rows="filler"
-          :font-family="fontFamily"
-          :font-size-css="fontSizeCss"
-          :show-header="false"
-          v-model:column-widths="metricColWidths"
-          @scroll-left="onMetricsScrollLeft"
-          @row-click="onRowClick"
-        />
+      <div class="pr-sudu-pane__body">
+        <div
+          ref="editorHost"
+          class="pr-sudu-pane__editor"
+          data-testid="sudu-editor-host"
+          @contextmenu.capture.prevent.stop="onEditorContextMenu"
+        >
+          <pre
+            v-if="loadError"
+            class="pr-sudu-pane__fallback"
+            data-testid="sudu-fallback"
+          >{{ file.text }}</pre>
+        </div>
+        <div class="pr-sudu-pane__splitter" />
+        <div class="pr-sudu-pane__table">
+          <SourceMetricsTable
+            ref="metricsTableRef"
+            v-model:column-widths="metricColWidths"
+            :file="file"
+            :current-line="currentLine ?? null"
+            :correlated-lines="correlatedLines"
+            :match-lines="matchLines"
+            :dim-zero-for="dimZeroFor"
+            :row-height-css="rowH"
+            :filler-rows="filler"
+            :font-family="fontFamily"
+            :font-size-css="fontSizeCss"
+            :show-header="false"
+            @scroll-left="onMetricsScrollLeft"
+            @row-click="onRowClick"
+          />
+        </div>
       </div>
     </div>
+    <div
+      v-if="showLoading"
+      class="pr-sudu-pane__loading"
+      data-testid="sudu-loading"
+      role="status"
+    >
+      <span
+        class="pr-sudu-pane__spinner"
+        :aria-label="t('sourceEditorLoading')"
+      />
+    </div>
+    <Teleport to="body">
+      <div
+        v-if="copyMenu"
+        ref="copyMenuEl"
+        class="pr-sudu-menu"
+        role="menu"
+        data-testid="sudu-context-menu"
+        :style="copyMenuStyle"
+        @contextmenu.prevent.stop
+      >
+        <button
+          type="button"
+          class="pr-sudu-menu__item"
+          role="menuitem"
+          data-testid="sudu-context-copy"
+          @click="onCopySelection"
+        >
+          {{ t('sourceCopy') }}
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .pr-sudu-pane {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -585,6 +712,53 @@ defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, 
   --pr-src-row-h: 20px;
   --pr-src-font-size: 12px;
   --pr-src-font-family: monospace;
+}
+
+.pr-sudu-pane__stage {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Opacity, not display:none — Sudu must keep a real box and paint before we reveal. */
+.pr-sudu-pane--loading .pr-sudu-pane__stage {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pr-sudu-pane__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pr-sudu-pane__spinner {
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid #3a3a3a;
+  border-top-color: #3078f0;
+  border-radius: 50%;
+  animation: pr-sudu-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-sudu-pane__spinner {
+    animation: none;
+    border-top-color: #3078f0;
+  }
+}
+
+@keyframes pr-sudu-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Same flex recipe as #header-row / #panes in sudu standalone-sample. */
@@ -762,4 +936,41 @@ defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, 
   white-space: pre;
 }
 
+</style>
+
+<style>
+.pr-sudu-menu {
+  z-index: 10001;
+  box-sizing: border-box;
+  min-width: 140px;
+  padding: 4px 0;
+  border-radius: 6px;
+  background: var(--pr-surface-raised, #363636);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: var(--pr-tab-inactive, #d0d0d0);
+  font-size: 13px;
+  user-select: none;
+}
+
+.pr-sudu-menu__item {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pr-sudu-menu__item:hover,
+.pr-sudu-menu__item:focus-visible {
+  background: var(--pr-surface-hover, #323232);
+}
 </style>
