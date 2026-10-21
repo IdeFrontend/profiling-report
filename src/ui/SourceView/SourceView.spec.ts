@@ -660,4 +660,38 @@ describe('SourceView', () => {
     wrapper.unmount();
     expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeNull();
   });
+
+  it('PR-SOURCE-022: both pane bars wrap together when one overflows', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
+    await flushPromises();
+    const bars = wrapper.findAll('[data-testid="source-pane-bar"]');
+    expect(bars).toHaveLength(2);
+
+    function box(el: Element, width: number, which: 'client' | 'offset') {
+      Object.defineProperty(el, which === 'client' ? 'clientWidth' : 'offsetWidth', {
+        configurable: true,
+        value: width,
+      });
+    }
+
+    const [left, right] = bars.map((b) => b.element);
+    // Left fits; right Source + Navigate By does not.
+    box(left!, 600, 'client');
+    box(left!.querySelector('.pr-source-view__pane-bar-lead')!, 200, 'offset');
+    box(left!.querySelector('.pr-source-view__pane-bar-nav')!, 180, 'offset');
+    box(right!, 600, 'client');
+    box(right!.querySelector('.pr-source-view__pane-bar-lead')!, 450, 'offset');
+    box(right!.querySelector('.pr-source-view__pane-bar-nav')!, 180, 'offset');
+    window.dispatchEvent(new Event('resize'));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="source-view"]').attributes('data-pane-bars')).toBe('two');
+    expect(wrapper.get('[data-testid="source-view"]').classes()).toContain('pr-source-view--pane-bars-two');
+    expect(wrapper.findAll('.pr-source-view__pane-bar-break')).toHaveLength(2);
+
+    box(right!.querySelector('.pr-source-view__pane-bar-lead')!, 200, 'offset');
+    window.dispatchEvent(new Event('resize'));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="source-view"]').attributes('data-pane-bars')).toBe('one');
+    wrapper.unmount();
+  });
 });
