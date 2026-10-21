@@ -71,7 +71,7 @@ The frame's own block order is normative: tab strip → rule → legend → grid
 | Grid cell | `aspect-ratio: 1`, `2px` gap, `1px` radius |
 | Grid size | square cell = `min(width-fit, height-fit)` against the body (`100cq*` minus the title/metric footer); horizontally centred |
 | Short column | lattice resizes to fit; no body scrollbar (PR-HEAT-011). Legend→grid stays the legend's `24px` pad; spare height falls **below** the metric |
-| Fullscreen ground | overlay `#1a1a1a`; only this panel paints `#262626` (diagram `.pr-topo` is transparent in 全屏) |
+| Fullscreen ground | overlay `#1a1a1a`; diagram `.pr-topo` stays transparent. This panel and the fullscreen zoom pill both paint `#262626` |
 
 The two blues and the board/frame greys are the frame's own, sampled from `v930-sim/memory-topology-fullscreen` (`#3D64AD` legend/block ink, `#AFC6FE` empty-block ink, `#303F5E` board, `#6E798D` frame) and registered in [COLOR_TOKENS § Heatmap](../../../../docs/ui/COLOR_TOKENS.md). The diagram's selected/hover tints are the two blues ([MemoryTopologyPanel](../MemoryTopologyPanel/MemoryTopologyPanel.spec.md) PR-MEMTOP-022), so the two surfaces read as one selection.
 
@@ -89,7 +89,7 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 
 ## Changelog
 
-- **2026-10-21** — Heat card `border-radius: 8px` (same as the fullscreen zoom pill; ~25px at 4× on the 1030 sketch).
+- **2026-10-21** — Heat card `border-radius: 8px` (same as the fullscreen zoom pill; ~25px at 4× on the 1030 sketch). Fullscreen ground: diagram `.pr-topo` stays transparent; this panel and the zoom pill both paint `#262626`.
 - **2026-10-09** — Title/metric line-heights (`22px` / `15px`) lock the `--pr-heat-footer: 81px` budget under height-fit; overlay ground called out as literal `#1a1a1a` (not `--pr-bg-aside`).
 - **2026-10-08** — Pixel re-compare to `v930-sim/memory-topology-fullscreen`: heat column **400px** (sketch ~398), title gap **31px** (122px÷4), indicator **12px** above the rule, grid radius **5px**. Legend→map gap: body is the size container; spare height falls below the metric. Short-column fit (PR-HEAT-011); overlay ground `#1a1a1a`; diagram `.pr-topo` transparent in 全屏.
 - **2026-10-06** — Short-column scroll (PR-HEAT-011, superseded 2026-10-08): the body was a vertical scrollport; replaced by lattice resize so sketch-faithful chrome stays put without a scrollbar.
