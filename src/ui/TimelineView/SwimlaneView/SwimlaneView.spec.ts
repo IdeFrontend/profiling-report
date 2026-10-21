@@ -2674,4 +2674,71 @@ describe('SwimlaneView', () => {
       /data-testid="body-scrollbar"[\s\S]*?@wheel\.prevent="onStripWheel"/,
     );
   });
+
+  it('PR-SWIMVIEW-044: overflow end mid-drag settles canvas scroll', async () => {
+    const tallLanes = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      color: '#f00',
+      utilization: 0.5,
+    }));
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [{ id: 'card0', name: 'Card0', lanes: tallLanes }],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: tallLanes.map((l) => ({ id: l.id, name: l.name, events: [] })),
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const body = wrapper.get('[data-testid="swim-body"]').element as HTMLElement;
+    Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
+
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 40);
+    await nextTick();
+    const bar = wrapper.get('[data-testid="body-scrollbar"]');
+    const barEl = bar.element as HTMLElement;
+    vi.spyOn(barEl, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      left: 0,
+      bottom: 300,
+      right: 8,
+      width: 8,
+      height: 200,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    await bar.trigger('pointerdown', { button: 0, clientY: 120, pointerId: 1 });
+    await bar.trigger('pointermove', { button: 0, clientY: 150, pointerId: 1 });
+    // In-flight drag uses non-settled driveScrollY — parent scrollY not cloned yet.
+    expect(wrapper.emitted('update:scrollY')).toBeFalsy();
+
+    // Collapse under an open drag — strip unmounts; settle so overlayScrollActive clears.
+    await wrapper.setProps({ collapsedIds: ['card0'] });
+    await nextTick();
+    expect(wrapper.find('[data-testid="body-scrollbar"]').exists()).toBe(false);
+    expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(0);
+
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(
+      /wasDragging[\s\S]*?applyScrollbarScrollY\(liveScrollY\.value,\s*true\)/,
+    );
+    wrapper.unmount();
+  });
 });
