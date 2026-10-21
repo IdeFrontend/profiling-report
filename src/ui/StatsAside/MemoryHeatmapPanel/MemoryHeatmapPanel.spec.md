@@ -55,7 +55,7 @@ The frame's own block order is normative: tab strip → rule → legend → grid
 
 | Token | Value |
 |-------|-------|
-| Panel bg | `#262626` |
+| Panel bg | `#262626`, `8px` radius (1030 fullscreen — same corner as the zoom pill) |
 | Tab text / legend text | `#b3b3b3`, `#fff` when active |
 | Active tab indicator | `#ffffff`, `2px` tall, the label + 4px wide (the frame's 15px bar under an 11.5px `L1`), `12px` under the label and `12px` above the strip's rule (sketch ~12.5px) |
 | Tab strip rule | `#333333` `1px` across the panel's content width |
@@ -89,6 +89,7 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 
 ## Changelog
 
+- **2026-10-21** — Heat card `border-radius: 8px` (same as the fullscreen zoom pill; ~25px at 4× on the 1030 sketch).
 - **2026-10-09** — Title/metric line-heights (`22px` / `15px`) lock the `--pr-heat-footer: 81px` budget under height-fit; overlay ground called out as literal `#1a1a1a` (not `--pr-bg-aside`).
 - **2026-10-08** — Pixel re-compare to `v930-sim/memory-topology-fullscreen`: heat column **400px** (sketch ~398), title gap **31px** (122px÷4), indicator **12px** above the rule, grid radius **5px**. Legend→map gap: body is the size container; spare height falls below the metric. Short-column fit (PR-HEAT-011); overlay ground `#1a1a1a`; diagram `.pr-topo` transparent in 全屏.
 - **2026-10-06** — Short-column scroll (PR-HEAT-011, superseded 2026-10-08): the body was a vertical scrollport; replaced by lattice resize so sketch-faithful chrome stays put without a scrollbar.

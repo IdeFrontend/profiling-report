@@ -537,8 +537,15 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   const columnBox = (await column.boundingBox())!;
   const heatBox = (await heat.boundingBox())!;
   expect(heatBox.width).toBeCloseTo(400, 0);
-  expect(heatBox.x).toBeGreaterThanOrEqual(columnBox.x + columnBox.width - SLOP);
+  // Split body keeps a 16px gap between the diagram column and the heat card.
+  expect(heatBox.x - (columnBox.x + columnBox.width)).toBeCloseTo(16, 0);
   expect(Math.abs(heatBox.height - columnBox.height)).toBeLessThanOrEqual(SLOP + 2);
+
+  // Zoom bar stays in the diagram column (sketch 1030) — left of the heat panel, bottoms flush.
+  const controlsBox = (await overlay.getByTestId('topology-controls').boundingBox())!;
+  expect(controlsBox.x + controlsBox.width).toBeLessThanOrEqual(heatBox.x - 16 + SLOP);
+  expect(controlsBox.x).toBeGreaterThanOrEqual(columnBox.x - SLOP);
+  expect(controlsBox.y + controlsBox.height).toBeCloseTo(heatBox.y + heatBox.height, 0);
 
   // The diagram still fills its (now narrower) box at the chrome's own ratio (PR-MEMTOP-013b).
   const panel = overlay.locator('[data-testid="memory-topology-panel"]');

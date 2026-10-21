@@ -236,6 +236,8 @@ function onTabsKeydown(e: KeyboardEvent) {
   min-height: 0;
   padding: 12px;
   background: #262626;
+  /* 1030 fullscreen: same corner as the zoom pill (~25px at 4× → 6px; 8px token). */
+  border-radius: 8px;
   color: #fff;
   font-size: 12px;
   overflow: hidden;
