@@ -240,6 +240,7 @@ function parseRooflineJsonl(text: string): {
 
   const seriesById = new Map<RooflineSeriesId, RooflineSeries>();
   const points: RooflinePoint[] = [];
+  const pointSeries: RooflineSeriesId[] = [];
 
   for (const [key, raw] of Object.entries(obj)) {
     if (key === 'category' || raw == null || typeof raw !== 'object') continue;
@@ -247,13 +248,16 @@ function parseRooflineJsonl(text: string): {
     if (!seriesId) continue;
     const m = raw as RooflineMetric;
     const pPeakOps = typeof m.p_peak === 'number' ? m.p_peak : undefined;
-    const bPeak = typeof m.b_peak === 'number' ? m.b_peak : ROOFLINE_B_PEAK_GBS;
-    const peakTops =
-      pPeakOps != null && pPeakOps > 0 ? pPeakOps / OPS_PER_TOPS : EXAMPLE_PEAK_TOPS[seriesId].peakComputeTops;
-    // Many producer keys map to one legend series — keep the max p_peak (and its b_peak).
-    const prev = seriesById.get(seriesId);
-    if (!prev || peakTops > prev.peakComputeTops) {
-      seriesById.set(seriesId, seriesFromMeta(seriesId, peakTops, bPeak));
+    // Only a positive p_peak overlays the catalog. Missing / ≤0 must not
+    // substitute EXAMPLE_PEAK_TOPS — that clobbers §11.8.1 formula roofs.
+    if (pPeakOps != null && pPeakOps > 0) {
+      const peakTops = pPeakOps / OPS_PER_TOPS;
+      const bPeak = typeof m.b_peak === 'number' ? m.b_peak : ROOFLINE_B_PEAK_GBS;
+      // Many producer keys map to one legend series — keep the max p_peak (and its b_peak).
+      const prev = seriesById.get(seriesId);
+      if (!prev || peakTops > prev.peakComputeTops) {
+        seriesById.set(seriesId, seriesFromMeta(seriesId, peakTops, bPeak));
+      }
     }
 
     const w = typeof m.w === 'number' ? m.w : undefined;
@@ -266,17 +270,29 @@ function parseRooflineJsonl(text: string): {
     const meta = ROOFLINE_SERIES_META[seriesId];
     points.push({
       id: key,
-      // Disambiguate when several JSON keys share one seriesId / legend color.
-      label: key,
+      label: meta.label,
       intensity,
       performance,
       style: 'solid',
       color: meta.color,
       seriesId,
     });
+    pointSeries.push(seriesId);
   }
 
-  if (seriesById.size === 0) return undefined;
+  // One point on a series keeps the legend name. Several keys sharing a
+  // seriesId append the producer key so the hover tip stays distinguishable.
+  const countBySeries = new Map<RooflineSeriesId, number>();
+  for (const id of pointSeries) {
+    countBySeries.set(id, (countBySeries.get(id) ?? 0) + 1);
+  }
+  pointSeries.forEach((id, i) => {
+    if ((countBySeries.get(id) ?? 0) > 1) {
+      points[i]!.label = `${ROOFLINE_SERIES_META[id].label} (${points[i]!.id})`;
+    }
+  });
+
+  if (seriesById.size === 0 && points.length === 0) return undefined;
   // Keep legend order (sparse — caller merges onto the full catalog).
   const ordered = (Object.keys(ROOFLINE_SERIES_META) as RooflineSeriesId[])
     .filter((id) => seriesById.has(id))

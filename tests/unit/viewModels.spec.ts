@@ -997,9 +997,10 @@ describe('PR-VM: report view-models (interim)', () => {
     ].join('\n');
     const model = rooflineFromRows(arith, mem, hw);
     expect(model).toBeDefined();
-    // JSON measured points win over GM when present; labels are producer keys.
+    // JSON measured points win over GM when present. A lone point uses the legend label.
     expect(model!.points.map((p) => p.id).sort()).toEqual(['aic_b8', 'aiv_simd_b16']);
-    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.label).toBe('aiv_simd_b16');
+    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.label).toBe('AIV fp16');
+    expect(model!.points.find((p) => p.id === 'aic_b8')!.label).toBe('AIC int8 fp8');
     // Sparse JSON overlays the full AIV+AIC legend (does not replace it).
     expect(model!.series.map((s) => s.id)).toEqual(Object.keys(ROOFLINE_SERIES_META));
     const aiv = model!.series.find((s) => s.id === 'aiv-fp16')!;
@@ -1031,7 +1032,40 @@ describe('PR-VM: report view-models (interim)', () => {
     // Max p_peak wins (simt 2e13), with that entry's b_peak.
     expect(fp32.peakComputeTops).toBeCloseTo(2e13 / 1e12, 6);
     expect(fp32.peakBandwidthGBs).toBe(1600);
-    expect(model!.points.map((p) => p.label).sort()).toEqual(['aiv_simd_b32', 'aiv_simt_b32']);
+    expect(model!.points.map((p) => p.label).sort()).toEqual([
+      'AIV fp32 (aiv_simd_b32)',
+      'AIV fp32 (aiv_simt_b32)',
+    ]);
+  });
+
+  it('PR-VM-009b: missing or non-positive p_peak does not clobber formula roofs', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = [
+      JSON.stringify({
+        category: 'AI Core Information',
+        ai_cube_count: 25,
+        ai_vector_count: 50,
+        ai_core_frequency_MHZ: [1650],
+      }),
+      JSON.stringify({
+        category: 'Roofline',
+        aiv_simd_b16: { b_peak: 1600, w: 1e9, t: 1e-3, q: 1e6 },
+        aic_b8: { p_peak: 0, b_peak: 1600, w: 2e9, t: 2e-3, q: 2e6 },
+      }),
+    ].join('\n');
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const aivExpected = peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650);
+    const aicExpected = peakComputeTopsFromFormula('aic-int8-fp8', 25, 50, 1650);
+    expect(aivExpected).not.toBeCloseTo(27033600000000 / 1e12, 3);
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(aivExpected, 6);
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(aicExpected, 6);
+    expect(model!.points.map((p) => p.id).sort()).toEqual(['aic_b8', 'aiv_simd_b16']);
+    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.label).toBe('AIV fp16');
+    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.intensity).toBeCloseTo(1e9 / 1e6, 6);
   });
 
   it('PR-VM-009c: §11.8.1 formula peaks from HardwareInfo counts exceed example catalog', async () => {

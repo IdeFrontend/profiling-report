@@ -56,7 +56,7 @@ No usable points → hide panel ([DATA-30](../context/decisions/DATA.md)). Adapt
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| points + series | Prefer `HardwareInfo.jsonl` category `Roofline` (`p_peak`,`b_peak`,`w`,`t`,`q`) | Else GM from ArithmeticUtilization + Memory | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
+| points + series | Prefer `HardwareInfo.jsonl` category `Roofline`. Overlay only a positive `p_peak` (and its `b_peak`); missing / ≤0 `p_peak` keeps the formula or example roof. Measured points from `w`/`t`/`q` still emit. Hover label is the legend name, plus the producer key when several points share a series | Else GM from ArithmeticUtilization + Memory | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
 | roofs when JSON absent | §11.8.1 from AI Core counts + freq, else product example ceilings | — | |
 | mix labels | `ArithmeticUtilization` dtype ratios | Normalize non-zero to % | |
 | block scope | **All** = `summary.jsonl` categories; block = CSV rows | [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md) | |
