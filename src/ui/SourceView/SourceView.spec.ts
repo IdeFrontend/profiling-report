@@ -167,6 +167,8 @@ describe('SourceView', () => {
     expect(ed.revealLine).toHaveBeenCalledWith(46);
     expect(ed.focus).toHaveBeenCalled();
     expect(wrapper.find('[data-testid="sudu-current-line-overlay"]').exists()).toBe(false);
+    const pane = (await import('./SuduCodePane.vue?raw')).default as string;
+    expect(pane).not.toContain('pr-sudu-pane__overlay--current');
   });
 
   it('PR-SOURCE-006b: unmapped asm row clears source metrics and Sudu current-line theme', async () => {
@@ -571,5 +573,91 @@ describe('SourceView', () => {
     expect(wrapper.findAll('[data-testid="source-metrics"]')[1]!.findAll('tr.pr-src-metrics__row--current').length).toBe(
       1,
     );
+  });
+
+  it('PR-SOURCE-021: editor context menu is Copy only and copies the selection', async () => {
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    await flushPromises();
+    const ed = await latestSuduEditor() as {
+      getText?: () => string;
+      $editor0?: {
+        $model: {
+          $selection: {
+            $startPos: { $line: number; $charPos: number };
+            $endPos: { $line: number; $charPos: number };
+          };
+        };
+      };
+    };
+    ed.getText = () => 'alpha\nbeta';
+    ed.$editor0 = {
+      $model: {
+        $selection: {
+          $startPos: { $line: 0, $charPos: 1 },
+          $endPos: { $line: 0, $charPos: 4 },
+        },
+      },
+    };
+    const writeText = vi.fn(async () => {});
+    const prevClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    const host = wrapper.get('[data-testid="sudu-editor-host"]');
+    let bubbled = false;
+    host.element.addEventListener('contextmenu', () => {
+      bubbled = true;
+    });
+    const opened = host.element.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 40,
+    }));
+    await wrapper.vm.$nextTick();
+    expect(opened).toBe(false);
+    expect(bubbled).toBe(false);
+
+    const menu = document.querySelector('[data-testid="sudu-context-menu"]');
+    expect(menu).toBeTruthy();
+    expect(menu?.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
+    expect(menu?.textContent).toContain('Copy');
+    expect(menu?.textContent ?? '').not.toMatch(/Go to|Align With|Language|Settings/);
+
+    document.querySelector<HTMLButtonElement>('[data-testid="sudu-context-copy"]')?.click();
+    await flushPromises();
+    expect(writeText).toHaveBeenCalledWith('lph');
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeNull();
+
+    writeText.mockClear();
+    ed.$editor0!.$model.$selection.$endPos = { $line: 0, $charPos: 1 };
+    host.element.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 40,
+    }));
+    await wrapper.vm.$nextTick();
+    document.querySelector<HTMLButtonElement>('[data-testid="sudu-context-copy"]')?.click();
+    await flushPromises();
+    expect(writeText).not.toHaveBeenCalled();
+
+    host.element.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 12,
+      clientY: 12,
+    }));
+    await wrapper.vm.$nextTick();
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeTruthy();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await wrapper.vm.$nextTick();
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeNull();
+
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: prevClipboard });
+    wrapper.unmount();
+    expect(document.querySelector('[data-testid="sudu-context-menu"]')).toBeNull();
   });
 });

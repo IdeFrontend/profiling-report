@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -33,6 +34,7 @@ import {
   startSourceColBoundaryResize,
 } from './sourceColumnResize';
 import { t } from '../../i18n';
+import { selectedTextFromSudu } from './suduSelection';
 
 /** Match `.pr-sudu-pane__editor` canvas plane. */
 const SUDU_EDITOR_BG = '#1a1a1a';
@@ -91,6 +93,9 @@ const containerId = `pr-sudu-${domId}`;
 const rootEl = ref<HTMLElement | null>(null);
 const editorHost = ref<HTMLElement | null>(null);
 const tableScrollEl = ref<HTMLElement | null>(null);
+const copyMenu = ref<{ x: number; y: number } | null>(null);
+const copyMenuEl = ref<HTMLElement | null>(null);
+const copyMenuStyle = ref<Record<string, string>>({ position: 'fixed', left: '0px', top: '0px' });
 
 const geom = ref<EditorGeometry>({
   dpr: 0,
@@ -297,6 +302,86 @@ function onTableScroll() {
   pendingEcho = -1;
 }
 
+function onEditorContextMenu(e: MouseEvent) {
+  copyMenu.value = { x: e.clientX, y: e.clientY };
+  copyMenuStyle.value = { position: 'fixed', left: `${e.clientX}px`, top: `${e.clientY}px` };
+  void nextTick(() => clampCopyMenu(e.clientX, e.clientY));
+}
+
+function clampCopyMenu(x: number, y: number) {
+  const el = copyMenuEl.value;
+  if (!el || !copyMenu.value) return;
+  const { width, height } = el.getBoundingClientRect();
+  const left = Math.max(4, Math.min(x + width > window.innerWidth ? x - width : x, window.innerWidth - width - 4));
+  const top = Math.max(4, Math.min(y + height > window.innerHeight ? y - height : y, window.innerHeight - height - 4));
+  copyMenuStyle.value = { position: 'fixed', left: `${left}px`, top: `${top}px` };
+}
+
+function closeCopyMenu() {
+  copyMenu.value = null;
+}
+
+function onCopyMenuPointerDown(e: PointerEvent) {
+  if (!copyMenu.value) return;
+  const node = e.target as Node | null;
+  if (node && copyMenuEl.value?.contains(node)) return;
+  closeCopyMenu();
+}
+
+function onCopyMenuKeydown(e: KeyboardEvent) {
+  if (!copyMenu.value || e.key !== 'Escape') return;
+  e.preventDefault();
+  closeCopyMenu();
+}
+
+function detachCopyMenuListeners() {
+  document.removeEventListener('pointerdown', onCopyMenuPointerDown, true);
+  document.removeEventListener('keydown', onCopyMenuKeydown, true);
+  window.removeEventListener('scroll', closeCopyMenu, true);
+}
+
+/** Copy the editor range. A caret with no range leaves the clipboard alone. */
+function onCopySelection() {
+  const text = selectedTextFromSudu(editor);
+  closeCopyMenu();
+  if (!text) return;
+  const write = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+  if (write) {
+    void write(text).catch(() => fallbackCopy(text));
+    return;
+  }
+  fallbackCopy(text);
+}
+
+function fallbackCopy(text: string) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+  } finally {
+    ta.remove();
+  }
+}
+
+watch(
+  copyMenu,
+  (open) => {
+    if (open) {
+      document.addEventListener('pointerdown', onCopyMenuPointerDown, true);
+      document.addEventListener('keydown', onCopyMenuKeydown, true);
+      window.addEventListener('scroll', closeCopyMenu, true);
+    } else {
+      detachCopyMenuListeners();
+    }
+  },
+  { flush: 'sync' },
+);
+
 /**
  * Metrics row click — same as the sample: move caret only; Sudu keeps it visible
  * with minimum scroll, paints the current-line highlight, and setCaretListener
@@ -435,6 +520,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true;
   ignoreCaret = false;
+  closeCopyMenu();
+  detachCopyMenuListeners();
   metricResizeSession?.end();
   metricResizeSession = null;
   tableScrollEl.value?.removeEventListener('scroll', onTableScroll);
@@ -543,6 +630,7 @@ defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, 
         ref="editorHost"
         class="pr-sudu-pane__editor"
         data-testid="sudu-editor-host"
+        @contextmenu.capture.prevent.stop="onEditorContextMenu"
       >
         <pre
           v-if="loadError"
@@ -570,6 +658,27 @@ defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, 
         />
       </div>
     </div>
+    <Teleport to="body">
+      <div
+        v-if="copyMenu"
+        ref="copyMenuEl"
+        class="pr-sudu-menu"
+        role="menu"
+        data-testid="sudu-context-menu"
+        :style="copyMenuStyle"
+        @contextmenu.prevent.stop
+      >
+        <button
+          type="button"
+          class="pr-sudu-menu__item"
+          role="menuitem"
+          data-testid="sudu-context-copy"
+          @click="onCopySelection"
+        >
+          {{ t('sourceCopy') }}
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -762,4 +871,41 @@ defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, 
   white-space: pre;
 }
 
+</style>
+
+<style>
+.pr-sudu-menu {
+  z-index: 10001;
+  box-sizing: border-box;
+  min-width: 140px;
+  padding: 4px 0;
+  border-radius: 6px;
+  background: var(--pr-surface-raised, #363636);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: var(--pr-tab-inactive, #d0d0d0);
+  font-size: 13px;
+  user-select: none;
+}
+
+.pr-sudu-menu__item {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pr-sudu-menu__item:hover,
+.pr-sudu-menu__item:focus-visible {
+  background: var(--pr-surface-hover, #323232);
+}
 </style>

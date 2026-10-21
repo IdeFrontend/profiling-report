@@ -22,7 +22,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Navigate / search.** Search is the timeline toolbar search (fixed width). Showing the clear × does not change that width. Search targets the **selected pane** only. Empty search is a no-op (find buttons disabled). Enter in the field finds the next hit. **Source selected:** search runs in the Sudu editor (API not wired yet — TODO; metrics table is **not** highlighted). **SASS selected:** search runs in the **Assembly** column only; matching substrings use the Compute Load Analysis chip (`pr-field-match` / [UI-43](../../../docs/context/decisions/UI.md)); find next/prev walks those hits. **Sort navigate order** (asc/desc) jumps to the first Navigate By hot line for the selected pane. Scroll-to-top / scroll-to-bottom reset both panes to the first / last line and suppress cross-pane correlation highlights until the next caret selection. Metric cells stay uncolored (sketch has no heat tint — [UI-59](../../../docs/context/questions/UI.md)).
 
-**Sudu runtime.** The worker pool is process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. The editor theme sets `editorFont` to 12px **`monospace`** with no fallback stack and no font assets (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync follows `editorAndTable.js` (device-px vscroll ↔ CSS table scroll; row click = `setPosition` + `focus`; caret listener drives selection). **No custom canvas line overlays** — Sudu paints the current line. Editor ↔ metrics scroll stays on regardless of the Source↔SASS link toggles.
+**Sudu runtime.** The worker pool is process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. The editor theme sets `editorFont` to 12px **`monospace`** with no fallback stack and no font assets (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync follows `editorAndTable.js` (device-px vscroll ↔ CSS table scroll; row click = `setPosition` + `focus`; caret listener drives selection). **No custom canvas line overlays** — Sudu paints the current line. The metrics table also marks the current source line. Editor ↔ metrics scroll stays on regardless of the Source↔SASS link toggles. A right-click on the editor does not open Sudu’s native menu. A DOM menu with one **Copy** action copies the selected text. A caret with no range does not write the clipboard.
 
 ## Acceptance Criteria
 
@@ -46,6 +46,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 18. **PR-SOURCE-018** — Exactly one pane is selected (`source-pane-source` / `source-pane-asm`); Source is default; pane click switches; clicks outside panes keep the selection; selected pane has accent border class `pr-source-view__pane--selected`; unselected pane border is transparent (no muted blue frame).
 19. **PR-SOURCE-019** — Every Source dropdown opens with one item; menu is the Utilization-style popup; closed control stays the pill.
 20. **PR-SOURCE-020** — Source search is the timeline search; clear × does not change its width; Enter finds the next hit.
+21. **PR-SOURCE-021** — Right-click on the Sudu editor suppresses the native menu and shows a DOM menu with a single Copy action. Copy writes the selected text. A caret with no range does not write the clipboard.
 
 ## Design sketches
 
@@ -53,6 +54,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-21** — Drop the Sudu current-line band. Right-click shows a DOM Copy menu instead of Sudu’s native menu (`PR-SOURCE-005`/`021`).
 - **2026-10-21** — Selected pane keeps the only blue border. Dropdowns open with one item; popup matches the Utilization menu. Source search reuses the timeline search so the clear × does not change width (`PR-SOURCE-018`/`019`/`020`).
 - **2026-10-21** — Drop syncOrigin / ignoreCaret timers; absorb echo + same-group stay (`PR-SOURCE-014`).
 - **2026-10-21** — Align editor↔table sync with code-review `editorAndTable` sample; drop custom Sudu line overlays (`PR-SOURCE-005`).
