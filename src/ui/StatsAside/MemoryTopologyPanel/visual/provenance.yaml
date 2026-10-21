@@ -14,8 +14,8 @@ crops:
     box: { x: 6640, y: 3920, w: 900, h: 170 }
   fullscreen-bar.png:
     source: v930-sim/memory-topology-fullscreen
-    region: "Same bar in the root fullscreen overlay — 适应窗口 is the last control, no 全屏, no strip"
-    box: { x: 6880, y: 3960, w: 760, h: 170 }
+    region: "Same bar under the diagram column (left of the heat panel) — 适应窗口 is the last control, no 全屏, no strip"
+    box: { x: 5181, y: 3980, w: 658, h: 143 }
 asset:
   memory-topology.svg:
     source: v930-chrome/memory-topology

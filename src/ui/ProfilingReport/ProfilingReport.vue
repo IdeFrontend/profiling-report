@@ -2261,9 +2261,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   overflow: hidden;
 }
 
-/* §11.2.3.2: the heat panel takes the overlay's right column, the diagram keeps the rest. */
+/* §11.2.3.2: the heat panel takes the overlay's right column, the diagram keeps the rest.
+ * 16px gap ≈ sketch breathing room between the zoom pill and the heat card (~28px at 1× on the
+ * 1030 frame; 16 keeps the columns close without kissing). */
 .pr-topo-fs__body--split {
   flex-direction: row;
+  gap: 16px;
 }
 
 .pr-topo-fs__diagram {
@@ -2305,8 +2308,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   box-sizing: border-box;
   overflow: hidden;
   /* Stacked aside keeps the `#262626` card; fullscreen sits on the overlay ground so only the
-   * heat column reads as a grey panel (v930-sim/memory-topology-fullscreen). */
+   * heat column reads as a grey panel (v930-sim/memory-topology-fullscreen). Drop the aside's
+   * 6px pad so the zoom pill's bottom lines up with the heat card (1030 sketch). */
   background: transparent;
+  padding: 0;
+  border-radius: 0;
 }
 
 /* Fill the leftover box (wide host). The panel's own frame keeps `aspect-ratio` in the stacked
@@ -2335,11 +2341,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
  * old `width/height: 100%` — fills the stage's *used* box rather than the chrome ratio, and only
  * agreed with it while the stage happened to be that ratio. */
 
-/* The export's overlay frame drops the aside's bar strip: covering the report already separates the
- * controls from everything else, so they sit straight on the card (PR-MEMTOP-014). Padding stays —
- * it is the control's own hit spacing, not the strip's. */
+/* Fullscreen drops the aside's `#313131` strip (PR-MEMTOP-014) but keeps a grey pill — sketch
+ * `#262626` on the darker overlay ground, same `8px` corner as the heat card. Bar stays in the
+ * diagram column (`align-self: flex-end`) — left of the heat panel, bottoms flush (1030). */
 .pr-topo-fs__body :deep(.pr-topo__bar) {
-  background: transparent;
+  background: #262626;
+  border-radius: 8px;
 }
 
 .pr-export-modal {
