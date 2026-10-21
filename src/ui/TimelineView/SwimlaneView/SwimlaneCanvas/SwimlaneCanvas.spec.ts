@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
-import { collapseShiftY, IDLE_COLLAPSE, LANE_HEIGHT } from '../../../../swimlane/layout';
+import { LANE_HEIGHT } from '../../../../swimlane/layout';
 import { ALT_MEASURE_FIND_EVENT_KEY } from '../altMeasureShared';
 import type { SwimEvent } from '../../../../domain/types';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
@@ -4006,11 +4006,15 @@ describe('SwimlaneCanvas', () => {
   });
 
   it('PR-CANVAS-115: selection range Y is fold-shifted when Cards/folders above are collapsed', async () => {
-    const children = Array.from({ length: 10 }, (_, i) => ({
+    // Independent of collapseShiftY: 10 rest-collapsed leaf rows close this much gap.
+    const collapsedLeafCount = 10;
+    const closedHeight = collapsedLeafCount * LANE_HEIGHT;
+    const children = Array.from({ length: collapsedLeafCount }, (_, i) => ({
       id: `leaf-${i}`,
       name: `L${i}`,
       events: [{ id: `ae-${i}`, name: 'a', startTime: 0, duration: 10 }],
     }));
+    const pad = 40;
     const wrapper = mount(SwimlaneCanvas, {
       props: {
         ...nullProps,
@@ -4039,7 +4043,7 @@ describe('SwimlaneCanvas', () => {
           ],
         },
         collapsedIds: ['folder'],
-        contentTopPad: 40,
+        contentTopPad: pad,
       },
       attachTo: document.body,
     });
@@ -4053,20 +4057,12 @@ describe('SwimlaneCanvas', () => {
         events: { id: string }[],
         rect: { x0: number; y0: number; x1: number; y1: number },
       ) => { top: number; bottom: number };
-      renderer: () => {
-        getLayout: () => {
-          events: { id: string; y: number }[];
-          collapse?: Parameters<typeof collapseShiftY>[1];
-        };
-      };
+      renderer: () => { getLayout: () => { events: { id: string; y: number }[] } };
     };
-    const layout = vm.renderer().getLayout();
-    const layoutEv = layout.events.find((e) => e.id === 'e1');
+    const layoutEv = vm.renderer().getLayout().events.find((e) => e.id === 'e1');
     expect(layoutEv).toBeTruthy();
-    const fold = layout.collapse ?? IDLE_COLLAPSE;
-    const visualY = collapseShiftY(layoutEv!.y, fold);
-    // Collapsed folder above must actually shift the event — otherwise the regression is vacuous.
-    expect(visualY).toBeLessThan(layoutEv!.y);
+    // Vacuity: expanded-base Y must sit below the closed gap.
+    expect(layoutEv!.y).toBeGreaterThan(closedHeight);
 
     const range = vm.selectionRangeContentYForCommit([{ id: 'e1' } as never], {
       x0: 0,
@@ -4074,10 +4070,130 @@ describe('SwimlaneCanvas', () => {
       x1: 10,
       y1: 10,
     });
-    expect(range.top).toBe(visualY + 40);
-    expect(range.bottom).toBe(visualY + LANE_HEIGHT + 40);
+    // Expected from geometry (leaf count × LANE_HEIGHT), not by re-calling collapseShiftY.
+    expect(range.top).toBe(layoutEv!.y - closedHeight + pad);
+    expect(range.bottom).toBe(layoutEv!.y - closedHeight + LANE_HEIGHT + pad);
     // Pre-fix would have used expanded-base item.y and overscrolled.
-    expect(range.top).not.toBe(layoutEv!.y + 40);
+    expect(range.top).not.toBe(layoutEv!.y + pad);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-115: folded cards above a fully-visible selection do not ensure-scroll on dock grow', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const collapsedLeafCount = 10;
+    const closedHeight = collapsedLeafCount * LANE_HEIGHT;
+    const children = Array.from({ length: collapsedLeafCount }, (_, i) => ({
+      id: `leaf-${i}`,
+      name: `L${i}`,
+      events: [{ id: `ae-${i}`, name: 'a', startTime: 100, duration: 200 }],
+    }));
+    const foldModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'above',
+          name: 'Above',
+          threads: [{ id: 'folder', name: 'Folder', events: [], children }],
+        },
+        {
+          id: 'below',
+          name: 'Below',
+          threads: [
+            {
+              id: 't-below',
+              name: 'T',
+              events: [{ id: 'e1', name: 'busy', startTime: 100, duration: 200 }],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: foldModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        collapsedIds: ['folder'],
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as unknown as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+      renderer: () => { getLayout: () => { events: { id: string; y: number }[] } };
+    };
+    const layoutEv = vm.renderer().getLayout().events.find((e) => e.id === 'e1');
+    expect(layoutEv).toBeTruthy();
+    const visualBottom = layoutEv!.y - closedHeight + LANE_HEIGHT;
+    // Visual selection fits in a mid wrap; expanded-base bottom would not (pre-fix yank).
+    const shrinkH = visualBottom + 20;
+    expect(visualBottom).toBeLessThan(shrinkH);
+    expect(layoutEv!.y + LANE_HEIGHT).toBeGreaterThan(shrinkH);
+
+    const rect = vm.eventScreenRect('e1')!;
+    expect(rect).toBeTruthy();
+    // eventScreenRect is canvas-local CSS; client = box origin + local.
+    const x0 = box.left + rect.x - 20;
+    const y0 = box.top + rect.y - 4;
+    const x1 = box.left + rect.x + rect.w + 20;
+    const y1 = box.top + rect.y + rect.h + 4;
+    await canvas.trigger('pointerdown', { clientX: x0, clientY: y0, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: x1, clientY: y1, buttons: 1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(true);
+    frames.length = 0;
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x1, clientY: y1 }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('multi-select')).toBeTruthy();
+    const committed = wrapper.emitted('multi-select')!.at(-1)![0] as { id: string }[];
+    expect(committed.some((e) => e.id === 'e1')).toBe(true);
+
+    const scrollAtCommit =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      0;
+    Object.defineProperty(wrap, 'clientHeight', { value: shrinkH, configurable: true });
+    box.height = shrinkH;
+    box.bottom = 100 + shrinkH;
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const last = wrapper.emitted('scroll-y')!.at(-1) as unknown as [number, boolean | undefined];
+    // Fold-shifted range already fits — no timeline yank for the dock grow.
+    expect(last[0]).toBe(scrollAtCommit);
+    expect(last[1]).toBe(true);
+
     wrapper.unmount();
   });
 
