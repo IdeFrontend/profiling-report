@@ -59,7 +59,7 @@ No usable points → hide panel ([DATA-30](../context/decisions/DATA.md)). Adapt
 | points + series | Prefer `HardwareInfo.jsonl` category `Roofline`. Overlay only a positive `p_peak` and a positive `b_peak` (non-positive `b_peak` keeps 1600 GB/s); missing / ≤0 `p_peak` keeps the formula or example roof. Measured points from `w`/`t`/`q` still emit. Hover label is the legend name, plus the producer key when several points share a series | Else GM from ArithmeticUtilization + Memory | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
 | roofs when JSON absent | §11.8.1 from AI Core counts + that side's frequency (a shared core clock fills a side with no own clock), else product example ceilings | — | |
 | mix labels | `ArithmeticUtilization` dtype ratios | Normalize non-zero to % | |
-| block scope | **All** = `summary.jsonl` categories; block = CSV rows | [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md) | |
+| block scope | **All** = `summary.jsonl` categories; block = CSV rows for GM + mix only. Chip-level `series` roofs and non-`gm` HardwareInfo measured points stay from the All model | [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md) | |
 
 Code: `rooflineFromRows` / `buildRooflineViewModel` in `src/adapters/roofline.ts`.
 
