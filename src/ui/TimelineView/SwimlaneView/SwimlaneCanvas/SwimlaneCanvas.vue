@@ -14,6 +14,7 @@ import { normalizeMeasureRange, panBy, zoomAt } from '../../../../domain/viewSta
 import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
+  collapseShiftY,
   computeAltMeasureDelta,
   computeAltMeasureGap,
   visualContentHeight,
@@ -23,6 +24,7 @@ import {
   findExactEdgeMatchesAt,
   findHoverGap,
   findLaidOutEvent,
+  IDLE_COLLAPSE,
   LANE_HEIGHT,
   laneAtContentY,
   laneIdAtPoint,
@@ -379,6 +381,8 @@ let localEndTime = props.view.endTime;
 let scrollTargetY = props.view.scrollY;
 let scrollRaf = 0;
 let laneScrollEasing = false;
+/** Overlay scrollbar drag — keeps paintView on localScrollY until settle. */
+let overlayScrollActive = false;
 
 /**
  * Programmatic / marquee scroll: same-turn localScrollY + flush-paint (PR-CANVAS-110).
@@ -393,6 +397,26 @@ function emitScrollY(y: number, settled = false): void {
   // would leave the canvas one frame behind and look like scroll chase.
   applyViewState();
   flushPaint();
+}
+
+/**
+ * Parent overlay scrollbar: cancel wheel ease, paint from localScrollY, emit scroll-y.
+ * Distinct from setScrollY (adopt parent Y without re-emitting).
+ */
+function driveScrollY(y: number, settled = false): void {
+  if (scrollRaf) {
+    cancelAnimationFrame(scrollRaf);
+    scrollRaf = 0;
+  }
+  laneScrollEasing = false;
+  const clamped = Math.max(0, Math.min(maxScrollY(), y));
+  overlayScrollActive = !settled;
+  localScrollY = clamped;
+  scrollTargetY = clamped;
+  applyViewState();
+  flushPaint();
+  emit('scroll-y', clamped, settled);
+  if (settled) overlayScrollActive = false;
 }
 
 /** Model time bounds for local pan/zoom. Clamps `maxTime` to `minTime + 1` for a
@@ -568,7 +592,11 @@ function paintView(): SwimlaneViewWindow {
   // Do not use a lag heuristic — resize may clamp local while props.view.scrollY is still
   // the parent value (PR-CANVAS-074).
   const useLocalY =
-    laneScrollEasing || marqueePressActive || scrollRaf !== 0 || cancelEnsureScrollAnim != null;
+    laneScrollEasing ||
+    marqueePressActive ||
+    scrollRaf !== 0 ||
+    cancelEnsureScrollAnim != null ||
+    overlayScrollActive;
   const useLocalT = marqueePressActive;
   const raw = useLocalY ? localScrollY : props.view.scrollY;
   return {
@@ -1058,6 +1086,7 @@ onBeforeUnmount(() => {
   if (scrollRaf) cancelAnimationFrame(scrollRaf);
   scrollRaf = 0;
   laneScrollEasing = false;
+  overlayScrollActive = false;
   backend.dispose();
   overlay.dispose();
 });
@@ -1142,9 +1171,18 @@ watch(
   () => props.view,
   () => {
     const y = props.view.scrollY;
-    // Ease / ensure-visible / live marquee own localScrollY. A delayed parent clone
-    // (settle lag, selection deep-watch) must not snap to a stale scrollY.
-    if (laneScrollEasing || scrollRaf || marqueePressActive || cancelEnsureScrollAnim) return;
+    // Ease / ensure-visible / live marquee / overlay thumb drag own localScrollY.
+    // A delayed parent clone (settle lag, selection deep-watch) must not snap to a
+    // stale scrollY.
+    if (
+      laneScrollEasing ||
+      scrollRaf ||
+      marqueePressActive ||
+      cancelEnsureScrollAnim ||
+      overlayScrollActive
+    ) {
+      return;
+    }
     localScrollY = y;
     scrollTargetY = y;
     localStartTime = props.view.startTime;
@@ -1177,7 +1215,7 @@ watch(
 watch(
   [() => props.view.startTime, () => props.view.endTime, () => props.view.scrollY, () => props.contentTopPad],
   () => {
-    if (laneScrollEasing || scrollRaf) return;
+    if (laneScrollEasing || scrollRaf || overlayScrollActive) return;
     // Pinned measure dismisses on any visible-range change; ephemeral keeps tracking.
     if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
@@ -1543,14 +1581,18 @@ function selectionRangeContentYForCommit(
 ): { top: number; bottom: number } {
   const layout = backend.getLayout();
   const pad = props.contentTopPad ?? 0;
+  // Event items stay on the expanded base; paint/hit use collapseShiftY — same here
+  // so folded Cards/folders above the selection do not inflate the ensure-scroll target.
+  const fold = layout.collapse ?? IDLE_COLLAPSE;
   let top = Infinity;
   let bottom = -Infinity;
   for (const ev of commitEvents) {
     const item = findLaidOutEvent(layout, ev.id);
     // item.y is layout/content space; ensure compares wrap space.
     if (!item) continue;
-    top = Math.min(top, item.y + pad);
-    bottom = Math.max(bottom, item.y + LANE_HEIGHT + pad);
+    const y = collapseShiftY(item.y, fold);
+    top = Math.min(top, y + pad);
+    bottom = Math.max(bottom, y + LANE_HEIGHT + pad);
   }
   if (Number.isFinite(bottom) && Number.isFinite(top)) return { top, bottom };
   const wrapTop = localScrollY + Math.min(rect.y0, rect.y1);
@@ -3176,6 +3218,8 @@ defineExpose({
   handleWheel: onWheel,
   /** Keep canvas scroll locked to gutter/cards when parent drives scrollY. */
   setScrollY,
+  /** Overlay scrollbar drag — cancels wheel ease and emits scroll-y. */
+  driveScrollY,
   magnetizeAtClient,
   magnetizeAtClientLocal,
   clearEdgeSnapHighlight,

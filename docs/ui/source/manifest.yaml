@@ -15,6 +15,11 @@ batches:
         original_name: "930版本-性能调优_打开报告统计.jpeg"
         scenes: [report-stats, aside]
         components: [StatsAside, StatsSummaryPanel, RooflinePanel, CsvFieldListPanel]
+      - id: roofline-card-2026-10-15
+        path: v930/roofline-card-2026-10-15.png
+        original_name: "screenshot-2026-10-15-12-25-14.png"
+        scenes: [report-stats, roofline]
+        components: [RooflinePanel]
       - id: report-stats-scrolled
         path: v930/report-stats-scrolled.jpeg
         original_name: "930版本-性能调优_报告统计-滚动到底部.jpeg"
@@ -102,7 +107,8 @@ batches:
         components: [StatsAside, MemoryTopologyPanel]
       - id: memory-topology-fullscreen
         path: v930-sim/memory-topology-fullscreen.jpeg
-        original_name: "930版本-仿真_11.2.3.2_内存负载分析全屏.jpeg"
+        # 2026-10 refresh: zoom bar moves under the diagram (left of heat), not under the heat panel.
+        original_name: "1030_仿真上板公共_npu-emulate 仿真_内存负载分析_内存负载分析全屏(1).jpeg"
         scenes: [memory-load, memory-topology, memory-heatmap, fullscreen, unit-selection]
         components: [MemoryTopologyPanel, MemoryHeatmapPanel]
       # Same frame as the 2026-09 dump, now the 7680×4320 original (was a 1024×576

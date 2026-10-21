@@ -447,24 +447,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       >
         {{ t('tabSource', locale) }}
       </button>
-      <button
-        type="button"
-        class="pr-tabs__tab"
-        disabled
-        data-testid="tab-detail"
-        :title="t('tabsNotSupported', locale)"
-      >
-        {{ t('tabDetail', locale) }}
-      </button>
-      <button
-        type="button"
-        class="pr-tabs__tab"
-        disabled
-        data-testid="tab-cache"
-        :title="t('tabsNotSupported', locale)"
-      >
-        {{ t('tabCache', locale) }}
-      </button>
     </nav>
 
     <!-- Timeline tools only — Source tab owns its own chrome (UI-37 / v930-source). -->

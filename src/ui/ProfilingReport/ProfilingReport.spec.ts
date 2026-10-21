@@ -1771,9 +1771,18 @@ describe('ProfilingReport scaffold', () => {
     expect(src).toMatch(/\.pr-topo-fs\s*\{[^}]*background:\s*#1a1a1a/s);
     expect(src).not.toMatch(/\.pr-topo-fs\s*\{[^}]*background:\s*var\(--pr-bg-aside/s);
     expect(src).toMatch(/\.pr-topo-fs__heat\s*\{[^}]*flex:\s*0\s+0\s+400px/s);
+    expect(src).toMatch(/\.pr-topo-fs__body--split\s*\{[^}]*gap:\s*16px/s);
     expect(src).toMatch(
       /\.pr-topo-fs__body\s+:deep\(\.pr-topo\)\s*\{[^}]*background:\s*transparent/s,
     );
+    // Zoom pill is `#262626` / `8px` on the overlay ground (1030 sketch), not transparent.
+    expect(src).toMatch(
+      /\.pr-topo-fs__body\s+:deep\(\.pr-topo__bar\)\s*\{[^}]*background:\s*#262626/s,
+    );
+    expect(src).toMatch(
+      /\.pr-topo-fs__body\s+:deep\(\.pr-topo__bar\)\s*\{[^}]*border-radius:\s*8px/s,
+    );
+    expect(src).toMatch(/\.pr-topo-fs__body\s+:deep\(\.pr-topo\)\s*\{[^}]*padding:\s*0/s);
 
     const wrapper = mount(ProfilingReport, {
       props: {

@@ -22,7 +22,7 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['test query']]);
   });
 
-  it('PR-TOOLBAR-026: 详情 / 缓存 disabled; 源码 gated by sourceTabEnabled', async () => {
+  it('PR-TOOLBAR-026: 源码 gated by sourceTabEnabled; 详情 / 缓存 absent', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     const timeline = wrapper.find('[data-testid="tab-timeline"]');
     expect(timeline.exists()).toBe(true);
@@ -30,13 +30,8 @@ describe('ReportToolbar', () => {
     expect(timeline.classes()).toContain('pr-tabs__tab--active');
 
     expect(wrapper.find('[data-testid="tab-source"]').exists()).toBe(false);
-
-    for (const id of ['tab-detail', 'tab-cache'] as const) {
-      const tab = wrapper.find(`[data-testid="${id}"]`);
-      expect(tab.exists()).toBe(true);
-      expect(tab.attributes('disabled')).toBeDefined();
-      expect(tab.attributes('title')).toBe(t('tabsNotSupported'));
-    }
+    expect(wrapper.find('[data-testid="tab-detail"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-cache"]').exists()).toBe(false);
 
     await wrapper.setProps({ sourceTabEnabled: true, activeTab: 'timeline' });
     expect(wrapper.find('[data-testid="tab-source"]').attributes('disabled')).toBeUndefined();

@@ -80,7 +80,7 @@ src/ui/
 
 ## Notes
 
-- Library chrome owns OP算子 / 时间线 / 源码 / 详情 / 缓存 tabs; **源码** mounts `SourceView/` (UI-37).
+- Library chrome owns OP算子 / 时间线 / 源码; **源码** mounts `SourceView/` when enabled. **详情** / **缓存** are not rendered ([UI-37](../../docs/context/decisions/UI.md)).
 - `ReportToolbar` lives in the ReportLayout **main** column (above TimelineView), not as a full-width sibling above the aside.
 - Topology **全屏** is a root sibling of `ReportLayout` (opaque overlay on `.pr-root`); it remounts `MemoryTopologyPanel` and does not unmount the layout. The control itself lives in the panel's zoom bar (only when the host passes `showFullscreen`), so the remounted overlay panel **keeps the zoom bar** but shows no 全屏, and its zoom starts at 100% independently of the stacked aside. When the `memoryHeatmap` capability is set, the overlay also hosts `MemoryHeatmapPanel` as a right column and the two share one `selectedMemoryUnit` (diagram unit click ↔ panel tab).
 - `CanvasSwimlaneRenderer` stays under `src/swimlane/` (imperative backend).

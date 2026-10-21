@@ -110,51 +110,51 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### DATA-37a — Roofline Y (TOps/s)
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-10-19 by [DATA-37](../DATA.md)
 **Question:** [DATA-37](../../questions/DATA.md)
 **Interim:** Achieved performance = mean non-`NA` `aiv_vec_fops` / mean non-`NA` `aiv_time(us)` as `fops / timeUs / 1e6` (Cube: `aic_cube_fops` / `aic_time(us)` when Vector fops absent). Aggregate across blocks follows the one selector: `All` = the `summary.jsonl` `ArithmeticUtilization` category record, a picked `block_id` = that block's CSV row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).
 **Implement / test as:** `RooflinePanel` / adapter tests
-**Superseded when:** Product DATA-37 formulas
+**Superseded when:** Product-final [DATA-37](../DATA.md) (2026-10-19).
 
 ### DATA-37b — Roofline X GM (Ops/Byte)
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-10-19 by [DATA-37](../DATA.md)
 **Question:** [DATA-37](../../questions/DATA.md)
 **Interim:** Intensity = same fops / `(mean(read_main_memory_datas(KB)) + mean(write_main_memory_datas(KB))) * 1024` from `Memory.csv`. Under the one selector, `All` reads the `summary.jsonl` `Memory` category record and a picked `block_id` reads that block's `Memory.csv` row ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)).
 **Implement / test as:** Adapter GM point
-**Superseded when:** Product DATA-37
+**Superseded when:** Product-final [DATA-37](../DATA.md) (2026-10-19).
 
 ### DATA-37c — Roofline L2 series
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-10-19 by [DATA-37](../DATA.md)
 **Question:** [DATA-37](../../questions/DATA.md)
 **Interim:** **Omit** L2 point (L2Cache has hit counts only, no byte traffic).
 **Implement / test as:** Legend GM-only when L2 absent
-**Superseded when:** Product supplies L2 bytes
+**Superseded when:** Product-final [DATA-37](../DATA.md) (2026-10-19).
 
 ### DATA-37d — Roofline roof
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-10-19 by [DATA-37](../DATA.md)
 **Question:** [DATA-37](../../questions/DATA.md)
 **Interim:** `peakComputeTops = 1`; `peakBandwidthGBs` = max of non-`NA` `aiv_main_mem_*_bw(GB/s)` / `aic_main_mem_*_bw(GB/s)` (fallback **100** if all NA) — under the one selector, from the `summary.jsonl` `Memory` category for `All` and from the block's `Memory.csv` row otherwise ([DATA-19](../DATA.md) / [DATA-29](../DATA.md)). Roof TOps/s = `min(peakCompute, peakBW_GBs * intensity / 1000)`.
 **Implement / test as:** Chart roof polyline
-**Superseded when:** Product peak sources
+**Superseded when:** Product-final [DATA-37](../DATA.md) (2026-10-19).
 
 ### DATA-37e — Roofline op-mix
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-10-19 by [DATA-37](../DATA.md)
 **Question:** [DATA-37](../../questions/DATA.md)
 **Interim:** Normalize non-zero Vector `aiv_vec_{fp32,fp16,int32,int16,misc}_ratio` (or Cube `aic_cube_*`) to %; show top contributors.
 **Implement / test as:** Mix labels on chart
-**Superseded when:** Product mix definition
+**Superseded when:** Product-final [DATA-37](../DATA.md) (2026-10-19).
 
 ### DATA-37f — Roofline tabs
 
-**Status:** `interim`
+**Status:** `interim` — **SUPERSEDED** 2026-10-19 by [DATA-37](../DATA.md)
 **Question:** [DATA-37](../../questions/DATA.md)
 **Interim:** **Hide** 内存单元 / 通路 / 搬运 until DATA-37 defines distinct series.
 **Implement / test as:** Single chart chrome
-**Superseded when:** Product tab semantics
+**Superseded when:** Product-final [DATA-37](../DATA.md) (2026-10-19).
 
 ### DATA-38a — Card gutter 时钟周期 quantity / formula
 

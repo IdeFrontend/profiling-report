@@ -34,7 +34,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** label (e.g. `op1` / `op2`); menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
-**Secondary tabs ([UI-37](../../../docs/context/decisions/UI.md)).** **时间线** is always selectable. **源码** is in the strip only when `sourceTabEnabled` (real Source model); otherwise the control is absent. **详情 / 缓存** stay **disabled** with not-supported tooltip (`tabsNotSupported`).
+**Secondary tabs ([UI-37](../../../docs/context/decisions/UI.md)).** **时间线** is always selectable. **源码** is in the strip only when `sourceTabEnabled` (real Source model); otherwise the control is absent. **详情** and **缓存** are not in the chrome.
 
 **Zoom-to-fit.** Square icon button (fit/frame glyph), not a text label — accessible name via `aria-label` (i18n). Icon actions use the shared `.pr-icon-tip` CSS bubble (same reason as AC-20.2: native `title` waits ~1s).
 
@@ -203,7 +203,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt, single-finger, double-finger, box-select) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below; Combined scaling/pan/box-select rows include `/`-separated trackpad/gesture stand-ins.
 25. **PR-TOOLBAR-024** — The user-guide action renders **last** among `data-toolbar-clip` actions (`data-testid="open-user-guide"`, `help` glyph). Click emits `open-user-guide` with `userGuideUrl` (default `DEFAULT_USER_GUIDE_URL`) and calls `window.open(…, '_blank', 'noopener,noreferrer')`.
 26. **PR-TOOLBAR-025** — When `searchQuery` is non-empty, a clear × (`data-testid="search-clear"`, `aria-label` from `searchClear`) appears as a **sibling** of the search `<label>` (not inside it); `@mousedown.prevent` avoids stealing focus before mouse clear; `@click` and keyboard **Enter** / **Space** emit `update:searchQuery` with `''` then refocus the input. Search `:focus-visible` uses an inset playhead ring (not an outer outline) so it is not clipped by `.pr-chrome` / `.pr-toolbar` `overflow-x: clip`.
-27. **PR-TOOLBAR-026** — Tab strip: **时间线** active by default; **详情 / 缓存** always `disabled`; **源码** absent until `sourceTabEnabled`, then emits `update:activeTab` ([UI-37](../../../docs/context/decisions/UI.md)).
+27. **PR-TOOLBAR-026** — Tab strip: **时间线** active by default; **源码** absent until `sourceTabEnabled`, then emits `update:activeTab`. **详情** and **缓存** are not rendered ([UI-37](../../../docs/context/decisions/UI.md)).
 28. **PR-TOOLBAR-027** — When `htmlExportAvailable` is true, `export-html` renders immediately before `open-user-guide` and emits `export-html` on click. When false (default), the control is absent. User-guide remains last among `data-toolbar-clip` actions.
 29. **PR-TOOLBAR-028** — Toolbar icon / zoom buttons tip via shared `.pr-icon-tip` (`aria-label` → CSS `::after`), not native `title` (same ~1s delay / light OS chrome as AC-20.2). Tip opens **below** the control so `.pr-chrome` / `.pr-root` overflow does not clip it. Trailing `data-toolbar-clip` tips (and `.pr-icon-tip--end`) right-align so the chrome's `overflow-x: clip` does not crop them.
 
@@ -229,6 +229,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-10-21** — **详情** / **缓存** removed from the tab strip ([UI-37](../../../docs/context/decisions/UI.md)). **源码** stays disabled; **时间线** stays the only active tab (`PR-TOOLBAR-026`).
 - **2026-10-12** — User-guide default URL is the Profiling Report section of the plugin README (`https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`). English hosts override `userGuideUrl`.
 - **2026-10-06** — ProfilingReport `allowHtmlExport` defaults false; toolbar control still opt-in via `htmlExportAvailable`.
 - **2026-10-05** — Toolbar HTML action label is **Download HTML Report** / **下载 HTML 报告** (`exportHtml`).

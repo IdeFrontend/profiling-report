@@ -58,6 +58,16 @@ Rules:
 
 Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung, a small diff you don't understand is just laziness dressed up as efficiency), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs (the platform is never the spec ideal, a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
 
+## New worktrees / new chats
+
+When the user starts a **new chat** for new work and asks for a worktree (or implies a clean base for that work):
+
+1. **Fetch first** — `git fetch origin master` (or `git fetch origin`) so remote refs are current.
+2. **Base on remote master** — create the branch/worktree from **`origin/master`**, not local `master`. Local `master` is often stale and is the wrong default.
+3. Example: `git worktree add -b <branch> <path> origin/master`.
+
+Do not ask the user to restate “from fresh remote master” every time; treat that as the default unless they name another base (PR branch, tag, etc.).
+
 ## Resolving open questions
 
 When Product answers a question: write it into the owning specs, file it in [`docs/context/decisions/`](docs/context/decisions/), and **remove** it from [`docs/context/questions/`](docs/context/questions/) in the same change. Do not leave a `resolved` row on the open list. Process: [`docs/process/DEVELOPMENT.md`](docs/process/DEVELOPMENT.md) § Resolving open questions; Cursor rule `.cursor/rules/resolve-open-questions.mdc`.
@@ -70,6 +80,6 @@ Do **not** load these into every turn. Use only when the user asks or the trigge
 |---|---|---|
 | **caveman** | "caveman mode", "talk like caveman", "use caveman", "less tokens", `/caveman`, or token-efficient replies | Self-contained in `.agents/skills/caveman/` |
 | **cavecrew** | "delegate to subagent", "use cavecrew", "spawn investigator/builder/reviewer", "save context" | Decision guide only. Subagent defs (`cavecrew-investigator` / `builder` / `reviewer`) are **not** in this repo — they need a full `JuliusBrussee/caveman` install. Without them, use vanilla Explore / edit / reviewer. |
-| **npu-rep-html** | HTML / offline report from `.npu-rep`, `npu-rep-html`, share/CI HTML artifact | [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md); needs hand-distributed `npu-rep-html.mjs` (see README). First-party — not in `skills-lock.json`. |
+| **npu-rep-html** | HTML / offline report from `.npu-rep`, `npu-rep-html`, share/CI HTML artifact | [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md); downloads the latest GitCode release of `npu-rep-html.mjs` when that tag is not cached (Linux, macOS, and Windows). First-party — not in `skills-lock.json`. |
 
 Read the matching `SKILL.md` only for that turn/session.
