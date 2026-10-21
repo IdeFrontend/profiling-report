@@ -46,4 +46,7 @@ PLAN.md
 # Local product docs (do not commit)
 npu-compute*.pdf
 .tmp-pdf/
+# Local Product screenshots (crops live under src/ui/**/visual/)
 screenshot-*.png
+screenshot-*.jpeg
+screenshot-*.jpg

@@ -1004,13 +1004,12 @@ describe('StatsAside', () => {
           summary: {
             taskDurationUs: 24600,
             blockDim: 8,
-            mixBlockDim: 4,
             coreCount: 24,
             durationBreakdown: {
-              overheadUs: 4000,
+              overheadUs: 2200,
               computeUs: 12400,
-              communicationUs: 8200,
-              overlapUs: 12400,
+              communicationUs: 10000,
+              overlapUs: 8400,
             },
           },
         }),
@@ -1021,7 +1020,8 @@ describe('StatsAside', () => {
     expect(bd.find('[data-testid="stats-duration-seg-compute"]').exists()).toBe(true);
     expect(bd.find('[data-testid="stats-duration-seg-communication"]').exists()).toBe(true);
     expect(bd.get('[data-testid="stats-duration-legend"]').text()).toMatch(/头开销|Overhead/);
-    expect(bd.get('[data-testid="stats-duration-secondary"]').text()).toMatch(/Blocks/);
+    // 2026-10-21 mock: no value-row secondary once the segmented bar is shown.
+    expect(bd.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
     await bd.get('[data-testid="stats-duration-bar"]').trigger('pointerenter');
     // Teleported to `body` (aside overflow would clip an in-card box).
     const tip = document.querySelector('[data-testid="stats-duration-tooltip"]');
@@ -1032,7 +1032,11 @@ describe('StatsAside', () => {
     expect(tipText).toMatch(/通算重叠|overlap/i);
     expect(tipText).toMatch(/头开销时间|Overhead time/);
     expect(tipText).not.toMatch(/时间时间/);
-    expect(tipText).toMatch(/4/);
+    expect(tipText).not.toMatch(/迭代|Iterations/);
+    expect(tipText).toMatch(/12\.40/);
+    expect(tipText).toMatch(/10\.00/);
+    expect(tipText).toMatch(/8\.40/);
+    expect(tipText).toMatch(/2\.20/);
   });
 
   it('PR-STATS-009c: duration rounds to 2 dp; tooltip keeps full value', async () => {
