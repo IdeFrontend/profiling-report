@@ -133,9 +133,15 @@ const roofline = computed(() => {
     rowsForBlock('Memory.csv', id),
   );
   if (!rebuilt) return undefined;
-  const allSeries = props.report?.roofline?.series;
+  const all = props.report?.roofline;
+  const allSeries = all?.series;
   if (allSeries && allSeries.length > 0) {
     return { ...rebuilt, series: allSeries };
+  }
+  // Interim host roof (root peaks, no series). rebuilt is the example catalog,
+  // which would hide that single roof from the panel's legacy path.
+  if (all && (!all.series || all.series.length === 0)) {
+    return { ...all, points: rebuilt.points, mixLabels: rebuilt.mixLabels };
   }
   return rebuilt;
 });

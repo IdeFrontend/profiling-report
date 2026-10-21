@@ -52,6 +52,7 @@ describe('RooflinePanel', () => {
     expect(knees).toHaveLength(sample.series.length);
     expect(knees[0]!.attributes('fill')).toBe('#262626');
     expect(knees[0]!.attributes('stroke')).toBe(sample.series[0]!.color);
+    expect(knees[0]!.attributes('pointer-events')).toBe('none');
   });
 
   it('PR-ROOF-001b: raised card has under-roof gradient wash', () => {

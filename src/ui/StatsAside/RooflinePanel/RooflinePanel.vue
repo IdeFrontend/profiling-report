@@ -418,6 +418,7 @@ const tooltipText = computed(() => {
             fill="#262626"
             :stroke="s.color"
             stroke-width="1.5"
+            pointer-events="none"
           />
         </g>
         <text
