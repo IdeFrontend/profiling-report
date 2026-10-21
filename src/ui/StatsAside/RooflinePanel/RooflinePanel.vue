@@ -140,7 +140,7 @@ function roofPerf(s: RooflineSeries, intensity: number): number {
   return Math.min(s.peakComputeTops, bwLimited);
 }
 
-function roofSegments(s: RooflineSeries): { slope: string; plateau: string; ridgeY: number } {
+function roofSegments(s: RooflineSeries): { slope: string; plateau: string; ridgeX: number; ridgeY: number } {
   const { xMin, xMax } = domains.value;
   const ridge = clampLog(
     (s.peakComputeTops * 1000) / Math.max(s.peakBandwidthGBs, 1e-12),
@@ -148,9 +148,10 @@ function roofSegments(s: RooflineSeries): { slope: string; plateau: string; ridg
     xMax,
   );
   const yRidge = yToPx(roofPerf(s, ridge));
-  const slope = `M ${xToPx(xMin)},${yToPx(roofPerf(s, xMin))} L ${xToPx(ridge)},${yRidge}`;
-  const plateau = `M ${xToPx(ridge)},${yRidge} L ${xToPx(xMax)},${yToPx(roofPerf(s, xMax))}`;
-  return { slope, plateau, ridgeY: yRidge };
+  const xRidge = xToPx(ridge);
+  const slope = `M ${xToPx(xMin)},${yToPx(roofPerf(s, xMin))} L ${xRidge},${yRidge}`;
+  const plateau = `M ${xRidge},${yRidge} L ${xToPx(xMax)},${yToPx(roofPerf(s, xMax))}`;
+  return { slope, plateau, ridgeX: xRidge, ridgeY: yRidge };
 }
 
 /** Closed area under the topmost roof for the wash (highest plateau). */
@@ -213,7 +214,9 @@ const mixParts = computed(() =>
 );
 
 const tooltipText = computed(() => {
-  const p = hovered.value;
+  const id = hovered.value?.id;
+  if (!id) return '';
+  const p = props.model.points.find((pt) => pt.id === id);
   if (!p) return '';
   return `${p.label}: ${fmtVal(p.intensity)} Ops/Byte, ${fmtVal(p.performance)} TOps/s`;
 });
@@ -405,6 +408,17 @@ const tooltipText = computed(() => {
               @mouseleave="hovered = null"
             />
           </g>
+          <circle
+            v-for="s in seriesList"
+            :key="`knee-${s.id}`"
+            data-testid="roofline-knee"
+            :cx="roofSegments(s).ridgeX"
+            :cy="roofSegments(s).ridgeY"
+            r="3.5"
+            fill="#262626"
+            :stroke="s.color"
+            stroke-width="1.5"
+          />
         </g>
         <text
           v-if="mixParts.length"

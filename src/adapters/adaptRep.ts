@@ -987,7 +987,14 @@ function hardwareSectionsFromJsonl(text: string): HardwareSection[] {
       .filter(([k]) => k !== 'category')
       .map(([key, value]) => ({
         key,
-        value: value == null ? '' : Array.isArray(value) ? value.join(', ') : String(value),
+        value:
+          value == null
+            ? ''
+            : Array.isArray(value)
+              ? value.join(', ')
+              : typeof value === 'object'
+                ? JSON.stringify(value)
+                : String(value),
       }))
       .filter((f) => f.value !== '');
     if (fields.length === 0) continue;

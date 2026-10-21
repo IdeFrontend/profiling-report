@@ -366,6 +366,22 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(byKey['Current Freq']).toBe('1650');
   });
 
+  it('PR-VM-010: nested Roofline objects stringify instead of [object Object]', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      JSON.stringify({
+        category: 'Roofline',
+        aiv_simd_b16: { p_peak: 2.7e13, b_peak: 1600 },
+      }),
+    );
+    const section = adaptRep(parsed).reportModel.hardwareDetails!.sections.find(
+      (s) => s.title === 'Roofline',
+    );
+    const field = section!.fields.find((f) => f.key === 'aiv_simd_b16');
+    expect(field!.value).toContain('"p_peak"');
+    expect(field!.value).not.toContain('[object Object]');
+  });
+
   it('PR-VM-014: summary.coreCount from HardwareInfo.jsonl by op type (DATA-1)', () => {
     const parsed = parseRep(loadOutRepBytes());
     parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(

@@ -20,12 +20,12 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 
 ## Acceptance Criteria
 
-1. **PR-ROOF-001** — Renders chart with at least one point and roof path.
+1. **PR-ROOF-001** — Renders chart with at least one point, a roof path, and a hollow knee marker per series.
 2. **PR-ROOF-001b** — Raised chart card includes under-roof `#3078f0` gradient wash.
 3. **PR-ROOF-002** — Shows mix labels when present.
 4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix at plot top; **TOps/s** start-anchored at SVG `x=0` (same vertical line as card title / AIV / AIC); **Ops/Byte** grid-aligned; markers not clipped; SVG display width tracks the card (`width: 100%`).
 5. **PR-ROOF-003** — Empty points → no chart SVG.
-6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved under the SVG (not absolutely overlaid) so the card does not shift on hover and x-tick / Ops/Byte labels stay visible.
+6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved under the SVG (not absolutely overlaid) so the card does not shift on hover and x-tick / Ops/Byte labels stay visible. Replacing the model keeps the tip on the current point with the same id.
 7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
 8. **PR-ROOF-006** — Legend under the in-card **Roofline** title with **10px** title→legend gap; shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`.
 9. **PR-ROOF-007** — Log domains are data-driven decade floors/ceils with **no** hard X/Y cap (including no `1e-3` / `1e-4` floor once samples exist); chip-scale peaks and ridges beyond the product crop (`100K` Ops/Byte / `1e5` TOps/s) still fit on-axis. When floor===ceil (lone power-of-ten), open **one decade** of span so SVG coordinates stay finite (**PR-ROOF-007b**).

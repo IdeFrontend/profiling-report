@@ -48,6 +48,10 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('[data-testid="roofline-chart"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="roofline-roof"]').exists()).toBe(true);
     expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(1);
+    const knees = wrapper.findAll('[data-testid="roofline-knee"]');
+    expect(knees).toHaveLength(sample.series.length);
+    expect(knees[0]!.attributes('fill')).toBe('#262626');
+    expect(knees[0]!.attributes('stroke')).toBe(sample.series[0]!.color);
   });
 
   it('PR-ROOF-001b: raised card has under-roof gradient wash', () => {
@@ -221,6 +225,20 @@ describe('RooflinePanel', () => {
     expect(tip.text()).toContain('Ops/Byte');
     expect(tip.text()).toContain('TOps/s');
     expect(card.element.getBoundingClientRect().height).toBe(heightBefore);
+  });
+
+  it('PR-ROOF-004: tooltip follows the current point when the model is replaced', async () => {
+    const wrapper = mount(RooflinePanel, { props: { model: sample } });
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
+    const next: RooflineViewModel = {
+      ...sample,
+      points: [{ ...sample.points[0]!, intensity: 12, performance: 4 }],
+    };
+    await wrapper.setProps({ model: next });
+    const tip = wrapper.get('[data-testid="roofline-tooltip"]').text();
+    expect(tip).toContain('12.000');
+    expect(tip).toContain('4.000');
+    expect(tip).not.toContain('0.090');
   });
 
   it('PR-ROOF-007: log domains have no hard X/Y cap for chip-scale roofs', () => {
