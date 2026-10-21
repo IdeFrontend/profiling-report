@@ -14,7 +14,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Emulate Sept 30 (M4): Timeline + PIPE + Memory load analysis + Memory utilization heatmap + CANNBot (compute/memory); **性能提示** **in**; summary cards/meta **out** | M | [milestone-4](../process/roadmap/milestone-4.md); [performance-hints](../views/performance-hints.md); [DATA-47](../context/decisions/DATA.md); ArchDiagramMetrics → `archDiagram` + `UbRwAccesses` → `memoryHeatmap` ([memory-topology](../views/memory-topology.md)); roofline / overview **out** — [emulate/FORMAT](../formats/emulate/FORMAT.md) |
 | Simulator Phase 2: dedicated arch chrome / VF IPC / call stacks / … | P2 | MHTML §11.2.3; [DATA-48](../context/questions/DATA.md); capabilities `vfIpc`, `callStacks`, … |
 | Timeline secondary tab | M | Primary view |
-| OP算子 / 源码 / 详情 / 缓存 tabs | M | **时间线** active; **源码 / 详情 / 缓存** visible and **disabled** ([UI-37](../context/decisions/UI.md)). No tab surfaces this phase. OP算子 = brand / multi-op selector. |
+| OP算子 / 源码 tabs | M | **时间线** active; **源码** visible and **disabled**. **详情** / **缓存** are not in the chrome ([UI-37](../context/decisions/UI.md)). No tab surfaces this phase. OP算子 = brand / multi-op selector. |
 | Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |
 | Keep Insight for `.bin` | H | See formats comparison |
 

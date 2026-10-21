@@ -61,7 +61,7 @@ See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 
 ### 15. Secondary tabs
 
-Chrome only / disabled ([UI-37](../context/decisions/UI.md)).
+Chrome only: **源码** disabled; **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)).
 
 ### Block scope matrix
 

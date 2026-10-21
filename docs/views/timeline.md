@@ -36,7 +36,7 @@ Primary Gantt / swimlane of OP execution over time. Opens from `.npu-rep` or sta
 
 - Left explorer shows profiling run folders; selecting the report file loads the viewer.
 - Top dropdown filters the active OP / kernel name.
-- Main chrome includes tabs such as 时间线 / 源码 / 详情 / 缓存 (exact tab set follows product design; timeline is the primary swimlane surface).
+- Main chrome includes **时间线** (active) and **源码** (disabled). **详情** / **缓存** are not in the strip ([UI-37](../../context/decisions/UI.md)). Timeline is the primary swimlane surface.
 
 Owning root ACs: [ProfilingReport.spec.md](../../src/ui/ProfilingReport/ProfilingReport.spec.md) (multi-op OP selector **PR-ROOT-005**).
 

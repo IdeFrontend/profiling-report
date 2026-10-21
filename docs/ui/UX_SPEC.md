@@ -40,7 +40,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 
 ### Phasing
 
-- **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select). Secondary tabs **源码 / 详情 / 缓存** visible and disabled ([UI-37](../context/decisions/UI.md)).
+- **MVP:** Timeline experience end-to-end (overview + swimlane + summary/PIPE + hover/select). **源码** stays visible and disabled; **详情** / **缓存** are not in the chrome ([UI-37](../context/decisions/UI.md)).
 - **P2:** Roofline polish, hardware aside depth, deps extras, multiselect, context menu. Mid-row gutter 统计 deferred ([UI-47](../context/questions/deferred.md)).
 
 Fidelity of lane content depends on trace richness. Product **target** is sketch-like multi-core lanes ([questions](../context/questions/) DATA-31); sample fixture may be thinner. UX still applies; empty or thinner data **hides** optional surfaces ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)).
@@ -135,9 +135,9 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 
 | | |
 |--|--|
-| **Goal** | Tab chrome shows analysis modes; only Timeline is usable |
-| **Trigger** | User sees 源码 / 详情 / 缓存 |
-| **Steps** | Tabs are present and **disabled** — no navigation, no surfaces |
+| **Goal** | Tab chrome shows the usable mode; only Timeline is active |
+| **Trigger** | User sees 源码 (disabled). 详情 / 缓存 are not in the strip |
+| **Steps** | 源码 is present and **disabled** — no navigation, no surface |
 | **Success** | Timeline remains the only active mode ([UI-37](../context/decisions/UI.md)) |
 | **Sketches** | Tab chrome in `source/v930/entry.jpeg` |
 
@@ -166,7 +166,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 
 | Element | MVP | Notes |
 |---------|-----|-------|
-| Secondary tabs: OP算子 / **时间线** / 源码 / 详情 / 缓存 | Timeline active; others **disabled** ([UI-37](../context/decisions/UI.md)) | No tab surfaces this phase |
+| Secondary tabs: OP算子 / **时间线** / 源码 | Timeline active; 源码 **disabled**. 详情 / 缓存 omitted ([UI-37](../context/decisions/UI.md)) | No tab surfaces this phase |
 | Toolbar | Search, zoom, toggle aside | Extra icons P2 |
 | Main Timeline layout | Gutter + overview + swimlane + aside + detail | See UI_OVERVIEW |
 
@@ -289,7 +289,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 - **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → zoom bar on the diagram (缩小 / 放大 / 适应窗口, PR-MEMTOP-015) → optional **全屏** overlay or details list.
 - **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/decisions/DATA.md)).
 - **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
-- **S9:** 源码 / 详情 / 缓存 remain **disabled** ([UI-37](../context/decisions/UI.md)); Timeline only.
+- **S9:** 源码 remains **disabled**; 详情 / 缓存 are not in the chrome ([UI-37](../context/decisions/UI.md)); Timeline only.
 
 ---
 
