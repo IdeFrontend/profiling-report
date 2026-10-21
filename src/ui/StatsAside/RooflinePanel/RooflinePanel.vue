@@ -27,7 +27,8 @@ const mixY = PAD.t + MIX_TOP_INSET;
 const AXIS_FONT_PX = 9;
 
 const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
-const topsX = PAD.l;
+/** Left edge of TOps/s matches the card title / AIV / AIC (not end-anchored at the plot). */
+const topsX = 0;
 const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT - AXIS_FONT_PX;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
@@ -70,6 +71,13 @@ const seriesList = computed((): RooflineSeries[] => {
 
 const aivSeries = computed(() => seriesList.value.filter((s) => s.group === 'aiv'));
 const aicSeries = computed(() => seriesList.value.filter((s) => s.group === 'aic'));
+/** Shared legend columns so nth AIV / AIC swatches share a vertical edge. */
+const legendColCount = computed(() =>
+  Math.max(aivSeries.value.length, aicSeries.value.length, 1),
+);
+const legendGridStyle = computed(() => ({
+  gridTemplateColumns: `28px repeat(${legendColCount.value}, max-content)`,
+}));
 
 /** Log domain from points + roofs. */
 const domains = computed(() => {
@@ -222,41 +230,48 @@ const tooltipText = computed(() => {
         <div
           class="pr-roofline__legend"
           data-testid="roofline-legend"
+          :style="legendGridStyle"
         >
-          <span
-            v-if="aivSeries.length"
-            class="pr-roofline__leg-group"
-          >
-            <span class="pr-roofline__leg-head">AIV</span>
+          <template v-if="aivSeries.length">
+            <span class="pr-roofline__leg-head">AIV:</span>
             <span
               v-for="s in aivSeries"
               :key="s.id"
               class="pr-roofline__leg-item"
             >
               <span
-                class="pr-roofline__leg-dot"
-                :style="{ background: s.color, borderColor: s.color }"
+                class="pr-roofline__leg-swatch"
+                :style="{ background: s.color }"
               />
-              {{ s.label.replace(/^AIV\s+/, '') }}
+              {{ s.label }}
             </span>
-          </span>
-          <span
-            v-if="aicSeries.length"
-            class="pr-roofline__leg-group"
-          >
-            <span class="pr-roofline__leg-head">AIC</span>
+            <span
+              v-for="n in Math.max(0, legendColCount - aivSeries.length)"
+              :key="`aiv-pad-${n}`"
+              class="pr-roofline__leg-pad"
+              aria-hidden="true"
+            />
+          </template>
+          <template v-if="aicSeries.length">
+            <span class="pr-roofline__leg-head">AIC:</span>
             <span
               v-for="s in aicSeries"
               :key="s.id"
               class="pr-roofline__leg-item"
             >
               <span
-                class="pr-roofline__leg-dot"
-                :style="{ background: s.color, borderColor: s.color }"
+                class="pr-roofline__leg-swatch"
+                :style="{ background: s.color }"
               />
-              {{ s.label.replace(/^AIC\s+/, '') }}
+              {{ s.label }}
             </span>
-          </span>
+            <span
+              v-for="n in Math.max(0, legendColCount - aicSeries.length)"
+              :key="`aic-pad-${n}`"
+              class="pr-roofline__leg-pad"
+              aria-hidden="true"
+            />
+          </template>
         </div>
       </div>
       <svg
@@ -427,12 +442,12 @@ const tooltipText = computed(() => {
           text-anchor="start"
           dominant-baseline="middle"
         >Ops/Byte</text>
-        <!-- TOps/s: ends at left grid line, 9px above plot top. -->
+        <!-- TOps/s: left edge aligns with card title / AIV / AIC. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
           :x="topsX"
           :y="topsY"
-          text-anchor="end"
+          text-anchor="start"
           dominant-baseline="hanging"
         >TOps/s</text>
       </svg>
@@ -464,13 +479,15 @@ const tooltipText = computed(() => {
   color: #ffffff;
 }
 
-/* Whole card (header + plot + tick gutters) — sketch uniform #262626. */
+/* Whole card (header + plot + tick gutters) — sketch uniform #262626.
+   Title / legend / SVG share the same horizontal inset (card pad only). */
 .pr-roofline__card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px; /* 6px under GM/L2 before plot (was 2px) */
+  gap: 6px;
   min-width: 0;
-  padding: 6px 8px 4px;
+  padding: 8px 8px 2px;
   border-radius: 8px;
   background: #262626;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -478,56 +495,61 @@ const tooltipText = computed(() => {
 
 .pr-roofline__card-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 2px;
+  flex-direction: column;
+  align-items: flex-start;
+  /* Title → legend: product sketch gap (~10–12px). */
+  gap: 10px;
+  padding: 0;
   min-width: 0;
+  width: 100%;
 }
 
 .pr-roofline__chart-title {
-  flex: 0 0 auto;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.2;
   color: #ffffff;
 }
 
+/*
+ * Under the card title. One grid for both rows so the nth AIV / AIC swatches
+ * share a vertical edge (e.g. AIV bp16 with AIC int32 fp32).
+ */
 .pr-roofline__legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px 14px;
+  display: grid;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
   min-width: 0;
+  width: max-content;
+  max-width: 100%;
   font-size: 11px;
   line-height: 1.2;
-  color: #9a9a9a;
-}
-
-.pr-roofline__leg-group {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
 }
 
 .pr-roofline__leg-head {
-  color: #d0d0d0;
-  font-weight: 600;
+  color: #c4c4c4;
+  font-weight: 400;
 }
 
 .pr-roofline__leg-item {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #9a9a9a;
+  color: #8a8a8a;
+  white-space: nowrap;
 }
 
-.pr-roofline__leg-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  box-sizing: border-box;
+.pr-roofline__leg-pad {
+  /* Empty cell so a shorter row still advances the grid to the next row cleanly. */
+  min-width: 0;
+}
+
+.pr-roofline__leg-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 auto;
 }
 
 .pr-roofline__svg {
@@ -598,13 +620,16 @@ const tooltipText = computed(() => {
   fill: #ffffff;
 }
 
+/* Overlay the tip on the card bottom so an empty slot does not pad the card. */
 .pr-roofline__tip {
-  flex: 0 0 auto;
-  min-height: calc(11px * 1.2);
-  padding: 0 2px;
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
   font-size: 11px;
   line-height: 1.2;
   color: #d0d8e0;
+  pointer-events: none;
   visibility: hidden;
 }
 

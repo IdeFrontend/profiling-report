@@ -65,6 +65,8 @@ Code: `rooflineFromRows` / `buildRooflineViewModel` in `src/adapters/roofline.ts
 
 ### Legend (UI)
 
+Placed **under** the in-card **Roofline** title (**10px** gap), left-aligned with the title and **TOps/s**. One CSS grid for both rows so the nth AIV / AIC swatches share a vertical edge (e.g. AIV bp16 with AIC int32 fp32). Group heads `#c4c4c4`, series labels `#8a8a8a`.
+
 | Group | Series (colors) |
 | --- | --- |
 | AIV | fp16 `#8C78F0`, bp16 `#E63C82`, fp32 `#32BE8C` |

@@ -115,9 +115,10 @@ describe('RooflinePanel', () => {
     const tops = wrapper.get('.pr-roofline__axis--y');
     expect(Number(tops.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT - 9);
     expect(Number(tops.attributes('y')) + 9).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
-    expect(Number(tops.attributes('x'))).toBe(plotLeft);
+    // Left edge aligns with card title / AIV / AIC (not end-anchored at the plot).
+    expect(Number(tops.attributes('x'))).toBe(0);
     expect(tops.attributes('dominant-baseline')).toBe('hanging');
-    expect(tops.attributes('text-anchor')).toBe('end');
+    expect(tops.attributes('text-anchor')).toBe('start');
 
     expect(wrapper.find('.pr-roofline__markers [data-testid="roofline-point"]').exists()).toBe(true);
     expect(wrapper.find('.pr-roofline__plot [data-testid="roofline-point"]').exists()).toBe(false);
@@ -143,6 +144,64 @@ describe('RooflinePanel', () => {
     const wrapper = mount(RooflinePanel, { props: { model: legacy } });
     expect(wrapper.find('[data-testid="roofline-panel"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="roofline-roof"]').exists()).toBe(true);
+  });
+
+  it('PR-ROOF-006: legend under title, left-aligned AIV/AIC rows', async () => {
+    const multi: RooflineViewModel = {
+      ...sample,
+      series: [
+        {
+          id: 'aiv-fp16',
+          group: 'aiv',
+          label: 'AIV fp16',
+          color: '#8C78F0',
+          peakComputeTops: 10,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'solid',
+        },
+        {
+          id: 'aiv-fp32',
+          group: 'aiv',
+          label: 'AIV fp32',
+          color: '#32BE8C',
+          peakComputeTops: 13.5,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'solid',
+        },
+        {
+          id: 'aic-fp32',
+          group: 'aic',
+          label: 'AIC fp32',
+          color: '#B4E04A',
+          peakComputeTops: 20,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'solid',
+        },
+      ],
+    };
+    const wrapper = mount(RooflinePanel, { props: { model: multi } });
+    const head = wrapper.get('.pr-roofline__card-head');
+    const title = wrapper.get('.pr-roofline__chart-title');
+    const legend = wrapper.get('[data-testid="roofline-legend"]');
+    expect(head.element.contains(legend.element)).toBe(true);
+    // Title precedes legend in DOM (column stack, not a side-by-side header).
+    expect(
+      title.element.compareDocumentPosition(legend.element) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const src = (await import('./RooflinePanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-roofline__card-head\s*\{[^}]*flex-direction:\s*column/s);
+    expect(src).toMatch(/\.pr-roofline__card-head\s*\{[^}]*gap:\s*10px/s);
+    expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*display:\s*grid/s);
+    expect(src).toMatch(/\.pr-roofline__leg-head\s*\{[^}]*color:\s*#c4c4c4/s);
+    expect(src).toMatch(/\.pr-roofline__leg-item\s*\{[^}]*color:\s*#8a8a8a/s);
+    // max(2 AIV, 1 AIC) → two shared item columns (nth swatches align).
+    expect(legend.attributes('style') ?? '').toMatch(/repeat\(2,\s*max-content\)/);
+    expect(legend.text()).toContain('AIV:');
+    expect(legend.text()).toContain('AIV fp16');
+    expect(legend.text()).toContain('AIC:');
+    expect(legend.text()).toContain('AIC fp32');
+    expect(wrapper.findAll('.pr-roofline__leg-item')).toHaveLength(3);
+    expect(wrapper.findAll('.pr-roofline__leg-pad')).toHaveLength(1);
   });
 
   it('PR-ROOF-004: hover point shows tooltip inside card without layout jump', async () => {
