@@ -213,7 +213,7 @@ Interactivity classes:
 | Context menu | interactive | Right-click | Pin / actions | P2 |
 | Multi-select summary table | interactive | Marquee drag (unmodified) | Aggregate table + axis Δt | P2 |
 | Display control (units / cycles) | interactive | Dialog controls | Axis unit labels | P2 |
-| Secondary tabs | interactive | Click tab | Swap main surface | P2 |
+| Secondary tabs | static | 源码 visible and disabled; no click | Timeline stays the only surface; 详情 / 缓存 not rendered ([UI-37](../context/decisions/UI.md)) | M |
 
 ---
 
@@ -328,7 +328,7 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 | S6 memory | Memory topology M2 (zoom bar + 全屏) | `MemoryTopologyPanel` | `v930-sim/memory-topology-zoom`, `v930-sim/memory-topology-fullscreen` |
 | S7 hardware | Hardware details P2 | `HardwareDetailsPanel` | `sidebar_details` |
 | S8 deps / multi | Deps, multiselect, context menu P2 | `SwimlaneCanvas` (dep curves in renderer), etc. | `swimlane_selection`, `_multiselect`, `_context_menu` |
-| S9 tabs | Secondary tabs P2 | Host or future tab strip | tab chrome in overviews |
+| S9 tabs | OP算子 / 源码 tabs (M): 时间线 active, 源码 disabled, 详情 / 缓存 omitted | `ReportToolbar` | tab chrome in overviews |
 | Overview charts | Cube/Vector charts | `OverviewCharts` | `v930/entry`, `v930/report-stats-open` |
 | Roofline | Roofline P2 | `RooflinePanel` | `v930/entry`, `v930/report-stats-open` |
 
