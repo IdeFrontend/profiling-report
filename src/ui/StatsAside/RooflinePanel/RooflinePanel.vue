@@ -4,7 +4,6 @@ import { t } from '../../../i18n';
 import {
   ROOFLINE_CHART_H as H,
   ROOFLINE_CHART_W as W,
-  ROOFLINE_MIX_TOP_INSET as MIX_TOP_INSET,
   ROOFLINE_OPS_GAP_FROM_PLOT as OPS_GAP_FROM_PLOT,
   ROOFLINE_PAD as PAD,
   ROOFLINE_TOPS_GAP_ABOVE_PLOT as TOPS_GAP_ABOVE_PLOT,
@@ -22,14 +21,16 @@ const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
 const plotBottomY = PAD.t + plotH;
 
-const mixY = PAD.t + MIX_TOP_INSET;
-/** Label sizes in viewBox user units (same as former 1:1 screen px). */
-const AXIS_FONT_PX = 9;
-
 const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
 /** Left edge of TOps/s matches the aside title / AIV / AIC (not end-anchored at the plot). */
 const topsX = 0;
-const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT - AXIS_FONT_PX;
+/**
+ * Shared alphabetic baseline for TOps/s + mix (just above the plot).
+ * Avoid `hanging` — browsers disagree on it for CSS-styled / multi-tspan text,
+ * which left the mix row sitting above TOps/s.
+ */
+const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT;
+const mixY = topsY;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
 
@@ -427,6 +428,7 @@ const tooltipText = computed(() => {
           :x="PAD.l + plotW / 2"
           :y="mixY"
           text-anchor="middle"
+          dominant-baseline="alphabetic"
         >
           <template
             v-for="part in mixParts"
@@ -460,13 +462,13 @@ const tooltipText = computed(() => {
           text-anchor="start"
           dominant-baseline="middle"
         >Ops/Byte</text>
-        <!-- TOps/s: left edge aligns with aside title / AIV / AIC. -->
+        <!-- TOps/s: left edge aligns with aside title / AIV / AIC; same baseline as mix. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
           :x="topsX"
           :y="topsY"
           text-anchor="start"
-          dominant-baseline="hanging"
+          dominant-baseline="alphabetic"
         >TOps/s</text>
       </svg>
       <div
@@ -531,7 +533,7 @@ const tooltipText = computed(() => {
   min-width: 0;
   width: max-content;
   max-width: 100%;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -607,16 +609,16 @@ const tooltipText = computed(() => {
 
 .pr-roofline__tick {
   fill: #999999;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .pr-roofline__axis {
   fill: #999999;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .pr-roofline__mix {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* Sketch mix is two-tone: names #999, percents #fff. */
@@ -631,9 +633,9 @@ const tooltipText = computed(() => {
 /* Reserved band below the SVG so hover never covers x-ticks / Ops/Byte. */
 .pr-roofline__tip {
   flex: 0 0 auto;
-  min-height: calc(11px * 1.2);
+  min-height: calc(12px * 1.2);
   padding: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
   color: #d0d8e0;
   pointer-events: none;

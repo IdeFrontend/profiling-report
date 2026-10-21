@@ -4,7 +4,6 @@ import RooflinePanel from './RooflinePanel.vue';
 import {
   ROOFLINE_CHART_H,
   ROOFLINE_CHART_W,
-  ROOFLINE_MIX_TOP_INSET,
   ROOFLINE_OPS_GAP_FROM_PLOT,
   ROOFLINE_PAD,
   ROOFLINE_TOPS_GAP_ABOVE_PLOT,
@@ -106,7 +105,11 @@ describe('RooflinePanel', () => {
     expect(plotW).toBe(ROOFLINE_CHART_W - ROOFLINE_PAD.l - ROOFLINE_PAD.r);
 
     const mix = wrapper.get('[data-testid="roofline-mix"]');
-    expect(Number(mix.attributes('y'))).toBe(plotTop + ROOFLINE_MIX_TOP_INSET);
+    const tops = wrapper.get('.pr-roofline__axis--y');
+    // Mix + TOps/s share one alphabetic baseline just above the plot.
+    expect(Number(mix.attributes('y'))).toBe(Number(tops.attributes('y')));
+    expect(mix.attributes('dominant-baseline')).toBe('alphabetic');
+    expect(tops.attributes('dominant-baseline')).toBe('alphabetic');
 
     const xTick = wrapper.get('.pr-roofline__tick');
     expect(Number(xTick.attributes('y'))).toBe(xTickY);
@@ -117,12 +120,9 @@ describe('RooflinePanel', () => {
     expect(ops.attributes('text-anchor')).toBe('start');
     expect(ops.attributes('dominant-baseline')).toBe('middle');
 
-    const tops = wrapper.get('.pr-roofline__axis--y');
-    expect(Number(tops.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT - 9);
-    expect(Number(tops.attributes('y')) + 9).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
+    expect(Number(tops.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
     // Left edge aligns with aside title / AIV / AIC (not end-anchored at the plot).
     expect(Number(tops.attributes('x'))).toBe(0);
-    expect(tops.attributes('dominant-baseline')).toBe('hanging');
     expect(tops.attributes('text-anchor')).toBe('start');
 
     expect(wrapper.find('.pr-roofline__markers [data-testid="roofline-point"]').exists()).toBe(true);
@@ -212,7 +212,7 @@ describe('RooflinePanel', () => {
     // Tip is a reserved in-flow band under the SVG (not absolute over ticks).
     const src = (await import('./RooflinePanel.vue?raw')).default as string;
     expect(src).toMatch(
-      /\.pr-roofline__tip\s*\{[^}]*min-height:\s*calc\(11px\s*\*\s*1\.2\)/s,
+      /\.pr-roofline__tip\s*\{[^}]*min-height:\s*calc\(12px\s*\*\s*1\.2\)/s,
     );
     expect(src).not.toMatch(/\.pr-roofline__tip\s*\{[^}]*position:\s*absolute/s);
 
