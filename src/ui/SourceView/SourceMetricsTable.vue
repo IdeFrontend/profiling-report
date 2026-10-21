@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { SourceFileModel, SourceStallBreakdown } from '../../domain/types';
 import { t } from '../../i18n';
 import { highlightParts } from '../searchHighlight';
-import { SOURCE_TAB_MONO_STACK } from './sourceFonts';
+import { SOURCE_TAB_MONO_FAMILY } from './sourceFonts';
 import {
   ensureSourceColWidths,
   sourceColCanResize,
@@ -280,7 +280,7 @@ const styleVars = computed(() => {
   const s: Record<string, string> = {};
   if (props.rowHeightCss > 0) s['--pr-src-row-h'] = `${props.rowHeightCss}px`;
   if (props.fontSizeCss && props.fontSizeCss > 0) s['--pr-src-font-size'] = `${props.fontSizeCss}px`;
-  s['--pr-src-font-family'] = props.fontFamily || SOURCE_TAB_MONO_STACK;
+  s['--pr-src-font-family'] = props.fontFamily || SOURCE_TAB_MONO_FAMILY;
   return s;
 });
 </script>

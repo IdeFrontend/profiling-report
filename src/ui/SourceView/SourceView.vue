@@ -659,7 +659,6 @@ onBeforeUnmount(() => {
   --pr-src-control-h: 28px;
   --pr-src-control-radius: 6px;
   --pr-src-ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --pr-src-mono-font: monospace;
 
   display: flex;
   flex-direction: column;

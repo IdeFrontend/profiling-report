@@ -14,6 +14,3 @@ export const SOURCE_TAB_EDITOR_FONT = {
   /** Sudu’s light desk is 300; 400 reads closer to the sketch. */
   weight: 400,
 } as const;
-
-/** CSS family for metrics / chrome that must match the canvas face. */
-export const SOURCE_TAB_MONO_STACK = 'monospace';

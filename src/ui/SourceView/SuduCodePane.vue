@@ -19,7 +19,7 @@ import {
 } from './editorTableSync';
 import {
   SOURCE_TAB_EDITOR_FONT,
-  SOURCE_TAB_MONO_STACK,
+  SOURCE_TAB_MONO_FAMILY,
 } from './sourceFonts';
 import {
   getSuduWorkerPool,
@@ -193,7 +193,7 @@ const paneStyle = computed(() => ({
   '--pr-editor-ratio': String(props.editorRatio ?? 0.45),
   '--pr-src-row-h': `${rowH.value || 20}px`,
   '--pr-src-font-size': `${fontSizeCss.value || 12}px`,
-  '--pr-src-font-family': fontFamily.value || SOURCE_TAB_MONO_STACK,
+  '--pr-src-font-family': fontFamily.value || SOURCE_TAB_MONO_FAMILY,
 }));
 
 /** Lines to paint as correlated bands under the canvas (excludes current). */
