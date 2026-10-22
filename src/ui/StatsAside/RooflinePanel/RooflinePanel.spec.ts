@@ -4,6 +4,7 @@ import RooflinePanel from './RooflinePanel.vue';
 import {
   ROOFLINE_CHART_H,
   ROOFLINE_CHART_W,
+  ROOFLINE_MIX_TOP_INSET,
   ROOFLINE_OPS_GAP_FROM_PLOT,
   ROOFLINE_PAD,
   ROOFLINE_TOPS_GAP_ABOVE_PLOT,
@@ -114,8 +115,8 @@ describe('RooflinePanel', () => {
 
     const mix = wrapper.get('[data-testid="roofline-mix"]');
     const tops = wrapper.get('.pr-roofline__axis--y');
-    // Mix + TOps/s share one alphabetic baseline just above the plot.
-    expect(Number(mix.attributes('y'))).toBe(Number(tops.attributes('y')));
+    // Mix sits inside the plot; TOps/s keeps its own row above the top grid.
+    expect(Number(mix.attributes('y'))).toBe(plotTop + ROOFLINE_MIX_TOP_INSET);
     expect(mix.attributes('dominant-baseline')).toBe('alphabetic');
     expect(tops.attributes('dominant-baseline')).toBe('alphabetic');
 

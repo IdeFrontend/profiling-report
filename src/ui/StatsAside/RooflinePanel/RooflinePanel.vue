@@ -4,6 +4,7 @@ import { t } from '../../../i18n';
 import {
   ROOFLINE_CHART_H as H,
   ROOFLINE_CHART_W as W,
+  ROOFLINE_MIX_TOP_INSET as MIX_TOP_INSET,
   ROOFLINE_OPS_GAP_FROM_PLOT as OPS_GAP_FROM_PLOT,
   ROOFLINE_PAD as PAD,
   ROOFLINE_TOPS_GAP_ABOVE_PLOT as TOPS_GAP_ABOVE_PLOT,
@@ -25,12 +26,12 @@ const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
 /** Left edge of TOps/s matches the aside title / AIV / AIC (not end-anchored at the plot). */
 const topsX = 0;
 /**
- * Shared alphabetic baseline for TOps/s + mix (just above the plot).
- * Avoid `hanging` — browsers disagree on it for CSS-styled / multi-tspan text,
- * which left the mix row sitting above TOps/s.
+ * TOps/s sits on its own row above the top grid. Mix is inside the plot,
+ * under that grid (sketch 5px, scaled). Both use alphabetic — `hanging`
+ * disagrees across browsers for CSS-styled / multi-tspan text.
  */
 const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT;
-const mixY = topsY;
+const mixY = PAD.t + MIX_TOP_INSET;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
 
@@ -509,7 +510,7 @@ const tooltipText = computed(() => {
           text-anchor="start"
           dominant-baseline="middle"
         >Ops/Byte</text>
-        <!-- TOps/s: left edge aligns with aside title / AIV / AIC; same baseline as mix. -->
+        <!-- TOps/s: left edge aligns with aside title / AIV / AIC; own row above the plot. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
           :x="topsX"

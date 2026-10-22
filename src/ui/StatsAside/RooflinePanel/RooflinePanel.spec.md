@@ -23,7 +23,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 1. **PR-ROOF-001** — Renders chart with at least one measured point, a roof path, and a **filled rounded-square** knee per series. Sketch rule (`report-stats-duration-source`): **circles** for measured points off the roofs; **filled rounded squares** (`8×8`, `rx=2`, legend-matched, series-color fill) for ridge knees on the lines. Hollow measured points fill `#262626`.
 2. **PR-ROOF-001b** — Raised chart card includes under-roof `#3078f0` gradient wash.
 3. **PR-ROOF-002** — Shows mix labels when present.
-4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix and **TOps/s** share one alphabetic baseline just above the plot; **TOps/s** start-anchored at SVG `x=0` (same vertical line as aside title / AIV / AIC); **Ops/Byte** grid-aligned; markers not clipped; SVG display width tracks the card (`width: 100%`).
+4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; mix alphabetic baseline inside the plot at `PAD.t + MIX_TOP_INSET` (sketch **5px**, scaled); **TOps/s** on its own row at `PAD.t − TOPS_GAP`, start-anchored at SVG `x=0` (same vertical line as aside title / AIV / AIC); **Ops/Byte** grid-aligned; markers not clipped; SVG display width tracks the card (`width: 100%`).
 5. **PR-ROOF-003** — Empty points → no chart SVG.
 6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved under the SVG (not absolutely overlaid) so the card does not shift on hover and x-tick / Ops/Byte labels stay visible. Replacing the model keeps the tip on the current point with the same id.
 7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
@@ -45,7 +45,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 | Legend | Top of raised card; one grid `28px + repeat(n, max-content)` across AIV then AIC rows so nth swatches align; heads `#c4c4c4`, labels `#8a8a8a`, `12px`; 8×8 swatches with **2px** radius + full series labels; hover highlights the matching roof (**PR-ROOF-008**) |
 | Roof | Per-series stroke color (AIV/AIC legend palette); stroke **`2px`** ( lit **`3.5px`** on legend hover); dashed series dash **both** slope and plateau (`4 3`) |
 | Area wash | Vertical `#3078f0` under the topmost ridge: 16% → 10% @40% → 5% @75% → 0% at floor |
-| Mix annotation | Two-tone on the **TOps/s** row (shared alphabetic baseline, centered): names `#999999`, percents `#ffffff`, `12px`; `label (percent.toFixed(6)%)`, comma-separated |
+| Mix annotation | Two-tone inside the plot (alphabetic baseline `PAD.t + MIX_TOP_INSET`, sketch **5px** scaled, centered under the top grid): names `#999999`, percents `#ffffff`, `12px`; `label (percent.toFixed(6)%)`, comma-separated |
 | Axis / ticks | `#999999` `12px`; ticks as decimals; x ticks at `plotBottom + 16`; y ticks at tick line `+ 4`; **TOps/s** start-anchored at SVG `x=0` (alphabetic baseline `PAD.t − TOPS_GAP`); **Ops/Byte** start-anchored `4px` right of plot on bottom grid line |
 | Chart SVG | Intrinsic **`440×303`** viewBox @ **480px** aside; CSS `width: 100%` |
 | Plot inset | `PAD` `{ l: 47, r: 66, t: 28, b: 39 }` — sketch `{34,48,20,28}` scaled by `440/320`; plot frame has no stroke |
@@ -59,6 +59,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Changelog
 
+- **2026-10-22** — Mix returns inside the plot (`PAD.t + MIX_TOP_INSET`, sketch 5px scaled). **TOps/s** stays on its own row above the top grid (PR-ROOF-002b).
 - **2026-10-21** — Multi-series roof tokens: per-series stroke (not `#3078f0`), `2px` roofs, dashed slope+plateau, square knees; experimental legend→roof highlight (PR-ROOF-008).
 - **2026-09-14** — Out of the current release: kept in code, hidden behind the opt-in `roofline` capability in `StatsAside` (no surface change to the panel itself).
 - **2026-09-02** — Chart SVG uses `width: 100%` (viewBox stays **440×303**) so aside scroll never needs a horizontal bar.
