@@ -249,45 +249,65 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-asm-navigate-by"]').classes()).toContain('pr-block-pill');
   });
 
-  it('PR-SOURCE-008: Source-selected search does not mark tables; Asm search chips + find', async () => {
+  it('PR-SOURCE-008: search chips stay pane-scoped; prev/next step selected lines', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     const search = wrapper.find('[data-testid="source-search"]');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     const findNext = wrapper.find('[data-testid="source-find-next"]');
+    const findPrev = wrapper.find('[data-testid="source-find-prev"]');
 
-    expect(findNext.attributes('disabled')).toBeDefined();
+    expect(findNext.attributes('disabled')).toBeUndefined();
+    expect(findPrev.attributes('disabled')).toBeUndefined();
+    expect(findNext.attributes('aria-label')).toBe(t('sourceFindNext'));
+    expect(findPrev.attributes('aria-label')).toBe(t('sourceFindPrev'));
+
     // Default selected pane is Source — query must not paint either metrics table.
     await search.setValue('sharpen');
     await wrapper.vm.$nextTick();
-    expect(findNext.attributes('disabled')).toBeUndefined();
     expect(sourceTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
     expect(asmTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
+
+    // No caret → next starts at first source line, then advances.
     await findNext.trigger('click');
     await wrapper.vm.$nextTick();
-    // Editor find is TODO — caret stays put on Source-selected search.
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
-
-    // Select SASS pane → Assembly-column search with CLA chips.
-    await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
-    await search.setValue('FFMA');
-    await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('[data-testid="source-asm-match"]').length).toBeGreaterThan(0);
-    // Address-only needles do not match.
-    await search.setValue('00007f7b');
-    await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
-
-    await search.setValue('FFMA');
+    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(1);
     await findNext.trigger('click');
     await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
+    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(2);
 
-    await search.setValue('');
-    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
-    await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
+    // Fresh mount: SASS selected, no caret → prev starts at last (independent of search).
+    wrapper.unmount();
+    const asmWrapper = mount(SourceView, { props: { model } });
+    const asmSearch = asmWrapper.find('[data-testid="source-search"]');
+    const asmOnly = asmWrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmWrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
+    await asmSearch.setValue('FFMA');
+    await asmWrapper.vm.$nextTick();
+    expect(asmOnly.findAll('[data-testid="source-asm-match"]').length).toBeGreaterThan(0);
+    await asmSearch.setValue('00007f7b');
+    await asmWrapper.vm.$nextTick();
+    expect(asmOnly.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
+
+    await asmSearch.setValue('anything');
+    await asmWrapper.find('[data-testid="source-find-prev"]').trigger('click');
+    await asmWrapper.vm.$nextTick();
+    const lastAsm = model.assembly.lines[model.assembly.lines.length - 1]!.line;
+    expect(Number(asmOnly.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(lastAsm);
+
+    await asmWrapper.find('[data-testid="source-find-next"]').trigger('click');
+    await asmWrapper.vm.$nextTick();
+    expect(Number(asmOnly.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(
+      model.assembly.lines[0]!.line,
+    );
+
+    // Enter still walks Assembly search hits.
+    await asmSearch.setValue('FFMA');
+    await asmSearch.trigger('keydown', { key: 'Enter' });
+    await asmWrapper.vm.$nextTick();
+    expect(asmOnly.findAll('tr.pr-src-metrics__row--current').length).toBe(1);
+    asmWrapper.unmount();
   });
 
   it('PR-SOURCE-018: one pane selected (Source default); outside click keeps selection', async () => {

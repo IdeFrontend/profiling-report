@@ -274,11 +274,35 @@ function cycleLine(lines: number[], current: number | null, dir: 1 | -1): number
   return lines[lines.length - 1]!;
 }
 
+/** Line numbers in the selected pane, in document order. */
+function selectedPaneLines(): number[] {
+  if (selectedPane.value === 'asm') {
+    return props.model.assembly.lines.map((row) => row.line);
+  }
+  const n = sourceTextLines.value.length;
+  return n > 0 ? Array.from({ length: n }, (_, i) => i + 1) : [];
+}
+
 /**
- * Find next/prev walks matches in the selected pane only — empty search is a no-op.
+ * Prev/next line in the selected pane. Independent of search.
+ * No caret → next starts at first, prev at last; otherwise steps and wraps.
+ */
+function stepSelectedLine(dir: 1 | -1) {
+  const lines = selectedPaneLines();
+  if (selectedPane.value === 'asm') {
+    const next = cycleLine(lines, asmLine.value, dir);
+    if (next != null) jumpAsm(next);
+    return;
+  }
+  const next = cycleLine(lines, sourceLine.value, dir);
+  if (next != null) jumpSource(next);
+}
+
+/**
+ * Enter in search walks matches in the selected pane only — empty search is a no-op.
  * Source pane: editor find (Sudu API not wired yet). Asm pane: Assembly column.
  */
-function findStep(dir: 1 | -1) {
+function findSearchStep(dir: 1 | -1) {
   const q = searchQuery.value.trim();
   if (!q) return;
   if (selectedPane.value === 'asm') {
@@ -489,7 +513,7 @@ onBeforeUnmount(() => {
           clear-test-id="source-search-clear"
           icon-test-id="source-search-magnifier"
           @update:model-value="searchQuery = $event"
-          @submit="findStep(1)"
+          @submit="findSearchStep(1)"
         />
 
         <div
@@ -501,8 +525,7 @@ onBeforeUnmount(() => {
             class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-find-next"
             :aria-label="t('sourceFindNext', locale)"
-            :disabled="!searchQuery.trim()"
-            @click="findStep(1)"
+            @click="stepSelectedLine(1)"
           >
             <PrIcon name="chevron-down" />
           </button>
@@ -511,8 +534,7 @@ onBeforeUnmount(() => {
             class="pr-source-view__icon-btn pr-icon-tip"
             data-testid="source-find-prev"
             :aria-label="t('sourceFindPrev', locale)"
-            :disabled="!searchQuery.trim()"
-            @click="findStep(-1)"
+            @click="stepSelectedLine(-1)"
           >
             <PrIcon name="chevron-up" />
           </button>
