@@ -172,13 +172,19 @@ let gutterScrollSyncRaf = 0;
 let canvasLiveScroll = false;
 /**
  * Overlay scrollbar: hidden at rest, shown while the body scrolls, then fades
- * out after settle. When visible it sits above Card strips and the thumb is
- * draggable (synthetic scrollY via canvas `driveScrollY`).
+ * out after settle (paused while the pointer is over the strip). When visible
+ * it sits above Card strips and the thumb is draggable (synthetic scrollY via
+ * canvas `driveScrollY`).
  */
 const SCROLLBAR_MIN_THUMB_PX = 24;
-const SCROLLBAR_HIDE_DELAY_MS = 800;
+const SCROLLBAR_HIDE_DELAY_MS = 2000;
 const scrollbarVisible = ref(false);
+const scrollbarElRef = ref<HTMLElement | null>(null);
 let scrollbarHideTimer = 0;
+/** True while the pointer is over the visible overlay strip — blocks auto-hide. */
+let scrollbarHovered = false;
+/** Last window pointer — reveal under a parked cursor never fires enter/leave. */
+let lastPointerClient: { x: number; y: number } | null = null;
 let scrollbarDrag: {
   pointerId: number;
   startClientY: number;
@@ -432,7 +438,17 @@ const cardStrips = computed(() => {
 
 let bodyResizeObserver: ResizeObserver | null = null;
 
+function onGlobalPointerMove(e: PointerEvent): void {
+  lastPointerClient = { x: e.clientX, y: e.clientY };
+  if (!scrollbarVisible.value) return;
+  const wasHovered = scrollbarHovered;
+  syncScrollbarHoverFromPointer();
+  // Parked-cursor path never got pointerenter, so leave never clears hover — re-arm hide here.
+  if (wasHovered && !scrollbarHovered) scheduleScrollbarHide();
+}
+
 onMounted(() => {
+  window.addEventListener('pointermove', onGlobalPointerMove, { passive: true });
   const el = bodyRef.value;
   if (!el) return;
   const sync = () => {
@@ -445,6 +461,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener('pointermove', onGlobalPointerMove);
+  lastPointerClient = null;
   cancelOverviewAnim();
   if (canvasLiveScroll) emit('update:scrollY', liveScrollY.value);
   if (gutterScrollSyncRaf) cancelAnimationFrame(gutterScrollSyncRaf);
@@ -452,6 +470,7 @@ onUnmounted(() => {
     clearTimeout(scrollbarHideTimer);
     scrollbarHideTimer = 0;
   }
+  scrollbarHovered = false;
   scrollbarDrag = null;
   bodyResizeObserver?.disconnect();
   bodyResizeObserver = null;
@@ -499,6 +518,7 @@ watch(scrollbarThumb, (thumb) => {
   if (thumb != null) return;
   const wasDragging = scrollbarDrag != null;
   scrollbarVisible.value = false;
+  scrollbarHovered = false;
   clearScrollbarHideTimer();
   scrollbarDrag = null;
   if (wasDragging) applyScrollbarScrollY(liveScrollY.value, true);
@@ -510,6 +530,17 @@ function clearScrollbarHideTimer(): void {
   scrollbarHideTimer = 0;
 }
 
+/** Enter/leave miss a parked cursor when the strip appears underneath — use last xy. */
+function syncScrollbarHoverFromPointer(): void {
+  const el = scrollbarElRef.value;
+  if (!el || !scrollbarVisible.value || lastPointerClient == null) return;
+  const r = el.getBoundingClientRect();
+  const { x, y } = lastPointerClient;
+  const over = x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+  scrollbarHovered = over;
+  if (over) clearScrollbarHideTimer();
+}
+
 function revealScrollbar(): void {
   syncBodyViewportH();
   if (!scrollbarThumb.value) {
@@ -519,15 +550,32 @@ function revealScrollbar(): void {
   }
   scrollbarVisible.value = true;
   clearScrollbarHideTimer();
+  syncScrollbarHoverFromPointer();
 }
 
 function scheduleScrollbarHide(): void {
-  if (scrollbarDrag) return;
+  syncScrollbarHoverFromPointer();
+  if (scrollbarDrag || scrollbarHovered) return;
   clearScrollbarHideTimer();
   scrollbarHideTimer = window.setTimeout(() => {
     scrollbarHideTimer = 0;
+    syncScrollbarHoverFromPointer();
+    if (scrollbarDrag || scrollbarHovered) return;
     scrollbarVisible.value = false;
   }, SCROLLBAR_HIDE_DELAY_MS);
+}
+
+function onScrollbarPointerEnter(): void {
+  scrollbarHovered = true;
+  clearScrollbarHideTimer();
+}
+
+function onScrollbarPointerLeave(e: PointerEvent): void {
+  // Leave can race ahead of the window pointermove; keep last xy in sync so
+  // scheduleScrollbarHide → syncScrollbarHoverFromPointer does not re-hover.
+  lastPointerClient = { x: e.clientX, y: e.clientY };
+  scrollbarHovered = false;
+  if (scrollbarVisible.value) scheduleScrollbarHide();
 }
 
 function applyScrollbarScrollY(y: number, settled: boolean): void {
@@ -1079,10 +1127,13 @@ defineExpose({
       <!-- Above Card strips (z-index 9), below measure edge marks (10–11); pointer-only. -->
       <div
         v-if="scrollbarThumb"
+        ref="scrollbarElRef"
         class="pr-body-scrollbar"
         :class="{ 'pr-body-scrollbar--visible': scrollbarVisible }"
         data-testid="body-scrollbar"
         aria-hidden="true"
+        @pointerenter="onScrollbarPointerEnter"
+        @pointerleave="onScrollbarPointerLeave"
         @pointerdown="onScrollbarPointerDown"
         @pointermove="onScrollbarPointerMove"
         @pointerup="onScrollbarPointerUp"
@@ -1245,7 +1296,7 @@ defineExpose({
   top: 0;
   right: 0;
   bottom: 0;
-  width: 8px;
+  width: 12px;
   z-index: 9;
   pointer-events: none;
   opacity: 0;
