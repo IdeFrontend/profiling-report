@@ -172,13 +172,16 @@ let gutterScrollSyncRaf = 0;
 let canvasLiveScroll = false;
 /**
  * Overlay scrollbar: hidden at rest, shown while the body scrolls, then fades
- * out after settle. When visible it sits above Card strips and the thumb is
- * draggable (synthetic scrollY via canvas `driveScrollY`).
+ * out after settle (paused while the pointer is over the strip). When visible
+ * it sits above Card strips and the thumb is draggable (synthetic scrollY via
+ * canvas `driveScrollY`).
  */
 const SCROLLBAR_MIN_THUMB_PX = 24;
-const SCROLLBAR_HIDE_DELAY_MS = 800;
+const SCROLLBAR_HIDE_DELAY_MS = 2000;
 const scrollbarVisible = ref(false);
 let scrollbarHideTimer = 0;
+/** True while the pointer is over the visible overlay strip — blocks auto-hide. */
+let scrollbarHovered = false;
 let scrollbarDrag: {
   pointerId: number;
   startClientY: number;
@@ -452,6 +455,7 @@ onUnmounted(() => {
     clearTimeout(scrollbarHideTimer);
     scrollbarHideTimer = 0;
   }
+  scrollbarHovered = false;
   scrollbarDrag = null;
   bodyResizeObserver?.disconnect();
   bodyResizeObserver = null;
@@ -499,6 +503,7 @@ watch(scrollbarThumb, (thumb) => {
   if (thumb != null) return;
   const wasDragging = scrollbarDrag != null;
   scrollbarVisible.value = false;
+  scrollbarHovered = false;
   clearScrollbarHideTimer();
   scrollbarDrag = null;
   if (wasDragging) applyScrollbarScrollY(liveScrollY.value, true);
@@ -522,12 +527,22 @@ function revealScrollbar(): void {
 }
 
 function scheduleScrollbarHide(): void {
-  if (scrollbarDrag) return;
+  if (scrollbarDrag || scrollbarHovered) return;
   clearScrollbarHideTimer();
   scrollbarHideTimer = window.setTimeout(() => {
     scrollbarHideTimer = 0;
     scrollbarVisible.value = false;
   }, SCROLLBAR_HIDE_DELAY_MS);
+}
+
+function onScrollbarPointerEnter(): void {
+  scrollbarHovered = true;
+  clearScrollbarHideTimer();
+}
+
+function onScrollbarPointerLeave(): void {
+  scrollbarHovered = false;
+  if (scrollbarVisible.value) scheduleScrollbarHide();
 }
 
 function applyScrollbarScrollY(y: number, settled: boolean): void {
@@ -1083,6 +1098,8 @@ defineExpose({
         :class="{ 'pr-body-scrollbar--visible': scrollbarVisible }"
         data-testid="body-scrollbar"
         aria-hidden="true"
+        @pointerenter="onScrollbarPointerEnter"
+        @pointerleave="onScrollbarPointerLeave"
         @pointerdown="onScrollbarPointerDown"
         @pointermove="onScrollbarPointerMove"
         @pointerup="onScrollbarPointerUp"
@@ -1245,7 +1262,7 @@ defineExpose({
   top: 0;
   right: 0;
   bottom: 0;
-  width: 8px;
+  width: 12px;
   z-index: 9;
   pointer-events: none;
   opacity: 0;

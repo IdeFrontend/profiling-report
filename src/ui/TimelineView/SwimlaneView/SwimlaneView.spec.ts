@@ -2489,7 +2489,7 @@ describe('SwimlaneView', () => {
       'pr-body-scrollbar--visible',
     );
 
-    await vi.advanceTimersByTimeAsync(799);
+    await vi.advanceTimersByTimeAsync(1999);
     expect(wrapper.get('[data-testid="body-scrollbar"]').classes()).toContain(
       'pr-body-scrollbar--visible',
     );
@@ -2509,8 +2509,65 @@ describe('SwimlaneView', () => {
   it('PR-SWIMVIEW-039: overlay scrollbar paints above Card strips', async () => {
     const src = (await import('./SwimlaneView.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-body-scrollbar\s*\{[^}]*z-index:\s*9/s);
+    expect(src).toMatch(/\.pr-body-scrollbar\s*\{[^}]*width:\s*12px/s);
     expect(src).toMatch(/\.pr-card-strips\s*\{[^}]*z-index:\s*8/s);
     expect(src).toMatch(/\.pr-body-scrollbar--visible\s*\{[^}]*pointer-events:\s*auto/s);
+  });
+
+  it('PR-SWIMVIEW-045: hovering the visible scrollbar cancels auto-hide', async () => {
+    vi.useFakeTimers();
+    const tallLanes = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      color: '#f00',
+      utilization: 0.5,
+    }));
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [{ id: 'card0', name: 'Card0', lanes: tallLanes }],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: tallLanes.map((l) => ({ id: l.id, name: l.name, events: [] })),
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const body = wrapper.get('[data-testid="swim-body"]').element as HTMLElement;
+    Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
+
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 40);
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 40, true);
+    await nextTick();
+    const bar = wrapper.get('[data-testid="body-scrollbar"]');
+    expect(bar.classes()).toContain('pr-body-scrollbar--visible');
+
+    await bar.trigger('pointerenter');
+    await vi.advanceTimersByTimeAsync(5000);
+    await nextTick();
+    expect(bar.classes()).toContain('pr-body-scrollbar--visible');
+
+    await bar.trigger('pointerleave');
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(bar.classes()).toContain('pr-body-scrollbar--visible');
+    await vi.advanceTimersByTimeAsync(1);
+    await nextTick();
+    expect(bar.classes()).not.toContain('pr-body-scrollbar--visible');
+
+    wrapper.unmount();
+    vi.useRealTimers();
   });
 
   it('PR-SWIMVIEW-041: no-op settled scroll-y does not reveal the scrollbar', async () => {
