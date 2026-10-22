@@ -570,7 +570,10 @@ function onScrollbarPointerEnter(): void {
   clearScrollbarHideTimer();
 }
 
-function onScrollbarPointerLeave(): void {
+function onScrollbarPointerLeave(e: PointerEvent): void {
+  // Leave can race ahead of the window pointermove; keep last xy in sync so
+  // scheduleScrollbarHide → syncScrollbarHoverFromPointer does not re-hover.
+  lastPointerClient = { x: e.clientX, y: e.clientY };
   scrollbarHovered = false;
   if (scrollbarVisible.value) scheduleScrollbarHide();
 }
