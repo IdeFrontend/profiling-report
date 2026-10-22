@@ -241,6 +241,9 @@ describe('RooflinePanel', () => {
     // Dashed series apply dash to both slope and plateau paths.
     const dashedRoof = wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]');
     expect(dashedRoof.findAll('.pr-roofline__roof--dashed')).toHaveLength(2);
+    // Round caps would eat the 3px gap at the lit 3.5px stroke. Butt keeps 4/3.
+    const src = (await import('./RooflinePanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-roofline__roof--dashed\s*\{[^}]*stroke-linecap:\s*butt/s);
 
     const leg = wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]');
     await leg.trigger('mouseenter');

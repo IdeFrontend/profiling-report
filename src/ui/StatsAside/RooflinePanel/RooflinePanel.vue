@@ -648,6 +648,10 @@ const tooltipText = computed(() => {
 
 .pr-roofline__roof--dashed {
   stroke-dasharray: 4 3;
+  /* ponytail: round caps shrink the 3px gap by the stroke width, so the lit
+     3.5px roof closes up and draws solid. butt keeps 4 on / 3 off.
+     Upgrade: scale the dasharray with stroke-width if caps must stay round. */
+  stroke-linecap: butt;
 }
 
 /* Experimental: legend hover dims other roofs and thickens the match. */
