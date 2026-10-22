@@ -338,6 +338,16 @@ describe('StatsAside', () => {
                 color: '#32BE8C',
                 seriesId: 'aiv-fp32',
               },
+              // Chip-level HardwareInfo Roofline sample — must survive block pick.
+              {
+                id: 'aiv_simd_b16',
+                label: 'AIV fp16',
+                intensity: 0.17,
+                performance: 0.17,
+                style: 'solid',
+                color: '#8C78F0',
+                seriesId: 'aiv-fp16',
+              },
             ],
             mixLabels: [{ id: 'fp32', label: 'Vec_FP32', percent: 100 }],
             series: [
@@ -423,7 +433,10 @@ describe('StatsAside', () => {
     expect(legend.text()).toContain('fp32');
     expect(legend.text()).not.toContain('AIC');
     expect(wrapper.findAll('[data-testid="roofline-roof"]')).toHaveLength(1);
-    expect(wrapper.find('[data-testid="roofline-point"]').exists()).toBe(true);
+    // Chip HardwareInfo sample + block GM (both kept).
+    expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(2);
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
+    expect(wrapper.get('[data-testid="roofline-tooltip"]').text()).toContain('AIV fp16');
   });
 
   it('PR-STATS-014e: a picked block keeps an interim root roof', async () => {
