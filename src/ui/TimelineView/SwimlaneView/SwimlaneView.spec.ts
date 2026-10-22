@@ -2570,6 +2570,70 @@ describe('SwimlaneView', () => {
     vi.useRealTimers();
   });
 
+  it('PR-SWIMVIEW-046: scrollbar appearing under a parked pointer cancels auto-hide', async () => {
+    vi.useFakeTimers();
+    const tallLanes = Array.from({ length: 40 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      color: '#f00',
+      utilization: 0.5,
+    }));
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [{ id: 'card0', name: 'Card0', lanes: tallLanes }],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: tallLanes.map((l) => ({ id: l.id, name: l.name, events: [] })),
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const body = wrapper.get('[data-testid="swim-body"]').element as HTMLElement;
+    Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
+
+    // Scroll once so the overlay mounts, then park the pointer on its rect without enter.
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 40);
+    await nextTick();
+    const bar = wrapper.get('[data-testid="body-scrollbar"]');
+    vi.spyOn(bar.element, 'getBoundingClientRect').mockReturnValue({
+      x: 100,
+      y: 0,
+      width: 12,
+      height: 200,
+      top: 0,
+      left: 100,
+      right: 112,
+      bottom: 200,
+      toJSON: () => ({}),
+    } as DOMRect);
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 106, clientY: 80 }));
+
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 80);
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 80, true);
+    await nextTick();
+    expect(bar.classes()).toContain('pr-body-scrollbar--visible');
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await nextTick();
+    expect(bar.classes()).toContain('pr-body-scrollbar--visible');
+
+    wrapper.unmount();
+    vi.useRealTimers();
+  });
+
   it('PR-SWIMVIEW-041: no-op settled scroll-y does not reveal the scrollbar', async () => {
     const tallLanes = Array.from({ length: 40 }, (_, i) => ({
       id: `l${i}`,

@@ -179,9 +179,12 @@ let canvasLiveScroll = false;
 const SCROLLBAR_MIN_THUMB_PX = 24;
 const SCROLLBAR_HIDE_DELAY_MS = 2000;
 const scrollbarVisible = ref(false);
+const scrollbarElRef = ref<HTMLElement | null>(null);
 let scrollbarHideTimer = 0;
 /** True while the pointer is over the visible overlay strip — blocks auto-hide. */
 let scrollbarHovered = false;
+/** Last window pointer — reveal under a parked cursor never fires enter/leave. */
+let lastPointerClient: { x: number; y: number } | null = null;
 let scrollbarDrag: {
   pointerId: number;
   startClientY: number;
@@ -435,7 +438,12 @@ const cardStrips = computed(() => {
 
 let bodyResizeObserver: ResizeObserver | null = null;
 
+function onGlobalPointerMove(e: PointerEvent): void {
+  lastPointerClient = { x: e.clientX, y: e.clientY };
+}
+
 onMounted(() => {
+  window.addEventListener('pointermove', onGlobalPointerMove, { passive: true });
   const el = bodyRef.value;
   if (!el) return;
   const sync = () => {
@@ -448,6 +456,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener('pointermove', onGlobalPointerMove);
+  lastPointerClient = null;
   cancelOverviewAnim();
   if (canvasLiveScroll) emit('update:scrollY', liveScrollY.value);
   if (gutterScrollSyncRaf) cancelAnimationFrame(gutterScrollSyncRaf);
@@ -515,6 +525,18 @@ function clearScrollbarHideTimer(): void {
   scrollbarHideTimer = 0;
 }
 
+/** Enter/leave miss a parked cursor when the strip appears underneath — use last xy. */
+function syncScrollbarHoverFromPointer(): void {
+  const el = scrollbarElRef.value;
+  if (!el || !scrollbarVisible.value || lastPointerClient == null) return;
+  const r = el.getBoundingClientRect();
+  const { x, y } = lastPointerClient;
+  if (x >= r.left && x < r.right && y >= r.top && y < r.bottom) {
+    scrollbarHovered = true;
+    clearScrollbarHideTimer();
+  }
+}
+
 function revealScrollbar(): void {
   syncBodyViewportH();
   if (!scrollbarThumb.value) {
@@ -524,13 +546,17 @@ function revealScrollbar(): void {
   }
   scrollbarVisible.value = true;
   clearScrollbarHideTimer();
+  syncScrollbarHoverFromPointer();
 }
 
 function scheduleScrollbarHide(): void {
+  syncScrollbarHoverFromPointer();
   if (scrollbarDrag || scrollbarHovered) return;
   clearScrollbarHideTimer();
   scrollbarHideTimer = window.setTimeout(() => {
     scrollbarHideTimer = 0;
+    syncScrollbarHoverFromPointer();
+    if (scrollbarDrag || scrollbarHovered) return;
     scrollbarVisible.value = false;
   }, SCROLLBAR_HIDE_DELAY_MS);
 }
@@ -1094,6 +1120,7 @@ defineExpose({
       <!-- Above Card strips (z-index 9), below measure edge marks (10–11); pointer-only. -->
       <div
         v-if="scrollbarThumb"
+        ref="scrollbarElRef"
         class="pr-body-scrollbar"
         :class="{ 'pr-body-scrollbar--visible': scrollbarVisible }"
         data-testid="body-scrollbar"
