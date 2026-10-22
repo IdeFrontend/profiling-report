@@ -31,14 +31,14 @@ export type RooflineSeriesId =
   | 'aic-fp32'
   | 'aic-int8-fp8';
 
-/** Screenshot legend + colors (tabs omitted). */
+/** Screenshot legend + colors (tabs omitted). AIV roofs dashed; AIC roofs solid. */
 export const ROOFLINE_SERIES_META: Record<
   RooflineSeriesId,
   { group: 'aiv' | 'aic'; label: string; color: string; slopeStyle: 'solid' | 'dashed' }
 > = {
-  'aiv-fp16': { group: 'aiv', label: 'AIV fp16', color: '#8C78F0', slopeStyle: 'solid' },
+  'aiv-fp16': { group: 'aiv', label: 'AIV fp16', color: '#8C78F0', slopeStyle: 'dashed' },
   'aiv-bp16': { group: 'aiv', label: 'AIV bp16', color: '#E63C82', slopeStyle: 'dashed' },
-  'aiv-fp32': { group: 'aiv', label: 'AIV fp32', color: '#32BE8C', slopeStyle: 'solid' },
+  'aiv-fp32': { group: 'aiv', label: 'AIV fp32', color: '#32BE8C', slopeStyle: 'dashed' },
   'aic-int16-fp16': {
     group: 'aic',
     label: 'AIC int16 fp16',
@@ -49,14 +49,14 @@ export const ROOFLINE_SERIES_META: Record<
     group: 'aic',
     label: 'AIC int32 fp32',
     color: '#4C8DFF',
-    slopeStyle: 'dashed',
+    slopeStyle: 'solid',
   },
   'aic-fp32': { group: 'aic', label: 'AIC fp32', color: '#B4E04A', slopeStyle: 'solid' },
   'aic-int8-fp8': {
     group: 'aic',
     label: 'AIC int8 fp8',
     color: '#F0A020',
-    slopeStyle: 'dashed',
+    slopeStyle: 'solid',
   },
 };
 

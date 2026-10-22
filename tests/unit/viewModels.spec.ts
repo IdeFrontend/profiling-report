@@ -1019,6 +1019,9 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(model!.points.find((p) => p.id === 'aic_b8')!.label).toBe('AIC int8 fp8');
     // Sparse JSON overlays the full AIV+AIC legend (does not replace it).
     expect(model!.series.map((s) => s.id)).toEqual(Object.keys(ROOFLINE_SERIES_META));
+    for (const s of model!.series) {
+      expect(s.slopeStyle).toBe(s.group === 'aiv' ? 'dashed' : 'solid');
+    }
     const aiv = model!.series.find((s) => s.id === 'aiv-fp16')!;
     expect(aiv.peakComputeTops).toBeCloseTo(2.7e13 / 1e12, 6);
     expect(aiv.peakBandwidthGBs).toBe(1600);

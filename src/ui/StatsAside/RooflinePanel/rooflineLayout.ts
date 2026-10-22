@@ -26,8 +26,6 @@ export const ROOFLINE_PAD = {
   b: Math.round(SKETCH_PAD.b * chartScale),
 } as const;
 
-/** Baseline inset below plot top — keep mix text clear of roof lines. */
-export const ROOFLINE_MIX_TOP_INSET = Math.round(5 * chartScale);
 export const ROOFLINE_Y_TICK_LABEL_DY = Math.round(3 * chartScale);
 export const ROOFLINE_X_TICK_BELOW_PLOT = Math.round(12 * chartScale);
 export const ROOFLINE_TOPS_GAP_ABOVE_PLOT = Math.round(9 * chartScale);

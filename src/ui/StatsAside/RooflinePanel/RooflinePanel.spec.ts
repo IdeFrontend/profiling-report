@@ -4,7 +4,6 @@ import RooflinePanel from './RooflinePanel.vue';
 import {
   ROOFLINE_CHART_H,
   ROOFLINE_CHART_W,
-  ROOFLINE_MIX_TOP_INSET,
   ROOFLINE_OPS_GAP_FROM_PLOT,
   ROOFLINE_PAD,
   ROOFLINE_TOPS_GAP_ABOVE_PLOT,
@@ -47,10 +46,18 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('[data-testid="roofline-panel"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="roofline-chart"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="roofline-roof"]').exists()).toBe(true);
-    expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(1);
+    const points = wrapper.findAll('[data-testid="roofline-point"]');
+    expect(points).toHaveLength(1);
+    // Measured points off the roofs are circles; ridge knees are filled rounded squares.
+    expect(points[0]!.element.tagName.toLowerCase()).toBe('circle');
+    expect(points[0]!.attributes('r')).toBe('4');
+    expect(points[0]!.attributes('fill')).toBe(sample.points[0]!.color);
     const knees = wrapper.findAll('[data-testid="roofline-knee"]');
     expect(knees).toHaveLength(sample.series.length);
-    expect(knees[0]!.attributes('fill')).toBe('#262626');
+    expect(knees[0]!.element.tagName.toLowerCase()).toBe('rect');
+    expect(knees[0]!.attributes('width')).toBe('8');
+    expect(knees[0]!.attributes('rx')).toBe('2');
+    expect(knees[0]!.attributes('fill')).toBe(sample.series[0]!.color);
     expect(knees[0]!.attributes('stroke')).toBe(sample.series[0]!.color);
     expect(knees[0]!.attributes('pointer-events')).toBe('none');
   });
@@ -106,7 +113,12 @@ describe('RooflinePanel', () => {
     expect(plotW).toBe(ROOFLINE_CHART_W - ROOFLINE_PAD.l - ROOFLINE_PAD.r);
 
     const mix = wrapper.get('[data-testid="roofline-mix"]');
-    expect(Number(mix.attributes('y'))).toBe(plotTop + ROOFLINE_MIX_TOP_INSET);
+    const tops = wrapper.get('.pr-roofline__axis--y');
+    // Locked (PR-ROOF-002b): mix + TOps/s share one alphabetic baseline above the plot.
+    expect(Number(mix.attributes('y'))).toBe(Number(tops.attributes('y')));
+    expect(Number(mix.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
+    expect(mix.attributes('dominant-baseline')).toBe('alphabetic');
+    expect(tops.attributes('dominant-baseline')).toBe('alphabetic');
 
     const xTick = wrapper.get('.pr-roofline__tick');
     expect(Number(xTick.attributes('y'))).toBe(xTickY);
@@ -117,12 +129,9 @@ describe('RooflinePanel', () => {
     expect(ops.attributes('text-anchor')).toBe('start');
     expect(ops.attributes('dominant-baseline')).toBe('middle');
 
-    const tops = wrapper.get('.pr-roofline__axis--y');
-    expect(Number(tops.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT - 9);
-    expect(Number(tops.attributes('y')) + 9).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
-    // Left edge aligns with card title / AIV / AIC (not end-anchored at the plot).
+    expect(Number(tops.attributes('y'))).toBe(plotTop - ROOFLINE_TOPS_GAP_ABOVE_PLOT);
+    // Left edge aligns with aside title / AIV / AIC (not end-anchored at the plot).
     expect(Number(tops.attributes('x'))).toBe(0);
-    expect(tops.attributes('dominant-baseline')).toBe('hanging');
     expect(tops.attributes('text-anchor')).toBe('start');
 
     expect(wrapper.find('.pr-roofline__markers [data-testid="roofline-point"]').exists()).toBe(true);
@@ -151,7 +160,7 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('[data-testid="roofline-roof"]').exists()).toBe(true);
   });
 
-  it('PR-ROOF-006: legend under title, left-aligned AIV/AIC rows', async () => {
+  it('PR-ROOF-006: legend at card top, left-aligned AIV/AIC rows (no in-card title)', async () => {
     const multi: RooflineViewModel = {
       ...sample,
       series: [
@@ -186,16 +195,11 @@ describe('RooflinePanel', () => {
     };
     const wrapper = mount(RooflinePanel, { props: { model: multi } });
     const head = wrapper.get('.pr-roofline__card-head');
-    const title = wrapper.get('.pr-roofline__chart-title');
     const legend = wrapper.get('[data-testid="roofline-legend"]');
     expect(head.element.contains(legend.element)).toBe(true);
-    // Title precedes legend in DOM (column stack, not a side-by-side header).
-    expect(
-      title.element.compareDocumentPosition(legend.element) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(wrapper.find('.pr-roofline__chart-title').exists()).toBe(false);
     const src = (await import('./RooflinePanel.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-roofline__card-head\s*\{[^}]*flex-direction:\s*column/s);
-    expect(src).toMatch(/\.pr-roofline__card-head\s*\{[^}]*gap:\s*10px/s);
+    expect(src).not.toMatch(/pr-roofline__chart-title/);
     expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*display:\s*grid/s);
     expect(src).toMatch(/\.pr-roofline__leg-head\s*\{[^}]*color:\s*#c4c4c4/s);
     expect(src).toMatch(/\.pr-roofline__leg-item\s*\{[^}]*color:\s*#8a8a8a/s);
@@ -209,6 +213,56 @@ describe('RooflinePanel', () => {
     expect(wrapper.findAll('.pr-roofline__leg-pad')).toHaveLength(1);
   });
 
+  it('PR-ROOF-008: legend hover highlights the matching roof', async () => {
+    const multi: RooflineViewModel = {
+      ...sample,
+      series: [
+        {
+          id: 'aiv-fp16',
+          group: 'aiv',
+          label: 'AIV fp16',
+          color: '#8C78F0',
+          peakComputeTops: 10,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'dashed',
+        },
+        {
+          id: 'aic-fp32',
+          group: 'aic',
+          label: 'AIC fp32',
+          color: '#B4E04A',
+          peakComputeTops: 20,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'solid',
+        },
+      ],
+    };
+    const wrapper = mount(RooflinePanel, { props: { model: multi } });
+    // Dashed series apply dash to both slope and plateau paths.
+    const dashedRoof = wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]');
+    expect(dashedRoof.findAll('.pr-roofline__roof--dashed')).toHaveLength(2);
+    // Round caps would eat the 3px gap at the lit 3.5px stroke. Butt keeps 4/3.
+    const src = (await import('./RooflinePanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-roofline__roof--dashed\s*\{[^}]*stroke-linecap:\s*butt/s);
+
+    const leg = wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]');
+    await leg.trigger('mouseenter');
+    const roofs = wrapper.findAll('[data-testid="roofline-roof"]');
+    const lit = roofs.find((r) => r.classes().includes('pr-roofline__roof-g--lit'));
+    const dim = roofs.filter((r) => r.classes().includes('pr-roofline__roof-g--dim'));
+    expect(lit?.attributes('data-series-id')).toBe('aiv-fp16');
+    expect(dim).toHaveLength(1);
+    expect(dim[0]!.attributes('data-series-id')).toBe('aic-fp32');
+    // Highlighted series is painted last (on top).
+    expect(roofs[roofs.length - 1]!.attributes('data-series-id')).toBe('aiv-fp16');
+    expect(
+      wrapper.get('[data-testid="roofline-knee"][data-series-id="aic-fp32"]').classes(),
+    ).toContain('pr-roofline__roof-g--dim');
+    await leg.trigger('mouseleave');
+    expect(wrapper.find('.pr-roofline__roof-g--lit').exists()).toBe(false);
+    expect(wrapper.find('.pr-roofline__roof-g--dim').exists()).toBe(false);
+  });
+
   it('PR-ROOF-004: hover point shows tooltip inside card without layout jump', async () => {
     const wrapper = mount(RooflinePanel, { props: { model: sample } });
     const card = wrapper.get('.pr-roofline__card');
@@ -217,7 +271,7 @@ describe('RooflinePanel', () => {
     // Tip is a reserved in-flow band under the SVG (not absolute over ticks).
     const src = (await import('./RooflinePanel.vue?raw')).default as string;
     expect(src).toMatch(
-      /\.pr-roofline__tip\s*\{[^}]*min-height:\s*calc\(11px\s*\*\s*1\.2\)/s,
+      /\.pr-roofline__tip\s*\{[^}]*min-height:\s*calc\(12px\s*\*\s*1\.2\)/s,
     );
     expect(src).not.toMatch(/\.pr-roofline__tip\s*\{[^}]*position:\s*absolute/s);
 
