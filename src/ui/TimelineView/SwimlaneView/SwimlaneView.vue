@@ -440,6 +440,11 @@ let bodyResizeObserver: ResizeObserver | null = null;
 
 function onGlobalPointerMove(e: PointerEvent): void {
   lastPointerClient = { x: e.clientX, y: e.clientY };
+  if (!scrollbarVisible.value) return;
+  const wasHovered = scrollbarHovered;
+  syncScrollbarHoverFromPointer();
+  // Parked-cursor path never got pointerenter, so leave never clears hover — re-arm hide here.
+  if (wasHovered && !scrollbarHovered) scheduleScrollbarHide();
 }
 
 onMounted(() => {
@@ -531,10 +536,9 @@ function syncScrollbarHoverFromPointer(): void {
   if (!el || !scrollbarVisible.value || lastPointerClient == null) return;
   const r = el.getBoundingClientRect();
   const { x, y } = lastPointerClient;
-  if (x >= r.left && x < r.right && y >= r.top && y < r.bottom) {
-    scrollbarHovered = true;
-    clearScrollbarHideTimer();
-  }
+  const over = x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+  scrollbarHovered = over;
+  if (over) clearScrollbarHideTimer();
 }
 
 function revealScrollbar(): void {

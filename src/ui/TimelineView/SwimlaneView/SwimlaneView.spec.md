@@ -24,7 +24,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 **Body scroll.** `.pr-swim-row--body` uses `overflow: hidden` so lane scroll stays contained while ReportLayout `.pr-main` stays `overflow: visible` for overview/axis chrome at the aside seam. Wheel over the lane gutter is forwarded to the body canvas `handleWheel` (same scroll / trackpad pan / Ctrl+zoom as Card strips and overview); the gutter does not native-overflow-scroll. Vertical wheel eases shared `scrollY` so labels and event rows stay aligned for the whole motion.
 
-**Auto-hide scrollbar.** When content is taller than the body viewport, a 12px-wide overlay thumb paints on the right edge of the chart column (not the gutter). It is **invisible at rest** (`pointer-events: none`). Any canvas `scroll-y` (wheel ease, marquee edge autoscroll, gutter settle) reveals it immediately; after the ease **settles**, it stays ~2s then **fades out** (~500ms opacity). While the pointer is over the visible strip, auto-hide is paused and only resumes after `pointerleave`. Reveal / hide also sample the last window pointer against the strip rect so a parked cursor (no enter/leave) still blocks hide. While visible it accepts pointer hits: drag the thumb (or click the track) to drive synthetic `scrollY` via the body canvas; wheel over the strip is forwarded to the body canvas like Card strips / gutter. When overflow ends (collapse / resize), clear the visible flag so a later remount cannot flash a visible bar without a new scroll, and if a thumb drag was in flight settle `driveScrollY` so the canvas drops `overlayScrollActive`. Hidden entirely when content fits.
+**Auto-hide scrollbar.** When content is taller than the body viewport, a 12px-wide overlay thumb paints on the right edge of the chart column (not the gutter). It is **invisible at rest** (`pointer-events: none`). Any canvas `scroll-y` (wheel ease, marquee edge autoscroll, gutter settle) reveals it immediately; after the ease **settles**, it stays ~2s then **fades out** (~500ms opacity). While the pointer is over the visible strip, auto-hide is paused and only resumes after `pointerleave`. Reveal / hide also sample the last window pointer against the strip rect so a parked cursor (no enter/leave) still blocks hide; further moves clear that hover and re-arm the hide timer. While visible it accepts pointer hits: drag the thumb (or click the track) to drive synthetic `scrollY` via the body canvas; wheel over the strip is forwarded to the body canvas like Card strips / gutter. When overflow ends (collapse / resize), clear the visible flag so a later remount cannot flash a visible bar without a new scroll, and if a thumb drag was in flight settle `driveScrollY` so the canvas drops `overlayScrollActive`. Hidden entirely when content fits.
 
 **Layer order (bottom → top).** Swimlane measure fades/borders (canvas overlays) sit **below** Card strips. Card strips sit at `z-index: 8`. The marquee multi-select rect sits above the measure chrome **and above** Card strip expanders (`z-index: 9`, same band as the swim cursor / Alt-measure chrome) so the blue rect paints over header chrome while dragging. The mouse-following cursor bar lives inside `SwimlaneCanvas` (`z-index: 9` over strips; event canvas / edge marks sit lower) so magnet snap markers still read clearly. Its x position comes from canvas pointer emits and from the parent `cursorXRatio` prop (so viewport-axis hover keeps the full-height playhead). Overlay scrollbar sits at `z-index: 9` on the chart-column right edge (above Card strips, below measure edge marks at `10–11`) so snap/exact stems stay readable on that strip. Gutter resize handle stays under strips (`z-index: 5`).
 
@@ -101,7 +101,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 43. **PR-SWIMVIEW-043** — Visible scrollbar strip forwards wheel to the body canvas.
 44. **PR-SWIMVIEW-044** — Overflow end mid-drag settles canvas scroll (clears overlayScrollActive).
 45. **PR-SWIMVIEW-045** — Hovering the visible scrollbar cancels auto-hide until pointer leave.
-46. **PR-SWIMVIEW-046** — Scrollbar appearing under a parked pointer cancels auto-hide (no enter needed).
+46. **PR-SWIMVIEW-046** — Scrollbar appearing under a parked pointer cancels auto-hide; moving away without leave resumes hide.
 
 
 ## Visual
@@ -128,7 +128,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
-- **2026-10-22** — Parked-pointer hover sync + hide-timeout re-check (`PR-SWIMVIEW-046`); wider overlay (12px), ~2s hide delay, pause on hover (`PR-SWIMVIEW-038`/`039`/`045`).
+- **2026-10-22** — Parked-pointer hover sync clears on leave-move; hide-timeout re-check (`PR-SWIMVIEW-046`); wider overlay (12px), ~2s hide delay, pause on hover (`PR-SWIMVIEW-038`/`039`/`045`).
 - **2026-10-21** — Clear scrollbar visibility when overflow ends; forward wheel; settle mid-drag on overflow end (`PR-SWIMVIEW-042`…`044`).
 - **2026-10-20** — Auto-hide overlay scrollbar; above cards; thumb drag; ignore no-op settle (`PR-SWIMVIEW-037`…`041`).
 - **2026-09-22** — Body canvas `view` is the time window only (`PR-SWIMVIEW-035`).

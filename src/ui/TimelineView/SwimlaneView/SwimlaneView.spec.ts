@@ -2630,6 +2630,14 @@ describe('SwimlaneView', () => {
     await nextTick();
     expect(bar.classes()).toContain('pr-body-scrollbar--visible');
 
+    // Leave without pointerleave (parked path never entered) — hide must resume.
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 50, clientY: 80 }));
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(bar.classes()).toContain('pr-body-scrollbar--visible');
+    await vi.advanceTimersByTimeAsync(1);
+    await nextTick();
+    expect(bar.classes()).not.toContain('pr-body-scrollbar--visible');
+
     wrapper.unmount();
     vi.useRealTimers();
   });
