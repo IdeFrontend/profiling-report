@@ -28,7 +28,11 @@ vi.mock('@sudu-ide/code-review', () => ({
       if (caretListener && position.lineNumber !== prev) caretListener(position.lineNumber);
     };
     return {
-      setModel: vi.fn(),
+      // Real Sudu setModel resets lastNotifiedCaretLine and always notifies line 1.
+      setModel: vi.fn(() => {
+        position = { lineNumber: 1, column: 1 };
+        caretListener?.(1);
+      }),
       setVScrollListener: vi.fn(),
       setVScrollVisible: vi.fn(),
       setCaretListener: vi.fn((cb: ((lineNumber: number) => void) | null) => {
@@ -518,6 +522,19 @@ describe('SourceView', () => {
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
   });
 
+  it('PR-SOURCE-012b: scroll-to-top during Sudu boot keeps both carets and stays suppressed', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await wrapper.find('[data-testid="source-scroll-top"]').trigger('click');
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    expect(sourceTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+  });
+
   it('PR-SOURCE-016: scroll-to-bottom suppresses correlated highlights at last lines', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
@@ -537,6 +554,48 @@ describe('SourceView', () => {
       'pr-src-metrics__row--current',
     );
     expect(asmTable.find(`tr[data-line="${asmLast}"]`).classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+  });
+
+  it('PR-SOURCE-016b: scroll-to-bottom during Sudu boot keeps both carets and stays suppressed', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await wrapper.find('[data-testid="source-scroll-bottom"]').trigger('click');
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    const srcLast = model.files[0]!.text.split(/\r?\n/).length;
+    const asmLast = model.assembly.lines[model.assembly.lines.length - 1]!.line;
+    expect(sourceTable.find(`tr[data-line="${srcLast}"]`).classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+    expect(asmTable.find(`tr[data-line="${asmLast}"]`).classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+  });
+
+  it('PR-SOURCE-014d: asm click before boot still clears the echo gate', async () => {
+    const model = mockSourceCorrelation();
+    const line1Asm = model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line;
+    expect(line1Asm).toBeDefined();
+    model.asmToSource[line1Asm!] = { fileId: 'sharpen.cpp', line: 1 };
+    model.sourceToAsm['sharpen.cpp:1'] = [line1Asm!];
+    const wrapper = mount(SourceView, { props: { model } });
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find(`tr[data-line="${line1Asm}"]`).trigger('click');
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    expect(sourceTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.find(`tr[data-line="${line1Asm}"]`).classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+    // Gate must be clear: a later source line moves the asm caret to mapped[0].
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await flushPromises();
+    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.find(`tr[data-line="${line1Asm}"]`).classes()).not.toContain(
       'pr-src-metrics__row--current',
     );
   });
@@ -664,6 +723,7 @@ describe('SourceView', () => {
     const search = wrapper.get('[data-testid="source-search"]');
     await search.setValue('FFMA');
     await wrapper.vm.$nextTick();
+    await flushPromises();
 
     const fileSelect = wrapper.find('[data-testid="source-file-select"]');
     await fileSelect.trigger('click');

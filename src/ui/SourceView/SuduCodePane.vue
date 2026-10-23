@@ -134,6 +134,12 @@ let disposed = false;
 /** Selection requested before Sudu finished booting — applied in boot(). */
 let pendingLine: number | null = null;
 /**
+ * True when `pendingLine` came from imperative `setLine` (asm jump).
+ * Boot must echo that caret so the parent's sync gate can clear.
+ * A `currentLine` watch (scroll-to-top/bottom) leaves this false and must not emit.
+ */
+let pendingCaretEcho = false;
+/**
  * Suppress caret→emit while setLine is programmatic (asm→source). Cleared
  * synchronously after setPosition/reveal — Sudu’s caret listener is sync with
  * setPosition (standalone-sample); no timer.
@@ -264,11 +270,25 @@ async function boot() {
     editor.setModel(model);
     wireSync();
     applySearchHighlights();
-    // Apply selection chosen before boot finished (asm click / parent setLine).
+    // Apply selection chosen before boot finished. Imperative setLine (asm jump)
+    // must echo so syncOrigin can clear. Prop-driven lines (scroll) must not:
+    // onSourceLine would drop correlationSuppressed and the forced caret.
+    const echo = pendingCaretEcho;
     const bootLine = pendingLine ?? props.currentLine;
+    pendingLine = null;
+    pendingCaretEcho = false;
     if (bootLine != null) {
-      pendingLine = null;
-      setLine(bootLine);
+      if (echo) {
+        const applied = setLine(bootLine);
+        if (applied === 'unchanged') emit('update:currentLine', bootLine);
+      } else {
+        ignoreCaret = true;
+        try {
+          setLine(bootLine);
+        } finally {
+          ignoreCaret = false;
+        }
+      }
     }
     waitForGeom();
   } catch (e) {
@@ -473,13 +493,10 @@ function setLine(line: number): 'unchanged' | 'moved' {
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.revealLine(line);
   editor.focus();
-  // Same-line setPosition does not notify the caret listener. Emit so an
-  // asm-driven gate is absorbed instead of sticking (boot applies pending lines).
-  if (prev === line) {
-    emit('update:currentLine', line);
-    return 'unchanged';
-  }
-  return 'moved';
+  // Do not emit here. A live caller reads 'unchanged' (onAsmLine drops the gate).
+  // Boot emits only for an imperative queue — a prop-driven same line (scroll)
+  // must not look like a user click.
+  return prev === line ? 'unchanged' : 'moved';
 }
 
 /**
@@ -489,6 +506,7 @@ function setLine(line: number): 'unchanged' | 'moved' {
  */
 function clearLine() {
   pendingLine = null;
+  pendingCaretEcho = false;
   if (!editor) return;
   ignoreCaret = true;
   try {
@@ -504,9 +522,10 @@ function clearLine() {
 function setLineOrQueue(line: number): 'queued' | 'unchanged' | 'moved' {
   if (!editor) {
     pendingLine = line;
+    pendingCaretEcho = true;
     return 'queued';
   }
-  pendingLine = null;
+  pendingCaretEcho = false;
   return setLine(line);
 }
 
@@ -546,6 +565,7 @@ watch(
   async (file) => {
     if (!editor || !pool || !model) return;
     const api = await loadSuduApi();
+    if (disposed || !editor || !pool || !model) return;
     const prev = model;
     model = api.newTextModel(
       pool,
@@ -553,11 +573,19 @@ watch(
       file.language,
       { path: file.path },
     );
-    editor.setModel(model);
-    prev.dispose();
-    readGeom();
-    applySearchHighlights();
-    if (props.currentLine != null) setLine(props.currentLine);
+    // setModel resets lastNotifiedCaretLine and always notifies line 1.
+    // That echo would undo a file-switch clear (PR-SOURCE-015).
+    ignoreCaret = true;
+    try {
+      editor.setModel(model);
+      prev.dispose();
+      readGeom();
+      applySearchHighlights();
+      if (props.currentLine != null) setLine(props.currentLine);
+      else clearLine();
+    } finally {
+      ignoreCaret = false;
+    }
   },
 );
 
@@ -578,7 +606,11 @@ watch(
       return;
     }
     if (!editor) {
+      // onAsmLine sets sourceLine and then setLine, which queues pendingCaretEcho.
+      // This watch flushes next and must not downgrade that same line.
+      if (pendingCaretEcho && pendingLine === line) return;
       pendingLine = line;
+      pendingCaretEcho = false;
       return;
     }
     const pos = editor.getPosition?.();
