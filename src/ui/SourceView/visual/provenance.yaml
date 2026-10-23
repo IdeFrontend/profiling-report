@@ -1,0 +1,7 @@
+component: SourceView
+source_primary: v930-source/source-correlation
+crops:
+  source-correlation.png:
+    source: v930-source/source-correlation
+    region: "Full Source | SASS correlation surface (toolbar, dual panes, metrics, bottom dock)"
+    box: { x: 0, y: 0, w: 7680, h: 4320 }

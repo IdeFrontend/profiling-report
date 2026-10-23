@@ -1,9 +1,20 @@
 .idea
+# Local operator pack dumps (Source-tab exploration); committed fixtures under data/gather_2d/
+sample.zip
+sample*.zip
+# Local product docs (cite from Downloads; do not commit binaries)
+npu-compute*.pdf
+*.pdf
+!docs/**/*.pdf
 node_modules/
 dist/
 playground/dist/
 playground/public/data/*
 !playground/public/data/.gitkeep
+playground/public/sudu/*
+!playground/public/sudu/.gitkeep
+playground/public/sqljs/*
+!playground/public/sqljs/.gitkeep
 playground/public/npu-rep-html-template.html
 playground/public/npu-rep-html-template.txt
 # Unpacked gelu leaf (use unpack_rep.py locally; commit only gelu.npu-rep)

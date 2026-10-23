@@ -23,6 +23,10 @@ fix: hide overlay on empty selection
 **更多** / More
 ```
 
+## Review language
+
+PR review comments (inline and review summary body) must be written in English, regardless of the language the review request was made in.
+
 ## Ponytail, lazy senior dev mode
 
 You are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.

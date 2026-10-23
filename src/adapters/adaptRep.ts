@@ -26,6 +26,7 @@ import {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
 import { rooflineFromRows } from './roofline';
 
 export { rooflineFromRows } from './roofline';
@@ -1052,6 +1053,10 @@ export function adaptRep(parsed: ParsedRep): AdaptedReport {
 /** Map raw payloads (any container: `cann-rep` leaf or `npu-rep` leaf) → swimlane + report. */
 export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
   const reportModel = reportModelFromPayloads(payloads);
+  const sourceCorrelation = adaptSourceCorrelation(payloads);
+  if (sourceCorrelation && !sourceCorrelation.mock) {
+    reportModel.sourceCorrelation = sourceCorrelation;
+  }
   const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
   // npu-compute §11.8: derive when points exist (host may still pass capabilities to override).
@@ -1059,6 +1064,8 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
   if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
+  // UI-37: 源码 only when real source embeds adapted (no mock fallback).
+  if (reportModel.sourceCorrelation) capabilities.push('sourceTab');
   return {
     swimlaneModel,
     reportModel,

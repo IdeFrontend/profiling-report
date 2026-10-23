@@ -22,20 +22,25 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['test query']]);
   });
 
-  it('PR-TOOLBAR-026: 源码 is disabled; 时间线 is active; 详情 / 缓存 are absent', () => {
+  it('PR-TOOLBAR-026: 源码 gated by sourceTabEnabled; 详情 / 缓存 absent', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     const timeline = wrapper.find('[data-testid="tab-timeline"]');
     expect(timeline.exists()).toBe(true);
     expect(timeline.attributes('disabled')).toBeUndefined();
     expect(timeline.classes()).toContain('pr-tabs__tab--active');
 
-    const source = wrapper.find('[data-testid="tab-source"]');
-    expect(source.exists()).toBe(true);
-    expect(source.attributes('disabled')).toBeDefined();
-    expect(source.attributes('title')).toBe(t('tabsNotSupported'));
-
+    expect(wrapper.find('[data-testid="tab-source"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="tab-detail"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="tab-cache"]').exists()).toBe(false);
+
+    await wrapper.setProps({ sourceTabEnabled: true, activeTab: 'timeline' });
+    expect(wrapper.find('[data-testid="tab-source"]').attributes('disabled')).toBeUndefined();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    expect(wrapper.emitted('update:activeTab')).toEqual([['source']]);
+
+    await wrapper.setProps({ activeTab: 'source' });
+    expect(wrapper.find('[data-testid="search-input"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="zoom-pill"]').exists()).toBe(false);
   });
 
   it('PR-TOOLBAR-025: clear × emits empty searchQuery; inset focus ring is not clipped', async () => {
@@ -67,7 +72,7 @@ describe('ReportToolbar', () => {
     expect(wrapper.find('[data-testid="search-clear"]').exists()).toBe(false);
     wrapper.unmount();
 
-    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    const src = (await import('./ToolbarSearch.vue?raw')).default as string;
     expect(src).toMatch(
       /\.pr-toolbar__search input:focus-visible\s*\{[^}]*box-shadow:\s*inset 0 0 0 2px/,
     );
@@ -187,6 +192,31 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-icon\s*\{[^}]*height:\s*16px/);
   });
 
+  it('PR-TOOLBAR-028: icon actions tip via aria-label CSS, not native title', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const measure = wrapper.find('[data-testid="toggle-measure"]');
+    expect(measure.attributes('title')).toBeUndefined();
+    expect(measure.attributes('aria-label')).toBe(t('measure'));
+    expect(measure.classes()).toContain('pr-icon-tip');
+
+    const zoomOut = wrapper.find('[data-testid="zoom-out"]');
+    expect(zoomOut.attributes('title')).toBeUndefined();
+    expect(zoomOut.attributes('aria-label')).toBe(t('zoomOut'));
+    expect(zoomOut.classes()).toContain('pr-icon-tip');
+
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const tipCss = readFileSync(resolve(__dirname, '../tokens.css'), 'utf8');
+    expect(tipCss).toMatch(/\.pr-icon-tip::after\s*\{[^}]*content:\s*attr\(aria-label\)/);
+    expect(tipCss).toMatch(
+      /\.pr-icon-tip:hover:not\(:disabled\):not\(\[aria-expanded='true'\]\)::after/,
+    );
+    expect(tipCss).toMatch(/\.pr-icon-tip\[data-toolbar-clip\]::after/);
+    const guide = wrapper.find('[data-testid="open-user-guide"]');
+    expect(guide.attributes('data-toolbar-clip')).toBeDefined();
+    expect(guide.classes()).toContain('pr-icon-tip');
+  });
+
   it('PR-TOOLBAR-017: connection-level help explains on hover, not via title', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     await wrapper.find('[data-testid="toggle-display-control"]').trigger('click');
@@ -220,7 +250,8 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*flex-wrap:\s*nowrap/);
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*overflow-x:\s*clip/);
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*max-width:\s*100%/);
-    expect(src).toMatch(/\.pr-toolbar__search input[\s\S]*?background:\s*#2a2a2a/);
+    const searchSrc = (await import('./ToolbarSearch.vue?raw')).default as string;
+    expect(searchSrc).toMatch(/\.pr-toolbar__search input[\s\S]*?background:\s*#2a2a2a/);
     expect(src).toMatch(/\.pr-toolbar__zoom-pill[\s\S]*?background:\s*#363636/);
     expect(src).toMatch(/#ffffff\s+0%/); // filled track
     expect(src).toMatch(/#1a1a1a\s+var\(--pr-zoom-fill/); // unfilled webkit

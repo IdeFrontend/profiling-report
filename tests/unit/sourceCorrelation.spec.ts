@@ -1,0 +1,63 @@
+import { describe, expect, it } from 'vitest';
+import {
+  adaptChromeTrace,
+  adaptRep,
+  adaptSourceCorrelation,
+  mockSourceCorrelation,
+  parseRep,
+} from '../../src/index';
+import { loadOutRepBytes } from '../helpers/fixtures';
+
+describe('PR-SRC: source correlation adapter', () => {
+  it('PR-SRC-001: adaptSourceCorrelation returns null on out.rep payloads', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    expect(adaptSourceCorrelation(parsed.payloads)).toBeNull();
+  });
+
+  it('PR-SRC-002: mockSourceCorrelation is deterministic with bidirectional maps', () => {
+    const a = mockSourceCorrelation();
+    const b = mockSourceCorrelation();
+    expect(a).toEqual(b);
+    expect(a.mock).toBe(true);
+    expect(a.files.length).toBeGreaterThan(0);
+    expect(a.files[0]!.language).toBe('ascend-c');
+    expect(a.files[0]!.path).toMatch(/\.cpp$/);
+    expect(a.files[0]!.text.split(/\r?\n/).length).toBeGreaterThanOrEqual(100);
+    expect(a.assembly.lines.length).toBeGreaterThanOrEqual(40);
+    expect(a.assembly.path).toMatch(/^sharpen\[abi:/);
+    expect(a.assembly.metricsColumns.map((c) => c.id)).toEqual([
+      'address',
+      'assembly',
+      'instructionsExecuted',
+      'samplingStall',
+      'warpOccupancy',
+    ]);
+    expect(a.assembly.lines[0]!.values.assembly).toBeTruthy();
+    expect(Number(a.assembly.lines[0]!.values.samplingStall)).toBeGreaterThan(1_000_000);
+    expect(Object.keys(a.sourceToAsm).length).toBeGreaterThan(0);
+    for (const [key, asmLines] of Object.entries(a.sourceToAsm)) {
+      const line = Number(key.split(':')[1]);
+      for (const asm of asmLines) {
+        expect(a.asmToSource[asm]).toEqual({ fileId: a.files[0]!.id, line });
+      }
+    }
+    expect(a.navigateBy.length).toBeGreaterThan(0);
+  });
+
+  it('PR-SRC-003: adaptRep omits sourceCorrelation and sourceTab when embeds are absent', () => {
+    const adapted = adaptRep(parseRep(loadOutRepBytes()));
+    expect(adapted.reportModel.sourceCorrelation).toBeUndefined();
+    expect(adapted.capabilities).not.toContain('sourceTab');
+  });
+
+  it('PR-SRC-004: adaptChromeTrace omits sourceCorrelation and sourceTab', () => {
+    const trace = {
+      traceEvents: [
+        { name: 'op', cat: 'x', ph: 'X', ts: 0, dur: 1000, pid: 1, tid: 1 },
+      ],
+    };
+    const adapted = adaptChromeTrace(trace);
+    expect(adapted.reportModel.sourceCorrelation).toBeUndefined();
+    expect(adapted.capabilities ?? []).not.toContain('sourceTab');
+  });
+});

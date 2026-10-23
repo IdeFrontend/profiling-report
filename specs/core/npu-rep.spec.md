@@ -19,7 +19,7 @@ parseNpuRep160(bytes: Uint8Array): ParsedNpuRep160     // product layout (160-by
 
 Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 
-- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1` — produced by the current `npu-compute` tooling, `data/scripts/pack_rep.py`): FileInfo = `magic[8]`, `name[128]`, `type:u16` (`1=npu-rep` nested, `2=json`, `3=jsonl`, `4=csv`, `5=sqlite3`, `6=protobuf`), `reserved:u16`, `reserved1:u32`, `fileLength:u64`, `fileRepOffset:u64`. Payloads are contiguous — no gaps and no unreferenced trailing bytes. Parsed by `parseNpuRep160`.
+- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1` — produced by the current `npu-compute` tooling, `data/scripts/pack_rep.py`): FileInfo = `magic[8]`, `name[128]`, `type:u16` (`1=npu-rep` nested, `2=json`, `3=jsonl`, `4=csv`, `5=sqlite3`, `6=protobuf`, `7=txt` for `objdump.txt` / `.asc`), `reserved:u16`, `reserved1:u32`, `fileLength:u64`, `fileRepOffset:u64`. Payloads are contiguous — no gaps and no unreferenced trailing bytes. Parsed by `parseNpuRep160`.
 - **Interim 164-byte sample layout** (`fileInfoLength = 164`, `type:u32`, `type 6` = nested) — the repo's own sample packer (`data/build_sample_rep.py`), used by `example.npu.rep` / `sample.lite.rep`. Parsed by `parseNpuRep`. FileInfo = `magic[8]`, `name[128]`, `type:u32`, `resv:u32`, `pad:u32`, `length:u64`, `offset:u64`.
 
 **Nested operators.** A `type` marking a nested archive (`6` in the 164-byte layout, `1` in the 160-byte layout — or a payload re-starting with the `npu-rep` magic) marks a nested per-operator archive (`.npu.rep`). An outer container packs N nested archives; each leaf archive packs `trace.json` + metric CSVs. A container with no nested archives is treated as a flat single-operator leaf pack.
@@ -52,6 +52,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-10-15** — Product FileInfo `type:u16` **7 = txt** (`objdump.txt`, `.asc`) accepted by `parseNpuRep160` (npu-compute Source packs).
 - **2026-09-14** — PR-NPU-012: simulator leaf detection via `manifest.json`; no hardware CSV requirement ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 - **2026-09-07** — Product host extension is `.npu-rep` only ([PROC-2](../../docs/context/decisions/PROC.md)); nested FileInfo names unchanged.
 - **2026-09-04** — PR-NPU-011: full NPU-Compute support — case-insensitive embed names (`PipeTrace.json`/`trace.json`, `Summary.jsonl`/`summary.jsonl`), spaced `HardwareInfo.jsonl` keys, `OpInfoSummary` compute/BW/utilization fields, summary-first detail categories, and the spec's resolved Product answers (compute power, bandwidth peak/score, parallel utilization, duration `{blockDim} Blocks / {coreCount} 核`).

@@ -26,7 +26,8 @@ const HEAD_SIZE = 36;
 const FILEINFO_SIZE = 160;
 const SUPPORTED_VERSION = 0x00010000;
 const SUPPORTED_ORIGIN = 1;
-const KNOWN_TYPES = new Set([1, 2, 3, 4, 5, 6]);
+/** npu-rep=1 json=2 jsonl=3 csv=4 sqlite3=5 protobuf=6 txt=7 (objdump / .asc). */
+const KNOWN_TYPES = new Set([1, 2, 3, 4, 5, 6, 7]);
 /** `type` value marking a nested per-operator `.npu.rep` archive. */
 export const NPU_REP_TYPE_NESTED = 1;
 

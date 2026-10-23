@@ -45,6 +45,7 @@ Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisio
 | `memoryHeatmap` | [memory-topology](../views/memory-topology.md) | — | Emulate `UbRwAccesses` **in** — own `memoryHeatmap` VM, fullscreen right panel (§11.2.3.2); five tabs blank until `MemoryType` maps ([DATA-50](../context/questions/DATA.md)) |
 | Performance hints | [performance-hints](../views/performance-hints.md) | — | **in** — `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` joined by `adaptEmulate` |
 | `hardwareDetails` | _(stub)_ | HardwareInfo | usually omit |
+| `sourceTab` / Source correlation | [SourceView](../../src/ui/SourceView/SourceView.spec.md) | compute: `objdump.txt` + `symbolizer.json` + `summary.db` + `.asc` **in** (`adaptComputeSourceCorrelation`); otherwise the tab is absent ([UI-37](../context/decisions/UI.md), [DATA-52](../context/questions/DATA.md)) |
 | `vfIpc` / `callStacks` | reserved | — | **out-of-scope** Sept 30 |
 
 Fill tables live in the view packets — do not duplicate them here.
