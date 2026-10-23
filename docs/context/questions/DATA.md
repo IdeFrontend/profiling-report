@@ -98,3 +98,43 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 **Context:** biprof §11.2.3.2 heat-panel tooltip. The three labels were already dropped from `src/i18n` (nothing references them) and come back only with the producer fields; the interim rule is [DATA-51a](../decisions/interim/DATA.md#data-51a).
 
 **Specs when answered:** [memory-topology](../../views/memory-topology.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [view-models](../../../specs/core/view-models.spec.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
+
+### DATA-52 — Source correlation embed schema
+
+**Status:** `partial`
+
+**Question:** What is the authoritative embed basename and JSON/CSV schema for `reportModel.sourceCorrelation` (`mock: false`)? Confirm whether the switch point stays `SourceCorrelation.json` (and aliases in `SOURCE_CORRELATION_EMBED_NAMES`), or Product prefers another name / multi-file pack (source text + asm + maps).
+
+**Answer so far:** Compute packs ship a **multi-file** set inside `.npu-rep` — `objdump.txt` + `symbolizer.json` + `summary.db` (`pc_sampling`, type sqlite3) — not `SourceCorrelation.json` (`npu-compute性能优化` §11.4; gather_2d `sample [cTiIlO].zip` / `out.npu-rep`). Ascend C source (`.asc`) is still **outside** the producer leaf (zip root / absolute `FileName` in symbolizer); playground `gather_2d.npu-rep` embeds `.asc` for demos. Adapter: `adaptComputeSourceCorrelation`. Still open: (1) Product-required rule for packing `.asc` into the leaf, (2) whether a single-file `SourceCorrelation.json` remains a goal.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [ADAPTERS](../../formats/ADAPTERS.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md).
+
+### DATA-53 — Emulate AsmMetrics / SourceFiles → Source tab
+
+**Status:** `open`
+
+**Question:** For emulate packs (e.g. gelu), which tables map into Source | SASS when an ELF / `--object-file` is present — `SourceFiles` / `SourceLines` / `AsmMetrics` / `IPCAsmMetrics` / Source Assembly HTML — and how do PC ↔ source line joins populate `sourceToAsm` / `asmToSource`? Confirm gelu-without-ELF stays mock-only.
+
+**Answer so far:** FORMATs_COMPARISON marks Source Assembly / AsmMetrics as Phase 2 / ELF-gated; gelu packs hint CSVs but empty SourceFiles without object file. Compute path above does **not** answer emulate.
+
+**Specs when answered:** [emulate/FORMAT](../../formats/emulate/FORMAT.md), [emulate/SCHEMA](../../formats/emulate/SCHEMA.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md).
+
+### DATA-54 — symbolizer `Line: 0` / missing line mapping
+
+**Status:** `partial`
+
+**Question:** In compute `symbolizer.json`, some PCs ship `Line: 0` while others have real lines. Is `0` “unknown line”, “whole function”, or a producer gap? How should Source↔SASS correlation behave for those sites — no map (current interim), map to function start, or refuse correlation?
+
+**Answer so far:** Updated gather_2d sample maps **12/16** sites to lines `{27,36,37,38,39}`; **4** stay `Line: 0`. Interim: `Line <= 0` → unmapped; `Line > 0` → `sourceToAsm` / `asmToSource`. Symbolizer `FileName` may be an absolute build path — match by basename to a pack embed.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [ADAPTERS](../../formats/ADAPTERS.md).
+
+### DATA-55 — compute Source metrics beyond Sampling Stall
+
+**Status:** `partial`
+
+**Question:** Which pack embeds fill the Source / SASS metric columns named in `npu-compute性能优化` §11.4.2.3 — Instruction executed, Instruction time, sampling stall (+ reason breakdown), warp occupancy, Cache line count / utilization, live register, branch efficiency (asm also: Instruction type, register status)? Confirm Sampling Stall = sum of `pc_sampling` counters.
+
+**Answer so far:** Spec lists stall reasons matching `summary.db` (`IBuf empty`, `Nop cycles`, `Scoreboard not ready`, … — § / PC Sampling). Warp occupancy via hibit SIMT API (doc §11.7). gather_2d pack today only ships stall counters in `summary.db`. Interim: `samplingStall` = sum of those columns (+ tooltip breakdown); other columns stay `0` / omitted until embeds exist.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [compute/FORMAT](../../formats/compute/FORMAT.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md).
