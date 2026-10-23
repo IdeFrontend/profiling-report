@@ -1051,6 +1051,36 @@ watch(freezeBackingStore, (frozen, wasFrozen) => {
   if (wasFrozen && !frozen) thawBackingStore();
 });
 
+/** E2E / playground hit-test without reaching through Vue's private runtime. */
+type SwimlaneTestHooks = {
+  hitTestCss: (x: number, y: number) => string | null;
+  eventScreenRectCss: (
+    id: string,
+  ) => { x: number; y: number; w: number; h: number } | null;
+};
+
+function wrapWithTestHooks(): HTMLElement & { __prSwimlaneTestHooks?: SwimlaneTestHooks } | null {
+  return wrapRef.value;
+}
+
+function bindTestHooks(): void {
+  const wrap = wrapWithTestHooks();
+  if (!wrap) return;
+  wrap.__prSwimlaneTestHooks = {
+    hitTestCss: (x, y) => {
+      const hit = cssToHitDevice(x, y);
+      return backend.hitTest(hit.x, hit.y);
+    },
+    eventScreenRectCss,
+  };
+}
+
+function unbindTestHooks(): void {
+  const wrap = wrapWithTestHooks();
+  if (!wrap) return;
+  delete wrap.__prSwimlaneTestHooks;
+}
+
 function bindResizeObserver(): void {
   resizeObserver?.disconnect();
   resizeObserver = null;
@@ -1079,9 +1109,11 @@ onMounted(async () => {
   }
   window.addEventListener('keydown', onMarqueeKeydown);
   bindResizeObserver();
+  bindTestHooks();
 });
 
 onBeforeUnmount(() => {
+  unbindTestHooks();
   if (props.altMeasureRole !== 'strip') {
     window.removeEventListener('keydown', onWindowKeyDown);
     window.removeEventListener('keyup', onWindowKeyUp);
@@ -1458,8 +1490,10 @@ function scheduleEnsureMarqueeReleaseVisible(
       marqueeWrapHAtGestureStart = 0;
       return;
     }
-    // Already-open dock: wrap never shrank.
-    if (!shrunk && waited >= MARQUEE_RELEASE_SKIP_UNSHRUNK_MS) {
+    // Already-open dock: wrap never shrank. Require stable frames so a single
+    // late rAF after a long task (waited >= SKIP while Vue enter-from still
+    // owes its two rAFs) cannot drop the ensure.
+    if (!shrunk && stable >= 2 && waited >= MARQUEE_RELEASE_SKIP_UNSHRUNK_MS) {
       marqueeWrapHAtGestureStart = 0;
       return;
     }

@@ -945,35 +945,31 @@ test.describe('PR-E2E-018 closed-dock click ensure-scroll', () => {
     await expect(overlay).toBeVisible({ timeout: 30_000 });
 
     const hit = await overlay.evaluate((canvas) => {
-      const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement;
-      const exposed = (
-        wrap as HTMLElement & {
-          __vueParentComponent: {
-            exposed: {
-              renderer: () => { hitTest: (x: number, y: number) => string | null };
-              eventScreenRect: (
-                id: string,
-              ) => { x: number; y: number; w: number; h: number } | null;
-            };
-          };
-        }
-      ).__vueParentComponent.exposed;
-      const dpr = window.devicePixelRatio || 1;
+      const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement & {
+        __prSwimlaneTestHooks?: {
+          hitTestCss: (x: number, y: number) => string | null;
+          eventScreenRectCss: (
+            id: string,
+          ) => { x: number; y: number; w: number; h: number } | null;
+        };
+      };
+      const hooks = wrap.__prSwimlaneTestHooks;
+      if (!hooks) throw new Error('swimlane test hooks missing');
       const w = wrap.clientWidth;
       const h = wrap.clientHeight;
       const box = wrap.getBoundingClientRect();
       for (let y = h - 18; y > h * 0.45; y -= 10) {
         for (let x = 20; x < w - 8; x += 28) {
-          const id = exposed.renderer().hitTest(Math.round(x * dpr), Math.round(y * dpr));
+          const id = hooks.hitTestCss(x, y);
           if (!id) continue;
-          const rect = exposed.eventScreenRect(id);
-          if (!rect || rect.w / dpr < 8) continue;
-          const distBottom = h - (rect.y + rect.h) / dpr;
+          const rect = hooks.eventScreenRectCss(id);
+          if (!rect || rect.w < 8) continue;
+          const distBottom = h - (rect.y + rect.h);
           if (distBottom < 16 || distBottom > 230) continue;
           return {
             id,
-            clientX: box.left + (rect.x + rect.w / 2) / dpr,
-            clientY: box.top + (rect.y + rect.h / 2) / dpr,
+            clientX: box.left + rect.x + rect.w / 2,
+            clientY: box.top + rect.y + rect.h / 2,
             wrapH: h,
           };
         }
@@ -998,26 +994,21 @@ test.describe('PR-E2E-018 closed-dock click ensure-scroll', () => {
       .poll(async () => {
         return overlay.evaluate(
           (canvas, args: { eventId: string; wrapH0: number }) => {
-            const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement;
-            const exposed = (
-              wrap as HTMLElement & {
-                __vueParentComponent: {
-                  exposed: {
-                    eventScreenRect: (
-                      id: string,
-                    ) => { x: number; y: number; w: number; h: number } | null;
-                  };
-                };
-              }
-            ).__vueParentComponent.exposed;
+            const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement & {
+              __prSwimlaneTestHooks?: {
+                eventScreenRectCss: (
+                  id: string,
+                ) => { x: number; y: number; w: number; h: number } | null;
+              };
+            };
+            const hooks = wrap.__prSwimlaneTestHooks;
             const dockEl = document.querySelector('[data-testid="dock"]') as HTMLElement | null;
-            const dpr = window.devicePixelRatio || 1;
-            const rect = exposed.eventScreenRect(args.eventId);
+            const rect = hooks?.eventScreenRectCss(args.eventId) ?? null;
             if (!dockEl || !rect) {
               return { wrapH: wrap.clientHeight, dockH: 0, above: false, wrapShrunk: false };
             }
             const box = wrap.getBoundingClientRect();
-            const eventBottom = box.top + (rect.y + rect.h) / dpr;
+            const eventBottom = box.top + rect.y + rect.h;
             const dockTop = dockEl.getBoundingClientRect().top;
             return {
               wrapH: wrap.clientHeight,
