@@ -8,6 +8,7 @@ const NPU_REP = resolve(__dirname, '../../data/example.npu.rep');
 const SAMPLE_LITE_REP = resolve(__dirname, '../../data/sample.lite.rep');
 const RESULT_NPU_REP = resolve(__dirname, '../../data/result.npu-rep');
 const VECTOR_MULADD_NPU_REP = resolve(__dirname, '../../data/vector_muladd_plain.npu-rep');
+const ROOFLINE_MULTI_NPU_REP = resolve(__dirname, '../../data/roofline_multi.npu-rep');
 
 export const EXPECTED_OUT_REP_EMBEDS = [
   'ArithmeticUtilization.csv',
@@ -56,6 +57,11 @@ export function loadResultNpuRepBytes(): Uint8Array {
 /** Full product `npu-rep` sample with `PipeTrace.json` timeline + `Summary.jsonl` (`vector_muladd_plain`). */
 export function loadVectorMuladdNpuRepBytes(): Uint8Array {
   return new Uint8Array(readFileSync(VECTOR_MULADD_NPU_REP));
+}
+
+/** example160 + HardwareInfo Roofline category from npu-compute §11.8.2 (several w/t/q circles). */
+export function loadRooflineMultiNpuRepBytes(): Uint8Array {
+  return new Uint8Array(readFileSync(ROOFLINE_MULTI_NPU_REP));
 }
 
 /** Lite sample.lite.rep on disk → full bytes with op2 trace hydrated in memory. */

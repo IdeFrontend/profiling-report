@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { loadReportSource, parseRep } from '../../src/index';
 import { operatorsFromNestedNames } from '../../src/adapters/loadReportSource';
 import { packNpuRep160, NPU160_TYPE_CSV, NPU160_TYPE_JSON, NPU160_TYPE_NESTED } from '../../playground/packNpuRep160';
-import { loadNpuRepBytes, loadOutRepBytes, loadOutTraceBytes, loadResultNpuRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
+import {
+  loadNpuRepBytes,
+  loadOutRepBytes,
+  loadOutTraceBytes,
+  loadResultNpuRepBytes,
+  loadRooflineMultiNpuRepBytes,
+  loadVectorMuladdNpuRepBytes,
+} from '../helpers/fixtures';
 
 describe('PR-JSON: standalone Chrome Trace', () => {
   it('PR-JSON-001: loads CTEF JSON without report aside data (PROC-3)', () => {
@@ -89,6 +96,28 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.memoryTables.length).toBeGreaterThan(0);
     expect(adapted.reportModel.hardwareDetails).toBeDefined();
     expect(adapted.operators).toBeUndefined();
+  });
+
+  it('PR-VM-009b: roofline_multi fixture exposes several HardwareInfo Roofline circles', () => {
+    // data/roofline_multi.npu-rep = example160 embeds + §11.8.2 Roofline JSON (9 w/t/q keys).
+    const adapted = loadReportSource(loadRooflineMultiNpuRepBytes());
+    const roof = adapted.reportModel.roofline;
+    expect(roof).toBeDefined();
+    expect(adapted.capabilities).toContain('roofline');
+    expect(roof!.points.map((p) => p.id).sort()).toEqual([
+      'aic_b16',
+      'aic_b32',
+      'aic_b8',
+      'aiv_simd_b16',
+      'aiv_simd_b32',
+      'aiv_simd_b8',
+      'aiv_simt_b16',
+      'aiv_simt_b32',
+      'aiv_simt_b8',
+    ]);
+    // Shared seriesIds get producer-key labels; full AIV+AIC catalog for knees.
+    expect(roof!.points.some((p) => p.label.includes('('))).toBe(true);
+    expect(roof!.series.length).toBeGreaterThanOrEqual(7);
   });
 
   it('PR-NPU-010: product npu-rep with PipeTrace.json + Summary.jsonl renders timeline and op identity', () => {
