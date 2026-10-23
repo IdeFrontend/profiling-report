@@ -45,8 +45,20 @@
  */
 .pr-root {
   color-scheme: dark;
-  scrollbar-width: thin;
-  scrollbar-color: #5a5a5a transparent;
+}
+
+/*
+* Chromium only lets either the standard `scrollbar-*` properties *or* the
+* `::-webkit-scrollbar-*` pseudo elements below apply. `scrollbar-color`
+* inherits, so a non-auto value anywhere above an element makes the UA drop the
+* whole custom ruleset for it and paint its default chrome instead: a wide bar
+* whose track carries step buttons — the arrow squares the sketch has none of.
+* Auto here, on the root, keeps that inheritance out of the subtree (a host page
+* that sets `scrollbar-color` on `:root` would otherwise leak in).
+*/
+.pr-root {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
 }
 
 .pr-root ::-webkit-scrollbar {
@@ -75,6 +87,20 @@
   background: transparent;
 }
 
+/*
+* A few surfaces below size their own bars (`SourceMetricsTable`) or hide them
+* outright (the aside's tab strips, `LaneGutter`) with the standard properties;
+* those do not inherit from the root, so this is their base — the sibling of the
+* pseudo elements above, never both on one element (see the root block).
+*/
+
+/** Chromium in custom mode also paints the track's step buttons; collapse them. */
+.pr-root ::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .pr-root[data-theme='light'] {
   --pr-bg-deep: #e8ecf0;
   --pr-bg-aside: #e8ecf0;
@@ -83,11 +109,10 @@
 }
 
 /**
- * Block switcher (block / 块) pill — the single definition for every select
- * that scopes a view to one `block_id`. Shared by the memory CSV overlay
- * (`CsvFieldListPanel`) and the summary PIPE card (`StatsAside`) so the two
- * cannot drift apart; `appearance: none` + the inline chevron keep the native
- * arrow out. Global because both components are `<style scoped>`.
+ * Dark chrome `<select>` pill — shared by the memory CSV / summary PIPE block
+ * switchers and Source-tab view controls (`SourceView`) so native-arrow / radius
+ * cannot drift. `appearance: none` + the inline chevron keep the OS arrow out.
+ * Global because those components are `<style scoped>`.
  */
 .pr-block-pill {
   appearance: none;
@@ -189,4 +214,53 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+/*
+ * Instant tip for icon-only chrome buttons.
+ * Native `title` waits ~1s and draws light-mode OS chrome (AC-20.2) — use
+ * `aria-label` + this class instead. Tip hides while a popover is expanded.
+ */
+.pr-icon-tip {
+  position: relative;
+}
+
+.pr-icon-tip::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  /* Below the control: toolbar `overflow-x: clip` still lets menus paint downward
+     (overflow-y stays visible); tips above the strip are clipped. */
+  top: calc(100% + 6px);
+  z-index: 30;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 220px;
+  padding: 4px 8px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  color: #e6e6e6;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.pr-icon-tip:hover:not(:disabled):not([aria-expanded='true'])::after,
+.pr-icon-tip:focus-visible:not(:disabled):not([aria-expanded='true'])::after {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Trailing strip actions sit against `overflow-x: clip` — grow the tip leftward
+   so it is not cropped by the chrome's right edge. */
+.pr-icon-tip[data-toolbar-clip]::after,
+.pr-icon-tip--end::after {
+  left: auto;
+  right: 0;
+  transform: none;
 }

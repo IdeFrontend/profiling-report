@@ -26,6 +26,11 @@ describe('i18n', () => {
     expect(t('exportHtml', 'en')).toBe('Download HTML Report');
     expect(t('exportHtmlPreparing', 'en')).toBe('Preparing report…');
     expect(t('exportHtmlCancel', 'zh-CN')).toBe('取消');
+    // Source sketch chrome stays English; icon-button tooltips localize.
+    expect(t('sourceFile', 'zh-CN')).toBe('Source');
+    expect(t('sourceFindNext', 'zh-CN')).toBe('跳到选中面板的下一行');
+    expect(t('sourceLinkSync', 'zh-CN')).toBe('联动视图');
+    expect(t('sourceFindNext', 'en')).toBe('Next line in the selected pane');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {

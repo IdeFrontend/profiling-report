@@ -121,6 +121,22 @@ async function probeSwimlaneDepCurves(
  */
 
 test.describe('PR-E2E feature paths', () => {
+  test('PR-E2E-018: Source tab opens only when the fixture has real source data', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('tab-source')).toHaveCount(0);
+
+    await page.goto('/?fixture=gather_2d');
+    await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
+    const sourceTab = page.getByTestId('tab-source');
+    await expect(sourceTab).toBeVisible({ timeout: 15_000 });
+    await sourceTab.click();
+    await expect(page.getByTestId('source-view')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('source-mock-badge')).toHaveCount(0);
+    await page.getByTestId('tab-timeline').click();
+    await expect(page.getByTestId('source-view')).toHaveCount(0);
+  });
+
   test('PR-E2E-001: playground loads sample.lite.rep timeline (UX S1, interim DATA-31a)', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
@@ -934,8 +950,8 @@ test.describe('PR-STATS-041f card tooltip over the timeline seam', () => {
   });
 });
 
-test.describe('PR-E2E-018 closed-dock click ensure-scroll', () => {
-  test('PR-E2E-018: single-click that opens the dock keeps the selected event above it', async ({
+test.describe('PR-E2E-019 closed-dock click ensure-scroll', () => {
+  test('PR-E2E-019: single-click that opens the dock keeps the selected event above it', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
