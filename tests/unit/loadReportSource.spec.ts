@@ -98,7 +98,7 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.operators).toBeUndefined();
   });
 
-  it('PR-NPU-010b: roofline_multi fixture exposes several HardwareInfo Roofline circles', () => {
+  it('PR-VM-009b: roofline_multi fixture exposes several HardwareInfo Roofline circles', () => {
     // data/roofline_multi.npu-rep = example160 embeds + §11.8.2 Roofline JSON (9 w/t/q keys).
     const adapted = loadReportSource(loadRooflineMultiNpuRepBytes());
     const roof = adapted.reportModel.roofline;
