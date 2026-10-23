@@ -17,6 +17,7 @@ const copies = [
   ['data/ffn_dense.trace.json', 'ffn_dense.trace.json'],
   ['data/vector_muladd_plain.npu-rep', 'vector_muladd_plain.npu-rep'],
   ['data/gelu.npu-rep', 'gelu.npu-rep'],
+  ['data/roofline_multi.npu-rep', 'roofline_multi.npu-rep'],
 ]
 
 for (const [from, name] of copies) {
