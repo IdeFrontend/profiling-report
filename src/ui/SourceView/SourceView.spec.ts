@@ -276,6 +276,13 @@ describe('SourceView', () => {
     const theme = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number | string, string>;
     // CurrentLineBackground overridden to editor plane so Sudu stop painting the old line.
     expect(theme[14]).toBe('#1a1a1a');
+    // Clicking the line clearLine left in place must paint the band again.
+    ed.setTheme.mockClear();
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await flushPromises();
+    expect(ed.setTheme).toHaveBeenCalled();
+    const restored = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
+    expect(restored[14]).not.toBe('#1a1a1a');
   });
 
   it('PR-SOURCE-006: unmapped source line clears asm highlight', async () => {
@@ -535,6 +542,39 @@ describe('SourceView', () => {
     expect(sourceTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
   });
 
+  it('PR-SOURCE-012c: scroll during boot drops a queued asm echo gate', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await wrapper.find('[data-testid="source-scroll-top"]').trigger('click');
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    // Gate must be clear: source 61 maps to asm 6, not the scroll caret.
+    await sourceTable.find('tr[data-line="61"]').trigger('click');
+    await flushPromises();
+    expect(asmTable.find('tr[data-line="6"]').classes()).toContain('pr-src-metrics__row--current');
+  });
+
+  it('PR-SOURCE-012d: same-line queued asm jump does not undo scroll suppression', async () => {
+    const model = mockSourceCorrelation();
+    const line1Asm = model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line;
+    expect(line1Asm).toBeDefined();
+    model.asmToSource[line1Asm!] = { fileId: 'sharpen.cpp', line: 1 };
+    model.sourceToAsm['sharpen.cpp:1'] = [line1Asm!];
+    const wrapper = mount(SourceView, { props: { model } });
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find(`tr[data-line="${line1Asm}"]`).trigger('click');
+    await wrapper.find('[data-testid="source-scroll-top"]').trigger('click');
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    expect(sourceTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+  });
+
   it('PR-SOURCE-016: scroll-to-bottom suppresses correlated highlights at last lines', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
@@ -598,6 +638,17 @@ describe('SourceView', () => {
     expect(asmTable.find(`tr[data-line="${line1Asm}"]`).classes()).not.toContain(
       'pr-src-metrics__row--current',
     );
+  });
+
+  it('PR-SOURCE-014e: boot reveal runs again once editor geometry is usable', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await flushPromises();
+    const ed = await latestSuduEditor();
+    const reveals = ed.revealLine.mock.calls.map((c) => c[0]);
+    expect(reveals.filter((line) => line === 46).length).toBeGreaterThanOrEqual(2);
   });
 
   it('PR-SOURCE-013: SASS pane is table-only with sketch column order', () => {

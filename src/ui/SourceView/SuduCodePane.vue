@@ -277,6 +277,9 @@ async function boot() {
     const bootLine = pendingLine ?? props.currentLine;
     pendingLine = null;
     pendingCaretEcho = false;
+    // Bind before setLine so a vscroll during reveal can reach the table once
+    // geometry exists. waitForGeom replays the caret if this event was dropped.
+    bindTableScroll();
     if (bootLine != null) {
       if (echo) {
         const applied = setLine(bootLine);
@@ -317,9 +320,35 @@ function readGeom(): boolean {
   return true;
 }
 
+function bindTableScroll() {
+  if (tableScrollEl.value) return;
+  tableScrollEl.value =
+    rootEl.value?.querySelector<HTMLElement>('[data-testid="source-metrics-scroll"]') ?? null;
+  tableScrollEl.value?.addEventListener('scroll', onTableScroll);
+}
+
+/** Editor may have scrolled before geometry or the table scroller existed. */
+function syncTableToCaret() {
+  if (!editor || !(geom.value.dpr > 0)) return;
+  const line = editor.getPosition?.()?.lineNumber;
+  // revealLine must not look like a user caret move (scroll suppression).
+  ignoreCaret = true;
+  try {
+    if (line != null) editor.revealLine(line);
+  } finally {
+    ignoreCaret = false;
+  }
+  const scroll = tableScrollEl.value;
+  if (!scroll) return;
+  const target = cssScrollFromDevice(editor.getVScrollPos(), geom.value.dpr);
+  if (Math.abs(scroll.scrollTop - target) >= 0.5) scroll.scrollTop = target;
+}
+
 function waitForGeom() {
   if (disposed) return;
   if (readGeom()) {
+    bindTableScroll();
+    syncTableToCaret();
     ready.value = true;
     return;
   }
@@ -474,6 +503,8 @@ function onRowClick(line: number) {
   // setCaretListener runs only when the line changes. A click on the line
   // already under the caret (initial line, or the line clearLine left in place)
   // still has to select it.
+  // clearLine hides the current-line band; a click must paint it again.
+  editor.setTheme(suduEditorTheme());
   const already = editor.getPosition?.()?.lineNumber === line;
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.focus();
@@ -496,7 +527,11 @@ function setLine(line: number): 'unchanged' | 'moved' {
   // Do not emit here. A live caller reads 'unchanged' (onAsmLine drops the gate).
   // Boot emits only for an imperative queue — a prop-driven same line (scroll)
   // must not look like a user click.
-  return prev === line ? 'unchanged' : 'moved';
+  // Compare the caret after setPosition: Sudu clamps past EOF and does not notify
+  // when the line did not change, which must not be reported as 'moved'.
+  const next = editor.getPosition?.()?.lineNumber;
+  if (prev == null || next == null) return prev === line ? 'unchanged' : 'moved';
+  return next === prev ? 'unchanged' : 'moved';
 }
 
 /**
@@ -531,9 +566,11 @@ function setLineOrQueue(line: number): 'queued' | 'unchanged' | 'moved' {
 
 /** Scroll editor + metrics table to the top without emitting caret (parent owns line). */
 function scrollToTop() {
+  pendingCaretEcho = false;
   const scroll = tableScrollEl.value;
   if (scroll) scroll.scrollTop = 0;
   if (!editor) return;
+  editor.setTheme(suduEditorTheme());
   ignoreCaret = true;
   try {
     editor.setVScrollPos(0);
@@ -546,9 +583,11 @@ function scrollToTop() {
 
 /** Scroll editor + metrics table to the bottom without emitting caret (parent owns line). */
 function scrollToBottom() {
+  pendingCaretEcho = false;
   const scroll = tableScrollEl.value;
   if (scroll) scroll.scrollTop = scroll.scrollHeight;
   if (!editor) return;
+  editor.setTheme(suduEditorTheme());
   ignoreCaret = true;
   try {
     const last = Math.max(1, editor.getNumLines());
@@ -622,9 +661,7 @@ watch(
 
 onMounted(() => {
   void boot().then(() => {
-    tableScrollEl.value =
-      rootEl.value?.querySelector<HTMLElement>('[data-testid="source-metrics-scroll"]') ?? null;
-    tableScrollEl.value?.addEventListener('scroll', onTableScroll);
+    bindTableScroll();
   });
 });
 

@@ -104,6 +104,7 @@ watch(
     asmLine.value = null;
     searchQuery.value = '';
     correlationSuppressed.value = false;
+    syncOrigin.value = null;
   },
 );
 
@@ -113,6 +114,7 @@ function onSourceFileChange(fileId: string) {
   sourceLine.value = null;
   asmLine.value = null;
   correlationSuppressed.value = false;
+  syncOrigin.value = null;
 }
 
 const sourceFile = computed<SourceFileModel | null>(() => {
@@ -338,6 +340,7 @@ function scrollTop() {
   sourcePane.value?.scrollToTop();
   asmPane.value?.scrollToTop();
   correlationSuppressed.value = true;
+  syncOrigin.value = null;
   sourceLine.value = 1;
   asmLine.value = 1;
 }
@@ -350,6 +353,7 @@ function scrollBottom() {
   sourcePane.value?.scrollToBottom();
   asmPane.value?.scrollToBottom();
   correlationSuppressed.value = true;
+  syncOrigin.value = null;
   sourceLine.value = srcLast;
   asmLine.value = asmLast;
 }

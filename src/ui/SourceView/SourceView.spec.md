@@ -60,6 +60,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-23** — Scroll and file change drop a pre-boot asm echo gate. `clearLine`'s hidden current-line theme is restored on metrics click and scroll. Boot replays the caret into the metrics table once geometry is usable (`PR-SOURCE-006`/`012`/`016`).
 - **2026-10-23** — File switch ignores Sudu `setModel`'s line-1 caret notification. Scroll during boot does not echo as a selection; an asm `setLine` queued before boot still does (`PR-SOURCE-012`/`015`/`016`).
 - **2026-10-23** — Same-line asm `setLine` clears the echo gate; a metrics click on the caret's current line still selects (`PR-SOURCE-003`/`006`/`014`).
 - **2026-10-23** — Search highlights paint in both panes; Enter still steps the selected pane (`PR-SOURCE-008`).
