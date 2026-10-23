@@ -284,12 +284,21 @@ const MARQUEE_EDGE_AUTOSCROLL_PX = 40;
 /** Scroll / pan step per animation frame while the pointer sits in an edge band (CSS px). */
 const MARQUEE_EDGE_SCROLL_PX = 12;
 /**
- * After marquee commit the dock may tween taller (~200ms) and shrink the wrap.
+ * After dock grow (marquee commit or single-click DetailPanel) the wrap shrinks (~200ms).
  * Keep this much margin above/below the selection when ensure-scrolling it into view.
  */
 const MARQUEE_RELEASE_MARGIN_PX = 12;
-/** Stop waiting for wrap height to settle after dock grow (CSS height transition is 200ms). */
+/**
+ * Minimum time before a shrunk+stable wrap is treated as the dock tween finishing.
+ * Two stable frames at a 1px mid-ease shrink would otherwise ensure while the row
+ * still fits, then the remaining ~200ms of dock growth covers it. Also the skip
+ * floor for an already-open dock (wrap never shrinks).
+ */
 const MARQUEE_RELEASE_LAYOUT_WAIT_MS = 280;
+/** Already-open: wrap never shrank. Longer than Vue enter-from + 200ms ease on slow rAFs. */
+const MARQUEE_RELEASE_SKIP_UNSHRUNK_MS = 500;
+/** Hard stop if the wrap is still changing (stuck CSS / missing transitionend). */
+const MARQUEE_RELEASE_LAYOUT_HARD_MS = 1200;
 /** Match `.pr-dock` height transition when scrolling focus Y back into view after dock grow. */
 const DOCK_SCROLL_ANIM_MS = 200;
 let marqueeAutoScrollRaf = 0;
@@ -314,9 +323,10 @@ let marqueeLastClientY = 0;
  */
 let marqueeEdgeWrapH = 0;
 /**
- * Wrap `clientHeight` at marquee pointerdown (before live preview may mount a dock).
- * Post-commit ensure scrolls only when the settled wrap is shorter — closed→preview→
- * session grow ate space under the selection (PR-CANVAS-115).
+ * Wrap `clientHeight` at selection pointerdown (before a closed dock may mount / grow).
+ * Post-select ensure scrolls only when the settled wrap is shorter — closed→preview→
+ * session (marquee) or closed→session (single click) ate space under the selection
+ * (PR-CANVAS-115 / PR-CANVAS-128).
  */
 let marqueeWrapHAtGestureStart = 0;
 /** True after a wrap resize until the pointer leaves the edge band. */
@@ -1405,9 +1415,14 @@ function ensureSelectionRangeVisible(
 }
 
 /**
- * Dock height tweens after live class drops; wait until wrap height is stable (or timeout)
- * then minimally scroll so the selection range stays visible — only when the dock grew and
- * ate wrap space vs gesture start (PR-CANVAS-115).
+ * Dock height tweens after open/grow; wait until wrap height is stable then minimally
+ * scroll so the selection stays visible — only when the dock ate wrap space vs the
+ * height at schedule (click: closed wrap; marquee: preview wrap). PR-CANVAS-115 / 128.
+ *
+ * Do **not** ensure or skip on a short timeout while height is still changing: Vue
+ * enter-from keeps `height: 0` for two rAFs, then the 200ms ease runs. A 280ms cap
+ * fired mid-tween (or before shrink on a slow frame) and either skipped or treated
+ * the still-visible mid-height as "already in view".
  */
 function scheduleEnsureMarqueeReleaseVisible(
   selTop: number,
@@ -1416,11 +1431,16 @@ function scheduleEnsureMarqueeReleaseVisible(
 ): void {
   cancelMarqueeReleaseVisible();
   const startH = marqueeWrapHAtGestureStart;
-  // Height at commit is still the live preview wrap; session grow shrinks further.
+  // Height at schedule: closed wrap on click, live preview wrap on marquee commit.
+  // Session grow must shrink *further* than this — preview is already < gesture-start.
   const hAtCommit = wrapRef.value?.clientHeight ?? startH;
   const started = performance.now();
   let lastH = -1;
   let stable = 0;
+  const runEnsure = (H: number) => {
+    const maxDelta = Math.max(0, hAtCommit - H) + MARQUEE_RELEASE_MARGIN_PX;
+    ensureSelectionRangeVisible(selTop, selBottom, maxDelta, cursorReveal);
+  };
   const tick = (now: number) => {
     marqueeReleaseVisibleRaf = 0;
     const H = wrapRef.value?.clientHeight ?? 0;
@@ -1429,13 +1449,22 @@ function scheduleEnsureMarqueeReleaseVisible(
       stable = 0;
       lastH = H;
     }
-    if (stable >= 2 || now - started >= MARQUEE_RELEASE_LAYOUT_WAIT_MS) {
-      // Already-open dock (unchanged height) or empty close restoring wrap: skip.
-      // Settled scroll-y was already emitted on marquee end (PR-CANVAS-115).
-      if (H < startH - 0.5) {
-        const maxDelta = Math.max(0, hAtCommit - H) + MARQUEE_RELEASE_MARGIN_PX;
-        ensureSelectionRangeVisible(selTop, selBottom, maxDelta, cursorReveal);
-      }
+    const shrunk = H < hAtCommit - 0.5;
+    const waited = now - started;
+    // Need the dock tween to have had time to finish — 2 stable frames during the
+    // first pixels of ease still leave the row "visible" in a barely-shrunk wrap.
+    if (shrunk && stable >= 2 && waited >= MARQUEE_RELEASE_LAYOUT_WAIT_MS) {
+      runEnsure(H);
+      marqueeWrapHAtGestureStart = 0;
+      return;
+    }
+    // Already-open dock: wrap never shrank.
+    if (!shrunk && waited >= MARQUEE_RELEASE_SKIP_UNSHRUNK_MS) {
+      marqueeWrapHAtGestureStart = 0;
+      return;
+    }
+    if (waited >= MARQUEE_RELEASE_LAYOUT_HARD_MS) {
+      if (shrunk) runEnsure(H);
       marqueeWrapHAtGestureStart = 0;
       return;
     }
@@ -1572,21 +1601,20 @@ function snapContentYToRowBottom(contentY: number): number {
 }
 
 /**
- * Top/bottom of the committed selection in **wrap** scroll space (`layoutY + contentTopPad`).
- * Falls back to the marquee rect (snapped to lane rows) when the commit is empty.
+ * Top/bottom of selected events in **wrap** scroll space (`layoutY + contentTopPad`),
+ * fold-shifted so collapsed Cards/folders above do not inflate the ensure-scroll target.
+ * Returns null when no laid-out event contributes a range.
  */
-function selectionRangeContentYForCommit(
-  commitEvents: SwimEvent[],
-  rect: MarqueeRect,
-): { top: number; bottom: number } {
+function selectionRangeContentYForEvents(
+  events: SwimEvent[],
+): { top: number; bottom: number } | null {
   const layout = backend.getLayout();
   const pad = props.contentTopPad ?? 0;
-  // Event items stay on the expanded base; paint/hit use collapseShiftY — same here
-  // so folded Cards/folders above the selection do not inflate the ensure-scroll target.
+  // Event items stay on the expanded base; paint/hit use collapseShiftY — same here.
   const fold = layout.collapse ?? IDLE_COLLAPSE;
   let top = Infinity;
   let bottom = -Infinity;
-  for (const ev of commitEvents) {
+  for (const ev of events) {
     const item = findLaidOutEvent(layout, ev.id);
     // item.y is layout/content space; ensure compares wrap space.
     if (!item) continue;
@@ -1594,12 +1622,39 @@ function selectionRangeContentYForCommit(
     top = Math.min(top, y + pad);
     bottom = Math.max(bottom, y + LANE_HEIGHT + pad);
   }
-  if (Number.isFinite(bottom) && Number.isFinite(top)) return { top, bottom };
+  if (!Number.isFinite(bottom) || !Number.isFinite(top)) return null;
+  return { top, bottom };
+}
+
+/**
+ * Top/bottom of the committed selection in **wrap** scroll space (`layoutY + contentTopPad`).
+ * Falls back to the marquee rect (snapped to lane rows) when the commit is empty.
+ */
+function selectionRangeContentYForCommit(
+  commitEvents: SwimEvent[],
+  rect: MarqueeRect,
+): { top: number; bottom: number } {
+  const fromEvents = selectionRangeContentYForEvents(commitEvents);
+  if (fromEvents) return fromEvents;
+  const pad = props.contentTopPad ?? 0;
   const wrapTop = localScrollY + Math.min(rect.y0, rect.y1);
   const wrapBottom = localScrollY + Math.max(rect.y0, rect.y1);
   const snappedBottom = snapContentYToRowBottom(wrapBottom - pad) + pad;
   const snappedTop = snapContentYToRowBottom(wrapTop - pad) - LANE_HEIGHT + pad;
   return { top: Math.min(snappedTop, snappedBottom), bottom: Math.max(snappedTop, snappedBottom) };
+}
+
+/** After a click opens/grows the dock, keep the selected lane row(s) visible (PR-CANVAS-128). */
+function scheduleEnsureClickSelectionVisible(events: SwimEvent[]): void {
+  if (events.length === 0) return;
+  const range = selectionRangeContentYForEvents(events);
+  if (!range) return;
+  // Select emit has not flushed; wrap is still the closed height. Snapshot here so a
+  // window pointerup that cleared the pointerdown height cannot skip the ensure.
+  const nowH = wrapRef.value?.clientHeight ?? 0;
+  if (nowH > 0) marqueeWrapHAtGestureStart = nowH;
+  if (marqueeWrapHAtGestureStart <= 0) return;
+  scheduleEnsureMarqueeReleaseVisible(range.top, range.bottom, false);
 }
 
 function snapshotShiftBaseIds(): string[] {
@@ -1796,6 +1851,9 @@ function onMarqueeDragEnd(): void {
     lastMarqueeHitFp = '';
     emitMarqueePreview(null);
     sync();
+    // Click select may already have scheduled ensure (startH captured locally).
+    // Drop the gesture snapshot so a later unrelated wrap shrink cannot reuse it.
+    marqueeWrapHAtGestureStart = 0;
     return;
   }
   // Capture release / selection content Y before the dock may grow and shrink the wrap.
@@ -2894,6 +2952,8 @@ function onPointerUp(e: PointerEvent): void {
         .map((id) => findAltMeasureEvent(id))
         .filter((ev): ev is SwimEvent => ev != null);
       emit('multi-select', toggled);
+      // Closed→dock grow can cover the toggled row(s) — same ensure as marquee (PR-CANVAS-128).
+      scheduleEnsureClickSelectionVisible(toggled);
     }
     shiftTogglePending = false;
     return;
@@ -2971,6 +3031,8 @@ function onPointerUp(e: PointerEvent): void {
     return;
   }
   emit('select', clicked);
+  // Closed→DetailPanel grow can cover the clicked row — same ensure as marquee (PR-CANVAS-128).
+  if (clicked) scheduleEnsureClickSelectionVisible([clicked]);
 }
 
 function onPointerLeave(e: PointerEvent): void {

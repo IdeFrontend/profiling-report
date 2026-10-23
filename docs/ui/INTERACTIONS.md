@@ -46,6 +46,7 @@ Sketches: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (clic
 - Populate detail region with at least name and start → duration (and end).
 - Optional: dim non-selected events slightly (shown in `task-click-detail`).
 - Click empty space → clear selection.
+- **Post-open visibility:** when a **closed** dock opens for the click (DetailPanel) and that grow shrinks the swim wrap so the selected lane row would be clipped, scroll by the **minimum** needed to keep that row visible with a small margin (same ensure as marquee post-commit — fold-shifted wrap Y, tweened with the dock height). If the row already fits above the final dock, or the dock was already open at unchanged height, do **not** adjust scroll.
 
 **MVP:** required. Full bottom dock with source paths and dependency graph → Phase 2.
 
