@@ -1064,6 +1064,8 @@ function wrapWithTestHooks(): HTMLElement & { __prSwimlaneTestHooks?: SwimlaneTe
 }
 
 function bindTestHooks(): void {
+  // Production / host embeds must not grow a hit-test surface on the wrap DOM node.
+  if (!import.meta.env.DEV) return;
   const wrap = wrapWithTestHooks();
   if (!wrap) return;
   wrap.__prSwimlaneTestHooks = {
@@ -1109,7 +1111,7 @@ onMounted(async () => {
   }
   window.addEventListener('keydown', onMarqueeKeydown);
   bindResizeObserver();
-  bindTestHooks();
+  if (import.meta.env.DEV) bindTestHooks();
 });
 
 onBeforeUnmount(() => {
@@ -1681,6 +1683,8 @@ function selectionRangeContentYForCommit(
 /** After a click opens/grows the dock, keep the selected lane row(s) visible (PR-CANVAS-128). */
 function scheduleEnsureClickSelectionVisible(events: SwimEvent[]): void {
   if (events.length === 0) return;
+  // Already-mounted dock (single or multi) keeps its height — wrap will not shrink.
+  if (props.selectedEventId || (props.multiSelectedIds?.length ?? 0) > 0) return;
   const range = selectionRangeContentYForEvents(events);
   if (!range) return;
   // Select emit has not flushed; wrap is still the closed height. Snapshot here so a
@@ -2953,6 +2957,8 @@ function onPointerUp(e: PointerEvent): void {
         }
         snapMeasureToEvent(ev);
         emit('select', ev);
+        // Closed→DetailPanel grow can cover the snapped row — same ensure as a plain click.
+        scheduleEnsureClickSelectionVisible([ev]);
       } else {
         clearMeasureRange();
         emit('select', null);

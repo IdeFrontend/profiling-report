@@ -4509,7 +4509,12 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-128: single-click select ensure-scrolls when DetailPanel covers the event', async () => {
+  it.each([
+    { measureMode: false, label: 'single-click' },
+    { measureMode: true, label: 'measure-mode click' },
+  ])(
+    'PR-CANVAS-128: $label select ensure-scrolls when DetailPanel covers the event',
+    async ({ measureMode }) => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frames.push(cb);
@@ -4535,7 +4540,7 @@ describe('SwimlaneCanvas', () => {
         ...nullProps,
         model: tallModel,
         preferRenderer: 'canvas' as const,
-        measureMode: false,
+        measureMode,
         measureRange: null,
         view: { startTime: 0, endTime: 1000, scrollY: 0 },
       },
@@ -4603,7 +4608,8 @@ describe('SwimlaneCanvas', () => {
     expect(scrolled).toBeLessThanOrEqual(target + 1);
 
     wrapper.unmount();
-  });
+    },
+  );
 
   it('PR-CANVAS-128: delayed dock enter (stable closed wrap, then shrink) still ensure-scrolls', async () => {
     const frames: FrameRequestCallback[] = [];
@@ -5140,6 +5146,8 @@ describe('SwimlaneCanvas', () => {
         preferRenderer: 'canvas' as const,
         measureMode: false,
         measureRange: null,
+        // Prior selection = dock already mounted; wrap must not arm the waiter.
+        selectedEventId: 'e-0',
         view: { startTime: 0, endTime: 1000, scrollY: 0 },
       },
       attachTo: document.body,
@@ -5177,7 +5185,10 @@ describe('SwimlaneCanvas', () => {
     const scrollAtClick =
       (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
       0;
-    // Wrap height unchanged (already-open dock) past SKIP_UNSHRUNK_MS + stable frames.
+    // Even if wrap later shrinks, a prior selection means the dock was already open.
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
     for (let i = 0; i < 40; i++) {
       now += 16;
       const pending = frames.splice(0);
