@@ -4,7 +4,6 @@ import { t } from '../../../i18n';
 import {
   ROOFLINE_CHART_H as H,
   ROOFLINE_CHART_W as W,
-  ROOFLINE_MIX_TOP_INSET as MIX_TOP_INSET,
   ROOFLINE_OPS_GAP_FROM_PLOT as OPS_GAP_FROM_PLOT,
   ROOFLINE_PAD as PAD,
   ROOFLINE_TOPS_GAP_ABOVE_PLOT as TOPS_GAP_ABOVE_PLOT,
@@ -22,18 +21,29 @@ const plotW = W - PAD.l - PAD.r;
 const plotH = H - PAD.t - PAD.b;
 const plotBottomY = PAD.t + plotH;
 
-const mixY = PAD.t + MIX_TOP_INSET;
-/** Label sizes in viewBox user units (same as former 1:1 screen px). */
-const AXIS_FONT_PX = 9;
-
 const xTickY = plotBottomY + X_TICK_BELOW_PLOT;
-/** Left edge of TOps/s matches the card title / AIV / AIC (not end-anchored at the plot). */
+/** Left edge of TOps/s matches the aside title / AIV / AIC (not end-anchored at the plot). */
 const topsX = 0;
-const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT - AXIS_FONT_PX;
+/**
+ * Mix + TOps/s share one alphabetic baseline just above the plot (PR-ROOF-002b).
+ * Do **not** move mix inside the plot (`PAD.t + inset`) — that was reverted.
+ * Avoid `hanging`: browsers disagree on it for CSS-styled / multi-tspan text.
+ */
+const topsY = PAD.t - TOPS_GAP_ABOVE_PLOT;
+const mixY = topsY;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
 
 const hovered = ref<RooflinePoint | null>(null);
+/** Experimental: legend hover → emphasize that series' roof on the plot. */
+const legendHoverId = ref<string | null>(null);
+/**
+ * Sketch (report-stats-duration-source): filled rounded-square knees on the
+ * roof ridges; measured points off the lines are filled circles.
+ */
+const KNEE = 8;
+const KNEE_RX = 2;
+const POINT_R = 4;
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
 
@@ -78,6 +88,26 @@ const legendColCount = computed(() =>
 const legendGridStyle = computed(() => ({
   gridTemplateColumns: `28px repeat(${legendColCount.value}, max-content)`,
 }));
+
+/** Paint highlighted roof last so it sits above siblings. */
+const roofDrawOrder = computed(() => {
+  const list = [...seriesList.value];
+  const id = legendHoverId.value;
+  if (!id) return list;
+  const i = list.findIndex((s) => s.id === id);
+  if (i < 0) return list;
+  const [hit] = list.splice(i, 1);
+  list.push(hit!);
+  return list;
+});
+
+function roofHighlightClass(id: string): Record<string, boolean> {
+  const hover = legendHoverId.value;
+  return {
+    'pr-roofline__roof-g--lit': hover === id,
+    'pr-roofline__roof-g--dim': hover != null && hover !== id,
+  };
+}
 
 /** Log domain from points + roofs. */
 const domains = computed(() => {
@@ -233,7 +263,6 @@ const tooltipText = computed(() => {
     </h4>
     <div class="pr-roofline__card">
       <div class="pr-roofline__card-head">
-        <span class="pr-roofline__chart-title">Roofline</span>
         <div
           class="pr-roofline__legend"
           data-testid="roofline-legend"
@@ -245,6 +274,11 @@ const tooltipText = computed(() => {
               v-for="s in aivSeries"
               :key="s.id"
               class="pr-roofline__leg-item"
+              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+              data-testid="roofline-leg-item"
+              :data-series-id="s.id"
+              @mouseenter="legendHoverId = s.id"
+              @mouseleave="legendHoverId = null"
             >
               <span
                 class="pr-roofline__leg-swatch"
@@ -265,6 +299,11 @@ const tooltipText = computed(() => {
               v-for="s in aicSeries"
               :key="s.id"
               class="pr-roofline__leg-item"
+              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+              data-testid="roofline-leg-item"
+              :data-series-id="s.id"
+              @mouseenter="legendHoverId = s.id"
+              @mouseleave="legendHoverId = null"
             >
               <span
                 class="pr-roofline__leg-swatch"
@@ -370,9 +409,12 @@ const tooltipText = computed(() => {
             fill="url(#pr-roofline-area)"
           />
           <g
-            v-for="s in seriesList"
+            v-for="s in roofDrawOrder"
             :key="s.id"
+            class="pr-roofline__roof-g"
+            :class="roofHighlightClass(s.id)"
             data-testid="roofline-roof"
+            :data-series-id="s.id"
           >
             <path
               class="pr-roofline__roof"
@@ -383,41 +425,46 @@ const tooltipText = computed(() => {
             />
             <path
               class="pr-roofline__roof"
+              :class="{ 'pr-roofline__roof--dashed': s.slopeStyle === 'dashed' }"
               :d="roofSegments(s).plateau"
               fill="none"
               :stroke="s.color"
             />
           </g>
         </g>
-        <!-- Markers sit outside plot clip so edge circles are not cropped. -->
+        <!-- Markers sit outside plot clip so edge marks are not cropped. -->
         <g class="pr-roofline__markers">
-          <g
+          <!-- Measured points (off the roofs): filled/hollow circles, series color. -->
+          <circle
             v-for="p in model.points"
             :key="p.id"
-          >
-            <circle
-              data-testid="roofline-point"
-              :cx="xToPx(p.intensity)"
-              :cy="yToPx(p.performance)"
-              r="4"
-              class="pr-roofline__point"
-              :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
-              :fill="p.style === 'hollow' ? '#262626' : p.color"
-              :stroke="p.color"
-              @mouseenter="hovered = p"
-              @mouseleave="hovered = null"
-            />
-          </g>
-          <circle
-            v-for="s in seriesList"
+            data-testid="roofline-point"
+            class="pr-roofline__point"
+            :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
+            :cx="xToPx(p.intensity)"
+            :cy="yToPx(p.performance)"
+            :r="POINT_R"
+            :fill="p.style === 'hollow' ? '#262626' : p.color"
+            :stroke="p.color"
+            @mouseenter="hovered = p"
+            @mouseleave="hovered = null"
+          />
+          <!-- Roof ridge knees (on the lines): filled rounded squares like legend. -->
+          <rect
+            v-for="s in roofDrawOrder"
             :key="`knee-${s.id}`"
             data-testid="roofline-knee"
-            :cx="roofSegments(s).ridgeX"
-            :cy="roofSegments(s).ridgeY"
-            r="3.5"
-            fill="#262626"
+            class="pr-roofline__knee"
+            :class="roofHighlightClass(s.id)"
+            :data-series-id="s.id"
+            :x="roofSegments(s).ridgeX - KNEE / 2"
+            :y="roofSegments(s).ridgeY - KNEE / 2"
+            :width="KNEE"
+            :height="KNEE"
+            :rx="KNEE_RX"
+            :ry="KNEE_RX"
+            :fill="s.color"
             :stroke="s.color"
-            stroke-width="1.5"
             pointer-events="none"
           />
         </g>
@@ -428,6 +475,7 @@ const tooltipText = computed(() => {
           :x="PAD.l + plotW / 2"
           :y="mixY"
           text-anchor="middle"
+          dominant-baseline="alphabetic"
         >
           <template
             v-for="part in mixParts"
@@ -461,13 +509,13 @@ const tooltipText = computed(() => {
           text-anchor="start"
           dominant-baseline="middle"
         >Ops/Byte</text>
-        <!-- TOps/s: left edge aligns with card title / AIV / AIC. -->
+        <!-- TOps/s: left edge aligns with aside title / AIV / AIC; same baseline as mix. -->
         <text
           class="pr-roofline__axis pr-roofline__axis--y"
           :x="topsX"
           :y="topsY"
           text-anchor="start"
-          dominant-baseline="hanging"
+          dominant-baseline="alphabetic"
         >TOps/s</text>
       </svg>
       <div
@@ -515,23 +563,14 @@ const tooltipText = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  /* Title → legend: product sketch gap (~10–12px). */
-  gap: 10px;
   padding: 0;
   min-width: 0;
   width: 100%;
 }
 
-.pr-roofline__chart-title {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: #ffffff;
-}
-
 /*
- * Under the card title. One grid for both rows so the nth AIV / AIC swatches
- * share a vertical edge (e.g. AIV bp16 with AIC int32 fp32).
+ * Top of the raised card (no in-card chart title). One grid for both rows so
+ * the nth AIV / AIC swatches share a vertical edge.
  */
 .pr-roofline__legend {
   display: grid;
@@ -541,7 +580,7 @@ const tooltipText = computed(() => {
   min-width: 0;
   width: max-content;
   max-width: 100%;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -556,6 +595,11 @@ const tooltipText = computed(() => {
   gap: 4px;
   color: #8a8a8a;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.pr-roofline__leg-item--lit {
+  color: #d0d0d0;
 }
 
 .pr-roofline__leg-pad {
@@ -596,13 +640,40 @@ const tooltipText = computed(() => {
 }
 
 .pr-roofline__roof {
-  stroke-width: 1.75;
+  stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
+  transition: stroke-width 80ms ease, opacity 80ms ease;
 }
 
 .pr-roofline__roof--dashed {
   stroke-dasharray: 4 3;
+  /* ponytail: round caps shrink the 3px gap by the stroke width, so the lit
+     3.5px roof closes up and draws solid. butt keeps 4 on / 3 off.
+     Upgrade: scale the dasharray with stroke-width if caps must stay round. */
+  stroke-linecap: butt;
+}
+
+/* Experimental: legend hover dims other roofs and thickens the match. */
+.pr-roofline__roof-g--dim {
+  opacity: 0.28;
+}
+
+.pr-roofline__roof-g--lit .pr-roofline__roof {
+  stroke-width: 3.5;
+}
+
+.pr-roofline__knee {
+  stroke-width: 1.5;
+  transition: opacity 80ms ease, stroke-width 80ms ease;
+}
+
+.pr-roofline__knee.pr-roofline__roof-g--dim {
+  opacity: 0.28;
+}
+
+.pr-roofline__knee.pr-roofline__roof-g--lit {
+  stroke-width: 2.5;
 }
 
 .pr-roofline__point {
@@ -617,16 +688,16 @@ const tooltipText = computed(() => {
 
 .pr-roofline__tick {
   fill: #999999;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .pr-roofline__axis {
   fill: #999999;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .pr-roofline__mix {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* Sketch mix is two-tone: names #999, percents #fff. */
@@ -641,9 +712,9 @@ const tooltipText = computed(() => {
 /* Reserved band below the SVG so hover never covers x-ticks / Ops/Byte. */
 .pr-roofline__tip {
   flex: 0 0 auto;
-  min-height: calc(11px * 1.2);
+  min-height: calc(12px * 1.2);
   padding: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
   color: #d0d8e0;
   pointer-events: none;
