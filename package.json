@@ -82,7 +82,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@sudu-ide/code-review": "0.0.132-ascendc",
+    "@sudu-ide/code-review": "0.0.133-ascendc",
     "sql.js": "^1.15.0"
   },
   "allowScripts": {

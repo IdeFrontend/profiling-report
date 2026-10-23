@@ -33,6 +33,7 @@ import {
   SOURCE_COL_WIDTH_MIN,
   startSourceColBoundaryResize,
 } from './sourceColumnResize';
+import { matchRanges, type SearchRange } from '../searchHighlight';
 import { t } from '../../i18n';
 import { selectedTextFromSudu } from './suduSelection';
 
@@ -69,6 +70,8 @@ const props = withDefaults(
     currentLine?: number | null;
     correlatedLines?: number[];
     matchLines?: number[];
+    /** When non-empty, paints Sudu search highlights (`highlightRanges`). */
+    searchQuery?: string;
     dimZeroFor?: string | null;
     /** When true, table scroll follows editor (and vice versa). */
     followScroll?: boolean;
@@ -78,6 +81,7 @@ const props = withDefaults(
     currentLine: null,
     correlatedLines: () => [],
     matchLines: () => [],
+    searchQuery: '',
     dimZeroFor: null,
     followScroll: true,
   },
@@ -118,6 +122,9 @@ const showLoading = computed(() => !ready.value && loadError.value == null);
 
 type EditorView = Awaited<ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newEditor']>>;
 type TextModel = ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newTextModel']>;
+
+/** Last ranges passed to `highlightRanges` — used to wrap selectNext/Prev. */
+let paintedSearchRanges: SearchRange[] = [];
 
 let editor: EditorView | null = null;
 let model: TextModel | null = null;
@@ -256,6 +263,7 @@ async function boot() {
     );
     editor.setModel(model);
     wireSync();
+    applySearchHighlights();
     // Apply selection chosen before boot finished (asm click / parent setLine).
     const bootLine = pendingLine ?? props.currentLine;
     if (bootLine != null) {
@@ -407,6 +415,31 @@ watch(
   { flush: 'sync' },
 );
 
+/** Paint (or clear) Sudu search segment highlights for the current query. */
+function applySearchHighlights() {
+  if (!editor) return;
+  const ranges = matchRanges(props.file.text, props.searchQuery ?? '');
+  paintedSearchRanges = ranges;
+  editor.highlightRanges(ranges.length ? ranges : null);
+}
+
+/**
+ * Enter find: step to next/prev painted highlight. Wraps when Sudu's
+ * selectNext/Prev is a no-op (caret past the last / before the first match).
+ */
+function stepSearch(dir: 1 | -1) {
+  if (!editor || paintedSearchRanges.length === 0) return;
+  const before = editor.getPosition();
+  if (dir === 1) editor.selectNextRange();
+  else editor.selectPrevRange();
+  const after = editor.getPosition();
+  if (after.lineNumber === before.lineNumber && after.column === before.column) {
+    const wrap = dir === 1 ? paintedSearchRanges[0]! : paintedSearchRanges[paintedSearchRanges.length - 1]!;
+    editor.selectAndReveal(wrap, true, true);
+  }
+  editor.focus();
+}
+
 /**
  * Metrics row click — same as the sample: move caret only; Sudu keeps it visible
  * with minimum scroll, paints the current-line highlight, and setCaretListener
@@ -510,7 +543,15 @@ watch(
     editor.setModel(model);
     prev.dispose();
     readGeom();
+    applySearchHighlights();
     if (props.currentLine != null) setLine(props.currentLine);
+  },
+);
+
+watch(
+  () => props.searchQuery,
+  () => {
+    applySearchHighlights();
   },
 );
 
@@ -545,19 +586,28 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true;
   ignoreCaret = false;
+  paintedSearchRanges = [];
   closeCopyMenu();
   detachCopyMenuListeners();
   endMetricResizeSession();
   tableScrollEl.value?.removeEventListener('scroll', onTableScroll);
   editor?.setVScrollListener(null);
   editor?.setCaretListener(null);
+  editor?.highlightRanges?.(null);
   editor?.dispose();
   model?.dispose();
   editor = null;
   model = null;
 });
 
-defineExpose({ setLine: setLineOrQueue, clearLine, scrollToTop, scrollToBottom, containerId });
+defineExpose({
+  setLine: setLineOrQueue,
+  clearLine,
+  scrollToTop,
+  scrollToBottom,
+  stepSearch,
+  containerId,
+});
 </script>
 
 <template>

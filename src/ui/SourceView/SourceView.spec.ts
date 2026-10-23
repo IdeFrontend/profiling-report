@@ -11,6 +11,22 @@ vi.mock('@sudu-ide/code-review', () => ({
   newEditor: vi.fn(() => {
     let caretListener: ((lineNumber: number) => void) | null = null;
     let position = { lineNumber: 1, column: 1 };
+    let highlights: {
+      startLineNumber: number;
+      startColumn: number;
+      endLineNumber: number;
+      endColumn: number;
+    }[] = [];
+    const selectRange = (range: {
+      startLineNumber: number;
+      startColumn: number;
+      endLineNumber: number;
+      endColumn: number;
+    }) => {
+      const prev = position.lineNumber;
+      position = { lineNumber: range.startLineNumber, column: range.startColumn };
+      if (caretListener && position.lineNumber !== prev) caretListener(position.lineNumber);
+    };
     return {
       setModel: vi.fn(),
       setVScrollListener: vi.fn(),
@@ -39,6 +55,50 @@ vi.mock('@sudu-ide/code-review', () => ({
       getFontFamily: () => 'monospace',
       getVScrollPos: () => 0,
       setVScrollPos: vi.fn(),
+      highlightRanges: vi.fn(
+        (
+          ranges: {
+            startLineNumber: number;
+            startColumn: number;
+            endLineNumber: number;
+            endColumn: number;
+          }[] | null,
+        ) => {
+          highlights = ranges ? [...ranges] : [];
+        },
+      ),
+      selectNextRange: vi.fn(() => {
+        const next = highlights.find(
+          (r) =>
+            r.startLineNumber > position.lineNumber ||
+            (r.startLineNumber === position.lineNumber && r.startColumn > position.column),
+        );
+        if (next) selectRange(next);
+      }),
+      selectPrevRange: vi.fn(() => {
+        for (let i = highlights.length - 1; i >= 0; i--) {
+          const r = highlights[i]!;
+          if (
+            r.startLineNumber < position.lineNumber ||
+            (r.startLineNumber === position.lineNumber && r.startColumn < position.column)
+          ) {
+            selectRange(r);
+            return;
+          }
+        }
+      }),
+      selectAndReveal: vi.fn(
+        (
+          range: {
+            startLineNumber: number;
+            startColumn: number;
+            endLineNumber: number;
+            endColumn: number;
+          },
+        ) => {
+          selectRange(range);
+        },
+      ),
     };
   }),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
@@ -249,9 +309,10 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-asm-navigate-by"]').classes()).toContain('pr-block-pill');
   });
 
-  it('PR-SOURCE-008: search chips stay pane-scoped; prev/next step selected lines', async () => {
+  it('PR-SOURCE-008: both panes paint search; Enter and prev/next use selected pane', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
     const search = wrapper.find('[data-testid="source-search"]');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
@@ -263,29 +324,54 @@ describe('SourceView', () => {
     expect(findNext.attributes('aria-label')).toBe(t('sourceFindNext'));
     expect(findPrev.attributes('aria-label')).toBe(t('sourceFindPrev'));
 
-    // Default selected pane is Source — query must not paint either metrics table.
+    // Source selected — Sudu paints; Source metrics stay unmarked; Assembly chips still paint.
     await search.setValue('sharpen');
     await wrapper.vm.$nextTick();
+    await flushPromises();
     expect(sourceTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
-    expect(asmTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
+    const ed = (await latestSuduEditor()) as {
+      highlightRanges: ReturnType<typeof vi.fn>;
+      selectNextRange: ReturnType<typeof vi.fn>;
+    };
+    expect(ed.highlightRanges).toHaveBeenCalled();
+    const painted = ed.highlightRanges.mock.calls.at(-1)?.[0] as
+      | { startLineNumber: number }[]
+      | null;
+    expect(painted?.length).toBeGreaterThan(0);
 
-    // No caret → next starts at first source line, then advances.
+    // FFMA is Assembly-only — chips appear even while Source is selected.
+    await search.setValue('FFMA');
+    await wrapper.vm.$nextTick();
+    expect(asmTable.findAll('[data-testid="source-asm-match"]').length).toBeGreaterThan(0);
+    expect(sourceTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
+
+    // Enter steps Source highlights (selected pane), not Assembly rows.
+    await search.setValue('sharpen');
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+    ed.selectNextRange.mockClear();
+    await search.trigger('keydown', { key: 'Enter' });
+    await wrapper.vm.$nextTick();
+    expect(ed.selectNextRange).toHaveBeenCalled();
+
+    // Prev/next line buttons ignore search and step lines.
     await findNext.trigger('click');
     await wrapper.vm.$nextTick();
-    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(1);
-    await findNext.trigger('click');
-    await wrapper.vm.$nextTick();
-    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(2);
+    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBeGreaterThan(0);
 
     // Fresh mount: SASS selected, no caret → prev starts at last (independent of search).
     wrapper.unmount();
     const asmWrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
     const asmSearch = asmWrapper.find('[data-testid="source-search"]');
     const asmOnly = asmWrapper.findAll('[data-testid="source-metrics"]')[1]!;
     await asmWrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
     await asmSearch.setValue('FFMA');
     await asmWrapper.vm.$nextTick();
     expect(asmOnly.findAll('[data-testid="source-asm-match"]').length).toBeGreaterThan(0);
+    // Sudu still receives the query while SASS is selected.
+    const asmEd = (await latestSuduEditor()) as { highlightRanges: ReturnType<typeof vi.fn> };
+    expect(asmEd.highlightRanges).toHaveBeenCalled();
     await asmSearch.setValue('00007f7b');
     await asmWrapper.vm.$nextTick();
     expect(asmOnly.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
@@ -302,7 +388,7 @@ describe('SourceView', () => {
       model.assembly.lines[0]!.line,
     );
 
-    // Enter still walks Assembly search hits.
+    // Enter walks Assembly search hits when SASS is selected.
     await asmSearch.setValue('FFMA');
     await asmSearch.trigger('keydown', { key: 'Enter' });
     await asmWrapper.vm.$nextTick();

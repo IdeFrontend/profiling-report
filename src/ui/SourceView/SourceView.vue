@@ -53,6 +53,7 @@ type PaneApi = {
   clearLine?: () => void;
   scrollToTop: () => void;
   scrollToBottom: () => void;
+  stepSearch?: (dir: 1 | -1) => void;
 };
 
 const selectedFileId = ref(props.model.files[0]?.id ?? '');
@@ -140,23 +141,20 @@ const correlatedSource = computed(() => {
 
 const sourceTextLines = computed(() => (sourceFile.value?.text ?? '').split(/\r?\n/));
 
+/** Trimmed search — both panes paint matches; Enter still steps the selected pane only. */
+const trimmedSearch = computed(() => searchQuery.value.trim());
+
 /**
  * Right-pane search hits: Assembly column only (CLA-style substring chips).
- * Empty / Source-selected → no table marks.
+ * Empty query → no table marks. Painted whether or not SASS is selected.
  */
 const asmMatchLines = computed(() => {
-  if (selectedPane.value !== 'asm') return [];
-  const needle = searchQuery.value.trim().toLowerCase();
+  const needle = trimmedSearch.value.toLowerCase();
   if (!needle) return [];
   return props.model.assembly.lines
     .filter((row) => String(row.values.assembly ?? '').toLowerCase().includes(needle))
     .map((row) => row.line);
 });
-
-/** Query forwarded to the asm table for UI-43 navy chips on Assembly text. */
-const asmSearchQuery = computed(() =>
-  selectedPane.value === 'asm' ? searchQuery.value.trim() : '',
-);
 
 function selectPane(pane: 'source' | 'asm') {
   selectedPane.value = pane;
@@ -299,20 +297,17 @@ function stepSelectedLine(dir: 1 | -1) {
 }
 
 /**
- * Enter in search walks matches in the selected pane only — empty search is a no-op.
- * Source pane: editor find (Sudu API not wired yet). Asm pane: Assembly column.
+ * Enter walks matches in the selected pane only — empty search is a no-op.
+ * Both panes already paint highlights from `trimmedSearch`.
  */
 function findSearchStep(dir: 1 | -1) {
-  const q = searchQuery.value.trim();
-  if (!q) return;
+  if (!trimmedSearch.value) return;
   if (selectedPane.value === 'asm') {
     const next = cycleLine(asmMatchLines.value, asmLine.value, dir);
     if (next != null) jumpAsm(next);
     return;
   }
-  // TODO(source-search): Sudu editor has no find/highlight API yet — wire when available.
-  // Until then Source-selected search does not mark the metrics table or move the caret.
-  void dir;
+  sourcePane.value?.stepSearch?.(dir);
 }
 
 /**
@@ -647,6 +642,7 @@ onBeforeUnmount(() => {
           :worker-url="suduWorkerUrl"
           :current-line="sourceLine"
           :correlated-lines="correlatedSource"
+          :search-query="trimmedSearch"
           :editor-ratio="0.62"
           @update:current-line="onSourceLine"
         />
@@ -699,7 +695,7 @@ onBeforeUnmount(() => {
           :current-line="asmLine"
           :correlated-lines="correlatedAsm"
           :match-lines="asmMatchLines"
-          :search-query="asmSearchQuery"
+          :search-query="trimmedSearch"
           @update:current-line="onAsmLine"
         />
       </div>
