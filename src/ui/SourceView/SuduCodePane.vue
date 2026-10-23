@@ -145,6 +145,8 @@ let pendingCaretEcho = false;
  * setPosition (standalone-sample); no timer.
  */
 let ignoreCaret = false;
+/** Set when the caret listener actually emitted (boot must not emit again). */
+let caretEchoed = false;
 
 const metricColumns = computed(() => props.file.metricsColumns);
 const metricColIds = computed(() => metricColumns.value.map((c) => c.id));
@@ -282,8 +284,15 @@ async function boot() {
     bindTableScroll();
     if (bootLine != null) {
       if (echo) {
+        caretEchoed = false;
         const applied = setLine(bootLine);
-        if (applied === 'unchanged') emit('update:currentLine', bootLine);
+        // First setPosition after setCaretListener notifies even when the caret
+        // stays put (lastNotifiedCaretLine is -1). If it did, do not emit the
+        // requested line — Sudu may have clamped it.
+        if (!caretEchoed && applied === 'unchanged') {
+          const actual = editor.getPosition?.()?.lineNumber ?? bootLine;
+          emit('update:currentLine', actual);
+        }
       } else {
         ignoreCaret = true;
         try {
@@ -367,8 +376,12 @@ function wireSync() {
     if (Math.abs(scroll.scrollTop - target) >= 0.5) scroll.scrollTop = target;
   });
   // Caret movement is synchronous with Sudu; table current-row + parent sync follow it.
-  editor.setCaretListener((lineNumber: number) => {
+  const ed = editor;
+  ed.setCaretListener((lineNumber: number) => {
     if (ignoreCaret) return;
+    caretEchoed = true;
+    // clearLine's theme override survives arrow keys and editor clicks.
+    ed.setTheme(suduEditorTheme());
     emit('update:currentLine', lineNumber);
   });
 }
@@ -478,6 +491,8 @@ function applySearchHighlights() {
  */
 function stepSearch(dir: 1 | -1) {
   if (!editor || paintedSearchRanges.length === 0) return;
+  // A same-line match does not notify the caret listener, so restore the band here.
+  editor.setTheme(suduEditorTheme());
   const before = editor.getPosition();
   if (dir === 1) editor.selectNextRange();
   else editor.selectPrevRange();
@@ -494,6 +509,22 @@ function stepSearch(dir: 1 | -1) {
  * with minimum scroll, paints the current-line highlight, and setCaretListener
  * notifies the parent (no custom canvas overlay, no revealLineInCenter).
  */
+/**
+ * Canvas click. Sudu notifies only when the line changes, so a click on the
+ * line clearLine left in place would leave the metrics row unselected.
+ */
+function onEditorPointerDown() {
+  if (!editor) return;
+  editor.setTheme(suduEditorTheme());
+  const line = editor.getPosition?.()?.lineNumber;
+  if (line == null) return;
+  void nextTick(() => {
+    if (!editor || ignoreCaret) return;
+    const now = editor.getPosition?.()?.lineNumber;
+    if (now === line && props.currentLine !== line) emit('update:currentLine', line);
+  });
+}
+
 function onRowClick(line: number) {
   emit('row-click', line);
   if (!editor) {
@@ -603,8 +634,13 @@ watch(
   () => props.file,
   async (file) => {
     if (!editor || !pool || !model) return;
+    // Before the await, so a currentLine watch cannot move the old document.
+    ignoreCaret = true;
     const api = await loadSuduApi();
-    if (disposed || !editor || !pool || !model) return;
+    if (disposed || !editor || !pool || !model) {
+      ignoreCaret = false;
+      return;
+    }
     const prev = model;
     model = api.newTextModel(
       pool,
@@ -789,6 +825,7 @@ defineExpose({
           ref="editorHost"
           class="pr-sudu-pane__editor"
           data-testid="sudu-editor-host"
+          @pointerdown="onEditorPointerDown"
           @contextmenu.capture.prevent.stop="onEditorContextMenu"
         >
           <pre

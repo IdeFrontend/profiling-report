@@ -283,6 +283,55 @@ describe('SourceView', () => {
     expect(ed.setTheme).toHaveBeenCalled();
     const restored = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
     expect(restored[14]).not.toBe('#1a1a1a');
+    // Editor caret move (not a metrics click) must restore the band too.
+    ed.setTheme.mockClear();
+    ed.setPosition({ lineNumber: 50, column: 1 });
+    expect(ed.setTheme).toHaveBeenCalled();
+    const fromCaret = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
+    expect(fromCaret[14]).not.toBe('#1a1a1a');
+  });
+
+  it('PR-SOURCE-006c: editor click on the cleared line selects it', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await flushPromises();
+    const unmapped =
+      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+    expect(unmapped).not.toBeNull();
+    await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
+    await flushPromises();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    await wrapper.find('[data-testid="sudu-editor-host"]').trigger('pointerdown');
+    await flushPromises();
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
+  });
+
+  it('PR-SOURCE-005b: asm click switches file and selects the mapped source line', async () => {
+    const base = mockSourceCorrelation();
+    const other = {
+      ...base.files[0]!,
+      id: 'other.cpp',
+      path: 'other.cpp',
+      text: 'int other() {\n  return 0;\n}\n',
+      lines: [
+        { line: 1, values: { instructionsExecuted: 1, samplingStall: 0, warpOccupancy: 0.1 } },
+        { line: 2, values: { instructionsExecuted: 0, samplingStall: 0, warpOccupancy: 0 } },
+      ],
+    };
+    const model = { ...base, files: [other, base.files[0]!] };
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="source-file-select"]').text()).toContain('sharpen.cpp');
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
   });
 
   it('PR-SOURCE-006: unmapped source line clears asm highlight', async () => {

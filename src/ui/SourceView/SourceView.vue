@@ -238,15 +238,23 @@ function onAsmLine(line: number) {
   if (!linkViews.value) return;
   const hit = props.model.asmToSource[line];
   if (hit) {
-    if (hit.fileId !== selectedFileId.value) selectedFileId.value = hit.fileId;
-    syncOrigin.value = 'asm';
-    sourceLine.value = hit.line;
-    // Imperative setLine; SuduCodePane also watches currentLine (sample: setPosition only).
-    // Same-line setPosition does not emit a caret. Drop the gate or the next
-    // source click is swallowed as an echo (PR-SOURCE-006). Queued (pre-boot)
-    // stays armed until that echo.
-    const applied = sourcePane.value?.setLine(hit.line);
-    if (applied === 'unchanged') syncOrigin.value = null;
+    const fileChanged = hit.fileId !== selectedFileId.value;
+    if (fileChanged) selectedFileId.value = hit.fileId;
+    // A different file swaps the Sudu model after this handler. setLine now would
+    // clamp to the old document and the echo would store that line. The file
+    // watch applies currentLine after setModel and does not echo.
+    if (fileChanged) {
+      syncOrigin.value = null;
+      sourceLine.value = hit.line;
+    } else {
+      syncOrigin.value = 'asm';
+      sourceLine.value = hit.line;
+      // Same-line setPosition does not emit a caret. Drop the gate or the next
+      // source click is swallowed as an echo (PR-SOURCE-006). Queued (pre-boot)
+      // stays armed until that echo.
+      const applied = sourcePane.value?.setLine(hit.line);
+      if (applied === 'unchanged') syncOrigin.value = null;
+    }
   } else {
     // No mapped source — clear metrics current row and Sudu caret/current-line paint.
     sourceLine.value = null;
