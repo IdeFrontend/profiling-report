@@ -49,7 +49,8 @@ const emit = defineEmits<{
 }>();
 
 type PaneApi = {
-  setLine: (n: number) => void;
+  /** `queued` keeps the echo gate until boot; `unchanged` means Sudu will not emit. */
+  setLine: (n: number) => 'queued' | 'unchanged' | 'moved' | void;
   clearLine?: () => void;
   scrollToTop: () => void;
   scrollToBottom: () => void;
@@ -239,7 +240,11 @@ function onAsmLine(line: number) {
     syncOrigin.value = 'asm';
     sourceLine.value = hit.line;
     // Imperative setLine; SuduCodePane also watches currentLine (sample: setPosition only).
-    sourcePane.value?.setLine(hit.line);
+    // Same-line setPosition does not emit a caret. Drop the gate or the next
+    // source click is swallowed as an echo (PR-SOURCE-006). Queued (pre-boot)
+    // stays armed until that echo.
+    const applied = sourcePane.value?.setLine(hit.line);
+    if (applied === 'unchanged') syncOrigin.value = null;
   } else {
     // No mapped source — clear metrics current row and Sudu caret/current-line paint.
     sourceLine.value = null;

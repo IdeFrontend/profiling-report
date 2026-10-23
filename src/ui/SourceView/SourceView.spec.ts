@@ -126,6 +126,9 @@ async function latestSuduEditor() {
     revealLine: ReturnType<typeof vi.fn>;
     focus: ReturnType<typeof vi.fn>;
     setTheme: ReturnType<typeof vi.fn>;
+    highlightRanges: ReturnType<typeof vi.fn>;
+    selectNextRange: ReturnType<typeof vi.fn>;
+    selectPrevRange: ReturnType<typeof vi.fn>;
   };
   return last;
 }
@@ -329,10 +332,7 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     await flushPromises();
     expect(sourceTable.findAll('[data-testid="source-asm-match"]')).toHaveLength(0);
-    const ed = (await latestSuduEditor()) as {
-      highlightRanges: ReturnType<typeof vi.fn>;
-      selectNextRange: ReturnType<typeof vi.fn>;
-    };
+    const ed = await latestSuduEditor();
     expect(ed.highlightRanges).toHaveBeenCalled();
     const painted = ed.highlightRanges.mock.calls.at(-1)?.[0] as
       | { startLineNumber: number }[]
@@ -370,7 +370,7 @@ describe('SourceView', () => {
     await asmWrapper.vm.$nextTick();
     expect(asmOnly.findAll('[data-testid="source-asm-match"]').length).toBeGreaterThan(0);
     // Sudu still receives the query while SASS is selected.
-    const asmEd = (await latestSuduEditor()) as { highlightRanges: ReturnType<typeof vi.fn> };
+    const asmEd = await latestSuduEditor();
     expect(asmEd.highlightRanges).toHaveBeenCalled();
     await asmSearch.setValue('00007f7b');
     await asmWrapper.vm.$nextTick();
@@ -576,6 +576,49 @@ describe('SourceView', () => {
     expect(asmTable.find('tr[data-line="1"]').classes()).not.toContain('pr-src-metrics__row--current');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
+  });
+
+  it('PR-SOURCE-014c: same-line asm jump does not stick the echo gate', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await flushPromises();
+    // asm 2 → source 46, and the editor is already there, so Sudu emits no caret.
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await flushPromises();
+    expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
+    // Unmapped source line must still clear SASS (gate must not swallow the click).
+    await sourceTable.find('tr[data-line="1"]').trigger('click');
+    await flushPromises();
+    expect(sourceTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+  });
+
+  it('PR-SOURCE-003b: re-clicking a cleared source line restores correlation', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await flushPromises();
+    const unmapped =
+      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+    expect(unmapped).not.toBeNull();
+    await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
+    await flushPromises();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    // clearLine hides the theme and leaves the caret on 46. The click must still select.
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await flushPromises();
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(
+      asmTable.findAll('tr.pr-src-metrics__row--correlated').map((r) => Number(r.attributes('data-line'))),
+    ).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('PR-SOURCE-014b: second caret echo for the same mapped group keeps asm caret', async () => {

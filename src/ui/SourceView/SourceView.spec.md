@@ -16,7 +16,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Selected pane.** Exactly one of the two panes is selected at all times (Source by default). Clicking a pane (or a line inside it) selects it; clicks outside the panes (toolbar, search, aside) do **not** change selection. The selected pane uses the accent blue border (`#3078F0` / sketch `#317FFF`). The unselected pane has no blue border.
 
-**Correlation.** Selecting a source line highlights mapped asm rows and moves the asm caret to the first mapped instruction when Link views is on; selecting an asm line jumps back via `asmToSource` and highlights the full mapped asm sibling set. Programmatic Sudu caret echoes from an asm-driven `setLine` must not re-drive the asm pane (would snap to `mapped[0]`). Both Link views buttons toggle the same state.
+**Correlation.** Selecting a source line highlights mapped asm rows and moves the asm caret to the first mapped instruction when Link views is on; selecting an asm line jumps back via `asmToSource` and highlights the full mapped asm sibling set. Programmatic Sudu caret echoes from an asm-driven `setLine` must not re-drive the asm pane (would snap to `mapped[0]`). Sudu notifies the caret listener only when the line changes: a same-line `setLine` reports `unchanged` and clears the echo gate, and a metrics click on the line the caret already occupies still selects that line. A `setLine` queued before the editor boots keeps the gate until the echo. Both Link views buttons toggle the same state.
 
 **Dropdowns.** Left View, Right View, each pane’s Source file, and each pane’s Navigate By open even when the list has a single item (they are never disabled). The closed control stays the shared pill. The open menu matches the card-metric (Utilization) popup: dark surface, accent-blue selected row.
 
@@ -60,6 +60,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-23** — Same-line asm `setLine` clears the echo gate; a metrics click on the caret's current line still selects (`PR-SOURCE-003`/`006`/`014`).
 - **2026-10-23** — Search highlights paint in both panes; Enter still steps the selected pane (`PR-SOURCE-008`).
 - **2026-10-23** — Source search uses Sudu `highlightRanges` / `selectNextRange` (`PR-SOURCE-008`/`020`; `@sudu-ide/code-review` 0.0.133-ascendc).
 - **2026-10-22** — Prev/next line buttons step the selected pane (always enabled; independent of search) (`PR-SOURCE-008`).

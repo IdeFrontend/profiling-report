@@ -451,8 +451,13 @@ function onRowClick(line: number) {
     emit('update:currentLine', line);
     return;
   }
+  // setCaretListener runs only when the line changes. A click on the line
+  // already under the caret (initial line, or the line clearLine left in place)
+  // still has to select it.
+  const already = editor.getPosition?.()?.lineNumber === line;
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.focus();
+  if (already) emit('update:currentLine', line);
 }
 
 /**
@@ -461,12 +466,20 @@ function onRowClick(line: number) {
  * focus() is required for the line to look selected. Caret listener may emit;
  * SourceView’s syncOrigin / same-group stay absorbs the bounce (no ignoreCaret).
  */
-function setLine(line: number) {
-  if (!editor) return;
+function setLine(line: number): 'unchanged' | 'moved' {
+  if (!editor) return 'unchanged';
   editor.setTheme(suduEditorTheme());
+  const prev = editor.getPosition?.()?.lineNumber;
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.revealLine(line);
   editor.focus();
+  // Same-line setPosition does not notify the caret listener. Emit so an
+  // asm-driven gate is absorbed instead of sticking (boot applies pending lines).
+  if (prev === line) {
+    emit('update:currentLine', line);
+    return 'unchanged';
+  }
+  return 'moved';
 }
 
 /**
@@ -488,13 +501,13 @@ function clearLine() {
 }
 
 /** Queue a line until Sudu finishes booting, then apply. */
-function setLineOrQueue(line: number) {
+function setLineOrQueue(line: number): 'queued' | 'unchanged' | 'moved' {
   if (!editor) {
     pendingLine = line;
-    return;
+    return 'queued';
   }
   pendingLine = null;
-  setLine(line);
+  return setLine(line);
 }
 
 /** Scroll editor + metrics table to the top without emitting caret (parent owns line). */
