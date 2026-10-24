@@ -16,6 +16,8 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Selected pane.** Exactly one of the two panes is selected at all times (Source by default). Clicking a pane (or a line inside it) selects it; clicks outside the panes (toolbar, search, aside) do **not** change selection. The selected pane uses the accent blue border (`#3078F0` / sketch `#317FFF`). The unselected pane has no blue border.
 
+**Shared disassembly.** Several source files map onto one assembly buffer. The right pane shows that listing in full; changing the Source file does not remove another file's instructions. With Link views on and no caret, the instructions mapped to the selected file are highlighted and the listing scrolls to the first of them. A file with no mapped instructions keeps the full listing and clears the previous highlight. When the assembly buffer has no instructions, the pane shows placeholder text (`asm-empty` / `sourceAsmEmpty`).
+
 **Correlation.** Selecting a source line highlights mapped asm rows and moves the asm caret to the first mapped instruction when Link views is on; selecting an asm line jumps back via `asmToSource` and highlights the full mapped asm sibling set. Programmatic Sudu caret echoes from an asm-driven `setLine` must not re-drive the asm pane (would snap to `mapped[0]`). Sudu notifies the caret listener only when the line changes: a same-line `setLine` reports `unchanged` and clears the echo gate, and a metrics click on the line the caret already occupies still selects that line. An imperative `setLine` queued before the editor boots still echoes when boot applies it (so the gate can clear). A line applied from the `currentLine` prop at boot (scroll-to-top / scroll-to-bottom) does not echo. Switching files replaces the Sudu model without treating `setModel`'s line-1 caret notification as a selection. Both Link views buttons toggle the same state.
 
 **Dropdowns.** Left View, Right View, each pane’s Source file, and each pane’s Navigate By open even when the list has a single item (they are never disabled). The closed control stays the shared pill. The open menu matches the card-metric (Utilization) popup: dark surface, accent-blue selected row.
@@ -42,7 +44,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 12. **PR-SOURCE-012** — Scroll-to-top clears correlated row highlights while both carets sit at line 1; a later row click restores correlation. Scroll-to-bottom likewise suppresses correlation at the last lines.
 13. **PR-SOURCE-013** — SASS pane renders `asm-table-pane` (no Sudu) with column order `#`, Address, Assembly, Instructions Executed, Sampling Stall, Warp Occupancy.
 14. **PR-SOURCE-014** — After an asm row click, Sudu caret echoes for the mapped source line do not snap the asm current row to `mapped[0]` or steal pane selection (no timer gate — absorb + same-group stay).
-15. **PR-SOURCE-015** — Switching the Source file select clears source/asm current rows and correlated highlights (no stale mapping from the previous file). The shared search query is kept.
+15. **PR-SOURCE-015** — Switching the Source file select clears source and asm current rows. The previous file's correlated highlight is replaced: with Link views on, the new file's mapped instructions are highlighted, and a file that owns none shows no correlated rows. The shared search query is kept.
 16. **PR-SOURCE-016** — Scroll-to-bottom moves both carets to the last lines and suppresses correlated highlights until the next selection.
 17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles on every column except the last (`source-col-resize`); dragging trades width with the next column so only that divider moves.
 18. **PR-SOURCE-018** — Exactly one pane is selected (`source-pane-source` / `source-pane-asm`); Source is default; pane click switches; clicks outside panes keep the selection; selected pane has accent border class `pr-source-view__pane--selected`; unselected pane border is transparent (no muted blue frame).
@@ -54,6 +56,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 24. **PR-SOURCE-024** — Asc/desc buttons step the selected pane through its Navigate By hot lines (increasing or decreasing metric, ties by line number, wrap). Neither button keeps `pr-source-view__icon-btn--on` / `aria-pressed`. Distinct `sourceSortAsc` / `sourceSortDesc` labels. The other pane’s Navigate By is not used.
 25. **PR-SOURCE-025** — Link views off keeps the other pane’s Navigate By. A metric missing from the other dropdown is not applied there.
 26. **PR-SOURCE-026** — **focus** selects that file and line. Line 1 is valid and does not invent an asm mapping. A mapped line highlights the asm rows when Link views is on.
+27. **PR-SOURCE-027** — Changing the Source file keeps the full shared SASS listing, including instructions mapped to other files. Link views on highlights the selected file's instructions. An empty assembly shows `asm-empty`.
 
 ## Design sketches
 
@@ -61,6 +64,8 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-24** — File switch replaces the previous correlation with the new file's mapped instructions (`PR-SOURCE-015`). The empty-assembly placeholder describes an empty listing.
+- **2026-10-24** — Shared SASS listing stays whole when the source file changes; that file's instructions are highlighted. An empty assembly shows placeholder text (`PR-SOURCE-027`).
 - **2026-10-23** — A **focus** prop opens a task-detail frame on its file and line (`PR-SOURCE-026`).
 - **2026-10-23** — Editor caret moves and Enter-find restore the current-line band after `clearLine`. An asm hit in another file waits for the model swap instead of `setLine` on the old document (`PR-SOURCE-005`/`006`).
 - **2026-10-23** — Scroll and file change drop a pre-boot asm echo gate. `clearLine`'s hidden current-line theme is restored on metrics click and scroll. Boot replays the caret into the metrics table once geometry is usable (`PR-SOURCE-006`/`012`/`016`).

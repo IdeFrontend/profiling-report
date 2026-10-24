@@ -836,6 +836,7 @@ describe('SourceView', () => {
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    expect(asmTable.find('tr[data-line="2"]').exists()).toBe(true);
     expect((search.element as HTMLInputElement).value).toBe('FFMA');
   });
 
@@ -1214,5 +1215,77 @@ describe('SourceView', () => {
         .map((row) => Number(row.attributes('data-line'))),
     ).toEqual([1, 2, 3, 4, 5]);
     atMapped.unmount();
+  });
+
+  it('PR-SOURCE-027: shared disassembly stays whole; empty assembly shows a placeholder', async () => {
+    const base = mockSourceCorrelation();
+    const sharpen = base.files[0]!;
+    const other = {
+      ...sharpen,
+      id: 'other.cpp',
+      path: 'other.cpp',
+      text: 'int other() {\n  return 0;\n}\n',
+      lines: [
+        { line: 1, values: { instructionsExecuted: 1, samplingStall: 0, warpOccupancy: 0.1 } },
+        { line: 2, values: { instructionsExecuted: 4, samplingStall: 1, warpOccupancy: 0.2 } },
+      ],
+    };
+    const sourceToAsm = { ...base.sourceToAsm };
+    const moved = sourceToAsm['sharpen.cpp:128']!;
+    delete sourceToAsm['sharpen.cpp:128'];
+    sourceToAsm['other.cpp:2'] = moved;
+    const asmToSource = { ...base.asmToSource };
+    for (const line of moved) asmToSource[line] = { fileId: 'other.cpp', line: 2 };
+    const model = { ...base, files: [sharpen, other], sourceToAsm, asmToSource };
+
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
+    await flushPromises();
+    const asmLines = () =>
+      wrapper
+        .findAll('[data-testid="asm-table-pane"] tr[data-line]')
+        .map((row) => row.attributes('data-line'));
+    const correlated = () =>
+      wrapper
+        .findAll('[data-testid="asm-table-pane"] tr.pr-src-metrics__row--correlated')
+        .map((row) => row.attributes('data-line'));
+
+    expect(asmLines()).toContain('1');
+    expect(asmLines()).toContain(String(moved[0]));
+    expect(correlated()).toEqual([]);
+
+    await pickNavigate(wrapper, 'source-file-select', 'other.cpp');
+    expect(asmLines()).toContain('1');
+    expect(asmLines()).toContain(String(moved[0]));
+    expect(correlated()).toEqual(moved.map(String));
+
+    await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
+    expect(correlated()).toEqual([]);
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+    await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
+    await flushPromises();
+    expect(correlated()).toEqual(moved.map(String));
+    expect(scroll).toHaveBeenCalled();
+    scroll.mockRestore();
+
+    await wrapper.find('[data-testid="asm-table-pane"] tr[data-line="40"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="source-file-select"]').text()).toContain('other.cpp');
+    expect(
+      wrapper.find('[data-testid="source-pane-source"] tr[data-line="2"]').classes(),
+    ).toContain('pr-src-metrics__row--current');
+    wrapper.unmount();
+
+    const empty = {
+      ...base,
+      assembly: { ...base.assembly, lines: [], text: '' },
+    };
+    const missing = mount(SourceView, { props: { model: empty } });
+    expect(missing.find('[data-testid="asm-table-pane"]').exists()).toBe(false);
+    expect(missing.find('[data-testid="asm-empty"]').text()).toBe(t('sourceAsmEmpty'));
+    missing.unmount();
+
+    const missingEn = mount(SourceView, { props: { model: empty, locale: 'en' } });
+    expect(missingEn.find('[data-testid="asm-empty"]').text()).toBe(t('sourceAsmEmpty', 'en'));
+    missingEn.unmount();
   });
 });
