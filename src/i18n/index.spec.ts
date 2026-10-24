@@ -28,13 +28,28 @@ describe('i18n', () => {
     expect(t('exportHtmlCancel', 'zh-CN')).toBe('取消');
     // Source sketch chrome stays English; icon-button tooltips localize.
     expect(t('sourceFile', 'zh-CN')).toBe('Source');
-    expect(t('sourceFindNext', 'zh-CN')).toBe('跳到下一非零导航指标行');
+    expect(t('sourceFindNext', 'zh-CN')).toBe('跳到对应指标列中下一个有数据的行。');
     expect(t('sourceLinkSync', 'zh-CN')).toBe('联动视图');
-    expect(t('sourceFindNext', 'en')).toBe('Next non-zero Navigate By row');
-    expect(t('sourceNavHighest', 'en')).toBe('Highest Navigate By value');
-    expect(t('sourceNavLowest', 'zh-CN')).toBe('跳到导航指标最小值');
-    expect(t('sourceSortAsc', 'en')).toBe('Next higher Navigate By value');
-    expect(t('sourceSortDesc', 'zh-CN')).toBe('跳到下一更小的导航指标值');
+    expect(t('sourceFindNext', 'en')).toBe(
+      'Navigate to the next row with data in the corresponding metric column.',
+    );
+    expect(t('sourceFindPrev', 'en')).toBe(
+      'Navigate to the previous row with data in the corresponding metric column.',
+    );
+    expect(t('sourceNavHighest', 'en')).toBe(
+      'Navigate to the row with the highest value in the corresponding metric column.',
+    );
+    expect(t('sourceNavLowest', 'en')).toBe(
+      'Navigate to the row with the lowest value in the corresponding metric column.',
+    );
+    expect(t('sourceNavLowest', 'zh-CN')).toBe('跳到对应指标列中值最小的行。');
+    expect(t('sourceSortAsc', 'en')).toBe(
+      'Navigate to the row with the next higher value in the corresponding metric column.',
+    );
+    expect(t('sourceSortDesc', 'en')).toBe(
+      'Navigate to the row with the next lower value in the corresponding metric column.',
+    );
+    expect(t('sourceSortDesc', 'zh-CN')).toBe('跳到对应指标列中下一个更小值的行。');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {

@@ -583,7 +583,7 @@ onBeforeUnmount(() => {
         >
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-find-next"
             :aria-label="t('sourceFindNext', locale)"
             @click="stepSelectedData(1)"
@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-find-prev"
             :aria-label="t('sourceFindPrev', locale)"
             @click="stepSelectedData(-1)"
@@ -601,7 +601,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-nav-highest"
             :aria-label="t('sourceNavHighest', locale)"
             @click="goToExtreme(true)"
@@ -610,7 +610,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-sort-asc"
             :aria-label="t('sourceSortAsc', locale)"
             @click="setNavigateSort(false)"
@@ -619,7 +619,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-sort-desc"
             :aria-label="t('sourceSortDesc', locale)"
             @click="setNavigateSort(true)"
@@ -628,7 +628,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-nav-lowest"
             :aria-label="t('sourceNavLowest', locale)"
             @click="goToExtreme(false)"

@@ -264,3 +264,12 @@
   right: 0;
   transform: none;
 }
+
+/* Full-sentence tips (Source navigation). The 220px cap clips the line; grow
+   left so a tab-row `overflow-x: clip` does not crop the end of the sentence. */
+.pr-icon-tip--sentence::after {
+  max-width: none;
+  left: auto;
+  right: 0;
+  transform: none;
+}
