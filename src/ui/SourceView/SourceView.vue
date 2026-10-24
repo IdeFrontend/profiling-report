@@ -93,9 +93,15 @@ const correlationSuppressed = ref(false);
  * absorbed — no timer (timers raced real Sudu caret/paint).
  */
 const syncOrigin = ref<'source' | 'asm' | null>(null);
+/**
+ * File select with no caret: highlight every instruction mapped to that source
+ * file. The shared listing stays complete — this does not hide other files' rows.
+ */
+const showFileMatch = ref(false);
 
 function toggleLinkViews() {
   linkViews.value = !linkViews.value;
+  if (linkViews.value) scrollToFileMatch();
 }
 
 /** Last `{fileId}:{line}` applied from `focus`, so a manual file change is left alone. */
@@ -126,12 +132,22 @@ watch(
     searchQuery.value = '';
     correlationSuppressed.value = false;
     syncOrigin.value = null;
+    showFileMatch.value = false;
     appliedFocusKey = '';
     applyFocus();
   },
 );
 
 watch(() => focusKey(props.focus), () => applyFocus(), { immediate: true });
+
+/** Assembly line numbers mapped to `fileId`, in listing order. */
+function mappedAsmLines(fileId: string): number[] {
+  const lines: number[] = [];
+  for (const row of props.model.assembly.lines) {
+    if (props.model.asmToSource[row.line]?.fileId === fileId) lines.push(row.line);
+  }
+  return lines;
+}
 
 /** File picker only — asm→source correlation may change `selectedFileId` without reset. */
 function onSourceFileChange(fileId: string) {
@@ -140,19 +156,31 @@ function onSourceFileChange(fileId: string) {
   asmLine.value = null;
   correlationSuppressed.value = false;
   syncOrigin.value = null;
+  showFileMatch.value = true;
+  scrollToFileMatch();
 }
 
 const sourceFile = computed<SourceFileModel | null>(() => {
   return props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null;
 });
 
+/** Scroll the shared listing to the first instruction of the selected file. */
+function scrollToFileMatch() {
+  if (!linkViews.value || !showFileMatch.value) return;
+  if (sourceLine.value != null || asmLine.value != null) return;
+  const fileId = sourceFile.value?.id;
+  if (!fileId) return;
+  const first = mappedAsmLines(fileId)[0];
+  if (first != null) void nextTick(() => asmPane.value?.setLine(first));
+}
+
 const correlatedAsm = computed(() => {
   if (correlationSuppressed.value || !linkViews.value) return [];
   const file = sourceFile.value;
   if (file && sourceLine.value != null) {
-    const fromSource = props.model.sourceToAsm[`${file.id}:${sourceLine.value}`];
-    if (fromSource?.length) return fromSource;
+    return props.model.sourceToAsm[`${file.id}:${sourceLine.value}`] ?? [];
   }
+  if (showFileMatch.value && file && asmLine.value == null) return mappedAsmLines(file.id);
   // Asm-driven: expand siblings via asm → source → sourceToAsm (right-panel start).
   if (asmLine.value == null) return [];
   const hit = props.model.asmToSource[asmLine.value];
@@ -219,6 +247,7 @@ function nextHotLine(lines: number[], current: number | null): number | null {
 }
 
 function onSourceLine(line: number) {
+  showFileMatch.value = false;
   correlationSuppressed.value = false;
   // Asm-driven setLine echo — keep asm caret; clear the gate (no timer).
   if (syncOrigin.value === 'asm') {
@@ -252,6 +281,7 @@ function onSourceLine(line: number) {
 }
 
 function onAsmLine(line: number) {
+  showFileMatch.value = false;
   correlationSuppressed.value = false;
   if (syncOrigin.value === 'source') {
     asmLine.value = line;
@@ -374,19 +404,22 @@ function scrollTop() {
   asmPane.value?.scrollToTop();
   correlationSuppressed.value = true;
   syncOrigin.value = null;
+  showFileMatch.value = false;
   sourceLine.value = 1;
-  asmLine.value = 1;
+  asmLine.value = props.model.assembly.lines.length ? 1 : null;
 }
 
 function scrollBottom() {
   const srcLast = Math.max(1, sourceTextLines.value.length);
-  const asmLast =
-    props.model.assembly.lines[props.model.assembly.lines.length - 1]?.line ??
-    Math.max(1, props.model.assembly.text.split(/\r?\n/).length);
+  const asmLast = props.model.assembly.lines.length
+    ? (props.model.assembly.lines[props.model.assembly.lines.length - 1]?.line ??
+      Math.max(1, props.model.assembly.text.split(/\r?\n/).length))
+    : null;
   sourcePane.value?.scrollToBottom();
   asmPane.value?.scrollToBottom();
   correlationSuppressed.value = true;
   syncOrigin.value = null;
+  showFileMatch.value = false;
   sourceLine.value = srcLast;
   asmLine.value = asmLast;
 }
@@ -731,6 +764,7 @@ onBeforeUnmount(() => {
         </div>
         <!-- SASS: Address + Assembly are table cells (sketch) — no Sudu editor. -->
         <AsmTablePane
+          v-if="model.assembly.lines.length"
           ref="asmPane"
           class="pr-source-view__pane-body"
           :file="model.assembly"
@@ -740,6 +774,13 @@ onBeforeUnmount(() => {
           :search-query="trimmedSearch"
           @update:current-line="onAsmLine"
         />
+        <p
+          v-else
+          class="pr-source-view__pane-body pr-source-view__asm-empty"
+          data-testid="asm-empty"
+        >
+          {{ t('sourceAsmEmpty', locale) }}
+        </p>
       </div>
     </div>
   </div>
@@ -935,5 +976,15 @@ onBeforeUnmount(() => {
 
 .pr-source-view__pane--selected .pr-source-view__pane-body {
   border-color: var(--pr-src-accent, #3078f0);
+}
+
+.pr-source-view__asm-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 16px;
+  color: var(--pr-src-label);
+  text-align: center;
 }
 </style>
