@@ -28,13 +28,13 @@ describe('i18n', () => {
     expect(t('exportHtmlCancel', 'zh-CN')).toBe('取消');
     // Source sketch chrome stays English; icon-button tooltips localize.
     expect(t('sourceFile', 'zh-CN')).toBe('Source');
-    expect(t('sourceFindNext', 'zh-CN')).toBe('跳到选中面板导航指标列中下一个有数据的行');
+    expect(t('sourceFindNext', 'zh-CN')).toBe('跳到下一非零导航指标行');
     expect(t('sourceLinkSync', 'zh-CN')).toBe('联动视图');
-    expect(t('sourceFindNext', 'en')).toBe('Next row with data in the selected pane’s Navigate By column');
-    expect(t('sourceNavHighest', 'en')).toBe(
-      'Row with the highest value in the selected pane’s Navigate By column',
-    );
-    expect(t('sourceNavLowest', 'zh-CN')).toBe('跳到选中面板导航指标列中值最小的行');
+    expect(t('sourceFindNext', 'en')).toBe('Next non-zero Navigate By row');
+    expect(t('sourceNavHighest', 'en')).toBe('Highest Navigate By value');
+    expect(t('sourceNavLowest', 'zh-CN')).toBe('跳到导航指标最小值');
+    expect(t('sourceSortAsc', 'en')).toBe('Next higher Navigate By value');
+    expect(t('sourceSortDesc', 'zh-CN')).toBe('跳到下一更小的导航指标值');
   });
 
   it('localizes lane category labels when categoryKey is set', () => {

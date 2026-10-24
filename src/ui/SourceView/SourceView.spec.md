@@ -64,6 +64,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-24** — Navigation tooltips name the action in one short line: non-zero row, highest / lowest value, next higher / lower value.
 - **2026-10-24** — Navigate By buttons follow the selected pane’s metric column. Next/previous skip numeric 0 and do not wrap. Highest / lowest jump to the extreme value. Next higher / next lower walk values (ties by line number) and stop at the end (`PR-SOURCE-007`/`008`/`012`/`016`/`024`).
 - **2026-10-24** — File switch replaces the previous correlation with the new file's mapped instructions (`PR-SOURCE-015`). The empty-assembly placeholder describes an empty listing.
 - **2026-10-24** — Shared SASS listing stays whole when the source file changes; that file's instructions are highlighted. An empty assembly shows placeholder text (`PR-SOURCE-027`).
