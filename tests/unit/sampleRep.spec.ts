@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
+import { ensurePcSamplingSql } from '../../src/adapters/sourceCorrelation/readPcSamplingDb';
+import { resolveSourceFrame } from '../../src/adapters/sourceCorrelation/resolveSourceFrame';
+import { configurePcSamplingSqlForNodeTests } from '../helpers/sqlJsNode';
 import { parseNpuRep160 } from '../../src/adapters/parseNpuRep160';
 import type { AdaptedReport, SwimlaneModel, SwimThread } from '../../src/domain/types';
 import { collectLeafEventsFromModel, isFolderNode } from '../../src/domain/swimTree';
@@ -60,13 +63,21 @@ function requireOperator(reports: Record<string, AdaptedReport> | undefined, id:
 }
 
 describe('PR-NPU-006: sample.rep distinct operators', () => {
+  let adapted: ReturnType<typeof loadReportSource>;
+  let op1: AdaptedReport;
+  let op2: AdaptedReport;
+
+  beforeAll(async () => {
+    configurePcSamplingSqlForNodeTests();
+    await ensurePcSamplingSql();
+    adapted = loadReportSource(loadSampleRepBytes());
+    op1 = requireOperator(adapted.operatorReports, 'op1.npu.rep');
+    op2 = requireOperator(adapted.operatorReports, 'op2.npu.rep');
+  });
+
   it('committed sample.lite.rep is lite (op2 trace generated at hydrate time)', () => {
     expect(liteSampleRepByteLength()).toBeLessThan(500_000);
   });
-
-  const adapted = loadReportSource(loadSampleRepBytes());
-  const op1 = requireOperator(adapted.operatorReports, 'op1.npu.rep');
-  const op2 = requireOperator(adapted.operatorReports, 'op2.npu.rep');
 
   it('loads as a multi-op container with op1/op2', () => {
     expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);
@@ -327,6 +338,152 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(withParams.length).toBe(events.length);
     expect(String(withParams[0]!.args!.Pc_addr)).toMatch(/^0x[0-9a-f]+$/i);
     expect(Array.isArray(withParams[0]!.args!.Code)).toBe(true);
+  });
+
+  it('PR-NPU-013: sample embeds source files, roofline circles, a UB heat grid, and linked frames', () => {
+    const pointPerf = (report: AdaptedReport, id: string) =>
+      report.reportModel.roofline!.points.find((p) => p.id === id)!.performance;
+    for (const report of [op1, op2]) {
+      expect(report.capabilities).toEqual(
+        expect.arrayContaining(['sourceTab', 'roofline', 'memoryHeatmap']),
+      );
+      const source = report.reportModel.sourceCorrelation!;
+      expect(source.mock).toBe(false);
+      expect(source.files.map((f) => f.id)).toEqual([
+        'cube_op.cpp',
+        'mte_copy.cpp',
+        'fixp_loc.cpp',
+        'b.h',
+      ]);
+      const contentLines = (text: string) => {
+        const parts = text.split(/\r?\n/);
+        if (parts.length > 0 && parts[parts.length - 1] === '') parts.pop();
+        return parts.length;
+      };
+      const totalLines = source.files.reduce((n, file) => n + contentLines(file.text), 0);
+      expect(totalLines).toBeGreaterThanOrEqual(32 * 5);
+      expect(source.assembly.lines.length).toBeGreaterThanOrEqual(8 * 5);
+      const lineOf = (text: string, needle: string) => {
+        const line = text.split(/\r?\n/).findIndex((row) => row.includes(needle)) + 1;
+        expect(line).toBeGreaterThan(0);
+        return line;
+      };
+      const cube = source.files[0]!;
+      const mte = source.files[1]!;
+      expect(cube.language).toBe('ascend-c');
+      expect(cube.text).toContain('__aicore__');
+      expect(cube.text).toContain('Mmad(');
+      const mmad = lineOf(cube.text, 'Mmad(');
+      const copy = lineOf(mte.text, 'DataCopy(l1Local');
+      expect(source.sourceToAsm[`cube_op.cpp:${mmad}`]?.length).toBeGreaterThan(0);
+      expect(source.sourceToAsm[`mte_copy.cpp:${copy}`]?.length).toBeGreaterThan(0);
+      expect(report.reportModel.roofline!.points.map((p) => p.id).sort()).toEqual([
+        'aic_b16',
+        'aic_b32',
+        'aic_b8',
+        'aiv_simd_b16',
+        'aiv_simd_b32',
+        'aiv_simt_b16',
+      ]);
+      const ub = report.reportModel.memoryHeatmap!.units.find((u) => u.id === 'ub')!;
+      expect(ub.blocks.filter((b) => b.state === 'withData').length).toBeGreaterThan(1);
+      expect(ub.blocks.some((b) => b.state === 'withoutData')).toBe(true);
+      expect(ub.usedInstructionCount).toBeGreaterThan(1);
+    }
+    expect(pointPerf(op1, 'aiv_simd_b16')).not.toBeCloseTo(pointPerf(op2, 'aiv_simd_b16'));
+
+    const files = op1.reportModel.sourceCorrelation!.files;
+    let linked = 0;
+    let bare = 0;
+    let unmatched = 0;
+    let lineZero = 0;
+    for (const event of collectLeafEventsFromModel(op1.swimlaneModel!)) {
+      const code = event.args?.Code;
+      if (!Array.isArray(code)) continue;
+      for (const frame of code) {
+        const hit = resolveSourceFrame(frame as string | Record<string, unknown>, files);
+        if (!hit) {
+          unmatched += 1;
+          continue;
+        }
+        linked += 1;
+        if (typeof frame === 'string' && !/:\d+$/.test(frame)) {
+          bare += 1;
+          expect(hit.line).toBe(1);
+        }
+        if (frame && typeof frame === 'object' && (frame as { Line?: number }).Line === 0) {
+          lineZero += 1;
+          expect(hit.line).toBe(1);
+          expect(hit.fileId).toBe('fixp_loc.cpp');
+        }
+      }
+    }
+    expect(linked).toBeGreaterThan(0);
+    expect(bare).toBeGreaterThan(0);
+    expect(unmatched).toBeGreaterThan(0);
+    expect(lineZero).toBeGreaterThan(0);
+
+    const cube = files[0]!;
+    const mmad = cube.text.split(/\r?\n/).findIndex((row) => row.includes('Mmad(')) + 1;
+    const tile = files[3]!;
+    const tileLine = tile.text.split(/\r?\n/).findIndex((row) => row.includes('inline int tile_n()')) + 1;
+    let mmadHits = 0;
+    let tileHits = 0;
+    for (const event of collectLeafEventsFromModel(op1.swimlaneModel!)) {
+      const code = event.args?.Code;
+      if (!Array.isArray(code)) continue;
+      for (const frame of code) {
+        if (typeof frame !== 'string') continue;
+        const hit = resolveSourceFrame(frame, files);
+        if (frame.endsWith(`cube_op.cpp:${mmad}`)) {
+          expect(hit).toEqual({ fileId: 'cube_op.cpp', line: mmad });
+          mmadHits += 1;
+        }
+        if (frame.endsWith(`b.h:${tileLine}`)) {
+          expect(hit).toEqual({ fileId: 'b.h', line: tileLine });
+          tileHits += 1;
+        }
+      }
+    }
+    expect(mmadHits).toBeGreaterThan(0);
+    expect(tileHits).toBeGreaterThan(0);
+  });
+
+  it('PR-NPU-013: sample PC sampling fills source and disassembly metrics', () => {
+    const reports = [op1, op2];
+    const hot = (report: AdaptedReport) => {
+      const source = report.reportModel.sourceCorrelation!;
+      const cube = source.files[0]!;
+      const mmad = cube.text.split(/\r?\n/).findIndex((row) => row.includes('Mmad(')) + 1;
+      return { source, cube, line: cube.lines[mmad - 1]! };
+    };
+    const op1Hot = hot(reports[0]!);
+    const op2Hot = hot(reports[1]!);
+    for (const report of reports) {
+      const { source, cube, line } = hot(report);
+      expect(source.assembly.lines.every((row) => (row.values.samplingStall as number) > 0)).toBe(
+        true,
+      );
+      expect(
+        source.assembly.lines.every((row) => (row.values.instructionsExecuted as number) > 0),
+      ).toBe(true);
+      expect(
+        source.assembly.lines.every((row) => {
+          const occ = row.values.warpOccupancy as number;
+          return occ > 0 && occ <= 1;
+        }),
+      ).toBe(true);
+      expect(cube.lines.filter((row) => (row.values.samplingStall as number) > 0).length).toBeGreaterThanOrEqual(
+        8,
+      );
+      expect(line.values.samplingStall as number).toBeGreaterThan(10_000);
+      expect(line.values.instructionsExecuted as number).toBeGreaterThan(10_000);
+      const occ = line.values.warpOccupancy as number;
+      expect(occ).toBeGreaterThan(0.5);
+      expect(occ).toBeLessThanOrEqual(1);
+      expect(line.stallBreakdown?.some((row) => row.metric === 'Scoreboard Not Ready')).toBe(true);
+    }
+    expect(op1Hot.line.values.samplingStall).not.toBe(op2Hot.line.values.samplingStall);
   });
 
   it('op1 demos multi-height nests across SCALAR / MTE2 / ALL', () => {
