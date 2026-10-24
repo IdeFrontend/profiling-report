@@ -20,8 +20,10 @@ vi.mock('@sudu-ide/code-review', () => ({
   newEditor: vi.fn(() => ({
     setModel: vi.fn(),
     setVScrollListener: vi.fn(),
+    setVScrollVisible: vi.fn(),
     setCaretListener: vi.fn(),
     setPosition: vi.fn(),
+    setTheme: vi.fn(),
     getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
     revealLine: vi.fn(),
     revealLineInCenter: vi.fn(),
@@ -2272,5 +2274,112 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.vm.viewState.startTime).toBe(120);
     expect(wrapper.vm.viewState.endTime).toBe(480);
     wrapper.unmount();
+  });
+
+  it('PR-ROOT-029: a Parameter frame opens Source at its line, or line 1', async () => {
+    const correlation = mockSourceCorrelation();
+    const file = correlation.files[0]!;
+    const bare = '/home/chenning/asc-devkit/examples/gather_2d/gather_2d.asc';
+    const model = depsModel();
+    model.processes[0]!.threads[0]!.events[0]!.args = { Code: [bare, `${bare}:39`] };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-link',
+        swimlaneModel: model,
+        reportModel: {
+          ...emptyReportViewModel(),
+          sourceCorrelation: {
+            ...correlation,
+            mock: false,
+            files: [{ ...file, id: 'gather_2d.asc', path: 'gather_2d.asc' }],
+          },
+        },
+        capabilities: ['sourceTab'],
+      },
+    });
+    (wrapper.vm as unknown as { selectEventById: (id: string) => void }).selectEventById('a');
+    await nextTick();
+
+    const links = wrapper.findAll('[data-testid="source-frame-link"]');
+    expect(links).toHaveLength(2);
+    await links[0]!.trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(
+      wrapper.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('1');
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    await wrapper.findAll('[data-testid="source-frame-link"]')[1]!.trigger('click');
+    await flushPromises();
+    expect(
+      wrapper.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('39');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-029: operator switch clears the frame caret', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const correlation = mockSourceCorrelation();
+    const file = correlation.files[0]!;
+    const linked = {
+      ...correlation,
+      mock: false as const,
+      files: [{ ...file, id: 'gather_2d.asc', path: 'gather_2d.asc' }],
+    };
+    const swimA = depsModel();
+    swimA.processes[0]!.threads[0]!.events[0]!.args = {
+      Code: ['/tmp/gather_2d.asc:39'],
+    };
+    const swimB = depsModel();
+    swimB.maxTime = 50;
+    const reportA = { ...emptyReportViewModel(), sourceCorrelation: linked };
+    const reportB = {
+      ...emptyReportViewModel(),
+      // New model, same file object: SourceView reapplies focus, the editor
+      // does not reload the document.
+      sourceCorrelation: { ...linked },
+    };
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swimA,
+      reportModel: reportA,
+      capabilities: ['sourceTab'],
+      operators: [
+        { id: 'a.npu.rep', label: 'a' },
+        { id: 'b.npu.rep', label: 'b' },
+      ],
+      operatorReports: {
+        'a.npu.rep': { swimlaneModel: swimA, reportModel: reportA, capabilities: ['sourceTab'] },
+        'b.npu.rep': { swimlaneModel: swimB, reportModel: reportB, capabilities: ['sourceTab'] },
+      },
+      selectedOperatorId: 'a.npu.rep',
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      await flushPromises();
+      (wrapper.vm as unknown as { selectEventById: (id: string) => void }).selectEventById('a');
+      await nextTick();
+      await wrapper.get('[data-testid="source-frame-link"]').trigger('click');
+      await flushPromises();
+      expect(
+        wrapper.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+      ).toBe('39');
+
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      await wrapper.findAll('[data-testid="op-item"]')[1]!.trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+      expect(
+        wrapper.find('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').exists(),
+      ).toBe(false);
+      wrapper.unmount();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

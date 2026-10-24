@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { t } from '../../i18n';
 import type { DependencyNeighbors } from '../../domain/dependencies';
-import type { DependencyMode, SelectedEvent, TimeDisplayMode } from '../../domain/types';
+import type { DependencyMode, SelectedEvent, SourceFileModel, TimeDisplayMode } from '../../domain/types';
 import CloseButton from '../CloseButton.vue';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 import DetailSummary from './DetailSummary/DetailSummary.vue';
@@ -22,6 +22,8 @@ const props = withDefaults(
     /** Omitted when the report carries no dependency data — the column hides. */
     neighbors?: DependencyNeighbors;
     dependencyMode?: DependencyMode;
+    /** Bundled source files. Omitted when the Source tab is unavailable. */
+    sourceFiles?: SourceFileModel[];
     /** Dock height in px, owned by the parent shell (may be slack-capped during live preview). */
     height?: number;
     /**
@@ -37,6 +39,7 @@ const props = withDefaults(
     expanded: undefined,
     locale: undefined,
     neighbors: undefined,
+    sourceFiles: undefined,
     dependencyMode: 'all',
     timeOrigin: 0,
   },
@@ -46,6 +49,7 @@ const emit = defineEmits<{
   close: [];
   'update:dependencyMode': [mode: DependencyMode];
   'update:height': [height: number];
+  'open-source': [frame: string | Record<string, unknown>];
 }>();
 
 const expanded = computed(() =>
@@ -103,7 +107,9 @@ function toggleExpanded(): void {
       />
       <DetailParameter
         :args="selected.args"
+        :source-files="sourceFiles"
         :locale="locale"
+        @open-source="emit('open-source', $event)"
       />
       <DetailRelevant
         v-if="neighbors"

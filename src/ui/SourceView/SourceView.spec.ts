@@ -1179,4 +1179,40 @@ describe('SourceView', () => {
     expect(Number(sourceRow.attributes('data-line'))).toBe(sourceStall[0]!.line);
     wrapper.unmount();
   });
+
+  it('PR-SOURCE-026: focus selects that file and line', async () => {
+    const base = mockSourceCorrelation();
+    const sharpen = base.files[0]!;
+    const model = {
+      ...base,
+      files: [{ ...sharpen, id: 'other.cpp', path: 'other.cpp' }, sharpen],
+    };
+
+    const atLine1 = mount(SourceView, {
+      props: { model, focus: { fileId: 'sharpen.cpp', line: 1 } },
+    });
+    await flushPromises();
+    expect(atLine1.get('[data-testid="source-file-select"]').text()).toBe('sharpen.cpp');
+    expect(
+      atLine1.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('1');
+    expect(atLine1.find('[data-testid="source-pane-asm"] tr.pr-src-metrics__row--correlated').exists()).toBe(
+      false,
+    );
+    atLine1.unmount();
+
+    const atMapped = mount(SourceView, {
+      props: { model, focus: { fileId: 'sharpen.cpp', line: 46 } },
+    });
+    await flushPromises();
+    expect(
+      atMapped.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('46');
+    expect(
+      atMapped
+        .findAll('[data-testid="source-pane-asm"] tr.pr-src-metrics__row--correlated')
+        .map((row) => Number(row.attributes('data-line'))),
+    ).toEqual([1, 2, 3, 4, 5]);
+    atMapped.unmount();
+  });
 });
