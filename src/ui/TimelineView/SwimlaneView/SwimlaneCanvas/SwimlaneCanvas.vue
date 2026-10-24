@@ -295,7 +295,11 @@ const MARQUEE_RELEASE_MARGIN_PX = 12;
  * floor for an already-open dock (wrap never shrinks).
  */
 const MARQUEE_RELEASE_LAYOUT_WAIT_MS = 280;
-/** Already-open: wrap never shrank. Longer than Vue enter-from + 200ms ease on slow rAFs. */
+/**
+ * Marquee commit only: wrap never shrank past the preview height (already-open dock).
+ * Longer than Vue enter-from + 200ms ease on slow rAFs. Closed-dock click does not
+ * use this — a delayed DetailPanel mount must keep polling until shrink or the hard stop.
+ */
 const MARQUEE_RELEASE_SKIP_UNSHRUNK_MS = 500;
 /** Hard stop if the wrap is still changing (stuck CSS / missing transitionend). */
 const MARQUEE_RELEASE_LAYOUT_HARD_MS = 1200;
@@ -1462,6 +1466,7 @@ function scheduleEnsureMarqueeReleaseVisible(
   selTop: number,
   selBottom: number,
   cursorReveal = false,
+  allowUnshrunkSkip = true,
 ): void {
   cancelMarqueeReleaseVisible();
   const startH = marqueeWrapHAtGestureStart;
@@ -1492,10 +1497,17 @@ function scheduleEnsureMarqueeReleaseVisible(
       marqueeWrapHAtGestureStart = 0;
       return;
     }
-    // Already-open dock: wrap never shrank. Require stable frames so a single
-    // late rAF after a long task (waited >= SKIP while Vue enter-from still
-    // owes its two rAFs) cannot drop the ensure.
-    if (!shrunk && stable >= 2 && waited >= MARQUEE_RELEASE_SKIP_UNSHRUNK_MS) {
+    // Marquee already-open: wrap never shrank past preview height. Require stable
+    // frames so a single late rAF (waited >= SKIP while Vue enter-from still owes
+    // its two rAFs) cannot drop the ensure. Closed-dock click passes
+    // allowUnshrunkSkip=false — a stable closed height past this floor must not
+    // cancel the waiter before DetailPanel mounts (hard timeout is the give-up).
+    if (
+      allowUnshrunkSkip &&
+      !shrunk &&
+      stable >= 2 &&
+      waited >= MARQUEE_RELEASE_SKIP_UNSHRUNK_MS
+    ) {
       marqueeWrapHAtGestureStart = 0;
       return;
     }
@@ -1692,7 +1704,9 @@ function scheduleEnsureClickSelectionVisible(events: SwimEvent[]): void {
   const nowH = wrapRef.value?.clientHeight ?? 0;
   if (nowH > 0) marqueeWrapHAtGestureStart = nowH;
   if (marqueeWrapHAtGestureStart <= 0) return;
-  scheduleEnsureMarqueeReleaseVisible(range.top, range.bottom, false);
+  // Closed dock has not mounted. Keep polling through a stable unshrunk stretch
+  // so a DetailPanel that lays out after SKIP_UNSHRUNK_MS still ensure-scrolls.
+  scheduleEnsureMarqueeReleaseVisible(range.top, range.bottom, false, false);
 }
 
 function snapshotShiftBaseIds(): string[] {

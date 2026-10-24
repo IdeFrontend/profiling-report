@@ -4714,7 +4714,7 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-128: wrap that starts shrinking after 280ms still ensure-scrolls', async () => {
+  it('PR-CANVAS-128: stable closed wrap past the unshrunk skip floor still ensure-scrolls', async () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frames.push(cb);
@@ -4776,14 +4776,15 @@ describe('SwimlaneCanvas', () => {
     expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
 
     const before = wrapper.emitted('scroll-y')?.length ?? 0;
-    // Slow Vue flush / long rAF: wrap still closed past the old 280ms cap.
-    for (let i = 0; i < 20; i++) {
+    // Closed dock stays at the schedule height for ≥2 stable frames past the
+    // marquee unshrunk-skip floor. Click must not abort; the hard path still runs.
+    for (let i = 0; i < 40; i++) {
       now += 16;
       const pending = frames.splice(0);
       for (const cb of pending) cb(now);
       await wrapper.vm.$nextTick();
     }
-    expect(now).toBeGreaterThan(280);
+    expect(now).toBeGreaterThan(500);
     expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBe(before);
 
     Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
