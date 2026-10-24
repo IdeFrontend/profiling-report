@@ -42,6 +42,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 10. **PR-NPU-010** — The product timeline/summary embeds (`PipeTrace.json` + `Summary.jsonl`) map to the swimlane and op identity: `PipeTrace.json` drives the swimlane (µs → ns), `Summary.jsonl` `OpInfoSummary` supplies `opName`/`opType`/`taskDurationUs`/`blockDim`/`pid`.
 11. **PR-NPU-011** — The product report derives compute / bandwidth / utilization and summary categories: `coreCount` resolves from spaced `HardwareInfo.jsonl` keys (`ai vector count`); bandwidth cards prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)`); `parallelUtilization` / `parallelBalance` come from `OpInfoSummary`; and the detail surface is populated from `summary.jsonl` metric categories (excluding `OpInfoSummary`).
 12. **PR-NPU-012** — A leaf whose payloads include emulate `manifest.json` (thin profile or export catalog) is classified as emulate and MUST NOT require compute `OpBasicInfo.csv` / `PipeUtilization.csv` to load ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
+13. **PR-NPU-013** — `sample.lite.rep` embeds four Ascend C source files (at least 5× the original 32-line pack) and a shared disassembly of at least 40 instructions, Roofline circles, a UB heat grid, and op1 Code frames that open those files at the mapped line. Each operator's `summary.db` `pc_sampling` rows give those instructions non-zero Sampling Stall, Instructions Executed, and Warp Occupancy; mapped source lines roll those up (stall and instructions summed, occupancy averaged).
 
 ## Edge Cases
 
@@ -52,6 +53,9 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-10-24** — PR-NPU-013: sample `summary.db` fills Source / SASS Sampling Stall, Instructions Executed, and Warp Occupancy. Producer packs that omit the extra columns stay at 0 for those two.
+- **2026-10-24** — PR-NPU-013: sample kernels are Ascend C (`__aicore__`, `DataCopy` / `Mmad` / `Fixpipe`) at ≥5× the original line count, with a ≥40-instruction objdump. Code frames still open those lines.
+- **2026-10-23** — PR-NPU-013: `sample.lite.rep` carries a multi-file Source pack, HardwareInfo Roofline circles, `UbRwAccesses.csv`, and op1 `Code` frames aimed at those files.
 - **2026-10-15** — Product FileInfo `type:u16` **7 = txt** (`objdump.txt`, `.asc`) accepted by `parseNpuRep160` (npu-compute Source packs).
 - **2026-09-14** — PR-NPU-012: simulator leaf detection via `manifest.json`; no hardware CSV requirement ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 - **2026-09-07** — Product host extension is `.npu-rep` only ([PROC-2](../../docs/context/decisions/PROC.md)); nested FileInfo names unchanged.

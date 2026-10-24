@@ -10,7 +10,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 
 **Data SSOT:** [docs/views/memory-topology.md § Memory Utilization Heatmap](../../../../docs/views/memory-topology.md).
 **Carrier:** `MemoryHeatmapModel` ([`src/domain/types.ts`](../../../domain/types.ts)) — `units: { id, blocks, usedInstructionCount? }[]`; **capability `memoryHeatmap`**, independent of `memoryDiagram` / `archDiagram`.
-**Builder:** [`emulateMemoryHeatmap.ts`](../../../adapters/emulateMemoryHeatmap.ts) (`memoryHeatmapFromTexts`) — emulate only, from `UbRwAccesses.csv`; wired in [`adaptEmulate`](../../../adapters/adaptEmulate.ts).
+**Builder:** [`emulateMemoryHeatmap.ts`](../../../adapters/emulateMemoryHeatmap.ts) (`memoryHeatmapFromTexts`) — from `UbRwAccesses.csv`, wired in [`adaptEmulate`](../../../adapters/adaptEmulate.ts) and in the compute path when that CSV is packed.
 
 **model** — optional `MemoryHeatmapModel`. **selectedUnit** — the unit to show, owned by the **host** (the root overlay mirrors it with the diagram's selected unit); the panel never holds selection state. Optional **locale**.
 

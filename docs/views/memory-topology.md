@@ -230,6 +230,7 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 | compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | Capability **`memoryDiagram`** |
 | emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` / `emulateMemoryTopology.ts` | Capability **`archDiagram`** when drawable; same chrome + VM |
 | emulate (heat) | `memoryHeatmapFromTexts` in `adaptEmulate` / `emulateMemoryHeatmap.ts` | Capability **`memoryHeatmap`** when a unit has a source; own carrier (§ above) |
+| compute (heat) | same `memoryHeatmapFromTexts` from `adaptPayloads` when `UbRwAccesses.csv` is packed | Same capability and carrier; a compute pack without that CSV omits both |
 
 ## Related
 

@@ -104,6 +104,63 @@ function languageFor(path: string): string {
   return 'text';
 }
 
+interface BuiltSourceFile {
+  id: string;
+  path: string;
+  text: string;
+  metrics: SourceLineMetrics[];
+  stallByLine: Map<number, number>;
+  breakdownByLine: Map<number, Map<string, number>>;
+  /** Sum of mapped PC instruction counts. */
+  instrByLine: Map<number, number>;
+  /** Sum and count of mapped PC warp-occupancy fractions (mean, not sum). */
+  occSumByLine: Map<number, number>;
+  occCountByLine: Map<number, number>;
+}
+
+/**
+ * One source file per distinct symbolizer basename, in first-seen order.
+ * With no sites, fall back to the first embedded `.asc` / `.cpp` / `.h`.
+ */
+function sourceFilesFromSites(
+  payloads: Record<string, Uint8Array>,
+  sites: { fileName: string }[],
+): { order: BuiltSourceFile[]; byId: Map<string, BuiltSourceFile> } {
+  const byId = new Map<string, BuiltSourceFile>();
+  const order: BuiltSourceFile[] = [];
+
+  function add(fileName: string): void {
+    const id = basename(fileName);
+    if (byId.has(id)) return;
+    const hit = findSourceText(payloads, fileName);
+    const text = hit?.text ?? '';
+    const lineCount = text.length ? text.split(/\r?\n/).length : 1;
+    const built: BuiltSourceFile = {
+      id,
+      path: hit?.path ?? fileName,
+      text,
+      metrics: emptyMetrics(text.length ? lineCount : 1),
+      stallByLine: new Map(),
+      breakdownByLine: new Map(),
+      instrByLine: new Map(),
+      occSumByLine: new Map(),
+      occCountByLine: new Map(),
+    };
+    byId.set(id, built);
+    order.push(built);
+  }
+
+  for (const site of sites) {
+    if (site.fileName) add(site.fileName);
+  }
+  if (order.length === 0) {
+    add(
+      Object.keys(payloads).find((k) => /\.(asc|cpp|h)$/i.test(k)) ?? 'source.asc',
+    );
+  }
+  return { order, byId };
+}
+
 /**
  * Detect compute Source pack: `objdump.txt` plus `symbolizer.json` and/or `summary.db`.
  */
@@ -153,39 +210,39 @@ export function adaptComputeSourceCorrelation(
     }
   }
 
-  const primaryFile =
-    sites.find((s) => s.fileName)?.fileName ??
-    Object.keys(payloads).find((k) => /\.(asc|cpp|h)$/i.test(k)) ??
-    'source.asc';
-  const sourceHit = findSourceText(payloads, primaryFile);
-  const sourceText = sourceHit?.text ?? '';
-  const sourcePath = sourceHit?.path ?? primaryFile;
-  const sourceId = basename(primaryFile);
-  const sourceLineCount = sourceText.length ? sourceText.split(/\r?\n/).length : 1;
-
-  const sourceMetrics = emptyMetrics(sourceLineCount);
-  const sourceStallByLine = new Map<number, number>();
-  /** Per source line: stall reason → summed sample count (for Sampling Stall tooltip). */
-  const sourceBreakdownByLine = new Map<number, Map<string, number>>();
+  const sourceFiles = sourceFilesFromSites(payloads, sites);
 
   const asmLines: SourceLineMetrics[] = insns.map((insn, i) => {
     const stall = stallByPc.get(insn.pc);
     const samplingStall = stall?.samplingStall ?? 0;
+    const executed = stall?.instructionsExecuted ?? 0;
+    const occupancy = stall?.warpOccupancy;
     const site = siteByPc.get(insn.pc);
-    if (site?.line != null && samplingStall > 0) {
-      sourceStallByLine.set(
-        site.line,
-        (sourceStallByLine.get(site.line) ?? 0) + samplingStall,
-      );
-      if (stall?.stallBreakdown?.length) {
-        let parts = sourceBreakdownByLine.get(site.line);
-        if (!parts) {
-          parts = new Map();
-          sourceBreakdownByLine.set(site.line, parts);
+    const file = site ? sourceFiles.byId.get(basename(site.fileName)) : undefined;
+    if (file && site?.line != null) {
+      if (samplingStall > 0) {
+        file.stallByLine.set(site.line, (file.stallByLine.get(site.line) ?? 0) + samplingStall);
+        if (stall?.stallBreakdown?.length) {
+          let parts = file.breakdownByLine.get(site.line);
+          if (!parts) {
+            parts = new Map();
+            file.breakdownByLine.set(site.line, parts);
+          }
+          for (const row of stall.stallBreakdown) {
+            parts.set(row.metric, (parts.get(row.metric) ?? 0) + row.value);
+          }
         }
-        for (const row of stall.stallBreakdown) {
-          parts.set(row.metric, (parts.get(row.metric) ?? 0) + row.value);
-        }
+      }
+      if (executed > 0) {
+        file.instrByLine.set(site.line, (file.instrByLine.get(site.line) ?? 0) + executed);
+      }
+      // 0 is a real 0–1 sample. Only a missing column (undefined) stays out of the mean.
+      if (occupancy != null) {
+        file.occSumByLine.set(site.line, (file.occSumByLine.get(site.line) ?? 0) + occupancy);
+        file.occCountByLine.set(
+          site.line,
+          (file.occCountByLine.get(site.line) ?? 0) + 1,
+        );
       }
     }
     return {
@@ -193,38 +250,41 @@ export function adaptComputeSourceCorrelation(
       values: {
         address: formatAddress(insn.pcHex),
         assembly: insn.assembly,
-        instructionsExecuted: 0,
+        instructionsExecuted: executed,
         samplingStall,
-        warpOccupancy: 0,
+        warpOccupancy: occupancy ?? 0,
       },
       ...(stall?.stallBreakdown?.length ? { stallBreakdown: stall.stallBreakdown } : {}),
     };
   });
 
-  for (const [line, stall] of sourceStallByLine) {
-    if (line < 1 || line > sourceMetrics.length) continue;
-    const row = sourceMetrics[line - 1]!;
-    row.values.samplingStall = stall;
-    const parts = sourceBreakdownByLine.get(line);
-    if (!parts?.size) continue;
-    const stallBreakdown: SourceStallBreakdown[] = [...parts.entries()]
-      .map(([metric, value]) => ({
-        metric,
-        value,
-        percent: stall > 0 ? (value / stall) * 100 : 0,
-      }))
-      .filter((r) => r.value > 0);
-    if (stallBreakdown.length) row.stallBreakdown = stallBreakdown;
+  for (const file of sourceFiles.order) {
+    const lineIds = new Set<number>([
+      ...file.stallByLine.keys(),
+      ...file.instrByLine.keys(),
+      ...file.occCountByLine.keys(),
+    ]);
+    for (const line of lineIds) {
+      if (line < 1 || line > file.metrics.length) continue;
+      const row = file.metrics[line - 1]!;
+      const stall = file.stallByLine.get(line) ?? 0;
+      if (stall > 0) row.values.samplingStall = stall;
+      const executed = file.instrByLine.get(line);
+      if (executed) row.values.instructionsExecuted = executed;
+      const occN = file.occCountByLine.get(line) ?? 0;
+      if (occN > 0) row.values.warpOccupancy = (file.occSumByLine.get(line) ?? 0) / occN;
+      const parts = file.breakdownByLine.get(line);
+      if (!parts?.size || stall <= 0) continue;
+      const stallBreakdown: SourceStallBreakdown[] = [...parts.entries()]
+        .map(([metric, value]) => ({
+          metric,
+          value,
+          percent: stall > 0 ? (value / stall) * 100 : 0,
+        }))
+        .filter((r) => r.value > 0);
+      if (stallBreakdown.length) row.stallBreakdown = stallBreakdown;
+    }
   }
-
-  const sourceFile: SourceFileModel = {
-    id: sourceId,
-    path: sourcePath,
-    language: languageFor(sourcePath),
-    text: sourceText || `// missing source embed: ${primaryFile}\n`,
-    metricsColumns: SOURCE_COLUMNS,
-    lines: sourceText ? sourceMetrics : emptyMetrics(1),
-  };
 
   const fn =
     sites.find((s) => s.functionName)?.functionName ||
@@ -246,16 +306,24 @@ export function adaptComputeSourceCorrelation(
     if (site.line == null) continue;
     const asmLine = pcToAsmLine.get(site.pc);
     if (asmLine == null) continue;
-    const key = `${sourceId}:${site.line}`;
+    const fileId = basename(site.fileName);
+    const key = `${fileId}:${site.line}`;
     const list = sourceToAsm[key] ?? (sourceToAsm[key] = []);
     if (!list.includes(asmLine)) list.push(asmLine);
     if (asmToSource[asmLine] == null) {
-      asmToSource[asmLine] = { fileId: sourceId, line: site.line };
+      asmToSource[asmLine] = { fileId, line: site.line };
     }
   }
 
   return {
-    files: [sourceFile],
+    files: sourceFiles.order.map((file) => ({
+      id: file.id,
+      path: file.path,
+      language: languageFor(file.path),
+      text: file.text || `// missing source embed: ${file.path}\n`,
+      metricsColumns: SOURCE_COLUMNS,
+      lines: file.text ? file.metrics : emptyMetrics(1),
+    })),
     assembly,
     sourceToAsm,
     asmToSource,

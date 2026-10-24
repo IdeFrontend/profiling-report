@@ -122,11 +122,11 @@ async function probeSwimlaneDepCurves(
 
 test.describe('PR-E2E feature paths', () => {
   test('PR-E2E-018: Source tab opens only when the fixture has real source data', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?fixture=vector_muladd');
     await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('tab-source')).toHaveCount(0);
 
-    await page.goto('/?fixture=gather_2d');
+    await page.goto('/');
     await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
     const sourceTab = page.getByTestId('tab-source');
     await expect(sourceTab).toBeVisible({ timeout: 15_000 });
