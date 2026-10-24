@@ -26,6 +26,7 @@ import {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
 import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
 import { rooflineFromRows } from './roofline';
 
@@ -1057,12 +1058,18 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if (sourceCorrelation && !sourceCorrelation.mock) {
     reportModel.sourceCorrelation = sourceCorrelation;
   }
+  const ubRw = payloadByName(payloads, ['UbRwAccesses.csv', 'ubrwaccesses.csv']);
+  const memoryHeatmap = memoryHeatmapFromTexts({
+    'UbRwAccesses.csv': ubRw ? decodeUtf8(ubRw) : undefined,
+  });
+  if (memoryHeatmap) reportModel.memoryHeatmap = memoryHeatmap;
   const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
   // npu-compute §11.8: derive when points exist (host may still pass capabilities to override).
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
+  if (memoryHeatmap) capabilities.push('memoryHeatmap');
   if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   // UI-37: 源码 only when real source embeds adapted (no mock fallback).
   if (reportModel.sourceCorrelation) capabilities.push('sourceTab');
