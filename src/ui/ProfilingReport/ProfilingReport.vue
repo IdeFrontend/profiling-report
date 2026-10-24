@@ -2,6 +2,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
 import { ensurePcSamplingSql, loadReportSource } from '../../adapters';
 import {
+  resolveSourceFrame,
+  type SourceFrameTarget,
+} from '../../adapters/sourceCorrelation/resolveSourceFrame';
+import {
   applyWindow,
   clearMeasure,
   clearSelection,
@@ -410,6 +414,8 @@ const sourceTabEnabled = computed(
     report.value.sourceCorrelation.mock !== true,
 );
 const activeTab = ref<'timeline' | 'source'>('timeline');
+/** Caret the Source tab applies after a Parameter frame click. */
+const sourceFocus = ref<SourceFrameTarget | null>(null);
 const showSource = computed(
   () =>
     activeTab.value === 'source' &&
@@ -426,6 +432,15 @@ watch(sourceTabEnabled, (ok) => {
 function onActiveTab(tab: 'timeline' | 'source') {
   if (tab === 'source' && !sourceTabEnabled.value) return;
   activeTab.value = tab;
+}
+
+function onOpenSource(frame: string | Record<string, unknown>) {
+  const files = report.value?.sourceCorrelation?.files;
+  if (!sourceTabEnabled.value || !files) return;
+  const hit = resolveSourceFrame(frame, files);
+  if (!hit) return;
+  sourceFocus.value = hit;
+  activeTab.value = 'source';
 }
 
 const pipeUtilRows = computed(() => {
@@ -613,6 +628,9 @@ function resetViewFromModel(
   viewState.value = next;
   selected.value = null;
   selectedEvent.value = null;
+  // Same reset as selection: a leftover frame caret reopens the previous line
+  // when SourceView's model changes (file ids are basenames).
+  sourceFocus.value = null;
   multiSelected.value = [];
   multiSelectSpan.value = null;
   marqueeLive.value = false;
@@ -1811,6 +1829,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
           :model="report.sourceCorrelation"
+          :focus="sourceFocus"
           :locale="locale"
           :sudu-worker-url="suduWorkerUrl"
           :user-guide-url="userGuideUrl"
@@ -1937,11 +1956,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :locale="locale"
             :neighbors="dependencyNeighbors"
             :dependency-mode="localDependencyMode"
+            :source-files="sourceTabEnabled ? report?.sourceCorrelation?.files : undefined"
             :height="dockDisplayHeight"
             :expanded="dockSessionExpanded"
             @close="onSelect(null)"
             @update:height="dockHeight = $event"
             @update:dependency-mode="onDependencyMode"
+            @open-source="onOpenSource"
           />
           <PerformanceHintsDock
             v-else-if="hintsDockShown"
