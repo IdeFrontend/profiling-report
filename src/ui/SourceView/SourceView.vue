@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { SourceFrameTarget } from '../../adapters/sourceCorrelation/resolveSourceFrame';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
@@ -33,11 +34,14 @@ function firstListedNavigate(
 const props = withDefaults(
   defineProps<{
     model: SourceCorrelationModel;
+    /** One-shot Source caret from a task-detail frame. Applied once per file and line. */
+    focus?: SourceFrameTarget | null;
     locale?: string;
     suduWorkerUrl?: string;
     userGuideUrl?: string;
   }>(),
   {
+    focus: null,
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
@@ -94,6 +98,23 @@ function toggleLinkViews() {
   linkViews.value = !linkViews.value;
 }
 
+/** Last `{fileId}:{line}` applied from `focus`, so a manual file change is left alone. */
+let appliedFocusKey = '';
+
+function focusKey(focus: SourceFrameTarget | null | undefined): string {
+  return focus ? `${focus.fileId}:${focus.line}` : '';
+}
+
+function applyFocus() {
+  const focus = props.focus;
+  const key = focusKey(focus);
+  if (!focus || !key || key === appliedFocusKey) return;
+  if (!props.model.files.some((file) => file.id === focus.fileId)) return;
+  appliedFocusKey = key;
+  selectedFileId.value = focus.fileId;
+  void nextTick(() => jumpSource(focus.line));
+}
+
 watch(
   () => props.model,
   (m) => {
@@ -105,8 +126,12 @@ watch(
     searchQuery.value = '';
     correlationSuppressed.value = false;
     syncOrigin.value = null;
+    appliedFocusKey = '';
+    applyFocus();
   },
 );
+
+watch(() => focusKey(props.focus), () => applyFocus(), { immediate: true });
 
 /** File picker only — asm→source correlation may change `selectedFileId` without reset. */
 function onSourceFileChange(fileId: string) {

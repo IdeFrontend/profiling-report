@@ -8,7 +8,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Inputs
 
-**model** (`SourceCorrelationModel`) drives both panes, file select, navigate-by options, and correlation maps. Optional **locale** and **suduWorkerUrl** (default `/sudu/worker.js`).
+**model** (`SourceCorrelationModel`) drives both panes, file select, navigate-by options, and correlation maps. Optional **focus** (`{ fileId, line }`) moves the Source caret once per file and line, including line 1, and follows Link views into the mapped asm rows. A later manual file change is left alone. Optional **locale** and **suduWorkerUrl** (default `/sudu/worker.js`).
 
 ## Behavior
 
@@ -53,6 +53,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 23. **PR-SOURCE-023** — While the Sudu editor is initializing, the left pane shows a centered loading indicator (`sudu-loading`) and hides the editor and metrics columns. When geometry is ready, the editor and the metrics table appear together.
 24. **PR-SOURCE-024** — Asc/desc buttons step the selected pane through its Navigate By hot lines (increasing or decreasing metric, ties by line number, wrap). Neither button keeps `pr-source-view__icon-btn--on` / `aria-pressed`. Distinct `sourceSortAsc` / `sourceSortDesc` labels. The other pane’s Navigate By is not used.
 25. **PR-SOURCE-025** — Link views off keeps the other pane’s Navigate By. A metric missing from the other dropdown is not applied there.
+26. **PR-SOURCE-026** — **focus** selects that file and line. Line 1 is valid and does not invent an asm mapping. A mapped line highlights the asm rows when Link views is on.
 
 ## Design sketches
 
@@ -60,6 +61,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-23** — A **focus** prop opens a task-detail frame on its file and line (`PR-SOURCE-026`).
 - **2026-10-23** — Editor caret moves and Enter-find restore the current-line band after `clearLine`. An asm hit in another file waits for the model swap instead of `setLine` on the old document (`PR-SOURCE-005`/`006`).
 - **2026-10-23** — Scroll and file change drop a pre-boot asm echo gate. `clearLine`'s hidden current-line theme is restored on metrics click and scroll. Boot replays the caret into the metrics table once geometry is usable (`PR-SOURCE-006`/`012`/`016`).
 - **2026-10-23** — File switch ignores Sudu `setModel`'s line-1 caret notification. Scroll during boot does not echo as a selection; an asm `setLine` queued before boot still does (`PR-SOURCE-012`/`015`/`016`).
