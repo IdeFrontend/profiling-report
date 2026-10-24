@@ -52,12 +52,14 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-016**: During a live marquee, holding the pointer in the bottom edge band increases gutter `scrollTop` while the marquee rect stays visible (edge autoscroll).
 1. **PR-E2E-017**: Playground toolbar Export with `?locale=en` fetches `/npu-rep-html-template.txt`, stitches the loaded report using the HTML `<script>` embed slot (not marker strings inside the inlined viewer bundle), and downloads `{name}.html` whose embed slot is filled with `en`.
 1. **PR-E2E-018**: Source tab opens `source-view` with mock badge on a report pack; returning to Timeline unmounts it (UI-37).
+1. **PR-E2E-019**: Single-click an event that a closed DetailPanel would cover; after the dock height tween the selected lane row stays visible above the dock (timeline ensure-scrolls).
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-10-23** — PR-E2E-019: closed-dock single-click ensure-scrolls the selected row above the DetailPanel (wait for dock height to settle; Vue enter-from + 200ms ease can outlast a 280ms cap).
 - **2026-10-05** — PR-E2E-017: playground HTML export (template fetch + stitch download). Vite `%ENV%` must not strip embed placeholders; template is served as `.txt`.
 - **2026-09-13** — PR-E2E-015/016: scroll-layer lock under wheel, and marquee bottom-edge autoscroll in Chromium (jsdom cannot chase real layout + RAF edge scroll together).
 - **2026-09-12** — PR-E2E-014: dock enter must not reserve a full-height flex slot while still visually empty (black-hole regression vs master).
