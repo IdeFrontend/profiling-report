@@ -11,7 +11,7 @@ import SourceMetricsTable from './SourceMetricsTable.vue';
 /** Match Sudu’s default line box for 12px monospace (~1.5× font size). */
 const ROW_H = Math.round(SOURCE_TAB_EDITOR_FONT.size * 1.5);
 
-const props = defineProps<{
+defineProps<{
   file: SourceFileModel;
   currentLine?: number | null;
   correlatedLines?: number[];
@@ -38,22 +38,7 @@ function setLine(line: number) {
   });
 }
 
-function scrollToTop() {
-  const scroll = rootEl.value?.querySelector<HTMLElement>('[data-testid="source-metrics-scroll"]');
-  if (scroll) scroll.scrollTop = 0;
-  setLine(1);
-}
-
-function scrollToBottom() {
-  const scroll = rootEl.value?.querySelector<HTMLElement>('[data-testid="source-metrics-scroll"]');
-  if (scroll) scroll.scrollTop = scroll.scrollHeight;
-  const last =
-    props.file.lines[props.file.lines.length - 1]?.line ??
-    Math.max(1, props.file.text.split(/\r?\n/).length);
-  setLine(last);
-}
-
-defineExpose({ setLine, scrollToTop, scrollToBottom });
+defineExpose({ setLine });
 </script>
 
 <template>
