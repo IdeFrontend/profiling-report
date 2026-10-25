@@ -353,10 +353,14 @@ describe('SourceView', () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     expect(wrapper.find('[data-testid="source-search"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-toolbar-actions"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-find-next"]').classes()).toContain('pr-icon-tip--sentence');
+    expect(wrapper.find('[data-testid="source-nav-lowest"]').classes()).toContain('pr-icon-tip--sentence');
     expect(wrapper.find('[data-testid="source-find-next"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-find-prev"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-scroll-top"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-scroll-bottom"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-nav-highest"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-nav-lowest"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-scroll-top"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-scroll-bottom"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="source-sort-asc"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-sort-desc"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-download"]').exists()).toBe(false);
@@ -414,10 +418,29 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     expect(ed.selectNextRange).toHaveBeenCalled();
 
-    // Prev/next line buttons ignore search and step lines.
+    // Prev/next data buttons ignore search and skip a numeric 0.
+    const srcLines = model.files[0]!.lines;
+    const zeroBetween = srcLines.findIndex((row, i) => {
+      if (i === 0 || i === srcLines.length - 1) return false;
+      const v = row.values.instructionsExecuted;
+      const prev = srcLines[i - 1]!.values.instructionsExecuted;
+      const next = srcLines[i + 1]!.values.instructionsExecuted;
+      return v === 0 && typeof prev === 'number' && prev !== 0 && typeof next === 'number' && next !== 0;
+    });
+    expect(zeroBetween).toBeGreaterThan(0);
+    await sourceTable.find(`tr[data-line="${srcLines[zeroBetween]!.line}"]`).trigger('click');
     await findNext.trigger('click');
     await wrapper.vm.$nextTick();
-    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBeGreaterThan(0);
+    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(
+      srcLines[zeroBetween + 1]!.line,
+    );
+    const firstData = srcLines.find((row) => row.values.instructionsExecuted !== 0)!.line;
+    await sourceTable.find(`tr[data-line="${firstData}"]`).trigger('click');
+    await findPrev.trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(Number(sourceTable.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(
+      firstData,
+    );
 
     // Fresh mount: SASS selected, no caret → prev starts at last (independent of search).
     wrapper.unmount();
@@ -442,11 +465,10 @@ describe('SourceView', () => {
     const lastAsm = model.assembly.lines[model.assembly.lines.length - 1]!.line;
     expect(Number(asmOnly.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(lastAsm);
 
+    // Already on the last data row — next does not wrap.
     await asmWrapper.find('[data-testid="source-find-next"]').trigger('click');
     await asmWrapper.vm.$nextTick();
-    expect(Number(asmOnly.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(
-      model.assembly.lines[0]!.line,
-    );
+    expect(Number(asmOnly.find('tr.pr-src-metrics__row--current').attributes('data-line'))).toBe(lastAsm);
 
     // Enter walks Assembly search hits when SASS is selected.
     await asmSearch.setValue('FFMA');
@@ -559,110 +581,57 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
-  it('PR-SOURCE-012: scroll-to-top suppresses correlated highlights until next click', async () => {
+  it('PR-SOURCE-012: highest selects the max Navigate By row and correlates', async () => {
     const model = mockSourceCorrelation();
+    const file = model.files[0]!;
+    for (const row of file.lines) {
+      if (typeof row.values.instructionsExecuted === 'number') row.values.instructionsExecuted = 1;
+    }
+    // Later line wins a tie, and 46 is a mapped source line.
+    file.lines.find((row) => row.line === 10)!.values.instructionsExecuted = 5000;
+    file.lines.find((row) => row.line === 46)!.values.instructionsExecuted = 5000;
     const wrapper = mount(SourceView, { props: { model } });
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await sourceTable.find('tr[data-line="46"]').trigger('click');
+
+    await wrapper.find('[data-testid="source-nav-highest"]').trigger('click');
     await wrapper.vm.$nextTick();
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
+    expect(sourceTable.find('tr[data-line="1"]').classes()).not.toContain('pr-src-metrics__row--current');
 
-    await wrapper.find('[data-testid="source-scroll-top"]').trigger('click');
+    await wrapper.find('[data-testid="source-nav-highest"]').trigger('click');
     await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-
-    await sourceTable.find('tr[data-line="46"]').trigger('click');
-    await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
   });
 
-  it('PR-SOURCE-012b: scroll-to-top during Sudu boot keeps both carets and stays suppressed', async () => {
+  it('PR-SOURCE-016: lowest selects the min non-zero of the selected pane', async () => {
     const model = mockSourceCorrelation();
-    const wrapper = mount(SourceView, { props: { model } });
-    await wrapper.find('[data-testid="source-scroll-top"]').trigger('click');
+    const file = model.files[0]!;
+    file.lines.find((row) => row.line === 30)!.values.instructionsExecuted = 0.5;
+    file.lines.find((row) => row.line === 12)!.values.instructionsExecuted = 0.5;
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     await flushPromises();
-    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    expect(sourceTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
-    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-  });
+    // The other pane's Navigate By must not steer this jump.
+    await wrapper.find('[data-testid="source-link-asm"]').trigger('click');
+    await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
+    await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
+    (document.querySelector(
+      '[data-testid="source-asm-navigate-by-menu"] [data-value="warpOccupancy"]',
+    ) as HTMLElement).click();
+    await wrapper.find('[data-testid="source-pane-source"]').trigger('pointerdown');
 
-  it('PR-SOURCE-012c: scroll during boot drops a queued asm echo gate', async () => {
-    const model = mockSourceCorrelation();
-    const wrapper = mount(SourceView, { props: { model } });
-    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await asmTable.find('tr[data-line="2"]').trigger('click');
-    await wrapper.find('[data-testid="source-scroll-top"]').trigger('click');
-    await flushPromises();
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
-    // Gate must be clear: source 61 maps to asm 6, not the scroll caret.
-    await sourceTable.find('tr[data-line="61"]').trigger('click');
-    await flushPromises();
-    expect(asmTable.find('tr[data-line="6"]').classes()).toContain('pr-src-metrics__row--current');
-  });
-
-  it('PR-SOURCE-012d: same-line queued asm jump does not undo scroll suppression', async () => {
-    const model = mockSourceCorrelation();
-    const line1Asm = model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line;
-    expect(line1Asm).toBeDefined();
-    model.asmToSource[line1Asm!] = { fileId: 'sharpen.cpp', line: 1 };
-    model.sourceToAsm['sharpen.cpp:1'] = [line1Asm!];
-    const wrapper = mount(SourceView, { props: { model } });
-    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await asmTable.find(`tr[data-line="${line1Asm}"]`).trigger('click');
-    await wrapper.find('[data-testid="source-scroll-top"]').trigger('click');
-    await flushPromises();
-    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    expect(sourceTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
-    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-  });
-
-  it('PR-SOURCE-016: scroll-to-bottom suppresses correlated highlights at last lines', async () => {
-    const model = mockSourceCorrelation();
-    const wrapper = mount(SourceView, { props: { model } });
-    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await wrapper.find('[data-testid="source-nav-lowest"]').trigger('click');
     await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated').length).toBeGreaterThan(0);
-
-    await wrapper.find('[data-testid="source-scroll-bottom"]').trigger('click');
-    await wrapper.vm.$nextTick();
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-    expect(sourceTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-    const srcLast = model.files[0]!.text.split(/\r?\n/).length;
-    const asmLast = model.assembly.lines[model.assembly.lines.length - 1]!.line;
-    expect(sourceTable.find(`tr[data-line="${srcLast}"]`).classes()).toContain(
+    // Earlier line wins the tie. A numeric 0 is not a candidate.
+    expect(sourceTable.find('tr[data-line="12"]').classes()).toContain('pr-src-metrics__row--current');
+    const zero = file.lines.find((row) => row.values.instructionsExecuted === 0);
+    expect(zero).toBeTruthy();
+    expect(sourceTable.find(`tr[data-line="${zero!.line}"]`).classes()).not.toContain(
       'pr-src-metrics__row--current',
     );
-    expect(asmTable.find(`tr[data-line="${asmLast}"]`).classes()).toContain(
-      'pr-src-metrics__row--current',
-    );
-  });
-
-  it('PR-SOURCE-016b: scroll-to-bottom during Sudu boot keeps both carets and stays suppressed', async () => {
-    const model = mockSourceCorrelation();
-    const wrapper = mount(SourceView, { props: { model } });
-    await wrapper.find('[data-testid="source-scroll-bottom"]').trigger('click');
-    await flushPromises();
-    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
-    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
-    const srcLast = model.files[0]!.text.split(/\r?\n/).length;
-    const asmLast = model.assembly.lines[model.assembly.lines.length - 1]!.line;
-    expect(sourceTable.find(`tr[data-line="${srcLast}"]`).classes()).toContain(
-      'pr-src-metrics__row--current',
-    );
-    expect(asmTable.find(`tr[data-line="${asmLast}"]`).classes()).toContain(
-      'pr-src-metrics__row--current',
-    );
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
+    wrapper.unmount();
   });
 
   it('PR-SOURCE-014d: asm click before boot still clears the echo gate', async () => {
@@ -1156,10 +1125,17 @@ describe('SourceView', () => {
       t('sourceSortDesc'),
     );
 
-    // Last desc line wraps to the highest.
+    // Already on the lowest — next lower stays.
     await asmTable.find(`tr[data-line="${asmDesc[asmDesc.length - 1]!.line}"]`).trigger('click');
     await wrapper.vm.$nextTick();
     await wrapper.find('[data-testid="source-sort-desc"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(asmCurrent()).toBe(asmDesc[asmDesc.length - 1]!.line);
+
+    // Already on the highest — next higher stays.
+    await asmTable.find(`tr[data-line="${asmDesc[0]!.line}"]`).trigger('click');
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(asmCurrent()).toBe(asmDesc[0]!.line);
 
