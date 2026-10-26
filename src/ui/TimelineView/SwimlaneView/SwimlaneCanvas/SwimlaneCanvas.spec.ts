@@ -4509,6 +4509,785 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it.each([
+    { measureMode: false, label: 'single-click' },
+    { measureMode: true, label: 'measure-mode click' },
+  ])(
+    'PR-CANVAS-128: $label select ensure-scrolls when DetailPanel covers the event',
+    async ({ measureMode }) => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    // Process header 40 + 6*22 → event near wrap bottom (200px).
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-6');
+    expect(evRect).toBeTruthy();
+    // eventScreenRect is canvas-local CSS; client = box origin + local.
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    // Click e-6 (row bottom = 40 + 6*22 + 22 = 194) — visible in 200px wrap, covered after shrink.
+    const rowBottom = 40 + 6 * LANE_HEIGHT + LANE_HEIGHT;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
+
+    // Dock open: wrap shrinks like closed→session DetailPanel.
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const margin = 12;
+    const target = rowBottom + margin - 50;
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        Math.abs(last - target) <= 1
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
+
+    wrapper.unmount();
+    },
+  );
+
+  it('PR-CANVAS-128: delayed dock enter (stable closed wrap, then shrink) still ensure-scrolls', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-6');
+    expect(evRect).toBeTruthy();
+    // eventScreenRect is canvas-local CSS; client = box origin + local.
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    const rowBottom = 40 + 6 * LANE_HEIGHT + LANE_HEIGHT;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    // Vue dock enter: two rAFs at height 0 before the wrap shrinks. Old waiter
+    // treated 2 stable closed frames as already-open and skipped the ensure.
+    for (let i = 0; i < 5; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBe(before);
+
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const margin = 12;
+    const target = rowBottom + margin - 50;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        Math.abs(last - target) <= 1
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-128: stable closed wrap past the unshrunk skip floor still ensure-scrolls', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-6');
+    expect(evRect).toBeTruthy();
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    const rowBottom = 40 + 6 * LANE_HEIGHT + LANE_HEIGHT;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    // Closed dock stays at the schedule height for ≥2 stable frames past the
+    // marquee unshrunk-skip floor. Click must not abort; the hard path still runs.
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+    }
+    expect(now).toBeGreaterThan(500);
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBe(before);
+
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const margin = 12;
+    const target = rowBottom + margin - 50;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        Math.abs(last - target) <= 1
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-128: first waiter tick after 500ms at closed height still ensure-scrolls', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-6');
+    expect(evRect).toBeTruthy();
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    const rowBottom = 40 + 6 * LANE_HEIGHT + LANE_HEIGHT;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    // Long main-thread gap: first rAF already past SKIP_UNSHRUNK_MS at closed height.
+    now = 600;
+    for (const cb of frames.splice(0)) cb(now);
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBe(before);
+
+    now += 16;
+    for (const cb of frames.splice(0)) cb(now);
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBe(before);
+
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const margin = 12;
+    const target = rowBottom + margin - 50;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        Math.abs(last - target) <= 1
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-128: mid-tween wrap height is not treated as settled', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    let wrapH = 200;
+    Object.defineProperty(wrap, 'clientHeight', {
+      configurable: true,
+      get: () => wrapH,
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-6');
+    expect(evRect).toBeTruthy();
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    const rowBottom = 40 + 6 * LANE_HEIGHT + LANE_HEIGHT;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    // Dock ease: height keeps changing through (and past) the old 280ms cap.
+    for (let i = 0; i < 30; i++) {
+      wrapH = Math.max(50, 200 - (i + 1) * 5);
+      box.height = wrapH;
+      box.bottom = 100 + wrapH;
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+    }
+    expect(now).toBeGreaterThan(280);
+    expect(wrapH).toBe(50);
+    // Height was still changing every frame — must not have ensure-scrolled yet.
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBe(before);
+    const finalTarget = rowBottom + 12 - 50;
+
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        Math.abs(last - finalTarget) <= 1
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(scrolled).toBeGreaterThanOrEqual(finalTarget - 1);
+    expect(scrolled).toBeLessThanOrEqual(finalTarget + 1);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-128: window pointerup before canvas pointerup still ensure-scrolls', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-6');
+    expect(evRect).toBeTruthy();
+    // eventScreenRect is canvas-local CSS; client = box origin + local.
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    const rowBottom = 40 + 6 * LANE_HEIGHT + LANE_HEIGHT;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    // Window listener first (lost-up recovery / bubble order): clears gesture wrapH.
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
+
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+
+    const margin = 12;
+    const target = rowBottom + margin - 50;
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+      const last = (wrapper.emitted('scroll-y') as unknown[][] | undefined)
+        ?.map((e) => e[0] as number)
+        .at(-1);
+      if (
+        (wrapper.emitted('scroll-y')?.length ?? 0) > before &&
+        last != null &&
+        Math.abs(last - target) <= 1
+      ) {
+        break;
+      }
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const scrolled = wrapper.emitted('scroll-y')!.at(-1)![0] as number;
+    expect(scrolled).toBeGreaterThanOrEqual(target - 1);
+    expect(scrolled).toBeLessThanOrEqual(target + 1);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-128: already-open dock click does not ensure-scroll', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        // Prior selection = dock already mounted; wrap must not arm the waiter.
+        selectedEventId: 'e-0',
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-6');
+    expect(evRect).toBeTruthy();
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-6');
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    const scrollAtClick =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      0;
+    // Even if wrap later shrinks, a prior selection means the dock was already open.
+    Object.defineProperty(wrap, 'clientHeight', { value: 50, configurable: true });
+    box.height = 50;
+    box.bottom = 150;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+    }
+    expect(wrapper.emitted('scroll-y')?.length ?? 0).toBe(before);
+    const last =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      scrollAtClick;
+    expect(last).toBe(scrollAtClick);
+
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-128: fully-visible click selection does not ensure-scroll', async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    const tallThreads = Array.from({ length: 40 }, (_, i) => ({
+      id: `t-${i}`,
+      name: `T${i}`,
+      events: [{ id: `e-${i}`, name: `E${i}`, startTime: 100, duration: 200 }],
+    }));
+    const tallModel = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [{ id: 'p-1', name: 'P', threads: tallThreads }],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: tallModel,
+        preferRenderer: 'canvas' as const,
+        measureMode: false,
+        measureRange: null,
+        view: { startTime: 0, endTime: 1000, scrollY: 0 },
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    const box = { left: 0, top: 100, width: 400, height: 200, right: 400, bottom: 300 };
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element as HTMLCanvasElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ ...box }),
+    });
+    await wrapper.setProps({ model: { ...tallModel } });
+    await fireAllDeviceRo();
+
+    const vm = wrapper.vm as {
+      eventScreenRect: (id: string) => { x: number; y: number; w: number; h: number } | null;
+    };
+    const evRect = vm.eventScreenRect('e-0');
+    expect(evRect).toBeTruthy();
+    const x = box.left + evRect!.x + evRect!.w / 2;
+    const y = box.top + evRect!.y + evRect!.h / 2;
+    await canvas.trigger('pointerdown', { clientX: x, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointerup', { clientX: x, clientY: y, pointerId: 1 });
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: y }));
+    await wrapper.vm.$nextTick();
+    expect((wrapper.emitted('select')!.at(-1)![0] as { id: string } | null)?.id).toBe('e-0');
+
+    const scrollAtClick =
+      (wrapper.emitted('scroll-y') as unknown[][] | undefined)?.map((e) => e[0] as number).at(-1) ??
+      0;
+    // Shrink: e-0 row bottom 62 stays inside a 100px wrap.
+    Object.defineProperty(wrap, 'clientHeight', { value: 100, configurable: true });
+    box.height = 100;
+    box.bottom = 200;
+
+    const before = wrapper.emitted('scroll-y')?.length ?? 0;
+    for (let i = 0; i < 40; i++) {
+      now += 16;
+      const pending = frames.splice(0);
+      for (const cb of pending) cb(now);
+      await wrapper.vm.$nextTick();
+    }
+    expect((wrapper.emitted('scroll-y')?.length ?? 0)).toBeGreaterThan(before);
+    const last = wrapper.emitted('scroll-y')!.at(-1) as unknown as [number, boolean | undefined];
+    expect(last[0]).toBe(scrollAtClick);
+    expect(last[1]).toBe(true);
+
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-115: unchanged wrap after commit does not ensure-scroll (already-open dock)', async () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
