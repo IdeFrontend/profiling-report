@@ -96,4 +96,4 @@ Performance results tree file click
 - [ADAPTERS.md](ADAPTERS.md) — detect → adapt → view-models
 - [VIEW_DATA_REQUIREMENTS.md](VIEW_DATA_REQUIREMENTS.md) — adapted VM hide rules
 - [DOMAIN_AND_USERS.md](../context/DOMAIN_AND_USERS.md)
-- [questions](../context/questions/) — PROC-9, DATA-48, …
+- [questions](../context/questions/) — DATA-48, … Head `origin` enum: [PROC-9](../context/decisions/PROC.md)

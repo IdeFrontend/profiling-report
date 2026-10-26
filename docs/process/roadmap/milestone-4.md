@@ -67,7 +67,7 @@ Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FOR
 | **DATA-50** `MemoryType` → unit vocabulary | Five heat tabs (L1 / L2 / L0A / L0B / L0C) render blank | Blank tabs ship (design-complete, data-degraded); UB grid is real on gelu |
 | Export packer must include PIPE / ArchDiagram for aside | gelu packs them; keep packing on future dumps | Packer requirement; sample leaf also includes them |
 | Source line on hints | `SourceLineHints.SourceLineId` needs `SourceLines` for a line number; gelu leaves `SourceLines` empty | **Resolved** — show the raw `SourceLineId` (id-only fallback) until ELF/`SourceLines` is packed |
-| **PROC-9** dedicated origin | Head still `origin=1` | Keep until Product assigns |
+| **PROC-9** dedicated origin | Product assigned `2` simulator, `3` sanitizer | Parser still accepts only `origin=1`; detection stays `manifest.json` |
 
 ## Exit criteria
 
