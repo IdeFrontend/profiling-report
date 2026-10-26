@@ -142,6 +142,7 @@ describe('ProfilingReport scaffold', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('PR-CTXMENU-011: leaf-gutter context menu reaches the report root', async () => {
@@ -1608,7 +1609,8 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
-  it('PR-ROOT-008: cannbot buttons emit cannbot-request with scoped payload', async () => {
+  it('PR-ROOT-008: cannbot buttons emit cannbot-request with scoped payload; cooldown swallows repeat clicks', async () => {
+    vi.useFakeTimers();
     const reportModel = {
       summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
       pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const }],
@@ -1647,12 +1649,22 @@ describe('ProfilingReport scaffold', () => {
       'PipeUtilization.csv',
     ]);
 
+    // 防抖：冷却窗口内的再次点击被吞掉，误操作连点不会打开多次对话。
+    await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
+    expect(wrapper.emitted('cannbot-request')).toHaveLength(1);
+    // 冷却锁跨图标共享：换一个图标点击，同样被吞掉（1s 内不会打开第二场对话）。
+    await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
+    expect(wrapper.emitted('cannbot-request')).toHaveLength(1);
+
+    vi.advanceTimersByTime(1000);
     await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
     const all = wrapper.emitted('cannbot-request')!;
     expect(all).toHaveLength(2);
     const summaryPayload = all[1]![0] as CannbotPayload;
     expect(summaryPayload.scope).toBe('summary');
     expect((summaryPayload.data.summary as { opName?: string }).opName).toBe('matmul_v3');
+
+    wrapper.unmount();
   });
 
   it('PR-ROOT-009: topology 全屏 covers .pr-root; Back closes; layout stays mounted', async () => {
