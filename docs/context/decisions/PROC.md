@@ -70,6 +70,16 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-14 (amended 2026-09-15; amended 2026-09-17)
 - **Question:** How does the viewer detect a emulate leaf vs a compute leaf?
-- **Decision:** Require embed **`manifest.json`** that is either (1) a thin marker with `"profile": "emulate"` and integer `schemaVersion`, or (2) an npu_emulate **CSV export catalog** (`objects[]` including a hub name among `ExecutedInstructions` / `KernelInfo` / `AnalysisState`). Absence → compute (or CTEF-only). Head `origin` remains **`1`** until Product defines a dedicated emulate origin ([PROC-9](../questions/PROC.md)). Interim viewer-only filenames (`EmulateManifest.json` / earlier `SimulatorManifest.json`) are **not** accepted.
+- **Decision:** Require embed **`manifest.json`** that is either (1) a thin marker with `"profile": "emulate"` and integer `schemaVersion`, or (2) an npu_emulate **CSV export catalog** (`objects[]` including a hub name among `ExecutedInstructions` / `KernelInfo` / `AnalysisState`). Absence → compute (or CTEF-only). Head `origin` values are `1` compute, `2` simulator, `3` sanitizer ([PROC-9](./PROC.md)); detection does not read `origin`. Interim viewer-only filenames (`EmulateManifest.json` / earlier `SimulatorManifest.json`) are **not** accepted.
 - **Specs:** [INPUT_FORMATS](../../formats/README.md) §2.1, [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [load-report-source](../../../specs/core/load-report-source.spec.md)
 - **Source:** Engineering default for dual-profile detection without parser origin change; 2026-09-15 Product direction — detect producer `manifest.json` (gelu export catalog); 2026-09-17 drop interim `EmulateManifest.json` alias
+
+---
+
+## PROC-9
+
+- **Resolved:** 2026-10-26
+- **Question:** Should the product 160-byte `npu-rep` head use a dedicated `origin` for simulator leaves, and which value?
+- **Decision:** `origin` is a uint16: `1` compute, `2` simulator, `3` sanitizer. Detection of a simulator leaf stays `manifest.json` ([PROC-8](./PROC.md)). `parseNpuRep160` accepts only `1` and throws otherwise.
+- **Specs:** [compute/SCHEMA](../../formats/compute/SCHEMA.md), [formats README](../../formats/README.md), [npu-rep](../../../specs/core/npu-rep.spec.md)
+- **Source:** Product PDF *npu-compute性能优化* (性能优化 / performance optimization), export qLDqqw, §11.1.3.8, 2026-10-23

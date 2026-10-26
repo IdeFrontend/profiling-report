@@ -4,7 +4,7 @@
 
 Payload schemas and sample checks for the **hardware** leaf inside a product `.npu-rep` container. Shared container binary layout: [formats README](../README.md). Embed → UI mapping: [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md). Emulate profile: [../emulate/FORMAT.md](../emulate/FORMAT.md).
 
-Derived from product spec §11.2 and cross-checked against [`data/out.rep`](../../../../data/out.rep) / packer [`data/pack_rep.py`](../../../../data/pack_rep.py).
+Field catalog from the 2026-10-23 producer PDF: [SCHEMA.md](SCHEMA.md). This page is the UI-oriented subset, cross-checked against [`data/out.rep`](../../../../data/out.rep) / packer [`data/pack_rep.py`](../../../../data/pack_rep.py).
 
 ## 2. Payload inventory
 
@@ -154,6 +154,8 @@ L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B keep master L1→buff
 | UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | Product name on `MemoryUB.csv` (unverified; absent from sample); sample uses `aiv_ub_to_gm_bw` on `Memory.csv` |
 | L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same: product `MemoryUB.csv` unverified; sample `aiv_gm_to_ub_bw` on `Memory.csv` |
 
+The PDF glosses both `aiv_ub_read_bw_gm` and `aiv_ub_write_bw_gm` as GM→UB ([SCHEMA.md](SCHEMA.md)). These edges keep the name-based directions (`ub_read_*` = leaving UB).
+
 Sample also includes `aiv_ub_read_bw_scalar(GB/s)` / `aiv_ub_write_bw_scalar(GB/s)`.
 
 ### 3.7 `L2Cache.csv`
@@ -167,16 +169,16 @@ Docx maps「L2Cache Hit Rate」to this file without listing columns. Sample colu
 
 Use read/write (or total) hit rate on the GM↔L2 link in the memory diagram (per annotated mockup).
 
-### 3.8 `ArithmeticUtilization.csv` (sample supplementary)
+### 3.8 `ArithmeticUtilization.csv`
 
-Not referenced in docx field tables. Sample columns support Roofline composition labels such as `Vec_FP32` / `Vec_MISC`:
+Producer columns: [SCHEMA.md](SCHEMA.md). The PDF names `aic_cube_fp_ratio` / `aic_cube_int_ratio` and `aiv_vec_vf_ratio` / `aiv_vec_sfu_ratio` / `aiv_vec_simt_vf_ratio`. The classic sample uses dtype-specific names and supports Roofline composition labels such as `Vec_FP32` / `Vec_MISC`:
 
 - AIC: `aic_cube_ratio`, `aic_cube_fp16_ratio`, `aic_cube_int8_ratio`, FOPs / instruction counts
 - AIV: `aiv_vec_ratio`, `aiv_vec_fp32_ratio`, `aiv_vec_fp16_ratio`, `aiv_vec_int32_ratio`, `aiv_vec_int16_ratio`, `aiv_vec_misc_ratio`, `aiv_vec_fops`
 
-### 3.9 `ResourceConflictRatio.csv` (sample supplementary)
+### 3.9 `ResourceConflictRatio.csv`
 
-Not referenced in docx. Sample columns: AIC wait ratios (`aic_cube_wait_ratio`, `aic_mte*_wait_ratio`) and AIV conflict/wait ratios (`aiv_vec_*_cflt_ratio`, `aiv_mte*_wait_ratio`).
+Producer columns: [SCHEMA.md](SCHEMA.md). Sample columns: AIC wait ratios (`aic_cube_wait_ratio`, `aic_mte*_wait_ratio`) and AIV conflict/wait ratios (`aiv_vec_*_cflt_ratio`, `aiv_mte*_wait_ratio`).
 
 ---
 
