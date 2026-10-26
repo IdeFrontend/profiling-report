@@ -32,6 +32,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [integration](./core/integration.spec.md) | `PR-UI-*`, `PR-E2E-*` | MVP | — | `tests/component/ProfilingReport.feature.spec.ts`, `tests/e2e/feature.spec.ts` |
 | [scaffold](./core/scaffold.spec.md) | `PR-SCAFFOLD-*` | MVP | — | `tests/unit/scaffold.spec.ts`, `tests/e2e/playground.spec.ts` |
 | [cannbot-payload](./core/cannbot-payload.spec.md) | `PR-CANNBOT-*` | M2 | `src/domain/cannbot.ts` | `tests/unit/cannbot.spec.ts` |
+| [debounce](./core/debounce.spec.md) | `PR-DEBOUNCE-*` | M2 | `src/domain/debounce.ts` | `tests/unit/debounce.spec.ts` |
 
 ### UI components (Vue SFCs)
 

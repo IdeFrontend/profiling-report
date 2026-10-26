@@ -44,6 +44,7 @@ import {
 } from '../../domain/types';
 import { buildCannbotPayload } from '../../domain/cannbot';
 import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../domain/cannbot';
+import { debounce } from '../../domain/debounce';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz, nsPerPxForTrack } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
@@ -1623,9 +1624,14 @@ function onOpenPerformanceHints() {
   hintsDockOpen.value = true;
 }
 
-function onCannbot(scope: CannbotScope) {
-  emit('cannbot-request', buildCannbotPayload(scope, report.value, props.reportMeta));
-}
+/** cannbot 防抖：首击立即触发，1s 冷却窗口内的后续点击（误操作连点）不再 emit。 */
+const CANNBOT_EMIT_COOLDOWN_MS = 1000;
+
+const emitCannbot = debounce(
+  (scope: CannbotScope) =>
+    emit('cannbot-request', buildCannbotPayload(scope, report.value, props.reportMeta)),
+  CANNBOT_EMIT_COOLDOWN_MS,
+);
 
 function onMeasureMode(enabled: boolean) {
   viewState.value = setMeasureMode(viewState.value, enabled);
@@ -1834,7 +1840,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
           @open-pipe-details="emit('open-pipe-details')"
-          @open-cannbot="onCannbot"
+          @open-cannbot="emitCannbot"
           @open-topology-fullscreen="onOpenTopologyFullscreen"
           @open-performance-hints="onOpenPerformanceHints"
         />
