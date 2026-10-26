@@ -160,7 +160,7 @@ Sole committed emulate fixture: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep
 
 | Item | Id |
 |------|-----|
-| Dedicated head `origin` | [PROC-9](../../context/questions/PROC.md) |
+| Head `origin` `2` simulator / `3` sanitizer | [PROC-9](../../context/decisions/PROC.md) — parser still accepts only `1` |
 | ArchDiagramMetrics → Architecture Diagram slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
 | Dedicated ArchDiagramModel / biprof chrome | [DATA-48](../../context/questions/DATA.md) |
 | Exact `tickToUs` default when freq unknown | producer docs |

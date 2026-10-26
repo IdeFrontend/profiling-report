@@ -6,7 +6,8 @@ Hub for profiling-report **on-disk inputs** (shared **`.npu-rep` container**, pa
 | Doc | Role |
 |-----|------|
 | **This file** (`README.md`) | Container binary + profile index + detection |
-| [compute/FORMAT.md](compute/FORMAT.md) | Compute OP embed schemas (npu-compute) |
+| [compute/FORMAT.md](compute/FORMAT.md) | Compute OP embed schemas (npu-compute), UI subset |
+| [compute/SCHEMA.md](compute/SCHEMA.md) | Compute field catalog (producer PDF, 2026-10-23) |
 | [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md) | Compute embed column detail (UI fills: [../views/](../views/)) |
 | [emulate/FORMAT.md](emulate/FORMAT.md) | Emulate contract + leaf pack (npu_emulate) |
 | [emulate/SCHEMA.md](emulate/SCHEMA.md) | Emulate contract field catalog (all columns + types) |
@@ -54,7 +55,7 @@ Same container binary; **different embed sets** ([PROC-7](../context/decisions/P
 | --- | --- |
 | Emulate marker | Leaf embeds **`manifest.json`** (thin `profile: "emulate"` **or** export catalog with hub objects) → **emulate** ([PROC-8](../context/decisions/PROC.md)) |
 | Otherwise | Treat as **compute** (or Chrome Trace–only if no metric pack) |
-| Head `origin` | Product 160-byte layout uses `origin = 1` (profile) for both until Product assigns a dedicated emulate origin (open [PROC-9](../context/questions/PROC.md)). Parser today rejects `origin ≠ 1`. |
+| Head `origin` | `1` compute, `2` simulator, `3` sanitizer ([PROC-9](../context/decisions/PROC.md)). `parseNpuRep160` accepts only `1`. |
 
 ---
 
@@ -208,6 +209,6 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 
 | Item | Notes |
 | --- | --- |
-| Dedicated head `origin` for simulator | [PROC-9](../context/questions/PROC.md) |
+| Head `origin` `2` / `3` not opened by the parser | [PROC-9](../context/decisions/PROC.md) — enum is assigned; `parseNpuRep160` still accepts only `1` |
 | KernelInfo summary chrome | **out** — [DATA-47](../context/decisions/DATA.md) |
 | Hardware-only open items | [compute/FORMAT.md](compute/FORMAT.md) § Open / TBD |

@@ -26,14 +26,11 @@ Classic `cann-rep` fixture details remain in [rep-format](./rep-format.spec.md).
 
 [INPUT_FORMATS.md](../../docs/formats/README.md), [rep-format](./rep-format.spec.md), PROC-7, PROC-8.
 
-## Open
-
-[PROC-9](../../docs/context/questions/PROC.md) — dedicated head `origin` for simulator.
-
 ## Design sketches
 
 - [NPU-REP binary layout](../../docs/ui/source/v930/entry.jpeg)
 
 ## Changelog
+- **2026-10-26** — Head `origin` enum moved to [PROC-9](../../docs/context/decisions/PROC.md). Compute field catalog: [SCHEMA.md](../../docs/formats/compute/SCHEMA.md).
 - **2026-09-14** — Scope hub-only; move hardware CSV conventions out to hardware docs / view-models.
 - **2026-08-05** — Initial spec. Core behaviors established.

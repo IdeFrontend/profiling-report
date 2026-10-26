@@ -26,7 +26,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 
 **Loading.** `loadReportSource` detects the `npu-rep` magic, then routes by `fileInfoLength` (`160` → `parseNpuRep160`, otherwise `parseNpuRep`). It returns a multi-operator `AdaptedReport` when nested archives exist (default-selecting the first operator), or a single-operator report for a flat leaf. Operator **id** is the unique FileInfo name (`op1.npu.rep`); **label** is the archive stem (`op1`). Duplicate stems throw (same posture as duplicate embed names).
 
-**Profiles.** After payloads are available for a leaf, if `manifest.json` marks emulate (thin `profile: "emulate"` or export-catalog hub), adapt via the **emulate** path ([emulate-format](./emulate-format.spec.md), [adapt-emulate](./adapt-emulate.spec.md)); otherwise use the **compute** path (`adaptPayloads`). Head `origin` remains `1` until [PROC-9](../../docs/context/questions/PROC.md). Emulate leaves MAY omit compute metric CSVs ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
+**Profiles.** After payloads are available for a leaf, if `manifest.json` marks emulate (thin `profile: "emulate"` or export-catalog hub), adapt via the **emulate** path ([emulate-format](./emulate-format.spec.md), [adapt-emulate](./adapt-emulate.spec.md)); otherwise use the **compute** path (`adaptPayloads`). Head `origin` is `1` compute, `2` simulator, `3` sanitizer ([PROC-9](../../docs/context/decisions/PROC.md)). `parseNpuRep160` accepts only `1`. Emulate leaves MAY omit compute metric CSVs ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 
 ## Acceptance Criteria
 
@@ -53,6 +53,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-10-26** — Head `origin` is `1` compute, `2` simulator, `3` sanitizer ([PROC-9](../../docs/context/decisions/PROC.md)). `parseNpuRep160` still accepts only `1`.
 - **2026-10-24** — PR-NPU-013: sample `summary.db` fills Source / SASS Sampling Stall, Instructions Executed, and Warp Occupancy. Producer packs that omit the extra columns stay at 0 for those two.
 - **2026-10-24** — PR-NPU-013: sample kernels are Ascend C (`__aicore__`, `DataCopy` / `Mmad` / `Fixpipe`) at ≥5× the original line count, with a ≥40-instruction objdump. Code frames still open those lines.
 - **2026-10-23** — PR-NPU-013: `sample.lite.rep` carries a multi-file Source pack, HardwareInfo Roofline circles, `UbRwAccesses.csv`, and op1 `Code` frames aimed at those files.
