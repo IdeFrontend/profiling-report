@@ -154,6 +154,8 @@ L0C `_bw_cube` directions are confirmed by suffix. L0A/L0B keep master L1→buff
 | UB → L2 | `aiv_ub_read_bw_gm(GB/s)` | — | Product name on `MemoryUB.csv` (unverified; absent from sample); sample uses `aiv_ub_to_gm_bw` on `Memory.csv` |
 | L2 → UB | `aiv_ub_write_bw_gm(GB/s)` | — | Same: product `MemoryUB.csv` unverified; sample `aiv_gm_to_ub_bw` on `Memory.csv` |
 
+The PDF glosses both `aiv_ub_read_bw_gm` and `aiv_ub_write_bw_gm` as GM→UB ([SCHEMA.md](SCHEMA.md)). These edges keep the name-based directions (`ub_read_*` = leaving UB).
+
 Sample also includes `aiv_ub_read_bw_scalar(GB/s)` / `aiv_ub_write_bw_scalar(GB/s)`.
 
 ### 3.7 `L2Cache.csv`

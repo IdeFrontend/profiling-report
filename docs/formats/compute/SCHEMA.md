@@ -14,7 +14,7 @@ Producer field catalog from the product PDF *npu-compute性能优化* (性能优
 
 | Field | Bytes | Meaning |
 | --- | --- | --- |
-| `magic` | 8 | Magic, `"npu-rep"` |
+| `magic` | 8 | Magic, `npu-rep` + NUL (`npu-rep\0`) |
 | `version` | 4 | High 16 bits major, next 8 minor, low 8 patch |
 | `origin` | 2 | `1` compute, `2` simulator, `3` sanitizer ([PROC-9](../../context/decisions/PROC.md)) |
 | `repHeadLength` | 2 | `sizeof(NpuRepHead)` |
@@ -29,7 +29,7 @@ Producer field catalog from the product PDF *npu-compute性能优化* (性能优
 
 | Field | Bytes | Meaning |
 | --- | --- | --- |
-| `magic` | 8 | `"npu-rep"` |
+| `magic` | 8 | `npu-rep` + NUL (`npu-rep\0`) |
 | `fileName` | 128 | Name, including a trailing NUL. Example `"kernel0"` |
 | `fileType` | 2 | See below |
 | `resv0` | 2 | Alignment, `0` |
@@ -39,7 +39,7 @@ Producer field catalog from the product PDF *npu-compute性能优化* (性能优
 
 PDF `fileType`: `1` npu-rep, `2` json, `3` jsonl, `4` csv, `5` sqlite3, `6` txt.
 
-The viewer parser's numbering for current packs is different at the end: `6` protobuf, `7` txt (`objdump.txt` / `.asc`). See [npu-rep](../../../specs/core/npu-rep.spec.md). Packs in this repo use the parser numbering.
+The viewer parser's numbering for current packs is different at the end: `6` protobuf, `7` txt (`objdump.txt` / `.asc`). The hub type table is [formats README](../README.md) §3.5; behavior is [npu-rep](../../../specs/core/npu-rep.spec.md). Packs in this repo use the parser numbering.
 
 ## Metric CSVs
 

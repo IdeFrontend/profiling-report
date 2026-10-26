@@ -126,7 +126,7 @@ Payloads are addressed by absolute byte offsets from the start of the container.
 
 The product container ships as `npu-rep` (not `cann-rep`). There are **two** FileInfo layouts sharing the same head, disambiguated by the head's `fileInfoLength` field:
 
-- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1`) — produced by `npu-compute` / future emulate packers (`data/scripts/pack_rep.py` / `unpack_rep.py`). Sample: `data/result.npu-rep`. Parsed by `parseNpuRep160`.
+- **Product 160-byte layout** (`fileInfoLength = 160`; packs today use `origin = 1` (compute); the enum is `1` compute / `2` simulator / `3` sanitizer ([PROC-9](../context/decisions/PROC.md)); `parseNpuRep160` accepts only `1`) — produced by `npu-compute` / future emulate packers (`data/scripts/pack_rep.py` / `unpack_rep.py`). Sample: `data/result.npu-rep`. Parsed by `parseNpuRep160`.
 - **Interim 164-byte sample layout** (`fileInfoLength = 164`) — repo sample packer (`data/build_sample_rep.py`); `data/example.npu.rep` / `data/sample.lite.rep`. Parsed by `parseNpuRep`.
 
 #### Product 160-byte layout
@@ -137,7 +137,7 @@ The product container ships as `npu-rep` (not `cann-rep`). There are **two** Fil
 | --- | --- | --- | --- | --- |
 | 0 | 8 | `char[8]` | `magic` | `npu-rep` + NUL |
 | 8 | 4 | `uint32` | `version` | `0x00010000` |
-| 12 | 2 | `uint16` | `origin` | `1` (profile) |
+| 12 | 2 | `uint16` | `origin` | `1` compute (shipped). Enum also `2` simulator, `3` sanitizer ([PROC-9](../context/decisions/PROC.md)); parser accepts only `1` |
 | 14 | 2 | `uint16` | `repHeadLength` | `36` |
 | 16 | 4 | `uint32` | `fileInfoCount` | number of embeds |
 | 20 | 4 | `uint32` | `fileInfoLength` | `160` (FileInfo stride) |
@@ -168,6 +168,7 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | 4 | `csv` |
 | 5 | `sqlite3` (reserved; not required for simulator Phase 1) |
 | 6 | `protobuf` |
+| 7 | `txt` (`objdump.txt`, `.asc`) |
 
 #### Interim 164-byte sample layout (repo packer)
 
