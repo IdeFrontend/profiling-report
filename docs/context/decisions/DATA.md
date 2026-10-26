@@ -240,9 +240,9 @@ Format and statuses: [README.md](README.md).
 
 - **Resolved:** 2026-09-04
 - **Question:** Report summary formulas?
-- **Decision:** `summary.jsonl` is canonical. Duration = `OpInfoSummary` `Task Duration(us)`; compute = `aic_flops`/`aiv_flops` (measured) + `aic_flops_theoretical`/`aiv_flops_theoretical` (peak), score = measured/peak×100%; I/O BW = the `OpInfoSummary` sides `aicore_gm_read_bw` / `aicore_gm_write_bw` (the aic + aiv `Memory` sums) with peak `aicore_gm_bw_theoretical(GB/s)` = **1600 GB/s** (see the DATA-8 / DATA-19 / DATA-28 / DATA-29 entries above for the source fields and block scope); avg-core-util = **AI Core 并行使用率** (`aicore_parallel_utilization`/`aicore_parallel_balance`). Classic `.rep` without `summary.jsonl` keeps CSV fallbacks (`OpBasicInfo.csv`, `Memory.csv`).
-- **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md)
-- **Source:** NPU-Compute.md (2026-09-04). Supersedes interim `DATA-33a`, `DATA-33e`, `DATA-33g`.
+- **Decision:** `summary.jsonl` is canonical. Duration = `OpInfoSummary` `Task Duration(us)` (OpBasicInfo wins when that row is present). **整体耗时 segments** (2026-10-26, `OpInfoSummary`, µs): `communication_time` = 通信时间, `compute_overhead_time` = 头开销时间, `compute_communication_overlap_time` = 通算重叠时间 (tooltip only). **计算时间** = max(0, displayed task duration − communication − overhead) — there is no compute-time column. Omit the bar when either bar source is absent / `null`. Compute card = `aic_flops`/`aiv_flops` (measured) + `aic_flops_theoretical`/`aiv_flops_theoretical` (peak), score = measured/peak×100%; I/O BW = the `OpInfoSummary` sides `aicore_gm_read_bw` / `aicore_gm_write_bw` (the aic + aiv `Memory` sums) with peak `aicore_gm_bw_theoretical(GB/s)` = **1600 GB/s** (see the DATA-8 / DATA-19 / DATA-28 / DATA-29 entries above for the source fields and block scope); avg-core-util = **AI Core 并行使用率** (`aicore_parallel_utilization`/`aicore_parallel_balance`). Classic `.rep` without `summary.jsonl` keeps CSV fallbacks (`OpBasicInfo.csv`, `Memory.csv`) and has no duration bar.
+- **Specs:** [view-models](../../../specs/core/view-models.spec.md), [npu-rep](../../../specs/core/npu-rep.spec.md), [report-summary](../../views/report-summary.md)
+- **Source:** NPU-Compute.md (2026-09-04); npu-compute PDF `OpInfoSummary` example (耗时显示, 2026-10-23). Supersedes interim `DATA-33a`, `DATA-33e`, `DATA-33g`.
 
 ---
 

@@ -30,11 +30,11 @@ Format and statuses: [README.md](README.md).
 
 ## UI-32 (was: HQ 32)
 
-- **Resolved:** 2026-09-04 (updated 2026-10-21; first answered 2026-09-01)
+- **Resolved:** 2026-09-04 (updated 2026-10-26; first answered 2026-09-01)
 - **Question:** The duration bar — decoration or a real percent? Of what?
-- **Decision:** **Bar:** when `summary.durationBreakdown` is present, show a **3-segment composition** (头开销 / 计算 / 通信) sized by those times’ share of their sum, with legend + hover list (**计算时间 / 通信时间 / 通算重叠时间 / 头开销时间** only — no 迭代/核). Value row shows the duration alone (no Blocks secondary) while the bar is shown. When breakdown is absent: **no bar**; value-row secondary = `{blockDim} Blocks / {coreCount} 核` (DATA-1), else `{blockDim} Blocks`, else `opName`. Segment CSV fields remain Product-open (PDF §11.2.4 maps only `Task Duration(us)` for the card total).
+- **Decision:** **Bar:** when `summary.durationBreakdown` is present, show a **3-segment composition** (头开销 / 计算 / 通信) sized by those times’ share of their sum, with legend + hover list (**计算时间 / 通信时间 / 通算重叠时间 / 头开销时间** only — no 迭代/核). Value row shows the duration alone (no Blocks secondary) while the bar is shown. When breakdown is absent: **no bar**; value-row secondary = `{blockDim} Blocks / {coreCount} 核` (DATA-1), else `{blockDim} Blocks`, else `opName`. Sources: [DATA-33](DATA.md) — `OpInfoSummary.communication_time` / `compute_overhead_time` / `compute_communication_overlap_time`; 计算时间 is the remainder of `Task Duration(us)`.
 - **Specs:** [report-summary](../../views/report-summary.md), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md), [view-models](../../../specs/core/view-models.spec.md)
-- **Source:** NPU-Compute.md (2026-09-04) for Blocks secondary fallback; 2026-10-21 Product mock (`duration-card-tooltip.png`) for segmented bar + four-row hover list.
+- **Source:** NPU-Compute.md (2026-09-04) for Blocks secondary fallback; 2026-10-21 Product mock for the bar; npu-compute PDF `OpInfoSummary` (2026-10-23) for the field names.
 
 ---
 

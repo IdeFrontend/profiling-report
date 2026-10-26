@@ -86,8 +86,9 @@ export interface SwimlaneModel {
 /**
  * 整体耗时 segmented bar + hover breakdown (`StatsSummaryPanel/visual/duration-card.png`).
  * Bar widths = overhead / compute / communication share of their sum.
- * Overlap is tooltip-only (2026-10-21 Product mock). CSV field sources for the four times
- * are still Product-open (npu-compute PDF §11.2.4 maps only `Task Duration(us)` for the card total).
+ * Overlap is tooltip-only. Sources (OpInfoSummary, µs): `compute_overhead_time`,
+ * `communication_time`, `compute_communication_overlap_time`. Compute time is
+ * `Task Duration(us) − communication − overhead` (not a producer column).
  */
 export interface DurationBreakdown {
   overheadUs: number;
@@ -116,9 +117,9 @@ export interface SummaryMetrics {
   /** OpBasicInfo `Mix Block Dim` (Vector core count on MIX; NA when non-MIX). */
   mixBlockDim?: string | number;
   /**
-   * Optional 头开销/计算/通信 breakdown for the duration card bar + hover list
-   * (计算时间 / 通信时间 / 通算重叠时间 / 头开销时间). Omit until producer fields are
-   * confirmed; card keeps no bar and may show Blocks/核 secondary (UI-32 fallback).
+   * 头开销/计算/通信 breakdown for the duration card bar + hover list.
+   * Set from OpInfoSummary when `communication_time` and `compute_overhead_time`
+   * are both collected; otherwise the card keeps no bar (UI-32).
    */
   durationBreakdown?: DurationBreakdown;
   /** DATA-1: `HardwareInfo.jsonl` core count for `Op Type` (cube/vector/mix). */

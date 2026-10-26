@@ -888,6 +888,69 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(computeCard!.sides.find((s) => s.side === 'aic')!.measuredTflops).toBe(10);
   });
 
+  it('PR-VM-026: OpInfoSummary duration fields fill the 整体耗时 bar; 计算时间 is the remainder', () => {
+    const encoder = new TextEncoder();
+    const line = (obj: Record<string, unknown>) =>
+      encoder.encode(JSON.stringify({ category: 'OpInfoSummary', ...obj }) + '\n');
+
+    const full = adaptPayloads({
+      'Summary.jsonl': line({
+        'Task Duration(us)': 24600,
+        communication_time: 10000,
+        compute_overhead_time: 2200,
+        compute_communication_overlap_time: 8400,
+      }),
+    }).reportModel.summary;
+    expect(full.taskDurationUs).toBe(24600);
+    expect(full.durationBreakdown).toEqual({
+      overheadUs: 2200,
+      communicationUs: 10000,
+      computeUs: 12400,
+      overlapUs: 8400,
+    });
+
+    // null is not collected — same rule as other OpInfoSummary scalars. No bar.
+    const missing = adaptPayloads({
+      'Summary.jsonl': line({
+        'Task Duration(us)': 24600,
+        communication_time: null,
+        compute_overhead_time: 2200,
+      }),
+    }).reportModel.summary;
+    expect(missing.durationBreakdown).toBeUndefined();
+
+    // Card total prefers OpBasicInfo; 计算时间 follows that total, not the jsonl one.
+    const overCsv = adaptPayloads({
+      'OpBasicInfo.csv': encoder.encode(
+        'Op Name,Op Type,Task Duration(us)\nadd,vector,20000\n',
+      ),
+      'Summary.jsonl': line({
+        'Task Duration(us)': 24600,
+        communication_time: 10000,
+        compute_overhead_time: 2200,
+        compute_communication_overlap_time: 8400,
+      }),
+    }).reportModel.summary;
+    expect(overCsv.opName).toBe('add');
+    expect(overCsv.taskDurationUs).toBe(20000);
+    expect(overCsv.durationBreakdown).toEqual({
+      overheadUs: 2200,
+      communicationUs: 10000,
+      computeUs: 7800,
+      overlapUs: 8400,
+    });
+
+    // Parts larger than the total clamp 计算时间 to 0; overlap may be omitted.
+    const clamped = adaptPayloads({
+      'Summary.jsonl': line({
+        'Task Duration(us)': 1000,
+        communication_time: 800,
+        compute_overhead_time: 500,
+      }),
+    }).reportModel.summary.durationBreakdown;
+    expect(clamped).toEqual({ overheadUs: 500, communicationUs: 800, computeUs: 0 });
+  });
+
   it('PR-VM-019 (DATA-19/28/29): All scope reads summary.jsonl, a picked block reads its CSV row', () => {
     const encoder = new TextEncoder();
     const payloads = {
