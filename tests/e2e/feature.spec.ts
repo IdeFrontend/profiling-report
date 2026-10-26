@@ -122,11 +122,11 @@ async function probeSwimlaneDepCurves(
 
 test.describe('PR-E2E feature paths', () => {
   test('PR-E2E-018: Source tab opens only when the fixture has real source data', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?fixture=vector_muladd');
     await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('tab-source')).toHaveCount(0);
 
-    await page.goto('/?fixture=gather_2d');
+    await page.goto('/');
     await expect(page.getByTestId('profiling-report')).toBeVisible({ timeout: 30_000 });
     const sourceTab = page.getByTestId('tab-source');
     await expect(sourceTab).toBeVisible({ timeout: 15_000 });
@@ -878,7 +878,9 @@ test.describe('PR-STATS-036 summary tiles at resized widths', () => {
 
   test('PR-STATS-036: a long label or secondary wraps instead of spilling', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
-    await page.goto('/?locale=en');
+    // sample.lite.rep carries a duration breakdown, which hides the Blocks/opName
+    // secondary. out.rep still shows that fallback, which is what this wrap check needs.
+    await page.goto('/?fixture=rep&locale=en');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('stats-summary')).toBeVisible({ timeout: 30_000 });
 

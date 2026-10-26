@@ -212,6 +212,7 @@ describe('ReportToolbar', () => {
       /\.pr-icon-tip:hover:not\(:disabled\):not\(\[aria-expanded='true'\]\)::after/,
     );
     expect(tipCss).toMatch(/\.pr-icon-tip\[data-toolbar-clip\]::after/);
+    expect(tipCss).toMatch(/\.pr-icon-tip--sentence::after\s*\{[^}]*max-width:\s*none/);
     const guide = wrapper.find('[data-testid="open-user-guide"]');
     expect(guide.attributes('data-toolbar-clip')).toBeDefined();
     expect(guide.classes()).toContain('pr-icon-tip');

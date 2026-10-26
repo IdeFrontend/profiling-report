@@ -29,6 +29,9 @@
   --pr-color-overview-cube: #3078f0;
   --pr-color-bandwidth-bar: #5ec8d8;
   --pr-color-duration-bar: #5ec8d8;
+  --pr-color-duration-overhead: #0cb8a4;
+  --pr-color-duration-compute: #1476ff;
+  --pr-color-duration-comm: #8e81f4;
   --pr-color-card-bar-primary: #5ec8d8;
   --pr-color-card-bar-secondary: #5ed8a8;
   --pr-color-default: #606060;
@@ -260,6 +263,15 @@
    so it is not cropped by the chrome's right edge. */
 .pr-icon-tip[data-toolbar-clip]::after,
 .pr-icon-tip--end::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* Full-sentence tips (Source navigation). The 220px cap clips the line; grow
+   left so a tab-row `overflow-x: clip` does not crop the end of the sentence. */
+.pr-icon-tip--sentence::after {
+  max-width: none;
   left: auto;
   right: 0;
   transform: none;

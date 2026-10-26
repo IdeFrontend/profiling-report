@@ -17,6 +17,13 @@ export interface PcSamplingRow {
   samplingStall: number;
   /** Counter columns as tooltip breakdown (percent of samplingStall). */
   stallBreakdown: SourceStallBreakdown[];
+  /**
+   * Optional `Instructions_Executed`. Producer packs omit the column (DATA-55);
+   * sample `summary.db` fills it.
+   */
+  instructionsExecuted?: number;
+  /** Optional `Warp_Occupancy` fraction in 0–1. Same absence rule as instructions. */
+  warpOccupancy?: number;
 }
 
 const STALL_COLUMNS = [
@@ -130,10 +137,15 @@ export async function ensurePcSamplingSql(): Promise<void> {
   }
 }
 
-function num(v: SqlValue | undefined): number {
+/** Present number, including 0. NULL, blank, and non-numeric cells stay absent. */
+function optionalNum(v: SqlValue | undefined): number | undefined {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
-  if (typeof v === 'string' && v !== '' && Number.isFinite(Number(v))) return Number(v);
-  return 0;
+  if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))) return Number(v);
+  return undefined;
+}
+
+function num(v: SqlValue | undefined): number {
+  return optionalNum(v) ?? 0;
 }
 
 function breakdown(values: Record<StallField, number>): {
@@ -155,24 +167,37 @@ function breakdown(values: Record<StallField, number>): {
 function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
   const db = new api.Database(bytes);
   try {
-    const cols = STALL_COLUMNS.map(([sql]) => `"${sql}"`).join(', ');
-    const result = db.exec(
-      `SELECT "pc_offset", ${cols} FROM pc_sampling ORDER BY "pc_offset"`,
-    );
+    const result = db.exec('SELECT * FROM pc_sampling ORDER BY "pc_offset"');
     if (!result.length) return [];
     const table = result[0]!;
     const idx = Object.fromEntries(table.columns.map((c, i) => [c, i]));
+    const required = ['pc_offset', ...STALL_COLUMNS.map(([sql]) => sql)];
+    const missing = required.filter((name) => idx[name] == null);
+    if (missing.length) {
+      throw new Error(
+        `[profiling-report] pc_sampling missing columns: ${missing.join(', ')}`,
+      );
+    }
+    const instrIdx = idx.Instructions_Executed;
+    const warpIdx = idx.Warp_Occupancy;
     return table.values.map((row) => {
       const fields = {} as Record<StallField, number>;
       for (const [sqlCol, field] of STALL_COLUMNS) {
         fields[field] = num(row[idx[sqlCol]!]);
       }
       const { samplingStall, stallBreakdown } = breakdown(fields);
+      const extra: Pick<PcSamplingRow, 'instructionsExecuted' | 'warpOccupancy'> = {};
+      if (instrIdx != null) extra.instructionsExecuted = num(row[instrIdx]);
+      if (warpIdx != null) {
+        const occ = optionalNum(row[warpIdx]);
+        if (occ != null) extra.warpOccupancy = occ;
+      }
       return {
         pcOffset: String(row[idx.pc_offset!] ?? ''),
         ...fields,
         samplingStall,
         stallBreakdown,
+        ...extra,
       };
     });
   } finally {

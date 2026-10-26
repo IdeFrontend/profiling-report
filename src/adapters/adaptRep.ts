@@ -5,6 +5,7 @@ import type {
   ComputeCardModel,
   ComputeSideRow,
   CsvTableModel,
+  DurationBreakdown,
   HardwareDetailsModel,
   HardwareSection,
   OverviewSeries,
@@ -26,6 +27,7 @@ import {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
 import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
 import { rooflineFromRows } from './roofline';
 
@@ -153,6 +155,32 @@ function finiteJsonNumber(v: unknown): number | undefined {
   if (v == null || v === '') return undefined;
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * 整体耗时 bar from `OpInfoSummary` (npu-compute PDF, 耗时显示 / page 95).
+ * Producer ships 通信 / 头开销 / 通算重叠; 计算时间 is the remainder of task duration
+ * so the three bar segments sum to the card total. `null` on either bar source omits
+ * the breakdown (same "not collected" rule as `finiteJsonNumber`).
+ */
+function durationBreakdownFromOpInfo(
+  taskDurationUs: number | undefined,
+  communicationUs: number | undefined,
+  overheadUs: number | undefined,
+  overlapUs: number | undefined,
+): DurationBreakdown | undefined {
+  if (communicationUs == null || overheadUs == null) return undefined;
+  const communication = Math.max(0, communicationUs);
+  const overhead = Math.max(0, overheadUs);
+  // No task duration yet: keep the two sources (compute 0) so a later OpBasicInfo
+  // total can derive 计算时间. Callers drop this when no total exists at all.
+  const compute = taskDurationUs == null ? 0 : Math.max(0, taskDurationUs - communication - overhead);
+  return {
+    overheadUs: overhead,
+    communicationUs: communication,
+    computeUs: compute,
+    ...(overlapUs == null ? {} : { overlapUs: Math.max(0, overlapUs) }),
+  };
 }
 
 function optionalText(raw: string | undefined): string | undefined {
@@ -469,13 +497,17 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
     currentFreq: parseNumber(row['Current Freq']),
     ratedFreq: parseNumber(row['Rated Freq']),
     pid: optionalText(row['Pid']) ?? optionalText(row['PID']),
-    blockDim: (() => {
-      const raw = row['Block Dim']?.trim();
-      if (!raw || raw === 'NA') return undefined;
-      const n = Number(raw);
-      return Number.isFinite(n) ? n : raw;
-    })(),
+    blockDim: optionalDim(row['Block Dim']),
+    mixBlockDim: optionalDim(row['Mix Block Dim']),
   };
+}
+
+/** OpBasicInfo dim column: omit blank / NA. */
+function optionalDim(raw: string | undefined): string | number | undefined {
+  const v = raw?.trim();
+  if (!v || v === 'NA') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : v;
 }
 
 /**
@@ -510,6 +542,7 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
       ratedFreq: num(obj['Rated Freq']),
       pid: text(obj['Pid']),
       blockDim: num(obj['Block Dim']) ?? text(obj['Block Dim']),
+      mixBlockDim: num(obj['Mix Block Dim']) ?? text(obj['Mix Block Dim']),
       // Derived compute / bandwidth / utilization (absent when the producer did not emit them).
       aicFlops: num(obj['aic_flops']),
       aivFlops: num(obj['aiv_flops']),
@@ -521,6 +554,12 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
       gmBwUsageRate: num(obj['aicore_gm_bw_usage_rate(%)']),
       parallelUtilization: num(obj['aicore_parallel_utilization']),
       parallelBalance: num(obj['aicore_parallel_balance']),
+      durationBreakdown: durationBreakdownFromOpInfo(
+        num(obj['Task Duration(us)']),
+        num(obj['communication_time']),
+        num(obj['compute_overhead_time']),
+        num(obj['compute_communication_overlap_time']),
+      ),
     };
   }
   return {};
@@ -876,9 +915,23 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   const fromCsv = summaryFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
   const fromJsonl = summaryFromSummaryJsonl(summaryJsonl);
   const hasCsvIdentity = Object.keys(fromCsv).length > 0;
+  // Card total prefers OpBasicInfo. 计算时间 is the remainder of that total so the
+  // three bar segments sum to the number on the card. No total → no breakdown.
+  const taskDurationUs =
+    (hasCsvIdentity ? fromCsv.taskDurationUs : undefined) ?? fromJsonl.taskDurationUs;
   const summary = summaryWithHardwareCoreCount(
     {
       ...(hasCsvIdentity ? fromCsv : fromJsonl),
+      ...(taskDurationUs != null ? { taskDurationUs } : {}),
+      durationBreakdown:
+        taskDurationUs == null
+          ? undefined
+          : durationBreakdownFromOpInfo(
+              taskDurationUs,
+              fromJsonl.durationBreakdown?.communicationUs,
+              fromJsonl.durationBreakdown?.overheadUs,
+              fromJsonl.durationBreakdown?.overlapUs,
+            ),
       aicFlops: fromJsonl.aicFlops,
       aivFlops: fromJsonl.aivFlops,
       aicFlopsTheoretical: fromJsonl.aicFlopsTheoretical,
@@ -1057,12 +1110,18 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if (sourceCorrelation && !sourceCorrelation.mock) {
     reportModel.sourceCorrelation = sourceCorrelation;
   }
+  const ubRw = payloadByName(payloads, ['UbRwAccesses.csv', 'ubrwaccesses.csv']);
+  const memoryHeatmap = memoryHeatmapFromTexts({
+    'UbRwAccesses.csv': ubRw ? decodeUtf8(ubRw) : undefined,
+  });
+  if (memoryHeatmap) reportModel.memoryHeatmap = memoryHeatmap;
   const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
   // npu-compute §11.8: derive when points exist (host may still pass capabilities to override).
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
+  if (memoryHeatmap) capabilities.push('memoryHeatmap');
   if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   // UI-37: 源码 only when real source embeds adapted (no mock fallback).
   if (reportModel.sourceCorrelation) capabilities.push('sourceTab');

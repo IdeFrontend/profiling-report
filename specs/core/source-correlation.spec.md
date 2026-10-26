@@ -24,9 +24,9 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 **Real path — compute multi-file.** When payloads include `objdump.txt` and at least one of `symbolizer.json` / `summary.db`, `adaptSourceCorrelation` builds a real model via `adaptComputeSourceCorrelation` (`mock: false`):
 
 - Asm rows from `objdump.txt` (address + instruction text).
-- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` via sql.js (`await ensurePcSamplingSql()` before adapt when stalls are needed). Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load.
+- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` via sql.js (`await ensurePcSamplingSql()` before adapt when stalls are needed). Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load. Instructions Executed and Warp Occupancy stay 0 unless that table also has `Instructions_Executed` and `Warp_Occupancy` (a 0–1 fraction). Sample packs include them; gather_2d does not ([DATA-55](../../docs/context/questions/DATA.md)). Mapped source lines sum stall and instructions and average occupancy.
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
-- Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`).
+- Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; correlation keys use that file's id.
 
 **Real path — single JSON.** `SourceCorrelation.json` (and aliases) remain reserved; schema is still Product-TBD, so those embeds currently return `null` ([DATA-52](../../docs/context/questions/DATA.md)).
 
@@ -46,6 +46,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 6. **PR-SRC-006** — symbolizer `Line > 0` fills `sourceToAsm` / `asmToSource` (basename match on `FileName`); `Line: 0` stays unmapped (DATA-54 interim).
 7. **PR-SRC-007** — `parseObjdump` extracts instruction rows from the gather_2d listing.
 8. **PR-SRC-008** — `loadReportSource(gather_2d.npu-rep)` (leaf with `.asc` embed) yields `sourceCorrelation.mock === false` and non-empty maps.
+9. **PR-SRC-009** — Distinct symbolizer basenames become separate source files; `Line <= 0` stays unmapped.
 
 ## Dependencies
 
@@ -53,6 +54,8 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 ## Changelog
 
+- **2026-10-24** — Optional `pc_sampling` columns `Instructions_Executed` and `Warp_Occupancy` fill those Source / SASS metrics. Packs without the columns stay at 0.
+- **2026-10-23** — PR-SRC-009: one source file per symbolizer basename.
 - **2026-10-19** — Restore sql.js reader for `pc_sampling` (drop hand-rolled B-tree walker).
 - **2026-10-16** — Hide 源码 unless a real Source pack adapts (`mock` is not shown).
 - **2026-10-15** — Refresh gather_2d fixtures (symbolizer Line>0); `gather_2d.npu-rep` playground pack; PR-SRC-006/008; npu-compute PDF column list → DATA-55.

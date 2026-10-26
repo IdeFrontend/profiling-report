@@ -161,7 +161,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Aside auto-open.** Initial `asideVisible` follows `reportHasAsideContent` — duration, bandwidth cards, PIPE, CSV tables, hardware, or labelled topology, plus roofline only while the `roofline` capability is passed (same gate as the toolbar toggle). Switching operators keeps the current `asideVisible` (closing the sidebar then changing OP does not reopen it) and the session gutter/aside widths (a manual resize does not snap back to 480).
 
-**Multi-operator packs.** An `npu-rep` container with nested operator archives renders a top-left OP selector in the toolbar. Switching operators swaps the swimlane + report models from the pre-adapted per-operator reports (no re-parse) and resets the viewport/selection like a fresh load, while preserving aside visibility and panel widths. Re-selecting the already-active operator is a no-op (no reset).
+**Multi-operator packs.** An `npu-rep` container with nested operator archives renders a top-left OP selector in the toolbar. Switching operators swaps the swimlane + report models from the pre-adapted per-operator reports (no re-parse) and resets the viewport, selection, and Source-tab frame caret like a fresh load, while preserving aside visibility and panel widths. Re-selecting the already-active operator is a no-op (no reset).
 
 **Corner wash.** Owned by [ReportToolbar](../ReportToolbar/ReportToolbar.spec.md) (criterion 19 there), not the root. At the root it was a child of `.pr-root` beneath `.pr-main`, which is opaque at `z-index: 1`, so it never painted. It also has to exist on both toolbar render paths, and only one of them is a direct child of the root.
 
@@ -203,6 +203,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 26. **PR-ROOT-026** — The overlay owns the one `selectedMemoryUnit` the diagram and the panel share: opening via 全屏 selects the first unit the adapter could fill (the model's own `units[0]`, 默认选中一个 memory), opening by clicking a unit on the **stacked** diagram selects that unit (点击一个 memory 进来), a panel tab click or a diagram unit click sets it, and the diagram's selected highlight and the panel's active tab always read the same value. Re-clicking the selected unit is a no-op (no toggle-off). It is per overlay session: the overlay's leave clears it (a report / operator change closes the overlay the same way), so reopening defaults again.
 27. **PR-ROOT-027** — The heat column does not disturb the overlay's existing geometry: the diagram keeps its own box (the fit frame still sizes from `100cqh`, see [MemoryTopologyPanel](../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)) inside the narrower left column, the zoom bar and wheel gestures are unchanged, and the Metric switcher (when `archDiagram`) stays over the diagram, not over the panel. The heat column itself is height-bounded (`align-self: stretch; overflow: hidden`) so [MemoryHeatmapPanel](../StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) can **resize** its lattice to fit. The overlay ground is literal `#1a1a1a` (dark-only; not `--pr-bg-aside`) and the diagram `.pr-topo` is transparent there. The fullscreen zoom bar is a `#262626` / `8px` pill; the heat card is the other `#262626` paint.
 28. **PR-ROOT-028** — With `capabilities: ['sourceTab']` and a non-mock `reportModel.sourceCorrelation`, 源码 opens `source-view` via `v-if` (Timeline unmounts); Timeline → Source → Timeline keeps the `viewState` time window (`startTime` / `endTime`). A `mock: true` model does not show the tab.
+29. **PR-ROOT-029** — A Parameter frame whose basename matches a bundled source file switches to 源码 and moves the caret to that line. A bare path opens line 1; `path:line` opens that line. A fresh load and an operator switch clear that caret, so the next report does not reopen the previous file and line.
 
 ## Edge Cases
 
@@ -236,6 +237,8 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-10-23** — A fresh load and an operator switch clear the Source-tab frame caret (`PR-ROOT-029`).
+- **2026-10-23** — Parameter frames that match a bundled source file open 源码 at that line, or line 1 when the frame has no line (`PR-ROOT-029`).
 - **2026-10-21** — Fullscreen zoom bar is a `#262626` / `8px` pill on the `#1a1a1a` overlay ground (PR-ROOT-027). Diagram `.pr-topo` stays transparent; the heat card is not the only `#262626` paint. Behavior prose now says the heat column is **400px** (it still said 320px; PR-ROOT-025 already said 400px).
 - **2026-10-06** — `allowHtmlExport` defaults false (opt-in; MSTT does not serve the template). Export failure stays in the dialog and does not emit `error`. Inputs default URL is `/npu-rep-html-template.txt` (`PR-ROOT-024`).
 - **2026-10-06** — Download HTML stitches the live **locale** into the bundle (`PR-ROOT-024`).

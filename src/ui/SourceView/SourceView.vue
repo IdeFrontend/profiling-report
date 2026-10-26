@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { SourceFrameTarget } from '../../adapters/sourceCorrelation/resolveSourceFrame';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
@@ -33,11 +34,14 @@ function firstListedNavigate(
 const props = withDefaults(
   defineProps<{
     model: SourceCorrelationModel;
+    /** One-shot Source caret from a task-detail frame. Applied once per file and line. */
+    focus?: SourceFrameTarget | null;
     locale?: string;
     suduWorkerUrl?: string;
     userGuideUrl?: string;
   }>(),
   {
+    focus: null,
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
@@ -52,8 +56,6 @@ type PaneApi = {
   /** `queued` keeps the echo gate until boot; `unchanged` means Sudu will not emit. */
   setLine: (n: number) => 'queued' | 'unchanged' | 'moved' | void;
   clearLine?: () => void;
-  scrollToTop: () => void;
-  scrollToBottom: () => void;
   stepSearch?: (dir: 1 | -1) => void;
 };
 
@@ -72,26 +74,42 @@ const asmPane = ref<PaneApi | null>(null);
 const searchQuery = ref('');
 /** Shared Link Views state — both pane toggles stay in sync. */
 const linkViews = ref(true);
-const sortDesc = ref(true);
 /**
- * Which dual pane owns chrome actions (search / sort). Always one of the two;
+ * Which dual pane owns chrome actions (search / navigate). Always one of the two;
  * defaults to Source. Clicks outside the panes do not clear it.
  */
 const selectedPane = ref<'source' | 'asm'>('source');
-/**
- * After scroll-to-top/bottom both carets are forced independently. Suppress
- * cross-pane correlation highlights until the user selects a line again so we
- * do not paint a stale mapped partner beside the forced carets.
- */
-const correlationSuppressed = ref(false);
 /**
  * Which pane initiated the latest cross-pane sync. Cleared when the echo is
  * absorbed — no timer (timers raced real Sudu caret/paint).
  */
 const syncOrigin = ref<'source' | 'asm' | null>(null);
+/**
+ * File select with no caret: highlight every instruction mapped to that source
+ * file. The shared listing stays complete — this does not hide other files' rows.
+ */
+const showFileMatch = ref(false);
 
 function toggleLinkViews() {
   linkViews.value = !linkViews.value;
+  if (linkViews.value) scrollToFileMatch();
+}
+
+/** Last `{fileId}:{line}` applied from `focus`, so a manual file change is left alone. */
+let appliedFocusKey = '';
+
+function focusKey(focus: SourceFrameTarget | null | undefined): string {
+  return focus ? `${focus.fileId}:${focus.line}` : '';
+}
+
+function applyFocus() {
+  const focus = props.focus;
+  const key = focusKey(focus);
+  if (!focus || !key || key === appliedFocusKey) return;
+  if (!props.model.files.some((file) => file.id === focus.fileId)) return;
+  appliedFocusKey = key;
+  selectedFileId.value = focus.fileId;
+  void nextTick(() => jumpSource(focus.line));
 }
 
 watch(
@@ -103,31 +121,55 @@ watch(
     sourceLine.value = null;
     asmLine.value = null;
     searchQuery.value = '';
-    correlationSuppressed.value = false;
     syncOrigin.value = null;
+    showFileMatch.value = false;
+    appliedFocusKey = '';
+    applyFocus();
   },
 );
+
+watch(() => focusKey(props.focus), () => applyFocus(), { immediate: true });
+
+/** Assembly line numbers mapped to `fileId`, in listing order. */
+function mappedAsmLines(fileId: string): number[] {
+  const lines: number[] = [];
+  for (const row of props.model.assembly.lines) {
+    if (props.model.asmToSource[row.line]?.fileId === fileId) lines.push(row.line);
+  }
+  return lines;
+}
 
 /** File picker only — asm→source correlation may change `selectedFileId` without reset. */
 function onSourceFileChange(fileId: string) {
   selectedFileId.value = fileId;
   sourceLine.value = null;
   asmLine.value = null;
-  correlationSuppressed.value = false;
   syncOrigin.value = null;
+  showFileMatch.value = true;
+  scrollToFileMatch();
 }
 
 const sourceFile = computed<SourceFileModel | null>(() => {
   return props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null;
 });
 
+/** Scroll the shared listing to the first instruction of the selected file. */
+function scrollToFileMatch() {
+  if (!linkViews.value || !showFileMatch.value) return;
+  if (sourceLine.value != null || asmLine.value != null) return;
+  const fileId = sourceFile.value?.id;
+  if (!fileId) return;
+  const first = mappedAsmLines(fileId)[0];
+  if (first != null) void nextTick(() => asmPane.value?.setLine(first));
+}
+
 const correlatedAsm = computed(() => {
-  if (correlationSuppressed.value || !linkViews.value) return [];
+  if (!linkViews.value) return [];
   const file = sourceFile.value;
   if (file && sourceLine.value != null) {
-    const fromSource = props.model.sourceToAsm[`${file.id}:${sourceLine.value}`];
-    if (fromSource?.length) return fromSource;
+    return props.model.sourceToAsm[`${file.id}:${sourceLine.value}`] ?? [];
   }
+  if (showFileMatch.value && file && asmLine.value == null) return mappedAsmLines(file.id);
   // Asm-driven: expand siblings via asm → source → sourceToAsm (right-panel start).
   if (asmLine.value == null) return [];
   const hit = props.model.asmToSource[asmLine.value];
@@ -136,13 +178,11 @@ const correlatedAsm = computed(() => {
 });
 
 const correlatedSource = computed(() => {
-  if (correlationSuppressed.value || !linkViews.value) return [];
+  if (!linkViews.value) return [];
   if (asmLine.value == null) return [];
   const hit = props.model.asmToSource[asmLine.value];
   return hit ? [hit.line] : [];
 });
-
-const sourceTextLines = computed(() => (sourceFile.value?.text ?? '').split(/\r?\n/));
 
 /** Trimmed search — both panes paint matches; Enter still steps the selected pane only. */
 const trimmedSearch = computed(() => searchQuery.value.trim());
@@ -169,14 +209,18 @@ function metricValue(file: SourceFileModel, line: number, colId: string): number
   return typeof v === 'number' ? v : 0;
 }
 
-/** Hot lines for Navigate By (non-zero metric), ordered by the active asc/desc toggle. */
-function hotLines(file: SourceFileModel, col: string): number[] {
-  const desc = sortDesc.value;
+/** Navigate By cell counts as data. A numeric 0 does not; a missing cell does not. */
+function hasNavigateData(v: number | string | null | undefined): boolean {
+  return typeof v === 'number' ? v !== 0 : v != null && v !== '';
+}
+
+/**
+ * Rows with Navigate By data, ordered by value.
+ * Ascending visits the earlier line first on a tie; descending visits the later line first.
+ */
+function hotLines(file: SourceFileModel, col: string, desc: boolean): number[] {
   const rows = file.lines
-    .filter((l) => {
-      const v = l.values[col];
-      return typeof v === 'number' ? v !== 0 : v != null && v !== '';
-    })
+    .filter((l) => hasNavigateData(l.values[col]))
     .map((l) => ({ line: l.line, value: metricValue(file, l.line, col) }));
   rows.sort((a, b) => {
     if (a.value !== b.value) return desc ? b.value - a.value : a.value - b.value;
@@ -185,16 +229,16 @@ function hotLines(file: SourceFileModel, col: string): number[] {
   return rows.map((r) => r.line);
 }
 
-/** Next hotspot in `lines`. Missing/unknown current starts at the first; the end wraps. */
+/** Next row in a value order. A caret that is not in `lines` starts at the first. The end stays. */
 function nextHotLine(lines: number[], current: number | null): number | null {
   if (lines.length === 0) return null;
   const i = current == null ? -1 : lines.indexOf(current);
   if (i < 0) return lines[0]!;
-  return lines[(i + 1) % lines.length]!;
+  return lines[Math.min(i + 1, lines.length - 1)]!;
 }
 
 function onSourceLine(line: number) {
-  correlationSuppressed.value = false;
+  showFileMatch.value = false;
   // Asm-driven setLine echo — keep asm caret; clear the gate (no timer).
   if (syncOrigin.value === 'asm') {
     sourceLine.value = line;
@@ -227,7 +271,7 @@ function onSourceLine(line: number) {
 }
 
 function onAsmLine(line: number) {
-  correlationSuppressed.value = false;
+  showFileMatch.value = false;
   if (syncOrigin.value === 'source') {
     asmLine.value = line;
     syncOrigin.value = null;
@@ -287,28 +331,50 @@ function cycleLine(lines: number[], current: number | null, dir: 1 | -1): number
   return lines[lines.length - 1]!;
 }
 
-/** Line numbers in the selected pane, in document order. */
-function selectedPaneLines(): number[] {
-  if (selectedPane.value === 'asm') {
-    return props.model.assembly.lines.map((row) => row.line);
-  }
-  const n = sourceTextLines.value.length;
-  return n > 0 ? Array.from({ length: n }, (_, i) => i + 1) : [];
+function selectedNavigateFile(): SourceFileModel | null {
+  return selectedPane.value === 'asm' ? props.model.assembly : sourceFile.value;
+}
+
+function selectedNavigateColumn(): string {
+  return selectedPane.value === 'asm' ? asmNavigateBy.value : sourceNavigateBy.value;
+}
+
+function selectedCaret(): number | null {
+  return selectedPane.value === 'asm' ? asmLine.value : sourceLine.value;
+}
+
+/** Document order of rows whose Navigate By cell has data. */
+function dataLinesInOrder(file: SourceFileModel, col: string): number[] {
+  return file.lines.filter((l) => hasNavigateData(l.values[col])).map((l) => l.line);
 }
 
 /**
- * Prev/next line in the selected pane. Independent of search.
- * No caret → next starts at first, prev at last; otherwise steps and wraps.
+ * Next/previous data row in document order. Does not wrap.
+ * No caret → next starts at the first data row, previous at the last.
+ * A caret past the last data row stays; one before the first stays.
  */
-function stepSelectedLine(dir: 1 | -1) {
-  const lines = selectedPaneLines();
-  if (selectedPane.value === 'asm') {
-    const next = cycleLine(lines, asmLine.value, dir);
-    if (next != null) jumpAsm(next);
-    return;
+function stepDataLine(lines: number[], current: number | null, dir: 1 | -1): number | null {
+  if (lines.length === 0) return null;
+  if (current == null) return dir === 1 ? lines[0]! : lines[lines.length - 1]!;
+  if (dir === 1) return lines.find((n) => n > current) ?? current;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i]! < current) return lines[i]!;
   }
-  const next = cycleLine(lines, sourceLine.value, dir);
-  if (next != null) jumpSource(next);
+  return current;
+}
+
+function jumpSelected(line: number) {
+  if (selectedPane.value === 'asm') jumpAsm(line);
+  else jumpSource(line);
+}
+
+/** Prev/next row with Navigate By data in the selected pane. Independent of search. */
+function stepSelectedData(dir: 1 | -1) {
+  const file = selectedNavigateFile();
+  if (!file) return;
+  const next = stepDataLine(dataLinesInOrder(file, selectedNavigateColumn()), selectedCaret(), dir);
+  if (next == null || next === selectedCaret()) return;
+  jumpSelected(next);
 }
 
 /**
@@ -326,44 +392,27 @@ function findSearchStep(dir: 1 | -1) {
 }
 
 /**
- * Step the selected pane along its Navigate By metric.
- * Asc walks increasing values; desc walks decreasing values. The other pane's
- * Navigate By is ignored. No caret, or a caret that is not a hotspot, starts
- * at the first line of that order; otherwise the next line, wrapping.
+ * Step the selected pane along its Navigate By values.
+ * Ascending walks increasing values (earlier line first on a tie); descending
+ * walks decreasing values (later line first on a tie). The other pane's
+ * Navigate By is ignored. No caret, or a caret on a row with no data, starts
+ * at the first line of that order. The end stays — the walk does not wrap.
  */
 function setNavigateSort(desc: boolean) {
-  sortDesc.value = desc;
-  if (selectedPane.value === 'asm') {
-    const next = nextHotLine(hotLines(props.model.assembly, asmNavigateBy.value), asmLine.value);
-    if (next != null) jumpAsm(next);
-    return;
-  }
-  const file = sourceFile.value;
+  const file = selectedNavigateFile();
   if (!file) return;
-  const next = nextHotLine(hotLines(file, sourceNavigateBy.value), sourceLine.value);
-  if (next != null) jumpSource(next);
+  const next = nextHotLine(hotLines(file, selectedNavigateColumn(), desc), selectedCaret());
+  if (next == null || next === selectedCaret()) return;
+  jumpSelected(next);
 }
 
-function scrollTop() {
-  sourcePane.value?.scrollToTop();
-  asmPane.value?.scrollToTop();
-  correlationSuppressed.value = true;
-  syncOrigin.value = null;
-  sourceLine.value = 1;
-  asmLine.value = 1;
-}
-
-function scrollBottom() {
-  const srcLast = Math.max(1, sourceTextLines.value.length);
-  const asmLast =
-    props.model.assembly.lines[props.model.assembly.lines.length - 1]?.line ??
-    Math.max(1, props.model.assembly.text.split(/\r?\n/).length);
-  sourcePane.value?.scrollToBottom();
-  asmPane.value?.scrollToBottom();
-  correlationSuppressed.value = true;
-  syncOrigin.value = null;
-  sourceLine.value = srcLast;
-  asmLine.value = asmLast;
+/** Highest (desc) or lowest (asc) Navigate By value in the selected pane. Ties follow `hotLines`. */
+function goToExtreme(desc: boolean) {
+  const file = selectedNavigateFile();
+  if (!file) return;
+  const target = hotLines(file, selectedNavigateColumn(), desc)[0];
+  if (target == null || target === selectedCaret()) return;
+  jumpSelected(target);
 }
 
 function openUserGuide() {
@@ -534,34 +583,34 @@ onBeforeUnmount(() => {
         >
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-find-next"
             :aria-label="t('sourceFindNext', locale)"
-            @click="stepSelectedLine(1)"
+            @click="stepSelectedData(1)"
           >
             <PrIcon name="chevron-down" />
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-find-prev"
             :aria-label="t('sourceFindPrev', locale)"
-            @click="stepSelectedLine(-1)"
+            @click="stepSelectedData(-1)"
           >
             <PrIcon name="chevron-up" />
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
-            data-testid="source-scroll-top"
-            :aria-label="t('sourceScrollTop', locale)"
-            @click="scrollTop"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
+            data-testid="source-nav-highest"
+            :aria-label="t('sourceNavHighest', locale)"
+            @click="goToExtreme(true)"
           >
             <PrIcon name="to-top" />
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-sort-asc"
             :aria-label="t('sourceSortAsc', locale)"
             @click="setNavigateSort(false)"
@@ -570,7 +619,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
             data-testid="source-sort-desc"
             :aria-label="t('sourceSortDesc', locale)"
             @click="setNavigateSort(true)"
@@ -579,10 +628,10 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            class="pr-source-view__icon-btn pr-icon-tip"
-            data-testid="source-scroll-bottom"
-            :aria-label="t('sourceScrollBottom', locale)"
-            @click="scrollBottom"
+            class="pr-source-view__icon-btn pr-icon-tip pr-icon-tip--sentence"
+            data-testid="source-nav-lowest"
+            :aria-label="t('sourceNavLowest', locale)"
+            @click="goToExtreme(false)"
           >
             <PrIcon name="to-bottom" />
           </button>
@@ -706,6 +755,7 @@ onBeforeUnmount(() => {
         </div>
         <!-- SASS: Address + Assembly are table cells (sketch) — no Sudu editor. -->
         <AsmTablePane
+          v-if="model.assembly.lines.length"
           ref="asmPane"
           class="pr-source-view__pane-body"
           :file="model.assembly"
@@ -715,6 +765,13 @@ onBeforeUnmount(() => {
           :search-query="trimmedSearch"
           @update:current-line="onAsmLine"
         />
+        <p
+          v-else
+          class="pr-source-view__pane-body pr-source-view__asm-empty"
+          data-testid="asm-empty"
+        >
+          {{ t('sourceAsmEmpty', locale) }}
+        </p>
       </div>
     </div>
   </div>
@@ -910,5 +967,15 @@ onBeforeUnmount(() => {
 
 .pr-source-view__pane--selected .pr-source-view__pane-body {
   border-color: var(--pr-src-accent, #3078f0);
+}
+
+.pr-source-view__asm-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 16px;
+  color: var(--pr-src-label);
+  text-align: center;
 }
 </style>

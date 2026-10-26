@@ -136,7 +136,7 @@ let pendingLine: number | null = null;
 /**
  * True when `pendingLine` came from imperative `setLine` (asm jump).
  * Boot must echo that caret so the parent's sync gate can clear.
- * A `currentLine` watch (scroll-to-top/bottom) leaves this false and must not emit.
+ * A `currentLine` watch leaves this false and must not emit.
  */
 let pendingCaretEcho = false;
 /**
@@ -273,8 +273,7 @@ async function boot() {
     wireSync();
     applySearchHighlights();
     // Apply selection chosen before boot finished. Imperative setLine (asm jump)
-    // must echo so syncOrigin can clear. Prop-driven lines (scroll) must not:
-    // onSourceLine would drop correlationSuppressed and the forced caret.
+    // must echo so syncOrigin can clear. A prop-driven line must not echo.
     const echo = pendingCaretEcho;
     const bootLine = pendingLine ?? props.currentLine;
     pendingLine = null;
@@ -595,41 +594,6 @@ function setLineOrQueue(line: number): 'queued' | 'unchanged' | 'moved' {
   return setLine(line);
 }
 
-/** Scroll editor + metrics table to the top without emitting caret (parent owns line). */
-function scrollToTop() {
-  pendingCaretEcho = false;
-  const scroll = tableScrollEl.value;
-  if (scroll) scroll.scrollTop = 0;
-  if (!editor) return;
-  editor.setTheme(suduEditorTheme());
-  ignoreCaret = true;
-  try {
-    editor.setVScrollPos(0);
-    editor.setPosition({ lineNumber: 1, column: 1 });
-    editor.revealLine(1);
-  } finally {
-    ignoreCaret = false;
-  }
-}
-
-/** Scroll editor + metrics table to the bottom without emitting caret (parent owns line). */
-function scrollToBottom() {
-  pendingCaretEcho = false;
-  const scroll = tableScrollEl.value;
-  if (scroll) scroll.scrollTop = scroll.scrollHeight;
-  if (!editor) return;
-  editor.setTheme(suduEditorTheme());
-  ignoreCaret = true;
-  try {
-    const last = Math.max(1, editor.getNumLines());
-    editor.setVScrollPos(editor.getMaxVScrollPos());
-    editor.setPosition({ lineNumber: last, column: 1 });
-    editor.revealLine(last);
-  } finally {
-    ignoreCaret = false;
-  }
-}
-
 watch(
   () => props.file,
   async (file) => {
@@ -721,8 +685,6 @@ onBeforeUnmount(() => {
 defineExpose({
   setLine: setLineOrQueue,
   clearLine,
-  scrollToTop,
-  scrollToBottom,
   stepSearch,
   containerId,
 });

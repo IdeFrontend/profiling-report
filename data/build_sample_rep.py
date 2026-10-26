@@ -16,7 +16,11 @@ Layout (little-endian), matches `src/adapters/parseNpuRep160.ts` /
   FileInfo (160 bytes): magic[8], name[128], type:u16, reserved:u16=0,
                         reserved1:u32=0, length:u64, offset:u64
 
-  type 1 = nested operator archive; 2 = json; 3 = jsonl; 4 = csv.
+  type 1 = nested operator archive; 2 = json; 3 = jsonl; 4 = csv; 5 = sqlite3; 7 = txt.
+
+Both operators embed a four-file Ascend C Source pack (objdump + symbolizer + summary.db),
+a HardwareInfo Roofline category, and UbRwAccesses rows. op1 Code frames point at those files.
+summary.db is pc_sampling; Sampling Stall on Source / SASS comes from those counters.
 
 Operators:
   op1 — machine-view style (~100 X events) + product Summary.jsonl / Sampling.json
@@ -42,6 +46,8 @@ TYPE_NESTED = 1
 TYPE_JSON = 2
 TYPE_JSONL = 3
 TYPE_CSV = 4
+TYPE_SQLITE = 5
+TYPE_TXT = 7
 
 STRESS_PIPES = ["ALL", "SCALAR", "FLOWCTRL", "MTE1", "CUBE", "FIXP", "MTE2", "MTE3", "CACHEMISS"]
 STRESS_CORES = ["Core0.Cube", "Core0.Vec0", "Core0.Vec1"]
@@ -143,12 +149,21 @@ def _x(pid, tid, name, ts, dur, event_id=None, deps=None, extra=None):
 
 # Sketch Parameter column fields (event-details §11.2.8.1). op2 omits Code
 # paths so the ~150k-event fixture stays near ~30 MB.
-CODE_PATHS = [
-    "/opt/ascend/tikcpp/impl/cube_op.cpp",
-    "/opt/ascend/tikcpp/lib/matmul/b.h",
-    "/home/ops/kernels/mte_copy.cpp",
-    "/home/ops/kernels/fixp_loc.cpp",
+# Paths match the embedded Source files (basename). A missing line opens line 1.
+# `None` line → bare path. Every 5th event also carries a Line:0 object frame
+# on the fixp path (index 2). Every 7th event adds a path that is not in the pack.
+# Line numbers are filled in after the kernel texts (`_bind_source_frames`).
+CUBE_SRC_PATH = "/opt/ascend/tikcpp/impl/cube_op.cpp"
+MTE_SRC_PATH = "/home/ops/kernels/mte_copy.cpp"
+FIXP_SRC_PATH = "/home/ops/kernels/fixp_loc.cpp"
+TILE_SRC_PATH = "/opt/ascend/tikcpp/lib/matmul/b.h"
+SOURCE_FRAMES = [
+    (CUBE_SRC_PATH, None),
+    (MTE_SRC_PATH, None),
+    (FIXP_SRC_PATH, None),
+    (TILE_SRC_PATH, None),
 ]
+UNMATCHED_CODE = "/tmp/not-bundled.cpp"
 
 
 def producer_params(pipe, name, rand, seq, dur, *, rich=True):
@@ -179,11 +194,17 @@ def producer_params(pipe, name, rand, seq, dur, *, rich=True):
         "Detail": detail_by_pipe.get(pipe, f"{pipe}[{lo}:{hi}]"),
     }
     if rich:
-        code = [CODE_PATHS[int(rand() * len(CODE_PATHS))]]
+        path, line = SOURCE_FRAMES[int(rand() * len(SOURCE_FRAMES))]
+        code = [f"{path}:{line}" if line else path]
         if rand() < 0.35:
-            second = CODE_PATHS[int(rand() * len(CODE_PATHS))]
+            path2, line2 = SOURCE_FRAMES[int(rand() * len(SOURCE_FRAMES))]
+            second = f"{path2}:{line2}" if line2 else path2
             if second not in code:
                 code.append(second)
+        if seq % 5 == 0:
+            code.append({"FileName": SOURCE_FRAMES[2][0], "Line": 0})
+        if seq % 7 == 0:
+            code.append(UNMATCHED_CODE)
         out["Code"] = code
     return out
 
@@ -636,8 +657,8 @@ def transform_op_basic_info(text, *, op_name="matmul_mock", op_type="mix",
     return header + "\n" + row + "\n"
 
 
-def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650):
-    """Product-style spaced HardwareInfo.jsonl keys."""
+def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650, roofline_scale=1.0):
+    """Product-style spaced HardwareInfo.jsonl keys, plus a Roofline category."""
     lines = [
         {"category": "Host Info", "cpu physical count": 2, "cpu logical count": 46,
          "memory total size(MB)": 515563.11, "disk total size(GB)": 5864.53},
@@ -649,8 +670,583 @@ def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650):
          "ai cube frequency(MHZ)": freq_mhz, "ai vector frequency(MHZ)": freq_mhz},
         {"category": "Memory Information", "hbm total(MB)": 131072,
          "hbm used(MB)": 5190.55, "hbm frequency(MHZ)": 3200},
+        roofline_category(roofline_scale),
     ]
     return "\n".join(json.dumps(x, ensure_ascii=False) for x in lines) + "\n"
+
+
+def roofline_category(scale):
+    """§11.8.2 Roofline circles (w/t/q) so the chart is more than the GM fallback dot."""
+    def pt(p_peak, w, t, q, b_peak=1600):
+        return {"p_peak": p_peak, "b_peak": b_peak, "w": w * scale, "t": t, "q": q}
+
+    return {
+        "category": "Roofline",
+        "aiv_simd_b16": pt(2.7e13, 8e11, 0.05, 4e8),
+        "aiv_simt_b16": pt(1.35e13, 4e11, 0.04, 8e8, 800),
+        "aiv_simd_b32": pt(1.35e13, 2e11, 0.08, 2e8),
+        "aic_b16": pt(4.3e14, 6e12, 0.02, 1e9, 800),
+        "aic_b32": pt(2.7e13, 1.2e12, 0.03, 6e8),
+        "aic_b8": pt(8.6e14, 9e12, 0.015, 5e8),
+    }
+
+
+# Ascend C sample kernels (original; same shape as a cann/ops-math op_kernel:
+# __aicore__ class, TPipe queues, DataCopy / Mmad / Fixpipe). Hot lines are
+# located by needle so Code frames and symbolizer stay on the real statements.
+# Previous pack was 32 source lines and 8 instructions; these are >= 5× that.
+CUBE_OP_CPP = """/* !
+ * \\file cube_op.cpp
+ * \\brief Cube matmul kernel: GM -> L1 -> L0A/L0B -> L0C -> GM.
+ */
+#include "kernel_operator.h"
+#include "b.h"
+
+using namespace AscendC;
+
+constexpr int32_t BUFFER_NUM = 2;
+
+struct CubeTiling {
+    uint32_t M;
+    uint32_t N;
+    uint32_t K;
+    uint32_t singleCoreM;
+    uint32_t singleCoreN;
+    uint32_t baseM;
+    uint32_t baseN;
+    uint32_t baseK;
+};
+
+class KernelCube {
+public:
+    __aicore__ inline KernelCube() {}
+
+    __aicore__ inline void Init(__gm__ uint8_t *a, __gm__ uint8_t *b, __gm__ uint8_t *c,
+                                const CubeTiling &t)
+    {
+        tiling = t;
+        aGm.SetGlobalBuffer((__gm__ half *)a);
+        bGm.SetGlobalBuffer((__gm__ half *)b);
+        cGm.SetGlobalBuffer((__gm__ float *)c);
+        pipe.InitBuffer(inQueueA1, BUFFER_NUM, t.baseM * t.baseK * sizeof(half));
+        pipe.InitBuffer(inQueueB1, BUFFER_NUM, t.baseK * t.baseN * sizeof(half));
+        pipe.InitBuffer(inQueueA2, BUFFER_NUM, t.baseM * t.baseK * sizeof(half));
+        pipe.InitBuffer(inQueueB2, BUFFER_NUM, t.baseK * t.baseN * sizeof(half));
+        pipe.InitBuffer(outQueueCO1, BUFFER_NUM, t.baseM * t.baseN * sizeof(float));
+        mmadParams.m = t.baseM;
+        mmadParams.n = t.baseN;
+        mmadParams.k = t.baseK;
+        mmadParams.isBias = false;
+    }
+
+    __aicore__ inline void Process()
+    {
+        int32_t mBlocks = (tiling.singleCoreM + tiling.baseM - 1) / tiling.baseM;
+        int32_t nBlocks = (tiling.singleCoreN + tiling.baseN - 1) / tiling.baseN;
+        int32_t kBlocks = (tiling.K + tiling.baseK - 1) / tiling.baseK;
+        for (int32_t mIdx = 0; mIdx < mBlocks; ++mIdx) {
+            for (int32_t nIdx = 0; nIdx < nBlocks; ++nIdx) {
+                for (int32_t kIdx = 0; kIdx < kBlocks; ++kIdx) {
+                    CopyIn(mIdx, nIdx, kIdx);
+                    SplitAB();
+                    Compute(kIdx == 0);
+                }
+                CopyOut(mIdx, nIdx);
+            }
+        }
+    }
+
+private:
+    __aicore__ inline void CopyIn(int32_t mIdx, int32_t nIdx, int32_t kIdx)
+    {
+        LocalTensor<half> a1 = inQueueA1.AllocTensor<half>();
+        LocalTensor<half> b1 = inQueueB1.AllocTensor<half>();
+        uint32_t offsetA = (mIdx * tiling.baseM) * tiling.K + kIdx * tiling.baseK;
+        uint32_t offsetB = (kIdx * tiling.baseK) * tiling.N + nIdx * tiling.baseN;
+        DataCopy(a1, aGm[offsetA], tiling.baseM * tiling.baseK);
+        DataCopy(b1, bGm[offsetB], tiling.baseK * tiling.baseN);
+        inQueueA1.EnQue(a1);
+        inQueueB1.EnQue(b1);
+    }
+
+    __aicore__ inline void SplitAB()
+    {
+        LocalTensor<half> a1 = inQueueA1.DeQue<half>();
+        LocalTensor<half> b1 = inQueueB1.DeQue<half>();
+        LocalTensor<half> a2 = inQueueA2.AllocTensor<half>();
+        LocalTensor<half> b2 = inQueueB2.AllocTensor<half>();
+        LoadData(a2, a1, load2dParams);
+        LoadData(b2, b1, load2dParams);
+        inQueueA2.EnQue(a2);
+        inQueueB2.EnQue(b2);
+        inQueueA1.FreeTensor(a1);
+        inQueueB1.FreeTensor(b1);
+    }
+
+    __aicore__ inline void Compute(bool initC)
+    {
+        LocalTensor<half> a2 = inQueueA2.DeQue<half>();
+        LocalTensor<half> b2 = inQueueB2.DeQue<half>();
+        LocalTensor<float> c1 = outQueueCO1.AllocTensor<float>();
+        mmadParams.cmatrixInitVal = initC;
+        Mmad(c1, a2, b2, mmadParams);
+        outQueueCO1.EnQue(c1);
+        inQueueA2.FreeTensor(a2);
+        inQueueB2.FreeTensor(b2);
+    }
+
+    __aicore__ inline void CopyOut(int32_t mIdx, int32_t nIdx)
+    {
+        LocalTensor<float> c1 = outQueueCO1.DeQue<float>();
+        uint32_t offset = (mIdx * tiling.baseM) * tiling.N + nIdx * tiling.baseN;
+        DataCopy(cGm[offset], c1, tiling.baseM * tiling.baseN);
+        outQueueCO1.FreeTensor(c1);
+    }
+
+    TPipe pipe;
+    CubeTiling tiling;
+    GlobalTensor<half> aGm;
+    GlobalTensor<half> bGm;
+    GlobalTensor<float> cGm;
+    TQue<TPosition::A1, BUFFER_NUM> inQueueA1;
+    TQue<TPosition::B1, BUFFER_NUM> inQueueB1;
+    TQue<TPosition::A2, BUFFER_NUM> inQueueA2;
+    TQue<TPosition::B2, BUFFER_NUM> inQueueB2;
+    TQue<TPosition::CO1, BUFFER_NUM> outQueueCO1;
+    LoadData2DParams load2dParams;
+    MmadParams mmadParams;
+};
+
+extern "C" __global__ __aicore__ void cube_op(__gm__ uint8_t *a, __gm__ uint8_t *b,
+                                              __gm__ uint8_t *c, CubeTiling tiling)
+{
+    KernelCube op;
+    op.Init(a, b, c, tiling);
+    op.Process();
+}
+"""
+
+MTE_COPY_CPP = """/* !
+ * \\file mte_copy.cpp
+ * \\brief MTE2: ND Global Memory tile to L1 NZ.
+ */
+#include "kernel_operator.h"
+#include "b.h"
+
+using namespace AscendC;
+
+class KernelMteCopy {
+public:
+    __aicore__ inline void Init(__gm__ uint8_t *gm, uint32_t rows, uint32_t cols)
+    {
+        this->rows = rows;
+        this->cols = cols;
+        srcGm.SetGlobalBuffer((__gm__ half *)gm);
+        pipe.InitBuffer(inQueue, 2, align32(rows * cols) * sizeof(half));
+    }
+
+    __aicore__ inline void Process(uint32_t blockIdx)
+    {
+        uint32_t tile = static_cast<uint32_t>(tile_n());
+        uint32_t offset = tile_offset(blockIdx, 0, cols);
+        CopyGmToL1(offset, tile);
+    }
+
+private:
+    __aicore__ inline void CopyGmToL1(uint32_t offset, uint32_t tile)
+    {
+        LocalTensor<half> l1Local = inQueue.AllocTensor<half>();
+        Nd2NzParams nd2nz;
+        nd2nz.ndNum = 1;
+        nd2nz.nValue = rows;
+        nd2nz.dValue = tile;
+        nd2nz.srcNdMatrixStride = 0;
+        nd2nz.srcDValue = cols;
+        nd2nz.dstNzC0Stride = align32(rows);
+        nd2nz.dstNzNStride = 1;
+        nd2nz.dstNzMatrixStride = 0;
+        DataCopy(l1Local, srcGm[offset], nd2nz);
+        inQueue.EnQue(l1Local);
+    }
+
+    TPipe pipe;
+    uint32_t rows;
+    uint32_t cols;
+    GlobalTensor<half> srcGm;
+    TQue<TPosition::A1, 2> inQueue;
+};
+
+extern "C" __global__ __aicore__ void mte_copy(__gm__ uint8_t *gm, uint32_t rows, uint32_t cols)
+{
+    KernelMteCopy op;
+    op.Init(gm, rows, cols);
+    op.Process(GetBlockIdx());
+}
+"""
+
+FIXP_LOC_CPP = """/* !
+ * \\file fixp_loc.cpp
+ * \\brief Fixpipe: L0C float tile to GM half, scalar quant.
+ */
+#include "kernel_operator.h"
+#include "b.h"
+
+using namespace AscendC;
+
+class KernelFixp {
+public:
+    __aicore__ inline void Init(__gm__ uint8_t *dst, uint32_t n)
+    {
+        this->n = n;
+        dstGm.SetGlobalBuffer((__gm__ half *)dst);
+        pipe.InitBuffer(outQueue, 1, align32(n) * sizeof(float));
+    }
+
+    __aicore__ inline void Process(uint32_t blockIdx)
+    {
+        LocalTensor<float> l0c = outQueue.AllocTensor<float>();
+        uint32_t offset = tile_offset(blockIdx, 0, n);
+        Store(l0c, offset);
+        outQueue.FreeTensor(l0c);
+    }
+
+private:
+    __aicore__ inline void Store(const LocalTensor<float> &l0c, uint32_t offset)
+    {
+        FixpipeParamsV220 params;
+        params.nSize = n;
+        params.mSize = static_cast<uint16_t>(tile_n());
+        params.srcStride = align32(n);
+        params.dstStride = n;
+        params.quantPre = QuantMode_t::F322F16;
+        params.reluEn = false;
+        Fixpipe(dstGm[offset], l0c, params);
+    }
+
+    TPipe pipe;
+    uint32_t n;
+    GlobalTensor<half> dstGm;
+    TQue<TPosition::CO1, 1> outQueue;
+};
+
+extern "C" __global__ __aicore__ void fixp_loc(__gm__ uint8_t *dst, uint32_t n)
+{
+    KernelFixp op;
+    op.Init(dst, n);
+    op.Process(GetBlockIdx());
+}
+"""
+
+MATMUL_B_H = """/* !
+ * \\file b.h
+ * \\brief Tile shape shared by the cube, MTE, and fixpipe kernels.
+ */
+#pragma once
+#include <cstdint>
+
+constexpr uint32_t TILE_M = 128;
+constexpr uint32_t TILE_N = 256;
+constexpr uint32_t TILE_K = 64;
+constexpr uint32_t C0_SIZE = 16;
+constexpr uint32_t L1_PING_PONG = 2;
+
+inline int tile_n() { return 16; }
+
+__aicore__ inline uint32_t tile_offset(uint32_t block, uint32_t tile, uint32_t stride)
+{
+    return block * stride + tile * static_cast<uint32_t>(tile_n());
+}
+
+__aicore__ inline uint32_t align32(uint32_t n)
+{
+    return (n + 31u) & ~31u;
+}
+
+struct TileShape {
+    uint32_t m;
+    uint32_t n;
+    uint32_t k;
+
+    __aicore__ inline uint32_t area() const
+    {
+        return m * n;
+    }
+};
+"""
+
+
+def _line_of(text, needle):
+    for i, line in enumerate(text.splitlines(), 1):
+        if needle in line:
+            return i
+    raise RuntimeError(f"sample source is missing {needle!r}")
+
+
+def _bind_source_frames():
+    """Point Code frames at the statements the disassembly maps."""
+    global SOURCE_FRAMES
+    SOURCE_FRAMES = [
+        (CUBE_SRC_PATH, _line_of(CUBE_OP_CPP, "Mmad(")),
+        (MTE_SRC_PATH, None),
+        (FIXP_SRC_PATH, _line_of(FIXP_LOC_CPP, "Fixpipe(")),
+        (TILE_SRC_PATH, _line_of(MATMUL_B_H, "inline int tile_n()")),
+    ]
+
+
+# llvm-objdump shape. `site` ties a PC to a source statement (or Line 0).
+# Order of first appearance is cube, mte, fixp, b.h — the Source file list.
+_ASM_ROWS = """
+cube_op | MOV | X0, PARA_BASE |
+cube_op | MOVK | X0, #0, #3 |
+cube_op | LDP.b32 | X3, X2, [X0], #-24 |
+cube_op | LDP.b32 | X4, X1, [X0], #-16 |
+cube_op | MOV | X7, PARA_BASE |
+cube_op | LD_IO.b64 | X10, [X7], #0, #0 |
+cube_op | SET_FLAG | MTE2, MTE1, EVENT_ID0 | mmad
+cube_op | WAIT_FLAG | MTE2, MTE1, EVENT_ID0 | mmad
+cube_op | ND2NZ | [L1A], [GM], X3 | mmad
+cube_op | ND2NZ | [L1B], [GM], X4 | mmad
+cube_op | LOAD2D | L0A, L1A, X5 | mmad
+cube_op | LOAD2D | L0B, L1B, X6 | mmad
+cube_op | MAD | L0C, L0A, L0B | mmad
+cube_op | PIPE_BARRIER | PIPE_M |
+cube_op | MOV | X15, COREID | zero
+cube_op | MOV_OUT_TO_UB | UB, L0C |
+cube_op | ST_IO.b64 | X2, [X13], #-40, #0 |
+cube_op | ADDI | X17, X17, #2 |
+mte_copy | DC_PRELOADI | [X0], #0 |
+mte_copy | MOV | X17, PARA_BASE |
+mte_copy | LD_XD_XN | X8, [X17], #16 | copy
+mte_copy | MOVI | X29, #65184 | copy
+mte_copy | ADD.s64 | X29, X29, X15 | copy
+mte_copy | SHLI.b64 | X17, #14 | copy
+mte_copy | MADD.s64 | X29, X15, X17 | copy
+mte_copy | ST_XD_XN | [L1], X29 | copy
+mte_copy | SET_FLAG | MTE2, MTE1, EVENT_ID1 |
+mte_copy | WAIT_FLAG | MTE2, MTE1, EVENT_ID1 |
+fixp_loc | MOV | X2, BLOCKID |
+fixp_loc | DIV.u64 | X3, X2, X5 |
+fixp_loc | MUL.s64 | X12, X6, X5 | fixpipe
+fixp_loc | SHLI.b64 | X4, #15 | fixpipe
+fixp_loc | REM.u64 | X3, X3, X6 | fixpipe
+fixp_loc | SUB.s64 | X2, X2, X13 | fixpipe
+fixp_loc | INSERT | X12, X3, #0, #31 | fixpipe
+fixp_loc | ST_IO.b32 | X12, [X8], #8, #0 | fixpipe
+fixp_loc | PIPE_BARRIER | PIPE_FIX |
+tile_n | MOVI | X16, #32767 |
+tile_n | AND.b64 | X15, X15, X16 |
+tile_n | ADDI | X15, X15, #1 | tile
+tile_n | SHLI.b64 | X2, #16 | tile
+tile_n | MADD.s64 | X13, X12, X4 | tile
+tile_n | OR.b64 | X2, X2, X4 | tile
+tile_n | ADDI | X30, X29, #1928 |
+""".strip().splitlines()
+
+
+def _code_lines(text):
+    """1-based statement lines a PC can land on (skip blanks, comments, braces)."""
+    out = []
+    for i, line in enumerate(text.splitlines(), 1):
+        s = line.strip()
+        if not s or s.startswith(("//", "/*", "*", "#")):
+            continue
+        if s in ("{", "}", "};", "public:", "private:"):
+            continue
+        if "(" not in s and ";" not in s:
+            continue
+        out.append(i)
+    return out or [1]
+
+
+def _build_objdump_and_symbolizer():
+    """48-instruction hiipu listing (was 8) plus PC → source sites."""
+    _bind_source_frames()
+    site_line = {
+        "mmad": (_line_of(CUBE_OP_CPP, "Mmad("), CUBE_SRC_PATH, "cube_op"),
+        "copy": (_line_of(MTE_COPY_CPP, "DataCopy(l1Local"), MTE_SRC_PATH, "mte_copy"),
+        "fixpipe": (_line_of(FIXP_LOC_CPP, "Fixpipe("), FIXP_SRC_PATH, "fixp_loc"),
+        "tile": (_line_of(MATMUL_B_H, "inline int tile_n()"), TILE_SRC_PATH, "tile_n"),
+        "zero": (0, CUBE_SRC_PATH, "cube_op"),
+    }
+    file_by_fn = {
+        "cube_op": (CUBE_OP_CPP, CUBE_SRC_PATH, "cube_op"),
+        "mte_copy": (MTE_COPY_CPP, MTE_SRC_PATH, "mte_copy"),
+        "fixp_loc": (FIXP_LOC_CPP, FIXP_SRC_PATH, "fixp_loc"),
+        "tile_n": (MATMUL_B_H, TILE_SRC_PATH, "tile_n"),
+    }
+    code_lines = {fn: _code_lines(src) for fn, (src, _path, _name) in file_by_fn.items()}
+    spread_at = {fn: 0 for fn in file_by_fn}
+    lines = [
+        "kernel.o:\tfile format elf64-hiipu",
+        "",
+        "Disassembly of section .text:",
+        "",
+    ]
+    sites = []
+    prev_fn = None
+    for i, row in enumerate(_ASM_ROWS):
+        fn, mnem, ops, site = [part.strip() for part in row.split("|")]
+        pc = 0x100 + i * 4
+        if fn != prev_fn:
+            lines.append(f"{pc:016x} <{fn}>:")
+            prev_fn = fn
+        enc = 0x02004880 + (i * 0x101) & 0xFFFFFFFF
+        lines.append(f"     {pc:x}:\t{enc:08x}\t{mnem}\t{ops}")
+        if site:
+            line, path, name = site_line[site]
+        else:
+            src_lines = code_lines[fn]
+            step = max(1, len(src_lines) // 8)
+            line = src_lines[(spread_at[fn] * step) % len(src_lines)]
+            spread_at[fn] += 1
+            _src, path, name = file_by_fn[fn]
+        sites.append(_sym(f"0x{pc:x}", path, line, name))
+    text = "\n".join(lines) + "\n"
+    mapped = {}
+    for site in sites:
+        sym = site["Symbol"][0]
+        if sym["Line"] > 0:
+            mapped.setdefault(sym["FileName"], set()).add(sym["Line"])
+    for path, minimum in (
+        (CUBE_SRC_PATH, 8),
+        (MTE_SRC_PATH, 4),
+        (FIXP_SRC_PATH, 4),
+        (TILE_SRC_PATH, 3),
+    ):
+        got = len(mapped.get(path, ()))
+        if got < minimum:
+            raise RuntimeError(f"{path} maps {got} source lines, want >= {minimum}")
+    src_lines = sum(len(s.splitlines()) for s in (
+        CUBE_OP_CPP, MTE_COPY_CPP, FIXP_LOC_CPP, MATMUL_B_H,
+    ))
+    if src_lines < 32 * 5:
+        raise RuntimeError(f"sample source is {src_lines} lines, want >= {32 * 5}")
+    if len(_ASM_ROWS) < 8 * 5:
+        raise RuntimeError(f"sample objdump is {len(_ASM_ROWS)} insns, want >= {8 * 5}")
+    return text, json.dumps(sites)
+
+
+_STALL_COLUMNS = (
+    "IBuf_Empty",
+    "Nop_Cycles",
+    "Scoreboard_Not_Ready",
+    "Register_bank_conflict",
+    "Resource_conflict",
+    "Warp_Level_Sync",
+    "Divergence_Stack_Spill",
+    "Others",
+)
+
+
+def _metric_shape(mnem, site):
+    """Stall mix, instruction count, and warp occupancy for one mnemonic.
+
+    Occupancy is a 0–1 fraction (the Source bar treats values ≤ 1 as a percent).
+    Instructions Executed / Warp Occupancy are sample columns on pc_sampling;
+    producer summary.db files omit them and those metrics stay 0.
+    """
+    key = mnem.split(".")[0]
+    if site == "mmad" or key in ("MAD", "ND2NZ", "LOAD2D"):
+        return 16000, (1, 2, 9, 3, 4, 1, 0, 1), 14000, 0.88
+    if key in ("SET_FLAG", "WAIT_FLAG", "PIPE_BARRIER"):
+        return 8000, (0, 1, 1, 0, 1, 8, 1, 1), 120, 0.28
+    if site == "copy" or key in ("DC_PRELOADI", "ST_XD_XN", "LD_XD_XN"):
+        return 11000, (1, 1, 3, 1, 6, 2, 1, 1), 6000, 0.64
+    if site == "fixpipe" or key in ("ST_IO", "INSERT"):
+        return 6000, (1, 1, 4, 1, 3, 1, 1, 1), 3200, 0.55
+    if site == "tile":
+        return 2200, (2, 2, 3, 2, 1, 1, 0, 2), 640, 0.42
+    if site == "zero":
+        return 300, (1, 2, 1, 0, 0, 0, 0, 3), 48, 0.22
+    return 480, (4, 3, 1, 1, 1, 0, 0, 1), 96, 0.31
+
+
+def _split_total(total, weights):
+    weight = sum(weights) or 1
+    counts = [total * w // weight for w in weights]
+    counts[weights.index(max(weights))] += total - sum(counts)
+    return counts
+
+
+def build_summary_db(seed, scale):
+    """SQLite pc_sampling, one row per objdump PC (same 0x100+4*i addresses)."""
+    import sqlite3
+
+    rand = mulberry32(seed)
+    rows = []
+    for i, row in enumerate(_ASM_ROWS):
+        _fn, mnem, _ops, site = [part.strip() for part in row.split("|")]
+        pc = 0x100 + i * 4
+        stall_base, mix, instr_base, occ_base = _metric_shape(mnem, site)
+        stall = max(1, int(stall_base * scale * (0.75 + rand() * 0.5)))
+        executed = max(1, int(instr_base * scale * (0.8 + rand() * 0.4)))
+        occ = occ_base * (0.92 + rand() * 0.1) * (0.9 + 0.1 * min(scale, 1.2))
+        occ = max(0.05, min(0.98, occ))
+        rows.append((f"0x{pc:x}", *_split_total(stall, mix), executed, occ))
+
+    con = sqlite3.connect(":memory:")
+    stall_cols = ", ".join(f'"{name}" INTEGER NOT NULL' for name in _STALL_COLUMNS)
+    con.execute(
+        "CREATE TABLE pc_sampling ("
+        '"pc_offset" TEXT PRIMARY KEY NOT NULL, '
+        f"{stall_cols}, "
+        '"Instructions_Executed" INTEGER NOT NULL, '
+        '"Warp_Occupancy" REAL NOT NULL)'
+    )
+    placeholders = ",".join(["?"] * (3 + len(_STALL_COLUMNS)))
+    con.executemany(f"INSERT INTO pc_sampling VALUES ({placeholders})", rows)
+    con.commit()
+    blob = con.serialize()
+    con.close()
+    if len(blob) < 100 or not blob.startswith(b"SQLite format 3\x00"):
+        raise RuntimeError("sample summary.db is not a sqlite database")
+    return blob
+
+
+def _sym(addr, path, line, fn):
+    return {
+        "Address": addr,
+        "ModuleName": "kernel.o",
+        "Symbol": [{
+            "Column": 1,
+            "Discriminator": 0,
+            "FileName": path,
+            "FunctionName": fn,
+            "Line": line,
+            "StartAddress": addr,
+            "StartFileName": path,
+            "StartLine": 1,
+        }],
+    }
+
+
+OBJDUMP_TXT, SYMBOLIZER_JSON = _build_objdump_and_symbolizer()
+
+
+def ub_rw_csv(seed, n=96):
+    """Sparse UB accesses so the heat grid is mixed, not a solid block."""
+    rand = mulberry32(seed)
+    lines = ["ExecInstrId,AccessedAddress"]
+    base = 0x800000
+    span = 0x40000
+    for _ in range(n):
+        addr = base + int(rand() * span)
+        instr = 1000 + int(rand() * 24)
+        lines.append(f"{instr},{addr}")
+    return "\n".join(lines) + "\n"
+
+
+def source_demo_texts(heatmap_seed):
+    """Embeds that turn on 源码 (several files), frame links, and the UB heat grid."""
+    return {
+        "cube_op.cpp": CUBE_OP_CPP,
+        "mte_copy.cpp": MTE_COPY_CPP,
+        "fixp_loc.cpp": FIXP_LOC_CPP,
+        "b.h": MATMUL_B_H,
+        "objdump.txt": OBJDUMP_TXT,
+        "symbolizer.json": SYMBOLIZER_JSON,
+        "UbRwAccesses.csv": ub_rw_csv(heatmap_seed),
+    }
 
 
 def scale_column_values(text, column_names, scale):
@@ -824,6 +1420,11 @@ def build_summary_jsonl(texts, *, op_basic, demo):
         "aiv_flops": demo["aiv_flops"],
         "aic_flops_theoretical": demo["aic_flops_theoretical"],
         "aiv_flops_theoretical": demo["aiv_flops_theoretical"],
+        # 2026-10-21 mock shares of the card total (24.6 ms → 2.2 / 10.0 / 8.4).
+        # 计算时间 is not a column; the adapter derives it as the remainder.
+        "communication_time": float(op_basic["duration"]) * (10.0 / 24.6),
+        "compute_overhead_time": float(op_basic["duration"]) * (2.2 / 24.6),
+        "compute_communication_overlap_time": float(op_basic["duration"]) * (8.4 / 24.6),
     }
     lines.append(op_info)
     return "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in lines)
@@ -879,7 +1480,7 @@ BW_COLUMNS = (
 def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
                  ai_core_count, ai_vector_count, block_offset, n_rows,
                  aic_seed, aic_scale, op_basic, demo, include_trace=True,
-                 sampling_seed=0x51A1):
+                 sampling_seed=0x51A1, roofline_scale=1.0, heatmap_seed=0x4E47):
     texts = {}
     for name, data in out_rep.items():
         if name == "trace.json":
@@ -932,13 +1533,17 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
             )
 
     texts["HardwareInfo.jsonl"] = hardware_info(
-        chip_info, ai_core_count, ai_vector_count, freq_mhz=int(op_basic.get("freq", 1650)),
+        chip_info, ai_core_count, ai_vector_count,
+        freq_mhz=int(op_basic.get("freq", 1650)),
+        roofline_scale=roofline_scale,
     )
+    texts.update(source_demo_texts(heatmap_seed))
     texts["statistical_utilization.json"] = json.dumps({"operator": sub_label}) + "\n"
     texts["Summary.jsonl"] = build_summary_jsonl(texts, op_basic=op_basic, demo=demo)
     texts["Sampling.json"] = build_sampling_json(
         sampling_seed, float(op_basic["duration"]) * 8.0, n_points=48,
     )
+    summary_db = build_summary_db(heatmap_seed, roofline_scale)
 
     payloads = []
     if include_trace and trace is not None:
@@ -949,10 +1554,13 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
             typ = TYPE_CSV
         elif name.endswith(".jsonl"):
             typ = TYPE_JSONL
+        elif name.endswith((".txt", ".cpp", ".h", ".asc")):
+            typ = TYPE_TXT
         else:
             typ = TYPE_JSON
         payloads.append((name, typ, text.encode("utf-8")))
 
+    payloads.append(("summary.db", TYPE_SQLITE, summary_db))
     payloads.sort(key=lambda p: p[0])
     return payloads
 
@@ -998,6 +1606,8 @@ def main():
                   "block_dim": "8", "mix_dim": "4", "freq": "1650"},
         demo=op1_demo,
         sampling_seed=0x51A101,
+        roofline_scale=1.0,
+        heatmap_seed=0x4E4701,
     )
     op2 = leaf_entries(
         out_rep,
@@ -1016,6 +1626,8 @@ def main():
         demo=op2_demo,
         include_trace=False,
         sampling_seed=0x51A102,
+        roofline_scale=0.72,
+        heatmap_seed=0x4E4702,
     )
 
     op1_bytes = pack_npu_rep(op1)
