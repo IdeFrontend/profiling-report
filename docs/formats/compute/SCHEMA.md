@@ -47,7 +47,7 @@ The viewer parser's numbering for current packs is different at the end: `6` pro
 
 | Column | Meaning |
 | --- | --- |
-| `block_id` | Task split count; the core count configured for the task. ArithmeticUtilization's display name in the PDF is the typo "blcok id". |
+| `block_id` | The PDF uses the same sentence as `Block Dim`: task split count, the core count configured for the task. ArithmeticUtilization's display name there is the typo "blcok id". On a metric row the viewer and the sample treat it as the block index within the kernel grid ([FORMAT.md](FORMAT.md) §3), not as a copy of `Block Dim`. |
 | `sub_block_id` | ArithmeticUtilization: Vector or Cube core id on the block. Other files: each block's name and index. |
 | `aic_time(us)` | Time on each AI Cube core after the task is placed there. |
 | `aic_total_cycles` | Cycles on each AI Cube core. |
