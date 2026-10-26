@@ -64,9 +64,9 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 **Status:** `interim` — **SUPERSEDED** 2026-09-04
 **Question:** [DATA-33](../DATA.md)
-**Interim:** ~~Bar = `min(100%, Block Dim / core_count × 100%)`.~~ Product (NPU-Compute / UI-32): **bar removed**. Secondary = `{blockDim} Blocks / {coreCount} 核` when both set; else `{blockDim} Blocks`; else `opName`. Core count still DATA-1.
-**Implement / test as:** `PR-STATS-009`–`011`, `PR-STATS-031`
-**Superseded when:** — already superseded by NPU-Compute.md / UI-32.
+**Interim:** ~~Bar = `min(100%, Block Dim / core_count × 100%)`.~~ ~~Product (NPU-Compute / UI-32): bar removed.~~ **Superseded 2026-10-26** by [DATA-33](../DATA.md): `OpInfoSummary` `communication_time` / `compute_overhead_time` / `compute_communication_overlap_time`; 计算时间 is the remainder of task duration.
+**Implement / test as:** `PR-VM-026`, `PR-STATS-009`, `PR-STATS-031`
+**Superseded when:** — superseded 2026-10-26.
 
 ### DATA-33f — PIPE in-bar absolute
 

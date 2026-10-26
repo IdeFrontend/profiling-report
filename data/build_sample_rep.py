@@ -1420,6 +1420,11 @@ def build_summary_jsonl(texts, *, op_basic, demo):
         "aiv_flops": demo["aiv_flops"],
         "aic_flops_theoretical": demo["aic_flops_theoretical"],
         "aiv_flops_theoretical": demo["aiv_flops_theoretical"],
+        # 2026-10-21 mock shares of the card total (24.6 ms → 2.2 / 10.0 / 8.4).
+        # 计算时间 is not a column; the adapter derives it as the remainder.
+        "communication_time": float(op_basic["duration"]) * (10.0 / 24.6),
+        "compute_overhead_time": float(op_basic["duration"]) * (2.2 / 24.6),
+        "compute_communication_overlap_time": float(op_basic["duration"]) * (8.4 / 24.6),
     }
     lines.append(op_info)
     return "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in lines)
