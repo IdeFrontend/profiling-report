@@ -1016,27 +1016,86 @@ describe('StatsAside', () => {
       },
     });
     const bd = withBreakdown.get('[data-testid="stats-duration-card"]');
-    expect(bd.find('[data-testid="stats-duration-seg-overhead"]').exists()).toBe(true);
-    expect(bd.find('[data-testid="stats-duration-seg-compute"]').exists()).toBe(true);
-    expect(bd.find('[data-testid="stats-duration-seg-communication"]').exists()).toBe(true);
-    expect(bd.get('[data-testid="stats-duration-legend"]').text()).toMatch(/头开销|Overhead/);
-    // 2026-10-21 mock: no value-row secondary once the segmented bar is shown.
+    const segs = bd.findAll('.pr-card__bar-seg');
+    expect(segs.map((s) => s.attributes('data-testid'))).toEqual([
+      'stats-duration-seg-overhead',
+      'stats-duration-seg-compute',
+      'stats-duration-seg-communication',
+    ]);
+    const share = (part: number) => (part / 24600) * 100;
+    const widths = segs.map((s) => {
+      const m = s.attributes('style')?.match(/width:\s*([\d.]+)%/);
+      return m ? Number(m[1]) : NaN;
+    });
+    expect(widths[0]).toBeCloseTo(share(2200), 5);
+    expect(widths[1]).toBeCloseTo(share(12400), 5);
+    expect(widths[2]).toBeCloseTo(share(10000), 5);
+    expect(
+      bd
+        .get('[data-testid="stats-duration-legend"]')
+        .findAll('span')
+        .map((s) => s.text()),
+    ).toEqual(['头开销', '计算', '通信']);
+    // 2026-10-21 mock: no value-row secondary once breakdown is present.
     expect(bd.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
     await bd.get('[data-testid="stats-duration-bar"]').trigger('pointerenter');
     // Teleported to `body` (aside overflow would clip an in-card box).
     const tip = document.querySelector('[data-testid="stats-duration-tooltip"]');
     expect(tip).toBeTruthy();
-    const tipText = tip!.textContent ?? '';
-    expect(tipText).toMatch(/计算时间|Compute time/);
-    expect(tipText).toMatch(/通信时间|Communication time/);
-    expect(tipText).toMatch(/通算重叠|overlap/i);
-    expect(tipText).toMatch(/头开销时间|Overhead time/);
-    expect(tipText).not.toMatch(/时间时间/);
-    expect(tipText).not.toMatch(/迭代|Iterations/);
-    expect(tipText).toMatch(/12\.40/);
-    expect(tipText).toMatch(/10\.00/);
-    expect(tipText).toMatch(/8\.40/);
-    expect(tipText).toMatch(/2\.20/);
+    const rows = [...tip!.querySelectorAll('.pr-duration-tooltip__row')].map((row) => row.textContent ?? '');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toMatch(/计算时间/);
+    expect(rows[0]).toMatch(/12\.40/);
+    expect(rows[1]).toMatch(/通信时间/);
+    expect(rows[1]).toMatch(/10\.00/);
+    expect(rows[2]).toMatch(/通算重叠/);
+    expect(rows[2]).toMatch(/8\.40/);
+    expect(rows[3]).toMatch(/头开销时间/);
+    expect(rows[3]).toMatch(/2\.20/);
+    expect(rows.join('')).not.toMatch(/时间时间|迭代/);
+    withBreakdown.unmount();
+    await nextTick();
+
+    const overlapOmitted = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 1000,
+            durationBreakdown: { overheadUs: 200, computeUs: 500, communicationUs: 300 },
+          },
+        }),
+      },
+    });
+    await overlapOmitted.get('[data-testid="stats-duration-bar"]').trigger('pointerenter');
+    const overlapRows = [
+      ...document.querySelectorAll('[data-testid="stats-duration-tooltip"] .pr-duration-tooltip__row'),
+    ].map((row) => row.textContent ?? '');
+    expect(overlapRows).toHaveLength(4);
+    expect(overlapRows[2]).toMatch(/通算重叠/);
+    expect(overlapRows[2]).toMatch(/0\.00/);
+    overlapOmitted.unmount();
+    await nextTick();
+
+    const nonPositive = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: {
+            taskDurationUs: 1000,
+            blockDim: 8,
+            coreCount: 24,
+            durationBreakdown: { overheadUs: -5, computeUs: 0, communicationUs: Number.NaN },
+          },
+        }),
+      },
+    });
+    const emptyBar = nonPositive.get('[data-testid="stats-duration-card"]');
+    expect(emptyBar.find('[data-testid="stats-duration-bar"]').exists()).toBe(true);
+    expect(emptyBar.find('[data-testid="stats-duration-secondary"]').exists()).toBe(false);
+    await emptyBar.get('[data-testid="stats-duration-bar"]').trigger('pointerenter');
+    const zeroTip = document.querySelector('[data-testid="stats-duration-tooltip"]')?.textContent ?? '';
+    expect(zeroTip).toMatch(/通算重叠/);
+    expect(zeroTip).not.toMatch(/-/);
+    expect(zeroTip.match(/0\.00/g)?.length).toBe(4);
   });
 
   it('PR-STATS-009c: duration rounds to 2 dp; tooltip keeps full value', async () => {

@@ -623,9 +623,9 @@ function numericBlockDim(blockDim: string | number | undefined): number | undefi
 
 /**
  * UI-32 secondary: `{blockDim} Blocks / {coreCount} 核` (DATA-1) on the value row
- * only when `durationBreakdown` is absent (2026-10-21 mock drops secondary once the
- * segmented bar is shown). Fallback order: blocks/core → `blockDim` → `opName`.
+ * only when `durationBreakdown` is absent. Fallback order: blocks/core → `blockDim` → `opName`.
  */
+
 const durationSecondary = computed<{ text: string; tip: CardTip } | null>(() => {
   const s = summary.value;
   if (!s) return null;
@@ -647,23 +647,28 @@ const durationSecondary = computed<{ text: string; tip: CardTip } | null>(() => 
 
 const durationBreakdown = computed(() => summary.value?.durationBreakdown);
 
+/** Non-finite and negative µs count as 0 so the bar and the hover list agree. */
+function nonNegativeUs(n: number | undefined): number {
+  return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
 const durationSegments = computed(() => {
   const b = durationBreakdown.value;
   if (!b) return null;
-  const overhead = Math.max(0, b.overheadUs);
-  const compute = Math.max(0, b.computeUs);
-  const communication = Math.max(0, b.communicationUs);
+  const overhead = nonNegativeUs(b.overheadUs);
+  const compute = nonNegativeUs(b.computeUs);
+  const communication = nonNegativeUs(b.communicationUs);
   const total = overhead + compute + communication;
-  if (!(total > 0)) return null;
+  const pct = (n: number) => (total > 0 ? (n / total) * 100 : 0);
   return [
-    { id: 'overhead' as const, pct: (overhead / total) * 100 },
-    { id: 'compute' as const, pct: (compute / total) * 100 },
-    { id: 'communication' as const, pct: (communication / total) * 100 },
+    { id: 'overhead' as const, pct: pct(overhead) },
+    { id: 'compute' as const, pct: pct(compute) },
+    { id: 'communication' as const, pct: pct(communication) },
   ];
 });
 
-function formatBreakdownTime(us: number): string {
-  const parts = formatDurationParts(us);
+function formatBreakdownTime(us: number | undefined): string {
+  const parts = formatDurationParts(nonNegativeUs(us));
   return `${parts.value} ${parts.unit}`;
 }
 
@@ -1021,7 +1026,7 @@ const detailTestId = computed(() => {
               <span class="pr-card__unit">{{ durationParts.unit }}</span>
             </div>
             <div
-              v-if="durationSecondary && !durationSegments"
+              v-if="durationSecondary && !durationBreakdown"
               class="pr-card__value-meta"
               data-testid="stats-duration-secondary"
               v-bind="tipBind(durationSecondary.tip, { focusable: true })"
@@ -1640,10 +1645,7 @@ const detailTestId = computed(() => {
           <span>{{ t('durationCommTime', locale) }}</span>
           <span>{{ formatBreakdownTime(durationBreakdown.communicationUs) }}</span>
         </div>
-        <div
-          v-if="durationBreakdown.overlapUs != null"
-          class="pr-duration-tooltip__row"
-        >
+        <div class="pr-duration-tooltip__row">
           <span>{{ t('durationOverlapTime', locale) }}</span>
           <span>{{ formatBreakdownTime(durationBreakdown.overlapUs) }}</span>
         </div>

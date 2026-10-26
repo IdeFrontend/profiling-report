@@ -90,6 +90,11 @@ batches:
         original_name: "930版本-性能调优_变更记录.jpeg"
         scenes: [change-log, measure, compute-load, csv-tabs, memory-topology]
         components: [SwimlaneCanvas, PipeOccupancyPanel, CsvFieldListPanel, MemoryTopologyPanel]
+      - id: report-stats-duration-2026-10-21
+        path: v930/report-stats-duration-2026-10-21.png
+        original_name: "screenshot-2026-10-21-15-37-05(1).jpeg"
+        scenes: [report-stats, duration]
+        components: [StatsAside, StatsSummaryPanel]
 
   # 仿真 11.2.3.2 refresh of the 内存负载分析 panel: the fullscreen/zoom bar (缩放 / 适应窗口 /
   # 全屏) that supersedes the v930 header 全屏 icon, the six clickable memory units on the diagram,
