@@ -1986,6 +1986,17 @@ const detailTestId = computed(() => {
   gap: 8px;
 }
 
+/*
+ * A hover at this value's right edge has to land on the tile's right side, or the shared tip
+ * stays inside the aside and never crosses the timeline seam (PR-STATS-041f). The row would
+ * otherwise shrink the hit box to the digits.
+ */
+.pr-card__value-row > .pr-card__value {
+  flex: 1 1 auto;
+  /* Keep the digits intact when the secondary wraps (PR-STATS-036). */
+  min-width: max-content;
+}
+
 .pr-card__value-meta {
   flex-shrink: 1;
   min-width: 0;
