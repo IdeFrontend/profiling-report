@@ -951,3 +951,93 @@ test.describe('PR-STATS-041f card tooltip over the timeline seam', () => {
     expect(geo.hintColor).toBe('rgb(255, 255, 255)');
   });
 });
+
+test.describe('PR-E2E-019 closed-dock click ensure-scroll', () => {
+  test('PR-E2E-019: single-click that opens the dock keeps the selected event above it', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/?fixture=gelu');
+    await expect(page.getByTestId('playground-ready')).toBeVisible();
+    const overlay = page.getByTestId('swimlane-canvas');
+    await expect(overlay).toBeVisible({ timeout: 30_000 });
+
+    const hit = await overlay.evaluate((canvas) => {
+      const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement & {
+        __prSwimlaneTestHooks?: {
+          hitTestCss: (x: number, y: number) => string | null;
+          eventScreenRectCss: (
+            id: string,
+          ) => { x: number; y: number; w: number; h: number } | null;
+        };
+      };
+      const hooks = wrap.__prSwimlaneTestHooks;
+      if (!hooks) throw new Error('swimlane test hooks missing');
+      const w = wrap.clientWidth;
+      const h = wrap.clientHeight;
+      const box = wrap.getBoundingClientRect();
+      for (let y = h - 18; y > h * 0.45; y -= 10) {
+        for (let x = 20; x < w - 8; x += 28) {
+          const id = hooks.hitTestCss(x, y);
+          if (!id) continue;
+          const rect = hooks.eventScreenRectCss(id);
+          if (!rect || rect.w < 8) continue;
+          const distBottom = h - (rect.y + rect.h);
+          if (distBottom < 16 || distBottom > 230) continue;
+          return {
+            id,
+            clientX: box.left + rect.x + rect.w / 2,
+            clientY: box.top + rect.y + rect.h / 2,
+            wrapH: h,
+          };
+        }
+      }
+      return null;
+    });
+    expect(hit, 'need a wide event in the dock-cover band').toBeTruthy();
+
+    await page.mouse.click(hit!.clientX, hit!.clientY);
+    const dock = page.getByTestId('dock');
+    await expect(dock).toBeVisible({ timeout: 5_000 });
+
+    // Wait until the dock *finishes* growing. Polling `above` during the 200ms
+    // enter tween is a false pass: the event is still above a short dock.
+    await expect
+      .poll(async () => dock.evaluate((el) => Math.round(el.getBoundingClientRect().height)), {
+        timeout: 3_000,
+      })
+      .toBeGreaterThan(200);
+
+    await expect
+      .poll(async () => {
+        return overlay.evaluate(
+          (canvas, args: { eventId: string; wrapH0: number }) => {
+            const wrap = canvas.closest('[data-testid="swimlane"]') as HTMLElement & {
+              __prSwimlaneTestHooks?: {
+                eventScreenRectCss: (
+                  id: string,
+                ) => { x: number; y: number; w: number; h: number } | null;
+              };
+            };
+            const hooks = wrap.__prSwimlaneTestHooks;
+            const dockEl = document.querySelector('[data-testid="dock"]') as HTMLElement | null;
+            const rect = hooks?.eventScreenRectCss(args.eventId) ?? null;
+            if (!dockEl || !rect) {
+              return { wrapH: wrap.clientHeight, dockH: 0, above: false, wrapShrunk: false };
+            }
+            const box = wrap.getBoundingClientRect();
+            const eventBottom = box.top + rect.y + rect.h;
+            const dockTop = dockEl.getBoundingClientRect().top;
+            return {
+              wrapH: wrap.clientHeight,
+              dockH: dockEl.getBoundingClientRect().height,
+              wrapShrunk: wrap.clientHeight < args.wrapH0 - 40,
+              above: eventBottom <= dockTop - 8,
+            };
+          },
+          { eventId: hit!.id, wrapH0: hit!.wrapH },
+        );
+      }, { timeout: 3_000 })
+      .toEqual(expect.objectContaining({ above: true, wrapShrunk: true }));
+  });
+});
