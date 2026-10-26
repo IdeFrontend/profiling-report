@@ -48,7 +48,7 @@ import {
 } from '../../domain/types';
 import { buildCannbotPayload } from '../../domain/cannbot';
 import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../domain/cannbot';
-import { debounce } from '../../domain/debounce';
+import { cooldown } from '../../domain/cooldown';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz, nsPerPxForTrack } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
@@ -1685,10 +1685,10 @@ function onOpenPerformanceHints() {
   hintsDockOpen.value = true;
 }
 
-/** cannbot 防抖：首击立即触发，1s 冷却窗口内的后续点击（误操作连点）不再 emit。 */
+/** cannbot 防抖（所有图标共享一把 1s 冷却锁）：首击立即触发，窗口内的后续点击（误操作连点）不再 emit。 */
 const CANNBOT_EMIT_COOLDOWN_MS = 1000;
 
-const emitCannbot = debounce(
+const emitCannbot = cooldown(
   (scope: CannbotScope) =>
     emit('cannbot-request', buildCannbotPayload(scope, report.value, props.reportMeta)),
   CANNBOT_EMIT_COOLDOWN_MS,

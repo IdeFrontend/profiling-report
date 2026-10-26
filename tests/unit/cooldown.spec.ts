@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { debounce } from '../../src/domain/debounce';
+import { cooldown } from '../../src/domain/cooldown';
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('PR-DEBOUNCE: cooldown debounce', () => {
-  it('PR-DEBOUNCE-001: first call fires immediately; window calls are swallowed; next-after-window fires', () => {
+describe('PR-COOLDOWN: leading-edge cooldown', () => {
+  it('PR-COOLDOWN-001: first call fires immediately; window calls are swallowed; next-after-window fires', () => {
     vi.useFakeTimers();
     const calls: string[] = [];
-    const push = debounce((s: string) => calls.push(s), 1000);
+    const push = cooldown((s: string) => calls.push(s), 1000);
 
     push('a');
     expect(calls).toEqual(['a']);
@@ -23,10 +23,10 @@ describe('PR-DEBOUNCE: cooldown debounce', () => {
     expect(calls).toEqual(['a', 'd']);
   });
 
-  it('PR-DEBOUNCE-002: swallowed calls do not extend the window', () => {
+  it('PR-COOLDOWN-002: swallowed calls do not extend the window', () => {
     vi.useFakeTimers();
     const calls: number[] = [];
-    const push = debounce((n: number) => calls.push(n), 1000);
+    const push = cooldown((n: number) => calls.push(n), 1000);
 
     push(0);
     vi.advanceTimersByTime(999);
@@ -39,12 +39,12 @@ describe('PR-DEBOUNCE: cooldown debounce', () => {
     expect(calls).toEqual([0, 2]);
   });
 
-  it('PR-DEBOUNCE-003: wrappers own independent cooldowns', () => {
+  it('PR-COOLDOWN-003: wrappers own independent cooldowns', () => {
     vi.useFakeTimers();
     const a: string[] = [];
     const b: string[] = [];
-    const pushA = debounce((s: string) => a.push(s), 1000);
-    const pushB = debounce((s: string) => b.push(s), 1000);
+    const pushA = cooldown((s: string) => a.push(s), 1000);
+    const pushB = cooldown((s: string) => b.push(s), 1000);
 
     pushA('x');
     pushB('y');

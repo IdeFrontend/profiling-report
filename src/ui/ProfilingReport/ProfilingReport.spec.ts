@@ -142,6 +142,7 @@ describe('ProfilingReport scaffold', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('PR-CTXMENU-011: leaf-gutter context menu reaches the report root', async () => {
@@ -1651,6 +1652,9 @@ describe('ProfilingReport scaffold', () => {
     // 防抖：冷却窗口内的再次点击被吞掉，误操作连点不会打开多次对话。
     await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
     expect(wrapper.emitted('cannbot-request')).toHaveLength(1);
+    // 冷却锁跨图标共享：换一个图标点击，同样被吞掉（1s 内不会打开第二场对话）。
+    await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
+    expect(wrapper.emitted('cannbot-request')).toHaveLength(1);
 
     vi.advanceTimersByTime(1000);
     await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
@@ -1660,7 +1664,6 @@ describe('ProfilingReport scaffold', () => {
     expect(summaryPayload.scope).toBe('summary');
     expect((summaryPayload.data.summary as { opName?: string }).opName).toBe('matmul_v3');
 
-    vi.useRealTimers();
     wrapper.unmount();
   });
 
