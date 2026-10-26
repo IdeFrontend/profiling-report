@@ -319,7 +319,7 @@ Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is im
 | Concern | Owner |
 |---------|--------|
 | VS Code performance explorer / tree | MSTT host |
-| Secondary tabs OP算子 / 源码 / 详情 / 缓存 (beyond Timeline shell) | Library chrome shows tabs; **源码 / 详情 / 缓存** disabled ([UI-37](../context/decisions/UI.md)) — no surfaces |
+| Secondary tabs OP算子 / 源码 | Library chrome: **源码** when the pack has a real Source model; **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)) |
 | Insight `.bin` viewing | MindStudio Insight |
 | PyPTO compute-graph three-column shell | pypto-tools until/unless adapted |
 

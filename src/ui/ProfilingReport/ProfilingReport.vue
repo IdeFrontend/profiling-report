@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
-import { loadReportSource } from '../../adapters';
+import { ensurePcSamplingSql, loadReportSource } from '../../adapters';
+import {
+  resolveSourceFrame,
+  type SourceFrameTarget,
+} from '../../adapters/sourceCorrelation/resolveSourceFrame';
 import {
   applyWindow,
   clearMeasure,
@@ -80,6 +84,7 @@ import type { GutterGroup, GutterLane } from '../TimelineView/SwimlaneView/LaneG
 import { animateProgress, animateViewWindow, prefersReducedMotion } from '../TimelineView/animateViewWindow';
 import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
+import SourceView from '../SourceView/SourceView.vue';
 import '../tokens.css';
 import {
   availableGutterMetrics,
@@ -136,6 +141,8 @@ const props = withDefaults(defineProps<{
    *  Problems on `vscode`, internal dock otherwise). Open union so future
    *  environments can be added without touching consumers. */
   environment?: 'vscode' | 'browser' | (string & {});
+  /** Same-origin URL for the Sudu TeaVM worker (Source tab). */
+  suduWorkerUrl?: string;
 }>(), {
   title: undefined,
   source: undefined,
@@ -153,6 +160,7 @@ const props = withDefaults(defineProps<{
   preferRenderer: undefined,
   capabilities: undefined,
   environment: undefined,
+  suduWorkerUrl: '/sudu/worker.js',
 });
 
 const emit = defineEmits<{
@@ -399,6 +407,42 @@ const hintsDockShown = computed(
 const asideAvailable = computed(() => reportHasAsideContent(report.value, caps.value));
 const showAside = computed(() => viewState.value.asideVisible && asideAvailable.value);
 const showTimeline = computed(() => loadError.value == null && swim.value != null);
+/** UI-37: Source tab only for a real (non-mock) correlation model. */
+const sourceTabEnabled = computed(
+  () =>
+    caps.value.includes('sourceTab') &&
+    report.value?.sourceCorrelation != null &&
+    report.value.sourceCorrelation.mock !== true,
+);
+const activeTab = ref<'timeline' | 'source'>('timeline');
+/** Caret the Source tab applies after a Parameter frame click. */
+const sourceFocus = ref<SourceFrameTarget | null>(null);
+const showSource = computed(
+  () =>
+    activeTab.value === 'source' &&
+    sourceTabEnabled.value &&
+    report.value?.sourceCorrelation != null,
+);
+/** Timeline canvas mounts only while the Timeline tab is active (releases WebGL). */
+const showTimelineSurface = computed(() => showTimeline.value && !showSource.value);
+
+watch(sourceTabEnabled, (ok) => {
+  if (!ok && activeTab.value === 'source') activeTab.value = 'timeline';
+});
+
+function onActiveTab(tab: 'timeline' | 'source') {
+  if (tab === 'source' && !sourceTabEnabled.value) return;
+  activeTab.value = tab;
+}
+
+function onOpenSource(frame: string | Record<string, unknown>) {
+  const files = report.value?.sourceCorrelation?.files;
+  if (!sourceTabEnabled.value || !files) return;
+  const hit = resolveSourceFrame(frame, files);
+  if (!hit) return;
+  sourceFocus.value = hit;
+  activeTab.value = 'source';
+}
 
 const pipeUtilRows = computed(() => {
   const table = report.value?.computeTables.find((t) => t.fileName === 'PipeUtilization.csv');
@@ -585,6 +629,9 @@ function resetViewFromModel(
   viewState.value = next;
   selected.value = null;
   selectedEvent.value = null;
+  // Same reset as selection: a leftover frame caret reopens the previous line
+  // when SourceView's model changes (file ids are basenames).
+  sourceFocus.value = null;
   multiSelected.value = [];
   multiSelectSpan.value = null;
   marqueeLive.value = false;
@@ -804,8 +851,8 @@ function onGutterMetricChange(payload: { cardId: string; metric: GutterMetric })
  * Aside has content when any of: duration card, I/O bandwidth cards,
  * pipe occupancy, compute/memory CSV tables, hardware details, labelled topology,
  * or joined performance hints is present.
- * Roofline counts only when the `roofline` capability opts it in (Phase 2, out of the current
- * release), so points alone never open the aside.
+ * Roofline counts only when the `roofline` capability is present (adapter-derived when points
+ * exist, or host-passed), so points alone without the flag never open the aside.
  * Name/type alone do not open the aside (DATA-33a). Must stay in sync with StatsAside.
  */
 function reportHasAsideContent(
@@ -904,10 +951,22 @@ function failLoad(cause: unknown) {
   emit('error', { message: loadError.value, cause });
 }
 
-function loadFromSource(source: ArrayBuffer | Uint8Array) {
+/** Bumps on each source load/clear so stale async loads do not applyAdapted. */
+let sourceLoadGen = 0;
+
+async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
   try {
+    // Best-effort sql.js for compute Source `summary.db`. Failure must not block the report.
+    try {
+      await ensurePcSamplingSql();
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      console.warn(`[profiling-report] sql.js unavailable; Source stalls omitted: ${detail}`);
+    }
+    if (gen !== sourceLoadGen) return;
     applyAdapted(loadReportSource(source));
   } catch (cause) {
+    if (gen !== sourceLoadGen) return;
     failLoad(cause);
   }
 }
@@ -930,8 +989,10 @@ function onOperatorChange(id: string) {
 watch(
   () => props.source,
   (src) => {
+    sourceLoadGen += 1;
+    const gen = sourceLoadGen;
     if (src) {
-      loadFromSource(src);
+      void loadFromSource(src, gen);
       return;
     }
     // Source removed: drop what the adapter derived, or its flags outlive the report.
@@ -1688,7 +1749,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
-      v-if="!showTimeline"
+      v-if="!showTimeline && !showSource"
       :title="title"
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
@@ -1703,6 +1764,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :operators="operators"
       :selected-operator-id="selectedOperatorId"
       :user-guide-url="userGuideUrl"
+      :active-tab="activeTab"
+      :source-tab-enabled="sourceTabEnabled"
       :html-export-available="htmlExportAvailable"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
@@ -1712,6 +1775,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @update:dependency-depth="onDependencyDepth"
       @update:zoom-percent="onZoomPercent"
       @update:measure-mode="onMeasureMode"
+      @update:active-tab="onActiveTab"
       @zoom-to-fit="onZoomToFit"
       @zoom-in="onZoomIn"
       @zoom-out="onZoomOut"
@@ -1728,16 +1792,16 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </p>
 
     <ReportLayout
-      v-else-if="showTimeline || showAside"
+      v-else-if="showTimeline || showAside || showSource"
       ref="layoutRef"
-      :show-aside="showAside"
+      :show-aside="showAside && !showSource"
       :aside-width="asideWidth"
       :locale="locale"
       @update:aside-width="onAsideWidth"
     >
       <template #main>
         <ReportToolbar
-          v-if="showTimeline"
+          v-if="showTimeline || showSource"
           :title="title"
           :search-query="viewState.searchQuery"
           :aside-visible="viewState.asideVisible"
@@ -1751,6 +1815,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :operators="operators"
           :selected-operator-id="selectedOperatorId"
           :user-guide-url="userGuideUrl"
+          :active-tab="activeTab"
+          :source-tab-enabled="sourceTabEnabled"
           :html-export-available="htmlExportAvailable"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
@@ -1759,14 +1825,24 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:dependency-depth="onDependencyDepth"
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
+          @update:active-tab="onActiveTab"
           @zoom-to-fit="onZoomToFit"
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
           @open-user-guide="emit('open-user-guide', $event)"
           @export-html="onExportHtml"
         />
+        <SourceView
+          v-if="showSource && report?.sourceCorrelation"
+          :model="report.sourceCorrelation"
+          :focus="sourceFocus"
+          :locale="locale"
+          :sudu-worker-url="suduWorkerUrl"
+          :user-guide-url="userGuideUrl"
+          @open-user-guide="emit('open-user-guide', $event)"
+        />
         <TimelineView
-          v-if="showTimeline"
+          v-if="showTimelineSurface"
           ref="timelineRef"
           :bounds="bounds"
           :view="viewState"
@@ -1853,7 +1929,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
          From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
-        v-if="(showTimeline && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints)"
+        v-if="(showTimelineSurface && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints && !showSource)"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
@@ -1886,11 +1962,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             :locale="locale"
             :neighbors="dependencyNeighbors"
             :dependency-mode="localDependencyMode"
+            :source-files="sourceTabEnabled ? report?.sourceCorrelation?.files : undefined"
             :height="dockDisplayHeight"
             :expanded="dockSessionExpanded"
             @close="onSelect(null)"
             @update:height="dockHeight = $event"
             @update:dependency-mode="onDependencyMode"
+            @open-source="onOpenSource"
           />
           <PerformanceHintsDock
             v-else-if="hintsDockShown"
@@ -2043,7 +2121,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </div>
 
     <EventTooltip
-      v-if="hovered && showTimeline"
+      v-if="hovered && showTimelineSurface"
       :event="hovered"
       :style-pos="tooltipStyle"
       :time-display-mode="localTimeDisplayMode"
@@ -2267,9 +2345,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   overflow: hidden;
 }
 
-/* §11.2.3.2: the heat panel takes the overlay's right column, the diagram keeps the rest. */
+/* §11.2.3.2: the heat panel takes the overlay's right column, the diagram keeps the rest.
+ * 16px gap ≈ sketch breathing room between the zoom pill and the heat card (~28px at 1× on the
+ * 1030 frame; 16 keeps the columns close without kissing). */
 .pr-topo-fs__body--split {
   flex-direction: row;
+  gap: 16px;
 }
 
 .pr-topo-fs__diagram {
@@ -2311,8 +2392,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   box-sizing: border-box;
   overflow: hidden;
   /* Stacked aside keeps the `#262626` card; fullscreen sits on the overlay ground so only the
-   * heat column reads as a grey panel (v930-sim/memory-topology-fullscreen). */
+   * heat column reads as a grey panel (v930-sim/memory-topology-fullscreen). Drop the aside's
+   * 6px pad so the zoom pill's bottom lines up with the heat card (1030 sketch). */
   background: transparent;
+  padding: 0;
+  border-radius: 0;
 }
 
 /* Fill the leftover box (wide host). The panel's own frame keeps `aspect-ratio` in the stacked
@@ -2341,11 +2425,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
  * old `width/height: 100%` — fills the stage's *used* box rather than the chrome ratio, and only
  * agreed with it while the stage happened to be that ratio. */
 
-/* The export's overlay frame drops the aside's bar strip: covering the report already separates the
- * controls from everything else, so they sit straight on the card (PR-MEMTOP-014). Padding stays —
- * it is the control's own hit spacing, not the strip's. */
+/* Fullscreen drops the aside's `#313131` strip (PR-MEMTOP-014) but keeps a grey pill — sketch
+ * `#262626` on the darker overlay ground, same `8px` corner as the heat card. Bar stays in the
+ * diagram column (`align-self: flex-end`) — left of the heat panel, bottoms flush (1030). */
 .pr-topo-fs__body :deep(.pr-topo__bar) {
-  background: transparent;
+  background: #262626;
+  border-radius: 8px;
 }
 
 .pr-export-modal {

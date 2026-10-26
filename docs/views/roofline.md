@@ -11,100 +11,74 @@
 
 ## Sketches
 
-![Detail strip / raised cards](../ui/source/v930/detail-strip-raised.jpeg)
+![Product Roofline card](../ui/source/v930/roofline-card-2026-10-15.png)
 
 **Component crop:** ![Roofline](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png)
 
 ## Purpose
 
-Log-log intensity vs achieved performance chart with theoretical roof and optional op-mix labels.
+Log-log intensity vs achieved performance chart with **multi-series** AIV/AIC theoretical roofs, colored measured points, and optional op-mix labels. Tabs 内存单元 / 通路 / 搬运 are **omitted**.
 
 ## View-model
 
 | Field | Role | Required? |
 |-------|------|-----------|
-| `reportModel.roofline.points[]` | Measured points | **Required to show** |
-| `roofline.mixLabels` / peaks | Mix + ceilings | Optional |
-| capability `roofline` | Host/feature gate | Set when points exist |
+| `reportModel.roofline.points[]` | Measured points (`color` matches series) | **Required to show** |
+| `roofline.series[]` | AIV/AIC dtype roofs (`p_peak`, `b_peak`) | Required when shown |
+| `roofline.mixLabels` | Op-mix annotation | Optional |
+| capability `roofline` | Feature gate | **Derived** when points exist; host `capabilities` overrides wholesale |
 
 ## Hide rule
 
-No usable GM point → hide panel ([DATA-30](../context/decisions/DATA.md)). Tabs 内存单元/通路/搬运 omitted until DATA-37 (DATA-37f).
+No usable points → hide panel ([DATA-30](../context/decisions/DATA.md)). Adapter advertises `roofline` when points exist.
+
+## Axes and roof (npu-compute §11.8)
+
+| Element | Formula / source |
+| --- | --- |
+| X intensity `I` | `I = w / q` (Ops/Byte) |
+| Y performance `P` | `P = w / t` (ops/s → TOps/s via `/ 1e12` when raw) |
+| Bandwidth ceiling | `b_peak` GB/s (default **1600** = 1.6 T/s); slope `b_peak × I / 1000` TOps/s |
+| Theoretical roof | `min(p_peak, b_peak × I / 1000)` per dtype series |
+| L2 series | **Omit** |
+
+**`p_peak` formulas** (frequency in MHz → TOps/s). Divide by `1e6`. A `/ 1000` reading is ~1000× this axis and does not match example ceilings or `p_peak / 1e12`.
+
+| Executor | Dtype | Formula |
+| --- | --- | --- |
+| cube | fp16/bf16 | `cube_num × 4096 × 2 × frequency / 1e6` |
+| cube | tf32/hf32 | `cube_num × 2048 × 2 × frequency / 1e6` |
+| cube | int8/fp8 | `cube_num × 8192 × 2 × frequency / 1e6` |
+| vector | fp16/bf16 | `vector_num × 128 × 2 × frequency / 1e6` |
+| vector | fp32 / int32 | `vector_num × 64 × 2 × frequency / 1e6` |
 
 ## Compute fill
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `roofline` | `ArithmeticUtilization.csv` + `Memory.csv` (or `summary.jsonl` those categories) | Interim DATA-37a–e GM point | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
+| points + series | Prefer `HardwareInfo.jsonl` category `Roofline`. Overlay only a positive `p_peak` and a positive `b_peak` (non-positive `b_peak` keeps 1600 GB/s); missing / ≤0 `p_peak` keeps the formula or example roof. Measured points from `w`/`t`/`q` still emit. Hover label is the legend name, plus the producer key when several points share a series | Else GM from ArithmeticUtilization + Memory | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
+| roofs when JSON absent | §11.8.1 from AI Core counts + that side's frequency (a shared core clock fills a side with no own clock), else product example ceilings | — | |
+| mix labels | `ArithmeticUtilization` dtype ratios | Normalize non-zero to % | |
+| block scope | **All** = `summary.jsonl` categories; block = CSV rows for GM + mix only. Chip-level `series` roofs and non-`gm` HardwareInfo measured points stay from the All model | [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md) | |
 
-<a id="vm-derivation"></a>
+Code: `rooflineFromRows` / `buildRooflineViewModel` in `src/adapters/roofline.ts`.
 
-### VM field ← source (join / derivation)
+### Legend (UI)
 
-No FK join — pick Arithmetic + Memory rows for the same block scope (All = summary categories; block = matching `block_id`), then combine fops with GM bytes.
+At the top of the raised card (**no** duplicate in-card **Roofline** title — the aside `h4` is enough), left-aligned with **TOps/s**. One CSS grid for both rows so the nth AIV / AIC swatches share a vertical edge (e.g. AIV bp16 with AIC int32 fp32). Group heads `#c4c4c4`, series labels `#8a8a8a`. Op-mix (`Vec_FP32 (…%)`, …) shares the **TOps/s** alphabetic baseline above the plot — not inside the plot well. Roofs use the same series colors (`2px`; **AIV** roofs dashed, **AIC** roofs solid — both slope + plateau). Marker shapes follow the product stats sketch: **circles** for measured points off the roofs; **filled rounded-square** knees on each ridge (`8×8`, `rx=2`, series color, same as legend). Legend hover (experimental) thickens that roof and dims the others.
 
-| VM field | Source embed(s) | Join key(s) | Derivation |
-|----------|-----------------|-------------|------------|
-| side pick | `ArithmeticUtilization` | _(same scope as Memory)_ | Prefer vector if `aiv_vec_fops`+`aiv_time(us)` >0; else cube `aic_*` |
-| `points[].performance` (Y) | Arithmetic | — | `fops / timeUs / 1e6` TOps/s (DATA-37a) |
-| `points[].intensity` (X GM) | Arithmetic + Memory | same block / All scope | `fops / ((read_KB+write_KB)×1024)` from `read/write_main_memory_datas(KB)` (DATA-37b) |
-| `points[].series` | — | — | Single solid `gm` (“GM Read + Write”); L2 omitted (DATA-37c) |
-| `mixLabels` | Arithmetic dtype ratio cols | — | Normalize positive Vector/Cube mix ratios to % (DATA-37e) |
-| `peakBandwidthGBs` | Memory main-mem BW cols | — | max of those cols, else 100 |
-| `peakComputeTops` | — | — | constant `1` (interim DATA-37d) |
-
-Omit panel if no GM point. Tabs from docx table are **not** used (DATA-37f). Code: `rooflineFromRows` in `adaptRep.ts`. Capability `roofline` is host opt-in (not auto-derived).
-
-<a id="tabs-fields"></a>
-
-### Tabs → fields (docx §11.2.4)
-
-| # | Display (CN) | Field | Source |
-| --- | --- | --- | --- |
-| 1 | 内存单元 | `aic_cube_ratio` | `PipeUtilization.csv` |
-| 2 | 内存通路 | `aic_mte2_ratio` | `PipeUtilization.csv` |
-| 3 | 搬运单元 | `aic_mte1_ratio` | `PipeUtilization.csv` |
-
-**Contradictions / gaps (do not implement as-is):**
-
-1. Tab labels are memory-oriented (内存单元 / 通路 / 搬运) while mapped fields are **pipe utilization ratios**. Possible mislabel or incomplete mapping.
-2. Those ratios alone **cannot** supply Ops/Byte or TOps/s for the chart axes, nor peak bandwidth / peak compute for the roof.
-
-<a id="data-37-interim"></a>
-
-### Interim M2 implementation (DATA-37a–f)
-
-Do **not** use the docx tab→pipe-ratio table. While DATA-37 is open:
-
-| Axis / element | Interim source |
+| Group | Series (colors) |
 | --- | --- |
-| Y achieved | DATA-37a: `fops / timeUs / 1e6` from `ArithmeticUtilization` |
-| X GM | DATA-37b: fops / GM R+W bytes from `Memory` |
-| L2 point | DATA-37c: omit |
-| Roof | DATA-37d: peakCompute=1 TOps/s; peakBW from main-mem BW columns |
-| Op-mix labels | DATA-37e: normalize Vector/Cube mix ratios |
-| Tabs | DATA-37f: hidden |
-| Block scope | **All** = the `summary.jsonl` `ArithmeticUtilization` + `Memory` categories; a picked `block_id` = that block's CSV rows ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)). A picked block with no GM point hides the panel — never the **All** point under a block label |
-
-Hide `RooflinePanel` when no GM point can be derived.
+| AIV | fp16 `#8C78F0`, bp16 `#E63C82`, fp32 `#32BE8C` |
+| AIC | int16 fp16 `#E53935`, int32 fp32 `#4C8DFF`, fp32 `#B4E04A`, int8 fp8 `#F0A020` |
 
 ## Emulate fill
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `roofline` | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF Functions/SourceInstructions | New mapper required; not Arithmetic+Memory | `gap` → hide Sept 30 |
-
-Do **not** invent compute Arithmetic/Memory CSVs ([DATA-45](../context/decisions/interim/DATA.md#data-45)).
-
-## Adapter
-
-| Profile | Entry | Notes |
-|---------|-------|-------|
-| compute | `rooflineFromCsv` in `adaptPayloads` | |
-| emulate | — | Post–Sept 30 slice |
+| `roofline` | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF | New mapper required | `gap` → hide Sept 30 |
 
 ## Related
 
 - Spec: [RooflinePanel.spec.md](../../src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md)
-- Product docx §: 11.2.4 / emulate 11.2.3.5
-- Open: [DATA-37](../context/questions/DATA.md)
+- Product: npu-compute §11.8 / docx §11.2.4

@@ -2,70 +2,6 @@
 
 Open **DATA** questions (file/field/formula data mapping). Status enum, prefix taxonomy, and migration map: [README.md](README.md).
 
-## Roofline sub-questions — aliases of DATA-37
-
-The seven **DATA-11…DATA-17** rows below are the granular roofline questions from the HQ/`Q11` batch. They keep permanent ids of their own, but carry the **same status as the [DATA-37](#data-37--roofline-formulas-was-q11) umbrella** and share its findings — ask Product for them together.
-
-### DATA-11 — Roofline axes vs pipe busy rates
-
-<img src="../visual/questions/data-11.png" alt="DATA-11 Roofline chart — not pipe busy rates" width="900" height="655">
-
-**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
-
-**Question:** The Roofline chart plots **X = Ops/Byte** (arithmetic intensity) and **Y = TOps/s** (achieved performance). The producer doc's Roofline table instead points its three tab labels at **pipe busy rates** — `aic_cube_ratio`, `aic_mte2_ratio`, `aic_mte1_ratio` (`PipeUtilization.csv`). Busy-rate ratios cannot produce either axis, so: what are the real axis quantities, and are the tabs meant to be axes at all, or three separate bottleneck panels?
-
-### DATA-12 — X axis Ops/Byte
-
-<img src="../visual/questions/data-12.png" alt="DATA-12 X axis Ops/Byte" width="900" height="655">
-
-**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
-
-**Question:** **X axis = Ops/Byte** — which file, field(s), and formula? Does the **GM** point use the same formula and byte source as the **L2** point, or different ones? (Interim [DATA-37b](../decisions/interim/DATA.md): `fops ÷ ((read_main_memory_datas(KB) + write_main_memory_datas(KB)) × 1024)`.)
-
-### DATA-13 — Y axis TOps/s
-
-<img src="../visual/questions/data-13.png" alt="DATA-13 Y axis TOps/s" width="900" height="655">
-
-**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
-
-**Question:** **Y axis = TOps/s** — which file, field(s), and formula? Raw FLOPS *counts* exist (`aiv_vec_fops`, `aic_cube_fops` on `ArithmeticUtilization.csv`) but there is no documented TOps/s conversion. Is it a per-side (Cube \| Vector) value or one combined number? (Interim [DATA-37a](../decisions/interim/DATA.md): `fops ÷ mean(*_time(us)) ÷ 1e6`.)
-
-### DATA-14 — roof lines
-
-<img src="../visual/questions/data-14.png" alt="DATA-14 roof lines" width="900" height="655">
-
-**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
-
-**Question:** The two **roof lines** — the bandwidth slope and the compute plateau — which file and fields? Peak compute ([DATA-3](../decisions/DATA.md): `aic/aiv_flops_theoretical`) and peak BW ([DATA-5](../decisions/DATA.md): `aicore_gm_bw_theoretical(GB/s)` = SOL **1600 GB/s**) are documented for the summary cards; nothing states whether the roofline roof reuses those values, or which one applies to which side.
-
-### DATA-15 — L2 bytes
-
-<img src="../visual/questions/data-15.png" alt="DATA-15 L2 legend series" width="900" height="655">
-
-**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
-
-**Question:** The chart legend has an **L2** series alongside GM, and the L2 point needs **bytes moved through L2**. Which field? `L2Cache.csv` carries hit/miss **counts** and hit **rates** only — no byte traffic. If no byte field exists, should the L2 series be dropped, or taken from another file? (Interim [DATA-37c](../decisions/interim/DATA.md): omit the L2 point.)
-
-### DATA-16 — Vec_FP32 / Vec_MISC mix labels
-
-<img src="../visual/questions/data-16.png" alt="DATA-16 Vec_FP32 / Vec_MISC mix" width="900" height="655">
-
-**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
-
-**Question:** The op-mix annotation above the plot prints labels such as `Vec_FP32` / `Vec_MISC`. Which file and fields feed them on **Cube vs Vector** ops, and when several mix ratios are non-zero at once, **which labels are shown, in what order, and with how much precision?**
-
-**Answer so far:** Fields exist in `ArithmeticUtilization.csv` — `aiv_vec_{fp32,fp16,int32,int16,misc}_ratio`. The producer dictionary uses *different* names (`aiv_vec_{vf,sfu,simt_vf}_ratio`). The "which to show when many are non-zero" rule is undocumented.
-
-### DATA-17 — Roofline tabs
-
-<img src="../visual/questions/data-17.png" alt="DATA-17 Roofline tabs" width="900" height="655">
-
-**Status:** `interim` — alias of [DATA-37](#data-37--roofline-formulas-was-q11).
-
-**Question:** Tabs **内存单元** / **内存通路** / **搬运单元** — what does each tab show, and is the tab set in scope at all this iteration (or should the panel stay single-chart)?
-
-**Answer so far:** The producer doc maps 内存单元→`aic_cube_ratio`, 内存通路→`aic_mte2_ratio`, 搬运单元→`aic_mte1_ratio` (all `PipeUtilization.csv`) — the pipe-busy-rate mapping [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) flags as wrong. No Product answer. (Interim [DATA-37f](../decisions/interim/DATA.md): hide the tabs.)
-
 ### DATA-31 — authoritative MVP fixture shape (was: Q4)
 
 **Status:** `partial`
@@ -81,26 +17,6 @@ The seven **DATA-11…DATA-17** rows below are the granular roofline questions f
 **Question:** How does the producer encode the dependency edges between timeline events — which Chrome Trace `args` keys, successor lists or predecessor lists, and how are ids made addressable? Are edges within one lane only, or also cross-lane?
 
 **Interim:** [`DATA-36a`](../decisions/interim/DATA.md) successor-list encoding via Chrome Trace `args`.
-
-### DATA-37 — roofline formulas (was: Q11)
-
-**Status:** `interim`
-
-**Release impact:** none this iteration — the Roofline card is **not in the current release**. It renders only for a host that opts in with the `roofline` capability ([FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)), so these questions block the Phase 2 card, not the current one. The same applies to the DATA-11…DATA-17 aliases below.
-
-**Question:** Which file, field, and formula feeds **each element of the Roofline chart** — X axis (Ops/Byte), Y axis (TOps/s), the GM and L2 measured points, the two roof lines (peak bandwidth + peak compute), the op-mix labels, and the 内存单元 / 内存通路 / 搬运单元 tabs? The producer docs describe the chart's *purpose* but supply no formulas, so all seven sub-questions below are open and should be answered together.
-
-Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roofline-axes-vs-pipe-busy-rates) (axes vs pipe busy rates), [DATA-12](#data-12--x-axis-opsbyte) (X Ops/Byte), [DATA-13](#data-13--y-axis-topss) (Y TOps/s), [DATA-14](#data-14--roof-lines) (roof peaks), [DATA-15](#data-15--l2-bytes) (L2 bytes), [DATA-16](#data-16--vec_fp32--vec_misc-mix-labels) (mix labels), [DATA-17](#data-17--roofline-tabs) (tabs).
-
-**Known so far (docs checked 2026-09-10):**
-
-- **Axes (DATA-11–13):** not documented. NPU-Compute.md Q11–Q13 have no Product answer; the docx tab→field table (`aic_cube_ratio` / `aic_mte2_ratio` / `aic_mte1_ratio`, `PipeUtilization.csv`) is pipe busy rates, not axes.
-- **Roof (DATA-14):** peak compute formulas *do* exist in NPU-Compute.md Q3 (`aic/aiv_flops_theoretical`) and peak BW = `aicore_gm_bw_theoretical` (SOL **1600 GB/s**, Q5), but the docs never wire them to the roofline roof.
-- **L2 bytes (DATA-15):** absent — `L2Cache.csv` has hit/miss counts and hit *rates* only.
-- **Mix (DATA-16):** fields exist in `ArithmeticUtilization.csv` (`aiv_vec_{fp32,fp16,int32,int16,misc}_ratio`); the docx dictionary uses `aiv_vec_{vf,sfu,simt_vf}_ratio`. The "which to show when many are non-zero" rule is undocumented.
-- **Tabs (DATA-17):** docx maps 内存单元/内存通路/搬运单元 to the pipe ratios above — the mapping DATA-11 flags as wrong; no Product answer.
-
-**Interim:** [`DATA-37a…DATA-37f`](../decisions/interim/DATA.md).
 
 ### DATA-41 — AIC-row link values
 
@@ -182,3 +98,43 @@ Umbrella for the granular HQ twins retained as aliases: [DATA-11](#data-11--roof
 **Context:** biprof §11.2.3.2 heat-panel tooltip. The three labels were already dropped from `src/i18n` (nothing references them) and come back only with the producer fields; the interim rule is [DATA-51a](../decisions/interim/DATA.md#data-51a).
 
 **Specs when answered:** [memory-topology](../../views/memory-topology.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [view-models](../../../specs/core/view-models.spec.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
+
+### DATA-52 — Source correlation embed schema
+
+**Status:** `partial`
+
+**Question:** What is the authoritative embed basename and JSON/CSV schema for `reportModel.sourceCorrelation` (`mock: false`)? Confirm whether the switch point stays `SourceCorrelation.json` (and aliases in `SOURCE_CORRELATION_EMBED_NAMES`), or Product prefers another name / multi-file pack (source text + asm + maps).
+
+**Answer so far:** Compute packs ship a **multi-file** set inside `.npu-rep` — `objdump.txt` + `symbolizer.json` + `summary.db` (`pc_sampling`, type sqlite3) — not `SourceCorrelation.json` (`npu-compute性能优化` §11.4; gather_2d `sample [cTiIlO].zip` / `out.npu-rep`). Ascend C source (`.asc`) is still **outside** the producer leaf (zip root / absolute `FileName` in symbolizer); playground `gather_2d.npu-rep` embeds `.asc` for demos. Adapter: `adaptComputeSourceCorrelation`. Still open: (1) Product-required rule for packing `.asc` into the leaf, (2) whether a single-file `SourceCorrelation.json` remains a goal.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [ADAPTERS](../../formats/ADAPTERS.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md).
+
+### DATA-53 — Emulate AsmMetrics / SourceFiles → Source tab
+
+**Status:** `open`
+
+**Question:** For emulate packs (e.g. gelu), which tables map into Source | SASS when an ELF / `--object-file` is present — `SourceFiles` / `SourceLines` / `AsmMetrics` / `IPCAsmMetrics` / Source Assembly HTML — and how do PC ↔ source line joins populate `sourceToAsm` / `asmToSource`? Confirm gelu-without-ELF stays mock-only.
+
+**Answer so far:** FORMATs_COMPARISON marks Source Assembly / AsmMetrics as Phase 2 / ELF-gated; gelu packs hint CSVs but empty SourceFiles without object file. Compute path above does **not** answer emulate.
+
+**Specs when answered:** [emulate/FORMAT](../../formats/emulate/FORMAT.md), [emulate/SCHEMA](../../formats/emulate/SCHEMA.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md).
+
+### DATA-54 — symbolizer `Line: 0` / missing line mapping
+
+**Status:** `partial`
+
+**Question:** In compute `symbolizer.json`, some PCs ship `Line: 0` while others have real lines. Is `0` “unknown line”, “whole function”, or a producer gap? How should Source↔SASS correlation behave for those sites — no map (current interim), map to function start, or refuse correlation?
+
+**Answer so far:** Updated gather_2d sample maps **12/16** sites to lines `{27,36,37,38,39}`; **4** stay `Line: 0`. Interim: `Line <= 0` → unmapped; `Line > 0` → `sourceToAsm` / `asmToSource`. Symbolizer `FileName` may be an absolute build path — match by basename to a pack embed.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [ADAPTERS](../../formats/ADAPTERS.md).
+
+### DATA-55 — compute Source metrics beyond Sampling Stall
+
+**Status:** `partial`
+
+**Question:** Which pack embeds fill the Source / SASS metric columns named in `npu-compute性能优化` §11.4.2.3 — Instruction executed, Instruction time, sampling stall (+ reason breakdown), warp occupancy, Cache line count / utilization, live register, branch efficiency (asm also: Instruction type, register status)? Confirm Sampling Stall = sum of `pc_sampling` counters.
+
+**Answer so far:** Spec lists stall reasons matching `summary.db` (`IBuf empty`, `Nop cycles`, `Scoreboard not ready`, … — § / PC Sampling). Warp occupancy via hibit SIMT API (doc §11.7). gather_2d pack today only ships stall counters in `summary.db`. Interim: `samplingStall` = sum of those columns (+ tooltip breakdown); other columns stay `0` / omitted until embeds exist.
+
+**Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [compute/FORMAT](../../formats/compute/FORMAT.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md).

@@ -19,7 +19,7 @@ parseNpuRep160(bytes: Uint8Array): ParsedNpuRep160     // product layout (160-by
 
 Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 
-- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1` — produced by the current `npu-compute` tooling, `data/scripts/pack_rep.py`): FileInfo = `magic[8]`, `name[128]`, `type:u16` (`1=npu-rep` nested, `2=json`, `3=jsonl`, `4=csv`, `5=sqlite3`, `6=protobuf`), `reserved:u16`, `reserved1:u32`, `fileLength:u64`, `fileRepOffset:u64`. Payloads are contiguous — no gaps and no unreferenced trailing bytes. Parsed by `parseNpuRep160`.
+- **Product 160-byte layout** (`fileInfoLength = 160`, `origin = 1` — produced by the current `npu-compute` tooling, `data/scripts/pack_rep.py`): FileInfo = `magic[8]`, `name[128]`, `type:u16` (`1=npu-rep` nested, `2=json`, `3=jsonl`, `4=csv`, `5=sqlite3`, `6=protobuf`, `7=txt` for `objdump.txt` / `.asc`), `reserved:u16`, `reserved1:u32`, `fileLength:u64`, `fileRepOffset:u64`. Payloads are contiguous — no gaps and no unreferenced trailing bytes. Parsed by `parseNpuRep160`.
 - **Interim 164-byte sample layout** (`fileInfoLength = 164`, `type:u32`, `type 6` = nested) — the repo's own sample packer (`data/build_sample_rep.py`), used by `example.npu.rep` / `sample.lite.rep`. Parsed by `parseNpuRep`. FileInfo = `magic[8]`, `name[128]`, `type:u32`, `resv:u32`, `pad:u32`, `length:u64`, `offset:u64`.
 
 **Nested operators.** A `type` marking a nested archive (`6` in the 164-byte layout, `1` in the 160-byte layout — or a payload re-starting with the `npu-rep` magic) marks a nested per-operator archive (`.npu.rep`). An outer container packs N nested archives; each leaf archive packs `trace.json` + metric CSVs. A container with no nested archives is treated as a flat single-operator leaf pack.
@@ -42,6 +42,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 10. **PR-NPU-010** — The product timeline/summary embeds (`PipeTrace.json` + `Summary.jsonl`) map to the swimlane and op identity: `PipeTrace.json` drives the swimlane (µs → ns), `Summary.jsonl` `OpInfoSummary` supplies `opName`/`opType`/`taskDurationUs`/`blockDim`/`pid`.
 11. **PR-NPU-011** — The product report derives compute / bandwidth / utilization and summary categories: `coreCount` resolves from spaced `HardwareInfo.jsonl` keys (`ai vector count`); bandwidth cards prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)`); `parallelUtilization` / `parallelBalance` come from `OpInfoSummary`; and the detail surface is populated from `summary.jsonl` metric categories (excluding `OpInfoSummary`).
 12. **PR-NPU-012** — A leaf whose payloads include emulate `manifest.json` (thin profile or export catalog) is classified as emulate and MUST NOT require compute `OpBasicInfo.csv` / `PipeUtilization.csv` to load ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
+13. **PR-NPU-013** — `sample.lite.rep` embeds four Ascend C source files (at least 5× the original 32-line pack) and a shared disassembly of at least 40 instructions, Roofline circles, a UB heat grid, and op1 Code frames that open those files at the mapped line. Each operator's `summary.db` `pc_sampling` rows give those instructions non-zero Sampling Stall, Instructions Executed, and Warp Occupancy; mapped source lines roll those up (stall and instructions summed, occupancy averaged).
 
 ## Edge Cases
 
@@ -52,6 +53,10 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-10-24** — PR-NPU-013: sample `summary.db` fills Source / SASS Sampling Stall, Instructions Executed, and Warp Occupancy. Producer packs that omit the extra columns stay at 0 for those two.
+- **2026-10-24** — PR-NPU-013: sample kernels are Ascend C (`__aicore__`, `DataCopy` / `Mmad` / `Fixpipe`) at ≥5× the original line count, with a ≥40-instruction objdump. Code frames still open those lines.
+- **2026-10-23** — PR-NPU-013: `sample.lite.rep` carries a multi-file Source pack, HardwareInfo Roofline circles, `UbRwAccesses.csv`, and op1 `Code` frames aimed at those files.
+- **2026-10-15** — Product FileInfo `type:u16` **7 = txt** (`objdump.txt`, `.asc`) accepted by `parseNpuRep160` (npu-compute Source packs).
 - **2026-09-14** — PR-NPU-012: simulator leaf detection via `manifest.json`; no hardware CSV requirement ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 - **2026-09-07** — Product host extension is `.npu-rep` only ([PROC-2](../../docs/context/decisions/PROC.md)); nested FileInfo names unchanged.
 - **2026-09-04** — PR-NPU-011: full NPU-Compute support — case-insensitive embed names (`PipeTrace.json`/`trace.json`, `Summary.jsonl`/`summary.jsonl`), spaced `HardwareInfo.jsonl` keys, `OpInfoSummary` compute/BW/utilization fields, summary-first detail categories, and the spec's resolved Product answers (compute power, bandwidth peak/score, parallel utilization, duration `{blockDim} Blocks / {coreCount} 核`).

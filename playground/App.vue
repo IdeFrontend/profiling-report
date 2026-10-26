@@ -18,6 +18,9 @@ const FILE_FIXTURES = {
   npu160: { name: 'example160.rep', url: '/data/example160.rep' },
   vector_muladd: { name: 'vector_muladd_plain.npu-rep', url: '/data/vector_muladd_plain.npu-rep' },
   gelu: { name: 'gelu.npu-rep', url: '/data/gelu.npu-rep' },
+  gather_2d: { name: 'gather_2d.npu-rep', url: '/data/gather_2d.npu-rep' },
+  /** §11.8.2 PDF sample: HardwareInfo Roofline category with several w/t/q circles. */
+  roofline_multi: { name: 'roofline_multi.npu-rep', url: '/data/roofline_multi.npu-rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
 
@@ -275,6 +278,14 @@ onMounted(async () => {
           :href="fixtureHref('gelu')"
           data-testid="fixture-gelu"
         >gelu.npu-rep</a>
+        <a
+          :href="fixtureHref('gather_2d')"
+          data-testid="fixture-gather-2d"
+        >gather_2d.npu-rep</a>
+        <a
+          :href="fixtureHref('roofline_multi')"
+          data-testid="fixture-roofline-multi"
+        >roofline_multi.npu-rep</a>
         <a
           :href="fixtureHref('deps')"
           data-testid="fixture-deps"

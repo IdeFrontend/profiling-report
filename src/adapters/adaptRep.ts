@@ -12,8 +12,6 @@ import type {
   PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
-  RooflineMixLabel,
-  RooflineViewModel,
   SummaryCategory,
   SummaryMetrics,
   SwimlaneModel,
@@ -28,6 +26,11 @@ import {
   csvTableFromPipeUtilizationHist,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
+import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
+import { rooflineFromRows } from './roofline';
+
+export { rooflineFromRows } from './roofline';
 
 const COMPUTE_CSV_FILES = [
   'PipeUtilization.csv',
@@ -53,15 +56,8 @@ const BANDWIDTH_COLUMNS = {
   },
 } as const;
 
-const ALL_MAIN_MEM_BW_COLUMNS = Object.values(BANDWIDTH_COLUMNS).flatMap((d) => [...d.aic, ...d.aiv]);
-
 /** DATA-5: SOL 1600 GB/s hardware peak shared by every bandwidth side (DATA-6). */
 const BANDWIDTH_PEAK_GBS = 1600;
-
-/** DATA-37d fallback when Memory BW columns are all NA. */
-const ROOFLINE_PEAK_BW_FALLBACK_GBS = 100;
-/** DATA-37d sketch-like compute plateau (TOps/s). */
-const ROOFLINE_PEAK_COMPUTE_TOPS = 1;
 
 function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
@@ -176,114 +172,6 @@ function meanFamily(rows: Record<string, string>[], columns: readonly string[]):
   }
   if (vals.length === 0) return undefined;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
-}
-
-function maxFamily(rows: Record<string, string>[], columns: readonly string[]): number | undefined {
-  let max: number | undefined;
-  for (const col of columns) {
-    for (const row of rows) {
-      const n = parseNumber(row[col]);
-      if (n == null) continue;
-      max = max == null ? n : Math.max(max, n);
-    }
-  }
-  return max;
-}
-
-const VEC_MIX: { id: string; label: string; column: string }[] = [
-  { id: 'fp32', label: 'Vec_FP32', column: 'aiv_vec_fp32_ratio' },
-  { id: 'fp16', label: 'Vec_FP16', column: 'aiv_vec_fp16_ratio' },
-  { id: 'int32', label: 'Vec_INT32', column: 'aiv_vec_int32_ratio' },
-  { id: 'int16', label: 'Vec_INT16', column: 'aiv_vec_int16_ratio' },
-  { id: 'misc', label: 'Vec_MISC', column: 'aiv_vec_misc_ratio' },
-];
-
-const CUBE_MIX: { id: string; label: string; column: string }[] = [
-  { id: 'fp16', label: 'Cube_FP16', column: 'aic_cube_fp16_ratio' },
-  { id: 'int8', label: 'Cube_INT8', column: 'aic_cube_int8_ratio' },
-];
-
-function mixLabelsFromRows(
-  rows: Record<string, string>[],
-  defs: { id: string; label: string; column: string }[],
-): RooflineMixLabel[] {
-  const parts: { id: string; label: string; value: number }[] = [];
-  for (const d of defs) {
-    const v = meanFamily(rows, [d.column]);
-    if (v != null && v > 0) parts.push({ id: d.id, label: d.label, value: v });
-  }
-  const sum = parts.reduce((a, p) => a + p.value, 0);
-  if (sum <= 0) return [];
-  return parts.map((p) => ({
-    id: p.id,
-    label: p.label,
-    percent: (p.value / sum) * 100,
-  }));
-}
-
-/**
- * Interim DATA-37a–e: GM roofline point + mix labels from ArithmeticUtilization + Memory.
- * Returns undefined when undecidable (DATA-37c L2 omitted).
- */
-function rooflineFromCsv(
-  arithPayload?: Uint8Array,
-  memoryPayload?: Uint8Array,
-): RooflineViewModel | undefined {
-  if (!arithPayload || !memoryPayload) return undefined;
-  const arithRows = parseCsv(decodeUtf8(arithPayload)).rows;
-  const memRows = parseCsv(decodeUtf8(memoryPayload)).rows;
-  return rooflineFromRows(arithRows, memRows);
-}
-
-/**
- * DATA-37 interim formulas over the given rows, so the same rule serves both selector scopes
- * (DATA-19 / DATA-29): `All` passes the `summary.jsonl` `ArithmeticUtilization` + `Memory` category
- * records, a picked block its CSV rows.
- */
-export function rooflineFromRows(
-  arithRows: Record<string, string>[],
-  memRows: Record<string, string>[],
-): RooflineViewModel | undefined {
-  if (arithRows.length === 0 || memRows.length === 0) return undefined;
-
-  const vecFops = meanFamily(arithRows, ['aiv_vec_fops']);
-  const vecTime = meanFamily(arithRows, ['aiv_time(us)']);
-  const cubeFops = meanFamily(arithRows, ['aic_cube_fops']);
-  const cubeTime = meanFamily(arithRows, ['aic_time(us)']);
-
-  const useVector = vecFops != null && vecFops > 0 && vecTime != null && vecTime > 0;
-  const useCube = !useVector && cubeFops != null && cubeFops > 0 && cubeTime != null && cubeTime > 0;
-  if (!useVector && !useCube) return undefined;
-
-  const fops = useVector ? vecFops! : cubeFops!;
-  const timeUs = useVector ? vecTime! : cubeTime!;
-  const performance = fops / timeUs / 1e6;
-
-  const readKb = meanFamily(memRows, ['read_main_memory_datas(KB)']);
-  const writeKb = meanFamily(memRows, ['write_main_memory_datas(KB)']);
-  if (readKb == null && writeKb == null) return undefined;
-  const bytes = ((readKb ?? 0) + (writeKb ?? 0)) * 1024;
-  if (!(bytes > 0) || !(performance > 0)) return undefined;
-
-  const intensity = fops / bytes;
-  const peakBw = maxFamily(memRows, ALL_MAIN_MEM_BW_COLUMNS) ?? ROOFLINE_PEAK_BW_FALLBACK_GBS;
-
-  const mixLabels = mixLabelsFromRows(arithRows, useVector ? VEC_MIX : CUBE_MIX);
-
-  return {
-    points: [
-      {
-        id: 'gm',
-        label: 'GM Read + Write',
-        intensity,
-        performance,
-        style: 'solid',
-      },
-    ],
-    mixLabels,
-    peakComputeTops: ROOFLINE_PEAK_COMPUTE_TOPS,
-    peakBandwidthGBs: peakBw,
-  };
 }
 
 function firstPresentColumn(
@@ -952,15 +840,27 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   // DATA-19 / DATA-29 `All` scope: PIPE, roofline and the memory diagram read the summary.jsonl
   // category records, so every widget shares the producer's own non-`NA` mean; the CSV means stay
   // as the classic-`.rep` fallback (no `summary.jsonl` ⇒ no aggregate exists).
-  const roofline =
-    rooflineFromRows(
-      summaryCategoryRows(summaryCategories, 'ArithmeticUtilization'),
-      summaryCategoryRows(summaryCategories, 'Memory'),
-    ) ??
-    rooflineFromCsv(
-      payloadByName(payloads, ['ArithmeticUtilization.csv']),
-      payloadByName(payloads, ['Memory.csv']),
-    );
+  const hwJsonl = payloadByName(payloads, ['HardwareInfo.jsonl']);
+  const hwText = hwJsonl ? decodeUtf8(hwJsonl) : undefined;
+  const arithCsv = payloadByName(payloads, ['ArithmeticUtilization.csv']);
+  const memCsv = payloadByName(payloads, ['Memory.csv']);
+  // DATA-19 All = summary.jsonl categories when both exist; else classic CSV means.
+  // HardwareInfo Roofline category (when present) supplies points + roofs; mix still
+  // comes from the ArithmeticUtilization + Memory rows passed here.
+  const summaryArith = summaryCategoryRows(summaryCategories, 'ArithmeticUtilization');
+  const summaryMem = summaryCategoryRows(summaryCategories, 'Memory');
+  const useSummaryRoof = summaryArith.length > 0 && summaryMem.length > 0;
+  const arithRows = useSummaryRoof
+    ? summaryArith
+    : arithCsv
+      ? parseCsv(decodeUtf8(arithCsv)).rows
+      : [];
+  const memRows = useSummaryRoof
+    ? summaryMem
+    : memCsv
+      ? parseCsv(decodeUtf8(memCsv)).rows
+      : [];
+  const roofline = rooflineFromRows(arithRows, memRows, hwText);
   const memoryTopology =
     buildMemoryTopologyFromCategories(summaryCategories) ??
     // UI-49: PipeUtilization joins the classic fallback too, so a CSV-only `.rep` that has a
@@ -1089,7 +989,14 @@ function hardwareSectionsFromJsonl(text: string): HardwareSection[] {
       .filter(([k]) => k !== 'category')
       .map(([key, value]) => ({
         key,
-        value: value == null ? '' : Array.isArray(value) ? value.join(', ') : String(value),
+        value:
+          value == null
+            ? ''
+            : Array.isArray(value)
+              ? value.join(', ')
+              : typeof value === 'object'
+                ? JSON.stringify(value)
+                : String(value),
       }))
       .filter((f) => f.value !== '');
     if (fields.length === 0) continue;
@@ -1147,14 +1054,25 @@ export function adaptRep(parsed: ParsedRep): AdaptedReport {
 /** Map raw payloads (any container: `cann-rep` leaf or `npu-rep` leaf) → swimlane + report. */
 export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
   const reportModel = reportModelFromPayloads(payloads);
+  const sourceCorrelation = adaptSourceCorrelation(payloads);
+  if (sourceCorrelation && !sourceCorrelation.mock) {
+    reportModel.sourceCorrelation = sourceCorrelation;
+  }
+  const ubRw = payloadByName(payloads, ['UbRwAccesses.csv', 'ubrwaccesses.csv']);
+  const memoryHeatmap = memoryHeatmapFromTexts({
+    'UbRwAccesses.csv': ubRw ? decodeUtf8(ubRw) : undefined,
+  });
+  if (memoryHeatmap) reportModel.memoryHeatmap = memoryHeatmap;
   const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
-  // `roofline` is a Phase 2 surface outside the current release: it is opt-in only
-  // (`capabilities: ['roofline']` from the host) and is never derived from report data,
-  // so the panel stays hidden even when the report has points.
+  // npu-compute §11.8: derive when points exist (host may still pass capabilities to override).
+  if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
   if (reportModel.hardwareDetails) capabilities.push('hardwareDetails');
   if (reportModel.memoryTopology) capabilities.push('memoryDiagram');
+  if (memoryHeatmap) capabilities.push('memoryHeatmap');
   if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
+  // UI-37: 源码 only when real source embeds adapted (no mock fallback).
+  if (reportModel.sourceCorrelation) capabilities.push('sourceTab');
   return {
     swimlaneModel,
     reportModel,

@@ -70,7 +70,7 @@ flowchart LR
 | Core imbalance | Do some `block_id`s lag? | Gutter hierarchy + per-lane util; CSV keyed by block | **S4** · M |
 | Memory path pressure | Is L1 / UB / GM / HBM the limiter? | Static SVG + data-driven labels | **S6** · P2 ([UI-38](decisions/UI.md)) |
 | Sync / deps | Why is this interval waiting? | Dependency links + detail graph | **S8** · P2 ([DATA-36](questions/DATA.md)) |
-| Source ↔ insn | Which line caused this stall? | Insight Source/Cache on `.bin`; optional later tabs | **S9** · P2 / Insight |
+| Source ↔ insn | Which line caused this stall? | Insight Source/Cache on `.bin` (not this library) | Insight |
 | Wrong hardware context | Which chip / HBM / core count was this run? | Hardware aside | **Out of MVP** ([DATA-34](decisions/DATA.md)) |
 | Fixture thinner than sketches | Why don’t I see multi-core instruction Gantt? | Target = sketches ([DATA-31](questions/DATA.md)); render available lanes; hide empty charts ([DATA-32](decisions/DATA.md)) | Interim `out.rep` until golden |
 
@@ -116,7 +116,7 @@ Sketches under [`docs/ui/`](../ui/) encode this composition: dense dark timeline
 | As an OP dev, I check whether memory paths limit the op | **S6** Analyze memory paths | P2 | UX_SPEC, FEATURE_MATRIX |
 | As an OP dev, I confirm NPU / HBM context for the run | **S7** Review hardware context | P2 | UX_SPEC, [DATA-34](decisions/DATA.md) |
 | As an OP dev, I follow deps or aggregate a time slice | **S8** Dependencies / multi-select | P2 | UX_SPEC, [DATA-36](questions/DATA.md) |
-| As an OP dev, I switch to OP / Source / Details / Cache modes | **S9** Secondary tabs | P2 | UX_SPEC; Insight remains for `.bin` depth |
+| As an OP dev, I see Timeline as the only active mode (Source disabled) | **S9** Secondary tabs | M | UX_SPEC; 详情 / 缓存 omitted ([UI-37](decisions/UI.md)); Insight remains for `.bin` depth |
 
 ---
 
@@ -188,7 +188,7 @@ Definitions for newcomers. CSV field mapping: [METRICS_AND_TRACE](../formats/com
 |--------------|----------------|
 | PIPE 占用率 | PIPE occupancy |
 | 统计分析 | Overview / statistical charts |
-| OP算子 / 源码 / 详情 / 缓存 | Op / Source / Details / Cache secondary tabs (P2) |
+| OP算子 / 源码 | Op / Source secondary tabs. 详情 (Details) / 缓存 (Cache) are not in the chrome ([UI-37](decisions/UI.md)) |
 | 显示控制 | Display / units / layer controls (P2) |
 
 ---

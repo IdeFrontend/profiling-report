@@ -129,11 +129,12 @@ Format and statuses: [README.md](README.md).
 
 ## UI-37 (was: Q10)
 
-- **Resolved:** 2026-09-10
+- **Resolved:** 2026-09-10; **Amended:** 2026-10-16, 2026-10-21
+- **Was:** Secondary tabs **源码 / 详情 / 缓存** stay in chrome but are **disabled**; only **时间线** is active (2026-09-10).
 - **Question:** Source / Details / Cache tabs?
-- **Decision:** Secondary tabs **源码 / 详情 / 缓存** stay in chrome but are **disabled**; only **时间线** is active. No tab surfaces or data contracts in this product phase. OP算子 remains brand / multi-op selector, not a mode tab.
-- **Specs:** [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md)
-- **Source:** Product answer in chat (2026-09-10).
+- **Decision:** **源码** is shown only when the loaded report has a real Source correlation model (`mock !== true`). Packs without those embeds omit `sourceCorrelation` and `'sourceTab'`, and the 源码 control is absent. **详情** (Details) and **缓存** (Cache) are **not** in the chrome. OP算子 remains brand / multi-op selector, not a mode tab. A host may still pass `'sourceTab'` plus a non-mock `reportModel.sourceCorrelation`. Pure Chrome Trace loads omit both.
+- **Specs:** [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md)
+- **Source:** Product answer in chat (2026-09-10); Source tab implementation plan (2026-10-07); hide mock Source and the tab when embeds are absent (2026-10-16); remove Details and Cache tabs (2026-10-21).
 
 ---
 

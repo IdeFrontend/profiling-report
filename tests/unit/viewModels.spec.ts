@@ -291,20 +291,21 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(icache?.absoluteValue).toBeUndefined();
   });
 
-  it('PR-VM-009 (interim DATA-37*): GM roofline + mix labels; capability stays opt-in', () => {
+  it('PR-VM-009: GM roofline + AIV/AIC series + mix labels; capability when points exist', () => {
     const adapted = adaptRep(parseRep(loadOutRepBytes()));
     const roof = adapted.reportModel.roofline;
     expect(roof).toBeDefined();
-    // The panel is out of the current release — points alone must not advertise the flag.
-    expect(adapted.capabilities ?? []).not.toContain('roofline');
+    expect(adapted.capabilities).toContain('roofline');
 
     const gm = roof!.points.find((p) => p.id === 'gm');
     expect(gm).toBeDefined();
     expect(gm!.style).toBe('solid');
     expect(gm!.performance).toBeCloseTo(2240 / 0.97962125 / 1e6, 5);
     expect(gm!.intensity).toBeCloseTo(0.09067357512953368, 5);
-    expect(roof!.peakComputeTops).toBe(1);
-    expect(roof!.peakBandwidthGBs).toBeGreaterThan(0);
+    expect(roof!.series.length).toBeGreaterThanOrEqual(3);
+    expect(roof!.series.some((s) => s.group === 'aiv')).toBe(true);
+    expect(roof!.series.some((s) => s.group === 'aic')).toBe(true);
+    expect(roof!.points[0]!.color).toMatch(/^#/);
 
     const byId = Object.fromEntries(roof!.mixLabels.map((m) => [m.id, m]));
     expect(byId.fp32).toBeDefined();
@@ -363,6 +364,22 @@ describe('PR-VM: report view-models (interim)', () => {
     const byKey = Object.fromEntries(section.fields.map((f) => [f.key, f.value]));
     expect(byKey['Op Name']).toBe('add_custom');
     expect(byKey['Current Freq']).toBe('1650');
+  });
+
+  it('PR-VM-010: nested Roofline objects stringify instead of [object Object]', () => {
+    const parsed = parseRep(loadOutRepBytes());
+    parsed.payloads['HardwareInfo.jsonl'] = new TextEncoder().encode(
+      JSON.stringify({
+        category: 'Roofline',
+        aiv_simd_b16: { p_peak: 2.7e13, b_peak: 1600 },
+      }),
+    );
+    const section = adaptRep(parsed).reportModel.hardwareDetails!.sections.find(
+      (s) => s.title === 'Roofline',
+    );
+    const field = section!.fields.find((f) => f.key === 'aiv_simd_b16');
+    expect(field!.value).toContain('"p_peak"');
+    expect(field!.value).not.toContain('[object Object]');
   });
 
   it('PR-VM-014: summary.coreCount from HardwareInfo.jsonl by op type (DATA-1)', () => {
@@ -981,5 +998,208 @@ describe('PR-VM: report view-models (interim)', () => {
     const model = rooflineFromRows(arith, mem);
     expect(model?.points[0]?.intensity).toBeCloseTo(2e7 / 1024 / 1024, 6);
     expect(rooflineFromRows([], mem)).toBeUndefined();
+  });
+
+  it('PR-VM-009b: HardwareInfo Roofline JSON overlays full catalog + measured points', async () => {
+    const { ROOFLINE_SERIES_META } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = [
+      JSON.stringify({
+        category: 'Roofline',
+        aiv_simd_b16: { p_peak: 2.7e13, b_peak: 1600, w: 1e9, t: 1e-3, q: 1e6 },
+        aic_b8: { p_peak: 8.65e14, b_peak: 1600, w: 2e9, t: 2e-3, q: 2e6 },
+      }),
+    ].join('\n');
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    // JSON measured points win over GM when present. A lone point uses the legend label.
+    expect(model!.points.map((p) => p.id).sort()).toEqual(['aic_b8', 'aiv_simd_b16']);
+    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.label).toBe('AIV fp16');
+    expect(model!.points.find((p) => p.id === 'aic_b8')!.label).toBe('AIC int8 fp8');
+    // Sparse JSON overlays the full AIV+AIC legend (does not replace it).
+    expect(model!.series.map((s) => s.id)).toEqual(Object.keys(ROOFLINE_SERIES_META));
+    for (const s of model!.series) {
+      expect(s.slopeStyle).toBe(s.group === 'aiv' ? 'dashed' : 'solid');
+    }
+    const aiv = model!.series.find((s) => s.id === 'aiv-fp16')!;
+    expect(aiv.peakComputeTops).toBeCloseTo(2.7e13 / 1e12, 6);
+    expect(aiv.peakBandwidthGBs).toBe(1600);
+    const aic = model!.series.find((s) => s.id === 'aic-int8-fp8')!;
+    expect(aic.peakComputeTops).toBeCloseTo(8.65e14 / 1e12, 5);
+    // Unmentioned dtypes keep example-catalog ceilings.
+    expect(model!.series.find((s) => s.id === 'aiv-fp32')!.peakComputeTops).toBeCloseTo(
+      13516800000000 / 1e12,
+      6,
+    );
+    const pt = model!.points.find((p) => p.id === 'aiv_simd_b16')!;
+    expect(pt.intensity).toBeCloseTo(1e9 / 1e6, 6);
+    expect(pt.performance).toBeCloseTo(1e9 / 1e-3 / 1e12, 6);
+  });
+
+  it('PR-VM-009b: colliding JSON keys keep max p_peak and distinct point labels', () => {
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'Roofline',
+      aiv_simd_b32: { p_peak: 1e13, b_peak: 800, w: 1e9, t: 1e-3, q: 1e6 },
+      aiv_simt_b32: { p_peak: 2e13, b_peak: 1600, w: 2e9, t: 2e-3, q: 2e6 },
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const fp32 = model!.series.find((s) => s.id === 'aiv-fp32')!;
+    // Max p_peak wins (simt 2e13), with that entry's b_peak.
+    expect(fp32.peakComputeTops).toBeCloseTo(2e13 / 1e12, 6);
+    expect(fp32.peakBandwidthGBs).toBe(1600);
+    expect(model!.points.map((p) => p.label).sort()).toEqual([
+      'AIV fp32 (aiv_simd_b32)',
+      'AIV fp32 (aiv_simt_b32)',
+    ]);
+  });
+
+  it('PR-VM-009b: missing or non-positive p_peak does not clobber formula roofs', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = [
+      JSON.stringify({
+        category: 'AI Core Information',
+        ai_cube_count: 25,
+        ai_vector_count: 50,
+        ai_core_frequency_MHZ: [1650],
+      }),
+      JSON.stringify({
+        category: 'Roofline',
+        aiv_simd_b16: { b_peak: 1600, w: 1e9, t: 1e-3, q: 1e6 },
+        aic_b8: { p_peak: 0, b_peak: 1600, w: 2e9, t: 2e-3, q: 2e6 },
+      }),
+    ].join('\n');
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const aivExpected = peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650);
+    const aicExpected = peakComputeTopsFromFormula('aic-int8-fp8', 25, 50, 1650);
+    expect(aivExpected).not.toBeCloseTo(27033600000000 / 1e12, 3);
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(aivExpected, 6);
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(aicExpected, 6);
+    expect(model!.points.map((p) => p.id).sort()).toEqual(['aic_b8', 'aiv_simd_b16']);
+    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.label).toBe('AIV fp16');
+    expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.intensity).toBeCloseTo(1e9 / 1e6, 6);
+  });
+
+  it('PR-VM-009c: §11.8.1 formula peaks are TOps/s (/ 1e6), not the /1000 print scale', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    // cube=25, vector=50, 1650 MHz. /1000 would be ~675840 and blow the TOps/s axis.
+    const int8 = peakComputeTopsFromFormula('aic-int8-fp8', 25, 50, 1650);
+    expect(int8).toBeCloseTo((25 * 8192 * 2 * 1650) / 1e6, 6);
+    expect(int8).toBeLessThan(1e4);
+    expect(peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650)).toBeCloseTo(
+      (50 * 128 * 2 * 1650) / 1e6,
+      6,
+    );
+
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      ai_cube_count: 25,
+      ai_vector_count: 50,
+      ai_core_frequency_MHZ: [1650],
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(int8, 6);
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650),
+      6,
+    );
+    const ridge = (series['aic-int8-fp8']!.peakComputeTops * 1000) / series['aic-int8-fp8']!.peakBandwidthGBs;
+    expect(ridge).toBeCloseTo((int8 * 1000) / 1600, 6);
+  });
+
+  it('PR-VM-009c: cube-only HardwareInfo still formulas AIC (AIV keeps examples)', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      ai_cube_count: 25,
+      ai_core_frequency_MHZ: [1650],
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aic-int8-fp8', 25, 0, 1650),
+      6,
+    );
+    // No vector count → AIV stays on the example catalog.
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(27033600000000 / 1e12, 6);
+  });
+
+  it('PR-VM-009c: spaced product HardwareInfo keys feed the formula', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      'ai cube count': 25,
+      'ai vector count': 50,
+      'ai cube frequency(MHZ)': 1650,
+      'ai vector frequency(MHZ)': 1650,
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 25, 50, 1650),
+      6,
+    );
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aic-int8-fp8', 25, 50, 1650),
+      6,
+    );
+  });
+
+  it('PR-VM-009c: cube and vector clocks stay on their own side', async () => {
+    const { peakComputeTopsFromFormula } = await import('../../src/adapters/roofline');
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'AI Core Information',
+      ai_cube_count: 36,
+      ai_vector_count: 72,
+      'ai cube frequency(MHZ)': 1800,
+      'ai vector frequency(MHZ)': 1000,
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    expect(model).toBeDefined();
+    const series = Object.fromEntries(model!.series.map((s) => [s.id, s]));
+    expect(series['aic-int8-fp8']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aic-int8-fp8', 36, 72, 1800),
+      6,
+    );
+    expect(series['aiv-fp16']!.peakComputeTops).toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 36, 72, 1000),
+      6,
+    );
+    expect(series['aiv-fp16']!.peakComputeTops).not.toBeCloseTo(
+      peakComputeTopsFromFormula('aiv-fp16', 36, 72, 1800),
+      3,
+    );
+  });
+
+  it('PR-VM-009b: non-positive b_peak keeps the default bandwidth', () => {
+    const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
+    const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
+    const hw = JSON.stringify({
+      category: 'Roofline',
+      aiv_simd_b16: { p_peak: 2.7e13, b_peak: 0, w: 1e9, t: 1e-3, q: 1e6 },
+    });
+    const model = rooflineFromRows(arith, mem, hw);
+    const aiv = model!.series.find((s) => s.id === 'aiv-fp16')!;
+    expect(aiv.peakComputeTops).toBeCloseTo(2.7e13 / 1e12, 6);
+    expect(aiv.peakBandwidthGBs).toBe(1600);
   });
 });

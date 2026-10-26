@@ -125,11 +125,27 @@ const computeCard = computed(() => {
 const roofline = computed(() => {
   const id = blockId.value;
   if (!id) return props.report?.roofline;
-  // Undecidable for this block ⇒ no series, rather than the All point under a block label.
-  return rooflineFromRows(
+  // Undecidable for this block ⇒ hide, rather than the All GM under a block label.
+  // Chip-level series roofs and non-GM measured points (HardwareInfo Roofline)
+  // stay on the All model; only the GM point + mix labels are block-scoped.
+  const rebuilt = rooflineFromRows(
     rowsForBlock('ArithmeticUtilization.csv', id),
     rowsForBlock('Memory.csv', id),
   );
+  if (!rebuilt) return undefined;
+  const all = props.report?.roofline;
+  const chipPoints = (all?.points ?? []).filter((p) => p.id !== 'gm');
+  const points = [...chipPoints, ...rebuilt.points];
+  const allSeries = all?.series;
+  if (allSeries && allSeries.length > 0) {
+    return { points, mixLabels: rebuilt.mixLabels, series: allSeries };
+  }
+  // Interim host roof (root peaks, no series). rebuilt is the example catalog,
+  // which would hide that single roof from the panel's legacy path.
+  if (all && (!all.series || all.series.length === 0)) {
+    return { ...all, points, mixLabels: rebuilt.mixLabels };
+  }
+  return { ...rebuilt, points };
 });
 const showComputeCard = computed(
   () => hasDuration.value && (computeCard.value?.sides.length ?? 0) > 0,
@@ -430,7 +446,7 @@ const showCompute = computed(
 const showMemory = computed(
   () => (props.report?.memoryTables?.length ?? 0) > 0 || memoryCategories.value.length > 0,
 );
-/** `roofline` is a Phase 2 surface outside the current release — hidden unless the host opts in. */
+/** Mount when the adapter (or host) advertises the `roofline` capability. */
 const rooflineEnabled = computed(() => (props.capabilities ?? []).includes('roofline'));
 const showRoofline = computed(
   () => rooflineEnabled.value && (roofline.value?.points.length ?? 0) > 0,

@@ -24,7 +24,7 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 | Overview charts | **New** | When producer supplies `OverviewSeries` (DATA-32) |
 | Summary DATA-33 tiles | **Shipped** | Duration + compute + BW peak/score + AICore 并行\|负载 (DATA-5–7, DATA-9–10); DATA-8 closed (`summary.jsonl` `OpInfoSummary`, not `Report.csv`) |
 | Roofline (Product-final DATA-37) | **Replace** | Swap [M2](milestone-2.md) interim formulas/peaks when DATA-37 resolves |
-| Secondary tabs | **Disabled** | 源码 / 详情 / 缓存 visible, disabled ([UI-37](../../context/decisions/UI.md)); hardware aside if DATA-34 |
+| Secondary tabs | **Partial** | 源码 only with real Source embeds; 详情 / 缓存 omitted ([UI-37](../../context/decisions/UI.md)); hardware aside if DATA-34 |
 | Visual regression / sketch golden | **New** | DATA-31 golden when available |
 | HQ slice 6 BW peak/score | **Shipped** | DATA-5–7 via `summary.jsonl` SOL 1600; DATA-8 closed (not `Report.csv`) |
 | HQ slice 7 AICore 并行\|负载 | **Shipped** | Dual columns from `parallelUtilization` / `parallelBalance` (DATA-9–10) |
@@ -36,7 +36,7 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 3. Summary: implement DATA-33 formulas into `StatsSummaryPanel` tiles once defined.
 4. Roofline: replace M2 interim point/ceiling mapping with Product-final DATA-37; keep `RooflinePanel` UI.
 5. Swimlane advanced: multiselect + summary table; context menu; ProfilerStep bands if present in data; W/S/A/D + help (UI-41).
-6. Hardware aside: per DATA-34 contracts when Product schedules; capability flags from host. Secondary tabs stay disabled ([UI-37](../../context/decisions/UI.md)).
+6. Hardware aside: per DATA-34 contracts when Product schedules; capability flags from host. Source tab per UI-37; 详情 / 缓存 stay out of the chrome.
 7. WebGL path (evolve PR #4) if Canvas stress fails on real traces; visual regression baselines.
 8. Replace interim DATA-36 with Product-final encoding; migrate fixture.
 
@@ -47,7 +47,7 @@ Index: [README.md](README.md) · Previous: [milestone-2.md](milestone-2.md)
 | **DATA-33 formulas** still open | Cannot ship sketch-faithful summary tiles | Keep interim hide; escalate Product |
 | **DATA-32 / OverviewSeries** producer missing | Overview charts stay hidden | Blocked on producer; no inventing from PIPE |
 | **DATA-37** still open after M2 interim | Roofline may stay interim past 2026-09-15 | Keep M2 panel; only swap math when Product closes DATA-37 |
-| **UI-37** secondary tabs disabled | No 源码/详情/缓存 surfaces | Keep disabled chrome; Timeline only ([UI-37](../../context/decisions/UI.md)) |
+| **UI-37** 详情 / 缓存 omitted | No Details/Cache surfaces | 源码 only with real embeds; those two stay out of the chrome |
 | **DATA-34** hardware aside deferred | No hardware panel | Out until Product specs |
 | **DATA-31** sketch-faithful golden absent | Visual regression weak | Keep `out.rep`; add golden when available |
 | **DATA-36 Product-final** may break interim fixture | Migration cost | Keep adapter boundary; version encoding |

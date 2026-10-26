@@ -2,6 +2,15 @@ import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+function copyIfExists(from, to) {
+  try {
+    copyFileSync(from, to)
+    return true
+  } catch {
+    return false
+  }
+}
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const destDir = join(root, 'playground/public/data')
 
@@ -17,11 +26,34 @@ const copies = [
   ['data/ffn_dense.trace.json', 'ffn_dense.trace.json'],
   ['data/vector_muladd_plain.npu-rep', 'vector_muladd_plain.npu-rep'],
   ['data/gelu.npu-rep', 'gelu.npu-rep'],
+  ['data/gather_2d.npu-rep', 'gather_2d.npu-rep'],
+  ['data/roofline_multi.npu-rep', 'roofline_multi.npu-rep'],
 ]
 
 for (const [from, name] of copies) {
   copyFileSync(join(root, from), join(destDir, name))
   console.log(`synced ${from} -> playground/public/data/${name}`)
+}
+
+/** Sudu Source-tab worker (TeaVM) — served same-origin from playground. */
+const suduDir = join(root, 'playground/public/sudu')
+mkdirSync(suduDir, { recursive: true })
+const suduWorker = join(root, 'node_modules/@sudu-ide/code-review/src/worker.js')
+try {
+  copyFileSync(suduWorker, join(suduDir, 'worker.js'))
+  console.log('synced @sudu-ide/code-review worker -> playground/public/sudu/worker.js')
+} catch (e) {
+  console.warn('[sync:demo-fixtures] sudu worker not copied:', e instanceof Error ? e.message : e)
+}
+
+/** sql.js WASM for compute Source-tab `summary.db` reads (same-origin). */
+const sqljsDir = join(root, 'playground/public/sqljs')
+mkdirSync(sqljsDir, { recursive: true })
+const sqlWasm = join(root, 'node_modules/sql.js/dist/sql-wasm.wasm')
+if (copyIfExists(sqlWasm, join(sqljsDir, 'sql-wasm.wasm'))) {
+  console.log('synced sql-wasm.wasm -> playground/public/sqljs/sql-wasm.wasm')
+} else {
+  console.warn('[sync:demo-fixtures] sql.js wasm not copied (npm install sql.js)')
 }
 
 const shellTemplate = join(root, 'dist/report-shell/template.html')

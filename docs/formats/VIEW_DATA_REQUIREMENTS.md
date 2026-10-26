@@ -59,9 +59,18 @@ Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). P
 
 See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 
-### 15. Secondary tabs
+### 15. Secondary tabs — Source (UI-37)
 
-Chrome only / disabled ([UI-37](../context/decisions/UI.md)).
+| Input | Requirement |
+|-------|-------------|
+| Compute multi-file (`objdump.txt` + `symbolizer.json` / `summary.db` + source `.asc`) | → `reportModel.sourceCorrelation` with `mock: false` ([DATA-52](../context/questions/DATA.md) partial) |
+| `SourceCorrelation.json` (or Product-named embed) | Reserved; schema still TBD → ignored until Product locks it |
+| Missing embeds on report packs | Omit `sourceCorrelation` and `'sourceTab'`; 源码 control is absent ([UI-37](../context/decisions/UI.md)) |
+| Chrome Trace–only | Omit `sourceCorrelation` and `'sourceTab'` |
+| SASS listing columns | `#` (UI) · Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy — Address/Assembly are table cells (no Sudu) |
+| 详情 / 缓存 | Not in the chrome ([UI-37](../context/decisions/UI.md)) |
+
+Switch point: `adaptSourceCorrelation(payloads)` — compute multi-file **in**; single JSON + emulate ELF still open ([DATA-52](../context/questions/DATA.md)–[DATA-55](../context/questions/DATA.md)). Hosts must `await ensurePcSamplingSql()` (or rely on ProfilingReport’s load path) before adapting packs that embed `summary.db`. Dock / view modes / Redo Resolve / heat tint: [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md).
 
 ### Block scope matrix
 

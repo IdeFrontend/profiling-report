@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markRaw, nextTick } from 'vue';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
+import * as adapters from '../../adapters';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
+import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { HEATMAP_BLOCK_COUNT } from '../../adapters/emulateMemoryHeatmap';
@@ -12,6 +14,32 @@ import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
+
+vi.mock('@sudu-ide/code-review', () => ({
+  newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
+  newEditor: vi.fn(() => ({
+    setModel: vi.fn(),
+    setVScrollListener: vi.fn(),
+    setVScrollVisible: vi.fn(),
+    setCaretListener: vi.fn(),
+    setPosition: vi.fn(),
+    setTheme: vi.fn(),
+    getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
+    revealLine: vi.fn(),
+    revealLineInCenter: vi.fn(),
+    focus: vi.fn(),
+    dispose: vi.fn(),
+    getDevicePixelRatio: () => 1,
+    getLineHeight: () => 18,
+    getEditorHeight: () => 200,
+    getMaxVScrollPos: () => 0,
+    getNumLines: () => 10,
+    getFontSize: () => 12,
+    getFontFamily: () => 'monospace',
+    setVScrollPos: vi.fn(),
+  })),
+  newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
+}));
 
 /** Two linked events, so the dock mounts its Relevent column. */
 function depsModel(): SwimlaneModel {
@@ -107,6 +135,15 @@ function heatmapReport() {
 }
 
 describe('ProfilingReport scaffold', () => {
+  beforeEach(() => {
+    // Keep source loads sync-ish in unit tests (real wasm init is covered elsewhere).
+    vi.spyOn(adapters, 'ensurePcSamplingSql').mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('PR-CTXMENU-011: leaf-gutter context menu reaches the report root', async () => {
     const wrapper = mount(ProfilingReport, {
       attachTo: document.body,
@@ -1329,6 +1366,7 @@ describe('ProfilingReport scaffold', () => {
     const wrapper = mount(ProfilingReport, {
       props: { source: loadNpuRepBuffer() },
     });
+    await flushPromises();
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
@@ -1414,6 +1452,7 @@ describe('ProfilingReport scaffold', () => {
       const wrapper = mount(ProfilingReport, {
         props: { source: new ArrayBuffer(8) },
       });
+      await flushPromises();
       expect(wrapper.text()).toContain('alpha-op');
       expect(wrapper.find('[data-testid="profiling-report"]').attributes('data-capabilities')).toBe(
         'roofline',
@@ -1486,6 +1525,7 @@ describe('ProfilingReport scaffold', () => {
       const wrapper = mount(ProfilingReport, {
         props: { source: new ArrayBuffer(8) },
       });
+      await flushPromises();
       expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
 
       await wrapper.get('[data-testid="stats-aside-close"]').trigger('click');
@@ -1549,6 +1589,7 @@ describe('ProfilingReport scaffold', () => {
       const wrapper = mount(ProfilingReport, {
         props: { source: new ArrayBuffer(8) },
       });
+      await flushPromises();
       const layout = wrapper.find('.pr-layout');
       expect(layout.attributes('style')).toContain('--pr-aside-width: 480px');
 
@@ -1741,9 +1782,18 @@ describe('ProfilingReport scaffold', () => {
     expect(src).toMatch(/\.pr-topo-fs\s*\{[^}]*background:\s*#1a1a1a/s);
     expect(src).not.toMatch(/\.pr-topo-fs\s*\{[^}]*background:\s*var\(--pr-bg-aside/s);
     expect(src).toMatch(/\.pr-topo-fs__heat\s*\{[^}]*flex:\s*0\s+0\s+400px/s);
+    expect(src).toMatch(/\.pr-topo-fs__body--split\s*\{[^}]*gap:\s*16px/s);
     expect(src).toMatch(
       /\.pr-topo-fs__body\s+:deep\(\.pr-topo\)\s*\{[^}]*background:\s*transparent/s,
     );
+    // Zoom pill is `#262626` / `8px` on the overlay ground (1030 sketch), not transparent.
+    expect(src).toMatch(
+      /\.pr-topo-fs__body\s+:deep\(\.pr-topo__bar\)\s*\{[^}]*background:\s*#262626/s,
+    );
+    expect(src).toMatch(
+      /\.pr-topo-fs__body\s+:deep\(\.pr-topo__bar\)\s*\{[^}]*border-radius:\s*8px/s,
+    );
+    expect(src).toMatch(/\.pr-topo-fs__body\s+:deep\(\.pr-topo\)\s*\{[^}]*padding:\s*0/s);
 
     const wrapper = mount(ProfilingReport, {
       props: {
@@ -2185,5 +2235,160 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.emitted('export-html')).toBeUndefined();
     wrapper.unmount();
     vi.unstubAllGlobals();
+  });
+
+  it('PR-ROOT-028: Source tab v-if swap keeps viewState time window (UI-37)', async () => {
+    const hidden = mount(ProfilingReport, {
+      props: {
+        title: 'source-tab',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          sourceCorrelation: mockSourceCorrelation(),
+        },
+        capabilities: ['sourceTab'],
+      },
+    });
+    expect(hidden.find('[data-testid="tab-source"]').exists()).toBe(false);
+    hidden.unmount();
+
+    const reportModel = {
+      ...emptyReportViewModel(),
+      sourceCorrelation: { ...mockSourceCorrelation(), mock: false },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-tab',
+        swimlaneModel: depsModel(),
+        reportModel,
+        capabilities: ['sourceTab'],
+      },
+    });
+    wrapper.vm.viewState = {
+      ...wrapper.vm.viewState,
+      startTime: 120,
+      endTime: 480,
+    };
+
+    expect(wrapper.find('[data-testid="tab-source"]').attributes('disabled')).toBeUndefined();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(false);
+    expect(wrapper.findComponent(TimelineView).exists()).toBe(true);
+    expect(wrapper.vm.viewState.startTime).toBe(120);
+    expect(wrapper.vm.viewState.endTime).toBe(480);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-029: a Parameter frame opens Source at its line, or line 1', async () => {
+    const correlation = mockSourceCorrelation();
+    const file = correlation.files[0]!;
+    const bare = '/home/chenning/asc-devkit/examples/gather_2d/gather_2d.asc';
+    const model = depsModel();
+    model.processes[0]!.threads[0]!.events[0]!.args = { Code: [bare, `${bare}:39`] };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-link',
+        swimlaneModel: model,
+        reportModel: {
+          ...emptyReportViewModel(),
+          sourceCorrelation: {
+            ...correlation,
+            mock: false,
+            files: [{ ...file, id: 'gather_2d.asc', path: 'gather_2d.asc' }],
+          },
+        },
+        capabilities: ['sourceTab'],
+      },
+    });
+    (wrapper.vm as unknown as { selectEventById: (id: string) => void }).selectEventById('a');
+    await nextTick();
+
+    const links = wrapper.findAll('[data-testid="source-frame-link"]');
+    expect(links).toHaveLength(2);
+    await links[0]!.trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(
+      wrapper.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('1');
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    await wrapper.findAll('[data-testid="source-frame-link"]')[1]!.trigger('click');
+    await flushPromises();
+    expect(
+      wrapper.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('39');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-029: operator switch clears the frame caret', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const correlation = mockSourceCorrelation();
+    const file = correlation.files[0]!;
+    const linked = {
+      ...correlation,
+      mock: false as const,
+      files: [{ ...file, id: 'gather_2d.asc', path: 'gather_2d.asc' }],
+    };
+    const swimA = depsModel();
+    swimA.processes[0]!.threads[0]!.events[0]!.args = {
+      Code: ['/tmp/gather_2d.asc:39'],
+    };
+    const swimB = depsModel();
+    swimB.maxTime = 50;
+    const reportA = { ...emptyReportViewModel(), sourceCorrelation: linked };
+    const reportB = {
+      ...emptyReportViewModel(),
+      // New model, same file object: SourceView reapplies focus, the editor
+      // does not reload the document.
+      sourceCorrelation: { ...linked },
+    };
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swimA,
+      reportModel: reportA,
+      capabilities: ['sourceTab'],
+      operators: [
+        { id: 'a.npu.rep', label: 'a' },
+        { id: 'b.npu.rep', label: 'b' },
+      ],
+      operatorReports: {
+        'a.npu.rep': { swimlaneModel: swimA, reportModel: reportA, capabilities: ['sourceTab'] },
+        'b.npu.rep': { swimlaneModel: swimB, reportModel: reportB, capabilities: ['sourceTab'] },
+      },
+      selectedOperatorId: 'a.npu.rep',
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      await flushPromises();
+      (wrapper.vm as unknown as { selectEventById: (id: string) => void }).selectEventById('a');
+      await nextTick();
+      await wrapper.get('[data-testid="source-frame-link"]').trigger('click');
+      await flushPromises();
+      expect(
+        wrapper.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
+      ).toBe('39');
+
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      await wrapper.findAll('[data-testid="op-item"]')[1]!.trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+      expect(
+        wrapper.find('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').exists(),
+      ).toBe(false);
+      wrapper.unmount();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

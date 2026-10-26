@@ -51,12 +51,14 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-015**: Wheel-scrolling a tall stress fixture keeps the lane gutter `scrollTop` and each card-header screen Y locked to the same scroll offset — the scroll offset is baked into the card-strip `top` (no container `translateY`) — with no chase between gutter / cards / canvas.
 1. **PR-E2E-016**: During a live marquee, holding the pointer in the bottom edge band increases gutter `scrollTop` while the marquee rect stays visible (edge autoscroll).
 1. **PR-E2E-017**: Playground toolbar Export with `?locale=en` fetches `/npu-rep-html-template.txt`, stitches the loaded report using the HTML `<script>` embed slot (not marker strings inside the inlined viewer bundle), and downloads `{name}.html` whose embed slot is filled with `en`.
+1. **PR-E2E-018**: Source tab is absent without source embeds and opens `source-view` (no mock badge) when they are present; returning to Timeline unmounts it (UI-37).
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-10-23** — PR-E2E-018: the default sample now has real Source embeds, so the absent-tab check uses `vector_muladd`.
 - **2026-10-05** — PR-E2E-017: playground HTML export (template fetch + stitch download). Vite `%ENV%` must not strip embed placeholders; template is served as `.txt`.
 - **2026-09-13** — PR-E2E-015/016: scroll-layer lock under wheel, and marquee bottom-edge autoscroll in Chromium (jsdom cannot chase real layout + RAF edge scroll together).
 - **2026-09-12** — PR-E2E-014: dock enter must not reserve a full-height flex slot while still visually empty (black-hole regression vs master).
