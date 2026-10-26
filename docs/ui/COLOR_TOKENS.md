@@ -16,7 +16,10 @@ Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MST
 | `--pr-axis-tick` | `#343434` | Viewport/overview axis major bars + minor ticks (v930 sample ≈ `rgb(52,52,52)`) |
 | `--pr-axis-tick-muted` | `#272727` | Axis ticks outside the selected overview window (v930 sample ≈ `rgb(39,39,39)`) |
 | `--pr-playhead` | `#3078F0` | Vertical scrubber / accent blue |
-| `--pr-color-duration-bar` | `#5EC8D8` | Summary duration card bar (report-stats cyan) |
+| `--pr-color-duration-bar` | `#5EC8D8` | Legacy duration fill (unused when breakdown bar is shown) |
+| `--pr-color-duration-overhead` | `#0CB8A4` | 整体耗时 bar — 头开销 (`duration-card.png`) |
+| `--pr-color-duration-compute` | `#1476FF` | 整体耗时 bar — 计算 |
+| `--pr-color-duration-comm` | `#8E81F4` | 整体耗时 bar — 通信 |
 | `--pr-color-card-bar-primary` | `#5EC8D8` | Left dual-column bars (Cube / 读 / 并行使用率) |
 | `--pr-color-card-bar-secondary` | `#5ED8A8` | Right dual-column bars (Vector / 写 / 负载均衡度) |
 | `--pr-color-overview-cube` | `#3078F0` | Overview Cube series stroke (dedicated blue accent) |
@@ -88,6 +91,9 @@ The five are applied directly in [`MemoryHeatmapPanel`](../../src/ui/StatsAside/
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
   --pr-color-duration-bar: #5ec8d8;
+  --pr-color-duration-overhead: #0cb8a4;
+  --pr-color-duration-compute: #1476ff;
+  --pr-color-duration-comm: #8e81f4;
   --pr-color-card-bar-primary: #5ec8d8;
   --pr-color-card-bar-secondary: #5ed8a8;
   --pr-color-bandwidth-bar: #5ec8d8; /* alias of card-bar-primary */

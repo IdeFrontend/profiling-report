@@ -125,6 +125,13 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
       const { summary, computeCard, bandwidthCards } = report.reportModel;
       expect(summary.parallelUtilization).toBeGreaterThan(0.8);
       expect(summary.parallelBalance).toBeGreaterThan(0.8);
+      const parts = summary.durationBreakdown;
+      expect(parts).toBeDefined();
+      expect(parts!.overheadUs + parts!.computeUs + parts!.communicationUs).toBeCloseTo(
+        summary.taskDurationUs!,
+        6,
+      );
+      expect(parts!.overlapUs).toBeGreaterThan(0);
       expect(computeCard?.sides.length).toBeGreaterThanOrEqual(2);
       for (const side of computeCard!.sides) {
         expect(side.measuredTflops).toBeGreaterThan(5);

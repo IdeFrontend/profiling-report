@@ -878,7 +878,9 @@ test.describe('PR-STATS-036 summary tiles at resized widths', () => {
 
   test('PR-STATS-036: a long label or secondary wraps instead of spilling', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
-    await page.goto('/?locale=en');
+    // sample.lite.rep carries a duration breakdown, which hides the Blocks/opName
+    // secondary. out.rep still shows that fallback, which is what this wrap check needs.
+    await page.goto('/?fixture=rep&locale=en');
     await expect(page.getByTestId('playground-ready')).toBeVisible();
     await expect(page.getByTestId('stats-summary')).toBeVisible({ timeout: 30_000 });
 
