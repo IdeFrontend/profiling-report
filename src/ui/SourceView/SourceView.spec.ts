@@ -274,21 +274,25 @@ describe('SourceView', () => {
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(ed.setTheme).toHaveBeenCalled();
     const theme = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number | string, string>;
-    // CurrentLineBackground overridden to editor plane so Sudu stop painting the old line.
-    expect(theme[14]).toBe('#1a1a1a');
+    // Hide paints current-line border/bg as the same plane as EditorBackground.
+    expect(theme[11]).toBe('#1e1f22');
+    expect(theme[13]).toBe(theme[11]);
+    expect(theme[14]).toBe(theme[11]);
     // Clicking the line clearLine left in place must paint the band again.
     ed.setTheme.mockClear();
     await sourceTable.find('tr[data-line="46"]').trigger('click');
     await flushPromises();
     expect(ed.setTheme).toHaveBeenCalled();
     const restored = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
-    expect(restored[14]).not.toBe('#1a1a1a');
+    expect(restored[11]).toBe('#1e1f22');
+    expect(restored[14]).toBeUndefined();
     // Editor caret move (not a metrics click) must restore the band too.
     ed.setTheme.mockClear();
     ed.setPosition({ lineNumber: 50, column: 1 });
     expect(ed.setTheme).toHaveBeenCalled();
     const fromCaret = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
-    expect(fromCaret[14]).not.toBe('#1a1a1a');
+    expect(fromCaret[11]).toBe('#1e1f22');
+    expect(fromCaret[14]).toBeUndefined();
   });
 
   it('PR-SOURCE-006c: editor click on the cleared line selects it', async () => {
