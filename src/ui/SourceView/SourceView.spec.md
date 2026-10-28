@@ -35,7 +35,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 3. **PR-SOURCE-003** — Source row click updates correlated asm highlight set.
 4. **PR-SOURCE-004** — Hovering a sampling-stall metric cell shows `stall-tooltip`.
 5. **PR-SOURCE-005** — Asm row click keeps the chosen asm current line, moves the Sudu caret with `setPosition` + `revealLine` + `focus` (Sudu only paints the caret while focused — no custom canvas overlay), marks the mapped source metrics row, and highlights the full mapped asm sibling set (no snap to first mapped insn).
-6. **PR-SOURCE-006** — Selecting an unmapped source line clears asm current/correlated highlights. Unmapped asm row clears source metrics current row and Sudu current-line paint (`clearLine` / theme override; Sudu has no clearSelection API).
+6. **PR-SOURCE-006** — Selecting an unmapped source line clears asm current/correlated highlights. Unmapped asm row clears source metrics current row and Sudu current-line paint (`clearLine` / theme override pinning `EditorBackground` + current-line colors to the same plane; Sudu has no clearSelection API).
 7. **PR-SOURCE-007** — Toolbar exposes search, the six Navigate By buttons, and shared link toggles (`source-search`, `source-toolbar-actions`, `source-find-next`, `source-find-prev`, `source-nav-highest`, `source-nav-lowest`, `source-sort-asc`, `source-sort-desc`, `source-link-source`, `source-link-asm`). Does **not** expose dim-zeros, Source shortcuts, Redo Resolve, or scroll-to-top/bottom.
 8. **PR-SOURCE-008** — Search paints both panes at once: Sudu `highlightRanges` on Source (metrics table unmarked) and Assembly chips on SASS (`source-asm-match` / `pr-field-match`); Address-only needles do not match Assembly. Enter steps the **selected** pane only (`selectNextRange` / wrap on Source). Next/previous data buttons are always enabled, ignore the search query, and step the selected pane’s Navigate By data rows in document order without wrapping. A numeric 0 is skipped. With no caret, next starts at the first data row and previous at the last.
 9. **PR-SOURCE-009** — Turning off either Link views toggle (shared state) keeps source selection from moving the asm caret; both buttons stay in sync.
@@ -64,6 +64,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-10-27** — `clearLine` pins Sudu `EditorBackground` and hides the current-line band with that same `#1e1f22` plane (Sudu dark `editBg`), so an unmapped asm clear no longer leaves a `#1a1a1a` strip (`PR-SOURCE-006`).
 - **2026-10-24** — Navigation tooltips are the full sentence for that button (next / previous row with data, highest, next higher, next lower, lowest) in the corresponding metric column.
 - **2026-10-24** — Navigation tooltips name the action in one short line: non-zero row, highest / lowest value, next higher / lower value.
 - **2026-10-24** — Navigate By buttons follow the selected pane’s metric column. Next/previous skip numeric 0 and do not wrap. Highest / lowest jump to the extreme value. Next higher / next lower walk values (ties by line number) and stop at the end (`PR-SOURCE-007`/`008`/`012`/`016`/`024`).

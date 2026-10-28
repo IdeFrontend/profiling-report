@@ -532,7 +532,7 @@ const styleVars = computed(() => {
   --pr-src-row-h: 20px;
   --pr-src-font-size: 12px;
   --pr-src-font-family: monospace;
-  /* Sketch metrics plane is #1E1E1E (slightly above editor #1A1A1A). */
+  /* Sketch metrics plane is #1E1E1E (Sudu canvas / editor host is #1E1F22). */
   --table-bg: #1e1e1e;
   background: var(--table-bg);
   color: #cccccc;
