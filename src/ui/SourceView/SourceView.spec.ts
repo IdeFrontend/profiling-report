@@ -1268,4 +1268,47 @@ describe('SourceView', () => {
     expect(missingEn.find('[data-testid="asm-empty"]').text()).toBe(t('sourceAsmEmpty', 'en'));
     missingEn.unmount();
   });
+
+  it('keeps caret and search when resolveSourceFile overlays same-shaped model', async () => {
+    const base = mockSourceCorrelation();
+    const missing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          text: '// missing source embed: /home/build/k.asc\n',
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model: missing } });
+    await wrapper.find('[data-testid="source-pane-source"] tr[data-line="1"]').trigger('click');
+    await wrapper.get('[data-testid="source-search"]').setValue('AscendC');
+    await wrapper.vm.$nextTick();
+    expect(
+      wrapper.find('[data-testid="source-pane-source"] tr[data-line="1"]').classes(),
+    ).toContain('pr-src-metrics__row--current');
+    expect((wrapper.get('[data-testid="source-search"]').element as HTMLInputElement).value).toBe(
+      'AscendC',
+    );
+
+    const filled = {
+      ...missing,
+      files: [
+        {
+          ...missing.files[0]!,
+          text: 'extern "C" void gather_2d_custom() {\n  AscendC::TPipe pipe;\n}\n',
+        },
+      ],
+    };
+    await wrapper.setProps({ model: filled });
+    await wrapper.vm.$nextTick();
+    expect((wrapper.get('[data-testid="source-search"]').element as HTMLInputElement).value).toBe(
+      'AscendC',
+    );
+    expect(
+      wrapper.find('[data-testid="source-pane-source"] tr[data-line="1"]').classes(),
+    ).toContain('pr-src-metrics__row--current');
+    wrapper.unmount();
+  });
 });

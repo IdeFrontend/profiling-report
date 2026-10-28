@@ -2412,21 +2412,34 @@ describe('ProfilingReport scaffold', () => {
         },
       ],
     };
+    let releaseResolve!: (text: string) => void;
+    const resolveGate = new Promise<string>((resolve) => {
+      releaseResolve = resolve;
+    });
     const resolveSourceFile = vi.fn(async (req: { fileName: string; basename: string }) => {
       expect(req).toEqual({ fileName: missingPath, basename: 'gather_2d.asc' });
-      return 'extern "C" void gather_2d_custom() {}\n';
+      return resolveGate;
     });
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'resolve-source',
         swimlaneModel: depsModel(),
-        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        reportModel: {
+          ...topologyReport(),
+          sourceCorrelation: withMissing,
+        },
         capabilities: ['sourceTab'],
         resolveSourceFile,
       },
     });
-    await flushPromises();
+    await nextTick();
     expect(resolveSourceFile).toHaveBeenCalledTimes(1);
+    // Overlay must not close topology 全屏 when resolve later patches sourceCorrelation.
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+    releaseResolve('extern "C" void gather_2d_custom() {}\n');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
     await wrapper.find('[data-testid="tab-source"]').trigger('click');
     await nextTick();
     await flushPromises();

@@ -1078,8 +1078,11 @@ watch(
   },
 );
 
+// Close 全屏 when the *base* report swaps (load / host model / operator). Do not
+// watch `report` itself: `resolveSourceFile` overlays a new object with the same
+// topology and would dismiss an in-flight 全屏 when Ascend C text arrives.
 watch(
-  report,
+  () => props.reportModel ?? internalReport.value,
   () => {
     closeTopologyFullscreen();
   },

@@ -11,6 +11,18 @@ export function isMissingSourceEmbed(text: string): boolean {
   return text.startsWith(MISSING_SOURCE_EMBED_PREFIX);
 }
 
+/**
+ * Placeholder text aligned to `lineCount` so the metrics table and Sudu stay
+ * in sync until a host fills the real document.
+ */
+export function missingSourceEmbedText(path: string, lineCount: number): string {
+  const n = Math.max(1, lineCount);
+  const lines = Array.from({ length: n }, (_, i) =>
+    i === 0 ? `${MISSING_SOURCE_EMBED_PREFIX}${path}` : '',
+  );
+  return `${lines.join('\n')}\n`;
+}
+
 export type ResolveSourceFileRequest = {
   /** Symbolizer `FileName` as stored (often an absolute build path). */
   fileName: string;

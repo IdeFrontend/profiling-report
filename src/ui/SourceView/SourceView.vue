@@ -114,7 +114,18 @@ function applyFocus() {
 
 watch(
   () => props.model,
-  (m) => {
+  (m, prev) => {
+    // resolveSourceFile overlays a new model with the same file ids / assembly —
+    // keep caret, search, and file selection so an already-open Source tab is not
+    // reset when Ascend C text arrives after first paint.
+    const sameShape =
+      prev != null &&
+      prev.files.length === m.files.length &&
+      prev.files.every((f, i) => f.id === m.files[i]?.id) &&
+      prev.assembly.id === m.assembly.id;
+    if (sameShape && m.files.some((f) => f.id === selectedFileId.value)) {
+      return;
+    }
     selectedFileId.value = m.files[0]?.id ?? '';
     sourceNavigateBy.value = firstListedNavigate(m.navigateBy, m.files[0]?.metricsColumns);
     asmNavigateBy.value = firstListedNavigate(m.navigateBy, m.assembly.metricsColumns);

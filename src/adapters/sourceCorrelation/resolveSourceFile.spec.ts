@@ -5,6 +5,7 @@ import {
   applyResolvedSourceText,
   fileNeedsSourceResolve,
   isMissingSourceEmbed,
+  missingSourceEmbedText,
   resolveMissingSourceFiles,
 } from './resolveSourceFile';
 
@@ -53,6 +54,9 @@ describe('resolveSourceFile helpers', () => {
     expect(isMissingSourceEmbed('real source')).toBe(false);
     expect(fileNeedsSourceResolve(placeholderFile())).toBe(true);
     expect(fileNeedsSourceResolve(placeholderFile({ text: 'void kernel() {}\n' }))).toBe(false);
+    const padded = missingSourceEmbedText('/p/a.asc', 39);
+    expect(isMissingSourceEmbed(padded)).toBe(true);
+    expect(padded.split(/\r?\n/).length - 1).toBe(39);
   });
 
   it('applyResolvedSourceText replaces text and preserves stall metrics', () => {

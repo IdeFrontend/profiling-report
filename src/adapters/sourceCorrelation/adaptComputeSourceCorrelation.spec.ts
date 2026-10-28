@@ -194,6 +194,8 @@ describe('adaptComputeSourceCorrelation', () => {
     const model = adaptSourceCorrelation(payloads)!;
     expect(model.files[0]!.text.startsWith('// missing source embed:')).toBe(true);
     expect(model.files[0]!.path).toMatch(/gather_2d\.asc/);
+    // Placeholder line count matches metrics so Navigate By / Sudu stay aligned.
+    expect(model.files[0]!.text.split(/\r?\n/).length - 1).toBe(model.files[0]!.lines.length);
     // Stall rollups survive so resolveSourceFile can fill text without losing them.
     const srcHot = model.files[0]!.lines.find((l) => (l.values.samplingStall as number) > 0);
     expect(srcHot?.stallBreakdown?.length).toBeGreaterThan(0);

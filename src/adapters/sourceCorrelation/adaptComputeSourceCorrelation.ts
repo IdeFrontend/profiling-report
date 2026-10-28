@@ -12,6 +12,7 @@ import {
   readPcSamplingDbSync,
   type PcSamplingRow,
 } from './readPcSamplingDb';
+import { missingSourceEmbedText } from './resolveSourceFile';
 
 const SOURCE_COLUMNS: SourceMetricsColumn[] = [
   { id: 'instructionsExecuted', label: 'Instructions Executed', kind: 'number' },
@@ -330,7 +331,7 @@ export function adaptComputeSourceCorrelation(
       id: file.id,
       path: file.path,
       language: languageFor(file.path),
-      text: file.text || `// missing source embed: ${file.path}\n`,
+      text: file.text || missingSourceEmbedText(file.path, file.metrics.length),
       metricsColumns: SOURCE_COLUMNS,
       // Keep rolled-up metrics even when text is a placeholder so resolveSourceFile
       // can fill the editor without dropping stall / instr / occupancy.
