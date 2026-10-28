@@ -37,9 +37,14 @@ import { matchRanges, type SearchRange } from '../searchHighlight';
 import { t } from '../../i18n';
 import { selectedTextFromSudu } from './suduSelection';
 
-/** Match `.pr-sudu-pane__editor` canvas plane. */
-const SUDU_EDITOR_BG = '#1a1a1a';
-/** `ThemeColor.CurrentLineBorder` / `CurrentLineBackground` (const enum → number). */
+/**
+ * Sudu `baseTheme: 'dark'` Idea New UI editBg (`IdeaCodeColors$Dark_editBg`).
+ * Pin EditorBackground to this and reuse it when hiding the current-line band so
+ * clearLine never paints a mismatched strip against the canvas.
+ */
+const SUDU_EDITOR_BG = '#1e1f22';
+/** `ThemeColor.EditorBackground` / `CurrentLineBorder` / `CurrentLineBackground`. */
+const SUDU_THEME_EDITOR_BG = 11;
 const SUDU_THEME_CURRENT_LINE_BORDER = 13;
 const SUDU_THEME_CURRENT_LINE_BG = 14;
 
@@ -51,9 +56,10 @@ function suduEditorTheme(opts?: { hideCurrentLine?: boolean }) {
       size: SOURCE_TAB_EDITOR_FONT.size,
       weight: SOURCE_TAB_EDITOR_FONT.weight,
     },
+    [SUDU_THEME_EDITOR_BG]: SUDU_EDITOR_BG,
     ...(opts?.hideCurrentLine
       ? {
-          // Sudu keeps painting currentLineBg after blur; match the canvas so it disappears.
+          // Sudu keeps painting currentLineBg after blur; match EditorBackground.
           [SUDU_THEME_CURRENT_LINE_BORDER]: SUDU_EDITOR_BG,
           [SUDU_THEME_CURRENT_LINE_BG]: SUDU_EDITOR_BG,
         }
@@ -1071,7 +1077,7 @@ defineExpose({
 .pr-sudu-pane__editor {
   position: relative;
   height: 100%;
-  background: #1a1a1a;
+  background: #1e1f22;
   overflow: hidden;
 }
 
