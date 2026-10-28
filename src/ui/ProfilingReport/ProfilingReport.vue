@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
-import { ensurePcSamplingSql, loadReportSource } from '../../adapters';
+import {
+  ensurePcSamplingSql,
+  loadReportSource,
+  resolveMissingSourceFiles,
+  type ResolveSourceFile,
+} from '../../adapters';
 import {
   resolveSourceFrame,
   type SourceFrameTarget,
@@ -37,6 +42,7 @@ import {
   type ReportCapability,
   type ReportOperator,
   type ReportViewModel,
+  type SourceCorrelationModel,
   type SelectedEvent,
   type SwimEvent,
   type SwimlaneModel,
@@ -143,6 +149,12 @@ const props = withDefaults(defineProps<{
   environment?: 'vscode' | 'browser' | (string & {});
   /** Same-origin URL for the Sudu TeaVM worker (Source tab). */
   suduWorkerUrl?: string;
+  /**
+   * Optional host hook: fill Ascend C source when the pack has correlation embeds
+   * but no `.asc` text ([issue #175](https://github.com/IdeFrontend/profiling-report/issues/175)).
+   * Library never reads the filesystem; return `null` to keep the placeholder.
+   */
+  resolveSourceFile?: ResolveSourceFile;
 }>(), {
   title: undefined,
   source: undefined,
@@ -161,6 +173,7 @@ const props = withDefaults(defineProps<{
   capabilities: undefined,
   environment: undefined,
   suduWorkerUrl: '/sudu/worker.js',
+  resolveSourceFile: undefined,
 });
 
 const emit = defineEmits<{
@@ -180,6 +193,11 @@ const emit = defineEmits<{
 const internalSwim = shallowRef<SwimlaneModel | null>(null);
 const internalReport = ref<ReportViewModel | null>(null);
 const internalCapabilities = ref<ReportCapability[] | null>(null);
+/**
+ * Host `resolveSourceFile` may fill missing Ascend C text after first paint.
+ * Overlay on top of `reportModel` / `internalReport` so Vue refreshes SourceView.
+ */
+const resolvedSourceCorrelation = ref<SourceCorrelationModel | null>(null);
 const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
 const hovered = ref<SwimEvent | null>(null);
@@ -325,7 +343,13 @@ const contextMenuCanPin = computed(() => {
   const lane = swim.value ? findThreadById(swim.value, ctx.laneId) : null;
   return !!lane && !isFolderNode(lane);
 });
-const report = computed(() => props.reportModel ?? internalReport.value);
+const report = computed(() => {
+  const base = props.reportModel ?? internalReport.value;
+  if (!base) return null;
+  const filled = resolvedSourceCorrelation.value;
+  if (!filled || filled === base.sourceCorrelation) return base;
+  return { ...base, sourceCorrelation: filled };
+});
 /** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
 const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
 /** Host prop wins; otherwise the ones the adapter derived from the loaded source. */
@@ -910,6 +934,7 @@ function applyAdapted(adapted: AdaptedReport) {
   internalSwim.value = adapted.swimlaneModel;
   internalReport.value = adapted.reportModel;
   internalCapabilities.value = adapted.capabilities ?? null;
+  resolvedSourceCorrelation.value = null;
   resetViewFromModel(adapted.swimlaneModel, reportAutoOpensAside(adapted.reportModel, caps.value));
   loadError.value = null;
   emit('ready');
@@ -942,6 +967,7 @@ function failLoad(cause: unknown) {
   internalSwim.value = null;
   internalReport.value = null;
   internalCapabilities.value = null;
+  resolvedSourceCorrelation.value = null;
   selected.value = null;
   selectedEvent.value = null;
   hovered.value = null;
@@ -953,6 +979,20 @@ function failLoad(cause: unknown) {
 
 /** Bumps on each source load/clear so stale async loads do not applyAdapted. */
 let sourceLoadGen = 0;
+/** Bumps when starting a resolve pass so stale host replies do not overwrite. */
+let sourceResolveGen = 0;
+
+async function fillMissingSourceFiles(
+  reportModel: ReportViewModel | null | undefined,
+  resolveGen: number,
+) {
+  const sc = reportModel?.sourceCorrelation;
+  if (!sc || sc.mock || !props.resolveSourceFile) return;
+  const next = await resolveMissingSourceFiles(sc, props.resolveSourceFile);
+  if (resolveGen !== sourceResolveGen) return;
+  if (next === sc) return;
+  resolvedSourceCorrelation.value = next;
+}
 
 async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
   try {
@@ -965,6 +1005,8 @@ async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
     }
     if (gen !== sourceLoadGen) return;
     applyAdapted(loadReportSource(source));
+    const resolveGen = ++sourceResolveGen;
+    await fillMissingSourceFiles(internalReport.value, resolveGen);
   } catch (cause) {
     if (gen !== sourceLoadGen) return;
     failLoad(cause);
@@ -979,10 +1021,13 @@ function onOperatorChange(id: string) {
   internalSwim.value = rep.swimlaneModel;
   internalReport.value = rep.reportModel;
   internalCapabilities.value = rep.capabilities ?? null;
+  resolvedSourceCorrelation.value = null;
   // Viewport/selection reset like a fresh load, but keep aside open/closed and panel widths.
   resetViewFromModel(rep.swimlaneModel, viewState.value.asideVisible, {
     preservePanelWidths: true,
   });
+  const resolveGen = ++sourceResolveGen;
+  void fillMissingSourceFiles(rep.reportModel, resolveGen);
 }
 
 /** Parse before first paint when `source` is already available (avoids empty→loaded height jump). */
@@ -990,6 +1035,7 @@ watch(
   () => props.source,
   (src) => {
     sourceLoadGen += 1;
+    sourceResolveGen += 1;
     const gen = sourceLoadGen;
     if (src) {
       void loadFromSource(src, gen);
@@ -1002,7 +1048,20 @@ watch(
     internalSwim.value = null;
     internalReport.value = null;
     internalCapabilities.value = null;
+    resolvedSourceCorrelation.value = null;
     closeTopologyFullscreen();
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.reportModel,
+  (rm) => {
+    if (props.source) return;
+    resolvedSourceCorrelation.value = null;
+    if (!rm?.sourceCorrelation) return;
+    const resolveGen = ++sourceResolveGen;
+    void fillMissingSourceFiles(rm, resolveGen);
   },
   { immediate: true },
 );

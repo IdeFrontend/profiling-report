@@ -62,6 +62,17 @@ Host may pass capability flags so the library hides Phase 2 UI until ready. **Ca
 
 **`sourceTab` (UI-37).** Derived on report packs (`.rep` / npu-rep / emulate) only when a non-mock `reportModel.sourceCorrelation` adapted. Packs without Source embeds omit the flag and the 源码 control. Pure Chrome Trace omits it. Host `capabilities` override replaces adapter flags — include `'sourceTab'` and a non-mock model to keep the tab when overriding. Hosts that open Source must serve the Sudu worker (`suduWorkerUrl` prop; same-origin). The editor uses the browser’s generic `monospace` family with no fallback stack; no font assets are required.
 
+**`resolveSourceFile` ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)).** Optional prop on `<ProfilingReport>`:
+
+```ts
+resolveSourceFile?: (request: {
+  fileName: string;  // symbolizer FileName (often absolute)
+  basename: string;  // e.g. gather_2d.asc
+}) => Promise<string | null>;
+```
+
+Compute packs may ship `objdump` / `symbolizer` / `summary.db` without Ascend C source. The library only looks inside pack payloads; it never opens disk paths. When adapted source text is the `// missing source embed: …` placeholder, the library calls this hook (once per missing file). Return UTF-8 source text to fill the editor (async after first paint is supported); return `null` or throw to keep the placeholder. Skip is automatic when `.asc` / `.cpp` is already in the pack. Hosts (VS Code / MSTT) should implement the hook via `workspace.fs` (Remote-SSH-safe) with an allowlist (workspace folders + report directory).
+
 MVP/M1 host can pass `[]` or omit; library shows summary, PIPE, M1 detail tabs, and timeline without requiring capability flags for those. `memoryDiagram` / measure chrome may be gated.
 
 `roofline` is derived when the report yields usable points; a host `capabilities` prop overrides the derived set wholesale.

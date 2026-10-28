@@ -3,10 +3,12 @@ import { markRaw, nextTick } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
+import SourceView from '../SourceView/SourceView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import * as adapters from '../../adapters';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
+import { MISSING_SOURCE_EMBED_PREFIX } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { HEATMAP_BLOCK_COUNT } from '../../adapters/emulateMemoryHeatmap';
@@ -2393,5 +2395,81 @@ describe('ProfilingReport scaffold', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('PR-ROOT-030: resolveSourceFile fills missing Ascend C after first paint', async () => {
+    const base = mockSourceCorrelation();
+    const missingPath = '/home/build/gather_2d.asc';
+    const withMissing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          id: 'gather_2d.asc',
+          path: missingPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${missingPath}\n`,
+        },
+      ],
+    };
+    const resolveSourceFile = vi.fn(async (req: { fileName: string; basename: string }) => {
+      expect(req).toEqual({ fileName: missingPath, basename: 'gather_2d.asc' });
+      return 'extern "C" void gather_2d_custom() {}\n';
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'resolve-source',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+        resolveSourceFile,
+      },
+    });
+    await flushPromises();
+    expect(resolveSourceFile).toHaveBeenCalledTimes(1);
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await flushPromises();
+    const sourceView = wrapper.findComponent(SourceView);
+    expect(sourceView.exists()).toBe(true);
+    expect(sourceView.props('model').files[0].text).toContain('gather_2d_custom');
+    expect(sourceView.props('model').files[0].text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(
+      false,
+    );
+    wrapper.unmount();
+
+    const noCall = vi.fn(async () => 'unused');
+    const embedded = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          sourceCorrelation: { ...mockSourceCorrelation(), mock: false },
+        },
+        capabilities: ['sourceTab'],
+        resolveSourceFile: noCall,
+      },
+    });
+    await flushPromises();
+    expect(noCall).not.toHaveBeenCalled();
+    embedded.unmount();
+
+    const miss = vi.fn(async () => null);
+    const kept = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+        resolveSourceFile: miss,
+      },
+    });
+    await flushPromises();
+    expect(miss).toHaveBeenCalled();
+    await kept.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(
+      kept.findComponent(SourceView).props('model').files[0].text.startsWith(MISSING_SOURCE_EMBED_PREFIX),
+    ).toBe(true);
+    kept.unmount();
   });
 });

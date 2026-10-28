@@ -124,7 +124,7 @@ interface BuiltSourceFile {
  */
 function sourceFilesFromSites(
   payloads: Record<string, Uint8Array>,
-  sites: { fileName: string }[],
+  sites: { fileName: string; line?: number | null }[],
 ): { order: BuiltSourceFile[]; byId: Map<string, BuiltSourceFile> } {
   const byId = new Map<string, BuiltSourceFile>();
   const order: BuiltSourceFile[] = [];
@@ -139,7 +139,7 @@ function sourceFilesFromSites(
       id,
       path: hit?.path ?? fileName,
       text,
-      metrics: emptyMetrics(text.length ? lineCount : 1),
+      metrics: emptyMetrics(lineCount),
       stallByLine: new Map(),
       breakdownByLine: new Map(),
       instrByLine: new Map(),
@@ -157,6 +157,16 @@ function sourceFilesFromSites(
     add(
       Object.keys(payloads).find((k) => /\.(asc|cpp|h)$/i.test(k)) ?? 'source.asc',
     );
+  }
+  // Missing pack text starts at 1 line; grow so mapped stall/instr lines still fit
+  // until a host `resolveSourceFile` fills the real document.
+  for (const site of sites) {
+    if (!site.fileName || site.line == null || site.line < 1) continue;
+    const file = byId.get(basename(site.fileName));
+    if (!file || file.text) continue;
+    if (site.line > file.metrics.length) {
+      file.metrics = emptyMetrics(site.line);
+    }
   }
   return { order, byId };
 }
@@ -322,7 +332,9 @@ export function adaptComputeSourceCorrelation(
       language: languageFor(file.path),
       text: file.text || `// missing source embed: ${file.path}\n`,
       metricsColumns: SOURCE_COLUMNS,
-      lines: file.text ? file.metrics : emptyMetrics(1),
+      // Keep rolled-up metrics even when text is a placeholder so resolveSourceFile
+      // can fill the editor without dropping stall / instr / occupancy.
+      lines: file.metrics,
     })),
     assembly,
     sourceToAsm,
