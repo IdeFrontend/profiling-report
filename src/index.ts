@@ -17,10 +17,13 @@ export {
   adaptPayloads,
   adaptRep,
   adaptSourceCorrelation,
+  applyResolvedSourceText,
   configurePcSamplingSql,
   ensurePcSamplingSql,
   chromeTraceToSwimlane,
+  isMissingSourceEmbed,
   mockSourceCorrelation,
+  resolveMissingSourceFiles,
   coreNameToPipeSide,
   csvTableFromPipeUtilizationHist,
   emptyReportViewModel,
@@ -42,6 +45,10 @@ export {
 } from './adapters';
 
 export type * from './domain/types';
+export type {
+  ResolveSourceFile,
+  ResolveSourceFileRequest,
+} from './adapters';
 export {
   DEFAULT_DEPENDENCY_DEPTH,
   MAX_DEPENDENCY_DEPTH,

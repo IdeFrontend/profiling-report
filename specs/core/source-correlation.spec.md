@@ -27,6 +27,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 - Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` via sql.js (`await ensurePcSamplingSql()` before adapt when stalls are needed). Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load. Instructions Executed and Warp Occupancy stay 0 unless that table also has `Instructions_Executed` and `Warp_Occupancy` (a 0–1 fraction). Sample packs include them; gather_2d does not ([DATA-55](../../docs/context/questions/DATA.md)). Mapped source lines sum stall and instructions and average occupancy.
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
 - Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; correlation keys use that file's id.
+- When that pack text is absent, adapt still emits the file with a `// missing source embed: …` placeholder sized to the grown metrics line count and keeps mapped stall / instr / occupancy rollups so a host `resolveSourceFile` can fill the editor later without dropping them ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 
 **Real path — single JSON.** `SourceCorrelation.json` (and aliases) remain reserved; schema is still Product-TBD, so those embeds currently return `null` ([DATA-52](../../docs/context/questions/DATA.md)).
 
@@ -47,6 +48,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 7. **PR-SRC-007** — `parseObjdump` extracts instruction rows from the gather_2d listing.
 8. **PR-SRC-008** — `loadReportSource(gather_2d.npu-rep)` (leaf with `.asc` embed) yields `sourceCorrelation.mock === false` and non-empty maps.
 9. **PR-SRC-009** — Distinct symbolizer basenames become separate source files; `Line <= 0` stays unmapped.
+10. **PR-SRC-010** — Missing `.asc` embed keeps padded placeholder and mapped-line stall metrics.
 
 ## Dependencies
 
@@ -54,6 +56,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 ## Changelog
 
+- **2026-10-28** — Missing `.asc` embed keeps metrics-aligned placeholder and stall rollups (`PR-SRC-010`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 - **2026-10-24** — Optional `pc_sampling` columns `Instructions_Executed` and `Warp_Occupancy` fill those Source / SASS metrics. Packs without the columns stay at 0.
 - **2026-10-23** — PR-SRC-009: one source file per symbolizer basename.
 - **2026-10-19** — Restore sql.js reader for `pc_sampling` (drop hand-rolled B-tree walker).

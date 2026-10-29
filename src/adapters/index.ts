@@ -76,3 +76,12 @@ export {
   hasComputeSourcePack,
   COMPUTE_SOURCE_EMBED_NAMES,
 } from './sourceCorrelation/adaptComputeSourceCorrelation';
+export {
+  MISSING_SOURCE_EMBED_PREFIX,
+  isMissingSourceEmbed,
+  fileNeedsSourceResolve,
+  applyResolvedSourceText,
+  resolveMissingSourceFiles,
+  type ResolveSourceFile,
+  type ResolveSourceFileRequest,
+} from './sourceCorrelation/resolveSourceFile';

@@ -34,6 +34,12 @@ function firstListedNavigate(
 const props = withDefaults(
   defineProps<{
     model: SourceCorrelationModel;
+    /**
+     * Report-boundary generation from ProfilingReport. Bumps on load / operator /
+     * host model swap — not on `resolveSourceFile` text fill — so search resets
+     * across operators while same-shaped resolve overlays keep UI state.
+     */
+    session?: number;
     /** One-shot Source caret from a task-detail frame. Applied once per file and line. */
     focus?: SourceFrameTarget | null;
     locale?: string;
@@ -41,6 +47,7 @@ const props = withDefaults(
     userGuideUrl?: string;
   }>(),
   {
+    session: 0,
     focus: null,
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
@@ -102,10 +109,26 @@ function focusKey(focus: SourceFrameTarget | null | undefined): string {
   return focus ? `${focus.fileId}:${focus.line}` : '';
 }
 
+function clearFocusCaret() {
+  appliedFocusKey = '';
+  sourceLine.value = null;
+  asmLine.value = null;
+  syncOrigin.value = null;
+  sourcePane.value?.clearLine?.();
+  asmPane.value?.clearLine?.();
+}
+
 function applyFocus() {
   const focus = props.focus;
   const key = focusKey(focus);
-  if (!focus || !key || key === appliedFocusKey) return;
+  // Host cleared the frame caret (fresh load / operator switch). Do this even
+  // when the model keeps the same file ids — resolveSourceFile's same-shape
+  // preserve must not leave a stale current row.
+  if (!focus || !key) {
+    if (appliedFocusKey) clearFocusCaret();
+    return;
+  }
+  if (key === appliedFocusKey) return;
   if (!props.model.files.some((file) => file.id === focus.fileId)) return;
   appliedFocusKey = key;
   selectedFileId.value = focus.fileId;
@@ -113,8 +136,22 @@ function applyFocus() {
 }
 
 watch(
-  () => props.model,
-  (m) => {
+  () => [props.model, props.session] as const,
+  ([m], prev) => {
+    const prevModel = prev?.[0];
+    const prevSession = prev?.[1];
+    // Same session + same file ids: resolveSourceFile filled Ascend C text —
+    // keep caret, search, and file selection. A new session (operator / load /
+    // host report swap) always resets, even when basenames still match.
+    const sameSession = prevSession === props.session;
+    const sameShape =
+      prevModel != null &&
+      prevModel.files.length === m.files.length &&
+      prevModel.files.every((f, i) => f.id === m.files[i]?.id) &&
+      prevModel.assembly.id === m.assembly.id;
+    if (sameSession && sameShape && m.files.some((f) => f.id === selectedFileId.value)) {
+      return;
+    }
     selectedFileId.value = m.files[0]?.id ?? '';
     sourceNavigateBy.value = firstListedNavigate(m.navigateBy, m.files[0]?.metricsColumns);
     asmNavigateBy.value = firstListedNavigate(m.navigateBy, m.assembly.metricsColumns);
