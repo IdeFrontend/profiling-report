@@ -188,6 +188,19 @@ describe('adaptComputeSourceCorrelation', () => {
     );
   });
 
+  it('PR-SRC-010: missing .asc embed keeps placeholder and mapped-line stall metrics', () => {
+    const payloads = loadGatherPayloads();
+    delete payloads['gather_2d.asc'];
+    const model = adaptSourceCorrelation(payloads)!;
+    expect(model.files[0]!.text.startsWith('// missing source embed:')).toBe(true);
+    expect(model.files[0]!.path).toMatch(/gather_2d\.asc/);
+    // Placeholder line count matches metrics so Navigate By / Sudu stay aligned.
+    expect(model.files[0]!.text.split(/\r?\n/).length - 1).toBe(model.files[0]!.lines.length);
+    // Stall rollups survive so resolveSourceFile can fill text without losing them.
+    const srcHot = model.files[0]!.lines.find((l) => (l.values.samplingStall as number) > 0);
+    expect(srcHot?.stallBreakdown?.length).toBeGreaterThan(0);
+  });
+
   it('corrupt summary.db keeps compute model with zero stalls', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const payloads = loadGatherPayloads();
