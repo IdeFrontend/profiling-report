@@ -102,10 +102,26 @@ function focusKey(focus: SourceFrameTarget | null | undefined): string {
   return focus ? `${focus.fileId}:${focus.line}` : '';
 }
 
+function clearFocusCaret() {
+  appliedFocusKey = '';
+  sourceLine.value = null;
+  asmLine.value = null;
+  syncOrigin.value = null;
+  sourcePane.value?.clearLine?.();
+  asmPane.value?.clearLine?.();
+}
+
 function applyFocus() {
   const focus = props.focus;
   const key = focusKey(focus);
-  if (!focus || !key || key === appliedFocusKey) return;
+  // Host cleared the frame caret (fresh load / operator switch). Do this even
+  // when the model keeps the same file ids — resolveSourceFile's same-shape
+  // preserve must not leave a stale current row.
+  if (!focus || !key) {
+    if (appliedFocusKey) clearFocusCaret();
+    return;
+  }
+  if (key === appliedFocusKey) return;
   if (!props.model.files.some((file) => file.id === focus.fileId)) return;
   appliedFocusKey = key;
   selectedFileId.value = focus.fileId;
