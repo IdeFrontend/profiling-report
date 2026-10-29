@@ -2484,5 +2484,24 @@ describe('ProfilingReport scaffold', () => {
       kept.findComponent(SourceView).props('model').files[0].text.startsWith(MISSING_SOURCE_EMBED_PREFIX),
     ).toBe(true);
     kept.unmount();
+
+    // Late-bound hook (webview bridge after first paint) still fills placeholders.
+    const late = vi.fn(async () => 'extern "C" void late_bound() {}\n');
+    const deferred = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+      },
+    });
+    await flushPromises();
+    expect(late).not.toHaveBeenCalled();
+    await deferred.setProps({ resolveSourceFile: late });
+    await flushPromises();
+    expect(late).toHaveBeenCalledTimes(1);
+    await deferred.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(deferred.findComponent(SourceView).props('model').files[0].text).toContain('late_bound');
+    deferred.unmount();
   });
 });

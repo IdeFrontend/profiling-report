@@ -204,7 +204,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 27. **PR-ROOT-027** — The heat column does not disturb the overlay's existing geometry: the diagram keeps its own box (the fit frame still sizes from `100cqh`, see [MemoryTopologyPanel](../StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md)) inside the narrower left column, the zoom bar and wheel gestures are unchanged, and the Metric switcher (when `archDiagram`) stays over the diagram, not over the panel. The heat column itself is height-bounded (`align-self: stretch; overflow: hidden`) so [MemoryHeatmapPanel](../StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) can **resize** its lattice to fit. The overlay ground is literal `#1a1a1a` (dark-only; not `--pr-bg-aside`) and the diagram `.pr-topo` is transparent there. The fullscreen zoom bar is a `#262626` / `8px` pill; the heat card is the other `#262626` paint.
 28. **PR-ROOT-028** — With `capabilities: ['sourceTab']` and a non-mock `reportModel.sourceCorrelation`, 源码 opens `source-view` via `v-if` (Timeline unmounts); Timeline → Source → Timeline keeps the `viewState` time window (`startTime` / `endTime`). A `mock: true` model does not show the tab.
 29. **PR-ROOT-029** — A Parameter frame whose basename matches a bundled source file switches to 源码 and moves the caret to that line. A bare path opens line 1; `path:line` opens that line. A fresh load and an operator switch clear that caret, so the next report does not reopen the previous file and line.
-30. **PR-ROOT-030** — Optional `resolveSourceFile` fills missing Ascend C text after load ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)): embed present → hook not called; missing embed + resolve text → SourceView shows real source (async after first paint); `null` / throw → placeholder unchanged.
+30. **PR-ROOT-030** — Optional `resolveSourceFile` fills missing Ascend C text after load ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)): embed present → hook not called; missing embed + resolve text → SourceView shows real source (async after first paint); `null` / throw → placeholder unchanged; hook attached after first paint still resolves.
 
 ## Edge Cases
 
@@ -238,6 +238,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-10-29** — Late-bound `resolveSourceFile` still fills missing embeds; SourceView `session` resets search on operator / host swap but not on resolve overlay (`PR-ROOT-030`).
 - **2026-10-28** — Optional `resolveSourceFile` host hook fills missing Ascend C after load (`PR-ROOT-030`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 - **2026-10-23** — A fresh load and an operator switch clear the Source-tab frame caret (`PR-ROOT-029`).
 - **2026-10-23** — Parameter frames that match a bundled source file open 源码 at that line, or line 1 when the frame has no line (`PR-ROOT-029`).

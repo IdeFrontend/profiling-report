@@ -1281,7 +1281,7 @@ describe('SourceView', () => {
         },
       ],
     };
-    const wrapper = mount(SourceView, { props: { model: missing } });
+    const wrapper = mount(SourceView, { props: { model: missing, session: 1 } });
     await wrapper.find('[data-testid="source-pane-source"] tr[data-line="1"]').trigger('click');
     await wrapper.get('[data-testid="source-search"]').setValue('AscendC');
     await wrapper.vm.$nextTick();
@@ -1301,7 +1301,8 @@ describe('SourceView', () => {
         },
       ],
     };
-    await wrapper.setProps({ model: filled });
+    // Same session: resolve overlay only — keep UI state even though file ids match.
+    await wrapper.setProps({ model: filled, session: 1 });
     await wrapper.vm.$nextTick();
     expect((wrapper.get('[data-testid="source-search"]').element as HTMLInputElement).value).toBe(
       'AscendC',
@@ -1309,6 +1310,16 @@ describe('SourceView', () => {
     expect(
       wrapper.find('[data-testid="source-pane-source"] tr[data-line="1"]').classes(),
     ).toContain('pr-src-metrics__row--current');
+
+    // New session (operator / host swap) with the same basenames resets search.
+    await wrapper.setProps({ model: { ...filled }, session: 2 });
+    await wrapper.vm.$nextTick();
+    expect((wrapper.get('[data-testid="source-search"]').element as HTMLInputElement).value).toBe(
+      '',
+    );
+    expect(
+      wrapper.find('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').exists(),
+    ).toBe(false);
     wrapper.unmount();
   });
 });

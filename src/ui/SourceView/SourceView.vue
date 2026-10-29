@@ -34,6 +34,12 @@ function firstListedNavigate(
 const props = withDefaults(
   defineProps<{
     model: SourceCorrelationModel;
+    /**
+     * Report-boundary generation from ProfilingReport. Bumps on load / operator /
+     * host model swap — not on `resolveSourceFile` text fill — so search resets
+     * across operators while same-shaped resolve overlays keep UI state.
+     */
+    session?: number;
     /** One-shot Source caret from a task-detail frame. Applied once per file and line. */
     focus?: SourceFrameTarget | null;
     locale?: string;
@@ -41,6 +47,7 @@ const props = withDefaults(
     userGuideUrl?: string;
   }>(),
   {
+    session: 0,
     focus: null,
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
@@ -129,17 +136,20 @@ function applyFocus() {
 }
 
 watch(
-  () => props.model,
-  (m, prev) => {
-    // resolveSourceFile overlays a new model with the same file ids / assembly —
-    // keep caret, search, and file selection so an already-open Source tab is not
-    // reset when Ascend C text arrives after first paint.
+  () => [props.model, props.session] as const,
+  ([m], prev) => {
+    const prevModel = prev?.[0];
+    const prevSession = prev?.[1];
+    // Same session + same file ids: resolveSourceFile filled Ascend C text —
+    // keep caret, search, and file selection. A new session (operator / load /
+    // host report swap) always resets, even when basenames still match.
+    const sameSession = prevSession === props.session;
     const sameShape =
-      prev != null &&
-      prev.files.length === m.files.length &&
-      prev.files.every((f, i) => f.id === m.files[i]?.id) &&
-      prev.assembly.id === m.assembly.id;
-    if (sameShape && m.files.some((f) => f.id === selectedFileId.value)) {
+      prevModel != null &&
+      prevModel.files.length === m.files.length &&
+      prevModel.files.every((f, i) => f.id === m.files[i]?.id) &&
+      prevModel.assembly.id === m.assembly.id;
+    if (sameSession && sameShape && m.files.some((f) => f.id === selectedFileId.value)) {
       return;
     }
     selectedFileId.value = m.files[0]?.id ?? '';

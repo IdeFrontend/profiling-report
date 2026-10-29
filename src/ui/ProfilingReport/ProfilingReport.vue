@@ -198,6 +198,17 @@ const internalCapabilities = ref<ReportCapability[] | null>(null);
  * Overlay on top of `reportModel` / `internalReport` so Vue refreshes SourceView.
  */
 const resolvedSourceCorrelation = ref<SourceCorrelationModel | null>(null);
+/**
+ * Bumps on load / operator / host `reportModel` swap — not when the resolve
+ * overlay fills text. SourceView uses this to reset search across operators
+ * while keeping caret/search across a same-shaped resolve fill.
+ */
+const sourceSession = ref(0);
+
+function bumpSourceSession() {
+  sourceSession.value += 1;
+  resolvedSourceCorrelation.value = null;
+}
 const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
 const hovered = ref<SwimEvent | null>(null);
@@ -934,7 +945,7 @@ function applyAdapted(adapted: AdaptedReport) {
   internalSwim.value = adapted.swimlaneModel;
   internalReport.value = adapted.reportModel;
   internalCapabilities.value = adapted.capabilities ?? null;
-  resolvedSourceCorrelation.value = null;
+  bumpSourceSession();
   resetViewFromModel(adapted.swimlaneModel, reportAutoOpensAside(adapted.reportModel, caps.value));
   loadError.value = null;
   emit('ready');
@@ -967,7 +978,7 @@ function failLoad(cause: unknown) {
   internalSwim.value = null;
   internalReport.value = null;
   internalCapabilities.value = null;
-  resolvedSourceCorrelation.value = null;
+  bumpSourceSession();
   selected.value = null;
   selectedEvent.value = null;
   hovered.value = null;
@@ -1021,7 +1032,7 @@ function onOperatorChange(id: string) {
   internalSwim.value = rep.swimlaneModel;
   internalReport.value = rep.reportModel;
   internalCapabilities.value = rep.capabilities ?? null;
-  resolvedSourceCorrelation.value = null;
+  bumpSourceSession();
   // Viewport/selection reset like a fresh load, but keep aside open/closed and panel widths.
   resetViewFromModel(rep.swimlaneModel, viewState.value.asideVisible, {
     preservePanelWidths: true,
@@ -1048,7 +1059,7 @@ watch(
     internalSwim.value = null;
     internalReport.value = null;
     internalCapabilities.value = null;
-    resolvedSourceCorrelation.value = null;
+    bumpSourceSession();
     closeTopologyFullscreen();
   },
   { immediate: true },
@@ -1058,12 +1069,24 @@ watch(
   () => props.reportModel,
   (rm) => {
     if (props.source) return;
-    resolvedSourceCorrelation.value = null;
+    bumpSourceSession();
     if (!rm?.sourceCorrelation) return;
     const resolveGen = ++sourceResolveGen;
     void fillMissingSourceFiles(rm, resolveGen);
   },
   { immediate: true },
+);
+
+// Hosts often attach the webview bridge after first paint — re-run when the hook appears.
+watch(
+  () => props.resolveSourceFile,
+  (hook) => {
+    if (!hook) return;
+    const rm = props.source ? internalReport.value : props.reportModel;
+    if (!rm?.sourceCorrelation) return;
+    const resolveGen = ++sourceResolveGen;
+    void fillMissingSourceFiles(rm, resolveGen);
+  },
 );
 
 watch(
@@ -1897,6 +1920,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
           :model="report.sourceCorrelation"
+          :session="sourceSession"
           :focus="sourceFocus"
           :locale="locale"
           :sudu-worker-url="suduWorkerUrl"
