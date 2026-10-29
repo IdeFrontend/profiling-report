@@ -2499,6 +2499,12 @@ describe('ProfilingReport scaffold', () => {
     await deferred.setProps({ resolveSourceFile: late });
     await flushPromises();
     expect(late).toHaveBeenCalledTimes(1);
+    // New function identity must not re-run (hosts often pass inline arrows).
+    const again = vi.fn(async () => 'should not run');
+    await deferred.setProps({ resolveSourceFile: again });
+    await flushPromises();
+    expect(again).not.toHaveBeenCalled();
+    expect(late).toHaveBeenCalledTimes(1);
     await deferred.find('[data-testid="tab-source"]').trigger('click');
     await nextTick();
     expect(deferred.findComponent(SourceView).props('model').files[0].text).toContain('late_bound');

@@ -1077,11 +1077,14 @@ watch(
   { immediate: true },
 );
 
-// Hosts often attach the webview bridge after first paint — re-run when the hook appears.
+// Hosts often attach the webview bridge after first paint — re-run only when the
+// hook appears (falsy → truthy). Do not key on function identity: an inline
+// arrow each parent render would cancel in-flight fills and re-hit the host
+// for every still-placeholder file on the base model.
 watch(
-  () => props.resolveSourceFile,
-  (hook) => {
-    if (!hook) return;
+  () => !!props.resolveSourceFile,
+  (present, wasPresent) => {
+    if (!present || wasPresent) return;
     const rm = props.source ? internalReport.value : props.reportModel;
     if (!rm?.sourceCorrelation) return;
     const resolveGen = ++sourceResolveGen;

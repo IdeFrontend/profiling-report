@@ -238,7 +238,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-10-29** — Late-bound `resolveSourceFile` still fills missing embeds; SourceView `session` resets search on operator / host swap but not on resolve overlay (`PR-ROOT-030`).
+- **2026-10-29** — Late-bound `resolveSourceFile` still fills missing embeds (presence-only watch — unstable callback identity does not re-resolve); SourceView `session` resets search on operator / host swap but not on resolve overlay (`PR-ROOT-030`).
 - **2026-10-28** — Optional `resolveSourceFile` host hook fills missing Ascend C after load (`PR-ROOT-030`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 - **2026-10-23** — A fresh load and an operator switch clear the Source-tab frame caret (`PR-ROOT-029`).
 - **2026-10-23** — Parameter frames that match a bundled source file open 源码 at that line, or line 1 when the frame has no line (`PR-ROOT-029`).
