@@ -529,10 +529,24 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   const heat = overlay.getByTestId('memory-heatmap-panel');
   await expect(heat).toBeVisible();
   await expect(overlay.getByTestId('heat-tab-ub')).toHaveAttribute('aria-selected', 'true');
-  // DATA-51 capacity caption (gelu AIV0 UB: DeclaredSize 256KB, Used = N×CellSize).
-  await expect(overlay.getByTestId('heat-metric')).toHaveText(
-    'Total: 256KB / Used: 115328B / Free: 146816B',
-  );
+  // DATA-51 capacity caption shape — parse Free === Total − Used so regenerating gelu N×CellSize
+  // does not break chrome coverage (values still come from formatHeatBytes: KB/MB/B).
+  const metricText = (await overlay.getByTestId('heat-metric').innerText()).trim();
+  expect(metricText).toMatch(/^Total: .+ \/ Used: .+ \/ Free: .+$/);
+  {
+    const parts = metricText.match(/^Total: (.+) \/ Used: (.+) \/ Free: (.+)$/);
+    expect(parts).not.toBeNull();
+    const parseHeatBytes = (s: string): number => {
+      if (s.endsWith('MB')) return Number(s.slice(0, -2)) * 1024 * 1024;
+      if (s.endsWith('KB')) return Number(s.slice(0, -2)) * 1024;
+      if (s.endsWith('B')) return Number(s.slice(0, -1));
+      return NaN;
+    };
+    const total = parseHeatBytes(parts![1]);
+    const used = parseHeatBytes(parts![2]);
+    const free = parseHeatBytes(parts![3]);
+    expect(free).toBe(total - used);
+  }
 
   // Two columns, heat on the right, both with a box of their own. Carrier locks the sketch's
   // ~398px band at 400px (PR-ROOT-025 / MemoryHeatmapPanel Visual).
@@ -631,7 +645,7 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(order.name!.top - order.grid!.bottom).toBeCloseTo(31, 0);
   expect(order.metric!.top).toBeGreaterThan(order.name!.bottom);
   // The body's only text is those two lines — no unit title above the grid.
-  expect(order.bodyText).toContain('Total: 256KB / Used: 115328B / Free: 146816B');
+  expect(order.metric!.text).toMatch(/^Total: .+ \/ Used: .+ \/ Free: .+$/);
   expect(order.bodyText!.replace(order.name!.text, '').replace(order.metric!.text, '').trim()).toBe('');
 
   // Short column: height-fit shrinks the lattice — body never scrolls (PR-HEAT-011).
