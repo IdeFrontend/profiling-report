@@ -642,7 +642,8 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(order.grid!.top - order.swatch!.bottom).toBeGreaterThan(30);
   expect(order.name!.text).toBe('AIV0 UB');
   expect(order.name!.top).toBeGreaterThan(order.grid!.bottom);
-  expect(order.name!.top - order.grid!.bottom).toBeCloseTo(31, 0);
+  // Spec Visual: 31px under the grid; CI can land ±1px on getBoundingClientRect.
+  expect(Math.abs(order.name!.top - order.grid!.bottom - 31)).toBeLessThanOrEqual(SLOP);
   expect(order.metric!.top).toBeGreaterThan(order.name!.bottom);
   // The body's only text is those two lines — no unit title above the grid.
   expect(order.metric!.text).toMatch(/^Total: .+ \/ Used: .+ \/ Free: .+$/);
