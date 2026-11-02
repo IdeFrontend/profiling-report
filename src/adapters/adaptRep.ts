@@ -568,8 +568,9 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
 
 /**
  * Compute `Summary.jsonl` `PerformanceHints` → dock rows (#177). Each non-empty
- * string becomes `{ message, origin: 'kernel' }` (no pc / sourceLineId). Empty
- * or missing → `[]` so the caller omits the field and capability (DATA-30).
+ * string becomes `{ message, origin: 'kernel' }` (no pc / sourceLineId). First
+ * line whose `hints` is an array wins; non-array `hints` skips that line.
+ * Empty / missing → `[]` so the caller omits the field and capability (DATA-30).
  * Does not re-run H01–H12; producer already emitted the texts.
  */
 function performanceHintsFromSummaryJsonl(payload?: Uint8Array): PerformanceHintItem[] {
@@ -582,7 +583,8 @@ function performanceHintsFromSummaryJsonl(payload?: Uint8Array): PerformanceHint
       continue;
     }
     if (obj.category !== 'PerformanceHints') continue;
-    if (!Array.isArray(obj.hints)) return [];
+    // Non-array hints: skip this line and keep scanning (a later valid line may exist).
+    if (!Array.isArray(obj.hints)) continue;
     const hints: PerformanceHintItem[] = [];
     for (const raw of obj.hints) {
       if (typeof raw !== 'string') continue;

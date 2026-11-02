@@ -17,7 +17,7 @@ Preview (1600×900) of the full frame [`v930-sim/performance-hints`](../ui/sourc
 
 ## Purpose
 
-List simulator performance hints for the open emulate kernel: advice text, the source line it attaches to, and the instruction address when the hint is per-PC.
+List performance hints for the open report: advice text, the source line it attaches to (emulate), and the instruction address when the hint is per-PC (emulate). Compute packs feed message-only rows from `Summary.jsonl` `PerformanceHints` (PR-VM-027); emulate joins the five Hint* CSVs.
 
 **Trigger.** The aside **title-row** **性能分析** link (left of close ×; [`aside-hints-title-row.png`](../../src/ui/StatsAside/visual/aside-hints-title-row.png)) is environment-routed ([environments.ts](../../src/ui/environments.ts)): under `environment: 'vscode'` it emits `open-performance-hints-in-problems` and the host reveals its native Problems diagnostics (no dock opens), while the `'browser'` default opens the pane in the standard event-detail dock ([ProfilingReport spec](../../src/ui/ProfilingReport/ProfilingReport.spec.md) `PR-ROOT-021`).
 

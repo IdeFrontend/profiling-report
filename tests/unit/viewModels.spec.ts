@@ -990,6 +990,20 @@ describe('PR-VM: report view-models (interim)', () => {
     });
     expect(emptyHints.reportModel.performanceHints).toBeUndefined();
     expect(emptyHints.capabilities).not.toContain('performanceHints');
+
+    // Malformed first PerformanceHints line must not abort the scan before a valid one.
+    const afterBad = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({ category: 'PerformanceHints', hints: null }),
+          JSON.stringify({ category: 'PerformanceHints', hints: ['recovered hint'] }),
+        ].join('\n') + '\n',
+      ),
+    });
+    expect(afterBad.reportModel.performanceHints).toEqual([
+      { message: 'recovered hint', origin: 'kernel' },
+    ]);
+    expect(afterBad.capabilities).toContain('performanceHints');
   });
 
   it('PR-VM-019 (DATA-19/28/29): All scope reads summary.jsonl, a picked block reads its CSV row', () => {
