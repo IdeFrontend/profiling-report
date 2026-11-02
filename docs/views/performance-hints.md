@@ -8,6 +8,7 @@
 | **Phase** | M4 |
 | **Unification** | `adapt-mapper` |
 | **Sept 30 (emulate)** | **in** |
+| **Compute** | **in** — `Summary.jsonl` `PerformanceHints` (PR-VM-027 / #177) |
 
 ## Sketches
 
@@ -17,7 +18,7 @@ Preview (1600×900) of the full frame [`v930-sim/performance-hints`](../ui/sourc
 
 ## Purpose
 
-List simulator performance hints for the open emulate kernel: advice text, the source line it attaches to, and the instruction address when the hint is per-PC.
+List performance hints for the open report: advice text, the source line it attaches to (emulate), and the instruction address when the hint is per-PC (emulate). Compute packs feed message-only rows from `Summary.jsonl` `PerformanceHints` (PR-VM-027); emulate joins the five Hint* CSVs.
 
 **Trigger.** The aside **title-row** **性能分析** link (left of close ×; [`aside-hints-title-row.png`](../../src/ui/StatsAside/visual/aside-hints-title-row.png)) is environment-routed ([environments.ts](../../src/ui/environments.ts)): under `environment: 'vscode'` it emits `open-performance-hints-in-problems` and the host reveals its native Problems diagnostics (no dock opens), while the `'browser'` default opens the pane in the standard event-detail dock ([ProfilingReport spec](../../src/ui/ProfilingReport/ProfilingReport.spec.md) `PR-ROOT-021`).
 
@@ -37,9 +38,12 @@ No joined hint rows → **hide** the panel ([DATA-30](../context/decisions/DATA.
 
 ## Compute fill
 
+Schema: [compute/SCHEMA](../formats/compute/SCHEMA.md) §11.10. **Mapper wired** — `adaptPayloads` reads the `PerformanceHints` category from `Summary.jsonl` (PR-VM-027 / #177). Does not invent hints from CSVs ([DATA-45](../context/decisions/interim/DATA.md#data-45)); does not re-run H01–H12.
+
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| — | — | — | No compute equivalent |
+| `performanceHints[].message` | `Summary.jsonl` `category: PerformanceHints` | — | Each non-empty trimmed string in `hints[]` |
+| `performanceHints[].origin` | — | — | Always `'kernel'` (no pc / sourceLineId → dock “Not specified”) |
 
 ## Emulate fill
 
@@ -104,7 +108,7 @@ Union all three fact kinds into one `hintRows[]` (stable order: instruction → 
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | — | Out of scope |
+| compute | `adaptPayloads` / `adaptRep` | Wired — `Summary.jsonl` `PerformanceHints` → `reportModel.performanceHints` + capability `performanceHints` (PR-VM-027); omit when empty ([DATA-30](../context/decisions/DATA.md)) |
 | emulate | `adaptEmulate` | Wired — joins the five hint CSVs into `reportModel.performanceHints` + capability `performanceHints` |
 
 ## Related

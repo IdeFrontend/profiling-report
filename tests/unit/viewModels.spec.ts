@@ -951,6 +951,62 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(clamped).toEqual({ overheadUs: 500, communicationUs: 800, computeUs: 0 });
   });
 
+  it('PR-VM-027: Summary.jsonl PerformanceHints → performanceHints + capability (#177)', () => {
+    const encoder = new TextEncoder();
+    const present = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({ category: 'OpInfoSummary', 'Op Name': 'add' }),
+          JSON.stringify({
+            category: 'PerformanceHints',
+            hints: ['bank conflict on UB', '  ', 'scalar pipe busy', ''],
+          }),
+          JSON.stringify({ category: 'PipeUtilization', aic_cube_ratio: 0.5 }),
+        ].join('\n') + '\n',
+      ),
+    });
+    expect(present.reportModel.performanceHints).toEqual([
+      { message: 'bank conflict on UB', origin: 'kernel' },
+      { message: 'scalar pipe busy', origin: 'kernel' },
+    ]);
+    expect(present.capabilities).toContain('performanceHints');
+    expect(present.reportModel.summaryCategories?.map((c) => c.id)).not.toContain(
+      'PerformanceHints',
+    );
+    expect(present.reportModel.summaryCategories?.map((c) => c.id)).toContain('PipeUtilization');
+
+    const absent = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        JSON.stringify({ category: 'OpInfoSummary', 'Op Name': 'add' }) + '\n',
+      ),
+    });
+    expect(absent.reportModel.performanceHints).toBeUndefined();
+    expect(absent.capabilities).not.toContain('performanceHints');
+
+    const emptyHints = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        JSON.stringify({ category: 'PerformanceHints', hints: ['  ', ''] }) + '\n',
+      ),
+    });
+    expect(emptyHints.reportModel.performanceHints).toBeUndefined();
+    expect(emptyHints.capabilities).not.toContain('performanceHints');
+
+    // Malformed / empty-usable first PerformanceHints lines must not abort before a valid one.
+    const afterBad = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({ category: 'PerformanceHints', hints: null }),
+          JSON.stringify({ category: 'PerformanceHints', hints: ['  ', ''] }),
+          JSON.stringify({ category: 'PerformanceHints', hints: ['recovered hint'] }),
+        ].join('\n') + '\n',
+      ),
+    });
+    expect(afterBad.reportModel.performanceHints).toEqual([
+      { message: 'recovered hint', origin: 'kernel' },
+    ]);
+    expect(afterBad.capabilities).toContain('performanceHints');
+  });
+
   it('PR-VM-019 (DATA-19/28/29): All scope reads summary.jsonl, a picked block reads its CSV row', () => {
     const encoder = new TextEncoder();
     const payloads = {
