@@ -686,11 +686,11 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(ub.views[0].blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0]);
     expect(ub.views[0].usedBytes).toBe(128);
 
-    // OutsideDeclared → Total = span, not DeclaredSize.
+    // OutsideDeclared → Total = span, not DeclaredSize (must differ to lock the branch).
     const outside = memoryHeatmapFromTexts({
       'MemoryHeatmapLayout.csv': [
         'CoreId,CoreTypeId,MemoryType,MemoryName,Width,Height,CellSize,BaseAddress,DeclaredSize,OutsideDeclared',
-        '0,1,2,L0A,4,2,32,0,256,1',
+        '0,1,2,L0A,4,2,32,0,100,1',
       ].join('\n'),
       'MemoryHeatmapCells.csv': [
         'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
@@ -699,8 +699,26 @@ describe('PR-VM: report view-models (interim)', () => {
     })!;
     const outView = outside.units[0].views[0];
     expect(outView.outsideDeclared).toBe(true);
-    expect(outView.totalBytes).toBe(256); // 4*2*32 span (== DeclaredSize here)
+    expect(outView.totalBytes).toBe(256); // 4*2*32 span (DeclaredSize was 100)
     expect(outView.usedBytes).toBe(32);
+
+    // Join keys parse as ints — `1.0` / `0.0` still match Layout.
+    const dotted = memoryHeatmapFromTexts({
+      'MemoryHeatmapLayout.csv': [
+        'CoreId,CoreTypeId,MemoryType,MemoryName,Width,Height,CellSize,BaseAddress,DeclaredSize,OutsideDeclared',
+        '0,1,2,L0A,2,2,16,0,64,0',
+      ].join('\n'),
+      'MemoryHeatmapCells.csv': [
+        'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
+        '0.0,1.0,2.0,0,0,4,0',
+        '0.0,1.0,2.0,0,1,0,0',
+        '0.0,1.0,2.0,9,9,1,1',
+      ].join('\n'),
+    })!;
+    const dottedView = dotted.units.find((u) => u.id === 'l0a')!.views[0];
+    expect(dottedView.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0]);
+    // Used = N * CellSize for all three Cells rows (zero-traffic + OOB included).
+    expect(dottedView.usedBytes).toBe(48);
 
     expect(memoryHeatmapFromTexts({ 'UbRwAccesses.csv': 'ExecInstrId,AccessedAddress\n1,0\n' })).toBeUndefined();
     expect(memoryHeatmapFromTexts({ 'MemoryHeatmapLayout.csv': layout })).toBeUndefined();

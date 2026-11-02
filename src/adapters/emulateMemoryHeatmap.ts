@@ -78,13 +78,20 @@ type LayoutInstance = {
   /** Absent when DeclaredSize is NULL/empty. */
   declaredSize?: number;
   outsideDeclared: boolean;
-  memoryType: string;
+  /** Numeric MemoryType — join key with Cells (DATA-50). */
+  memoryType: number;
 };
+
+/** Layout↔Cells join key — ints on both sides so `1.0` / `0.0` still match. */
+function heatViewKey(memoryType: number, coreTypeId: number, coreId: number): string {
+  return `${memoryType}|${coreTypeId}|${coreId}`;
+}
 
 /**
  * One view per Layout row (buffer instance). UB on AIV0 and AIV1 stay separate — the panel
  * selects among `unit.views` (DATA-50). Capacity: Total = OutsideDeclared ? span : DeclaredSize;
- * Used = touchedCells × CellSize; Free = Total − Used when Total is known (DATA-51).
+ * Used = N × CellSize (N = Cells rows for the view key); Free = Total − Used when Total is
+ * known (DATA-51). `withData` painting still requires Read+Write > 0 inside the lattice.
  */
 function unitsFromLayoutAndCells(
   layoutText: string,
@@ -105,12 +112,12 @@ function unitsFromLayoutAndCells(
     const cellSize = parseNonNegInt(row.CellSize);
     const coreId = parseNonNegInt(row.CoreId) ?? 0;
     const coreTypeId = parseNonNegInt(row.CoreTypeId);
-    const memoryType = (row.MemoryType ?? '').trim();
+    const memoryType = parseNonNegInt(row.MemoryType);
     // DeclaredSize may be empty (NULL) — capacity Total then unavailable unless OutsideDeclared.
     const declaredRaw = (row.DeclaredSize ?? '').trim();
     const declaredSize = declaredRaw === '' ? undefined : parseNonNegInt(row.DeclaredSize);
     if (id == null || columns == null || rows == null || columns === 0 || rows === 0) continue;
-    if (cellSize == null || coreTypeId == null || memoryType === '') continue;
+    if (cellSize == null || coreTypeId == null || memoryType == null) continue;
     instances.push({
       id,
       memoryName: memoryName || id.toUpperCase(),
@@ -126,19 +133,23 @@ function unitsFromLayoutAndCells(
   }
   if (instances.length === 0) return undefined;
 
-  /** memoryType|coreTypeId|coreId|row|col → withData */
+  /** Cells rows per view key — Used = N × CellSize (DATA-51), including zero-traffic / OOB. */
+  const cellCountByView = new Map<string, number>();
+  /** memoryType|coreTypeId|coreId|row|col → withData (Read+Write > 0 only). */
   const hit = new Set<string>();
   for (const row of cellRows) {
-    const memoryType = (row.MemoryType ?? '').trim();
-    const coreTypeId = (row.CoreTypeId ?? '').trim();
-    const coreId = (row.CoreId ?? '0').trim() || '0';
+    const memoryType = parseNonNegInt(row.MemoryType);
+    const coreTypeId = parseNonNegInt(row.CoreTypeId);
+    const coreId = parseNonNegInt(row.CoreId) ?? 0;
     const cellRow = parseNonNegInt(row.CellRow);
     const cellCol = parseNonNegInt(row.CellCol);
-    if (memoryType === '' || coreTypeId === '' || cellRow == null || cellCol == null) continue;
+    if (memoryType == null || coreTypeId == null || cellRow == null || cellCol == null) continue;
+    const viewKey = heatViewKey(memoryType, coreTypeId, coreId);
+    cellCountByView.set(viewKey, (cellCountByView.get(viewKey) ?? 0) + 1);
     const reads = parseNonNegInt(row.ReadAddresses) ?? 0;
     const writes = parseNonNegInt(row.WriteAddresses) ?? 0;
     if (reads + writes <= 0) continue;
-    hit.add(`${memoryType}|${coreTypeId}|${coreId}|${cellRow}|${cellCol}`);
+    hit.add(`${viewKey}|${cellRow}|${cellCol}`);
   }
 
   const viewsByUnit = new Map<MemoryHeatmapUnitId, MemoryHeatmapView[]>();
@@ -147,16 +158,15 @@ function unitsFromLayoutAndCells(
       inst;
     const blockCount = columns * rows;
     const span = columns * rows * cellSize;
+    const viewKey = heatViewKey(memoryType, coreTypeId, coreId);
     const blocks: MemoryHeatmapBlock[] = [];
-    let usedCells = 0;
     for (let index = 0; index < blockCount; index += 1) {
       const cellRow = Math.floor(index / columns);
       const cellCol = index % columns;
-      const withData = hit.has(`${memoryType}|${coreTypeId}|${coreId}|${cellRow}|${cellCol}`);
-      if (withData) usedCells += 1;
+      const withData = hit.has(`${viewKey}|${cellRow}|${cellCol}`);
       blocks.push({ index, state: withData ? 'withData' : 'withoutData' });
     }
-    const usedBytes = usedCells * cellSize;
+    const usedBytes = (cellCountByView.get(viewKey) ?? 0) * cellSize;
     const totalBytes = outsideDeclared ? span : declaredSize;
     const view: MemoryHeatmapView = {
       coreId,

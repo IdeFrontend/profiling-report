@@ -28,8 +28,8 @@ Detected as **emulate** via export-catalog `manifest.json` ([PROC-8](../docs/con
 | `KernelInfo.csv` | Packed when present; **not** used for summary chrome ([DATA-47](../docs/context/decisions/DATA.md)) |
 | `PipeUtilizationHist.csv` / `PipesUtilization.csv` | PIPE occupancy |
 | `ArchDiagramMetrics.csv` | Architecture Diagram (`archDiagram`, interim plated chrome [DATA-48a](../docs/context/decisions/interim/DATA.md)) |
-| `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv` | Memory Utilization Heatmap (§11.2.3.2) — producer lattice + capacity (demo embeds from FALite pack, 2026-10-29) |
-| `UbRwAccesses.csv` | Heat fallback only when Layout+Cells absent |
+| `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv` | Memory Utilization Heatmap (§11.2.3.2) — producer lattice + capacity (demo embeds from FALite pack, 2026-10-29; [DATA-50](../docs/context/decisions/DATA.md)) |
+| `UbRwAccesses.csv` | Packed; **not** a heat source (no Layout/Cells → omit `memoryHeatmap`) |
 | `HintMessages.csv` / `HintTypes.csv` / `InstructionHints.csv` / `KernelHints.csv` / `SourceLineHints.csv` | Performance hints (packed CSVs; manifest `row_count` is 0 except `HintTypes`) |
 
 ## Packed embeds (58)
