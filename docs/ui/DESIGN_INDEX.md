@@ -75,7 +75,7 @@ A resolution-only replacement of an existing source id (same frame, higher resol
 | [`CsvFieldListPanel`](../../src/ui/StatsAside/CsvFieldListPanel/visual/) | tabs, fields, block switcher | `v930/compute-load-detail`, `memory-load-detail` |
 | [`RooflinePanel`](../../src/ui/StatsAside/RooflinePanel/visual/) | roofline chart | `v930/report-stats-open` |
 | [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/visual/) | memory topology chrome (nodes/edges) + value slots; zoom / fullscreen bar; clickable unit hit boxes | `v930-chrome/memory-topology` (SVG); bar → `v930-sim/*` |
-| [`MemoryHeatmapPanel`](../../src/ui/StatsAside/MemoryHeatmapPanel/visual/) | §11.2.3.2 heat panel: unit tabs, two-state legend, block grid, `已用指令条数` | `v930-sim/memory-topology-fullscreen` |
+| [`MemoryHeatmapPanel`](../../src/ui/StatsAside/MemoryHeatmapPanel/visual/) | §11.2.3.2 heat panel: unit tabs, view-bar, two-state legend, Layout lattice, `Total / Used / Free` | `v930-sim/memory-topology-fullscreen` |
 | [`HardwareDetailsPanel`](../../src/ui/StatsAside/HardwareDetailsPanel/visual/) | Host/Device info | `v930/hardware-more-detail` |
 | [`DetailPanel`](../../src/ui/DetailPanel/visual/) | dock chrome | `v930/detail-strip-raised` |
 | [`DetailSummary`](../../src/ui/DetailPanel/DetailSummary/visual/) | identity card | `v930/detail-strip-raised` |

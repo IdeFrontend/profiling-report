@@ -529,7 +529,10 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   const heat = overlay.getByTestId('memory-heatmap-panel');
   await expect(heat).toBeVisible();
   await expect(overlay.getByTestId('heat-tab-ub')).toHaveAttribute('aria-selected', 'true');
-  await expect(overlay.getByTestId('heat-metric')).toContainText('已用指令条数 ');
+  // DATA-51 capacity caption (gelu AIV0 UB: DeclaredSize 256KB, Used = N×CellSize).
+  await expect(overlay.getByTestId('heat-metric')).toHaveText(
+    'Total: 256KB / Used: 115328B / Free: 146816B',
+  );
 
   // Two columns, heat on the right, both with a box of their own. Carrier locks the sketch's
   // ~398px band at 400px (PR-ROOT-025 / MemoryHeatmapPanel Visual).
@@ -554,13 +557,14 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(fitted.fitsInside).toBe(true);
   expect(fitted.touchesBox).toBe(true);
 
-  // The grid is really laid out: 16 cells to a row, one row taller than the next.
+  // The grid is really laid out: Layout Width cells to a row, one row taller than the next.
+  // gelu UB is 32×64 — last cell of row 0 is index 31, first of row 1 is 32.
   const cell = heat.locator('.pr-heat__cell');
   const first = (await cell.nth(0).boundingBox())!;
-  const eighthRowEnd = (await cell.nth(15).boundingBox())!;
-  const nextRow = (await cell.nth(16).boundingBox())!;
+  const rowEnd = (await cell.nth(31).boundingBox())!;
+  const nextRow = (await cell.nth(32).boundingBox())!;
   expect(first.width).toBeGreaterThan(0);
-  expect(eighthRowEnd.y).toBeCloseTo(first.y, 1);
+  expect(rowEnd.y).toBeCloseTo(first.y, 1);
   expect(nextRow.y).toBeGreaterThan(first.y);
 
   // The frame is one lattice, not tiles on the panel: a `#6e798d` border around a `#303f5e` board,
@@ -588,10 +592,8 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(parseFloat(indicator.w)).toBeLessThan(tabBox.width);
   await expect(heat.locator('.pr-heat__legend')).toHaveCSS('justify-content', 'center');
 
-  // The frame's block order: the legend sits directly above the grid (its swatch 47.5px under the
-  // strip's rule, 28px over the grid), and *under* the grid come the selected unit's own diagram
-  // name (`AIV × 2 UB`) then the 12px caption — the body holds no title *above* the lattice
-  // (MemoryHeatmapPanel.spec.md § Visual, PR-HEAT-003/004/010).
+  // Shipped block order: legend → reserved view-bar (PR-HEAT-012) → body (grid → `{owner} {MemoryName}`
+  // → DATA-51 capacity). gelu CoreTypes resolve UB's first view as `AIV0 UB`.
   const order = await heat.evaluate((panel) => {
     const at = (sel: string) => {
       const el = panel.querySelector(sel);
@@ -602,22 +604,34 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
     const tabs = at('.pr-heat__tabs');
     const legend = at('.pr-heat__legend');
     const swatch = at('.pr-heat__swatch');
+    const viewBar = at('[data-testid="heat-view-bar"]');
     const grid = at('[data-testid="heat-grid"]');
     const name = at('[data-testid="heat-unit-name"]');
     const metric = at('[data-testid="heat-metric"]');
-    return { tabs, legend, swatch, grid, name, metric, bodyText: panel.querySelector('.pr-heat__body')?.textContent?.trim() };
+    return {
+      tabs,
+      legend,
+      swatch,
+      viewBar,
+      grid,
+      name,
+      metric,
+      bodyText: panel.querySelector('.pr-heat__body')?.textContent?.trim(),
+    };
   });
   const stripRule = order.tabs!.bottom - 1;
   expect(order.swatch!.top - stripRule).toBeGreaterThan(40);
-  expect(order.grid!.top - order.swatch!.bottom).toBeLessThan(30);
-  expect(order.grid!.top).toBeGreaterThanOrEqual(order.legend!.bottom);
-  // The frame repeats the unit's own name below its grid, then its caption.
-  expect(order.name!.text).toBe('AIV × 2 UB');
+  // View-bar band sits between legend and body — gap is no longer the old ~28px legend→grid.
+  expect(order.viewBar).not.toBeNull();
+  expect(order.viewBar!.top).toBeGreaterThanOrEqual(order.legend!.bottom - 1);
+  expect(order.grid!.top).toBeGreaterThanOrEqual(order.viewBar!.bottom - 1);
+  expect(order.grid!.top - order.swatch!.bottom).toBeGreaterThan(30);
+  expect(order.name!.text).toBe('AIV0 UB');
   expect(order.name!.top).toBeGreaterThan(order.grid!.bottom);
   expect(order.name!.top - order.grid!.bottom).toBeCloseTo(31, 0);
   expect(order.metric!.top).toBeGreaterThan(order.name!.bottom);
   // The body's only text is those two lines — no unit title above the grid.
-  expect(order.bodyText).toContain('已用指令条数 ');
+  expect(order.bodyText).toContain('Total: 256KB / Used: 115328B / Free: 146816B');
   expect(order.bodyText!.replace(order.name!.text, '').replace(order.metric!.text, '').trim()).toBe('');
 
   // Short column: height-fit shrinks the lattice — body never scrolls (PR-HEAT-011).
@@ -637,10 +651,11 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(bodyFit!.overflowY).toBe('hidden');
   expect(bodyFit!.scrollHeight).toBeLessThanOrEqual(bodyFit!.clientHeight + 1);
 
-  // A tab with no source blanks its body and moves the diagram's own highlight with it.
+  // Tab click moves the diagram highlight with it. gelu Layout lights all five heat units, so the
+  // body stays a lattice (blank-state coverage lives in MemoryHeatmapPanel.spec.ts PR-HEAT-005).
   await overlay.getByTestId('heat-tab-l0c').click();
-  await expect(overlay.getByTestId('heat-empty')).toBeVisible();
-  await expect(overlay.getByTestId('heat-grid')).toHaveCount(0);
+  await expect(overlay.getByTestId('heat-grid')).toBeVisible();
+  await expect(overlay.getByTestId('heat-empty')).toHaveCount(0);
   await expect(overlay.getByTestId('memory-unit-l0c')).toHaveClass(/pr-topo__unit--on/);
   await expect(overlay.getByTestId('memory-unit-ub')).not.toHaveClass(/pr-topo__unit--on/);
 });
