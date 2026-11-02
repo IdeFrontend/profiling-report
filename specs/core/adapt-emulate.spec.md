@@ -61,7 +61,8 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a); a dedicated `ArchDiagramModel` / biprof chrome rides this question.
 
 ## Changelog
-- **2026-10-01** — Memory Utilization Heatmap fills the separate `memoryHeatmap` carrier + capability from `UbRwAccesses` (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)); `MemoryRWAccesses` stays unused here ([DATA-50](../../docs/context/questions/DATA.md)).
+- **2026-11-02** — Heat SSOT is Layout+Cells (DATA-50/51); no UbRw fallback.
+- **2026-10-01** — Memory Utilization Heatmap fills the separate `memoryHeatmap` carrier + capability (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)); former UbRw path superseded 2026-11-02.
 - **2026-09-24** — DATA-48a ratio merge spelled as unweighted average; EAV headers case-insensitive (PR-ASIM-008b).
 - **2026-09-23** — DATA-48a metric modes + AIV sum (gbs/cnt) / average (ratio); PR-ASIM-008b AC aligned.
 - **2026-09-14** — Initial spec (docs pass; tests todo).
