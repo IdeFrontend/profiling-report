@@ -220,7 +220,7 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 | L2Cache | — | **no heat tab** ([UI-60](../context/decisions/UI.md); topology chrome / hit-rate plate only) |
 | UbRw / UtilizationStates | — | **not** heat sources |
 
-**Capacity.** Total = `OutsideDeclared ? span : DeclaredSize`; Used = touchedCells × `CellSize`; Free = Total − Used ([DATA-51](../context/decisions/DATA.md)).
+**Capacity.** Total = `OutsideDeclared ? span : DeclaredSize`; Used = N × `CellSize` (N = Cells rows for the view key); Free = Total − Used ([DATA-51](../context/decisions/DATA.md)).
 
 ## Adapter
 

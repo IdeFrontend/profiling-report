@@ -133,19 +133,20 @@ function unitsFromLayoutAndCells(
   }
   if (instances.length === 0) return undefined;
 
-  /** Cells rows per view key — Used = N × CellSize (DATA-51), including zero-traffic / OOB. */
+  /** Cells rows per view key — Used = N × CellSize (DATA-51); keyed on K only. */
   const cellCountByView = new Map<string, number>();
-  /** memoryType|coreTypeId|coreId|row|col → withData (Read+Write > 0 only). */
+  /** memoryType|coreTypeId|coreId|row|col → withData (coords + Read+Write > 0). */
   const hit = new Set<string>();
   for (const row of cellRows) {
     const memoryType = parseNonNegInt(row.MemoryType);
     const coreTypeId = parseNonNegInt(row.CoreTypeId);
     const coreId = parseNonNegInt(row.CoreId) ?? 0;
-    const cellRow = parseNonNegInt(row.CellRow);
-    const cellCol = parseNonNegInt(row.CellCol);
-    if (memoryType == null || coreTypeId == null || cellRow == null || cellCol == null) continue;
+    if (memoryType == null || coreTypeId == null) continue;
     const viewKey = heatViewKey(memoryType, coreTypeId, coreId);
     cellCountByView.set(viewKey, (cellCountByView.get(viewKey) ?? 0) + 1);
+    const cellRow = parseNonNegInt(row.CellRow);
+    const cellCol = parseNonNegInt(row.CellCol);
+    if (cellRow == null || cellCol == null) continue;
     const reads = parseNonNegInt(row.ReadAddresses) ?? 0;
     const writes = parseNonNegInt(row.WriteAddresses) ?? 0;
     if (reads + writes <= 0) continue;
@@ -178,7 +179,7 @@ function unitsFromLayoutAndCells(
       blocks,
       usedBytes,
       ...(totalBytes != null
-        ? { totalBytes, freeBytes: Math.max(0, totalBytes - usedBytes) }
+        ? { totalBytes, freeBytes: totalBytes - usedBytes } // raw; Used may exceed Total (DATA-51)
         : {}),
       ...(outsideDeclared ? { outsideDeclared: true } : {}),
     };

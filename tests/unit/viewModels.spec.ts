@@ -713,12 +713,30 @@ describe('PR-VM: report view-models (interim)', () => {
         '0.0,1.0,2.0,0,0,4,0',
         '0.0,1.0,2.0,0,1,0,0',
         '0.0,1.0,2.0,9,9,1,1',
+        // Missing coords still count toward Used N; no withData paint.
+        '0.0,1.0,2.0,,,1,1',
       ].join('\n'),
     })!;
     const dottedView = dotted.units.find((u) => u.id === 'l0a')!.views[0];
     expect(dottedView.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0]);
-    // Used = N * CellSize for all three Cells rows (zero-traffic + OOB included).
-    expect(dottedView.usedBytes).toBe(48);
+    // Used = N * CellSize for all four Cells rows (zero-traffic + OOB + no-coords).
+    expect(dottedView.usedBytes).toBe(64);
+    // Free is unclamped — Used == Total here (4*16).
+    expect(dottedView.freeBytes).toBe(0);
+
+    const over = memoryHeatmapFromTexts({
+      'MemoryHeatmapLayout.csv': [
+        'CoreId,CoreTypeId,MemoryType,MemoryName,Width,Height,CellSize,BaseAddress,DeclaredSize,OutsideDeclared',
+        '0,1,2,L0A,1,1,8,0,8,0',
+      ].join('\n'),
+      'MemoryHeatmapCells.csv': [
+        'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
+        '0,1,2,0,0,1,0',
+        '0,1,2,0,0,1,0',
+      ].join('\n'),
+    })!;
+    expect(over.units[0].views[0].usedBytes).toBe(16);
+    expect(over.units[0].views[0].freeBytes).toBe(-8);
 
     expect(memoryHeatmapFromTexts({ 'UbRwAccesses.csv': 'ExecInstrId,AccessedAddress\n1,0\n' })).toBeUndefined();
     expect(memoryHeatmapFromTexts({ 'MemoryHeatmapLayout.csv': layout })).toBeUndefined();

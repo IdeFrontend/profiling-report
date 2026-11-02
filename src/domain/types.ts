@@ -355,8 +355,8 @@ export interface MemoryHeatmapView {
   blocks: MemoryHeatmapBlock[];
   /**
    * Capacity (DATA-51): Total = `OutsideDeclared ? span : DeclaredSize`; Used = N × `CellSize`
-   * (N = Cells rows for this view key); Free = Total − Used. Omit Total/Free when DeclaredSize
-   * is unknown and the view is not outside-declared.
+   * (N = Cells rows for this view key); Free = Total − Used (may be negative). Omit Total/Free
+   * when DeclaredSize is unknown and the view is not outside-declared.
    */
   totalBytes?: number;
   usedBytes?: number;

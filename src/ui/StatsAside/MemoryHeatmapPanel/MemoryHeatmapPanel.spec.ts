@@ -130,6 +130,42 @@ describe('MemoryHeatmapPanel', () => {
     expect(body.contains(badge.element)).toBe(false);
   });
 
+  it('PR-HEAT-008: exposes the grid as one image, not per-cell roles', () => {
+    const grid = mountPanel().find('[data-testid="heat-grid"]');
+    expect(grid.attributes('role')).toBe('img');
+    expect(grid.attributes('aria-label')).toBe('20 / 416 个块已分配有数据');
+    expect(grid.findAll('[role="img"]')).toHaveLength(0);
+  });
+
+  it('PR-HEAT-009: is a real tablist — one tab stop, and Arrow / Home / End move it', async () => {
+    const wrapper = mountPanel({ selectedUnit: 'ub' });
+    const tab = (id: string) => wrapper.get(`[data-testid="heat-tab-${id}"]`);
+    expect(wrapper.findAll('[role="tab"][tabindex="0"]')).toHaveLength(1);
+    expect(tab('ub').attributes('tabindex')).toBe('0');
+    expect(tab('l1').attributes('tabindex')).toBe('-1');
+    const panel = wrapper.get('[data-testid="heat-body"]');
+    expect(panel.attributes('role')).toBe('tabpanel');
+    expect(panel.attributes('aria-labelledby')).toBe('heat-tab-ub');
+
+    await wrapper.get('[data-testid="heat-tabs"]').trigger('keydown', { key: 'ArrowRight' });
+    expect(wrapper.emitted('select-unit')).toEqual([['l0a']]);
+    await wrapper.get('[data-testid="heat-tabs"]').trigger('keydown', { key: 'ArrowLeft' });
+    expect(wrapper.emitted('select-unit')![1]).toEqual(['l1']);
+    await wrapper.get('[data-testid="heat-tabs"]').trigger('keydown', { key: 'Home' });
+    expect(wrapper.emitted('select-unit')![2]).toEqual(['l1']);
+    await wrapper.get('[data-testid="heat-tabs"]').trigger('keydown', { key: 'End' });
+    expect(wrapper.emitted('select-unit')![3]).toEqual(['l0c']);
+    await wrapper.get('[data-testid="heat-tabs"]').trigger('keydown', { key: 'Tab' });
+    expect(wrapper.emitted('select-unit')).toHaveLength(4);
+    expect(tab('ub').attributes('aria-selected')).toBe('true');
+
+    const unselected = mountPanel({ selectedUnit: null });
+    const stops = unselected.findAll('[role="tab"][tabindex="0"]');
+    expect(stops).toHaveLength(1);
+    expect(stops[0].attributes('data-testid')).toBe('heat-tab-l1');
+    expect(unselected.findAll('[role="tab"][aria-selected="true"]')).toHaveLength(0);
+  });
+
   it('PR-HEAT-012: multi-view UB exposes a selector and switches the lattice', async () => {
     const wrapper = mountPanel();
     expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBeUndefined();

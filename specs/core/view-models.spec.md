@@ -78,7 +78,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 22. **PR-VM-025** — `memoryHeatmap` (biprof §11.2.3.2) comes from `memoryHeatmapFromTexts` on **Layout+Cells only** ([DATA-50](../../docs/context/decisions/DATA.md) / [DATA-51](../../docs/context/decisions/DATA.md)):
     - One **view** per Layout row keyed by `(CoreId, CoreTypeId, MemoryType)`; `MemoryName` → tab id. Multi-core UB stays as multiple `views` (no merge). Optional `CoreTypes.csv` fills `ownerName`.
     - Lattice: `Width`×`Height`; `withData` iff `ReadAddresses+WriteAddresses > 0`. `OutsideDeclared` → `outsideDeclared` on the view; Total = span when set, else `DeclaredSize`.
-    - Used = touched cell count × `CellSize`; Free = Total − Used when Total known. Omit Total/Free when DeclaredSize unknown and not outside-declared. No UbRw fallback; no instruction-count capacity substitute.
+    - Used = N × `CellSize` (N = Cells rows for the view key); Free = Total − Used when Total known (may be negative). Omit Total/Free when DeclaredSize unknown and not outside-declared. No UbRw fallback; no instruction-count capacity substitute.
     - Omit the field and capability when nothing is drawable. Own carrier beside `memoryTopology` ([DATA-49](../../docs/context/decisions/DATA.md)).
 
 ## Edge Cases
@@ -99,8 +99,9 @@ DATA-8, DATA-19, DATA-25, DATA-28, DATA-29, DATA-33, DATA-33d, DATA-33f, DATA-39
 DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
-- **2026-10-29** — PR-VM-025: prefer `MemoryHeatmapLayout` + `MemoryHeatmapCells` (producer lattice + capacity); `UbRwAccesses` remains the UB-only fallback.
-- **2026-10-01** — PR-VM-025: `memoryHeatmap` carrier + capability from `UbRwAccesses` (`memoryHeatmapFromTexts`) — 16 × 26 span-binned grid, `已用指令条数` = distinct `ExecInstrId`, omitted when no unit is drawable. A blank `AccessedAddress` is skipped, not read as address 0. `MemoryRWAccesses` is not attributable yet ([DATA-50](../../docs/context/questions/DATA.md)) and no capacity is emitted ([DATA-51](../../docs/context/questions/DATA.md)); own carrier beside `memoryTopology` ([DATA-49](../../docs/context/decisions/DATA.md)).
+- **2026-11-02** — PR-VM-025: Layout+Cells only (DATA-50/51); no UbRw fallback; Used = N×CellSize; Free unclamped.
+- **2026-10-29** — PR-VM-025: prefer `MemoryHeatmapLayout` + `MemoryHeatmapCells` (producer lattice + capacity); UbRw fallback later dropped.
+- **2026-10-01** — PR-VM-025: initial `memoryHeatmap` carrier + capability (historical UbRw path; superseded 2026-11-02). Own carrier beside `memoryTopology` ([DATA-49](../../docs/context/decisions/DATA.md)).
 - **2026-09-23** — PR-VM-018: empty-slot plated ids (`l0c-cube`) do not count as drawable; adapters fold reverse Cube↔L0C onto `cube-l0c` (prefer forward) so reverse-only BW still paints (PR-MEMTOP-002c / 004).
 - **2026-09-14** — Note emulate profile adaptation; hardware CSV mappings unchanged ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 - **2026-09-15** — GM ↔ L2 plates are the aic + aiv sides **summed** (DATA-40, producer DATA-39 rows 31 / 32 "Main Read" / "Main Write"): `EDGE_MAP` sources gained an `aggregate: 'sum'` mode, so the two plates print `1092.00` / `936.00 GB/s` on the 560 + 532 / 480 + 456 fixture and agree with the 带宽利用率 card (DATA-8) instead of showing the AIC half alone. One side `NA` → the present side alone; both `NA` → no label. Every other edge keeps first-present-non-`NA`.

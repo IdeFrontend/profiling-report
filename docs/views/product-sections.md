@@ -40,7 +40,7 @@ Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decis
 | 11.2.3.1 | Architecture Diagram | [memory-topology](memory-topology.md) (capability `archDiagram`) | **in** (ArchDiagramMetrics→slot in **Emulate fill**; same chrome as compute) |
 | — | Overview charts | [overview-charts](overview-charts.md) | **hide** |
 | 11.2.3.5 | Roofline | [roofline](roofline.md) | **hide** |
-| 11.2.3.2 | Memory Utilization Heatmap | [memory-topology](memory-topology.md) (capability `memoryHeatmap`) | **in** — fullscreen right panel; Layout+Cells fill L1/UB/L0* (+L2 when packed); `UbRwAccesses` UB fallback |
+| 11.2.3.2 | Memory Utilization Heatmap | [memory-topology](memory-topology.md) (capability `memoryHeatmap`) | **in** — fullscreen right panel; Layout+Cells fill L1/UB/L0A/L0B/L0C ([DATA-50](../context/decisions/DATA.md) / [UI-60](../context/decisions/UI.md)); no UbRw / L2 heat |
 | 11.2.3.3,7–8 | AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
 
 ## Related
