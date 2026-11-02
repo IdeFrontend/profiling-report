@@ -52,7 +52,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 
 Dark-only: panel `#262626` (the topology card's surface, not `--pr-bg-panel`), tab strip ruled on `#333333`, active tab on the short white bar. The panel is mounted as the 全屏 overlay's right column (**400px**, the sketch's ~398px band) and meets the diagram with **no** stroke between them — the frame's own boundary is the panel's `#262626` against the overlay's literal `#1a1a1a` (not `--pr-bg-aside`, which light-theme remaps), not a divider line. Every value below is measured off the sketch crop (`visual/heat-panel.png`, a 1:1 crop of the 7680×4320 frame, i.e. **4×** — so sketch px ÷ 4 = frame px).
 
-The frame's own block order is normative: tab strip → rule → legend → grid → the selected unit's own name → the `12px` caption line, both centred under the grid. Nothing sits between the rule and the legend but space, and no unit name or metric sits *above* the grid.
+Shipped block order: tab strip → rule → legend → **reserved view-bar** (multi-view pill or empty band, PR-HEAT-012) → optional `OutsideDeclared` badge → body (`grid` → selected view name → `Total / Used / Free` caption). Nothing sits *above* the lattice inside the body except the grid itself.
 
 | Token | Value |
 |-------|-------|
@@ -62,21 +62,22 @@ The frame's own block order is normative: tab strip → rule → legend → grid
 | Tab strip rule | `#333333` `1px` across the panel's content width |
 | Tab strip rhythm | label-to-label ink `26px` (the frame's `106px` at 4×), so the labels sit apart rather than as boxed chips |
 | Legend | centred in the column; swatch `8px` (the frame's `32px` at 4× — the frame's own 12px type size), `1px` radius, `8px` to its label, `20px` between the two pairs |
-| Legend offsets | swatch `47.5px` under the strip's rule, grid `28px` under the swatch (the frame's `190px` / `112px` at 4×) |
-| Unit name under the grid | `AIC L1` in the **diagram's** words, `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid (the frame's `76px` face, `122px` below the grid at 4×) |
-| Metric caption | `#b3b3b3`, `12px`/`15px` line-height, centred `13px` under the unit name — the same slot the frame fills with its capacity tooltip line (Known deltas / DATA-51) |
+| Legend offsets | swatch `47.5px` under the strip's rule; legend bottom pad `12px` into the view-bar band |
+| View-bar | always reserved (`min-height` = Source pill `28px`); multi-view UB mounts `SourcePillSelect` |
+| Unit name under the grid | active view (`{owner} {MemoryName}`), `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid |
+| Metric caption | `#b3b3b3`, `12px`/`15px` line-height, centred `13px` under the unit name — `Total: {n} / Used: {n} / Free: {n}` ([DATA-51](../../../../docs/context/decisions/DATA.md)); omitted when Total unknown |
 | `已分配有数据` (allocated, with data) | `#3d64ad` |
 | `已分配无数据` (allocated, no data) | `#afc6fe` |
 | Grid frame | `2px` `#6e798d` border around the board, `5px` radius (sketch ~20px at 4×), one `2px` gap of inset inside it; cells clip to the radius |
 | Grid board (the lattice the gaps cut) | `#303f5e` |
 | Grid cell | `aspect-ratio: 1`, `2px` gap, `1px` radius |
-| Grid size | square cell = `min(width-fit, height-fit)` against the body (`100cq*` minus the title/metric footer); horizontally centred |
-| Short column | lattice resizes to fit; no body scrollbar (PR-HEAT-011). Legend→grid stays the legend's `24px` pad; spare height falls **below** the metric |
+| Grid size | square cell = `min(width-fit, height-fit)` against the body (`100cq*` minus the title/metric footer **and** 8px frame); cols/rows from Layout `Width`×`Height` |
+| Short column | lattice resizes to fit; no body scrollbar (PR-HEAT-011). Spare height falls **below** the metric |
 | Fullscreen ground | overlay `#1a1a1a`; diagram `.pr-topo` stays transparent. This panel and the fullscreen zoom pill both paint `#262626` |
 
 The two blues and the board/frame greys are the frame's own, sampled from `v930-sim/memory-topology-fullscreen` (`#3D64AD` legend/block ink, `#AFC6FE` empty-block ink, `#303F5E` board, `#6E798D` frame) and registered in [COLOR_TOKENS § Heatmap](../../../../docs/ui/COLOR_TOKENS.md). The diagram's selected/hover tints are the two blues ([MemoryTopologyPanel](../MemoryTopologyPanel/MemoryTopologyPanel.spec.md) PR-MEMTOP-022), so the two surfaces read as one selection.
 
-**Known deltas from the sketch** (re-checked 2026-10-08): the frame's own grid is 16 **× 32** blocks of `14.5px` square cells at `~70%` of its ~398px panel (centred, ~60px side inset), sized from leftover height. This carrier bins 16 × 26 (416) in a **400px** column; on a tall overlay width-fit still wins, so cells fill the content width and spare height sits below the metric (legend→grid `28px`, grid→title `31px`). When the column is short enough that height-fit wins, the lattice matches the frame's height-first sizing (narrower centred grid). The count is the interim binning that [DATA-50](../../../../docs/context/questions/DATA.md) owns. The frame's own `12px` line under the unit name is a **capacity** tooltip — `Total: 64KB` / `Used: 20KB` / `Free: 0KB` ([DATA-51](../../../../docs/context/questions/DATA.md)); hidden until fields ship ([DATA-51a](../../../../docs/context/decisions/interim/DATA.md)), with `已用指令条数` in that slot instead.
+**Sketch deltas** (visual chrome vs Layout lattice): the biprof sketch shows a fixed ~16×32 lattice and a capacity tooltip under the name. The shipped panel keeps that chrome (colours, gaps, footer rhythm) but sizes the lattice from each Layout view's `Width`×`Height` ([DATA-50](../../../../docs/context/decisions/DATA.md)) and always paints the DATA-51 capacity caption when Total is known — never `已用指令条数`.
 
 ## Design sketches
 
@@ -90,7 +91,7 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 
 ## Changelog
 
-- **2026-11-02** — Align co-located spec with Layout+Cells only: `views[]`, capacity caption, Layout-driven cols/rows; drop UbRw / `已用指令条数` requirements.
+- **2026-11-02** — Align co-located spec with Layout+Cells only: `views[]`, capacity caption, Layout-driven cols/rows; drop UbRw / `已用指令条数` requirements; rewrite § Visual / Known deltas for view-bar + DATA-51 caption.
 - **2026-11-02** — Drop L2Cache tab ([UI-60](../../../../docs/context/decisions/UI.md)): strip is five tabs `L1 | UB | L0A | L0B | L0C`.
 - **2026-10-21** — Heat card `border-radius: 8px` (same as the fullscreen zoom pill; ~25px at 4× on the 1030 sketch). Fullscreen ground: diagram `.pr-topo` stays transparent; this panel and the zoom pill both paint `#262626`.
 - **2026-10-09** — Title/metric line-heights (`22px` / `15px`) lock the `--pr-heat-footer: 81px` budget under height-fit; overlay ground called out as literal `#1a1a1a` (not `--pr-bg-aside`).

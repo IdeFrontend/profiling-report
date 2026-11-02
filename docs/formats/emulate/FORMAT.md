@@ -145,7 +145,7 @@ Display ↔ field detail: [views catalog](../../views/README.md) (per-packet fil
 
 1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
 2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
-3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); **no** summary cards / meta from KernelInfo ([DATA-47](../../context/decisions/DATA.md)); PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); Memory Utilization Heatmap from `UbRwAccesses` (`memoryHeatmap` carrier, capability `memoryHeatmap`, DATA-50); hide the remaining overview/roofline gaps ([DATA-30](../../context/decisions/DATA.md)).
+3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); **no** summary cards / meta from KernelInfo ([DATA-47](../../context/decisions/DATA.md)); PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); Memory Utilization Heatmap from `MemoryHeatmapLayout` + `MemoryHeatmapCells` (`memoryHeatmap` carrier, capability `memoryHeatmap`, [DATA-50](../../context/decisions/DATA.md) / [DATA-51](../../context/decisions/DATA.md)); hide the remaining overview/roofline gaps ([DATA-30](../../context/decisions/DATA.md)).
 4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 ---
