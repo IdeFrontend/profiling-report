@@ -238,6 +238,15 @@ function onViewSelect(id: string) {
       />
     </div>
 
+    <!-- Outside the body so the badge cannot steal lattice height (PR-HEAT-011 / DATA-50). -->
+    <p
+      v-if="activeView?.outsideDeclared"
+      class="pr-heat__outside"
+      data-testid="heat-outside"
+    >
+      {{ t('memoryHeatOutsideDeclared', locale) }}
+    </p>
+
     <div
       class="pr-heat__body"
       data-testid="heat-body"
@@ -245,13 +254,6 @@ function onViewSelect(id: string) {
       :aria-labelledby="selectedUnit ? `heat-tab-${selectedUnit}` : undefined"
     >
       <template v-if="activeView">
-        <p
-          v-if="activeView.outsideDeclared"
-          class="pr-heat__outside"
-          data-testid="heat-outside"
-        >
-          {{ t('memoryHeatOutsideDeclared', locale) }}
-        </p>
         <div class="pr-heat__lattice" data-testid="heat-lattice">
           <div
             class="pr-heat__grid"
@@ -398,6 +400,8 @@ function onViewSelect(id: string) {
   flex: none;
   margin: 0 0 8px;
   color: #e6a23c;
+  font-size: 12px;
+  line-height: 15px;
   text-align: center;
 }
 

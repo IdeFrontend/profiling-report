@@ -102,7 +102,7 @@ describe('MemoryHeatmapPanel', () => {
     ).toBe(false);
   });
 
-  it('PR-HEAT-004b: OutsideDeclared badges the view', () => {
+  it('PR-HEAT-004b: OutsideDeclared badges the view outside the body size box', () => {
     const outside: MemoryHeatmapModel = {
       units: [
         {
@@ -123,7 +123,11 @@ describe('MemoryHeatmapPanel', () => {
       ],
     };
     const wrapper = mountPanel({ model: outside, selectedUnit: 'l0a' });
-    expect(wrapper.find('[data-testid="heat-outside"]').exists()).toBe(true);
+    const badge = wrapper.get('[data-testid="heat-outside"]');
+    const body = wrapper.get('[data-testid="heat-body"]').element;
+    expect(badge.exists()).toBe(true);
+    // Sibling of the body — not a child — so it cannot clip the lattice (PR-HEAT-011).
+    expect(body.contains(badge.element)).toBe(false);
   });
 
   it('PR-HEAT-012: multi-view UB exposes a selector and switches the lattice', async () => {

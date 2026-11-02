@@ -34,7 +34,7 @@ Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [§ p
 Fixed memory-path chrome with data-driven edge labels (BW / hit rate / util):
 
 - **Compute (M2):** selected-block Memory* / PipeUtilization fill under capability `memoryDiagram` (Asc 内存负载分析 / 内存拓扑).
-- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from `ArchDiagramMetrics` under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. The **Memory Utilization Heatmap** (§11.2.3.2) rides the same fullscreen overlay as its own surface, from `UbRwAccesses` — [§ Memory Utilization Heatmap](#heatmap).
+- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from `ArchDiagramMetrics` under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. The **Memory Utilization Heatmap** (§11.2.3.2) rides the same fullscreen overlay as its own surface, from `MemoryHeatmapLayout` + `MemoryHeatmapCells` — [§ Memory Utilization Heatmap](#heatmap).
 
 ## View-model
 
@@ -137,7 +137,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
 | `memoryTopology` (same carrier) | `ArchDiagramMetrics.csv` | Parameter→slot + **gaps** below ([DATA-48a](../context/decisions/interim/DATA.md)); SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_L2_PEAK_PARAM` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES`; gelu HTML `*_gbs` ids = evidence toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
-| `memoryHeatmap` (own carrier) | `UbRwAccesses.csv` | biprof §11.2.3.2 heat grid + `已用指令条数`; `MemoryRWAccesses.csv` cannot attribute its rows to L1/L2/L0A/L0B/L0C ([DATA-50](../context/questions/DATA.md)) | `adapt-mapper` |
+| `memoryHeatmap` (own carrier) | `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv` (+ optional `CoreTypes.csv`) | biprof §11.2.3.2 lattice + Total/Used/Free ([DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md)); no UbRw fallback | `adapt-mapper` |
 
 <a id="parameter-slot-map"></a>
 
@@ -229,7 +229,7 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 | compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | Capability **`memoryDiagram`** |
 | emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` / `emulateMemoryTopology.ts` | Capability **`archDiagram`** when drawable; same chrome + VM |
 | emulate (heat) | `memoryHeatmapFromTexts` in `adaptEmulate` / `emulateMemoryHeatmap.ts` | Capability **`memoryHeatmap`** when a unit has a source; own carrier (§ above) |
-| compute (heat) | same `memoryHeatmapFromTexts` from `adaptPayloads` when `UbRwAccesses.csv` is packed | Same capability and carrier; a compute pack without that CSV omits both |
+| compute (heat) | same `memoryHeatmapFromTexts` from `adaptRep` when Layout+Cells are packed | Same capability and carrier; omit both when Layout/Cells are absent ([DATA-50](../context/decisions/DATA.md)) |
 
 ## Related
 
