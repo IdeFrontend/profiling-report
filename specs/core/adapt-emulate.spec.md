@@ -22,7 +22,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Architecture Diagram (Sept 30 / M4).** When `ArchDiagramMetrics.csv` is present, map into the **shared** `memoryTopology` carrier (same chrome / panel as compute) + `memoryTables` via interim [DATA-48a](../../docs/context/decisions/interim/DATA.md) / `ARCH_DIAGRAM_EDGE_MAP` (corridor **bases**; suffix by metric mode). Adapter snapshot defaults to `bandwidth_per_operator` (`*_gbs`); the aside rebuilds labels for `bandwidth_per_request` / `number_of_requests`. Dual AIV0/AIV1: **sum** gbs/cnt, **unweighted average** of scalar `*_ratio` (not (Σnum)/(Σden) — DATA-48a). Do **not** invent a second topology VM or chrome. Do **not** read `MemoryRWAccesses` here — the heat panel is its own carrier ([DATA-49](../../docs/context/decisions/DATA.md)). Omit diagram when nothing drawable.
 
-**Memory Utilization Heatmap (biprof §11.2.3.2).** When `UbRwAccesses.csv` is present, fill the separate `memoryHeatmap` carrier via `memoryHeatmapFromTexts` and advertise capability **`memoryHeatmap`** ([PR-VM-025](./view-models.spec.md), [DATA-49](../../docs/context/decisions/DATA.md)). `MemoryRWAccesses.csv` cannot attribute rows to a unit yet ([DATA-50](../../docs/context/questions/DATA.md)) and no capacity is emitted ([DATA-51](../../docs/context/questions/DATA.md)). Omit the field and the capability when no unit is drawable.
+**Memory Utilization Heatmap (biprof §11.2.3.2).** Fill `memoryHeatmap` from `MemoryHeatmapLayout` + `MemoryHeatmapCells` (+ optional `CoreTypes`) via `memoryHeatmapFromTexts` and advertise **`memoryHeatmap`** ([PR-VM-025](./view-models.spec.md), [DATA-50](../../docs/context/decisions/DATA.md) / [DATA-51](../../docs/context/decisions/DATA.md)). No UbRw fallback. Omit when no view is drawable.
 
 **Omit gap panels.** Do not populate `overviewSeries`, `roofline`, or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards.
 
@@ -61,7 +61,8 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a); a dedicated `ArchDiagramModel` / biprof chrome rides this question.
 
 ## Changelog
-- **2026-10-01** — Memory Utilization Heatmap fills the separate `memoryHeatmap` carrier + capability from `UbRwAccesses` (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)); `MemoryRWAccesses` stays unused here ([DATA-50](../../docs/context/questions/DATA.md)).
+- **2026-11-02** — Heat SSOT is Layout+Cells (DATA-50/51); no UbRw fallback.
+- **2026-10-01** — Memory Utilization Heatmap fills the separate `memoryHeatmap` carrier + capability (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)); former UbRw path superseded 2026-11-02.
 - **2026-09-24** — DATA-48a ratio merge spelled as unweighted average; EAV headers case-insensitive (PR-ASIM-008b).
 - **2026-09-23** — DATA-48a metric modes + AIV sum (gbs/cnt) / average (ratio); PR-ASIM-008b AC aligned.
 - **2026-09-14** — Initial spec (docs pass; tests todo).

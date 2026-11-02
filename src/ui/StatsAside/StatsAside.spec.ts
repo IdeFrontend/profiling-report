@@ -2583,7 +2583,26 @@ describe('StatsAside', () => {
       profile: 'emulate',
       memoryTopology: topologyFromArchDiagramMetrics(archCsv)!,
       csvTexts: { 'ArchDiagramMetrics.csv': archCsv },
-      memoryHeatmap: { units: [{ id: 'ub', blocks, usedInstructionCount: 7 }] },
+      memoryHeatmap: {
+        units: [
+          {
+            id: 'ub',
+            views: [
+              {
+                coreId: 0,
+                coreTypeId: 2,
+                memoryName: 'UB',
+                columns: 4,
+                rows: 1,
+                blocks,
+                totalBytes: 128,
+                usedBytes: 64,
+                freeBytes: 64,
+              },
+            ],
+          },
+        ],
+      },
     });
 
     // Capability + carrier: the units are targets, and a click re-emits 全屏 with that unit.

@@ -11,7 +11,6 @@ import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSour
 import { MISSING_SOURCE_EMBED_PREFIX } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
-import { HEATMAP_BLOCK_COUNT } from '../../adapters/emulateMemoryHeatmap';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
@@ -124,15 +123,35 @@ function archDiagramReport() {
   };
 }
 
-/** §11.2.3.2 — the topology carrier plus the heat carrier (`UbRwAccesses` → `ub`). */
+/** §11.2.3.2 — the topology carrier plus the heat carrier (Layout+Cells → `ub`). */
 function heatmapReport() {
-  const blocks = Array.from({ length: HEATMAP_BLOCK_COUNT }, (_, index) => ({
+  const blocks = Array.from({ length: 32 }, (_, index) => ({
     index,
     state: index < 3 ? ('withData' as const) : ('withoutData' as const),
   }));
   return {
     ...topologyReport(),
-    memoryHeatmap: { units: [{ id: 'ub' as const, blocks, usedInstructionCount: 12 }] },
+    memoryHeatmap: {
+      units: [
+        {
+          id: 'ub' as const,
+          views: [
+            {
+              coreId: 0,
+              coreTypeId: 2,
+              ownerName: 'AIV0',
+              memoryName: 'UB',
+              columns: 8,
+              rows: 4,
+              blocks,
+              totalBytes: 1024,
+              usedBytes: 96,
+              freeBytes: 928,
+            },
+          ],
+        },
+      ],
+    },
   };
 }
 
@@ -1760,9 +1779,9 @@ describe('ProfilingReport scaffold', () => {
     expect(overlay.get('[data-testid="memory-unit-ub"]').classes()).toContain('pr-topo__unit--on');
 
     // A panel tab moves the diagram's highlight too, and blanks a unit with no source.
-    await overlay.get('[data-testid="heat-tab-l2"]').trigger('click');
+    await overlay.get('[data-testid="heat-tab-l0c"]').trigger('click');
     overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
-    expect(overlay.get('[data-testid="memory-unit-l2"]').classes()).toContain('pr-topo__unit--on');
+    expect(overlay.get('[data-testid="memory-unit-l0c"]').classes()).toContain('pr-topo__unit--on');
     expect(overlay.get('[data-testid="memory-unit-ub"]').classes()).not.toContain(
       'pr-topo__unit--on',
     );

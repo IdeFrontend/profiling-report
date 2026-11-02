@@ -119,18 +119,16 @@ export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, numbe
 };
 
 /**
- * Clickable memory units (§11.2.3.2): the chrome box of each of the six units that own a heat
- * tab, in chrome units, keyed by the domain union so a unit with no box fails typecheck.
- * These are **hit targets**, read back off the asset's own unit containers (`getBBox` of the
- * `容器` groups of `memory-topology.svg`) — never the value plates of `SLOTS`, which sit in the
- * corridors between boxes and would put the click on a neighbour.
+ * Clickable memory units (§11.2.3.2): the chrome box of each of the five units that own a heat
+ * tab (UI-60 — no L2), in chrome units, keyed by the domain union so a unit with no box fails
+ * typecheck. These are **hit targets**, read back off the asset's own unit containers (`getBBox`
+ * of the `容器` groups of `memory-topology.svg`) — never the value plates of `SLOTS`, which sit
+ * in the corridors between boxes and would put the click on a neighbour.
  */
 export const MEMORY_UNIT_BOXES: Record<
   MemoryHeatmapUnitId,
   readonly [number, number, number, number]
 > = {
-  /** L2 Cache pillar (the `node-l2` anchor box). */
-  l2: [94, 16, 40, 391],
   /** AIC L1 — the row stack's leftmost box. */
   l1: [196, 54, 22, 89],
   /** AIV × 2 UB — the buffer box between the L2 corridor and SIMT. */

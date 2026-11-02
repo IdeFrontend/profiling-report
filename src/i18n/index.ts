@@ -134,7 +134,6 @@ const messages = {
     memoryTopology: '内存拓扑',
     // biprof §11.2.3.2 Memory Utilization Heatmap (MemoryHeatmapPanel). Unit tab / body labels
     // are the frame's own English words in both locales, like Parameter / Relevent above.
-    memoryHeatUnitL2: 'L2Cache',
     memoryHeatUnitL1: 'L1',
     memoryHeatUnitUb: 'UB',
     memoryHeatUnitL0a: 'L0A',
@@ -142,7 +141,6 @@ const messages = {
     memoryHeatUnitL0c: 'L0C',
     // The diagram's own words for the same six boxes — the frame repeats the selected unit's on the
     // heat panel under its grid (`AIC L1`), so they carry the row prefix the strip's tabs drop.
-    memoryHeatUnitNameL2: 'L2 Cache',
     memoryHeatUnitNameL1: 'AIC L1',
     memoryHeatUnitNameUb: 'AIV × 2 UB',
     memoryHeatUnitNameL0a: 'AIC L0A',
@@ -151,6 +149,9 @@ const messages = {
     memoryHeatWithData: '已分配有数据',
     memoryHeatWithoutData: '已分配无数据',
     memoryHeatUsedInstr: '已用指令条数 {n}',
+    memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
+    memoryHeatView: '视图',
+    memoryHeatOutsideDeclared: '网格超出声明容量',
     memoryHeatGridLabel: '{used} / {total} 个块已分配有数据',
     memoryHeatEmpty: '该 Memory 暂无访问数据',
     metric: '指标',
@@ -368,7 +369,6 @@ const messages = {
     reportViews: 'Report views',
     memoryTopology: 'Memory topology',
     // Same six words as the frame's tab strip (see the zh-CN block).
-    memoryHeatUnitL2: 'L2Cache',
     memoryHeatUnitL1: 'L1',
     memoryHeatUnitUb: 'UB',
     memoryHeatUnitL0a: 'L0A',
@@ -376,7 +376,6 @@ const messages = {
     memoryHeatUnitL0c: 'L0C',
     // The diagram's own words for the same six boxes — the frame repeats the selected unit's on the
     // heat panel under its grid (`AIC L1`), so they carry the row prefix the strip's tabs drop.
-    memoryHeatUnitNameL2: 'L2 Cache',
     memoryHeatUnitNameL1: 'AIC L1',
     memoryHeatUnitNameUb: 'AIV × 2 UB',
     memoryHeatUnitNameL0a: 'AIC L0A',
@@ -385,6 +384,9 @@ const messages = {
     memoryHeatWithData: 'Allocated, with data',
     memoryHeatWithoutData: 'Allocated, no data',
     memoryHeatUsedInstr: 'Instructions used {n}',
+    memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
+    memoryHeatView: 'View',
+    memoryHeatOutsideDeclared: 'Grid extends past declared capacity',
     memoryHeatGridLabel: '{used} / {total} blocks allocated with data',
     memoryHeatEmpty: 'No access data for this memory',
     metric: 'Metric',

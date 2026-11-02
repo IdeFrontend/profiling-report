@@ -376,7 +376,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
       report.reportModel.roofline!.points.find((p) => p.id === id)!.performance;
     for (const report of [op1, op2]) {
       expect(report.capabilities).toEqual(
-        expect.arrayContaining(['sourceTab', 'roofline', 'memoryHeatmap']),
+        expect.arrayContaining(['sourceTab', 'roofline']),
       );
       const source = report.reportModel.sourceCorrelation!;
       expect(source.mock).toBe(false);
@@ -416,10 +416,9 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
         'aiv_simd_b32',
         'aiv_simt_b16',
       ]);
-      const ub = report.reportModel.memoryHeatmap!.units.find((u) => u.id === 'ub')!;
-      expect(ub.blocks.filter((b) => b.state === 'withData').length).toBeGreaterThan(1);
-      expect(ub.blocks.some((b) => b.state === 'withoutData')).toBe(true);
-      expect(ub.usedInstructionCount).toBeGreaterThan(1);
+      // Heat needs Layout+Cells (DATA-50); sample.lite only packs UbRwAccesses → no heat.
+      expect(report.reportModel.memoryHeatmap).toBeUndefined();
+      expect(report.capabilities).not.toContain('memoryHeatmap');
     }
     expect(pointPerf(op1, 'aiv_simd_b16')).not.toBeCloseTo(pointPerf(op2, 'aiv_simd_b16'));
 

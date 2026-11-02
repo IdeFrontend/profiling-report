@@ -232,19 +232,12 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 
 ### DATA-50a — Heat grid geometry + unit attribution
 
-**Status:** `interim` — engineering stamp pending Product
-**Question:** [DATA-50](../../questions/DATA.md)
-**Interim:** The heat grid is **fixed at 16 × 26** blocks (one grid for every unit), and a unit's blocks are cut from its **observed address span** (min…max `AccessedAddress` of its rows): a block that received at least one access is `已分配有数据`, every other block is `已分配无数据`, and addresses outside the span are not a third state. A cell whose `AccessedAddress` is absent is **not** a read at address 0 — it is skipped, like the sibling adapters' `parseNumber` (`Number('') === 0` would otherwise fabricate block 0, shift the span and inflate the metric). Attribution is **per file**: `UbRwAccesses.csv` paints `ub` (the only table whose rows are unit-scoped by construction — it carries no unit column, unlike `MemoryRWAccesses`' bare `MemoryType`); `MemoryRWAccesses.csv` paints **nothing** (do not guess a mapping from `1`), and `MemoryUtilizationStates.csv` is not used while unpacked. Units without a source are **absent from `units`** (five blank tabs), not emitted as empty grids; the metric `已用指令条数` is the count of **distinct** `ExecInstrId` behind the unit's accesses and is omitted (never `0`) when the source names no instructions.
-**Known ceiling (evidence, not a resolution):** on the committed `gelu.npu-rep` the UB stream is dense — 34 832 accesses over addresses 0…2556, 512 distinct instructions — so **every** one of the 416 blocks lands `已分配有数据` (`416 / 416`) and the grid paints as one solid rectangle: the `已分配无数据` half of the legend is unreachable on real data, and the frame's sparse grid is not reproduced. The rule cannot be better than this until its two missing inputs exist (the unit's **capacity** and the **block size**), which is exactly what [DATA-51](../../questions/DATA.md) / this question owe; the observed span is a stand-in for capacity, not a measurement of it.
-**Implement / test as:** `memoryHeatmapFromTexts` / `PR-VM-025` (blank cell + span, no capacity field); `PR-HEAT-003` / `PR-HEAT-005` (grid states + blank tab); [memory-topology § Binning](../../../docs/views/memory-topology.md)
-**Superseded when:** Product publishes the `MemoryType` → unit vocabulary and/or a block-size / capacity field, or the packer starts emitting `MemoryUtilizationStates.csv`
+**Status:** ~~`interim`~~ **superseded** by [DATA-50](../DATA.md) (2026-11-02).
+**Question:** [DATA-50](../DATA.md) (resolved)
 
 <a id="data-51a"></a>
 
-### DATA-51a — Hide the capacity tooltip line
+### DATA-51a — Capacity line from Layout
 
-**Status:** `interim` — engineering stamp pending Product
-**Question:** [DATA-51](../../questions/DATA.md)
-**Interim:** No `Total` / `Used` / `Free` is emitted or rendered anywhere — no packed field carries a cache size — so the unit hover tooltip shows the unit label only and the capacity line stays **hidden** (never a placeholder `N/A`). No copy is reserved for it either: the three labels were dropped from `src/i18n` rather than left unreferenced, and come back with the producer fields.
-**Implement / test as:** absent capacity fields on the carrier (`PR-VM-025`); [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) PR-HEAT-004
-**Superseded when:** Producer ships capacity fields (`Total` / `Used` / `Free` or a cache-size + occupancy pair) for a memory unit
+**Status:** ~~`interim`~~ **superseded** by [DATA-51](../DATA.md) (2026-11-02).
+**Question:** [DATA-51](../DATA.md) (resolved)
