@@ -85,15 +85,16 @@ describe('MemoryTopologyPanel', () => {
     expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 448 423');
   });
 
-  it('PR-MEMTOP-021: the six §11.2.3.2 units are hit targets only when selectableUnits is on', async () => {
+  it('PR-MEMTOP-021: the five heat units are hit targets only when selectableUnits is on', async () => {
     const off = mount(MemoryTopologyPanel, { props: { model } });
     expect(off.find('[data-testid="memory-unit-ub"]').exists()).toBe(false);
 
     const on = mount(MemoryTopologyPanel, { props: { model, selectableUnits: true } });
-    const ids = ['l2', 'l1', 'ub', 'l0a', 'l0b', 'l0c'] as const;
+    const ids = ['l1', 'ub', 'l0a', 'l0b', 'l0c'] as const;
     for (const id of ids) {
       expect(on.find(`[data-testid="memory-unit-${id}"]`).exists()).toBe(true);
     }
+    expect(on.find('[data-testid="memory-unit-l2"]').exists()).toBe(false);
     await on.get('[data-testid="memory-unit-ub"]').trigger('click');
     expect(on.emitted('open-memory-unit')).toEqual([['ub']]);
   });

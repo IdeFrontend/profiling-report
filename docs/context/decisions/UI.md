@@ -195,3 +195,13 @@ Format and statuses: [README.md](README.md).
 - **Decision:** Prefer **`PipeUtilizationHist`**. Project each hist row onto a sparse compute-like **`*_ratio`** key: prefix from `CoreName` (`AIC`→`aic_`, `AIV0`→`aiv0_`, `AIV1`→`aiv1_` — **never** average AIV cores into `aiv_*`); stem from `PipeName` (`CUBE`→`cube_ratio`, `SCALAR`→`scalar_ratio`, `FIXP`→`fixpipe_ratio`, `MTE1`/`MTE2`/`MTE3`→`mte*_ratio`, `SIMD`→`vec_ratio`, `SIMT`→`simt_ratio` — **no** `icache` stem; ICache may still appear on PIPE bars). Value = Utilization as a **0..1** fraction. One synthetic wide row in `computeTables` (headers in first-seen key order; duplicate keys **last-wins** for values). Do **not** invent times/cycles/stalls/BW. When hist is present, **omit** `PipeUtilization.csv` from compute 详情. ArithmeticUtilization / ResourceConflictRatio unchanged when present. PIPE bars stay [UI-54](./UI.md).
 - **Specs:** [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [CsvFieldListPanel.spec.md](../../../src/ui/StatsAside/CsvFieldListPanel/CsvFieldListPanel.spec.md) (`PR-CSV-009`), [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md)
 - **Source:** Product request in chat (2026-09-23): compute-style keys with separate `aiv0_` / `aiv1_` prefixes (not `PipeName_CoreName`; not mean into `aiv_*`).
+
+---
+
+## UI-60
+
+- **Resolved:** 2026-11-02
+- **Question:** The heat strip and topology selectable units included an **L2Cache** tab that [DATA-50](./DATA.md) leaves permanently blank (no producer `MemoryType`). Keep the blank tab, or drop L2 from the heat surface?
+- **Decision:** **Drop L2Cache from the heat surface.** The heat tab strip and topology heat hit targets are **five** units only: `L1 | UB | L0A | L0B | L0C`. L2 Cache remains on the topology chrome (GM↔L2 edges, hit-rate plate, `node-l2`) but is **not** a heat tab and **not** a `selectableUnits` hit target. Adapter omits any Layout row whose `MemoryName` would have mapped to L2.
+- **Specs:** [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) (`PR-HEAT-001`), [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (`PR-MEMTOP-021`), [memory-topology § heatmap](../../views/memory-topology.md#heatmap), [INTERACTIONS](../../ui/INTERACTIONS.md), [UX_SPEC](../../ui/UX_SPEC.md), [DATA-50](./DATA.md)
+- **Source:** Product request in chat (2026-11-02): remove the always-empty L2 heat tab.

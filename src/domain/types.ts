@@ -321,11 +321,12 @@ export interface MemoryTopologyModel {
 }
 
 /**
- * Memory units that carry a §11.2.3.2 heat tab — the six clickable units of the topology
- * chrome (`MemoryTopologyPanel`). A subset of the `MemoryTopologyNode.id` space, so a unit
- * the chrome gives no box to cannot be named here.
+ * Memory units that carry a §11.2.3.2 heat tab — five clickable units on the topology
+ * chrome (`MemoryTopologyPanel`). L2 Cache stays on the diagram (hit-rate plate) but has
+ * no heat tab (UI-60). A subset of the `MemoryTopologyNode.id` space, so a unit the
+ * chrome gives no box to cannot be named here.
  */
-export type MemoryHeatmapUnitId = 'l2' | 'l1' | 'ub' | 'l0a' | 'l0b' | 'l0c';
+export type MemoryHeatmapUnitId = 'l1' | 'ub' | 'l0a' | 'l0b' | 'l0c';
 
 /** Allocation state of one heat-grid block — the §11.2.3.2 two-state legend. */
 export type MemoryHeatmapBlockState = 'withData' | 'withoutData';
@@ -337,13 +338,38 @@ export interface MemoryHeatmapBlock {
   state: MemoryHeatmapBlockState;
 }
 
-/** Per-unit heat data. A unit with no usable source is omitted from `MemoryHeatmapModel.units`. */
+/**
+ * One buffer instance (Layout row): `(CoreId, CoreTypeId, MemoryType)`.
+ * UB on AIV0 and AIV1 are separate views — the panel selects among them (DATA-50).
+ */
+export interface MemoryHeatmapView {
+  coreId: number;
+  coreTypeId: number;
+  /** `CoreTypes.CoreTypeName` when packed (e.g. `AIV0`). */
+  ownerName?: string;
+  /** Layout `MemoryName` (e.g. `UB`, `L1`). */
+  memoryName: string;
+  columns: number;
+  rows: number;
+  /** Full lattice, row-major — missing Cells rows are `withoutData`. */
+  blocks: MemoryHeatmapBlock[];
+  /**
+   * Capacity (DATA-51): Total = `OutsideDeclared ? span : DeclaredSize`; Used = touched ×
+   * `CellSize`; Free = Total − Used. Omit Total/Free when DeclaredSize is unknown and the view
+   * is not outside-declared.
+   */
+  totalBytes?: number;
+  usedBytes?: number;
+  freeBytes?: number;
+  /** Layout `OutsideDeclared` — badge the view; grid already follows the observed window. */
+  outsideDeclared?: boolean;
+}
+
+/** Per-tab heat data. A unit with no Layout view is omitted from `MemoryHeatmapModel.units`. */
 export interface MemoryHeatmapUnit {
   id: MemoryHeatmapUnitId;
-  /** Full grid, row-major, `index` 0…n-1 — `withoutData` blocks are the allocated-but-empty ones. */
-  blocks: MemoryHeatmapBlock[];
-  /** `已用指令条数` — distinct `ExecInstrId` behind the unit's accesses; omit when not derivable. */
-  usedInstructionCount?: number;
+  /** One or more buffer instances; length > 1 for multi-core UB. */
+  views: MemoryHeatmapView[];
 }
 
 /**

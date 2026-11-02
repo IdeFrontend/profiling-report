@@ -40,8 +40,8 @@ A resolution-only replacement of an existing source id (same frame, higher resol
 
 | Id | File | Typical consumers |
 |----|------|-------------------|
-| `v930-sim/memory-topology-zoom` | [`memory-topology-zoom.jpeg`](./source/v930-sim/memory-topology-zoom.jpeg) | 内存负载分析 zoom bar in the stacked aside (缩小 / % / 放大 / 适应窗口 / 全屏); clickable memory units (`L2Cache` / `L1` / `UB` / `L0A` / `L0B` / `L0C`) — hover highlight, click opens that unit's memory info |
-| `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay (zoom bar under the diagram column, left of heat; fit-window only, no 全屏, no strip) **plus** the §11.2.3.2 Memory Utilization Heatmap right panel: six unit tabs, two-state legend, block grid, `已用指令条数` |
+| `v930-sim/memory-topology-zoom` | [`memory-topology-zoom.jpeg`](./source/v930-sim/memory-topology-zoom.jpeg) | 内存负载分析 zoom bar in the stacked aside (缩小 / % / 放大 / 适应窗口 / 全屏); clickable heat units (`L1` / `UB` / `L0A` / `L0B` / `L0C`, [UI-60](../context/decisions/UI.md)) — hover highlight, click opens that unit's heat panel |
+| `v930-sim/memory-topology-fullscreen` | [`memory-topology-fullscreen.jpeg`](./source/v930-sim/memory-topology-fullscreen.jpeg) | The same diagram in the root 全屏 overlay (zoom bar under the diagram column, left of heat; fit-window only, no 全屏, no strip) **plus** the §11.2.3.2 Memory Utilization Heatmap right panel: five unit tabs, two-state legend, block grid, capacity line |
 | `v930-sim/performance-hints` | [`performance-hints.jpeg`](./source/v930-sim/performance-hints.jpeg) | 性能提示 / 性能分析: title-row 性能分析 trigger (left of aside ×) + bottom hints table (Hint Message / Source Line / Instruction Address) |
 
 ## Source frames (`v930-source` — 源码)

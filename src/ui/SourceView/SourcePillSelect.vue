@@ -234,6 +234,24 @@ onBeforeUnmount(() => {
   color: var(--pr-src-label, #b3b3b3);
 }
 
+/*
+ * Closed-control box (Source tab + any host that mounts this pill). Lives here so
+ * consumers do not restate SourceView :deep rules. background-color only — keeps
+ * the `.pr-block-pill` chevron from tokens.css.
+ */
+.pr-source-view__select {
+  box-sizing: border-box;
+  height: var(--pr-src-control-h, 28px);
+  max-width: 220px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: var(--pr-src-control-radius, 6px);
+  background-color: var(--pr-src-bg-control, #363636);
+  color: var(--pr-src-text, #c8c8c8);
+  font-size: 12px;
+  line-height: calc(var(--pr-src-control-h, 28px) - 2px);
+}
+
 /* Button reset so the shared pill (not a native <select>) keeps the same box. */
 .source-pill__trigger {
   font-family: inherit;

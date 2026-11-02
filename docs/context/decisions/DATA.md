@@ -351,10 +351,40 @@ Format and statuses: [README.md](README.md).
 - **Was:** open question DATA-49 (emulate Architecture Diagram model / chrome vs memory heatmap)
 - **Question:** After Sept 30, keep the lossy `MemoryTopologyModel` projection of ArchDiagramMetrics onto the Asc plated chrome, or introduce a dedicated `ArchDiagramModel` + biprof Architecture Diagram SVG for unit ratios / per-AIV / SIMT / counts? And does the Memory Utilization Heatmap (`MemoryRWAccesses`) stay a **separate** surface (capability `memoryHeatmap`), not folded into Architecture Diagram?
 - **Decision:**
-  1. **The heatmap is its own surface, not a second topology.** `ReportViewModel.memoryHeatmap` is a separate carrier beside `memoryTopology`, filled by `memoryHeatmapFromTexts` and advertised as capability **`memoryHeatmap`** (never `memoryDiagram` / `archDiagram`). It renders as the **right-hand panel of the memory-topology 全屏 overlay** ([`MemoryHeatmapPanel`](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)), driven by one shared `selectedMemoryUnit` mirrored between the diagram's clickable units and the panel's tabs. Source today: `UbRwAccesses.csv` (UB grid + `已用指令条数`); the other five tabs stay blank ([DATA-50](../questions/DATA.md)).
+  1. **The heatmap is its own surface, not a second topology.** `ReportViewModel.memoryHeatmap` is a separate carrier beside `memoryTopology`, filled by `memoryHeatmapFromTexts` and advertised as capability **`memoryHeatmap`** (never `memoryDiagram` / `archDiagram`). It renders as the **right-hand panel of the memory-topology 全屏 overlay** ([`MemoryHeatmapPanel`](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)), driven by one shared `selectedMemoryUnit` mirrored between the diagram's clickable units and the panel's tabs. Heat SSOT is Layout+Cells ([DATA-50](DATA.md) / [DATA-51](DATA.md)).
   2. **No dedicated `ArchDiagramModel` / biprof chrome.** The emulate Architecture Diagram **stays** the projection of `ArchDiagramMetrics` onto the shared plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](interim/DATA.md)); a richer model is not built, so the slot-map question stays open as [DATA-48](../questions/DATA.md).
 - **Specs:** [memory-topology § Memory Utilization Heatmap](../../views/memory-topology.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-025, [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [ADAPTERS](../../formats/ADAPTERS.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [product-sections](../../views/product-sections.md), [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md), [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
-- **Source:** Product (2026-10-01) via the memory-heatmap plan ("its own surface, not a second topology") + the Sept 30 M4 lock (Architecture Diagram and heatmap are separate product surfaces). Retires the DATA-49 row; the two data gaps it exposed are filed as [DATA-50](../questions/DATA.md) (`MemoryType` → unit) and [DATA-51](../questions/DATA.md) (capacity fields).
+- **Source:** Product (2026-10-01) via the memory-heatmap plan ("its own surface, not a second topology") + the Sept 30 M4 lock (Architecture Diagram and heatmap are separate product surfaces).
+
+## DATA-50
+
+- **Resolved:** 2026-11-02
+- **Was:** open question DATA-50 (`MemoryType` / heat grid geometry)
+- **Question:** How does the producer attribute heat cells to memory units, size the lattice, and treat multi-core UB / L2 / UtilizationStates / UbRw?
+- **Decision:**
+  1. **SSOT:** `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv`. Do not paint from `MemoryRWAccesses` or `UbRwAccesses`. Missing Layout/Cells → omit `memoryHeatmap`.
+  2. **`MemoryType`:** 1 UB, 2 L0A, 3 L0B, 4 L0C, 5 L1 (not `CoreTypeId`). Unknown ids may appear as `TYPE_<n>` and are **not** L2. There is **no** L2 heat unit — Product removed the blank L2Cache tab ([UI-60](./UI.md)).
+  3. **View key:** `(CoreId, CoreTypeId, MemoryType)` — one independent view per Layout row. Multi-core UB (AIV0/AIV1) must **not** merge; the panel offers a view selector. Capacity metrics are per selected view.
+  4. **Grid:** `Width`×`Height` cells; `CellSize` bytes/cell; cell address `BaseAddress + (CellRow*Width+CellCol)*CellSize`. `withData` iff `ReadAddresses+WriteAddresses > 0`; missing Cells rows are untouched. Counts are coverage (see producer format), not allocation state.
+  5. **`OutsideDeclared=1`:** draw the supplied grid and badge the view; do not re-clip to `DeclaredSize`.
+  6. **`MemoryUtilizationStates`:** out of scope for the spatial lattice / Total/Used/Free (timeline-only if used later).
+- **Specs:** [memory-topology](../../views/memory-topology.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-025, [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
+- **Source:** Producer answers `ui-answers-memory-heatmap.md` (2026-11-02) + `profiling_report_guide.md` §17 + `npusim/.../memory_heatmap_format.md`. Supersedes [`DATA-50a`](interim/DATA.md#data-50a).
+
+## DATA-51
+
+- **Resolved:** 2026-11-02
+- **Was:** open question DATA-51 (Total / Used / Free)
+- **Question:** Which fields supply the heat-panel capacity line?
+- **Decision:**
+  1. Scoped to selected view `K=(CoreId, CoreTypeId, MemoryType)`. Let `span=Width*Height*CellSize`, `N=` Cells rows for `K`.
+  2. **Total** = `OutsideDeclared ? span : DeclaredSize`. If `DeclaredSize` is NULL/unknown and not outside-declared, omit Total (never invent 0).
+  3. **Used** = `N * CellSize` (touched-cell footprint). Do not sum coverage counts or use UtilizationStates.
+  4. **Free** = `Total − Used` when Total is known. No reservation field; sketch `Used:20KB / Free:0KB` does not override the formula.
+  5. Without Layout: omit the capacity caption entirely. Do not put 已用指令条数 in that slot.
+  6. **Placement:** persistent caption under the grid (UI choice endorsed by producer; format requires communicating total/used/free).
+- **Specs:** [memory-topology](../../views/memory-topology.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-025, [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
+- **Source:** Producer answers `ui-answers-memory-heatmap.md` (2026-11-02) + format “Deriving the rest”. Supersedes [`DATA-51a`](interim/DATA.md#data-51a).
 
 ---
 

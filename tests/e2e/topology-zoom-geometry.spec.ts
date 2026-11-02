@@ -506,8 +506,8 @@ test('PR-MEMTOP-019: a ladder step contracts the bar at once and tweens the draw
  * chrome's ratio inside a narrower box, and the grid laid out as cells. jsdom has no layout, so
  * this is the only place the column's geometry is observable.
  *
- * Fixture: `data/gelu.npu-rep` — the emulate smoke pack, whose `UbRwAccesses.csv` is the one unit
- * with a usable per-access source (DATA-50). Its six units are clickable on the stacked diagram
+ * Fixture: `data/gelu.npu-rep` — the emulate smoke pack, whose Layout+Cells heat embeds light the unit
+ * with a usable Layout+Cells source (DATA-50). Its five heat units are clickable on the stacked diagram
  * (PR-MEMTOP-021), so this also covers the 点击一个 memory 进来 → 全屏 path (PR-ROOT-026).
  */
 test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagram keeps its ratio', async ({
@@ -638,9 +638,9 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(bodyFit!.scrollHeight).toBeLessThanOrEqual(bodyFit!.clientHeight + 1);
 
   // A tab with no source blanks its body and moves the diagram's own highlight with it.
-  await overlay.getByTestId('heat-tab-l2').click();
+  await overlay.getByTestId('heat-tab-l0c').click();
   await expect(overlay.getByTestId('heat-empty')).toBeVisible();
   await expect(overlay.getByTestId('heat-grid')).toHaveCount(0);
-  await expect(overlay.getByTestId('memory-unit-l2')).toHaveClass(/pr-topo__unit--on/);
+  await expect(overlay.getByTestId('memory-unit-l0c')).toHaveClass(/pr-topo__unit--on/);
   await expect(overlay.getByTestId('memory-unit-ub')).not.toHaveClass(/pr-topo__unit--on/);
 });

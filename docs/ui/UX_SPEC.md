@@ -106,7 +106,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 |--|--|
 | **Goal** | Understand bandwidth / path load across L1/L2/UB/GM |
 | **Trigger** | After S1; topology is on the stacked 报告统计 scroll |
-| **Steps** | View topology under PIPE; the diagram's own bar zooms it (**放大** / **缩小** / **适应窗口**, PR-MEMTOP-015) or opens **全屏**, which covers the report with the same diagram; the six memory units (`L2Cache` / `L1` / `UB` / `L0A` / `L0B` / `L0C`) hover-highlight and are clickable — a click opens **全屏** with that unit's heat panel selected; **详情** opens memory CSV field list; correlate with timeline window |
+| **Steps** | View topology under PIPE; the diagram's own bar zooms it (**放大** / **缩小** / **适应窗口**, PR-MEMTOP-015) or opens **全屏**, which covers the report with the same diagram; the five heat units (`L1` / `UB` / `L0A` / `L0B` / `L0C`, [UI-60](../context/decisions/UI.md)) hover-highlight and are clickable — a click opens **全屏** with that unit's heat panel selected; **详情** opens memory CSV field list; correlate with timeline window |
 | **Success** | User identifies memory-bound paths; the fullscreen right panel shows the selected unit's allocation grid (biprof §11.2.3.2) |
 | **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930-sim/memory-topology-zoom.jpeg`, `source/v930-sim/memory-topology-fullscreen.jpeg` |
 

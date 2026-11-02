@@ -41,7 +41,8 @@ const PIPE_HIST_NAMES = ['PipeUtilizationHist.csv', 'pipeutilizationhist.csv'];
 const INSTR_QUEUE_TYPE_NAMES = ['InstrQueueTypes.csv', 'instrqueuetypes.csv'];
 const CORE_TYPE_NAMES = ['CoreTypes.csv', 'coretypes.csv'];
 const ARCH_DIAGRAM_NAMES = ['ArchDiagramMetrics.csv', 'archdiagrammetrics.csv'];
-const UB_RW_ACCESS_NAMES = ['UbRwAccesses.csv', 'ubrwaccesses.csv'];
+const HEATMAP_LAYOUT_NAMES = ['MemoryHeatmapLayout.csv', 'memoryheatmaplayout.csv'];
+const HEATMAP_CELLS_NAMES = ['MemoryHeatmapCells.csv', 'memoryheatmapcells.csv'];
 const HINT_MESSAGES_NAMES = ['HintMessages.csv', 'hintmessages.csv'];
 const HINT_TYPES_NAMES = ['HintTypes.csv', 'hinttypes.csv'];
 const INSTRUCTION_HINTS_NAMES = ['InstructionHints.csv', 'instructionhints.csv'];
@@ -357,11 +358,14 @@ export function adaptEmulate(
     archBytes ? decodeUtf8(archBytes) : undefined,
   );
 
-  // §11.2.3.2 heat grid; its own carrier beside the topology (DATA-49). Omitted when no unit has
-  // a usable per-access source, so the panel and its capability stay off (DATA-30).
-  const ubRwBytes = payloadByName(payloads, UB_RW_ACCESS_NAMES);
+  // §11.2.3.2 heat grid; Layout+Cells only (DATA-50). Omitted when nothing is drawable (DATA-30).
+  const layoutBytes = payloadByName(payloads, HEATMAP_LAYOUT_NAMES);
+  const cellsBytes = payloadByName(payloads, HEATMAP_CELLS_NAMES);
+  const coreTypeBytes = payloadByName(payloads, CORE_TYPE_NAMES);
   const memoryHeatmap = memoryHeatmapFromTexts({
-    'UbRwAccesses.csv': ubRwBytes ? decodeUtf8(ubRwBytes) : undefined,
+    'MemoryHeatmapLayout.csv': layoutBytes ? decodeUtf8(layoutBytes) : undefined,
+    'MemoryHeatmapCells.csv': cellsBytes ? decodeUtf8(cellsBytes) : undefined,
+    'CoreTypes.csv': coreTypeBytes ? decodeUtf8(coreTypeBytes) : undefined,
   });
 
   const performanceHints = performanceHintsFromPayloads(payloads);
