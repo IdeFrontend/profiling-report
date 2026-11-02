@@ -8,6 +8,7 @@
 | **Phase** | M4 |
 | **Unification** | `adapt-mapper` |
 | **Sept 30 (emulate)** | **in** |
+| **Compute** | **in** — `Summary.jsonl` `PerformanceHints` (PR-VM-027 / #177) |
 
 ## Sketches
 

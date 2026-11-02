@@ -991,11 +991,12 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(emptyHints.reportModel.performanceHints).toBeUndefined();
     expect(emptyHints.capabilities).not.toContain('performanceHints');
 
-    // Malformed first PerformanceHints line must not abort the scan before a valid one.
+    // Malformed / empty-usable first PerformanceHints lines must not abort before a valid one.
     const afterBad = adaptPayloads({
       'summary.jsonl': encoder.encode(
         [
           JSON.stringify({ category: 'PerformanceHints', hints: null }),
+          JSON.stringify({ category: 'PerformanceHints', hints: ['  ', ''] }),
           JSON.stringify({ category: 'PerformanceHints', hints: ['recovered hint'] }),
         ].join('\n') + '\n',
       ),

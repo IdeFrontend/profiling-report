@@ -569,9 +569,9 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
 /**
  * Compute `Summary.jsonl` `PerformanceHints` → dock rows (#177). Each non-empty
  * string becomes `{ message, origin: 'kernel' }` (no pc / sourceLineId). First
- * line whose `hints` is an array wins; non-array `hints` skips that line.
- * Empty / missing → `[]` so the caller omits the field and capability (DATA-30).
- * Does not re-run H01–H12; producer already emitted the texts.
+ * line that yields ≥1 usable string wins; non-array / all-empty `hints` skips
+ * that line so a later valid record can still load. No usable lines → `[]` so
+ * the caller omits the field and capability (DATA-30). Does not re-run H01–H12.
  */
 function performanceHintsFromSummaryJsonl(payload?: Uint8Array): PerformanceHintItem[] {
   if (!payload) return [];
@@ -583,7 +583,7 @@ function performanceHintsFromSummaryJsonl(payload?: Uint8Array): PerformanceHint
       continue;
     }
     if (obj.category !== 'PerformanceHints') continue;
-    // Non-array hints: skip this line and keep scanning (a later valid line may exist).
+    // Non-array / zero usable strings: skip and keep scanning.
     if (!Array.isArray(obj.hints)) continue;
     const hints: PerformanceHintItem[] = [];
     for (const raw of obj.hints) {
@@ -592,6 +592,7 @@ function performanceHintsFromSummaryJsonl(payload?: Uint8Array): PerformanceHint
       if (!message) continue;
       hints.push({ message, origin: 'kernel' });
     }
+    if (hints.length === 0) continue;
     return hints;
   }
   return [];
