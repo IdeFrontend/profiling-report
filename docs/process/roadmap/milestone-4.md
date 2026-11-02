@@ -64,7 +64,7 @@ Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FOR
 | Blocker | Impact | Mitigation |
 |---------|--------|------------|
 | **DATA-48** Product slot map / dedicated arch model + chrome | Arch diagram labels wrong vs chrome; lossy projection until a biprof SVG exists | Ship DATA-48a name map from gelu; refine when Product answers; escalate when Product provides a dedicated chrome/model |
-| **DATA-50** `MemoryType` → unit vocabulary | Five heat tabs (L1 / L2 / L0A / L0B / L0C) render blank | Blank tabs ship (design-complete, data-degraded); UB grid is real on gelu |
+| **DATA-50** Memory heat unit vocabulary | — | **Resolved** — Layout+Cells SSOT; tabs L1/UB/L0A/L0B/L0C ([UI-60](../../context/decisions/UI.md)); [DATA-50](../../context/decisions/DATA.md) |
 | Export packer must include PIPE / ArchDiagram for aside | gelu packs them; keep packing on future dumps | Packer requirement; sample leaf also includes them |
 | Source line on hints | `SourceLineHints.SourceLineId` needs `SourceLines` for a line number; gelu leaves `SourceLines` empty | **Resolved** — show the raw `SourceLineId` (id-only fallback) until ELF/`SourceLines` is packed |
 | **PROC-9** dedicated origin | Product assigned `2` simulator, `3` sanitizer | Parser still accepts only `origin=1`; detection stays `manifest.json` |

@@ -125,7 +125,6 @@ describe('MemoryHeatmapPanel', () => {
     const wrapper = mountPanel({ model: outside, selectedUnit: 'l0a' });
     const badge = wrapper.get('[data-testid="heat-outside"]');
     const body = wrapper.get('[data-testid="heat-body"]').element;
-    expect(badge.exists()).toBe(true);
     // Sibling of the body — not a child — so it cannot clip the lattice (PR-HEAT-011).
     expect(body.contains(badge.element)).toBe(false);
   });
