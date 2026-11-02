@@ -154,6 +154,30 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     }
   });
 
+  it('both operators expose Summary.jsonl PerformanceHints (PR-VM-027 / #177)', () => {
+    expect(op1.reportModel.performanceHints?.length).toBeGreaterThanOrEqual(2);
+    expect(op2.reportModel.performanceHints?.length).toBeGreaterThanOrEqual(2);
+    expect(op1.capabilities).toContain('performanceHints');
+    expect(op2.capabilities).toContain('performanceHints');
+    for (const report of [op1, op2]) {
+      for (const row of report.reportModel.performanceHints!) {
+        expect(row.origin).toBe('kernel');
+        expect(row.message.length).toBeGreaterThan(0);
+        expect(row.pc).toBeUndefined();
+        expect(row.sourceLineId).toBeUndefined();
+      }
+      expect(report.reportModel.summaryCategories?.map((c) => c.id)).not.toContain(
+        'PerformanceHints',
+      );
+    }
+    expect(op1.reportModel.performanceHints!.some((h) => h.message.includes('add_custom'))).toBe(
+      true,
+    );
+    expect(op2.reportModel.performanceHints!.some((h) => h.message.includes('matmul_mock'))).toBe(
+      true,
+    );
+  });
+
   it('fixture summary.jsonl bandwidth matches the producer sum / mean rules (DATA-8)', () => {
     const meanNonNa = (rows: Record<string, string>[], col: string): number | undefined => {
       const nums = rows

@@ -1427,6 +1427,15 @@ def build_summary_jsonl(texts, *, op_basic, demo):
         "compute_communication_overlap_time": float(op_basic["duration"]) * (8.4 / 24.6),
     }
     lines.append(op_info)
+    # §11.10 PerformanceHints — producer-emitted advice strings (demo; not re-derived H01–H12).
+    lines.append({
+        "category": "PerformanceHints",
+        "hints": [
+            "Inspect the Vector instruction sequence, redundant compute, conversions, and reductions.",
+            "Average bytes per copy instruction is under 16 KiB. Check whether adjacent copies can merge.",
+            f"{op_basic['op_name']}: scalar pipe busy — inspect address math and loop-invariant code.",
+        ],
+    })
     return "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in lines)
 
 

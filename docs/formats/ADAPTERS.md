@@ -43,7 +43,7 @@ Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisio
 | `memoryDiagram` | [memory-topology](../views/memory-topology.md) | Memory* | compute only (Asc 内存负载) |
 | `archDiagram` | [memory-topology](../views/memory-topology.md) | — | Emulate ArchDiagramMetrics **in** on the same chrome + `memoryTopology` VM ([DATA-48a](../context/decisions/interim/DATA.md)); not `memoryDiagram` |
 | `memoryHeatmap` | [memory-topology](../views/memory-topology.md) | `MemoryHeatmapLayout` + `MemoryHeatmapCells` (+ `CoreTypes`) | Own VM / fullscreen right panel (§11.2.3.2); [DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md) |
-| Performance hints | [performance-hints](../views/performance-hints.md) | — | **in** — `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` joined by `adaptEmulate` |
+| Performance hints | [performance-hints](../views/performance-hints.md) | **in** — `Summary.jsonl` `PerformanceHints` → `performanceHints` + capability (PR-VM-027 / #177) | **in** — `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` joined by `adaptEmulate` |
 | `hardwareDetails` | _(stub)_ | HardwareInfo | usually omit |
 | `sourceTab` / Source correlation | [SourceView](../../src/ui/SourceView/SourceView.spec.md) | compute: `objdump.txt` + `symbolizer.json` + `summary.db` + `.asc` **in** (`adaptComputeSourceCorrelation`); otherwise the tab is absent ([UI-37](../context/decisions/UI.md), [DATA-52](../context/questions/DATA.md)) |
 | `vfIpc` / `callStacks` | reserved | — | **out-of-scope** Sept 30 |
