@@ -36,7 +36,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 | Architecture Diagram | **In** | ArchDiagramMetrics → interim plated chrome; capability `archDiagram`; UI title **内存负载分析** |
 | CANNBot compute / memory | **In** | Host opens UI; library emits payload; summary-scope icon omitted with meta |
 | Performance hints（性能提示） | **In** | Sketch [`v930-sim/performance-hints`](../../ui/source/v930-sim/performance-hints.jpeg); gelu packs the hint CSVs; bottom dock table built (`PerformanceHintsDock`, capability `performanceHints`) |
-| Memory Utilization Heatmap | **In** | `UbRwAccesses` → `memoryHeatmap` VM + capability; fullscreen right panel (§11.2.3.2). The other five unit tabs stay blank until `MemoryType` maps ([DATA-50](../../context/questions/DATA.md)) |
+| Memory Utilization Heatmap | **In** | Layout+Cells → `memoryHeatmap` VM + capability; fullscreen right panel (§11.2.3.2); tabs L1/UB/L0A/L0B/L0C ([DATA-50](../../context/decisions/DATA.md) / [UI-60](../../context/decisions/UI.md)) |
 | Roofline / VF IPC / call stacks / full ArchDiagramModel | **Out** | Phase 2 ([DATA-48](../../context/questions/DATA.md)) |
 
 ## Implementation tasks
@@ -56,7 +56,7 @@ Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FOR
 2. `PipeTrace.json` (µs) **or** native `core_*_tracing_report_*.json`
 3. `PipesUtilization.csv` and/or `PipeUtilizationHist.csv`
 4. `ArchDiagramMetrics.csv`
-5. `UbRwAccesses.csv` (Memory Utilization Heatmap; absent → heat panel omitted)
+5. `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv` (Memory Utilization Heatmap; absent → heat panel omitted)
 6. Performance-hint CSVs when the 性能提示 view is expected: `HintMessages.csv`, `HintTypes.csv`, `InstructionHints.csv`, `KernelHints.csv`, `SourceLineHints.csv`
 
 ## Potential blockers
@@ -64,7 +64,7 @@ Normative embed → view table: [emulate/FORMAT §4.1](../../formats/emulate/FOR
 | Blocker | Impact | Mitigation |
 |---------|--------|------------|
 | **DATA-48** Product slot map / dedicated arch model + chrome | Arch diagram labels wrong vs chrome; lossy projection until a biprof SVG exists | Ship DATA-48a name map from gelu; refine when Product answers; escalate when Product provides a dedicated chrome/model |
-| **DATA-50** `MemoryType` → unit vocabulary | Five heat tabs (L1 / L2 / L0A / L0B / L0C) render blank | Blank tabs ship (design-complete, data-degraded); UB grid is real on gelu |
+| **DATA-50** Memory heat unit vocabulary | — | **Resolved** — Layout+Cells SSOT; tabs L1/UB/L0A/L0B/L0C ([UI-60](../../context/decisions/UI.md)); [DATA-50](../../context/decisions/DATA.md) |
 | Export packer must include PIPE / ArchDiagram for aside | gelu packs them; keep packing on future dumps | Packer requirement; sample leaf also includes them |
 | Source line on hints | `SourceLineHints.SourceLineId` needs `SourceLines` for a line number; gelu leaves `SourceLines` empty | **Resolved** — show the raw `SourceLineId` (id-only fallback) until ELF/`SourceLines` is packed |
 | **PROC-9** dedicated origin | Product assigned `2` simulator, `3` sanitizer | Parser still accepts only `origin=1`; detection stays `manifest.json` |

@@ -1145,9 +1145,19 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if (sourceCorrelation && !sourceCorrelation.mock) {
     reportModel.sourceCorrelation = sourceCorrelation;
   }
-  const ubRw = payloadByName(payloads, ['UbRwAccesses.csv', 'ubrwaccesses.csv']);
+  const heatLayout = payloadByName(payloads, [
+    'MemoryHeatmapLayout.csv',
+    'memoryheatmaplayout.csv',
+  ]);
+  const heatCells = payloadByName(payloads, [
+    'MemoryHeatmapCells.csv',
+    'memoryheatmapcells.csv',
+  ]);
+  const coreTypes = payloadByName(payloads, ['CoreTypes.csv', 'coretypes.csv']);
   const memoryHeatmap = memoryHeatmapFromTexts({
-    'UbRwAccesses.csv': ubRw ? decodeUtf8(ubRw) : undefined,
+    'MemoryHeatmapLayout.csv': heatLayout ? decodeUtf8(heatLayout) : undefined,
+    'MemoryHeatmapCells.csv': heatCells ? decodeUtf8(heatCells) : undefined,
+    'CoreTypes.csv': coreTypes ? decodeUtf8(coreTypes) : undefined,
   });
   if (memoryHeatmap) reportModel.memoryHeatmap = memoryHeatmap;
   const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);

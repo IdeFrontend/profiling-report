@@ -916,20 +916,7 @@ onBeforeUnmount(() => {
   margin-top: 8px;
 }
 
-/* Match search height/radius; keep shared pill chevron from tokens.css.
-   Trigger lives in SourcePillSelect — :deep so the closed control stays this pill. */
-:deep(.pr-source-view__select) {
-  box-sizing: border-box;
-  height: var(--pr-src-control-h, 28px);
-  max-width: 220px;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-radius: var(--pr-src-control-radius, 6px);
-  background-color: var(--pr-src-bg-control, #363636);
-  color: var(--pr-src-text, #c8c8c8);
-  font-size: 12px;
-  line-height: calc(var(--pr-src-control-h, 28px) - 2px);
-}
+/* Closed-control pill size lives on SourcePillSelect (shared with heat view picker). */
 
 .pr-source-view__actions {
   display: inline-flex;
