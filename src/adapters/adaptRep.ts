@@ -10,6 +10,7 @@ import type {
   HardwareSection,
   OverviewSeries,
   ParsedRep,
+  PerformanceHintItem,
   PipeOccupancyItem,
   ReportCapability,
   ReportViewModel,
@@ -565,14 +566,43 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
   return {};
 }
 
+/**
+ * Compute `Summary.jsonl` `PerformanceHints` → dock rows (#177). Each non-empty
+ * string becomes `{ message, origin: 'kernel' }` (no pc / sourceLineId). Empty
+ * or missing → `[]` so the caller omits the field and capability (DATA-30).
+ * Does not re-run H01–H12; producer already emitted the texts.
+ */
+function performanceHintsFromSummaryJsonl(payload?: Uint8Array): PerformanceHintItem[] {
+  if (!payload) return [];
+  for (const line of decodeUtf8(payload).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (obj.category !== 'PerformanceHints') continue;
+    if (!Array.isArray(obj.hints)) return [];
+    const hints: PerformanceHintItem[] = [];
+    for (const raw of obj.hints) {
+      if (typeof raw !== 'string') continue;
+      const message = raw.trim();
+      if (!message) continue;
+      hints.push({ message, origin: 'kernel' });
+    }
+    return hints;
+  }
+  return [];
+}
+
 /** Metric categories surfaced by the detail panels (summary.jsonl). */
 export const SUMMARY_COMPUTE_CATEGORIES = ['PipeUtilization', 'ArithmeticUtilization', 'ResourceConflictRatio'] as const;
 export const SUMMARY_MEMORY_CATEGORIES = ['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const;
 
 /**
  * Product `npu-rep` detail source: `Summary.jsonl` category lines (block-mean,
- * per spec "默认显示 summary.jsonl 分组数据"). OpInfoSummary is excluded (it is
- * the summary card, not a detail group).
+ * per spec "默认显示 summary.jsonl 分组数据"). OpInfoSummary and PerformanceHints
+ * are excluded (summary card / 性能提示 dock — not detail groups).
  */
 function summaryCategoriesFromSummaryJsonl(payload?: Uint8Array): SummaryCategory[] {
   if (!payload) return [];
@@ -586,7 +616,7 @@ function summaryCategoriesFromSummaryJsonl(payload?: Uint8Array): SummaryCategor
       continue;
     }
     const category = typeof obj.category === 'string' ? obj.category : undefined;
-    if (!category || category === 'OpInfoSummary') continue;
+    if (!category || category === 'OpInfoSummary' || category === 'PerformanceHints') continue;
     if (seen.has(category)) continue;
     seen.add(category);
 
@@ -875,6 +905,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   const hardwareDetails = hardwareDetailsFromPayloads(payloads);
   const summaryJsonl = payloadByName(payloads, ['summary.jsonl', 'Summary.jsonl', 'SUMMARY.jsonl']);
   const summaryCategories = summaryCategoriesFromSummaryJsonl(summaryJsonl);
+  const performanceHints = performanceHintsFromSummaryJsonl(summaryJsonl);
   // DATA-19 / DATA-29 `All` scope: PIPE, roofline and the memory diagram read the summary.jsonl
   // category records, so every widget shares the producer's own non-`NA` mean; the CSV means stay
   // as the classic-`.rep` fallback (no `summary.jsonl` ⇒ no aggregate exists).
@@ -989,6 +1020,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     ...(roofline ? { roofline } : {}),
     ...(hardwareDetails ? { hardwareDetails } : {}),
     ...(memoryTopology ? { memoryTopology } : {}),
+    ...(performanceHints.length > 0 ? { performanceHints } : {}),
     ...(summaryCategories.length > 0 ? { summaryCategories } : {}),
   };
 }
@@ -1125,6 +1157,8 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
   if (swimlaneModel && hasDependencies(swimlaneModel)) capabilities.push('dependencies');
   // UI-37: 源码 only when real source embeds adapted (no mock fallback).
   if (reportModel.sourceCorrelation) capabilities.push('sourceTab');
+  // #177: Summary.jsonl PerformanceHints → 性能提示 dock (DATA-30 omit when empty).
+  if ((reportModel.performanceHints?.length ?? 0) > 0) capabilities.push('performanceHints');
   return {
     swimlaneModel,
     reportModel,

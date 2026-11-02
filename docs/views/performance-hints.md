@@ -37,9 +37,12 @@ No joined hint rows → **hide** the panel ([DATA-30](../context/decisions/DATA.
 
 ## Compute fill
 
+Schema: [compute/SCHEMA](../formats/compute/SCHEMA.md) §11.10. **Mapper wired** — `adaptPayloads` reads the `PerformanceHints` category from `Summary.jsonl` (PR-VM-027 / #177). Does not invent hints from CSVs ([DATA-45](../context/decisions/interim/DATA.md#data-45)); does not re-run H01–H12.
+
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| — | — | — | No compute equivalent |
+| `performanceHints[].message` | `Summary.jsonl` `category: PerformanceHints` | — | Each non-empty trimmed string in `hints[]` |
+| `performanceHints[].origin` | — | — | Always `'kernel'` (no pc / sourceLineId → dock “Not specified”) |
 
 ## Emulate fill
 
@@ -104,7 +107,7 @@ Union all three fact kinds into one `hintRows[]` (stable order: instruction → 
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | — | Out of scope |
+| compute | `adaptPayloads` / `adaptRep` | Wired — `Summary.jsonl` `PerformanceHints` → `reportModel.performanceHints` + capability `performanceHints` (PR-VM-027); omit when empty ([DATA-30](../context/decisions/DATA.md)) |
 | emulate | `adaptEmulate` | Wired — joins the five hint CSVs into `reportModel.performanceHints` + capability `performanceHints` |
 
 ## Related
