@@ -46,6 +46,65 @@ describe('readPcSamplingDb', () => {
     await expect(readPcSamplingDb(bytes)).rejects.toThrow(/missing columns/);
   });
 
+  const stallTableDdl = (name: string) => `CREATE TABLE ${name} (
+      "pc_offset" TEXT,
+      "IBuf_Empty" INTEGER,
+      "Nop_Cycles" INTEGER,
+      "Scoreboard_Not_Ready" INTEGER,
+      "Register_bank_conflict" INTEGER,
+      "Resource_conflict" INTEGER,
+      "Warp_Level_Sync" INTEGER,
+      "Divergence_Stack_Spill" INTEGER,
+      "Others" INTEGER
+    )`;
+
+  it('reads producer PcSampling table spelling', async () => {
+    const SQL = await initSqlJs({
+      wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+    });
+    const db = new SQL.Database();
+    db.run(stallTableDdl('"PcSampling"'));
+    db.run(
+      `INSERT INTO "PcSampling" VALUES ('0x268', 0, 0, 12, 0, 0, 0, 0, 3)`,
+    );
+    const bytes = db.export();
+    db.close();
+    const rows = await readPcSamplingDb(bytes);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.pcOffset).toBe('0x268');
+    expect(rows[0]!.samplingStall).toBe(15);
+    expect(rows[0]!.scoreboardNotReady).toBe(12);
+  });
+
+  it('prefers pc_sampling when both spellings exist', async () => {
+    const SQL = await initSqlJs({
+      wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+    });
+    const db = new SQL.Database();
+    db.run(stallTableDdl('pc_sampling'));
+    db.run(stallTableDdl('"PcSampling"'));
+    // Distinct stall totals so preference is observable (snake=7, Pascal=100).
+    db.run(`INSERT INTO pc_sampling VALUES ('0x100', 1, 2, 4, 0, 0, 0, 0, 0)`);
+    db.run(`INSERT INTO "PcSampling" VALUES ('0x100', 0, 0, 0, 0, 0, 0, 0, 100)`);
+    const bytes = db.export();
+    db.close();
+    const rows = await readPcSamplingDb(bytes);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.samplingStall).toBe(7);
+    expect(rows[0]!.others).toBe(0);
+  });
+
+  it('rejects summary.db with neither pc_sampling nor PcSampling', async () => {
+    const SQL = await initSqlJs({
+      wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+    });
+    const db = new SQL.Database();
+    db.run('CREATE TABLE other (x INTEGER)');
+    const bytes = db.export();
+    db.close();
+    await expect(readPcSamplingDb(bytes)).rejects.toThrow(/no pc_sampling \/ PcSampling/);
+  });
+
   it('clears a failed ensure so a later call can retry', async () => {
     const { configurePcSamplingSql, ensurePcSamplingSql: ensure } = await import('./readPcSamplingDb');
     configurePcSamplingSql({
