@@ -7,7 +7,7 @@ From `sample [cTiIlO].zip` (npu-compute gather_2d / SIMT).
 | `gather_2d.asc` | Ascend C SIMT source (zip root; not in producer `out.npu-rep`) |
 | `objdump.txt` | Disassembly → SASS pane (`llvm-objdump`) |
 | `symbolizer.json` | PC → file/function/line (`llvm-symbolizer` JSON) |
-| `summary.db` | SQLite `pc_sampling` stall counters by `pc_offset` |
+| `summary.db` | SQLite `pc_sampling` stall counters by `pc_offset` (some packs use `PcSampling`; reader accepts either) |
 | `out.npu-rep` | Producer leaf as shipped (embeds above **except** `.asc`) |
 
 Playground fixture **`data/gather_2d.npu-rep`** is the same leaf **plus** `gather_2d.asc` so Source can open without a separate source fetch (`?fixture=gather_2d`).
