@@ -340,7 +340,10 @@ function toggleExpanded(): void {
       >
         <thead>
           <tr>
-            <th scope="col" :aria-sort="sortState('name')">
+            <th
+              scope="col"
+              :aria-sort="sortState('name')"
+            >
               <button
                 type="button"
                 class="pr-multi-select__sort"
@@ -372,7 +375,10 @@ function toggleExpanded(): void {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="topPadPx > 0" aria-hidden="true">
+          <tr
+            v-if="topPadPx > 0"
+            aria-hidden="true"
+          >
             <td
               colspan="4"
               class="pr-multi-select__pad"
@@ -416,7 +422,10 @@ function toggleExpanded(): void {
               </span>
             </td>
           </tr>
-          <tr v-if="bottomPadPx > 0" aria-hidden="true">
+          <tr
+            v-if="bottomPadPx > 0"
+            aria-hidden="true"
+          >
             <td
               colspan="4"
               class="pr-multi-select__pad"

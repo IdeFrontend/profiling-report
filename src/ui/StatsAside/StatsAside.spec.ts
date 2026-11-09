@@ -19,6 +19,11 @@ function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
 /** Unmount every wrapper after its test so the shared card tooltip leaves the document with it. */
 enableAutoUnmount(afterEach);
 
+/** 详情 冷却锁（按钮防抖）用假时钟穿透的测试，结束后恢复真实定时器。 */
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 /**
  * Summary-card number tooltip (PR-STATS-041): the exact value is the first (bold) line, the metric
  * description the second. `locale` must match the mount under test — `exactValue` is localized, so
@@ -249,6 +254,8 @@ describe('StatsAside', () => {
   });
 
   it('PR-STATS-014c (DATA-19/29): 详情 follows the block selector — picked id reads its CSV row', async () => {
+    // 详情 入口带 1s 冷却锁（按钮防抖）：用假时钟推进，允许测试内快速重进。
+    vi.useFakeTimers();
     const wrapper = mount(StatsAside, {
       props: {
         report: report({
@@ -307,6 +314,7 @@ describe('StatsAside', () => {
 
     // … a picked block switches 详情 to that block's CSV row.
     await pickPipeBlock(wrapper, '1');
+    vi.advanceTimersByTime(1000);
     await wrapper.get('[data-testid="pipe-details"]').trigger('click');
     expect(wrapper.find('[data-testid="summary-category-list"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="csv-field-list"]').text()).toContain('0.8');
@@ -2238,6 +2246,8 @@ describe('StatsAside', () => {
   });
 
   it('PR-STATS-022: topology does not keep another block’s labels', async () => {
+    // 详情 入口带 1s 冷却锁（按钮防抖）：用假时钟推进，允许测试内快速重进。
+    vi.useFakeTimers();
     const tables = [
       {
         fileName: 'Memory.csv',
@@ -2284,6 +2294,7 @@ describe('StatsAside', () => {
 
     // UI-49: the picked-block rebuild joins `PipeUtilization.csv` to the Memory* tables, so block 0
     // brings its own in-box badge back — the pipe ratio × 100 (DATA-28).
+    vi.advanceTimersByTime(1000);
     await wrapper.get('[data-testid="topology-details"]').trigger('click');
     await wrapper.get('[data-testid="csv-block"]').setValue('0');
     await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
@@ -2445,7 +2456,7 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="csv-tab-PipeUtilization.csv"]').exists()).toBe(false);
   });
 
-  it('PR-STATS-033: header is cannbot + 详情; 全屏 lives in the diagram bar, hidden with it', () => {
+  it('PR-STATS-033: header is a clickable 详情 title + cannbot; 全屏 lives in the diagram bar, hidden with it', () => {
     const withTopo = mount(StatsAside, {
       props: {
         report: report({
@@ -2478,10 +2489,15 @@ describe('StatsAside', () => {
         }),
       },
     });
-    const actions = withTopo.get('[data-testid="stats-topology"] .pr-pipe-head__actions');
+    // 详情 transfer: the section title + chevron form one clickable button; cannbot rides beside it.
+    const head = withTopo.get('[data-testid="stats-topology"] .pr-stack-section__head');
+    const titleBtn = head.get('[data-testid="topology-details"]');
+    expect(titleBtn.find('.pr-stack-section__title').exists()).toBe(true);
+    expect(titleBtn.find('svg').exists()).toBe(true);
+    const actions = head.get('.pr-pipe-head__actions');
     expect(actions.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
       'cannbot-memory',
-      'topology-details',
+      'cannbot-memory-reference',
     ]);
     // The bar's 全屏 is the aside's only fullscreen control (MemoryTopologyPanel PR-MEMTOP-014);
     // it sits inside the panel, after the zoom controls, and only when the aside asks for it.
@@ -2806,7 +2822,11 @@ describe('StatsAside', () => {
     });
 
     const pipeSection = wrapper.get('[data-testid="pipe-occupancy"]');
-    expect(pipeSection.find('.pr-stack-section__head h4').exists()).toBe(true);
+    // 详情 transfer: the PIPE title is the 详情 button (title text + chevron), still outside the
+    // grey island (the .pr-panel--pipe body).
+    const pipeTitle = pipeSection.get('[data-testid="pipe-details"]');
+    expect(pipeTitle.find('.pr-stack-section__title').exists()).toBe(true);
+    expect(pipeTitle.find('svg').exists()).toBe(true);
     expect(pipeSection.find('.pr-panel--pipe .pr-stack-section__head').exists()).toBe(false);
     expect(pipeSection.find('.pr-panel--pipe').exists()).toBe(true);
 
@@ -2825,25 +2845,37 @@ describe('StatsAside', () => {
 
     const summaryBtn = wrapper.get('[data-testid="cannbot-summary"]');
     expect(summaryBtn.find('svg').exists()).toBe(true);
-    expect(summaryBtn.element.parentElement).toBe(
-      wrapper.get('[data-testid="stats-aside-meta"]').element,
+    // CannbotActions wraps its buttons in .pr-cannbot-actions; for summary it sits in the meta row.
+    const summaryActions = summaryBtn.element.parentElement!;
+    expect(summaryActions.classList.contains('pr-cannbot-actions')).toBe(true);
+    expect(wrapper.get('[data-testid="stats-aside-meta"]').element.contains(summaryBtn.element)).toBe(
+      true,
     );
 
     const computeBtn = wrapper.get('[data-testid="cannbot-compute"]');
     expect(computeBtn.find('svg').exists()).toBe(true);
     const computeActions = computeBtn.element.parentElement!;
-    expect(computeActions).toBe(wrapper.get('[data-testid="pipe-details"]').element.parentElement);
-    expect(computeActions.classList.contains('pr-pipe-head__actions')).toBe(true);
+    expect(computeActions.classList.contains('pr-cannbot-actions')).toBe(true);
+    expect(computeActions.parentElement!.classList.contains('pr-pipe-head__actions')).toBe(true);
     expect(computeActions.children[0]).toBe(computeBtn.element);
+    // 详情 transfer: pipe-details is the section-title button (title + chevron) in the head.
+    const pipeDetails = wrapper.get('[data-testid="pipe-details"]');
+    expect(pipeDetails.element.parentElement!.classList.contains('pr-stack-section__head')).toBe(
+      true,
+    );
+    expect(pipeDetails.find('.pr-stack-section__title').exists()).toBe(true);
 
     const memoryBtn = wrapper.get('[data-testid="cannbot-memory"]');
     expect(memoryBtn.find('svg').exists()).toBe(true);
     const memoryActions = memoryBtn.element.parentElement!;
-    expect(memoryActions).toBe(
-      wrapper.get('[data-testid="topology-details"]').element.parentElement,
-    );
-    expect(memoryActions.classList.contains('pr-pipe-head__actions')).toBe(true);
+    expect(memoryActions.classList.contains('pr-cannbot-actions')).toBe(true);
+    expect(memoryActions.parentElement!.classList.contains('pr-pipe-head__actions')).toBe(true);
     expect(memoryActions.children[0]).toBe(memoryBtn.element);
+    const topoDetails = wrapper.get('[data-testid="topology-details"]');
+    expect(topoDetails.element.parentElement!.classList.contains('pr-stack-section__head')).toBe(
+      true,
+    );
+    expect(topoDetails.find('.pr-stack-section__title').exists()).toBe(true);
 
     const empty = mount(StatsAside, { props: { report: report({}) } });
     expect(empty.find('[data-testid="cannbot-summary"]').exists()).toBe(true);
@@ -2868,9 +2900,11 @@ describe('StatsAside', () => {
     expect(csvOnly.find('[data-testid="stats-compute"]').exists()).toBe(true);
     expect(csvOnly.find('[data-testid="stats-memory"]').exists()).toBe(true);
     const csvComputeBtn = csvOnly.get('[data-testid="cannbot-compute"]');
-    expect(csvComputeBtn.element.parentElement!.classList.contains('pr-aside__detail-head')).toBe(true);
+    expect(csvComputeBtn.element.parentElement!.classList.contains('pr-cannbot-actions')).toBe(true);
+    expect(csvComputeBtn.element.closest('.pr-aside__detail-head')).not.toBeNull();
     const csvMemoryBtn = csvOnly.get('[data-testid="cannbot-memory"]');
-    expect(csvMemoryBtn.element.parentElement!.classList.contains('pr-aside__detail-head')).toBe(true);
+    expect(csvMemoryBtn.element.parentElement!.classList.contains('pr-cannbot-actions')).toBe(true);
+    expect(csvMemoryBtn.element.closest('.pr-aside__detail-head')).not.toBeNull();
   });
 
   it('PR-STATS-027: cannbot icons emit open-cannbot with the section scope', async () => {
@@ -2885,6 +2919,105 @@ describe('StatsAside', () => {
     await csvOnly.get('[data-testid="cannbot-compute"]').trigger('click');
     await csvOnly.get('[data-testid="cannbot-memory"]').trigger('click');
     expect(csvOnly.emitted('open-cannbot')).toEqual([['compute'], ['memory']]);
+  });
+
+  it('PR-STATS-044d: cannbotSessions drives each scope independently — settled shows 引用/查看, running shows 停止+引用, untouched scopes stay idle with 引用常驻', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: cannbotEntryReport(),
+        cannbotSessions: {
+          summary: { sessionId: 's-1', status: 'completed' },
+          compute: { sessionId: 'c-1', status: 'running' },
+        },
+      },
+    });
+
+    // settled: three buttons.
+    expect(wrapper.find('[data-testid="cannbot-summary-reference"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="cannbot-summary-view"]').exists()).toBe(true);
+    // running: stop button with the 正在分析 label + 常驻 引用, no 查看.
+    const stopBtn = wrapper.get('[data-testid="cannbot-compute"]');
+    expect(stopBtn.text()).toContain(t('cannbotAnalyzing'));
+    expect(wrapper.find('[data-testid="cannbot-compute-reference"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="cannbot-compute-view"]').exists()).toBe(false);
+    // no session record: idle 分析 button + 常驻 引用.
+    expect(wrapper.find('[data-testid="cannbot-memory-reference"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="cannbot-memory"]').attributes('aria-label')).toBe(t('cannbotAsk'));
+  });
+
+  it('PR-STATS-044d: settled scope emits cannbot-reference / cannbot-view; running scope emits open-cannbot-stop', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: cannbotEntryReport(),
+        cannbotSessions: {
+          summary: { sessionId: 's-1', status: 'completed' },
+          compute: { sessionId: 'c-1', status: 'running' },
+        },
+      },
+    });
+
+    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
+    await wrapper.get('[data-testid="cannbot-summary-view"]').trigger('click');
+    expect(wrapper.emitted('cannbot-reference')).toEqual([['summary']]);
+    expect(wrapper.emitted('cannbot-view')).toEqual([['summary']]);
+
+    await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
+    expect(wrapper.emitted('open-cannbot-stop')).toEqual([['compute']]);
+    expect(wrapper.emitted('open-cannbot')).toBeUndefined();
+  });
+
+  it('PR-STATS-045: 执行优化 pill sits in the title row left of close, icon + label, and emits perform-optimization', async () => {
+    const wrapper = mount(StatsAside, { props: { report: report({}) } });
+    const optimize = wrapper.get('[data-testid="perform-optimization-trigger"]');
+    expect(optimize.text()).toContain(t('performOptimization'));
+    expect(optimize.find('svg').exists()).toBe(true);
+
+    const optimizeEl = optimize.element;
+    const closeEl = wrapper.get('[data-testid="stats-aside-close"]').element;
+    expect(
+      optimizeEl.compareDocumentPosition(closeEl) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(optimizeEl.closest('.pr-aside__title-row')).not.toBeNull();
+
+    await optimize.trigger('click');
+    expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+  });
+
+  it('PR-STATS-046: 详情 title-button cooldown — first click opens + emits, repeats inside 1s are swallowed, the window then re-arms', async () => {
+    vi.useFakeTimers();
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { opType: 'vector' },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
+              blockIds: ['0'],
+            },
+          ],
+        }),
+      },
+    });
+
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.emitted('open-pipe-details')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="stats-compute"]').exists()).toBe(true);
+
+    // 连点（冷却期内）：只放行第一次，不重复 emit。
+    await wrapper.get('[data-testid="stats-aside-back"]').trigger('click');
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.emitted('open-pipe-details')).toHaveLength(1);
+
+    // 冷却窗口结束后的下一次点击恢复正常。
+    vi.advanceTimersByTime(1000);
+    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
+    expect(wrapper.emitted('open-pipe-details')).toHaveLength(2);
   });
 
   it('PR-STATS-039: detail overlays use a 200ms opacity-only transition covering header + body', async () => {
