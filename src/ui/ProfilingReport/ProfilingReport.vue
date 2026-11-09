@@ -182,7 +182,7 @@ const emit = defineEmits<{
   'open-cannbot-stop': [scope: CannbotScope];
   'cannbot-reference': [scope: CannbotScope];
   'cannbot-view': [scope: CannbotScope];
-  'perform-optimization': [];
+  'perform-optimization': [payload: { report_path: string; op_name: string }];
   'open-cannwork': [];
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
@@ -1724,7 +1724,10 @@ const emitCannbotView = cooldown(
 );
 
 const emitPerformOptimization = cooldown(
-  () => emit('perform-optimization'),
+  () => emit('perform-optimization', {
+    report_path: props.reportMeta?.path ?? '',
+    op_name: report.value?.summary.opName ?? '',
+  }),
   CANNBOT_EMIT_COOLDOWN_MS,
 );
 

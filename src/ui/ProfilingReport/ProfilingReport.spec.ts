@@ -2427,7 +2427,8 @@ describe('ProfilingReport scaffold', () => {
     await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
     expect(wrapper.emitted('open-cannbot-stop')).toEqual([['compute']]);
     await wrapper.get('[data-testid="perform-optimization-trigger"]').trigger('click');
-    expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+    expect(wrapper.emitted('perform-optimization'))
+      .toEqual([[{ report_path: '', op_name: 'matmul_v3' }]]);
     await wrapper.get('[data-testid="open-cannwork-trigger"]').trigger('click');
     expect(wrapper.emitted('open-cannwork')).toHaveLength(1);
     wrapper.unmount();

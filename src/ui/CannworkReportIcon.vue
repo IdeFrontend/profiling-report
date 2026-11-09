@@ -116,8 +116,8 @@
 
 <style scoped>
 svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   display: block;
 }
 </style>
