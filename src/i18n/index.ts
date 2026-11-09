@@ -103,7 +103,7 @@ const messages = {
     pipeDetails: 'PIPE 占用率',
     back: '返回',
     cannbotAsk: 'CANNWork 分析',
-    cannbotAnalyzing: '分析中',
+    cannbotAnalyzing: '正在分析',
     cannbotStop: '停止分析',
     cannbotReference: '引用',
     cannbotView: '查看',

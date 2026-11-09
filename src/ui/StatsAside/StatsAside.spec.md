@@ -23,7 +23,7 @@ Right-side analytics panel: shell chrome (title, title-row **性能分析** link
 - **open-topology-fullscreen** — the panel bar's **全屏** control (`title`/`aria-label` **全屏** / Full screen, `MemoryTopologyPanel` **showFullscreen**), re-emitted for the parent, which covers `.pr-root` with the current topology model. Does not open the memory CSV overlay. Carries an optional second argument: the §11.2.3.2 **heat unit** clicked on the stacked diagram (PR-STATS-043), so the parent opens 全屏 already showing that unit — 点击一个 memory 进来则直接对应显示相应的内容.
 - **open-cannbot** — the scope's 分析 button click (idle or settled state) carries the section scope (summary/compute/memory).
 - **open-cannbot-stop** — the scope's **正在分析** button click (running state): host stops the session. The button itself is `data-testid="cannbot-{scope}"`, so the same selector that clicks idle 分析 clicks running 停止.
-- **cannbot-reference** — settled scope's **引用** button (`data-testid="cannbot-{scope}-reference`).
+- **cannbot-reference** — the scope's **引用** button (`data-testid="cannbot-{scope}-reference`). **引用常驻**: it renders in every state (idle / running / settled), immediately right of the 分析 / 正在分析 button. The add-reference api is not ready yet, so the host's handler is a placeholder.
 - **cannbot-view** — settled scope's **查看** button (`data-testid="cannbot-{scope}-view`).
 
 ## Behavior
@@ -36,9 +36,11 @@ Overlay surfaces replace the stacked report: header title becomes **计算负载
 
 **cannbot entries (three-state button group, [`CannbotActions`](./CannbotActions.vue)).** One group per scope at the three anchors: right end of the meta row (summary), right of the section head on the compute and memory sections. Each follows its host — summary with the meta row, compute with the PIPE panel, memory with the memory panel; the memory group stays even when that head has no drill-in entry. Button state is **per-scope independent**, derived only from `cannbotSessions[scope]`:
 
-- **idle** (no key — never started, or the host pushed nothing): a single 分析 button (multi-colour `cannwork-analyse` icon, localized `cannbotAsk` title / `aria-label`). Clicking emits **open-cannbot**.
-- **running** (`status === 'running'`): a single **正在分析** button — `cannwork-stop` glyph + localized `cannbotAnalyzing` label in blue `#4c9ff8`, full opacity (the live state, not an affordance). No 分析 / 引用 / 查看 buttons. Clicking emits **open-cannbot-stop**.
+- **idle** (no key — never started, or the host pushed nothing): **分析 | 引用** — the 分析 button (multi-colour `cannwork-analyse` icon, localized `cannbotAsk` title / `aria-label`) plus the always-on 引用 button. Clicking 分析 emits **open-cannbot**; 引用 emits **cannbot-reference**.
+- **running** (`status === 'running'`): **正在分析 | 引用** — the stop button (`cannwork-stop` glyph + localized `cannbotAnalyzing` label 正在分析 in blue `#4c9ff8`, full opacity: the live state, not an affordance) plus the always-on 引用 button. No 分析 / 查看 buttons. Clicking 正在分析 emits **open-cannbot-stop**.
 - **settled** (`status` present and not `running`: completed / stopped / error / unknown): three pure-icon buttons **分析 | 引用 | 查看** in one pill — `cannbot-actions--settled` joins them with 1px hairline dividers (`rgba(255,255,255,0.14)`) and flat inner radii. 分析 still emits **open-cannbot**; 引用 (`cannbot-{scope}-reference`, `cannwork-reference` icon) emits **cannbot-reference**; 查看 (`cannbot-{scope}-view`, `cannwork-report` icon) emits **cannbot-view**.
+
+**引用常驻 rationale.** 引用 is a pure-icon button that never disappears, so a row always has ≥2 buttons and the hairline separators read as one pill. Keeping it in idle / running also lets the user attach a reference before or during an analysis; the CANNWork add-reference api is not available yet, so the host currently logs a placeholder. This deliberately diverges from the first UI draft (single 分析 in idle, single 正在分析 in running) — the code is the reference; the requirement design doc was updated to match.
 
 The `data-testid="cannbot-{scope}"` slot always lands on whichever button exists in the current state (idle 分析 / running 停止 / settled 分析), so the same selector reaches the primary action in every state. Clicking only emits — no overlay, no request; the invoking is the host's job.
 
@@ -125,14 +127,15 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 28. **PR-STATS-025** — Black aside shell; grey section islands.
 29. **PR-STATS-025b** — Section titles (Roofline, PIPE, topology) and **详情** sit on the aside shell outside the `#262626` island; grey panels wrap chart bodies only (toggle + chart for PIPE; diagram for topology).
 30. **PR-STATS-025c** — Summary card grid shares the stack column with grey islands (no horizontal well inset; bottom pad `8px` only).
-31. **PR-STATS-026** — CANNWork three-state button groups ([CannbotActions](./CannbotActions.vue), `.pr-cannbot-actions` wrapper) render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory groups gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility. Without `cannbotSessions` every group is idle (single 分析 button).
+31. **PR-STATS-026** — CANNWork three-state button groups ([CannbotActions](./CannbotActions.vue), `.pr-cannbot-actions` wrapper) render at the three section anchors; in CSV-only mode on the compute/memory list titles; compute/memory groups gated on `computeTables`/`memoryTables` (payload data), not on pipe/topology visibility. Without `cannbotSessions` every group is idle (分析 | 引用).
 32. **PR-STATS-027** — The idle / settled 分析 button click emits open-cannbot with the scope (`cannbot-{scope}` testid in both states).
-32b. **PR-STATS-044** — Per-scope three-state rendering from `cannbotSessions`: idle renders the single 分析 button; running renders the **正在分析** stop button (stop glyph + blue `cannbotAnalyzing` label, no 分析/引用/查看); settled renders **分析 | 引用 | 查看** as three icon buttons in one pill (hairline dividers).
-32c. **PR-STATS-044b** — State-driven emits: running click emits **open-cannbot-stop** with the scope; settled 引用 / 查看 clicks emit **cannbot-reference** / **cannbot-view** with the scope; settled 分析 still emits **open-cannbot**.
-32d. **PR-STATS-044c** — Browser / playground degradation: with no `cannbotSessions` prop every scope stays idle — no 引用 / 查看 buttons, no stop label; sibling scopes having sessions never leaks into a scope without its own key.
+32b. **PR-STATS-044** — Per-scope three-state rendering from `cannbotSessions`: idle renders **分析 | 引用**; running renders the **正在分析** stop button (stop glyph + blue `cannbotAnalyzing` label 正在分析) next to the always-on 引用, and no 分析/查看; settled renders **分析 | 引用 | 查看** as three icon buttons in one pill (hairline dividers).
+32c. **PR-STATS-044b** — State-driven emits: running click emits **open-cannbot-stop** with the scope; settled 引用 / 查看 clicks emit **cannbot-reference** / **cannbot-view** with the scope; settled 分析 still emits **open-cannbot**; idle 引用 emits **cannbot-reference** too.
+32d. **PR-STATS-044c** — Browser / playground degradation: with no `cannbotSessions` prop every scope stays idle — 分析 | 引用 render, no 查看 button, no stop label; sibling scopes having sessions never leaks into a scope without its own key.
 32e. **PR-STATS-044d** — The aside passes `cannbotSessions` through to every anchored group, so scopes render **independently** in one mount (settled summary + running compute + idle memory), and the aside re-emits each group's stop / reference / view event with the scope.
 32f. **PR-STATS-045** — The **执行优化** pill (icon + localized label, `perform-optimization-trigger`) renders in the title row immediately left of close × and emits **perform-optimization** on click; it is not gated on capabilities or report content.
 32g. **PR-STATS-046** — The 详情 entry is the section **title + chevron button** (`pipe-details` / `topology-details`): title text, chevron and the gap between them all trigger it. Its click carries a **1s cooldown** (R9 防抖): the first click opens the overlay and emits immediately; repeats inside the window are swallowed; the next click after the window behaves normally.
+32h. **PR-STATS-047** — Emulate packs (`profile === 'emulate'`) keep the CANNWork group for every section they actually render: compute in the PIPE head (`computeTables`) and memory in the topology head or the CSV-only memory list (`memoryTables`), each showing 分析 | 引用. The summary group is still absent because emulate drives no summary chrome (DATA-47 / PR-STATS-007).
 33. **PR-STATS-028** — Aside shell paints a non-interactive orange top wash (`96px`, design linear-gradient) behind the header; title/meta/body stay above it.
 34. **PR-STATS-029** — Stacked body scrolls vertically only (`overflow-x: hidden; overflow-y: auto`); a vertical scrollbar gutter or DPR subpixel must not open a horizontal scrollbar.
 35. **PR-STATS-031** — Duration secondary `{blockDim} Blocks / {coreCount} 核` on the value row only when breakdown absent; segmented 头开销/计算/通信 bar + four-row hover when `durationBreakdown` is set; no bar when absent.
@@ -190,9 +193,10 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 | Topology diagram shown | Header actions are cannbot → 详情; zoom/**全屏** controls live in the diagram's own bar |
 | Overlay open, report replaced | Return to stacked report; block selection resets to `All` |
 | CSV tables only | Compute/memory lists on the stack |
-| No `cannbotSessions` prop / empty object | Every scope idle: single 分析 button (browser / playground / exported HTML degradation) |
-| Mixed session states in one mount | Scopes render independently — settled 分析\|引用\|查看, running 停止, idle 分析 side by side |
+| No `cannbotSessions` prop / empty object | Every scope idle: 分析 \| 引用 (browser / playground / exported HTML degradation) |
+| Mixed session states in one mount | Scopes render independently — settled 分析\|引用\|查看, running 正在分析\|引用, idle 分析\|引用 side by side |
 | Session status `unknown` | Counts as settled (引用 / 查看 render); only `running` is live |
+| Emulate pack (`profile: 'emulate'`) | compute / memory groups render with the sections they own; no summary group — emulate has no summary chrome (DATA-47) |
 | 详情 double click (within 1s) | One overlay open, one emit; the cooldown re-arms after the window |
 
 ## Visual
@@ -314,6 +318,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-11-09** — Review follow-up: **引用常驻** in every state (idle 分析\|引用, running 正在分析\|引用, settled 分析\|引用\|查看) — restates PR-STATS-026/044/044b/044c to match the shipped code; the running label is **正在分析** (`cannbotAnalyzing`). Adds PR-STATS-047: emulate packs keep the compute / memory groups and still omit the summary group (DATA-47).
 - **2026-10-30** — CANNWork 优化 (design doc R1–R9): the cannbot entry becomes a **per-scope three-state button group** ([CannbotActions](./CannbotActions.vue)) driven by the new **cannbotSessions** prop — idle single 分析 (multi-colour `cannwork-analyse`), running 停止 glyph + blue 正在分析 label emitting **open-cannbot-stop**, settled 分析\|引用\|查看 emitting **cannbot-reference** / **cannbot-view** (PR-STATS-044/044b/044c/044d). States are scope-independent; no prop = all idle (browser degradation). The **详情** text button is replaced by the **section title + chevron button** with a 1s click cooldown (R9 防抖, PR-STATS-046); the title-row **执行优化** pill emits **perform-optimization** (PR-STATS-045). PR-STATS-026/027/033 restated for the new DOM.
 - **2026-10-01** — §11.2.3.2 heat units on the stacked diagram (PR-STATS-043): `selectableUnits` now needs the `memoryHeatmap` capability as well as a filled `memoryHeatmap` carrier, matching the overlay's own gate; a unit click re-emits `open-topology-fullscreen` with the clicked unit so 全屏 opens on it.
 - **2026-10-01** — A derived percent or ratio stops at **4 significant digits** (PR-STATS-042), from review: the compute scores printed as `41.1011153199%` / `39.4570707071%` and the ratio as `25 / 60.8256 TFLOPS`. `exactNumber`'s 12-digit default is right for a *published* measurement (a wall-clock amount, a raw throughput) but not for a value derived by multiplying or dividing one — those digits are arithmetic noise, not precision. Leading zeros never count as significant and trailing ones are dropped, so `41.1011153199%` reads `41.1%`; a percent that was already short (`68.25%`) is untouched. Scoped to the compute / BW scores, both `measured / peak` sub-ratios and the AICore percent: the duration amount and its secondary are measurements, and they keep the 12-digit rule that `1.000004 ms` depends on.

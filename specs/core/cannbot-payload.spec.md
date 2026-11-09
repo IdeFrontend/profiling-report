@@ -38,9 +38,11 @@ type CannbotSessions = Partial<Record<CannbotScope, { sessionId: string; status:
 
 **Three-state derivation (the scope state machine).** For each scope the UI derives exactly one button state from `sessions[scope]`:
 
-- no key (never started, or the host never pushed sessions — browser / playground / exported HTML) → **idle**: single 分析 button;
-- `status === 'running'` → **running**: 停止 button, click asks the host to stop the session;
+- no key (never started, or the host never pushed sessions — browser / playground / exported HTML) → **idle**: 分析 | 引用;
+- `status === 'running'` → **running**: 正在分析 (stop) | 引用 — clicking 正在分析 asks the host to stop the session;
 - a key with any **non-`running`** status (`completed` / `stopped` / `error` / **`unknown`**) → **settled**: 分析 | 引用 | 查看.
+
+引用 is **always on** in every state (idle / running / settled): it is the one button that never disappears, so the row always reads as one pill and the user can attach a reference before or during an analysis. The CANNWork add-reference api is not available yet, so the host's handler is a placeholder.
 
 `unknown` counts as settled on purpose: an unreadable status still proves a session existed, and a settled row stays clickable. States are **per-scope independent** — one scope running never changes another scope's buttons. The component layer renders this contract in [`CannbotActions`](../../src/ui/StatsAside/CannbotActions.vue) (see [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md) PR-STATS-044); this spec owns the derivation rule itself.
 
@@ -58,7 +60,7 @@ type CannbotSessions = Partial<Record<CannbotScope, { sessionId: string; status:
 | report null / undefined | `op_name` `''`; `data` is `{}` |
 | csvTexts has no file matching the scope's tables | `csvTexts` key omitted |
 | Optional section absent | That key omitted; always-present keys stay |
-| `sessions` missing / scope key missing | That scope idle (single 分析 button) |
+| `sessions` missing / scope key missing | That scope idle (分析 \| 引用) |
 | `status: 'unknown'` | Settled (引用 / 查看 render) |
 
 ## Dependencies
@@ -66,6 +68,7 @@ type CannbotSessions = Partial<Record<CannbotScope, { sessionId: string; status:
 [view-models](./view-models.spec.md) — the `ReportViewModel` sections reused by reference. Consumers: [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [ProfilingReport](../../src/ui/ProfilingReport/ProfilingReport.spec.md).
 
 ## Changelog
+- **2026-11-09** — Review follow-up: the three-state rendering is restated to match the shipped code — 引用 is always on (idle 分析\|引用, running 正在分析\|引用, settled 分析\|引用\|查看), and the running label is 正在分析. Derivation rule (`PR-CANNBOT-003`) is unchanged.
 - **2026-10-30** — Session state contract (CANNWork 优化 R2–R4): `CannbotSessionStatus` / `CannbotSessions` types and the per-scope **idle / running / settled** three-state derivation (`PR-CANNBOT-003`); the host pushes only the latest-session-per-scope snapshot for the open report, `unknown` counts as settled, and scopes derive independently.
 - **2026-09-04** — Summary scope includes `computeCard` (DATA-33h / HQ slice 3).
 - **2026-08-26** — Initial spec (cannbot payload builder).

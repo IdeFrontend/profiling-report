@@ -3134,4 +3134,80 @@ describe('StatsAside', () => {
     });
     expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(false);
   });
+
+  it('PR-STATS-047: emulate 报告保留其所渲染章节的 CANNWork 组（compute / memory），summary 组仍按 DATA-47 省略', async () => {
+    const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
+    const archCsv = [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      '1,l2_cached_ratio,50',
+      '2,hbm_to_l2_syn_gbs,1.5',
+    ].join('\n');
+    const computeTable = {
+      fileName: 'PipesUtilization.csv',
+      headers: ['block_id'],
+      rows: [{ block_id: '0' }],
+      blockIds: ['0'],
+    };
+    const memoryTable = {
+      fileName: 'ArchDiagramMetrics.csv',
+      headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+      rows: [],
+      blockIds: [],
+    };
+    const anchors = (model: ReportViewModel): string[] =>
+      mount(StatsAside, { props: { report: model } })
+        .findAll('[data-testid^="cannbot-"]')
+        .map((w) => w.attributes('data-testid')!);
+
+    // Both sections present: two independent groups, each with the always-on 引用 button.
+    expect(
+      anchors(
+        report({
+          profile: 'emulate',
+          pipeOccupancy: [
+            { id: 'aic', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' },
+          ],
+          computeTables: [computeTable],
+          memoryTables: [memoryTable],
+          memoryTopology: topologyFromArchDiagramMetrics(archCsv),
+        }),
+      ),
+    ).toEqual([
+      'cannbot-compute',
+      'cannbot-compute-reference',
+      'cannbot-memory',
+      'cannbot-memory-reference',
+    ]);
+
+    // Compute-only emulate pack: the compute group still rides in the PIPE head.
+    expect(
+      anchors(
+        report({
+          profile: 'emulate',
+          pipeOccupancy: [
+            { id: 'aic', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' },
+          ],
+          computeTables: [computeTable],
+        }),
+      ),
+    ).toEqual(['cannbot-compute', 'cannbot-compute-reference']);
+
+    // CSV-only emulate pack (no PIPE / topology): the memory list keeps its group.
+    expect(
+      anchors(report({ profile: 'emulate', memoryTables: [memoryTable] })),
+    ).toEqual(['cannbot-memory', 'cannbot-memory-reference']);
+
+    // DATA-47: emulate drives no summary chrome, so there is no summary anchor to host one.
+    expect(
+      anchors(
+        report({
+          profile: 'emulate',
+          pipeOccupancy: [
+            { id: 'aic', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' },
+          ],
+          computeTables: [computeTable],
+        }),
+      ),
+    ).not.toContain('cannbot-summary');
+  });
 });
