@@ -3,13 +3,14 @@ import { markRaw, nextTick } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
+import SourceView from '../SourceView/SourceView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import * as adapters from '../../adapters';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
+import { MISSING_SOURCE_EMBED_PREFIX } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
-import { HEATMAP_BLOCK_COUNT } from '../../adapters/emulateMemoryHeatmap';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
 import type { SwimlaneModel } from '../../domain/types';
@@ -122,15 +123,35 @@ function archDiagramReport() {
   };
 }
 
-/** §11.2.3.2 — the topology carrier plus the heat carrier (`UbRwAccesses` → `ub`). */
+/** §11.2.3.2 — the topology carrier plus the heat carrier (Layout+Cells → `ub`). */
 function heatmapReport() {
-  const blocks = Array.from({ length: HEATMAP_BLOCK_COUNT }, (_, index) => ({
+  const blocks = Array.from({ length: 32 }, (_, index) => ({
     index,
     state: index < 3 ? ('withData' as const) : ('withoutData' as const),
   }));
   return {
     ...topologyReport(),
-    memoryHeatmap: { units: [{ id: 'ub' as const, blocks, usedInstructionCount: 12 }] },
+    memoryHeatmap: {
+      units: [
+        {
+          id: 'ub' as const,
+          views: [
+            {
+              coreId: 0,
+              coreTypeId: 2,
+              ownerName: 'AIV0',
+              memoryName: 'UB',
+              columns: 8,
+              rows: 4,
+              blocks,
+              totalBytes: 1024,
+              usedBytes: 96,
+              freeBytes: 928,
+            },
+          ],
+        },
+      ],
+    },
   };
 }
 
@@ -1758,9 +1779,9 @@ describe('ProfilingReport scaffold', () => {
     expect(overlay.get('[data-testid="memory-unit-ub"]').classes()).toContain('pr-topo__unit--on');
 
     // A panel tab moves the diagram's highlight too, and blanks a unit with no source.
-    await overlay.get('[data-testid="heat-tab-l2"]').trigger('click');
+    await overlay.get('[data-testid="heat-tab-l0c"]').trigger('click');
     overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
-    expect(overlay.get('[data-testid="memory-unit-l2"]').classes()).toContain('pr-topo__unit--on');
+    expect(overlay.get('[data-testid="memory-unit-l0c"]').classes()).toContain('pr-topo__unit--on');
     expect(overlay.get('[data-testid="memory-unit-ub"]').classes()).not.toContain(
       'pr-topo__unit--on',
     );
@@ -2393,5 +2414,119 @@ describe('ProfilingReport scaffold', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('PR-ROOT-030: resolveSourceFile fills missing Ascend C after first paint', async () => {
+    const base = mockSourceCorrelation();
+    const missingPath = '/home/build/gather_2d.asc';
+    const withMissing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          id: 'gather_2d.asc',
+          path: missingPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${missingPath}\n`,
+        },
+      ],
+    };
+    let releaseResolve!: (text: string) => void;
+    const resolveGate = new Promise<string>((resolve) => {
+      releaseResolve = resolve;
+    });
+    const resolveSourceFile = vi.fn(async (req: { fileName: string; basename: string }) => {
+      expect(req).toEqual({ fileName: missingPath, basename: 'gather_2d.asc' });
+      return resolveGate;
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'resolve-source',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...topologyReport(),
+          sourceCorrelation: withMissing,
+        },
+        capabilities: ['sourceTab'],
+        resolveSourceFile,
+      },
+    });
+    await nextTick();
+    expect(resolveSourceFile).toHaveBeenCalledTimes(1);
+    // Overlay must not close topology 全屏 when resolve later patches sourceCorrelation.
+    await wrapper.get('[data-testid="topology-fullscreen"]').trigger('click');
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+    releaseResolve('extern "C" void gather_2d_custom() {}\n');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="topology-fullscreen-overlay"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await flushPromises();
+    const sourceView = wrapper.findComponent(SourceView);
+    expect(sourceView.exists()).toBe(true);
+    expect(sourceView.props('model').files[0].text).toContain('gather_2d_custom');
+    expect(sourceView.props('model').files[0].text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(
+      false,
+    );
+    wrapper.unmount();
+
+    const noCall = vi.fn(async () => 'unused');
+    const embedded = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          sourceCorrelation: { ...mockSourceCorrelation(), mock: false },
+        },
+        capabilities: ['sourceTab'],
+        resolveSourceFile: noCall,
+      },
+    });
+    await flushPromises();
+    expect(noCall).not.toHaveBeenCalled();
+    embedded.unmount();
+
+    const miss = vi.fn(async () => null);
+    const kept = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+        resolveSourceFile: miss,
+      },
+    });
+    await flushPromises();
+    expect(miss).toHaveBeenCalled();
+    await kept.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(
+      kept.findComponent(SourceView).props('model').files[0].text.startsWith(MISSING_SOURCE_EMBED_PREFIX),
+    ).toBe(true);
+    kept.unmount();
+
+    // Late-bound hook (webview bridge after first paint) still fills placeholders.
+    const late = vi.fn(async () => 'extern "C" void late_bound() {}\n');
+    const deferred = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+      },
+    });
+    await flushPromises();
+    expect(late).not.toHaveBeenCalled();
+    await deferred.setProps({ resolveSourceFile: late });
+    await flushPromises();
+    expect(late).toHaveBeenCalledTimes(1);
+    // New function identity must not re-run (hosts often pass inline arrows).
+    const again = vi.fn(async () => 'should not run');
+    await deferred.setProps({ resolveSourceFile: again });
+    await flushPromises();
+    expect(again).not.toHaveBeenCalled();
+    expect(late).toHaveBeenCalledTimes(1);
+    await deferred.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(deferred.findComponent(SourceView).props('model').files[0].text).toContain('late_bound');
+    deferred.unmount();
   });
 });

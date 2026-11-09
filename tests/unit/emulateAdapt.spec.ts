@@ -510,6 +510,18 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.capabilities).toContain('archDiagram');
     expect(adapted.capabilities).not.toContain('memoryDiagram');
     expect(adapted.reportModel.roofline).toBeUndefined();
+    // Layout+Cells demo embeds → multi-unit heat with independent UB views.
+    expect(adapted.capabilities).toContain('memoryHeatmap');
+    expect(adapted.reportModel.memoryHeatmap?.units.map((u) => u.id)).toEqual([
+      'l1',
+      'ub',
+      'l0a',
+      'l0b',
+      'l0c',
+    ]);
+    const ub = adapted.reportModel.memoryHeatmap!.units.find((u) => u.id === 'ub')!;
+    expect(ub.views.length).toBeGreaterThanOrEqual(1);
+    expect(ub.views[0].totalBytes).toBeGreaterThan(0);
 
     // M4 performance-hints join: 25 instruction + 20 source-line + 8 kernel.
     expect(adapted.reportModel.performanceHints).toBeDefined();

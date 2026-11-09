@@ -32,12 +32,7 @@ export {
   readEmulateManifest,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
-export {
-  HEATMAP_BLOCK_COUNT,
-  HEATMAP_COLUMNS,
-  HEATMAP_ROWS,
-  memoryHeatmapFromTexts,
-} from './emulateMemoryHeatmap';
+export { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
 export type { ArchDiagramMetricMode } from './emulateMemoryTopology';
 export {
   ARCH_DIAGRAM_METRIC_MODES,
@@ -76,3 +71,12 @@ export {
   hasComputeSourcePack,
   COMPUTE_SOURCE_EMBED_NAMES,
 } from './sourceCorrelation/adaptComputeSourceCorrelation';
+export {
+  MISSING_SOURCE_EMBED_PREFIX,
+  isMissingSourceEmbed,
+  fileNeedsSourceResolve,
+  applyResolvedSourceText,
+  resolveMissingSourceFiles,
+  type ResolveSourceFile,
+  type ResolveSourceFileRequest,
+} from './sourceCorrelation/resolveSourceFile';

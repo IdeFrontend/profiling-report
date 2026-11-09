@@ -34,7 +34,7 @@ Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [§ p
 Fixed memory-path chrome with data-driven edge labels (BW / hit rate / util):
 
 - **Compute (M2):** selected-block Memory* / PipeUtilization fill under capability `memoryDiagram` (Asc 内存负载分析 / 内存拓扑).
-- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from `ArchDiagramMetrics` under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. The **Memory Utilization Heatmap** (§11.2.3.2) rides the same fullscreen overlay as its own surface, from `UbRwAccesses` — [§ Memory Utilization Heatmap](#heatmap).
+- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from `ArchDiagramMetrics` under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. The **Memory Utilization Heatmap** (§11.2.3.2) rides the same fullscreen overlay as its own surface, from `MemoryHeatmapLayout` + `MemoryHeatmapCells` — [§ Memory Utilization Heatmap](#heatmap).
 
 ## View-model
 
@@ -137,7 +137,7 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
 | `memoryTopology` (same carrier) | `ArchDiagramMetrics.csv` | Parameter→slot + **gaps** below ([DATA-48a](../context/decisions/interim/DATA.md)); SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_L2_PEAK_PARAM` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES`; gelu HTML `*_gbs` ids = evidence toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
-| `memoryHeatmap` (own carrier) | `UbRwAccesses.csv` | biprof §11.2.3.2 heat grid + `已用指令条数`; `MemoryRWAccesses.csv` cannot attribute its rows to L1/L2/L0A/L0B/L0C ([DATA-50](../context/questions/DATA.md)) | `adapt-mapper` |
+| `memoryHeatmap` (own carrier) | `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv` (+ optional `CoreTypes.csv`) | biprof §11.2.3.2 lattice + Total/Used/Free ([DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md)); no UbRw fallback | `adapt-mapper` |
 
 <a id="parameter-slot-map"></a>
 
@@ -200,14 +200,13 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 
 | Piece | Rule |
 |-------|------|
-| Carrier | `memoryHeatmap?: MemoryHeatmapModel` — `units: { id, blocks, usedInstructionCount? }[]`. Its **own** field beside `memoryTopology`; heat is never folded into the topology VM |
-| Capability | **`memoryHeatmap`**, set when at least one unit has a usable per-access source; independent of `memoryDiagram` / `archDiagram` |
-| Tabs | Six, **always**: `L2Cache | L1 | UB | L0A | L0B | L0C`. A unit with no source keeps its tab and blanks its body |
-| Grid | 16 blocks per row × 26 row groups, over the unit's observed address span; **two states only**. Drawn as one lattice — a `2px` `#6E798D` frame around a `#303F5E` board, the gaps cut out of it (no per-cell divider band; the frame's own grid is 16 × 32, DATA-50 owns the count) |
+| Carrier | `memoryHeatmap?: MemoryHeatmapModel` — `units: { id, views[] }`; each view is one Layout buffer instance with lattice + capacity ([DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md)) |
+| Capability | **`memoryHeatmap`** when Layout+Cells yield ≥1 view; independent of `memoryDiagram` / `archDiagram` |
+| Tabs | Five, **always**: `L1 | UB | L0A | L0B | L0C` ([UI-60](../context/decisions/UI.md) — no L2Cache heat tab). Multi-core UB: view selector inside the tab |
+| Grid | Layout `Width` × `Height`; `withData` iff `Read+Write > 0`. **Two states** (biprof legend). Badge when `OutsideDeclared` |
 | Legend | `已分配有数据` `#3D64AD` · `已分配无数据` `#AFC6FE`, centred **above** the grid |
-| Footer | the selected unit's **own name** in the diagram's words (`AIC L1`, `AIV × 2 UB`) at `19px #E7E7E7`, centred **under** the grid |
-| Metric | `已用指令条数 {n}` = the distinct `ExecInstrId` behind the unit's accesses, centred **under** the unit name; the line is omitted when not derivable. The name + metric are the body's only text — neither sits above the grid |
-| Capacity | **hidden** — no `Total` / `Used` / `Free` until the producer ships a capacity field ([DATA-51](../context/questions/DATA.md)) |
+| Footer | selected view name (`AIV0 UB` / `AIC L1`) under the grid |
+| Metric | `Total / Used / Free` per [DATA-51](../context/decisions/DATA.md); omit when Total unknown. No instruction-count substitute in that slot |
 | Selection | one `selectedMemoryUnit` for both surfaces: the diagram's selected unit (PR-MEMTOP-021/022) and the panel's active tab |
 | Hide rule | no unit with a usable source → omit `memoryHeatmap` **and** the capability; the overlay is then the diagram alone (no reserved column) |
 
@@ -217,11 +216,11 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 
 | Unit | Source | Status |
 |------|--------|--------|
-| `ub` | `UbRwAccesses.csv` (`AccessedAddress`, `ExecInstrId`) | **in** — grid + `已用指令条数` |
-| L1 / L2 / L0A / L0B / L0C | `MemoryRWAccesses.csv` (`MemoryType`) | **blank tabs** — `MemoryType` is a bare integer with no published vocabulary, so a row cannot be attributed to a unit ([DATA-50](../context/questions/DATA.md)) |
-| per-tick utilization | `MemoryUtilizationStates.csv` | not collected (0 packed rows) — not a source |
+| L1 / UB / L0A / L0B / L0C | `MemoryHeatmapLayout` + `MemoryHeatmapCells` (+ `CoreTypes` for owner labels) | **in** — one view per Layout row ([DATA-50](../context/decisions/DATA.md)) |
+| L2Cache | — | **no heat tab** ([UI-60](../context/decisions/UI.md); topology chrome / hit-rate plate only) |
+| UbRw / UtilizationStates | — | **not** heat sources |
 
-**Binning (interim rule, DATA-50).** The producer ships no block size and no capacity, so the grid shape is **fixed** (16 × 26) and the unit's **observed address span** (min…max `AccessedAddress`) is binned across it: a block that received at least one access is `已分配有数据`, every other block is `已分配无数据` — addresses outside the span are not a third state. A cell whose address is **absent** is skipped, not read as address 0 (the sibling adapters' `parseNumber` rule). **Known ceiling:** on `gelu.npu-rep` the UB stream is dense (34 832 accesses over 0…2556), so all **416** blocks land `已分配有数据` and the grid paints solid — the observed span stands in for a capacity nobody publishes, which is what [DATA-51](../context/questions/DATA.md) owes ([DATA-50a](../context/decisions/interim/DATA.md#data-50a)).
+**Capacity.** Total = `OutsideDeclared ? span : DeclaredSize`; Used = N × `CellSize` (N = Cells rows for the view key); Free = Total − Used ([DATA-51](../context/decisions/DATA.md)).
 
 ## Adapter
 
@@ -230,12 +229,12 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 | compute | `buildMemoryTopology` / `firstLabelledMemoryTopology` | Capability **`memoryDiagram`** |
 | emulate | `topologyFromArchDiagramMetrics` in `adaptEmulate` / `emulateMemoryTopology.ts` | Capability **`archDiagram`** when drawable; same chrome + VM |
 | emulate (heat) | `memoryHeatmapFromTexts` in `adaptEmulate` / `emulateMemoryHeatmap.ts` | Capability **`memoryHeatmap`** when a unit has a source; own carrier (§ above) |
-| compute (heat) | same `memoryHeatmapFromTexts` from `adaptPayloads` when `UbRwAccesses.csv` is packed | Same capability and carrier; a compute pack without that CSV omits both |
+| compute (heat) | same `memoryHeatmapFromTexts` from `adaptRep` when Layout+Cells are packed | Same capability and carrier; omit both when Layout/Cells are absent ([DATA-50](../context/decisions/DATA.md)) |
 
 ## Related
 
 - Spec: [MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md); heat panel [MemoryHeatmapPanel.spec.md](../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md); emulate mapper [adapt-emulate](../../specs/core/adapt-emulate.spec.md)
 - Product: compute §11.2.6; emulate Architecture Diagram §11.2.3.1; emulate Memory Utilization Heatmap §11.2.3.2
 - Delivery: [milestone-4](../process/roadmap/milestone-4.md)
-- Open: [DATA-48](../context/questions/DATA.md), [DATA-50](../context/questions/DATA.md) (`MemoryType` → unit), [DATA-51](../context/questions/DATA.md) (capacity)
+- Open: [DATA-48](../context/questions/DATA.md); heat lattice/capacity resolved [DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md)
 - Catalog: [README](README.md)

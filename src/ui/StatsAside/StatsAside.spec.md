@@ -8,7 +8,7 @@ Right-side analytics panel: shell chrome (title, title-row **性能分析** link
 
 ## Inputs
 
-**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, optional `memoryHeatmap`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — this component reads **`roofline`** (mounts the Roofline card when the capability is present), **`archDiagram`** (emulate Architecture Diagram metric-mode dropdown + rebuild from ArchDiagramMetrics; PR-STATS-037) and **`memoryHeatmap`** (the stacked diagram's six units become clickable heat targets; PR-STATS-043). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
+**report** — `ReportViewModel` including `computeTables`, `memoryTables`, `csvTexts`, optional `roofline`, optional `memoryTopology`, optional `memoryHeatmap`, and optional `hardwareDetails`. Optional **locale**. Optional **capabilities** — this component reads **`roofline`** (mounts the Roofline card when the capability is present), **`archDiagram`** (emulate Architecture Diagram metric-mode dropdown + rebuild from ArchDiagramMetrics; PR-STATS-037) and **`memoryHeatmap`** (the stacked diagram's five heat units become clickable targets; PR-STATS-043). The hardware-details overlay is **not** flag-gated: it keys off `report.hardwareDetails` (`hasHardwareDetails`).
 
 **Data SSOT:** [docs/views/](../../../docs/views/) — [report-summary](../../../docs/views/report-summary.md), [pipe-occupancy](../../../docs/views/pipe-occupancy.md), [roofline](../../../docs/views/roofline.md), [memory-topology](../../../docs/views/memory-topology.md).
 

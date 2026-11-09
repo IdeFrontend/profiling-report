@@ -164,10 +164,38 @@ function breakdown(values: Record<StallField, number>): {
   return { samplingStall, stallBreakdown };
 }
 
+type SqlDb = InstanceType<SqlJsApi['Database']>;
+
+/** Quote a sqlite_master table name for use as an identifier. */
+function quoteIdent(name: string): string {
+  return `"${name.replaceAll('"', '""')}"`;
+}
+
+/**
+ * Resolve the PC sampling table. Producers ship either `pc_sampling` (fixtures)
+ * or `PcSampling` (some packs); they are distinct names, not case variants.
+ * Prefer snake_case when both somehow exist.
+ */
+function resolvePcSamplingTable(db: SqlDb): string {
+  const found = db.exec(
+    `SELECT name FROM sqlite_master WHERE type='table' AND lower(name) IN ('pc_sampling', 'pcsampling')`,
+  );
+  const names = (found[0]?.values ?? []).map((row) => String(row[0] ?? '')).filter(Boolean);
+  if (!names.length) {
+    throw new Error(
+      '[profiling-report] summary.db has no pc_sampling / PcSampling table',
+    );
+  }
+  return names.find((n) => n.toLowerCase() === 'pc_sampling') ?? names[0]!;
+}
+
 function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
   const db = new api.Database(bytes);
   try {
-    const result = db.exec('SELECT * FROM pc_sampling ORDER BY "pc_offset"');
+    const tableName = resolvePcSamplingTable(db);
+    const result = db.exec(
+      `SELECT * FROM ${quoteIdent(tableName)} ORDER BY "pc_offset"`,
+    );
     if (!result.length) return [];
     const table = result[0]!;
     const idx = Object.fromEntries(table.columns.map((c, i) => [c, i]));
@@ -175,7 +203,7 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
     const missing = required.filter((name) => idx[name] == null);
     if (missing.length) {
       throw new Error(
-        `[profiling-report] pc_sampling missing columns: ${missing.join(', ')}`,
+        `[profiling-report] ${tableName} missing columns: ${missing.join(', ')}`,
       );
     }
     const instrIdx = idx.Instructions_Executed;
@@ -218,7 +246,7 @@ export function readPcSamplingDbSync(bytes: Uint8Array): PcSamplingRow[] {
   return rowsFromDb(bytes, sqlApi);
 }
 
-/** Read compute-profile `summary.db` → `pc_sampling` rows (warms sql.js if needed). */
+/** Read compute-profile `summary.db` → `pc_sampling` / `PcSampling` rows (warms sql.js if needed). */
 export async function readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]> {
   await ensurePcSamplingSql();
   return readPcSamplingDbSync(bytes);

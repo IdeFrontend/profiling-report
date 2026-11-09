@@ -13,12 +13,7 @@ import {
   foldCubeL0cCorridorEdges,
   hasDrawableTopology,
 } from '../../src/adapters/memoryTopology';
-import {
-  HEATMAP_BLOCK_COUNT,
-  HEATMAP_COLUMNS,
-  HEATMAP_ROWS,
-  memoryHeatmapFromTexts,
-} from '../../src/adapters/emulateMemoryHeatmap';
+import { memoryHeatmapFromTexts } from '../../src/adapters/emulateMemoryHeatmap';
 import { loadOutRepBytes, loadVectorMuladdNpuRepBytes } from '../helpers/fixtures';
 import type { CsvTableModel } from '../../src/domain/types';
 
@@ -649,60 +644,103 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(plate('0', decoy)).toBeUndefined();
   });
 
-  it('PR-VM-025 (§11.2.3.2): the heat carrier bins each unit’s access stream, or omits itself', () => {
-    // Synthetic multi-unit fixture: `UbRwAccesses` names its unit in the schema; `MemoryRWAccesses`
-    // carries a bare `MemoryType` integer with no vocabulary, so it paints nothing (DATA-50).
-    const ubRw = [
-      'ExecInstrId,AccessedAddress,AccessMode',
-      '10,0,r',
-      '10,100,r',
-      '11,65535,w',
-      '11,100,w',
-      '11,not-a-number,w',
+  it('PR-VM-025 (§11.2.3.2): Layout+Cells paint independent views and capacity (DATA-50/51)', () => {
+    const layout = [
+      'CoreId,CoreTypeId,MemoryType,MemoryName,Width,Height,CellSize,BaseAddress,DeclaredSize,OutsideDeclared',
+      '0,1,2,L0A,4,2,32,0,256,0',
+      '0,1,5,L1,4,2,64,0,512,0',
+      '0,2,1,UB,4,2,128,0,1024,0',
+      '0,3,1,UB,4,2,128,0,1024,0',
     ].join('\n');
-    const memoryRw = ['MemoryType,AccessedAddress,ExecInstrId,CoreId', '1,0,10,0', '1,8,11,0'].join(
-      '\n',
-    );
+    const cells = [
+      'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
+      '0,1,2,0,0,8,8',
+      '0,1,2,0,1,8,0',
+      '0,1,5,1,3,16,16',
+      '0,2,1,0,0,32,32',
+      '0,3,1,0,0,32,32',
+    ].join('\n');
+    const coreTypes = ['CoreTypeId,CoreTypeName', '1,AIC', '2,AIV0', '3,AIV1'].join('\n');
 
-    const model = memoryHeatmapFromTexts({ 'UbRwAccesses.csv': ubRw })!;
-    expect(model.units.map((u) => u.id)).toEqual(['ub']);
-    const ub = model.units[0];
-    expect(ub.blocks).toHaveLength(HEATMAP_BLOCK_COUNT);
-    expect(HEATMAP_BLOCK_COUNT).toBe(HEATMAP_COLUMNS * HEATMAP_ROWS);
-    // Addresses 0 and 100 of a 0…65535 span land in the first and last bins; the third row's
-    // unparseable address is skipped rather than binned as 0.
-    expect(ub.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([
-      0,
-      HEATMAP_BLOCK_COUNT - 1,
-    ]);
-    expect(ub.usedInstructionCount).toBe(2);
-    // `MemoryRWAccesses` alone cannot attribute to any of the six units → the carrier is omitted.
-    expect(memoryHeatmapFromTexts({ 'MemoryRWAccesses.csv': memoryRw })).toBeUndefined();
+    const model = memoryHeatmapFromTexts({
+      'MemoryHeatmapLayout.csv': layout,
+      'MemoryHeatmapCells.csv': cells,
+      'CoreTypes.csv': coreTypes,
+      'UbRwAccesses.csv': 'ExecInstrId,AccessedAddress\n1,0\n',
+    })!;
+    expect(model.units.map((u) => u.id)).toEqual(['l1', 'ub', 'l0a']);
+
+    const l0a = model.units.find((u) => u.id === 'l0a')!.views[0];
+    expect(l0a.columns).toBe(4);
+    expect(l0a.rows).toBe(2);
+    expect(l0a.blocks).toHaveLength(8);
+    expect(l0a.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0, 1]);
+    expect(l0a.totalBytes).toBe(256);
+    expect(l0a.usedBytes).toBe(64);
+    expect(l0a.freeBytes).toBe(192);
+    expect(l0a.ownerName).toBe('AIC');
+
+    const ub = model.units.find((u) => u.id === 'ub')!;
+    expect(ub.views).toHaveLength(2);
+    expect(ub.views.map((v) => v.ownerName)).toEqual(['AIV0', 'AIV1']);
+    expect(ub.views[0].blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0]);
+    expect(ub.views[0].usedBytes).toBe(128);
+
+    // OutsideDeclared → Total = span, not DeclaredSize (must differ to lock the branch).
+    const outside = memoryHeatmapFromTexts({
+      'MemoryHeatmapLayout.csv': [
+        'CoreId,CoreTypeId,MemoryType,MemoryName,Width,Height,CellSize,BaseAddress,DeclaredSize,OutsideDeclared',
+        '0,1,2,L0A,4,2,32,0,100,1',
+      ].join('\n'),
+      'MemoryHeatmapCells.csv': [
+        'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
+        '0,1,2,0,0,1,0',
+      ].join('\n'),
+    })!;
+    const outView = outside.units[0].views[0];
+    expect(outView.outsideDeclared).toBe(true);
+    expect(outView.totalBytes).toBe(256); // 4*2*32 span (DeclaredSize was 100)
+    expect(outView.usedBytes).toBe(32);
+
+    // Join keys parse as ints — `1.0` / `0.0` still match Layout.
+    const dotted = memoryHeatmapFromTexts({
+      'MemoryHeatmapLayout.csv': [
+        'CoreId,CoreTypeId,MemoryType,MemoryName,Width,Height,CellSize,BaseAddress,DeclaredSize,OutsideDeclared',
+        '0,1,2,L0A,2,2,16,0,64,0',
+      ].join('\n'),
+      'MemoryHeatmapCells.csv': [
+        'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
+        '0.0,1.0,2.0,0,0,4,0',
+        '0.0,1.0,2.0,0,1,0,0',
+        '0.0,1.0,2.0,9,9,1,1',
+        // Missing coords still count toward Used N; no withData paint.
+        '0.0,1.0,2.0,,,1,1',
+      ].join('\n'),
+    })!;
+    const dottedView = dotted.units.find((u) => u.id === 'l0a')!.views[0];
+    expect(dottedView.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0]);
+    // Used = N * CellSize for all four Cells rows (zero-traffic + OOB + no-coords).
+    expect(dottedView.usedBytes).toBe(64);
+    // Free is unclamped — Used == Total here (4*16).
+    expect(dottedView.freeBytes).toBe(0);
+
+    const over = memoryHeatmapFromTexts({
+      'MemoryHeatmapLayout.csv': [
+        'CoreId,CoreTypeId,MemoryType,MemoryName,Width,Height,CellSize,BaseAddress,DeclaredSize,OutsideDeclared',
+        '0,1,2,L0A,1,1,8,0,8,0',
+      ].join('\n'),
+      'MemoryHeatmapCells.csv': [
+        'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
+        '0,1,2,0,0,1,0',
+        '0,1,2,0,0,1,0',
+      ].join('\n'),
+    })!;
+    expect(over.units[0].views[0].usedBytes).toBe(16);
+    expect(over.units[0].views[0].freeBytes).toBe(-8);
+
+    expect(memoryHeatmapFromTexts({ 'UbRwAccesses.csv': 'ExecInstrId,AccessedAddress\n1,0\n' })).toBeUndefined();
+    expect(memoryHeatmapFromTexts({ 'MemoryHeatmapLayout.csv': layout })).toBeUndefined();
     expect(memoryHeatmapFromTexts({})).toBeUndefined();
-  });
-
-  it('PR-VM-025 (§11.2.3.2): a blank address is not address 0, and no capacity is emitted', () => {
-    // Gelu's `UbRwAccesses` is `ExecInstrId,AccessedAddress` with no unit column and no size field,
-    // so: a cell that is absent or whitespace-padded is not a read at address 0 (`Number('')` and
-    // `Number('  ')` are both 0) — the span's `min` and the metric's instruction count must not see
-    // it — and no `Total` / `Used` / `Free` is derivable (DATA-51).
-    const ubRw = [
-      'ExecInstrId,AccessedAddress',
-      '10,4000',
-      '11,4010',
-      '12,',
-      '13,   ',
-      '14,\t',
-    ].join('\n');
-    const model = memoryHeatmapFromTexts({ 'UbRwAccesses.csv': ubRw })!;
-    const ub = model.units[0];
-    // Span 4000…4010: 4000 is block 0 and 4010 is block 378. With a blank binned as 0 the span
-    // would run 0…4010 and both real addresses would land in the last two blocks instead.
-    expect(ub.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0, 378]);
-    expect(ub.usedInstructionCount).toBe(2);
-    expect(ub).not.toHaveProperty('total');
-    expect(ub).not.toHaveProperty('used');
-    expect(ub).not.toHaveProperty('free');
   });
 
   it('PR-VM-018: the default topology block must be one the chrome can actually paint', () => {
@@ -949,6 +987,62 @@ describe('PR-VM: report view-models (interim)', () => {
       }),
     }).reportModel.summary.durationBreakdown;
     expect(clamped).toEqual({ overheadUs: 500, communicationUs: 800, computeUs: 0 });
+  });
+
+  it('PR-VM-027: Summary.jsonl PerformanceHints → performanceHints + capability (#177)', () => {
+    const encoder = new TextEncoder();
+    const present = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({ category: 'OpInfoSummary', 'Op Name': 'add' }),
+          JSON.stringify({
+            category: 'PerformanceHints',
+            hints: ['bank conflict on UB', '  ', 'scalar pipe busy', ''],
+          }),
+          JSON.stringify({ category: 'PipeUtilization', aic_cube_ratio: 0.5 }),
+        ].join('\n') + '\n',
+      ),
+    });
+    expect(present.reportModel.performanceHints).toEqual([
+      { message: 'bank conflict on UB', origin: 'kernel' },
+      { message: 'scalar pipe busy', origin: 'kernel' },
+    ]);
+    expect(present.capabilities).toContain('performanceHints');
+    expect(present.reportModel.summaryCategories?.map((c) => c.id)).not.toContain(
+      'PerformanceHints',
+    );
+    expect(present.reportModel.summaryCategories?.map((c) => c.id)).toContain('PipeUtilization');
+
+    const absent = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        JSON.stringify({ category: 'OpInfoSummary', 'Op Name': 'add' }) + '\n',
+      ),
+    });
+    expect(absent.reportModel.performanceHints).toBeUndefined();
+    expect(absent.capabilities).not.toContain('performanceHints');
+
+    const emptyHints = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        JSON.stringify({ category: 'PerformanceHints', hints: ['  ', ''] }) + '\n',
+      ),
+    });
+    expect(emptyHints.reportModel.performanceHints).toBeUndefined();
+    expect(emptyHints.capabilities).not.toContain('performanceHints');
+
+    // Malformed / empty-usable first PerformanceHints lines must not abort before a valid one.
+    const afterBad = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify({ category: 'PerformanceHints', hints: null }),
+          JSON.stringify({ category: 'PerformanceHints', hints: ['  ', ''] }),
+          JSON.stringify({ category: 'PerformanceHints', hints: ['recovered hint'] }),
+        ].join('\n') + '\n',
+      ),
+    });
+    expect(afterBad.reportModel.performanceHints).toEqual([
+      { message: 'recovered hint', origin: 'kernel' },
+    ]);
+    expect(afterBad.capabilities).toContain('performanceHints');
   });
 
   it('PR-VM-019 (DATA-19/28/29): All scope reads summary.jsonl, a picked block reads its CSV row', () => {
