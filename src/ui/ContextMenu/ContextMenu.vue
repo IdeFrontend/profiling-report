@@ -193,11 +193,11 @@ onBeforeUnmount(unbindListeners);
           role="separator"
         />
         <button
+          :id="`ctx-item-${item.command}`"
           type="button"
           class="pr-ctx-menu__item"
           :class="{ 'pr-ctx-menu__item--active': i === activeIndex }"
           role="menuitem"
-          :id="`ctx-item-${item.command}`"
           :data-testid="`ctx-item-${item.command}`"
           @pointerenter="activeIndex = i"
           @click="activate(i)"

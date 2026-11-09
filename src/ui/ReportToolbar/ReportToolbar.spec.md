@@ -14,13 +14,15 @@ All inputs reflect current state owned by the parent: **searchQuery** drives the
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeDisplayMode** carries the selected display mode (`'time'` or `'cycles'`). **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector. **open-user-guide** carries the guide URL from the trailing help button (toolbar also attempts `window.open`).
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeDisplayMode** carries the selected display mode (`'time'` or `'cycles'`). **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector. **open-user-guide** carries the guide URL from the trailing help button (toolbar also attempts `window.open`). **open-cannwork** carries the 打开CANNWork trigger click (R7); the host activates the CANNWork panel — the toolbar does nothing beyond emit.
 
 ## Behavior
 
 **Zoom controls.** Toolbar buttons signal intent — the parent computes zoom around the viewport center. Visually, zoom is a **compound pill**: magnifying-glass− · slider · magnifying-glass+ (not separate square ± buttons).
 
 **Search.** Pill field with stroke magnifying-glass SVG (not unicode `⌕`).
+
+**打开CANNWork (R7).** A pure-icon button (`data-testid="open-cannwork-trigger"`) sits **immediately left of the search field**, first control of the timeline toolbar strip — multi-colour `cannwork-analyse` glyph (same asset as the aside's idle 分析 button), localized `openCannwork` title / `aria-label`. Clicking only emits **open-cannwork**; the parent routes the intent (cooldown, host activation). Timeline tab only: the Source tab owns its own chrome, so the button — like search and zoom — is absent there.
 
 **Aside toggle.** Visible only when `asideAvailable` is true. Square icon button with panel SVG.
 
@@ -206,6 +208,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 27. **PR-TOOLBAR-026** — Tab strip: **时间线** active by default; **源码** absent until `sourceTabEnabled`, then emits `update:activeTab`. **详情** and **缓存** are not rendered ([UI-37](../../../docs/context/decisions/UI.md)).
 28. **PR-TOOLBAR-027** — When `htmlExportAvailable` is true, `export-html` renders immediately before `open-user-guide` and emits `export-html` on click. When false (default), the control is absent. User-guide remains last among `data-toolbar-clip` actions.
 29. **PR-TOOLBAR-028** — Toolbar icon / zoom buttons tip via shared `.pr-icon-tip` (`aria-label` → CSS `::after`), not native `title` (same ~1s delay / light OS chrome as AC-20.2). Tip opens **below** the control so `.pr-chrome` / `.pr-root` overflow does not clip it. Trailing `data-toolbar-clip` tips (and `.pr-icon-tip--end`) right-align so the chrome's `overflow-x: clip` does not crop them.
+30. **PR-TOOLBAR-029** — 打开CANNWork renders on the timeline tab immediately left of the search field (`open-cannwork-trigger`, `cannwork-analyse` glyph, localized `openCannwork` name) and emits **open-cannwork** on click; the Source tab chrome omits it (R7).
 
 ## Edge Cases
 
@@ -229,6 +232,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-10-30** — 打开CANNWork trigger (CANNWork 优化 R7, `PR-TOOLBAR-029`): pure-icon button immediately left of the search field on the timeline tab, emitting `open-cannwork`; absent on the Source tab like the rest of the timeline strip.
 - **2026-10-21** — **详情** / **缓存** removed from the tab strip ([UI-37](../../../docs/context/decisions/UI.md)). **源码** stays disabled; **时间线** stays the only active tab (`PR-TOOLBAR-026`).
 - **2026-10-12** — User-guide default URL is the Profiling Report section of the plugin README (`https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`). English hosts override `userGuideUrl`.
 - **2026-10-06** — ProfilingReport `allowHtmlExport` defaults false; toolbar control still opt-in via `htmlExportAvailable`.

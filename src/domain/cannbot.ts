@@ -9,6 +9,23 @@ import type { CsvTableModel, ReportViewModel } from './types';
  */
 export type CannbotScope = 'summary' | 'compute' | 'memory';
 
+/** Mirrors the cannwork companion extension's `SessionStatus`. */
+export type CannbotSessionStatus = 'running' | 'completed' | 'stopped' | 'error' | 'unknown';
+
+export interface CannbotSessionState {
+  scope: CannbotScope;
+  sessionId: string;
+  status: CannbotSessionStatus;
+}
+
+/**
+ * Latest session per scope for the open report, pushed by the host. A missing
+ * key means the scope never started a session (idle button state). Any status
+ * other than `running` counts as settled — the "analyse | reference | view"
+ * button row.
+ */
+export type CannbotSessions = Partial<Record<CannbotScope, Pick<CannbotSessionState, 'sessionId' | 'status'>>>;
+
 export interface CannbotReportMeta {
   name?: string;
   path?: string;

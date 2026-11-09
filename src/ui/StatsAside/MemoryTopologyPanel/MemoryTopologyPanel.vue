@@ -802,96 +802,96 @@ onBeforeUnmount(stopZoomAnim);
             :aria-label="t('memoryTopology', locale)"
             :aria-describedby="chromeFailed ? undefined : summaryId"
           >
-          <image
-            :href="chromeUrl"
-            x="0"
-            y="0"
-            width="448"
-            height="423"
-            @error="onChromeError"
-          />
+            <image
+              :href="chromeUrl"
+              x="0"
+              y="0"
+              width="448"
+              height="423"
+              @error="onChromeError"
+            />
 
-          <template v-if="!chromeFailed">
-            <!-- §11.2.3.2 clickable units (PR-MEMTOP-021 / PR-MEMTOP-022): transparent hit boxes
+            <template v-if="!chromeFailed">
+              <!-- §11.2.3.2 clickable units (PR-MEMTOP-021 / PR-MEMTOP-022): transparent hit boxes
                  over the chrome's own unit containers. Hover tints; the unit the heat panel is
                  showing keeps the selected tint, so diagram and tab strip read as one selection.
                  Drawn before the values so the box tint never covers a `GB/s` plate. -->
-            <template v-if="selectableUnits">
+              <template v-if="selectableUnits">
+                <rect
+                  v-for="u in unitBoxes"
+                  :key="`unit-hit-${u.id}`"
+                  class="pr-topo__unit"
+                  :class="{ 'pr-topo__unit--on': u.id === selectedUnit }"
+                  :x="u.x"
+                  :y="u.y"
+                  :width="u.width"
+                  :height="u.height"
+                  :data-testid="`memory-unit-${u.id}`"
+                  @click="emit('open-memory-unit', u.id)"
+                />
+              </template>
+
+              <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
               <rect
-                v-for="u in unitBoxes"
-                :key="`unit-hit-${u.id}`"
-                class="pr-topo__unit"
-                :class="{ 'pr-topo__unit--on': u.id === selectedUnit }"
-                :x="u.x"
-                :y="u.y"
-                :width="u.width"
-                :height="u.height"
-                :data-testid="`memory-unit-${u.id}`"
-                @click="emit('open-memory-unit', u.id)"
+                data-testid="node-l2"
+                class="pr-topo__l2"
+                x="94"
+                y="16"
+                width="40"
+                height="391"
               />
-            </template>
 
-            <!-- L2 node anchor: the chrome paints the pillar, this keeps the node addressable. -->
-            <rect
-              data-testid="node-l2"
-              class="pr-topo__l2"
-              x="94"
-              y="16"
-              width="40"
-              height="391"
-            />
-
-            <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
+              <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
                  `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
                  element; the testid still tells the two sources apart. -->
-            <text
-              v-if="peakText"
-              x="114.1"
-              y="218.3"
-              text-anchor="middle"
-              dominant-baseline="middle"
-              class="pr-topo__pct"
-              :style="fitStyle('peak')"
-              :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
-            >{{ peakText }}</text>
+              <text
+                v-if="peakText"
+                x="114.1"
+                y="218.3"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                class="pr-topo__pct"
+                :style="fitStyle('peak')"
+                :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
+              >{{ peakText }}</text>
 
-            <text
-              v-for="v in values"
-              :key="v.key"
-              :x="v.x"
-              :y="v.y"
-              text-anchor="middle"
-              dominant-baseline="middle"
-              class="pr-topo__edge"
-              :style="fitStyle(v.key)"
-              :data-testid="`edge-${v.key}`"
-            >{{ v.text }}</text>
+              <text
+                v-for="v in values"
+                :key="v.key"
+                :x="v.x"
+                :y="v.y"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                class="pr-topo__edge"
+                :style="fitStyle(v.key)"
+                :data-testid="`edge-${v.key}`"
+              >{{ v.text }}</text>
 
-        <!-- UI-49 in-box unit-utilization badges (`Scalar` / `Vec` / `Cube`), under each box's own
+              <!-- UI-49 in-box unit-utilization badges (`Scalar` / `Vec` / `Cube`), under each box's own
              word as in the sketch. Only units with a producer field get a slot, so the sketch's
              four field-less badge positions (AIV0/AIV1 `SIMT`, AIC `Scalar`, `FixP`) stay blank —
              the producer's `SIMD VF` `NA` rows name the painted `Vec` position. -->
-        <text
-          v-for="p in plates"
-          :key="p.key"
-          :x="p.x"
-          :y="p.y"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          class="pr-topo__pct"
-          :style="fitStyle(p.key)"
-          :data-testid="p.key"
-        >{{ p.text }}</text>
+              <text
+                v-for="p in plates"
+                :key="p.key"
+                :x="p.x"
+                :y="p.y"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                class="pr-topo__pct"
+                :style="fitStyle(p.key)"
+                :data-testid="p.key"
+              >{{ p.text }}</text>
 
-        <text
-          ref="measureTwin"
-          class="pr-topo__edge"
-          x="-1000"
-          y="-1000"
-          opacity="0"
-          aria-hidden="true"
-        />
-      </template>
+              <text
+                ref="measureTwin"
+                class="pr-topo__edge"
+                x="-1000"
+                y="-1000"
+                opacity="0"
+                aria-hidden="true"
+              />
+            </template>
           </svg>
         </div>
       </div>

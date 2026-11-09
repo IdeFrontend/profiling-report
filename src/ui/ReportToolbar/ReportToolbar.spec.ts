@@ -679,4 +679,30 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('export-html')).toHaveLength(1);
     wrapper.unmount();
   });
+
+  it('PR-TOOLBAR-029: 打开CANNWork renders left of the search field on the timeline tab and emits open-cannwork; Source tab omits it', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const cannwork = wrapper.get('[data-testid="open-cannwork-trigger"]');
+    expect(cannwork.attributes('aria-label')).toBe(t('openCannwork'));
+    expect(cannwork.find('svg').exists()).toBe(true);
+
+    // Left of the search field, inside the timeline-only toolbar strip.
+    const cannworkEl = cannwork.element;
+    const searchEl = wrapper.get('[data-testid="search-input"]').element;
+    expect(
+      searchEl.compareDocumentPosition(cannworkEl) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(cannworkEl.closest('.pr-toolbar')).not.toBeNull();
+
+    await cannwork.trigger('click');
+    expect(wrapper.emitted('open-cannwork')).toHaveLength(1);
+    wrapper.unmount();
+
+    // Source tab owns its own chrome — no search, no 打开CANNWork.
+    const source = mount(ReportToolbar, {
+      props: { ...defaultProps, sourceTabEnabled: true, activeTab: 'source' },
+    });
+    expect(source.find('[data-testid="open-cannwork-trigger"]').exists()).toBe(false);
+    source.unmount();
+  });
 });

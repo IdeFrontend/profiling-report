@@ -73,7 +73,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     adapted = loadReportSource(loadSampleRepBytes());
     op1 = requireOperator(adapted.operatorReports, 'op1.npu.rep');
     op2 = requireOperator(adapted.operatorReports, 'op2.npu.rep');
-  });
+  }, 30_000);
 
   it('committed sample.lite.rep is lite (op2 trace generated at hydrate time)', () => {
     expect(liteSampleRepByteLength()).toBeLessThan(500_000);

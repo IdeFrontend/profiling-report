@@ -53,7 +53,12 @@ import {
   type ViewFullCsvPayload,
 } from '../../domain/types';
 import { buildCannbotPayload } from '../../domain/cannbot';
-import type { CannbotPayload, CannbotReportMeta, CannbotScope } from '../../domain/cannbot';
+import type {
+  CannbotPayload,
+  CannbotReportMeta,
+  CannbotScope,
+  CannbotSessions,
+} from '../../domain/cannbot';
 import { cooldown } from '../../domain/cooldown';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz, nsPerPxForTrack } from '../../domain/formatTime';
@@ -122,6 +127,8 @@ const props = withDefaults(defineProps<{
   reportModel?: ReportViewModel;
   /** cannbot payload 元信息（.rep 文件名 / 绝对路径 / id / 采集时间），宿主提供。 */
   reportMeta?: CannbotReportMeta;
+  /** CANNWork 最新会话状态（scope → session），宿主全量推送；缺省即全部 idle。 */
+  cannbotSessions?: CannbotSessions;
   theme?: 'light' | 'dark';
   locale?: string;
   timeDisplayMode?: TimeDisplayMode;
@@ -161,6 +168,7 @@ const props = withDefaults(defineProps<{
   swimlaneModel: undefined,
   reportModel: undefined,
   reportMeta: undefined,
+  cannbotSessions: undefined,
   theme: undefined,
   locale: undefined,
   timeDisplayMode: undefined,
@@ -184,6 +192,11 @@ const emit = defineEmits<{
   'open-hardware-details': [];
   'open-pipe-details': [];
   'cannbot-request': [payload: CannbotPayload];
+  'open-cannbot-stop': [scope: CannbotScope];
+  'cannbot-reference': [scope: CannbotScope];
+  'cannbot-view': [scope: CannbotScope];
+  'perform-optimization': [payload: { report_path: string; op_name: string }];
+  'open-cannwork': [];
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
   'export-html': [{ fileName: string }];
@@ -1782,6 +1795,35 @@ const emitCannbot = cooldown(
   CANNBOT_EMIT_COOLDOWN_MS,
 );
 
+/* R9 防连点：本次新增的全部用户按钮沿用同一把 1s 冷却锁（首击放行，冷却期内忽略重复点击）。 */
+const emitCannbotStop = cooldown(
+  (scope: CannbotScope) => emit('open-cannbot-stop', scope),
+  CANNBOT_EMIT_COOLDOWN_MS,
+);
+
+const emitCannbotReference = cooldown(
+  (scope: CannbotScope) => emit('cannbot-reference', scope),
+  CANNBOT_EMIT_COOLDOWN_MS,
+);
+
+const emitCannbotView = cooldown(
+  (scope: CannbotScope) => emit('cannbot-view', scope),
+  CANNBOT_EMIT_COOLDOWN_MS,
+);
+
+const emitPerformOptimization = cooldown(
+  () => emit('perform-optimization', {
+    report_path: props.reportMeta?.path ?? '',
+    op_name: report.value?.summary.opName ?? '',
+  }),
+  CANNBOT_EMIT_COOLDOWN_MS,
+);
+
+const emitOpenCannwork = cooldown(
+  () => emit('open-cannwork'),
+  CANNBOT_EMIT_COOLDOWN_MS,
+);
+
 function onMeasureMode(enabled: boolean) {
   viewState.value = setMeasureMode(viewState.value, enabled);
 }
@@ -1867,6 +1909,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @zoom-to-fit="onZoomToFit"
       @zoom-in="onZoomIn"
       @zoom-out="onZoomOut"
+      @open-cannwork="emitOpenCannwork"
       @open-user-guide="emit('open-user-guide', $event)"
       @export-html="onExportHtml"
     />
@@ -1917,6 +1960,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-to-fit="onZoomToFit"
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
+          @open-cannwork="emitOpenCannwork"
           @open-user-guide="emit('open-user-guide', $event)"
           @export-html="onExportHtml"
         />
@@ -1997,15 +2041,20 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
 
       <template #aside>
         <StatsAside
+          v-model:arch-metric-mode="archMetricMode"
           :report="report"
           :locale="locale"
           :capabilities="caps"
-          v-model:arch-metric-mode="archMetricMode"
+          :cannbot-sessions="cannbotSessions"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
           @open-pipe-details="emit('open-pipe-details')"
           @open-cannbot="emitCannbot"
+          @open-cannbot-stop="emitCannbotStop"
+          @cannbot-reference="emitCannbotReference"
+          @cannbot-view="emitCannbotView"
+          @perform-optimization="emitPerformOptimization"
           @open-topology-fullscreen="onOpenTopologyFullscreen"
           @open-performance-hints="onOpenPerformanceHints"
         />
@@ -2024,7 +2073,10 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         data-testid="dock"
         :style="{ '--pr-dock-h': `${dockDisplayHeight}px` }"
       >
-        <Transition name="pr-dock-content" mode="out-in">
+        <Transition
+          name="pr-dock-content"
+          mode="out-in"
+        >
           <MultiSelectSummary
             v-if="(marqueeLive && livePreviewCount >= 2) || (!marqueeLive && multiSelected.length) || (marqueeLive && multiSelected.length >= 2)"
             key="multi"
@@ -2125,7 +2177,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
               />
             </svg>
           </button>
-          <h3 id="pr-topo-fs-title">{{ t('memoryTopology', locale) }}</h3>
+          <h3 id="pr-topo-fs-title">
+            {{ t('memoryTopology', locale) }}
+          </h3>
         </div>
         <div
           class="pr-topo-fs__body"

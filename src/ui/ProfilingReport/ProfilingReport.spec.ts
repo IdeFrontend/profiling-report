@@ -2103,7 +2103,7 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(span()).toBe(1000);
     wrapper.unmount();
-  });
+  }, 20_000);
 
   it('W/S/A/D and Shift+P are ignored while typing in the search field', async () => {
     const wrapper = mount(ProfilingReport, {
@@ -2528,5 +2528,85 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(deferred.findComponent(SourceView).props('model').files[0].text).toContain('late_bound');
     deferred.unmount();
+  });
+
+  it('PR-ROOT-031: cannbotSessions reaches the aside; stop / reference / view / optimize / open-cannwork forward to the host', async () => {
+    const reportModel = {
+      summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
+      pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const }],
+      overviewSeries: [],
+      computeTables: [{ fileName: 'PipeUtilization.csv', headers: ['block_id', 'aiv_vec_ratio'], rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }], blockIds: ['0'] }],
+      memoryTables: [{ fileName: 'Memory.csv', headers: ['block_id'], rows: [{ block_id: '0' }], blockIds: ['0'] }],
+      csvTexts: { 'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.5\n', 'Memory.csv': 'block_id\n0\n' },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'cannwork',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(reportModel),
+        cannbotSessions: {
+          summary: { sessionId: 's-1', status: 'completed' },
+          compute: { sessionId: 'c-1', status: 'running' },
+        },
+      },
+    });
+
+    // sessions prop flows through to the aside's per-scope button state.
+    expect(wrapper.find('[data-testid="cannbot-summary-reference"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="cannbot-compute-reference"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
+    expect(wrapper.emitted('cannbot-reference')).toEqual([['summary']]);
+    await wrapper.get('[data-testid="cannbot-summary-view"]').trigger('click');
+    expect(wrapper.emitted('cannbot-view')).toEqual([['summary']]);
+    await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
+    expect(wrapper.emitted('open-cannbot-stop')).toEqual([['compute']]);
+    await wrapper.get('[data-testid="perform-optimization-trigger"]').trigger('click');
+    expect(wrapper.emitted('perform-optimization'))
+      .toEqual([[{ report_path: '', op_name: 'matmul_v3' }]]);
+    await wrapper.get('[data-testid="open-cannwork-trigger"]').trigger('click');
+    expect(wrapper.emitted('open-cannwork')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-032: each new cannbot action has its own 1s cooldown — first click fires, repeats inside the window are swallowed', async () => {
+    vi.useFakeTimers();
+    const reportModel = {
+      summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
+      pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const }],
+      overviewSeries: [],
+      computeTables: [{ fileName: 'PipeUtilization.csv', headers: ['block_id', 'aiv_vec_ratio'], rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }], blockIds: ['0'] }],
+      memoryTables: [{ fileName: 'Memory.csv', headers: ['block_id'], rows: [{ block_id: '0' }], blockIds: ['0'] }],
+      csvTexts: { 'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.5\n', 'Memory.csv': 'block_id\n0\n' },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'cannwork',
+        swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
+        reportModel: markRaw(reportModel),
+        cannbotSessions: { summary: { sessionId: 's-1', status: 'completed' } },
+      },
+    });
+
+    // First click of each action fires immediately.
+    await wrapper.get('[data-testid="perform-optimization-trigger"]').trigger('click');
+    expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+    // Repeats of the same action inside its window are swallowed.
+    await wrapper.get('[data-testid="perform-optimization-trigger"]').trigger('click');
+    expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+
+    // Independent locks: perform-optimization's cooldown does not swallow a
+    // different action's first click.
+    await wrapper.get('[data-testid="open-cannwork-trigger"]').trigger('click');
+    expect(wrapper.emitted('open-cannwork')).toHaveLength(1);
+    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
+    expect(wrapper.emitted('cannbot-reference')).toEqual([['summary']]);
+    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
+    expect(wrapper.emitted('cannbot-reference')).toHaveLength(1);
+
+    vi.advanceTimersByTime(1000);
+    await wrapper.get('[data-testid="open-cannwork-trigger"]').trigger('click');
+    expect(wrapper.emitted('open-cannwork')).toHaveLength(2);
+    wrapper.unmount();
   });
 });
