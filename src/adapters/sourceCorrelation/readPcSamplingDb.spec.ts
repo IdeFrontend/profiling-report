@@ -157,7 +157,7 @@ describe('readPcSamplingDb', () => {
       others INTEGER
     )`;
 
-  it('converts decimal address INTEGER and reads lower_snake columns', async () => {
+  it('PR-SRC-011: converts decimal address INTEGER and reads lower_snake columns', async () => {
     const SQL = await initSqlJs({
       wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
     });
