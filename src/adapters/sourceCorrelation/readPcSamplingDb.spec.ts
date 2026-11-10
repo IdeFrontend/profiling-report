@@ -76,6 +76,29 @@ describe('readPcSamplingDb', () => {
     expect(rows[0]!.scoreboardNotReady).toBe(12);
   });
 
+  it('reads producer schema: address INTEGER + lowercase stall columns', async () => {
+    const SQL = await initSqlJs({
+      wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+    });
+    const db = new SQL.Database();
+    db.run(`CREATE TABLE PcSampling (
+      address INTEGER PRIMARY KEY,
+      ibuf_empty INTEGER, nop_cycles INTEGER, scoreboard_not_ready INTEGER,
+      register_bank_conflict INTEGER, resource_conflict INTEGER,
+      warp_level_sync INTEGER, divergence_stack_spill INTEGER, others INTEGER
+    )`);
+    db.run(`INSERT INTO PcSampling VALUES (616, 0, 272, 18360, 0, 0, 0, 0, 0)`);
+    db.run(`INSERT INTO PcSampling VALUES (408, 0, 8, 0, 0, 0, 0, 0, 0)`);
+    const bytes = db.export();
+    db.close();
+    const rows = await readPcSamplingDb(bytes);
+    expect(rows.map((r) => r.pcOffset)).toEqual(['0x198', '0x268']);
+    const hot = rows.find((r) => r.pcOffset === '0x268')!;
+    expect(hot.scoreboardNotReady).toBe(18360);
+    expect(hot.nopCycles).toBe(272);
+    expect(hot.samplingStall).toBe(18632);
+  });
+
   it('prefers pc_sampling when both spellings exist', async () => {
     const SQL = await initSqlJs({
       wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),

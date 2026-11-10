@@ -26,18 +26,49 @@ export interface PcSamplingRow {
   warpOccupancy?: number;
 }
 
+/**
+ * Stall counter columns. The first spelling is what the CANN producer
+ * (`libnpu_compute_processor.so`) writes and is the source of truth; the second
+ * is the older fixture spelling. Exact names only — no case folding.
+ */
 const STALL_COLUMNS = [
-  ['IBuf_Empty', 'ibufEmpty', 'IBuf Empty'],
-  ['Nop_Cycles', 'nopCycles', 'Nop Cycles'],
-  ['Scoreboard_Not_Ready', 'scoreboardNotReady', 'Scoreboard Not Ready'],
-  ['Register_bank_conflict', 'registerBankConflict', 'Register Bank Conflict'],
-  ['Resource_conflict', 'resourceConflict', 'Resource Conflict'],
-  ['Warp_Level_Sync', 'warpLevelSync', 'Warp Level Sync'],
-  ['Divergence_Stack_Spill', 'divergenceStackSpill', 'Divergence Stack Spill'],
-  ['Others', 'others', 'Others'],
+  { sql: ['ibuf_empty', 'IBuf_Empty'], field: 'ibufEmpty', label: 'IBuf Empty' },
+  { sql: ['nop_cycles', 'Nop_Cycles'], field: 'nopCycles', label: 'Nop Cycles' },
+  {
+    sql: ['scoreboard_not_ready', 'Scoreboard_Not_Ready'],
+    field: 'scoreboardNotReady',
+    label: 'Scoreboard Not Ready',
+  },
+  {
+    sql: ['register_bank_conflict', 'Register_bank_conflict'],
+    field: 'registerBankConflict',
+    label: 'Register Bank Conflict',
+  },
+  {
+    sql: ['resource_conflict', 'Resource_conflict'],
+    field: 'resourceConflict',
+    label: 'Resource Conflict',
+  },
+  {
+    sql: ['warp_level_sync', 'Warp_Level_Sync'],
+    field: 'warpLevelSync',
+    label: 'Warp Level Sync',
+  },
+  {
+    sql: ['divergence_stack_spill', 'Divergence_Stack_Spill'],
+    field: 'divergenceStackSpill',
+    label: 'Divergence Stack Spill',
+  },
+  { sql: ['others', 'Others'], field: 'others', label: 'Others' },
 ] as const;
 
-type StallField = (typeof STALL_COLUMNS)[number][1];
+type StallField = (typeof STALL_COLUMNS)[number]['field'];
+
+/**
+ * PC column spellings. The CANN producer writes `address` (INTEGER decimal);
+ * fixtures use `pc_offset` (TEXT hex). Exact names only.
+ */
+const PC_COLUMNS = ['address', 'pc_offset'] as const;
 
 type SqlJsApi = {
   Database: new (data?: ArrayLike<number> | null) => {
@@ -152,16 +183,33 @@ function breakdown(values: Record<StallField, number>): {
   samplingStall: number;
   stallBreakdown: SourceStallBreakdown[];
 } {
-  const samplingStall = STALL_COLUMNS.reduce((sum, [, field]) => sum + values[field], 0);
-  const stallBreakdown: SourceStallBreakdown[] = STALL_COLUMNS.map(([, field, label]) => {
-    const value = values[field];
+  const samplingStall = STALL_COLUMNS.reduce((sum, col) => sum + values[col.field], 0);
+  const stallBreakdown: SourceStallBreakdown[] = STALL_COLUMNS.map((col) => {
+    const value = values[col.field];
     return {
-      metric: label,
+      metric: col.label,
       value,
       percent: samplingStall > 0 ? (value / samplingStall) * 100 : 0,
     };
   }).filter((row) => row.value > 0);
   return { samplingStall, stallBreakdown };
+}
+
+/**
+ * Normalize a PC cell to the `0x…` hex string the rest of the pipeline expects.
+ * Integer `address` (decimal) becomes hex; an existing `0x…` text stays as-is.
+ */
+function pcValue(v: SqlValue | undefined): string {
+  if (typeof v === 'number' && Number.isFinite(v)) return `0x${v.toString(16)}`;
+  const text = String(v ?? '').trim();
+  if (/^0x/i.test(text)) return text;
+  if (/^\d+$/.test(text)) return `0x${Number(text).toString(16)}`;
+  return text;
+}
+
+function pcRank(pc: string): number {
+  const n = Number.parseInt(pc.replace(/^0x/i, ''), 16);
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
 }
 
 type SqlDb = InstanceType<SqlJsApi['Database']>;
@@ -193,25 +241,40 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
   const db = new api.Database(bytes);
   try {
     const tableName = resolvePcSamplingTable(db);
-    const result = db.exec(
-      `SELECT * FROM ${quoteIdent(tableName)} ORDER BY "pc_offset"`,
-    );
+    const result = db.exec(`SELECT * FROM ${quoteIdent(tableName)}`);
     if (!result.length) return [];
     const table = result[0]!;
-    const idx = Object.fromEntries(table.columns.map((c, i) => [c, i]));
-    const required = ['pc_offset', ...STALL_COLUMNS.map(([sql]) => sql)];
-    const missing = required.filter((name) => idx[name] == null);
+    // Exact column names from the DB are the source of truth. Each logical
+    // field lists the producer spelling first, then the older fixture spelling.
+    const colIndex = new Map(table.columns.map((c, i) => [c, i] as const));
+    const get = (...names: readonly string[]): number | undefined => {
+      for (const name of names) {
+        const i = colIndex.get(name);
+        if (i != null) return i;
+      }
+      return undefined;
+    };
+
+    const pcIdx = get(...PC_COLUMNS);
+    if (pcIdx == null) {
+      throw new Error(
+        `[profiling-report] ${tableName} missing PC column: ${PC_COLUMNS.join(' / ')}`,
+      );
+    }
+    const missing = STALL_COLUMNS.filter((col) => get(...col.sql) == null).map((col) =>
+      col.sql.join(' / '),
+    );
     if (missing.length) {
       throw new Error(
         `[profiling-report] ${tableName} missing columns: ${missing.join(', ')}`,
       );
     }
-    const instrIdx = idx.Instructions_Executed;
-    const warpIdx = idx.Warp_Occupancy;
-    return table.values.map((row) => {
+    const instrIdx = get('Instructions_Executed');
+    const warpIdx = get('Warp_Occupancy');
+    const rows = table.values.map((row) => {
       const fields = {} as Record<StallField, number>;
-      for (const [sqlCol, field] of STALL_COLUMNS) {
-        fields[field] = num(row[idx[sqlCol]!]);
+      for (const col of STALL_COLUMNS) {
+        fields[col.field] = num(row[get(...col.sql)!]);
       }
       const { samplingStall, stallBreakdown } = breakdown(fields);
       const extra: Pick<PcSamplingRow, 'instructionsExecuted' | 'warpOccupancy'> = {};
@@ -221,13 +284,14 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
         if (occ != null) extra.warpOccupancy = occ;
       }
       return {
-        pcOffset: String(row[idx.pc_offset!] ?? ''),
+        pcOffset: pcValue(row[pcIdx]),
         ...fields,
         samplingStall,
         stallBreakdown,
         ...extra,
       };
     });
+    return rows.sort((a, b) => pcRank(a.pcOffset) - pcRank(b.pcOffset));
   } finally {
     db.close();
   }
