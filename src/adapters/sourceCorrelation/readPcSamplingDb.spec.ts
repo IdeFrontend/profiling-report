@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import initSqlJs from 'sql.js';
 import { ensurePcSamplingSql, readPcSamplingDb, readPcSamplingDbSync } from './readPcSamplingDb';
 import { configurePcSamplingSqlForNodeTests } from '../../../tests/helpers/sqlJsNode';
@@ -143,5 +143,72 @@ describe('readPcSamplingDb', () => {
     expect(
       (await readPcSamplingDb(new Uint8Array(readFileSync(fixture)))).length,
     ).toBe(77);
+  });
+
+  const decimalTableDdl = (pcType: string) => `CREATE TABLE "PcSampling" (
+      address ${pcType},
+      ibuf_empty INTEGER,
+      nop_cycles INTEGER,
+      scoreboard_not_ready INTEGER,
+      register_bank_conflict INTEGER,
+      resource_conflict INTEGER,
+      warp_level_sync INTEGER,
+      divergence_stack_spill INTEGER,
+      others INTEGER
+    )`;
+
+  it('converts decimal address INTEGER and reads lower_snake columns', async () => {
+    const SQL = await initSqlJs({
+      wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+    });
+    const db = new SQL.Database();
+    db.run(decimalTableDdl('INTEGER'));
+    // 1032 = 0x408
+    db.run(`INSERT INTO "PcSampling" VALUES (1032, 7, 0, 0, 0, 0, 0, 0, 0)`);
+    const bytes = db.export();
+    db.close();
+    const rows = await readPcSamplingDb(bytes);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.pcOffset).toBe('0x408');
+    expect(rows[0]!.ibufEmpty).toBe(7);
+    expect(rows[0]!.samplingStall).toBe(7);
+  });
+
+  it('converts decimal TEXT pc to hex instead of joining the raw digits', async () => {
+    const SQL = await initSqlJs({
+      wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+    });
+    const db = new SQL.Database();
+    db.run(decimalTableDdl('TEXT'));
+    db.run(`INSERT INTO "PcSampling" VALUES ('408', 4, 0, 0, 0, 0, 0, 0, 0)`);
+    const bytes = db.export();
+    db.close();
+    const rows = await readPcSamplingDb(bytes);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.pcOffset).toBe('0x198');
+  });
+
+  it('skips empty pc and warns on duplicate pc keys', async () => {
+    const SQL = await initSqlJs({
+      wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+    });
+    const db = new SQL.Database();
+    db.run(decimalTableDdl('TEXT'));
+    db.run(`INSERT INTO "PcSampling" VALUES ('', 9, 0, 0, 0, 0, 0, 0, 0)`);
+    db.run(`INSERT INTO "PcSampling" VALUES ('0x00A0', 1, 0, 0, 0, 0, 0, 0, 0)`);
+    db.run(`INSERT INTO "PcSampling" VALUES ('0xa0', 2, 0, 0, 0, 0, 0, 0, 0)`);
+    const bytes = db.export();
+    db.close();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const rows = await readPcSamplingDb(bytes);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.pcOffset).toBe('0xa0');
+      expect(rows[0]!.samplingStall).toBe(2);
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/invalid pc/));
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/duplicate .* pc/));
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

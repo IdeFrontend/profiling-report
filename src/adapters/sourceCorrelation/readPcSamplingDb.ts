@@ -4,7 +4,7 @@ import { normalizePc } from './parseObjdump';
 
 /** One `pc_sampling` row from compute-profile `summary.db`. */
 export interface PcSamplingRow {
-  /** Hex PC offset as stored (`0x388`). */
+  /** Hex PC offset (`0x388`). Decimal `address` values are converted. */
   pcOffset: string;
   ibufEmpty: number;
   nopCycles: number;
@@ -193,6 +193,19 @@ function resolvePcSamplingTable(db: SqlDb): string {
   return names.find((n) => n.toLowerCase() === 'pc_sampling') ?? names[0]!;
 }
 
+/**
+ * PC cell → `0x` hex. Accepts decimal numbers, decimal TEXT, and hex TEXT;
+ * null when absent or not a finite number.
+ */
+function pcOffsetOf(value: SqlValue): string | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? `0x${Math.round(value).toString(16)}` : null;
+  }
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `0x${Math.round(parsed).toString(16)}` : null;
+}
+
 function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): Map<string, PcSamplingRow> {
   const rows = new Map<string, PcSamplingRow>();
   const db = new api.Database(bytes);
@@ -216,8 +229,8 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): Map<string, PcSamplingRow
     const instrIdx = idx.instructions_executed;
     const warpIdx = idx.warp_occupancy;
     for (const row of table.values) {
-      const pcValue = row[pcIdx!];
-      if (pcValue == null || typeof pcValue === 'object') {
+      const pcOffset = pcOffsetOf(row[pcIdx!]);
+      if (pcOffset == null) {
         console.warn(`[profiling-report] skipping ${tableName} row: invalid pc`);
         continue;
       }
@@ -232,11 +245,11 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): Map<string, PcSamplingRow
         const occ = optionalNum(row[warpIdx]);
         if (occ != null) extra.warpOccupancy = occ;
       }
-      const pcOffset =
-        typeof pcValue === 'number'
-          ? `0x${Math.round(pcValue).toString(16)}`
-          : String(pcValue);
-      rows.set(normalizePc(pcOffset), {
+      const key = normalizePc(pcOffset);
+      if (rows.has(key)) {
+        console.warn(`[profiling-report] duplicate ${tableName} pc ${pcOffset}; keeping last`);
+      }
+      rows.set(key, {
         pcOffset,
         ...fields,
         samplingStall,
@@ -257,7 +270,7 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): Map<string, PcSamplingRow
 export function readPcSamplingMapSync(bytes: Uint8Array): Map<string, PcSamplingRow> {
   if (!sqlApi) {
     throw new Error(
-      '[profiling-report] readPcSamplingDbSync: await ensurePcSamplingSql() first',
+      '[profiling-report] readPcSamplingMapSync: await ensurePcSamplingSql() first',
     );
   }
   return rowsFromDb(bytes, sqlApi);
