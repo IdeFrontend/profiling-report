@@ -130,6 +130,31 @@ function cannbotEntryReport(): ReportViewModel {
     memoryTables: [
       { fileName: 'Memory.csv', headers: ['block_id'], rows: [{ block_id: '0' }], blockIds: ['0'] },
     ],
+    roofline: {
+      points: [
+        {
+          id: 'gm',
+          label: 'GM Read + Write',
+          intensity: 0.09,
+          performance: 0.002,
+          style: 'solid',
+          color: '#32BE8C',
+          seriesId: 'aiv-fp32',
+        },
+      ],
+      mixLabels: [],
+      series: [
+        {
+          id: 'aiv-fp32',
+          group: 'aiv',
+          label: 'AIV fp32',
+          color: '#32BE8C',
+          peakComputeTops: 13.5,
+          peakBandwidthGBs: 1600,
+          slopeStyle: 'solid',
+        },
+      ],
+    },
   });
 }
 
@@ -2836,12 +2861,16 @@ describe('StatsAside', () => {
 
     const rooflineSection = wrapper.get('[data-testid="stats-roofline"]');
     expect(rooflineSection.find('.pr-panel').exists()).toBe(false);
-    expect(rooflineSection.find('.pr-roofline__title').exists()).toBe(true);
+    // Title moved from RooflinePanel to the aside section head (PR-STATS-026 roofline anchor).
+    expect(rooflineSection.find('.pr-stack-section__head h4').exists()).toBe(true);
+    expect(rooflineSection.find('.pr-roofline__title').exists()).toBe(false);
     expect(rooflineSection.find('.pr-roofline__card').exists()).toBe(true);
   });
 
-  it('PR-STATS-026: cannbot icon entries render in summary, compute and memory sections', () => {
-    const wrapper = mount(StatsAside, { props: { report: cannbotEntryReport() } });
+  it('PR-STATS-026: cannbot icon entries render in summary, compute, memory and roofline sections', () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: cannbotEntryReport(), capabilities: ['roofline'] },
+    });
 
     const summaryBtn = wrapper.get('[data-testid="cannbot-summary"]');
     expect(summaryBtn.find('svg').exists()).toBe(true);
@@ -2877,8 +2906,19 @@ describe('StatsAside', () => {
     );
     expect(topoDetails.find('.pr-stack-section__title').exists()).toBe(true);
 
+    // Roofline anchor: section head (title h4 + actions), no 详情 entry.
+    const rooflineBtn = wrapper.get('[data-testid="cannbot-roofline"]');
+    expect(rooflineBtn.find('svg').exists()).toBe(true);
+    const rooflineActions = rooflineBtn.element.parentElement!;
+    expect(rooflineActions.classList.contains('pr-cannbot-actions')).toBe(true);
+    expect(rooflineActions.parentElement!.classList.contains('pr-pipe-head__actions')).toBe(true);
+    const rooflineSection = wrapper.get('[data-testid="stats-roofline"]');
+    expect(rooflineSection.element.contains(rooflineActions)).toBe(true);
+    expect(wrapper.find('[data-testid="cannbot-roofline-reference"]').exists()).toBe(true);
+
     const empty = mount(StatsAside, { props: { report: report({}) } });
     expect(empty.find('[data-testid="cannbot-summary"]').exists()).toBe(true);
+    expect(empty.find('[data-testid="cannbot-roofline"]').exists()).toBe(false);
 
     // Icon gating tracks payload data, not section visibility: pipe bars without
     // compute tables carry no compute payload, so the compute icon stays hidden.
@@ -2908,12 +2948,20 @@ describe('StatsAside', () => {
   });
 
   it('PR-STATS-027: cannbot icons emit open-cannbot with the section scope', async () => {
-    const wrapper = mount(StatsAside, { props: { report: cannbotEntryReport() } });
+    const wrapper = mount(StatsAside, {
+      props: { report: cannbotEntryReport(), capabilities: ['roofline'] },
+    });
 
     await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
     await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
     await wrapper.get('[data-testid="cannbot-memory"]').trigger('click');
-    expect(wrapper.emitted('open-cannbot')).toEqual([['summary'], ['compute'], ['memory']]);
+    await wrapper.get('[data-testid="cannbot-roofline"]').trigger('click');
+    expect(wrapper.emitted('open-cannbot')).toEqual([
+      ['summary'],
+      ['compute'],
+      ['memory'],
+      ['roofline'],
+    ]);
 
     const csvOnly = mount(StatsAside, { props: { report: csvOnlyEntryReport() } });
     await csvOnly.get('[data-testid="cannbot-compute"]').trigger('click');
@@ -3091,123 +3139,4 @@ describe('StatsAside', () => {
     expect(csvOnly.emitted('open-performance-hints')).toHaveLength(1);
   });
 
-  it('PR-STATS-006c: performance-hints title-row trigger omitted on overlay shells', async () => {
-    const hints = [{ message: 'hint', origin: 'kernel' as const }];
-    const wrapper = mount(StatsAside, {
-      props: {
-        capabilities: ['performanceHints'],
-        report: report({
-          pipeOccupancy: [
-            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
-          ],
-          computeTables: [
-            {
-              fileName: 'PipeUtilization.csv',
-              headers: ['block_id', 'aiv_vec_ratio'],
-              rows: [{ block_id: '0', aiv_vec_ratio: '0.5' }],
-              blockIds: ['0'],
-            },
-          ],
-          csvTexts: {
-            'PipeUtilization.csv': 'block_id,aiv_vec_ratio\n0,0.5\n',
-          },
-          performanceHints: hints,
-        }),
-      },
-    });
-    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(true);
-    await wrapper.get('[data-testid="pipe-details"]').trigger('click');
-    // Overlay keeps the report-shell close (inert under the overlay) but drops the hints link.
-    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="stats-aside-close"]').exists()).toBe(true);
-  });
-
-  it('PR-STATS-006c: performance-hints entry hidden without the capability', () => {
-    const wrapper = mount(StatsAside, {
-      props: {
-        report: {
-          ...emptyReportViewModel(),
-          summary: { taskDurationUs: 1 },
-          performanceHints: [{ message: 'hint', origin: 'kernel' as const }],
-        },
-      },
-    });
-    expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(false);
-  });
-
-  it('PR-STATS-047: emulate 报告保留其所渲染章节的 CANNWork 组（compute / memory），summary 组仍按 DATA-47 省略', async () => {
-    const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
-    const archCsv = [
-      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
-      '1,l2_cached_ratio,50',
-      '2,hbm_to_l2_syn_gbs,1.5',
-    ].join('\n');
-    const computeTable = {
-      fileName: 'PipesUtilization.csv',
-      headers: ['block_id'],
-      rows: [{ block_id: '0' }],
-      blockIds: ['0'],
-    };
-    const memoryTable = {
-      fileName: 'ArchDiagramMetrics.csv',
-      headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
-      rows: [],
-      blockIds: [],
-    };
-    const anchors = (model: ReportViewModel): string[] =>
-      mount(StatsAside, { props: { report: model } })
-        .findAll('[data-testid^="cannbot-"]')
-        .map((w) => w.attributes('data-testid')!);
-
-    // Both sections present: two independent groups, each with the always-on 引用 button.
-    expect(
-      anchors(
-        report({
-          profile: 'emulate',
-          pipeOccupancy: [
-            { id: 'aic', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' },
-          ],
-          computeTables: [computeTable],
-          memoryTables: [memoryTable],
-          memoryTopology: topologyFromArchDiagramMetrics(archCsv),
-        }),
-      ),
-    ).toEqual([
-      'cannbot-compute',
-      'cannbot-compute-reference',
-      'cannbot-memory',
-      'cannbot-memory-reference',
-    ]);
-
-    // Compute-only emulate pack: the compute group still rides in the PIPE head.
-    expect(
-      anchors(
-        report({
-          profile: 'emulate',
-          pipeOccupancy: [
-            { id: 'aic', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' },
-          ],
-          computeTables: [computeTable],
-        }),
-      ),
-    ).toEqual(['cannbot-compute', 'cannbot-compute-reference']);
-
-    // CSV-only emulate pack (no PIPE / topology): the memory list keeps its group.
-    expect(
-      anchors(report({ profile: 'emulate', memoryTables: [memoryTable] })),
-    ).toEqual(['cannbot-memory', 'cannbot-memory-reference']);
-
-    // DATA-47: emulate drives no summary chrome, so there is no summary anchor to host one.
-    expect(
-      anchors(
-        report({
-          profile: 'emulate',
-          pipeOccupancy: [
-            { id: 'aic', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' },
-          ],
-          computeTables: [computeTable],
-        }),
-      ),
-    ).not.toContain('cannbot-summary');
-  });
-});
+  it('PR-STATS-006c: performance-hints

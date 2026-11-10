@@ -2,12 +2,12 @@ import type { CsvTableModel, ReportViewModel } from './types';
 
 /**
  * Designed scope enum (cannbot contract): `roofline | sol | pipeline | compute | memory | communication | summary`.
- * The 930 release implements only `summary / compute / memory` (the three report-section
- * entries with data mappings in the view model); the remaining values are reserved for
- * future releases — enabling one requires a new UI entry, a data mapping, and a spec
- * update (specs/core/cannbot-payload.spec.md).
+ * Implemented: `summary / compute / memory / roofline` (the report-section entries with
+ * a UI button anchor and a data mapping in the view model); the remaining values are
+ * reserved for future releases — enabling one requires a new UI entry, a data mapping,
+ * and a spec update (specs/core/cannbot-payload.spec.md).
  */
-export type CannbotScope = 'summary' | 'compute' | 'memory';
+export type CannbotScope = 'summary' | 'compute' | 'memory' | 'roofline';
 
 /** Mirrors the cannwork companion extension's `SessionStatus`. */
 export type CannbotSessionStatus = 'running' | 'completed' | 'stopped' | 'error' | 'unknown';
@@ -93,6 +93,8 @@ export function buildCannbotPayload(
       data.pipeOccupancy = report.pipeOccupancy;
       data.computeTables = report.computeTables;
       put('csvTexts', pickCsvTexts(report.csvTexts, report.computeTables));
+    } else if (scope === 'roofline') {
+      put('roofline', report.roofline);
     } else {
       data.memoryTables = report.memoryTables;
       put('memoryTopology', report.memoryTopology);
