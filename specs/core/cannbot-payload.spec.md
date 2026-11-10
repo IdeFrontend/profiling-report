@@ -69,4 +69,9 @@ type CannbotSessions = Partial<Record<CannbotScope, { sessionId: string; status:
 [view-models](./view-models.spec.md) — the `ReportViewModel` sections reused by reference. Consumers: [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [ProfilingReport](../../src/ui/ProfilingReport/ProfilingReport.spec.md).
 
 ## Changelog
-- **2026-11-10** — Roofline scope activated: `CannbotScope` adds `roofline`, payload maps it to `roofline` only (points / series / mix labels). Implemented set is now four scopes; `sol` / `pipeline` / `communication` stay rese
+- **2026-11-10** — Roofline scope activated: `CannbotScope` adds `roofline`, payload maps it to `roofline` only (points / series / mix labels). Implemented set is now four scopes; `sol` / `pipeline` / `communication` stay reserved.
+- **2026-11-09** — Review follow-up: the three-state rendering is restated to match the shipped code — 引用 is always on (idle 分析\|引用, running 正在分析\|引用, settled 分析\|引用\|查看), and the running label is 正在分析. Derivation rule (`PR-CANNBOT-003`) is unchanged.
+- **2026-10-30** — Session state contract (CANNWork 优化 R2–R4): `CannbotSessionStatus` / `CannbotSessions` types and the per-scope **idle / running / settled** three-state derivation (`PR-CANNBOT-003`); the host pushes only the latest-session-per-scope snapshot for the open report, `unknown` counts as settled, and scopes derive independently.
+- **2026-09-04** — Summary scope includes `computeCard` (DATA-33h / HQ slice 3).
+- **2026-08-26** — Initial spec (cannbot payload builder).
+- **2026-08-27** — Document the designed scope enum (full 7-value set) vs the 930 release's implemented three; remaining values reserved for future releases (review follow-up).
