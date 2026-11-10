@@ -199,24 +199,24 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
     const result = db.exec(`SELECT * FROM ${quoteIdent(tableName)}`);
     if (!result.length) return [];
     const table = result[0]!;
-    const idx = Object.fromEntries(table.columns.map((c, i) => [c, i]));
+    const idx = Object.fromEntries(table.columns.map((c, i) => [c.toLowerCase(), i]));
     const pcIdx = PC_COLUMNS.map((col) => idx[col]).find((i) => i != null);
     const required = [
       ...(pcIdx == null ? ['pc_offset'] : []),
       ...STALL_COLUMNS.map(([sql]) => sql),
     ];
-    const missing = required.filter((name) => idx[name] == null);
+    const missing = required.filter((name) => idx[name.toLowerCase()] == null);
     if (missing.length) {
       throw new Error(
         `[profiling-report] ${tableName} missing columns: ${missing.join(', ')}`,
       );
     }
-    const instrIdx = idx.Instructions_Executed;
-    const warpIdx = idx.Warp_Occupancy;
+    const instrIdx = idx.instructions_executed;
+    const warpIdx = idx.warp_occupancy;
     return table.values.map((row) => {
       const fields = {} as Record<StallField, number>;
       for (const [sqlCol, field] of STALL_COLUMNS) {
-        fields[field] = num(row[idx[sqlCol]!]);
+        fields[field] = num(row[idx[sqlCol.toLowerCase()]!]);
       }
       const { samplingStall, stallBreakdown } = breakdown(fields);
       const extra: Pick<PcSamplingRow, 'instructionsExecuted' | 'warpOccupancy'> = {};
