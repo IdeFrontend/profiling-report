@@ -5,11 +5,11 @@ import type {
   SourceMetricsColumn,
   SourceStallBreakdown,
 } from '../../domain/types';
-import { parseObjdump, normalizePc } from './parseObjdump';
+import { parseObjdump } from './parseObjdump';
 import { parseSymbolizer } from './parseSymbolizer';
 import {
   isPcSamplingSqlReady,
-  readPcSamplingDbSync,
+  readPcSamplingMapSync,
   type PcSamplingRow,
 } from './readPcSamplingDb';
 import { missingSourceEmbedText } from './resolveSourceFile';
@@ -210,9 +210,7 @@ export function adaptComputeSourceCorrelation(
       );
     } else {
       try {
-        stallByPc = new Map(
-          readPcSamplingDbSync(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
-        );
+        stallByPc = readPcSamplingMapSync(summaryBytes);
       } catch (cause) {
         // Keep Source/SASS from objdump (+ symbolizer); omit stall metrics rather than failLoad.
         const detail = cause instanceof Error ? cause.message : String(cause);

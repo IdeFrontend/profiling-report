@@ -1,5 +1,6 @@
 import type { SqlValue } from 'sql.js';
 import type { SourceStallBreakdown } from '../../domain/types';
+import { normalizePc } from './parseObjdump';
 
 /** One `pc_sampling` row from compute-profile `summary.db`. */
 export interface PcSamplingRow {
@@ -192,12 +193,13 @@ function resolvePcSamplingTable(db: SqlDb): string {
   return names.find((n) => n.toLowerCase() === 'pc_sampling') ?? names[0]!;
 }
 
-function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
+function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): Map<string, PcSamplingRow> {
+  const rows = new Map<string, PcSamplingRow>();
   const db = new api.Database(bytes);
   try {
     const tableName = resolvePcSamplingTable(db);
     const result = db.exec(`SELECT * FROM ${quoteIdent(tableName)}`);
-    if (!result.length) return [];
+    if (!result.length) return rows;
     const table = result[0]!;
     const idx = Object.fromEntries(table.columns.map((c, i) => [c.toLowerCase(), i]));
     const pcIdx = PC_COLUMNS.map((col) => idx[col]).find((i) => i != null);
@@ -213,7 +215,12 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
     }
     const instrIdx = idx.instructions_executed;
     const warpIdx = idx.warp_occupancy;
-    return table.values.map((row) => {
+    for (const row of table.values) {
+      const pcValue = row[pcIdx!];
+      if (pcValue == null || typeof pcValue === 'object') {
+        console.warn(`[profiling-report] skipping ${tableName} row: invalid pc`);
+        continue;
+      }
       const fields = {} as Record<StallField, number>;
       for (const [sqlCol, field] of STALL_COLUMNS) {
         fields[field] = num(row[idx[sqlCol.toLowerCase()]!]);
@@ -225,28 +232,29 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
         const occ = optionalNum(row[warpIdx]);
         if (occ != null) extra.warpOccupancy = occ;
       }
-      const pcValue = row[pcIdx!];
-      return {
-        pcOffset:
-          typeof pcValue === 'number'
-            ? `0x${Math.round(pcValue).toString(16)}`
-            : String(pcValue ?? ''),
+      const pcOffset =
+        typeof pcValue === 'number'
+          ? `0x${Math.round(pcValue).toString(16)}`
+          : String(pcValue);
+      rows.set(normalizePc(pcOffset), {
+        pcOffset,
         ...fields,
         samplingStall,
         stallBreakdown,
         ...extra,
-      };
-    }).sort((a, b) => (Number(a.pcOffset) || 0) - (Number(b.pcOffset) || 0));
+      });
+    }
+    return rows;
   } finally {
     db.close();
   }
 }
 
 /**
- * Sync read — call only after `ensurePcSamplingSql()`.
- * Used by the sync adapt path when `summary.db` is in the pack.
+ * Sync read as a PC-keyed map — call only after `ensurePcSamplingSql()`.
+ * Keys are `normalizePc(pcOffset)`.
  */
-export function readPcSamplingDbSync(bytes: Uint8Array): PcSamplingRow[] {
+export function readPcSamplingMapSync(bytes: Uint8Array): Map<string, PcSamplingRow> {
   if (!sqlApi) {
     throw new Error(
       '[profiling-report] readPcSamplingDbSync: await ensurePcSamplingSql() first',
@@ -255,8 +263,16 @@ export function readPcSamplingDbSync(bytes: Uint8Array): PcSamplingRow[] {
   return rowsFromDb(bytes, sqlApi);
 }
 
+/**
+ * Sync read — call only after `ensurePcSamplingSql()`.
+ * Used by the sync adapt path when `summary.db` is in the pack.
+ */
+export function readPcSamplingDbSync(bytes: Uint8Array): PcSamplingRow[] {
+  return [...readPcSamplingMapSync(bytes).values()];
+}
+
 /** Read compute-profile `summary.db` → `pc_sampling` / `PcSampling` rows (warms sql.js if needed). */
 export async function readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]> {
   await ensurePcSamplingSql();
-  return readPcSamplingDbSync(bytes);
+  return [...readPcSamplingMapSync(bytes).values()];
 }
