@@ -1260,6 +1260,20 @@ const detailTestId = computed(() => {
           class="pr-stack-section"
           data-testid="stats-roofline"
         >
+          <div class="pr-stack-section__head">
+            <h4>{{ t('roofline', locale) }}</h4>
+            <div class="pr-pipe-head__actions">
+              <CannbotActions
+                scope="roofline"
+                :sessions="cannbotSessions"
+                :locale="locale"
+                @open-cannbot="(s) => emit('open-cannbot', s)"
+                @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
+                @cannbot-reference="(s) => emit('cannbot-reference', s)"
+                @cannbot-view="(s) => emit('cannbot-view', s)"
+              />
+            </div>
+          </div>
           <RooflinePanel
             :model="roofline"
             :locale="locale"

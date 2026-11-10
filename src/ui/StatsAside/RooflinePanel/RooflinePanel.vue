@@ -258,9 +258,6 @@ const tooltipText = computed(() => {
     class="pr-roofline"
     data-testid="roofline-panel"
   >
-    <h4 class="pr-roofline__title">
-      {{ t('roofline', locale) }}
-    </h4>
     <div class="pr-roofline__card">
       <div class="pr-roofline__card-head">
         <div
@@ -530,20 +527,12 @@ const tooltipText = computed(() => {
 </template>
 
 <style scoped>
-/* Title sits on aside; raised chart card is one uniform grey. */
+/* Title sits on the aside section head; raised chart card is one uniform grey. */
 .pr-roofline {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-}
-
-.pr-roofline__title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.3;
-  color: #ffffff;
 }
 
 /* Whole card (header + plot + tick gutters) — sketch uniform #262626.

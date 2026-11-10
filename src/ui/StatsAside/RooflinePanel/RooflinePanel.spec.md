@@ -10,7 +10,7 @@ Log-log roofline bottleneck chart (npu-compute §11.8). `StatsAside` mounts it w
 
 **Data SSOT:** [docs/views/roofline.md](../../../../docs/views/roofline.md).
 
-**model** is a `RooflineViewModel` (`points`, `mixLabels`, `series`). Optional **locale** for title/legend.
+**model** is a `RooflineViewModel` (`points`, `mixLabels`, `series`). Optional **locale** for the svg `aria-label` / legend text (the visible section title lives in `StatsAside`'s section head, not here).
 
 ## Behavior
 
@@ -27,7 +27,7 @@ Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 5. **PR-ROOF-003** — Empty points → no chart SVG.
 6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved under the SVG (not absolutely overlaid) so the card does not shift on hover and x-tick / Ops/Byte labels stay visible. Replacing the model keeps the tip on the current point with the same id.
 7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
-8. **PR-ROOF-006** — Legend at the top of the raised card (**no** in-card **Roofline** chart title — aside `h4` is enough); shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`.
+8. **PR-ROOF-006** — Legend at the top of the raised card (**no** in-card **Roofline** chart title — the section title is `StatsAside`'s section-head `h4`); shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`.
 9. **PR-ROOF-007** — Log domains are data-driven decade floors/ceils with **no** hard X/Y cap (including no `1e-3` / `1e-4` floor once samples exist); chip-scale peaks and ridges beyond the product crop (`100K` Ops/Byte / `1e5` TOps/s) still fit on-axis. When floor===ceil (lone power-of-ten), open **one decade** of span so SVG coordinates stay finite (**PR-ROOF-007b**).
 10. **PR-ROOF-008** — Legend hover (experimental): hovering a legend series thickens that roof (slope + plateau) and dims the other roofs / knees; leaving the item clears the highlight.
 
@@ -37,9 +37,9 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 | Token | Value |
 |-------|--------|
-| Title | `13px` / `600` / `#ffffff` — Roofline 瓶颈分析 (outside the raised card, on aside) |
+| Title | **Not rendered by the panel** — `StatsAside`'s section-head `h4` (`14px` / `600` / `#ffffff`, Roofline 瓶颈分析) sits outside the raised card |
 | Raised card | Uniform `#262626` for header + plot + tick gutters; `8px` radius; soft inset top highlight (no outer border) |
-| Chart title | **Omitted** inside the card (aside title only) |
+| Chart title | **Omitted** inside the card (section-head title only) |
 | Plot well | `#262626` (same as card) |
 | Insets | Card pad **8px 8px 6px**; legend, TOps/s, and SVG share the left edge |
 | Legend | Top of raised card; one grid `28px + repeat(n, max-content)` across AIV then AIC rows so nth swatches align; heads `#c4c4c4`, labels `#8a8a8a`, `12px`; 8×8 swatches with **2px** radius + full series labels; hover highlights the matching roof (**PR-ROOF-008**) |
@@ -59,6 +59,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 
 ## Changelog
 
+- **2026-11-10** — The panel no longer renders its own `h4` title: `StatsAside`'s roofline section head owns the visible title (with the roofline cannbot group beside it). The svg `aria-label` keeps using `t('roofline')`.
 - **2026-10-22** — Dashed AIV roofs use butt caps so the `4 3` gap stays open at the lit 3.5px stroke.
 - **2026-10-22** — Roof stroke style: **AIV** dashed, **AIC** solid (slope + plateau).
 - **2026-10-22** — **Locked (PR-ROOF-002b):** op-mix stays on the **TOps/s** row (shared alphabetic baseline above the plot). In-plot `MIX_TOP_INSET` placement is explicitly rejected — do not reintroduce in review loops.
