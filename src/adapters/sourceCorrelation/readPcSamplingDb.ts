@@ -37,6 +37,9 @@ const STALL_COLUMNS = [
   ['Others', 'others', 'Others'],
 ] as const;
 
+/** Producer `pc_sampling` names the PC key `address` (decimal INTEGER); sample DBs use `pc_offset`. */
+const PC_COLUMNS = ['pc_offset', 'address'] as const;
+
 type StallField = (typeof STALL_COLUMNS)[number][1];
 
 type SqlJsApi = {
@@ -193,13 +196,15 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
   const db = new api.Database(bytes);
   try {
     const tableName = resolvePcSamplingTable(db);
-    const result = db.exec(
-      `SELECT * FROM ${quoteIdent(tableName)} ORDER BY "pc_offset"`,
-    );
+    const result = db.exec(`SELECT * FROM ${quoteIdent(tableName)}`);
     if (!result.length) return [];
     const table = result[0]!;
     const idx = Object.fromEntries(table.columns.map((c, i) => [c, i]));
-    const required = ['pc_offset', ...STALL_COLUMNS.map(([sql]) => sql)];
+    const pcIdx = PC_COLUMNS.map((col) => idx[col]).find((i) => i != null);
+    const required = [
+      ...(pcIdx == null ? ['pc_offset'] : []),
+      ...STALL_COLUMNS.map(([sql]) => sql),
+    ];
     const missing = required.filter((name) => idx[name] == null);
     if (missing.length) {
       throw new Error(
@@ -220,14 +225,18 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
         const occ = optionalNum(row[warpIdx]);
         if (occ != null) extra.warpOccupancy = occ;
       }
+      const pcValue = row[pcIdx!];
       return {
-        pcOffset: String(row[idx.pc_offset!] ?? ''),
+        pcOffset:
+          typeof pcValue === 'number'
+            ? `0x${Math.round(pcValue).toString(16)}`
+            : String(pcValue ?? ''),
         ...fields,
         samplingStall,
         stallBreakdown,
         ...extra,
       };
-    });
+    }).sort((a, b) => (Number(a.pcOffset) || 0) - (Number(b.pcOffset) || 0));
   } finally {
     db.close();
   }
