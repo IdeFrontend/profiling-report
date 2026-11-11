@@ -48,6 +48,9 @@ export default tseslint.config(
     },
     rules: {
       'vue/multi-word-component-names': 'off',
+      // vue-tsc treats `aria-label` as a native attribute and won't map it onto a
+      // component's `ariaLabel` prop, so that prop keeps its camelCase binding.
+      'vue/attribute-hyphenation': ['warn', 'always', { ignore: ['ariaLabel'] }],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

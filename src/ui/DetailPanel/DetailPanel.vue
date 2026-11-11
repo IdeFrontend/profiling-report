@@ -42,6 +42,7 @@ const props = withDefaults(
     sourceFiles: undefined,
     dependencyMode: 'all',
     timeOrigin: 0,
+    nsPerPx: undefined,
   },
 );
 

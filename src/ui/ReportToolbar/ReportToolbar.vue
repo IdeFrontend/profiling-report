@@ -59,6 +59,11 @@ const props = withDefaults(
     activeTab: 'timeline',
     sourceTabEnabled: false,
     htmlExportAvailable: false,
+    clockFreqMHz: undefined,
+    locale: undefined,
+    title: undefined,
+    operators: undefined,
+    selectedOperatorId: undefined,
   },
 );
 

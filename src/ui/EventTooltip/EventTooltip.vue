@@ -20,7 +20,7 @@ const props = withDefaults(
     nsPerPx?: number;
     locale?: string;
   }>(),
-  { clockFreqMHz: undefined, locale: undefined, timeOrigin: 0 },
+  { clockFreqMHz: undefined, locale: undefined, timeOrigin: 0, nsPerPx: undefined },
 );
 
 /** Duration keeps 4 significant digits; start/end follow zoom when `nsPerPx` is set. */

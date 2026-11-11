@@ -19,7 +19,7 @@ const props = withDefaults(
     nsPerPx?: number;
     locale?: string;
   }>(),
-  { clockFreqMHz: undefined, locale: undefined, timeOrigin: 0 },
+  { clockFreqMHz: undefined, locale: undefined, timeOrigin: 0, nsPerPx: undefined },
 );
 
 /**

@@ -73,6 +73,15 @@ const props = withDefaults(
     dependencyDepth: DEFAULT_DEPENDENCY_DEPTH,
     collapseAnim: null,
     multiSelectSpan: null,
+    pinSourceModel: undefined,
+    pinnedLaneIds: undefined,
+    pinnedOverviewIds: undefined,
+    overviewSeries: undefined,
+    gutterWidth: undefined,
+    preferRenderer: undefined,
+    locale: undefined,
+    gutterMetricByCard: undefined,
+    gutterMetricOptionsByCard: undefined,
   },
 );
 

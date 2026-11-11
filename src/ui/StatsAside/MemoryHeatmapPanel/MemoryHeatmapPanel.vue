@@ -254,7 +254,10 @@ function onViewSelect(id: string) {
       :aria-labelledby="selectedUnit ? `heat-tab-${selectedUnit}` : undefined"
     >
       <template v-if="activeView">
-        <div class="pr-heat__lattice" data-testid="heat-lattice">
+        <div
+          class="pr-heat__lattice"
+          data-testid="heat-lattice"
+        >
           <div
             class="pr-heat__grid"
             :style="{ '--pr-heat-cols': gridColumns, '--pr-heat-rows': gridRows }"
