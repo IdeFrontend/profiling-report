@@ -26,18 +26,51 @@ export interface PcSamplingRow {
   warpOccupancy?: number;
 }
 
+/**
+ * Stall counter columns. The first spelling is what the CANN producer
+ * (`libnpu_compute_processor.so`) writes in the gather_2d.2 `PcSampling` table
+ * and is the source of truth; the second is the older fixture spelling. Names
+ * are exact DB names, case preserved — no case folding.
+ */
 const STALL_COLUMNS = [
-  ['IBuf_Empty', 'ibufEmpty', 'IBuf Empty'],
-  ['Nop_Cycles', 'nopCycles', 'Nop Cycles'],
-  ['Scoreboard_Not_Ready', 'scoreboardNotReady', 'Scoreboard Not Ready'],
-  ['Register_bank_conflict', 'registerBankConflict', 'Register Bank Conflict'],
-  ['Resource_conflict', 'resourceConflict', 'Resource Conflict'],
-  ['Warp_Level_Sync', 'warpLevelSync', 'Warp Level Sync'],
-  ['Divergence_Stack_Spill', 'divergenceStackSpill', 'Divergence Stack Spill'],
-  ['Others', 'others', 'Others'],
+  { sql: ['ibuf_empty', 'IBuf_Empty'], field: 'ibufEmpty', label: 'IBuf Empty' },
+  { sql: ['nop_cycles', 'Nop_Cycles'], field: 'nopCycles', label: 'Nop Cycles' },
+  {
+    sql: ['scoreboard_not_ready', 'Scoreboard_Not_Ready'],
+    field: 'scoreboardNotReady',
+    label: 'Scoreboard Not Ready',
+  },
+  {
+    sql: ['register_bank_conflict', 'Register_bank_conflict'],
+    field: 'registerBankConflict',
+    label: 'Register Bank Conflict',
+  },
+  {
+    sql: ['resource_conflict', 'Resource_conflict'],
+    field: 'resourceConflict',
+    label: 'Resource Conflict',
+  },
+  {
+    sql: ['warp_level_sync', 'Warp_Level_Sync'],
+    field: 'warpLevelSync',
+    label: 'Warp Level Sync',
+  },
+  {
+    sql: ['divergence_stack_spill', 'Divergence_Stack_Spill'],
+    field: 'divergenceStackSpill',
+    label: 'Divergence Stack Spill',
+  },
+  { sql: ['others', 'Others'], field: 'others', label: 'Others' },
 ] as const;
 
-type StallField = (typeof STALL_COLUMNS)[number][1];
+type StallField = (typeof STALL_COLUMNS)[number]['field'];
+
+/**
+ * PC column spellings. The gather_2d.2 `PcSampling` table has `address`
+ * (decimal INTEGER); older fixtures use `pc_offset` (TEXT hex). Exact names
+ * only.
+ */
+const PC_COLUMNS = ['address', 'pc_offset'] as const;
 
 type SqlJsApi = {
   Database: new (data?: ArrayLike<number> | null) => {
@@ -152,16 +185,36 @@ function breakdown(values: Record<StallField, number>): {
   samplingStall: number;
   stallBreakdown: SourceStallBreakdown[];
 } {
-  const samplingStall = STALL_COLUMNS.reduce((sum, [, field]) => sum + values[field], 0);
-  const stallBreakdown: SourceStallBreakdown[] = STALL_COLUMNS.map(([, field, label]) => {
-    const value = values[field];
+  const samplingStall = STALL_COLUMNS.reduce((sum, col) => sum + values[col.field], 0);
+  const stallBreakdown: SourceStallBreakdown[] = STALL_COLUMNS.map((col) => {
+    const value = values[col.field];
     return {
-      metric: label,
+      metric: col.label,
       value,
       percent: samplingStall > 0 ? (value / samplingStall) * 100 : 0,
     };
   }).filter((row) => row.value > 0);
   return { samplingStall, stallBreakdown };
+}
+
+/** Largest valid PC address; anything above it is garbage packed into the cell. */
+const MAX_PC = 2 ** 48;
+
+/**
+ * Format a PC cell for display: `0x…` hex for a valid address, `''` otherwise.
+ * Valid means a non-negative integer no larger than `MAX_PC`. Decimal INTEGER
+ * and TEXT (`0x…` or decimal) take the same rule.
+ */
+function pcValue(v: SqlValue | undefined): string {
+  let n = Number.NaN;
+  if (typeof v === 'number') n = v;
+  else if (typeof v === 'string') {
+    const text = v.trim();
+    if (/^0x[0-9a-f]+$/i.test(text)) n = Number.parseInt(text.slice(2), 16);
+    else if (/^\d+$/.test(text)) n = Number(text);
+  }
+  if (!Number.isInteger(n) || n < 0 || n > MAX_PC) return '';
+  return `0x${n.toString(16)}`;
 }
 
 type SqlDb = InstanceType<SqlJsApi['Database']>;
@@ -193,25 +246,50 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
   const db = new api.Database(bytes);
   try {
     const tableName = resolvePcSamplingTable(db);
-    const result = db.exec(
-      `SELECT * FROM ${quoteIdent(tableName)} ORDER BY "pc_offset"`,
-    );
+    const result = db.exec(`SELECT * FROM ${quoteIdent(tableName)}`);
     if (!result.length) return [];
     const table = result[0]!;
-    const idx = Object.fromEntries(table.columns.map((c, i) => [c, i]));
-    const required = ['pc_offset', ...STALL_COLUMNS.map(([sql]) => sql)];
-    const missing = required.filter((name) => idx[name] == null);
-    if (missing.length) {
+    // Exact column names from the DB are the source of truth. Each logical
+    // field lists the producer spelling first, then the older fixture spelling.
+    const colIndex = new Map(table.columns.map((c, i) => [c, i] as const));
+    const get = (names: readonly string[]): number | undefined => {
+      for (const name of names) {
+        const i = colIndex.get(name);
+        if (i != null) return i;
+      }
+      return undefined;
+    };
+
+    const pcIdx = get(PC_COLUMNS);
+    if (pcIdx == null) {
+      throw new Error(
+        `[profiling-report] ${tableName} missing PC column: ${PC_COLUMNS.join(' / ')}`,
+      );
+    }
+    const missing = STALL_COLUMNS.filter((col) => get(col.sql) == null).map((col) =>
+      col.sql.join(' / '),
+    );
+    // A partly packed table still carries usable counters: fill the absent ones
+    // with 0. Only a table with no counter at all is unreadable.
+    if (missing.length === STALL_COLUMNS.length) {
       throw new Error(
         `[profiling-report] ${tableName} missing columns: ${missing.join(', ')}`,
       );
     }
-    const instrIdx = idx.Instructions_Executed;
-    const warpIdx = idx.Warp_Occupancy;
-    return table.values.map((row) => {
+    const instrIdx = colIndex.get('Instructions_Executed');
+    const warpIdx = colIndex.get('Warp_Occupancy');
+    const rows: PcSamplingRow[] = [];
+    let skipped = 0;
+    for (const row of table.values) {
+      const pcOffset = pcValue(row[pcIdx]);
+      if (!pcOffset) {
+        skipped += 1;
+        continue;
+      }
       const fields = {} as Record<StallField, number>;
-      for (const [sqlCol, field] of STALL_COLUMNS) {
-        fields[field] = num(row[idx[sqlCol]!]);
+      for (const col of STALL_COLUMNS) {
+        const i = get(col.sql);
+        fields[col.field] = i == null ? 0 : num(row[i]);
       }
       const { samplingStall, stallBreakdown } = breakdown(fields);
       const extra: Pick<PcSamplingRow, 'instructionsExecuted' | 'warpOccupancy'> = {};
@@ -220,14 +298,23 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
         const occ = optionalNum(row[warpIdx]);
         if (occ != null) extra.warpOccupancy = occ;
       }
-      return {
-        pcOffset: String(row[idx.pc_offset!] ?? ''),
+      rows.push({
+        pcOffset,
         ...fields,
         samplingStall,
         stallBreakdown,
         ...extra,
-      };
-    });
+      });
+    }
+    if (missing.length || skipped) {
+      const notes = [
+        missing.length ? `missing columns: ${missing.join(', ')} (filled with 0)` : '',
+        skipped ? `skipped ${skipped} rows with invalid address` : '',
+      ].filter(Boolean);
+      console.warn(`[profiling-report] ${tableName}: ${notes.join('; ')}`);
+    }
+    // DB order (`SELECT *` without ORDER BY); callers sort nothing.
+    return rows;
   } finally {
     db.close();
   }

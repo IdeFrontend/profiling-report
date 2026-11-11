@@ -210,9 +210,11 @@ export function adaptComputeSourceCorrelation(
       );
     } else {
       try {
-        stallByPc = new Map(
-          readPcSamplingDbSync(summaryBytes).map((row) => [normalizePc(row.pcOffset), row]),
-        );
+        stallByPc = new Map<string, PcSamplingRow>();
+        for (const row of readPcSamplingDbSync(summaryBytes)) {
+          if (!row.pcOffset) continue;
+          stallByPc.set(normalizePc(row.pcOffset), row);
+        }
       } catch (cause) {
         // Keep Source/SASS from objdump (+ symbolizer); omit stall metrics rather than failLoad.
         const detail = cause instanceof Error ? cause.message : String(cause);

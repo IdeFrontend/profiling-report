@@ -24,7 +24,16 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 **Real path — compute multi-file.** When payloads include `objdump.txt` and at least one of `symbolizer.json` / `summary.db`, `adaptSourceCorrelation` builds a real model via `adaptComputeSourceCorrelation` (`mock: false`):
 
 - Asm rows from `objdump.txt` (address + instruction text).
-- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` table `pc_sampling` or producer spelling `PcSampling` via sql.js (`await ensurePcSamplingSql()` before adapt when stalls are needed). Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load. Instructions Executed and Warp Occupancy stay 0 unless that table also has `Instructions_Executed` and `Warp_Occupancy` (a 0–1 fraction). Sample packs include them; gather_2d does not ([DATA-55](../../docs/context/questions/DATA.md)). Mapped source lines sum stall and instructions and average occupancy.
+- Per-PC Sampling Stall (+ tooltip breakdown) from SQLite `summary.db` via sql.js (`await ensurePcSamplingSql()` before adapt when stalls are needed). Two producer schemas are accepted:
+  - `PcSampling` — PC column `address` (integer, decimal) and counters `ibuf_empty`, `nop_cycles`, `scoreboard_not_ready`, `register_bank_conflict`, `resource_conflict`, `warp_level_sync`, `divergence_stack_spill`, `others` (gather_2d).
+  - `pc_sampling` — PC column `pc_offset` (hex text such as `0x198`) and CamelCase counters (`IBuf_Empty`, …) (older fixtures).
+  - Column names match exactly; case is significant, and the two schemas do not mix.
+  - Absent individual counters count as 0 and add a warning; the report still loads.
+  - Without a PC column, or without any counter, stall metrics are omitted and a warning is added; the report still loads.
+  - Invalid addresses (negative, fractional, above 2^48) drop that row and add a warning.
+  - Rows keep DB order; there is no sorting.
+  - Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load.
+  - Instructions Executed (count) and Warp Occupancy (0–1 fraction) stay 0 unless the table also has `Instructions_Executed` and `Warp_Occupancy`. Sample packs include them; gather_2d does not ([DATA-55](../../docs/context/questions/DATA.md)). Mapped source lines sum stall and instructions and average occupancy.
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
 - Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; correlation keys use that file's id.
 - When that pack text is absent, adapt still emits the file with a `// missing source embed: …` placeholder sized to the grown metrics line count and keeps mapped stall / instr / occupancy rollups so a host `resolveSourceFile` can fill the editor later without dropping them ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
@@ -49,6 +58,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 8. **PR-SRC-008** — `loadReportSource(gather_2d.npu-rep)` (leaf with `.asc` embed) yields `sourceCorrelation.mock === false` and non-empty maps.
 9. **PR-SRC-009** — Distinct symbolizer basenames become separate source files; `Line <= 0` stays unmapped.
 10. **PR-SRC-010** — Missing `.asc` embed keeps padded placeholder and mapped-line stall metrics.
+11. **PR-SRC-011** — Partial counters and invalid addresses degrade.
 
 ## Dependencies
 
@@ -56,6 +66,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 ## Changelog
 
+- **2026-11-11** — Sampling Stall accepts both producer schemas (`PcSampling`/`address`, `pc_sampling`/`pc_offset`); partial counters, invalid addresses, and missing columns degrade with warnings (`PR-SRC-011`, [#212](https://github.com/IdeFrontend/profiling-report/pull/212)).
 - **2026-10-28** — Missing `.asc` embed keeps metrics-aligned placeholder and stall rollups (`PR-SRC-010`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 - **2026-10-24** — Optional `pc_sampling` columns `Instructions_Executed` and `Warp_Occupancy` fill those Source / SASS metrics. Packs without the columns stay at 0.
 - **2026-10-23** — PR-SRC-009: one source file per symbolizer basename.
