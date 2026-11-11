@@ -28,8 +28,9 @@ export interface PcSamplingRow {
 
 /**
  * Stall counter columns. The first spelling is what the CANN producer
- * (`libnpu_compute_processor.so`) writes and is the source of truth; the second
- * is the older fixture spelling. Exact names only — no case folding.
+ * (`libnpu_compute_processor.so`) writes in the gather_2d.2 `PcSampling` table
+ * and is the source of truth; the second is the older fixture spelling. Names
+ * are exact DB names, case preserved — no case folding.
  */
 const STALL_COLUMNS = [
   { sql: ['ibuf_empty', 'IBuf_Empty'], field: 'ibufEmpty', label: 'IBuf Empty' },
@@ -65,8 +66,9 @@ const STALL_COLUMNS = [
 type StallField = (typeof STALL_COLUMNS)[number]['field'];
 
 /**
- * PC column spellings. The CANN producer writes `address` (INTEGER decimal);
- * fixtures use `pc_offset` (TEXT hex). Exact names only.
+ * PC column spellings. The gather_2d.2 `PcSampling` table has `address`
+ * (decimal INTEGER); older fixtures use `pc_offset` (TEXT hex). Exact names
+ * only.
  */
 const PC_COLUMNS = ['address', 'pc_offset'] as const;
 
@@ -195,21 +197,24 @@ function breakdown(values: Record<StallField, number>): {
   return { samplingStall, stallBreakdown };
 }
 
+/** Largest valid PC address; anything above it is garbage packed into the cell. */
+const MAX_PC = 2 ** 48;
+
 /**
- * Normalize a PC cell to the `0x…` hex string the rest of the pipeline expects.
- * Integer `address` (decimal) becomes hex; an existing `0x…` text stays as-is.
+ * Format a PC cell for display: `0x…` hex for a valid address, `''` otherwise.
+ * Valid means a non-negative integer no larger than `MAX_PC`. Decimal INTEGER
+ * and TEXT (`0x…` or decimal) take the same rule.
  */
 function pcValue(v: SqlValue | undefined): string {
-  if (typeof v === 'number' && Number.isFinite(v)) return `0x${v.toString(16)}`;
-  const text = String(v ?? '').trim();
-  if (/^0x/i.test(text)) return text;
-  if (/^\d+$/.test(text)) return `0x${Number(text).toString(16)}`;
-  return text;
-}
-
-function pcRank(pc: string): number {
-  const n = Number.parseInt(pc.replace(/^0x/i, ''), 16);
-  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+  let n = Number.NaN;
+  if (typeof v === 'number') n = v;
+  else if (typeof v === 'string') {
+    const text = v.trim();
+    if (/^0x[0-9a-f]+$/i.test(text)) n = Number.parseInt(text.slice(2), 16);
+    else if (/^\d+$/.test(text)) n = Number(text);
+  }
+  if (!Number.isInteger(n) || n < 0 || n > MAX_PC) return '';
+  return `0x${n.toString(16)}`;
 }
 
 type SqlDb = InstanceType<SqlJsApi['Database']>;
@@ -247,7 +252,7 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
     // Exact column names from the DB are the source of truth. Each logical
     // field lists the producer spelling first, then the older fixture spelling.
     const colIndex = new Map(table.columns.map((c, i) => [c, i] as const));
-    const get = (...names: readonly string[]): number | undefined => {
+    const get = (names: readonly string[]): number | undefined => {
       for (const name of names) {
         const i = colIndex.get(name);
         if (i != null) return i;
@@ -255,26 +260,36 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
       return undefined;
     };
 
-    const pcIdx = get(...PC_COLUMNS);
+    const pcIdx = get(PC_COLUMNS);
     if (pcIdx == null) {
       throw new Error(
         `[profiling-report] ${tableName} missing PC column: ${PC_COLUMNS.join(' / ')}`,
       );
     }
-    const missing = STALL_COLUMNS.filter((col) => get(...col.sql) == null).map((col) =>
+    const missing = STALL_COLUMNS.filter((col) => get(col.sql) == null).map((col) =>
       col.sql.join(' / '),
     );
-    if (missing.length) {
+    // A partly packed table still carries usable counters: fill the absent ones
+    // with 0. Only a table with no counter at all is unreadable.
+    if (missing.length === STALL_COLUMNS.length) {
       throw new Error(
         `[profiling-report] ${tableName} missing columns: ${missing.join(', ')}`,
       );
     }
-    const instrIdx = get('Instructions_Executed');
-    const warpIdx = get('Warp_Occupancy');
-    const rows = table.values.map((row) => {
+    const instrIdx = colIndex.get('Instructions_Executed');
+    const warpIdx = colIndex.get('Warp_Occupancy');
+    const rows: PcSamplingRow[] = [];
+    let skipped = 0;
+    for (const row of table.values) {
+      const pcOffset = pcValue(row[pcIdx]);
+      if (!pcOffset) {
+        skipped += 1;
+        continue;
+      }
       const fields = {} as Record<StallField, number>;
       for (const col of STALL_COLUMNS) {
-        fields[col.field] = num(row[get(...col.sql)!]);
+        const i = get(col.sql);
+        fields[col.field] = i == null ? 0 : num(row[i]);
       }
       const { samplingStall, stallBreakdown } = breakdown(fields);
       const extra: Pick<PcSamplingRow, 'instructionsExecuted' | 'warpOccupancy'> = {};
@@ -283,15 +298,23 @@ function rowsFromDb(bytes: Uint8Array, api: SqlJsApi): PcSamplingRow[] {
         const occ = optionalNum(row[warpIdx]);
         if (occ != null) extra.warpOccupancy = occ;
       }
-      return {
-        pcOffset: pcValue(row[pcIdx]),
+      rows.push({
+        pcOffset,
         ...fields,
         samplingStall,
         stallBreakdown,
         ...extra,
-      };
-    });
-    return rows.sort((a, b) => pcRank(a.pcOffset) - pcRank(b.pcOffset));
+      });
+    }
+    if (missing.length || skipped) {
+      const notes = [
+        missing.length ? `missing columns: ${missing.join(', ')} (filled with 0)` : '',
+        skipped ? `skipped ${skipped} rows with invalid address` : '',
+      ].filter(Boolean);
+      console.warn(`[profiling-report] ${tableName}: ${notes.join('; ')}`);
+    }
+    // DB order (`SELECT *` without ORDER BY); callers sort nothing.
+    return rows;
   } finally {
     db.close();
   }

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import initSqlJs from 'sql.js';
 import { ensurePcSamplingSql, readPcSamplingDb, readPcSamplingDbSync } from './readPcSamplingDb';
 import { configurePcSamplingSqlForNodeTests } from '../../../tests/helpers/sqlJsNode';
@@ -34,12 +34,12 @@ describe('readPcSamplingDb', () => {
     await expect(readPcSamplingDb(new Uint8Array([1, 2, 3]))).rejects.toThrow();
   });
 
-  it('rejects pc_sampling that omits a stall column', async () => {
+  it('rejects pc_sampling that has no stall counters', async () => {
     const SQL = await initSqlJs({
       wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
     });
     const db = new SQL.Database();
-    db.run('CREATE TABLE pc_sampling (pc_offset TEXT, Nop_Cycles INTEGER)');
+    db.run('CREATE TABLE pc_sampling (pc_offset TEXT, unrelated INTEGER)');
     db.run("INSERT INTO pc_sampling VALUES ('0x100', 1)");
     const bytes = db.export();
     db.close();
@@ -92,11 +92,45 @@ describe('readPcSamplingDb', () => {
     const bytes = db.export();
     db.close();
     const rows = await readPcSamplingDb(bytes);
+    // Порядок = скан БД (address — rowid), сортировки нет
     expect(rows.map((r) => r.pcOffset)).toEqual(['0x198', '0x268']);
     const hot = rows.find((r) => r.pcOffset === '0x268')!;
     expect(hot.scoreboardNotReady).toBe(18360);
     expect(hot.nopCycles).toBe(272);
     expect(hot.samplingStall).toBe(18632);
+  });
+
+  it('PR-SRC-011: zeroes missing counters and skips invalid addresses', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const SQL = await initSqlJs({
+        wasmBinary: readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm')),
+      });
+      const db = new SQL.Database();
+      // Two of eight counters; the rest must read as 0, not throw.
+      db.run(`CREATE TABLE PcSampling (
+        address INTEGER,
+        ibuf_empty INTEGER,
+        nop_cycles INTEGER
+      )`);
+      db.run('INSERT INTO PcSampling VALUES (100, 0, 7)');
+      db.run('INSERT INTO PcSampling VALUES (-4, 1, 1)');
+      db.run('INSERT INTO PcSampling VALUES (2.5, 1, 1)');
+      db.run("INSERT INTO PcSampling VALUES ('NaN', 1, 1)");
+      db.run(`INSERT INTO PcSampling VALUES (${2 ** 48 + 1}, 1, 1)`);
+      const bytes = db.export();
+      db.close();
+      const rows = await readPcSamplingDb(bytes);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.pcOffset).toBe('0x64');
+      expect(rows[0]!.nopCycles).toBe(7);
+      expect(rows[0]!.ibufEmpty).toBe(0);
+      expect(rows[0]!.scoreboardNotReady).toBe(0);
+      expect(rows[0]!.samplingStall).toBe(7);
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('prefers pc_sampling when both spellings exist', async () => {
