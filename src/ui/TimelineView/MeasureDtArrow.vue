@@ -20,6 +20,7 @@ const props = withDefaults(
   {
     side: 'right',
     interactive: false,
+    locale: undefined,
   },
 );
 

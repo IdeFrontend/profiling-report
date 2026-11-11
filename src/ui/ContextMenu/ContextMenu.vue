@@ -28,7 +28,7 @@ const props = withDefaults(
     canReset?: boolean;
     locale?: string;
   }>(),
-  { canPin: true, canReset: false },
+  { canPin: true, canReset: false, locale: undefined },
 );
 
 const emit = defineEmits<{
