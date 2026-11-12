@@ -646,6 +646,13 @@ export interface SwimlaneRenderer {
 
 /** A saved comparison report — host-owned list, the library only renders and selects. */
 export interface Baseline {
+  /**
+   * Opaque identity, unique within the host's baseline list and stable while
+   * the entry stays in it. The library resolves the current selection by id
+   * (`selectedBaselineId`), so duplicates make that resolution ambiguous; a
+   * report that is removed and re-added gets a fresh id. Hosts mint ids with
+   * `newBaselineId` from the barrel.
+   */
   id: string;
   name: string;
   /**
