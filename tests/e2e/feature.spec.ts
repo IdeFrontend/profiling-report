@@ -1186,17 +1186,19 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
     await checkRows.nth(i).click();
   }
   const demoIds = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
-  const baselineTexts = new Set<string>();
+  const baselineDurTexts = new Set<string>();
   for (const id of demoIds) {
     await page.getByTestId('aside-baseline-select').getByRole('button').click();
     await page.getByTestId(`aside-baseline-option-${id}`).click();
     await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', id);
     await expect(page.locator('.pr-diff').first()).toBeVisible();
     const durText = (await page.getByTestId('stats-duration-diff').locator('.pr-diff__text').textContent()) ?? '';
-    baselineTexts.add(`${id}:${durText}`);
+    baselineDurTexts.add(durText);
   }
-  // Different fixtures → different deltas; at least two baselines differ.
-  expect(baselineTexts.size).toBeGreaterThan(1);
+  // Different baselines repaint DIFFERENT delta values on the same card —
+  // the raw text set must differ (an id-prefixed set would always differ
+  // even when every baseline rendered the same delta).
+  expect(baselineDurTexts.size).toBeGreaterThan(1);
   // The fetched pack adapted under the new selection: a high-scale operator
   // repaints a green-down read badge.
   await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
@@ -1301,6 +1303,32 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
   expect(chip).not.toBe(curPct);
   // Both bars carry the same fields: percent on the right of each track.
   await expect(firstRow.locator('.pr-pipe-row__pct')).toHaveCount(2);
+  // The layout is a STYLE contract, not just structure: the pct must be
+  // absolutely positioned at the track's right in white — the branch once
+  // shipped a swallowed CSS rule that left the pct static at the left, and
+  // every structural assertion passed.
+  const pctStyle = await firstRow
+    .locator('.pr-pipe-row__track')
+    .first()
+    .locator('.pr-pipe-row__pct')
+    .evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      const t = el.parentElement!.getBoundingClientRect();
+      return { position: cs.position, color: cs.color, rightGap: t.right - r.right };
+    });
+  expect(pctStyle.position).toBe('absolute');
+  expect(pctStyle.color).toBe('rgb(255, 255, 255)');
+  expect(pctStyle.rightGap).toBeLessThan(10);
+  // The baseline bar's right text ends at the same right edge.
+  const basePctGap = await firstRow
+    .locator('[data-testid="pipe-baseline-value"]')
+    .evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const t = el.parentElement!.getBoundingClientRect();
+      return t.right - r.right;
+    });
+  expect(Math.abs(basePctGap - pctStyle.rightGap)).toBeLessThan(2);
   // The label column stays the metric label alone — no 基线 stacked under it.
   await expect(firstRow.locator('.pr-pipe-row__label')).toHaveCount(1);
 
