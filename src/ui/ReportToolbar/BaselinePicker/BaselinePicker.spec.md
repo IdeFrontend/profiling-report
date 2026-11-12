@@ -22,7 +22,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 
 **Popover.** Anchored under the trigger, right-aligned, same panel tokens as 显示控制; width adapts to its content (240–480px) so full opprof run names fit. Header carries the title (添加基线 / Add baselines) and a CloseButton (×). Body is the checkbox list; the footer is a single **Browse** button. No OK/Cancel: a toggle applies immediately, and every dismiss path simply closes the popover — the checked set survives closing (host-owned).
 
-**List rows.** One row per report: a checkbox (the whole row is its label; the native input is sr-clipped, a 12px square dot paints the state), **name** as the primary line, **path** as a secondary dimmed line. A checked row shows the filled accent dot; the checked state comes from `baselines` — nothing else selects or highlights rows.
+**List rows.** One row per report: a checkbox (the whole row is its label; the native input is sr-clipped, a 12px square dot paints the state), **name** as the primary line, **path** as a secondary dimmed line. A checked row shows the filled accent dot; the checked state comes from `baselines` — nothing else selects or highlights rows. Secondary text (the path, the empty copy) and the Browse action clear WCAG AA (4.5:1) on both the panel and the row-hover tint — the path is how same-named runs are told apart.
 
 **Toggling.** Checking a row emits `update:baselines` with it appended; unchecking emits the list without it. Closing and reopening the popover keeps whatever is checked (the component holds no local state).
 
@@ -72,6 +72,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 - The **icon** is Product-confirmed (UI-61): the mockup's add-baseline glyph from the 1130 batch. The **popover chrome** (layout/placement) is still not Product-confirmed; see [UI-61](../../../../docs/context/questions/UI.md).
 
 ## Changelog
+- **2026-11-12** — Review fixes: secondary text and Browse clear WCAG AA on the panel and its hover tint.
 - **2026-11-12** — ТЗ rework: a single checkbox view replaces the two-view design — the checked set IS the host-owned baseline list (`update:baselines` on every toggle/Browse), no saved-list view, radios, −, Add Selected or other actions (PR-BASELINE-023..027; old 003..005, 007, 012..022 withdrawn).
 - **2026-11-11** — Second view (Add Recent) with the host's recent reports as checkboxes + Add Selected / Browse, footer actions on the list view (Set current as Baseline / Add Recent / Clear all / Deselect / Browse), per-view titles, and a content-adaptive panel width (PR-BASELINE-014..022).
 - **2026-11-11** — Selection radio per row (PR-BASELINE-013): real radio inputs in one native group on each row's left; checked = current baseline, none by default; clicking one selects exactly like the row click.

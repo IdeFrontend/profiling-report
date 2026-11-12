@@ -312,7 +312,7 @@ async function browse(): Promise<void> {
 .pr-baseline__empty {
   margin: 0;
   padding: 8px 4px;
-  color: #808080;
+  color: #b3b3b3;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -410,7 +410,7 @@ async function browse(): Promise<void> {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #8a8a8a;
+  color: #bdbdbd;
   font-size: 11px;
 }
 
@@ -434,7 +434,7 @@ async function browse(): Promise<void> {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #2d70e3;
+  color: #a9c9f5;
   font-size: 12px;
   line-height: 1.4;
   text-align: left;
@@ -443,6 +443,5 @@ async function browse(): Promise<void> {
 
 .pr-baseline__action:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #6a9ff0;
 }
 </style>
