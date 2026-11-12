@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadReportSource } from '../../src/index';
 import { hydrateSampleRep } from '../../playground/hydrateSampleRep';
-import { loadOutRepBytes, loadResultNpuRepBytes, liteSampleRepByteLength } from '../helpers/fixtures';
+import { loadOutRepBytes, loadResultNpuRepBytes } from '../helpers/fixtures';
 
 const SAMPLE_LITE = resolve(__dirname, '../../data/sample.lite.rep');
 
@@ -26,6 +26,7 @@ describe('hydrateSampleRep', () => {
   it('expands lite sample.lite.rep with op2 trace', { timeout: 30_000 }, () => {
     const raw = new Uint8Array(readFileSync(SAMPLE_LITE));
     const hydrated = hydrateSampleRep(raw);
-    expect(hydrated.byteLength).toBeGreaterThan(liteSampleRepByteLength() * 100);
+    // Hydration injects the multi-MB op2 trace on top of the lite file.
+    expect(hydrated.byteLength).toBeGreaterThan(30_000_000);
   });
 });

@@ -2309,6 +2309,105 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-031: 概览 tab is first; 时间线 stays default; 概览 mounts the overview', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'overview-tab',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          operatorRows: [
+            {
+              opName: 'gather_2d_custom',
+              opType: 'vector',
+              taskDurationUs: 0.73,
+              blockDim: 40,
+              gridSize: 85.25,
+              blockSize: 32,
+            },
+          ],
+        },
+      },
+    });
+
+    const tabs = wrapper.findAll('.pr-tabs__tab');
+    expect(tabs[0].attributes('data-testid')).toBe('tab-overview');
+    expect(wrapper.find('[data-testid="tab-timeline"]').classes()).toContain(
+      'pr-tabs__tab--active',
+    );
+    expect(wrapper.find('[data-testid="tab-overview"]').classes()).not.toContain(
+      'pr-tabs__tab--active',
+    );
+    expect(wrapper.find('[data-testid="operator-overview"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-detail"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-cache"]').exists()).toBe(false);
+
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    await nextTick();
+    expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
+    const overview = wrapper.find('[data-testid="operator-overview"]');
+    expect(overview.exists()).toBe(true);
+    expect(overview.text()).toContain('gather_2d_custom');
+    expect(overview.text()).toContain('低利用率');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-033: forwards overview optimize to the host', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'overview-optimize',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          operatorRows: [
+            { opName: 'gather_2d_custom', opType: 'vector', taskDurationUs: 0.73 },
+          ],
+        },
+      },
+    });
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    await nextTick();
+    const button = wrapper.findAll('button').find((b) => b.text() === '执行优化');
+    expect(button).toBeDefined();
+    await button!.trigger('click');
+    expect(wrapper.emitted('optimize')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-032: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
+    const adapterLoaded = mount(ProfilingReport, {
+      props: { title: 'gather_2d.npu-rep', source: loadOutRepBuffer() },
+    });
+    await flushPromises();
+
+    expect(adapterLoaded.get('.pr-tabs__brand').text()).toBe('add_custom');
+    adapterLoaded.unmount();
+
+    const signature = 'void gather_2d_custom<float, unsigned int>(float*, unsigned int*)';
+    const withSignature = mount(ProfilingReport, {
+      props: {
+        title: 'gather_2d.npu-rep',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          summary: { ...emptyReportViewModel().summary, opName: signature },
+        },
+      },
+    });
+    expect(withSignature.get('.pr-tabs__brand').text()).toBe('gather_2d_custom');
+    withSignature.unmount();
+
+    const withoutOpName = mount(ProfilingReport, {
+      props: {
+        title: 'gather_2d.npu-rep',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    expect(withoutOpName.get('.pr-tabs__brand').text()).toBe('gather_2d.npu-rep');
+    withoutOpName.unmount();
+  });
+
   it('PR-ROOT-029: a Parameter frame opens Source at its line, or line 1', async () => {
     const correlation = mockSourceCorrelation();
     const file = correlation.files[0]!;

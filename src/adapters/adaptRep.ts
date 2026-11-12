@@ -13,6 +13,7 @@ import type {
   PerformanceHintItem,
   PipeOccupancyItem,
   ReportCapability,
+  ReportOperatorRow,
   ReportViewModel,
   SummaryCategory,
   SummaryMetrics,
@@ -503,12 +504,55 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
+/** Column spelling aliases on `OpBasicInfo`: first defined value wins. */
+function firstDefined(row: Record<string, string>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const v = row[key];
+    if (v != null && v !== '') return v;
+  }
+  return undefined;
+}
+
+/** Every `OpBasicInfo.csv` row → one 概览 row (summary keeps rows[0]). */
+function operatorRowsFromOpBasicInfo(payload?: Uint8Array): ReportOperatorRow[] {
+  if (!payload) return [];
+  const { rows } = parseCsv(decodeUtf8(payload));
+  return rows.map((row) => ({
+    opName: row['Op Name'] || undefined,
+    opType: row['Op Type'] || undefined,
+    taskDurationUs: parseNumber(row['Task Duration(us)']),
+    blockDim: optionalDim(row['Block Dim']),
+    mixBlockDim: optionalMixBlockDim(firstDefined(row, 'Mix Block Dim', 'MixBlockDim')),
+    demangledName: demangledOrSignature(row),
+    gridSize: optionalDim(firstDefined(row, 'Grid Size', 'Grid Dim')),
+    blockSize: optionalDim(firstDefined(row, 'Block Size', 'Block Num')),
+  }));
+}
+
+/** Some packs put the full signature in `Op Name` and omit the demangled column. */
+function demangledOrSignature(row: Record<string, string>): string | undefined {
+  const demangled = firstDefined(row, 'Demangled Name', 'DemangledName');
+  if (demangled) return demangled;
+  return signatureFromName(row['Op Name']);
+}
+
+/** A raw name is a signature when it carries a parameter list. */
+function signatureFromName(name: string | undefined): string | undefined {
+  return name?.includes('(') ? name : undefined;
+}
+
 /** OpBasicInfo dim column: omit blank / NA. */
 function optionalDim(raw: string | undefined): string | number | undefined {
   const v = raw?.trim();
   if (!v || v === 'NA') return undefined;
   const n = Number(v);
   return Number.isFinite(n) ? n : v;
+}
+
+/** MIX blocks are never zero blocks, so a numeric 0 means "not a MIX operator". */
+function optionalMixBlockDim(raw: string | undefined): string | number | undefined {
+  const v = optionalDim(raw);
+  return v === 0 ? undefined : v;
 }
 
 /**
@@ -987,8 +1031,24 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
       payloadByName(payloads, ['HardwareInfo.jsonl', 'hardwareinfo.jsonl']),
       summary,
     );
+  const csvOperatorRows = operatorRowsFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
+  const operatorRows =
+    csvOperatorRows.length > 0
+      ? csvOperatorRows
+      : summary.opName || summary.opType || summary.taskDurationUs != null
+        ? [
+            {
+              opName: summary.opName,
+              opType: summary.opType,
+              demangledName: signatureFromName(summary.opName),
+              taskDurationUs: summary.taskDurationUs,
+              blockDim: summary.blockDim,
+            },
+          ]
+        : [];
   return {
     summary,
+    ...(operatorRows.length > 0 ? { operatorRows } : {}),
     pipeOccupancy: (() => {
       // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` wins when present
       // (compute aggregate). Emulate production uses adaptEmulate; this cascade mainly serves

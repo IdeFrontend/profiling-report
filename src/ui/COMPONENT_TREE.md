@@ -20,6 +20,7 @@ flowchart TB
   layout --> mainCol[main column]
   layout --> aside[StatsAside]
   mainCol --> toolbar[ReportToolbar]
+  mainCol --> operatorOverview[OperatorOverview]
   mainCol --> timeline[TimelineView]
   mainCol --> sourceView[SourceView]
   timeline --> overviewBar[TimeOverviewBar]
@@ -48,6 +49,7 @@ flowchart TB
 src/ui/
   ProfilingReport/                 (no pack)
   ReportToolbar/                   ✓  v930/entry
+  OperatorOverview/                ✓  1130/performance-overview
   SourceView/                      ✓  v930-source/source-correlation
   ReportLayout/                    (no pack)
   EventTooltip/                    ✓  v930/task-hover
@@ -80,7 +82,7 @@ src/ui/
 
 ## Notes
 
-- Library chrome owns OP算子 / 时间线 / 源码; **源码** mounts `SourceView/` when enabled. **详情** / **缓存** are not rendered ([UI-37](../../docs/context/decisions/UI.md)).
+- Library chrome owns 概览 / OP算子 / 时间线 / 源码; **概览** mounts `OperatorOverview/` first in the strip (default stays **时间线**), and **源码** mounts `SourceView/` when enabled. **详情** / **缓存** are not rendered ([UI-37](../../docs/context/decisions/UI.md)).
 - `ReportToolbar` lives in the ReportLayout **main** column (above TimelineView), not as a full-width sibling above the aside.
 - Topology **全屏** is a root sibling of `ReportLayout` (opaque overlay on `.pr-root`); it remounts `MemoryTopologyPanel` and does not unmount the layout. The control itself lives in the panel's zoom bar (only when the host passes `showFullscreen`), so the remounted overlay panel **keeps the zoom bar** but shows no 全屏, and its zoom starts at 100% independently of the stacked aside. When the `memoryHeatmap` capability is set, the overlay also hosts `MemoryHeatmapPanel` as a right column and the two share one `selectedMemoryUnit` (diagram unit click ↔ panel tab).
 - `CanvasSwimlaneRenderer` stays under `src/swimlane/` (imperative backend).

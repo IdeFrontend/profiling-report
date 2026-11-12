@@ -79,10 +79,43 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(liteSampleRepByteLength()).toBeLessThan(500_000);
   });
 
-  it('loads as a multi-op container with op1/op2', () => {
-    expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);
-    expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
+  it('loads as a multi-op container with op1/op2 plus overview-only extras', () => {
+    expect(adapted.operators?.map((o) => o.id)).toEqual([
+      'op1.npu.rep',
+      'op2.npu.rep',
+      'op3.npu.rep',
+      'op4.npu.rep',
+      'op5.npu.rep',
+      'op6.npu.rep',
+    ]);
+    expect(adapted.operators?.map((o) => o.label)).toEqual([
+      'op1',
+      'op2',
+      'op3',
+      'op4',
+      'op5',
+      'op6',
+    ]);
     expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
+  });
+
+  it('概览 rows cover every operator in the pack', () => {
+    expect(adapted.reportModel.operatorRows).toHaveLength(6);
+    expect(adapted.reportModel.operatorRows?.map((row) => row.opName)).toEqual([
+      'add_custom',
+      'matmul_mock',
+      'demo_linear_tiled',
+      'demo_bias_gelu',
+      'demo_layer_norm',
+      'demo_softmax',
+    ]);
+    expect(adapted.reportModel.operatorRows?.[0]).toMatchObject({
+      demangledName: 'add_custom<float>',
+      gridSize: 85.25,
+      blockSize: 32,
+    });
+    // Switching the OP selector reuses the operator's report model.
+    expect(adapted.operatorReports?.['op3.npu.rep']?.reportModel.operatorRows).toHaveLength(6);
   });
 
   it('op1 and op2 carry distinct traces with distinct event counts', () => {

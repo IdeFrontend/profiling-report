@@ -397,10 +397,24 @@ export interface PerformanceHintItem {
   origin: 'instruction' | 'sourceLine' | 'kernel';
 }
 
+/** One row of the 概览 operator table (`OpBasicInfo.csv`, every row). */
+export interface ReportOperatorRow {
+  opName?: string;
+  opType?: string;
+  taskDurationUs?: number;
+  blockDim?: string | number;
+  mixBlockDim?: string | number;
+  demangledName?: string;
+  gridSize?: string | number;
+  blockSize?: string | number;
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
   overviewSeries: OverviewSeries[];
+  /** `OpBasicInfo.csv` rows across the operator pack; omit when none. */
+  operatorRows?: ReportOperatorRow[];
   /** Compute-load tabs: PipeUtilization | ArithmeticUtilization | ResourceConflictRatio. */
   computeTables: CsvTableModel[];
   /** Memory tabs: Memory.csv | L2Cache | MemoryL0 | MemoryUB. */

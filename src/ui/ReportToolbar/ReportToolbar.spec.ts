@@ -22,21 +22,30 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['test query']]);
   });
 
-  it('PR-TOOLBAR-026: 源码 gated by sourceTabEnabled; 详情 / 缓存 absent', async () => {
+  it('PR-TOOLBAR-026: 概览 first, 时间线 default, 源码 gated; 详情 / 缓存 absent', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const tabs = wrapper.findAll('.pr-tabs__tab');
+    expect(tabs[0].attributes('data-testid')).toBe('tab-overview');
+
     const timeline = wrapper.find('[data-testid="tab-timeline"]');
     expect(timeline.exists()).toBe(true);
     expect(timeline.attributes('disabled')).toBeUndefined();
     expect(timeline.classes()).toContain('pr-tabs__tab--active');
+    expect(wrapper.find('[data-testid="tab-overview"]').classes()).not.toContain(
+      'pr-tabs__tab--active',
+    );
 
     expect(wrapper.find('[data-testid="tab-source"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="tab-detail"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="tab-cache"]').exists()).toBe(false);
 
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    expect(wrapper.emitted('update:activeTab')).toEqual([['overview']]);
+
     await wrapper.setProps({ sourceTabEnabled: true, activeTab: 'timeline' });
     expect(wrapper.find('[data-testid="tab-source"]').attributes('disabled')).toBeUndefined();
     await wrapper.find('[data-testid="tab-source"]').trigger('click');
-    expect(wrapper.emitted('update:activeTab')).toEqual([['source']]);
+    expect(wrapper.emitted('update:activeTab')).toEqual([['overview'], ['source']]);
 
     await wrapper.setProps({ activeTab: 'source' });
     expect(wrapper.find('[data-testid="search-input"]').exists()).toBe(false);

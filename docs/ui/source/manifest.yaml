@@ -145,3 +145,43 @@ batches:
         original_name: "memory-topology.svg"
         scenes: [memory-load, memory-topology]
         components: [MemoryTopologyPanel]
+
+  # 1130 仿真上板公共 batch — overview table plus baseline/source-diff flow.
+  v1130:
+    label: "1130 仿真上板公共"
+    files:
+      - id: performance-overview
+        path: 1130/1130_仿真上板公共_性能数据总览_概览页面.jpeg
+        original_name: "1130_仿真上板公共_性能数据总览_概览页面.jpeg"
+        scenes: [overview, operator-table, dock]
+        components: [ReportToolbar, OperatorOverview]
+      - id: baseline-source-diff-entry
+        path: 1130/1130_仿真上板公共_baseline和源码diff_从源码页签进入源码对比.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_从源码页签进入源码对比.jpeg"
+        scenes: [source, baseline-diff]
+        components: [ReportToolbar, SourceView]
+      - id: baseline-source-diff-add-baseline
+        path: 1130/1130_仿真上板公共_baseline和源码diff_打开新的报告添加第二个基线.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_打开新的报告添加第二个基线.jpeg"
+        scenes: [source, baseline-diff]
+        components: [SourceView]
+      - id: baseline-source-diff-guide
+        path: 1130/1130_仿真上板公共_baseline和源码diff_新功能引导.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_新功能引导.jpeg"
+        scenes: [source, baseline-diff, onboarding]
+        components: [SourceView]
+      - id: baseline-source-diff-instructions
+        path: 1130/1130_仿真上板公共_baseline和源码diff_添加基线和选择基线操作说明.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_添加基线和选择基线操作说明.jpeg"
+        scenes: [source, baseline-diff]
+        components: [SourceView]
+      - id: baseline-source-diff-add-first
+        path: 1130/1130_仿真上板公共_baseline和源码diff_添加第一个基线.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_添加第一个基线.jpeg"
+        scenes: [source, baseline-diff]
+        components: [SourceView]
+      - id: baseline-source-diff
+        path: 1130/1130_仿真上板公共_baseline和源码diff_源码对比.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_源码对比.jpeg"
+        scenes: [source, baseline-diff]
+        components: [SourceView]

@@ -19,6 +19,7 @@ Renders an inline SVG. `null` shows the unsorted double-arrow glyph (up-triangle
 1. **PR-SORT-001** — null renders unsorted double-arrow.
 2. **PR-SORT-002** — asc renders up-arrow only.
 3. **PR-SORT-003** — desc renders down-arrow only.
+4. **PR-SORT-004** — all states share a 10×14 box.
 
 ## Changelog
 

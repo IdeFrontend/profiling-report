@@ -43,7 +43,7 @@ const props = withDefaults(
     /** Opens in a new tab from the trailing help button. */
     userGuideUrl?: string;
     /** Active secondary tab (UI-37). */
-    activeTab?: 'timeline' | 'source';
+    activeTab?: 'overview' | 'timeline' | 'source';
     /** When true, 源码 is selectable. */
     sourceTabEnabled?: boolean;
     /**
@@ -68,7 +68,7 @@ const emit = defineEmits<{
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'update:selectedOperatorId': [id: string];
-  'update:activeTab': [tab: 'timeline' | 'source'];
+  'update:activeTab': [tab: 'overview' | 'timeline' | 'source'];
   'zoom-to-fit': [];
   'zoom-in': [];
   'zoom-out': [];
@@ -428,6 +428,15 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         v-else
         class="pr-tabs__brand"
       >{{ title || t('tabOp', locale) }}</span>
+      <button
+        type="button"
+        class="pr-tabs__tab"
+        :class="{ 'pr-tabs__tab--active': activeTab === 'overview' }"
+        data-testid="tab-overview"
+        @click="emit('update:activeTab', 'overview')"
+      >
+        {{ t('tabOverview', locale) }}
+      </button>
       <button
         type="button"
         class="pr-tabs__tab"
@@ -1040,12 +1049,16 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 /* Matches .pr-op-select__trigger: the brand and the OP selector occupy the same
    slot, so a pack with one operator must not read smaller than a multi-op pack. */
 .pr-tabs__brand {
+  max-width: 200px;
   margin-right: 8px;
   padding: 4px 8px;
+  overflow: hidden;
   font-size: 18px;
   font-weight: 700;
   line-height: 26px;
   color: #ffffff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   opacity: 0.95;
 }
 

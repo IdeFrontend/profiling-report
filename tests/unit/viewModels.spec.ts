@@ -926,6 +926,134 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(computeCard!.sides.find((s) => s.side === 'aic')!.measuredTflops).toBe(10);
   });
 
+  it('PR-VM-028: every OpBasicInfo row fills operatorRows; summary is the single-op fallback', () => {
+    const encoder = new TextEncoder();
+    const multi = adaptPayloads({
+      'OpBasicInfo.csv': encoder.encode(
+        [
+          'Op Name,Op Type,Demangled Name,Task Duration(us),Block Dim,Grid Size,Block Size',
+          'gather_2d_custom,vector,gather_2d_custom<float>,0.73,40,85.25,32',
+          'demo_bias_gelu,vector,,NA,20,90.01,16',
+        ].join('\n'),
+      ),
+    });
+    expect(multi.reportModel.operatorRows).toEqual([
+      {
+        opName: 'gather_2d_custom',
+        opType: 'vector',
+        demangledName: 'gather_2d_custom<float>',
+        taskDurationUs: 0.73,
+        blockDim: 40,
+        gridSize: 85.25,
+        blockSize: 32,
+      },
+      {
+        opName: 'demo_bias_gelu',
+        opType: 'vector',
+        demangledName: undefined,
+        taskDurationUs: undefined,
+        blockDim: 20,
+        gridSize: 90.01,
+        blockSize: 16,
+      },
+    ]);
+
+    const aliased = adaptPayloads({
+      'OpBasicInfo.csv': encoder.encode(
+        [
+          'Op Name,Op Type,DemangledName,Task Duration(us),Block Dim,Grid Dim,Block Num,Mix Block Dim',
+          'alias_op,vector,alias_op<int>,2.02,8,4,2,4',
+          'alias_zero,vector,,0.02,2,2,1,0',
+          'alias_na,vector,,NA,1,2,3,NA',
+          'void sig_op<float>(float*),vector,,1.00,4,5,6,0',
+        ].join('\n'),
+      ),
+    });
+    expect(aliased.reportModel.operatorRows).toEqual([
+      {
+        opName: 'alias_op',
+        opType: 'vector',
+        demangledName: 'alias_op<int>',
+        taskDurationUs: 2.02,
+        blockDim: 8,
+        mixBlockDim: 4,
+        gridSize: 4,
+        blockSize: 2,
+      },
+      {
+        opName: 'alias_zero',
+        opType: 'vector',
+        demangledName: undefined,
+        taskDurationUs: 0.02,
+        blockDim: 2,
+        mixBlockDim: undefined,
+        gridSize: 2,
+        blockSize: 1,
+      },
+      {
+        opName: 'alias_na',
+        opType: 'vector',
+        demangledName: undefined,
+        taskDurationUs: undefined,
+        blockDim: 1,
+        mixBlockDim: undefined,
+        gridSize: 2,
+        blockSize: 3,
+      },
+      {
+        opName: 'void sig_op<float>(float*)',
+        opType: 'vector',
+        demangledName: 'void sig_op<float>(float*)',
+        taskDurationUs: 1,
+        blockDim: 4,
+        mixBlockDim: undefined,
+        gridSize: 5,
+        blockSize: 6,
+      },
+    ]);
+
+    const single = adaptPayloads({
+      'Summary.jsonl': encoder.encode(
+        JSON.stringify({
+          category: 'OpInfoSummary',
+          'Op Name': 'gather_2d_custom',
+          'Op Type': 'vector',
+          'Task Duration(us)': 0.73,
+          'Block Dim': 40,
+        }) + '\n',
+      ),
+    });
+    expect(single.reportModel.operatorRows).toEqual([
+      {
+        opName: 'gather_2d_custom',
+        opType: 'vector',
+        taskDurationUs: 0.73,
+        blockDim: 40,
+      },
+    ]);
+
+    const signatureOnly = adaptPayloads({
+      'Summary.jsonl': encoder.encode(
+        JSON.stringify({
+          category: 'OpInfoSummary',
+          'Op Name': 'void gather_2d_custom<float>(float*)',
+          'Op Type': 'vector',
+          'Task Duration(us)': 1,
+          'Block Dim': 4,
+        }) + '\n',
+      ),
+    });
+    expect(signatureOnly.reportModel.operatorRows).toEqual([
+      {
+        opName: 'void gather_2d_custom<float>(float*)',
+        opType: 'vector',
+        demangledName: 'void gather_2d_custom<float>(float*)',
+        taskDurationUs: 1,
+        blockDim: 4,
+      },
+    ]);
+  });
+
   it('PR-VM-026: OpInfoSummary duration fields fill the 整体耗时 bar; 计算时间 is the remainder', () => {
     const encoder = new TextEncoder();
     const line = (obj: Record<string, unknown>) =>

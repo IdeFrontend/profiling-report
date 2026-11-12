@@ -205,6 +205,9 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 28. **PR-ROOT-028** — With `capabilities: ['sourceTab']` and a non-mock `reportModel.sourceCorrelation`, 源码 opens `source-view` via `v-if` (Timeline unmounts); Timeline → Source → Timeline keeps the `viewState` time window (`startTime` / `endTime`). A `mock: true` model does not show the tab.
 29. **PR-ROOT-029** — A Parameter frame whose basename matches a bundled source file switches to 源码 and moves the caret to that line. A bare path opens line 1; `path:line` opens that line. A fresh load and an operator switch clear that caret, so the next report does not reopen the previous file and line.
 30. **PR-ROOT-030** — Optional `resolveSourceFile` fills missing Ascend C text after load ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)): embed present → hook not called; missing embed + resolve text → SourceView shows real source (async after first paint); `null` / throw → placeholder unchanged; hook attached after first paint still resolves.
+31. **PR-ROOT-031** — **概览** is first in the tab strip but 时间线 stays the landing tab. Clicking 概览 mounts [OperatorOverview](../OperatorOverview/OperatorOverview.spec.md) with `reportModel.operatorRows` and unmounts the timeline canvas; 详情 and 缓存 tabs never render.
+32. **PR-ROOT-032** — With at most one operator, the tab-strip brand shows the short operator name of the effective report model's `summary.opName` when present (host prop or adapter-loaded `source`), else the host `title` file name. Multi-operator packs keep the operator-selector label.
+33. **PR-ROOT-033** — On the 概览 tab, the 执行优化 button forwards `optimize` from `OperatorOverview` to the root `optimize` emit.
 
 ## Edge Cases
 
@@ -238,6 +241,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-11-12** — 概览 tab joins the strip ahead of 时间线 and mounts the operator overview (`PR-ROOT-031`).
 - **2026-10-29** — Late-bound `resolveSourceFile` still fills missing embeds (presence-only watch — unstable callback identity does not re-resolve); SourceView `session` resets search on operator / host swap but not on resolve overlay (`PR-ROOT-030`).
 - **2026-10-28** — Optional `resolveSourceFile` host hook fills missing Ascend C after load (`PR-ROOT-030`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 - **2026-10-23** — A fresh load and an operator switch clear the Source-tab frame caret (`PR-ROOT-029`).
