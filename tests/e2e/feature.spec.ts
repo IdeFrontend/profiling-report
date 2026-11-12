@@ -1135,30 +1135,68 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
     .poll(async () => durationBadge.locator('.pr-diff__text').textContent())
     .not.toBe(before);
 
-  // Both tones appear across the demo operators (the scaled read bandwidth
-  // straddles the open report's value).
-  const readBadge = page.getByTestId('stats-bandwidth-read-diff');
+  // EVERY card shows a badge for EVERY demo operator, values differ from
+  // operator to operator, and both tones appear across the operators.
+  const cardBadges = [
+    'stats-duration-diff',
+    'stats-aicore-util-diff',
+    'stats-aicore-balance-diff',
+    'stats-compute-aic-diff',
+    'stats-compute-aiv-diff',
+    'stats-bandwidth-read-diff',
+    'stats-bandwidth-write-diff',
+  ];
+  const present = new Set<string>();
+  for (const testid of cardBadges) {
+    if (await page.getByTestId(testid).count()) present.add(testid);
+  }
+  expect(present.size).toBeGreaterThanOrEqual(5);
   const tones = new Set<string>();
+  const textsByCard = new Map<string, Set<string>>();
   const operators = ['matmul', 'matmul_t', 'add_n', 'relu', 'gelu', 'layernorm', 'softmax', 'conv2d'];
   for (const op of operators) {
     await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
     await page.getByTestId(`aside-baseline-operator-option-${op}`).click();
     await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', op);
-    await expect(readBadge).toBeVisible();
-    const cls = (await readBadge.getAttribute('class')) ?? '';
-    if (cls.includes('pr-diff--increase')) tones.add('increase');
-    if (cls.includes('pr-diff--decrease')) tones.add('decrease');
+    for (const testid of present) {
+      const badge = page.getByTestId(testid);
+      await expect(badge).toBeVisible();
+      const cls = (await badge.getAttribute('class')) ?? '';
+      if (cls.includes('pr-diff--increase')) tones.add('increase');
+      if (cls.includes('pr-diff--decrease')) tones.add('decrease');
+      const text = (await badge.locator('.pr-diff__text').textContent()) ?? '';
+      const seen = textsByCard.get(testid) ?? new Set<string>();
+      seen.add(text);
+      textsByCard.set(testid, seen);
+    }
   }
   expect([...tones].sort()).toEqual(['decrease', 'increase']);
+  // Values actually change from operator to operator on every card.
+  for (const testid of present) {
+    expect(textsByCard.get(testid)!.size, `card ${testid} varies per operator`).toBeGreaterThan(1);
+  }
 
-  // A demo-list entry works the same way: its path is a fixture URL, the host
-  // glue fetches the bytes, adapts them and wraps the demo operators. (The
-  // popover is still open — the aside select stops pointerdown, so the
-  // outside-dismiss never fires; a toggle here would CLOSE it.)
-  await page.locator('.pr-baseline__item--check').nth(0).click();
-  await page.getByTestId('aside-baseline-select').getByRole('button').click();
-  await page.locator('[data-testid^="aside-baseline-option-"]').nth(2).click();
-  await expect(page.locator('.pr-diff').first()).toBeVisible();
+  // EVERY demo baseline paints comparison badges: check all five demo rows,
+  // then select each baseline in the aside and assert badges render and the
+  // values differ from baseline to baseline. (The popover is still open — the
+  // aside select stops pointerdown, so the outside-dismiss never fires; a
+  // toggle here would CLOSE it.)
+  const checkRows = page.locator('.pr-baseline__item--check');
+  for (let i = 0; i < 5; i++) {
+    await checkRows.nth(i).click();
+  }
+  const demoIds = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
+  const baselineTexts = new Set<string>();
+  for (const id of demoIds) {
+    await page.getByTestId('aside-baseline-select').getByRole('button').click();
+    await page.getByTestId(`aside-baseline-option-${id}`).click();
+    await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', id);
+    await expect(page.locator('.pr-diff').first()).toBeVisible();
+    const durText = (await page.getByTestId('stats-duration-diff').locator('.pr-diff__text').textContent()) ?? '';
+    baselineTexts.add(`${id}:${durText}`);
+  }
+  // Different fixtures → different deltas; at least two baselines differ.
+  expect(baselineTexts.size).toBeGreaterThan(1);
   // The fetched pack adapted under the new selection: a high-scale operator
   // repaints a green-down read badge.
   await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();

@@ -64,7 +64,7 @@ Outside-in tests verifying the full component tree and playground render correct
 
 ## Changelog
 - **2026-11-12** — PR-E2E-021 restated for the bar-driven comparison: the removed 基线 operator row is gone; the aside Operator select drives per-operator badge values and both tones across the eight demo operators, for browsed and demo-fetched packs alike.
-- **2026-11-12** — PR-E2E-021: the sidebar comparison slice e2e — a browsed real report (and the demo fixture entries, fetched by the glue) adapt and paint the aside comparison row + diff badges.
+- **2026-11-12** — PR-E2E-021: the sidebar comparison slice e2e — per-operator, per-card, per-baseline badge coverage with both tones (demo packs synthesize eight scaled operators on every metric family).
 - **2026-11-12** — ТЗ rework (PR-E2E-020/022/023 restated): the picker is a single checkbox view — the checked set IS the baseline list; the aside dropdowns always render with Not selected sentinels.
 y saved list — nothing seeded, nothing selected) + PR-E2E-022: the recent-reports checkbox flow (Add Selected / pre-checked duplicates / Set current as Baseline).
 - **2026-11-11** — PR-E2E-020 restated: baselines are session-only in the bundled hosts — the `?baselines=sample` link seeds the demo list (radio selection, none by default), a custom pick dies with the page, no storage anywhere.

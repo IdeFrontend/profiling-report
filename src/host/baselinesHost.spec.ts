@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
-import { createBaselinesHost } from './baselinesHost';
+import { createBaselinesHost, withDemoOperatorPack } from './baselinesHost';
 import { loadOutRepBytes } from '../../tests/helpers/fixtures';
+import { emptyReportViewModel } from '../adapters/adaptRep';
 
 /** Files-like target for onFileChosen — the host never reads beyond these fields. */
 function fileEvent(name: string, size = 10, lastModified = 123): Event {
@@ -157,5 +158,36 @@ describe('createBaselinesHost', () => {
     host.onBaselinesUpdate([entry]);
     await flushPromises();
     expect(host.baselineReport.value?.baselineId).toBe('b1');
+  });
+
+  it('synthesizes eight operators with distinct metrics on every card family', () => {
+    const pack = withDemoOperatorPack({
+      reportModel: emptyReportViewModel(),
+      swimlaneModel: null,
+    });
+    expect(pack.operators?.map((o) => o.id)).toHaveLength(8);
+    const reports = Object.values(pack.operatorReports ?? {});
+    expect(reports).toHaveLength(8);
+
+    const families: ((m: (typeof reports)[number]['reportModel']) => number)[] = [
+      (m) => m.summary.taskDurationUs ?? 0,
+      (m) => m.summary.parallelUtilization ?? 0,
+      (m) => m.summary.parallelBalance ?? 0,
+      (m) => m.computeCard?.sides.find((s) => s.side === 'aic')?.measuredTflops ?? 0,
+      (m) => m.computeCard?.sides.find((s) => s.side === 'aiv')?.measuredTflops ?? 0,
+      (m) => m.bandwidthCards?.find((c) => c.id === 'input')?.sides[0]?.measuredGBs ?? 0,
+      (m) => m.bandwidthCards?.find((c) => c.id === 'output')?.sides[0]?.measuredGBs ?? 0,
+    ];
+    // Every family exists in every operator model…
+    for (const m of reports) {
+      for (const read of families) {
+        expect(read(m.reportModel)).not.toBe(0);
+      }
+    }
+    // …and the values differ from operator to operator on every family.
+    for (const read of families) {
+      const values = new Set(reports.map((r) => read(r.reportModel)));
+      expect(values.size).toBe(8);
+    }
   });
 });

@@ -41,11 +41,42 @@ export function withDemoBaselineOperators(baselines: Baseline[]): Baseline[] {
  * base scale (0.4..0.85) read as increases (red up) against the open report,
  * ops above (1.15..1.6) as decreases (green down), so flipping the Operator
  * select paints both tones. MSTT's real packs pass through untouched. */
-const DEMO_OPERATOR_SCALES = [0.4, 0.55, 0.7, 0.85, 1.15, 1.3, 1.45, 1.6];
+const DEMO_OPERATOR_SCALES = [0.35, 0.5, 0.65, 0.8, 1.2, 1.4, 1.6, 1.8];
+
+/**
+ * Seed every metric family the summary cards display, so that a demo pack
+ * always diffs against EVERY card the open report shows (a fixture that
+ * lacks, say, bandwidthCards would otherwise leave those cards badge-less
+ * for every operator).
+ */
+function ensureDemoMetrics(model: AdaptedReport['reportModel']): void {
+  if (!model.summary) model.summary = {};
+  const s = model.summary;
+  if (typeof s.taskDurationUs !== 'number') s.taskDurationUs = 1000;
+  if (typeof s.parallelUtilization !== 'number') s.parallelUtilization = 0.5;
+  if (typeof s.parallelBalance !== 'number') s.parallelBalance = 0.5;
+  if (!model.computeCard?.sides?.length) {
+    model.computeCard = {
+      sides: [
+        { side: 'aic', measuredTflops: 60, peakTflops: 100 },
+        { side: 'aiv', measuredTflops: 40, peakTflops: 100 },
+      ],
+    };
+  }
+  const bw = model.bandwidthCards ?? [];
+  if (!bw.some((c) => c.id === 'input')) {
+    bw.push({ id: 'input', sides: [{ side: 'aic', measuredGBs: 400, peakGBs: 800 }] });
+  }
+  if (!bw.some((c) => c.id === 'output')) {
+    bw.push({ id: 'output', sides: [{ side: 'aic', measuredGBs: 200, peakGBs: 800 }] });
+  }
+  model.bandwidthCards = bw;
+}
 
 /** Scale one ReportViewModel's measured metrics (peaks stay chip-level). */
 function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number): void {
-  const s = model.summary ?? {};
+  ensureDemoMetrics(model);
+  const s = model.summary;
   if (typeof s.taskDurationUs === 'number') model.summary.taskDurationUs = s.taskDurationUs * scale;
   if (typeof s.parallelUtilization === 'number') {
     model.summary.parallelUtilization = s.parallelUtilization * scale;
