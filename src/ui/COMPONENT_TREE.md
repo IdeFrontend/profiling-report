@@ -20,6 +20,7 @@ flowchart TB
   layout --> mainCol[main column]
   layout --> aside[StatsAside]
   mainCol --> toolbar[ReportToolbar]
+  toolbar --> baselinePicker[BaselinePicker]
   mainCol --> timeline[TimelineView]
   mainCol --> sourceView[SourceView]
   timeline --> overviewBar[TimeOverviewBar]
@@ -48,6 +49,7 @@ flowchart TB
 src/ui/
   ProfilingReport/                 (no pack)
   ReportToolbar/                   ✓  v930/entry
+    BaselinePicker/                (no pack)
   SourceView/                      ✓  v930-source/source-correlation
   ReportLayout/                    (no pack)
   EventTooltip/                    ✓  v930/task-hover

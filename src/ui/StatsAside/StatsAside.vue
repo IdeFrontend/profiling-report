@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } f
 import { t, archMetricModeLabel } from '../../i18n';
 import type {
   BandwidthCardModel,
+  Baseline,
   MemoryHeatmapUnitId,
   MemoryTopologyModel,
   PipeOccupancyItem,
@@ -47,6 +48,16 @@ const props = defineProps<{
    * topology fullscreen share one selection; omit for standalone mounts (local default).
    */
   archMetricMode?: ArchDiagramMetricMode;
+  /**
+   * Host-owned checked baselines (对比基线) — the picker's checkbox set. The
+   * aside always renders the Baseline / Operator dropdown row under the meta
+   * line; nothing checked = both show "Not selected". The Baseline pick
+   * forwards to the host (`update:selectedBaselineId`, `null` = Not selected)
+   * so the choice is global.
+   */
+  baselines?: Baseline[];
+  /** Current baseline id; null/absent = "Not selected". */
+  selectedBaselineId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -58,6 +69,8 @@ const emit = defineEmits<{
   'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId];
   'open-cannbot': [scope: CannbotScope];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
+  /** Baseline dropdown pick — the host-owned selection, global (`null` = Not selected). */
+  'update:selectedBaselineId': [id: string | null];
   'open-performance-hints': [];
 }>();
 
@@ -615,6 +628,46 @@ const csvOnly = computed(
 
 const summary = computed(() => props.report?.summary);
 
+/* ===== Baseline dropdown row (对比基线) =====
+ * Always rendered under the meta line (open question UI-63: show empty vs
+ * hide). Baseline (host-owned, global; `null` = Not selected) + Operator
+ * (session-local, defaults to the baseline's first, Not selected without a
+ * baseline). The row shares the Block dropdown's CardMetricSelect chrome. */
+
+const NOT_SELECTED = '';
+const baselineRows = computed(() => props.baselines ?? []);
+const selectedBaseline = computed(
+  () => baselineRows.value.find((b) => b.id === props.selectedBaselineId) ?? null,
+);
+/** Baseline dropdown: the checked set + the Not selected sentinel; picks are global. */
+const asideBaselineId = computed({
+  get: () => props.selectedBaselineId ?? NOT_SELECTED,
+  set: (id: string) => {
+    const next = id === NOT_SELECTED ? null : id;
+    if (next !== props.selectedBaselineId) emit('update:selectedBaselineId', next);
+  },
+});
+function baselineNameOf(id: string): string {
+  if (id === NOT_SELECTED) return t('baselineNotSelected', props.locale);
+  return baselineRows.value.find((b) => b.id === id)?.name ?? id;
+}
+const baselineOperators = computed(() => selectedBaseline.value?.operators ?? []);
+const baselineIds = computed(() => [NOT_SELECTED, ...baselineRows.value.map((b) => b.id)]);
+/** Operator dropdown: session-local; defaults to (and re-defaults to) the first. */
+const asideBaselineOperator = ref('');
+const operatorOptions = computed(() =>
+  baselineOperators.value.length > 0 ? baselineOperators.value : [NOT_SELECTED]);
+function operatorNameOf(op: string): string {
+  return op === NOT_SELECTED ? t('baselineNotSelected', props.locale) : op;
+}
+watch(
+  () => selectedBaseline.value?.id,
+  () => {
+    asideBaselineOperator.value = baselineOperators.value[0] ?? NOT_SELECTED;
+  },
+  { immediate: true },
+);
+
 function numericBlockDim(blockDim: string | number | undefined): number | undefined {
   if (blockDim == null || blockDim === '') return undefined;
   const n = typeof blockDim === 'number' ? blockDim : Number(blockDim);
@@ -990,6 +1043,33 @@ const detailTestId = computed(() => {
           <CannbotIcon />
         </button>
       </p>
+      <!-- Baseline / Operator dropdowns (对比基线): always under the meta line,
+           same chrome as the Block switcher. Baseline is global (host-owned,
+           Not selected = null); Operator is session-local and defaults to the
+           baseline's first (Not selected without a baseline). -->
+      <div
+        class="pr-aside__baseline-bar"
+        data-testid="stats-baseline-bar"
+      >
+        <span class="pr-aside__baseline-k">{{ t('baselineLabel', locale) }}:</span>
+        <CardMetricSelect
+          v-model="asideBaselineId"
+          :options="baselineIds"
+          variant="inline"
+          test-id-prefix="aside-baseline"
+          :ariaLabel="t('baselineLabel', locale)"
+          :label-of="baselineNameOf"
+        />
+        <span class="pr-aside__baseline-k">{{ t('operatorLabel', locale) }}:</span>
+        <CardMetricSelect
+          v-model="asideBaselineOperator"
+          :options="operatorOptions"
+          variant="inline"
+          test-id-prefix="aside-baseline-operator"
+          :ariaLabel="t('operatorLabel', locale)"
+          :label-of="operatorNameOf"
+        />
+      </div>
     </header>
 
     <div
@@ -1782,6 +1862,23 @@ const detailTestId = computed(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
+}
+
+/* Baseline / Operator dropdown row (对比基线): the Block switcher's chrome,
+   header placement under the meta line; hidden without a selected baseline. */
+.pr-aside__baseline-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 8px 0 0;
+}
+
+.pr-aside__baseline-k {
+  font-size: 12px;
+  line-height: 16px;
+  color: #999999;
+  white-space: nowrap;
 }
 
 .pr-aside__meta-seg {

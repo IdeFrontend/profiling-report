@@ -2625,6 +2625,98 @@ describe('StatsAside', () => {
     expect(standalone.find('[data-testid="memory-unit-ub"]').exists()).toBe(true);
   });
 
+  /* ===== Baseline dropdown row (对比基线) — PR-STATS-052..054 ===== */
+
+  const baselineList = [
+    { id: 'b1', name: 'OPPROF_20261108142517_QKWFPLXZVTRNBGMA', path: '/opprof/b1', operators: ['matmul', 'add_n', 'relu'] },
+    { id: 'b2', name: 'OPPROF_20261109111842_MJNHEYSDCQXVBRUW', path: '/opprof/b2', operators: ['gelu', 'layernorm'] },
+  ];
+
+  it('PR-STATS-052: the Baseline/Operator row always renders; nothing chosen = Not selected', () => {
+    // No list at all → still the row, both dropdowns read Not selected.
+    const plain = mount(StatsAside, { props: { report: report({ summary: { pid: '9' } }) } });
+    const plainBar = plain.get('[data-testid="stats-baseline-bar"]');
+    expect(plainBar.text()).toContain(t('baselineLabel'));
+    expect(plainBar.text()).toContain(t('operatorLabel'));
+    expect(plain.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('');
+    expect(plain.get('.pr-metric-select__label').text()).toBe(t('baselineNotSelected'));
+    expect(plain.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('');
+    // Header placement: right under the meta line (Process/OpType row).
+    const meta = plain.get('[data-testid="stats-aside-meta"]').element;
+    expect(
+      plainBar.element.compareDocumentPosition(meta) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+
+    // A list without a selection → Not selected as well.
+    const unselected = mount(StatsAside, {
+      props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: null },
+    });
+    expect(unselected.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('');
+    expect(
+      unselected.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('');
+  });
+
+  it('PR-STATS-053: the Baseline select lists the checked set + Not selected and forwards picks', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: 'b1' },
+    });
+    const select = wrapper.get('[data-testid="aside-baseline-select"]');
+    expect(select.attributes('data-value')).toBe('b1');
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    const options = [...document.querySelectorAll('[data-testid^="aside-baseline-option-"]')].map((el) =>
+      el.getAttribute('data-testid'),
+    );
+    expect(options).toEqual([
+      'aside-baseline-option-',
+      'aside-baseline-option-b1',
+      'aside-baseline-option-b2',
+    ]);
+    // The trigger label is the baseline's name, not its id.
+    expect(select.get('.pr-metric-select__label').text()).toBe(baselineList[0].name);
+    (document.querySelector('[data-testid="aside-baseline-option-b2"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2']]);
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+    // Picking the Not selected sentinel forwards null.
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-option-"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2'], [null]]);
+  });
+
+  it('PR-STATS-054: the Operator select lists the baseline operators, defaults to the first, and resets on baseline change', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: 'b1' },
+    });
+    const opSelect = wrapper.get('[data-testid="aside-baseline-operator-select"]');
+    // Default = the baseline's first operator.
+    expect(opSelect.attributes('data-value')).toBe('matmul');
+    await opSelect.get('.pr-metric-select__trigger').trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-operator-option-add_n"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('add_n');
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+    // Switching the baseline re-defaults the operator to that baseline's first.
+    await wrapper.setProps({ selectedBaselineId: 'b2' });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('gelu');
+
+    // A baseline without operators → the Operator select reads Not selected.
+    const bare = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [{ id: 'b3', name: 'plain.rep', path: '/plain.rep' }],
+        selectedBaselineId: 'b3',
+      },
+    });
+    const bareOp = bare.get('[data-testid="aside-baseline-operator-select"]');
+    expect(bareOp.attributes('data-value')).toBe('');
+    expect(bareOp.get('.pr-metric-select__label').text()).toBe(t('baselineNotSelected'));
+  });
+
   it('PR-STATS-037: archDiagram Metric select sits above the diagram and rebuilds labels', async () => {
     const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
     const archCsv = [
