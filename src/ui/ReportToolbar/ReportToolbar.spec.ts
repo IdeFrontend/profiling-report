@@ -679,4 +679,47 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('export-html')).toHaveLength(1);
     wrapper.unmount();
   });
+
+  it('PR-TOOLBAR-029: timeline-trace radios emit on select; hidden for 0–1 traces', async () => {
+    const none = mount(ReportToolbar, { props: defaultProps });
+    expect(none.find('[data-testid="timeline-trace-selector"]').exists()).toBe(false);
+    none.unmount();
+
+    const one = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        timelineTraces: [{ id: 'pipeTrace', embedName: 'PipeTrace.json' }],
+        selectedTimelineTraceId: 'pipeTrace',
+      },
+    });
+    expect(one.find('[data-testid="timeline-trace-selector"]').exists()).toBe(false);
+    one.unmount();
+
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        timelineTraces: [
+          { id: 'communication', embedName: 'Communication.json' },
+          { id: 'pipeTrace', embedName: 'PipeTrace.json' },
+        ],
+        selectedTimelineTraceId: 'pipeTrace',
+      },
+      attachTo: document.body,
+    });
+    expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+    const options = wrapper.findAll('[data-testid="timeline-trace-option"]');
+    expect(options).toHaveLength(2);
+    expect(options[0].attributes('aria-checked')).toBe('false');
+    expect(options[1].attributes('aria-checked')).toBe('true');
+
+    await options[1].trigger('click');
+    expect(wrapper.emitted('update:selectedTimelineTraceId')).toBeUndefined();
+
+    await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+    await wrapper.find('[data-trace-id="communication"]').trigger('click');
+    expect(wrapper.emitted('update:selectedTimelineTraceId')).toEqual([['communication']]);
+    expect(wrapper.find('[data-testid="timeline-trace-option"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
 });

@@ -1630,6 +1630,81 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
+  it('PR-ROOT-031: multi-timeline source swaps swimlane via 流水视图显示; re-select is a no-op', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const swimPipe = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'pipe-lane',
+              events: [{ id: 'ep', name: 'pipe-op', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    };
+    const swimComm = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'comm-lane',
+              events: [{ id: 'ec', name: 'comm-op', startTime: 0, duration: 50 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 50,
+    };
+    const report = emptyReportViewModel();
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swimPipe,
+      reportModel: report,
+      capabilities: [],
+      timelineTraces: [
+        { id: 'communication', embedName: 'Communication.json' },
+        { id: 'pipeTrace', embedName: 'PipeTrace.json' },
+      ],
+      selectedTimelineTraceId: 'pipeTrace',
+      timelineTraceModels: {
+        communication: swimComm,
+        pipeTrace: swimPipe,
+      },
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      await flushPromises();
+      expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(true);
+      expect(wrapper.vm.selectedTimelineTraceId).toBe('pipeTrace');
+      expect(wrapper.vm.internalSwim?.processes[0]?.threads[0]?.name).toBe('pipe-lane');
+
+      await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+      await wrapper.find('[data-trace-id="pipeTrace"]').trigger('click');
+      expect(wrapper.vm.selectedTimelineTraceId).toBe('pipeTrace');
+
+      await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+      await wrapper.find('[data-trace-id="communication"]').trigger('click');
+      expect(wrapper.vm.selectedTimelineTraceId).toBe('communication');
+      expect(wrapper.vm.internalSwim?.processes[0]?.threads[0]?.name).toBe('comm-lane');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('PR-ROOT-008: cannbot buttons emit cannbot-request with scoped payload; cooldown swallows repeat clicks', async () => {
     vi.useFakeTimers();
     const reportModel = {

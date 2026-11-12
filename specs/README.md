@@ -20,6 +20,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [emulate-format](./core/emulate-format.spec.md) | `PR-SIM-*` | M | `docs/formats/emulate/FORMAT.md` | `tests/unit/emulateAdapt.spec.ts` |
 | [adapt-emulate](./core/adapt-emulate.spec.md) | `PR-ASIM-*` | M | `docs/formats/ADAPTERS.md` | `tests/unit/emulateAdapt.spec.ts` |
 | [view-models](./core/view-models.spec.md) | `PR-VM-*` | MVP | `src/adapters/adaptRep.ts` | `tests/unit/viewModels.spec.ts` |
+| [timeline-traces](./core/timeline-traces.spec.md) | `PR-TLTRACE-*` | M | `src/adapters/timelineTraces.ts` | `tests/unit/timelineTraces.spec.ts` |
 | [source-correlation](./core/source-correlation.spec.md) | `PR-SRC-*` | M | `src/adapters/sourceCorrelation/` | `tests/unit/sourceCorrelation.spec.ts` |
 | [swimlane-model](./core/swimlane-model.spec.md) | `PR-SWIM-*` | MVP | `src/domain/types.ts` | `tests/unit/swimlaneModel.spec.ts` |
 | [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/domain/formatTime.ts` | `tests/unit/formatTime.spec.ts` |

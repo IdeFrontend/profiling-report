@@ -58,7 +58,7 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `SwimlaneModel` | Prefer `trace.json` (ns); else `PipeTrace.json` (µs→ns ×1000) | CTEF `ph:X` events | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `SwimlaneModel` | §11.14 catalog when present (`Communication.json` / `PipeTrace.json` / SimtWarp*, µs); else classic `trace.json` (ns) | CTEF `ph:X` events; multi-file → 流水视图显示 radios ([DATA-56](../context/decisions/DATA.md)) | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
 <a id="structure"></a>
 
@@ -121,8 +121,8 @@ Code: `adaptEmulate` + `findEmulateTracePayload`.
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | `adaptCompute` / `adaptPayloads` | Prefers `trace.json` (ns); else `PipeTrace.json` (µs) — `swimlaneFromPayloads` |
-| emulate | `adaptEmulate` | Requires `manifest.json`; PipeTrace optional (absent → null swimlane) |
+| compute | `adaptCompute` / `adaptPayloads` | §11.14 catalog when present; else classic `trace.json` (ns) — [DATA-56](../context/decisions/DATA.md) |
+| emulate | `adaptEmulate` | Requires `manifest.json`; catalog or PipeTrace/native merge; absent → null swimlane |
 | CTEF-only | `adaptChromeTrace` | Empty report model ([PROC-3](../context/decisions/PROC.md)) |
 
 ## Related

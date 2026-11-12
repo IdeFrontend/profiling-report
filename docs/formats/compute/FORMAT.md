@@ -184,7 +184,7 @@ Producer columns: [SCHEMA.md](SCHEMA.md). Sample columns: AIC wait ratios (`aic_
 
 ## 4. Timeline / trace payload
 
-Docx §11.2.8 tables for timeline and pipeline details are **empty**. The local sample embeds `trace.json` (Chrome Trace Event format).
+Docx §11.2.8 tables for timeline and pipeline details are **empty**. The local sample embeds `trace.json` (Chrome Trace Event format). Product packs may also ship §11.14 catalog CTEF files (`Communication.json`, `PipeTrace.json`, SimtWarp*) for 流水视图显示 ([DATA-56](../../context/decisions/DATA.md)).
 
 ### 4.1 Top level
 

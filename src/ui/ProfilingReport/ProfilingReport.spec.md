@@ -163,6 +163,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Multi-operator packs.** An `npu-rep` container with nested operator archives renders a top-left OP selector in the toolbar. Switching operators swaps the swimlane + report models from the pre-adapted per-operator reports (no re-parse) and resets the viewport, selection, and Source-tab frame caret like a fresh load, while preserving aside visibility and panel widths. Re-selecting the already-active operator is a no-op (no reset).
 
+**Multi-timeline packs (§11.14 / DATA-56).** When a leaf carries more than one catalog CTEF embed (`Communication.json` / `PipeTrace.json` / SimtWarp*), the toolbar shows 流水视图显示 radios. Switching swaps the pre-adapted swimlane only (report metrics stay), resets the viewport/selection like an operator switch, and preserves aside visibility and panel widths. Unmatched kinds (e.g. `stat`) are omitted; the control is hidden when fewer than two traces are present.
+
 **Corner wash.** Owned by [ReportToolbar](../ReportToolbar/ReportToolbar.spec.md) (criterion 19 there), not the root. At the root it was a child of `.pr-root` beneath `.pr-main`, which is opaque at `z-index: 1`, so it never painted. It also has to exist on both toolbar render paths, and only one of them is a direct child of the root.
 
 **Dependency state.** `dependencyMode` and `dependencyDepth` are one pair of values, held here and read by both dependency surfaces: the swimlane curves and the detail dock's Relevent column, which walk the same `SwimEvent.dependencies` refs with the same filter. The dock's Relevent toolbar is where the user edits them; the props seed them and a change re-walks in place. `hasDependencies` gates the walk, so a model without edges hands the dock no neighbours and the column never mounts. Neighbour semantics — cap, ordering, cycles — belong to [dependencies](../../../specs/core/dependencies.spec.md).
@@ -205,6 +207,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 28. **PR-ROOT-028** — With `capabilities: ['sourceTab']` and a non-mock `reportModel.sourceCorrelation`, 源码 opens `source-view` via `v-if` (Timeline unmounts); Timeline → Source → Timeline keeps the `viewState` time window (`startTime` / `endTime`). A `mock: true` model does not show the tab.
 29. **PR-ROOT-029** — A Parameter frame whose basename matches a bundled source file switches to 源码 and moves the caret to that line. A bare path opens line 1; `path:line` opens that line. A fresh load and an operator switch clear that caret, so the next report does not reopen the previous file and line.
 30. **PR-ROOT-030** — Optional `resolveSourceFile` fills missing Ascend C text after load ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)): embed present → hook not called; missing embed + resolve text → SourceView shows real source (async after first paint); `null` / throw → placeholder unchanged; hook attached after first paint still resolves.
+31. **PR-ROOT-031** — Multi-timeline source shows 流水视图显示; switching traces swaps swimlane without re-parse; re-select is a no-op.
 
 ## Edge Cases
 
