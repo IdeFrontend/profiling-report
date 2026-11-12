@@ -163,7 +163,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Multi-operator packs.** An `npu-rep` container with nested operator archives renders a top-left OP selector in the toolbar. Switching operators swaps the swimlane + report models from the pre-adapted per-operator reports (no re-parse) and resets the viewport, selection, and Source-tab frame caret like a fresh load, while preserving aside visibility and panel widths. Re-selecting the already-active operator is a no-op (no reset).
 
-**Multi-timeline packs (§11.14 / DATA-56).** When a leaf carries more than one catalog CTEF embed (`Communication.json` / `PipeTrace.json` / SimtWarp*), the toolbar shows 流水视图显示 radios. Switching swaps the pre-adapted swimlane only (report metrics stay), resets the viewport/selection like an operator switch, and preserves aside visibility and panel widths. Unmatched kinds (e.g. `stat`) are omitted; the control is hidden when fewer than two traces are present.
+**Multi-timeline packs (§11.14 / DATA-56).** When a leaf carries more than one catalog CTEF embed (`Communication.json` / `PipeTrace.json` / SimtWarp*), the toolbar shows 流水视图显示 radios. Switching swaps the pre-adapted swimlane only (report metrics stay), resets the viewport/selection like an operator switch, and preserves aside visibility and panel widths. Unmatched kinds (e.g. `stat`) are omitted; the control is hidden when fewer than two traces are present. Clearing **source** drops the selector and the cached models with the operator state, so a later select cannot restore the closed swimlane.
 
 **Corner wash.** Owned by [ReportToolbar](../ReportToolbar/ReportToolbar.spec.md) (criterion 19 there), not the root. At the root it was a child of `.pr-root` beneath `.pr-main`, which is opaque at `z-index: 1`, so it never painted. It also has to exist on both toolbar render paths, and only one of them is a direct child of the root.
 
@@ -180,7 +180,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 1. **PR-ROOT-001** — Mounts with title, shows shell, handles empty source.
 2. **PR-ROOT-002** — Accepts pre-parsed swimlaneModel and reportModel.
 3. **PR-ROOT-003** — Switching dependency mode in the detail dock re-walks in place, without a page reload.
-4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities (`roofline` when points exist, `hardwareDetails`, `memoryDiagram`, `dependencies`); a source-only mount with roofline points renders `stats-roofline`; the prop overrides the derived set wholesale; host-managed models and a removed `source` publish none and clear operator state (no stale OP selector).
+4. **PR-ROOT-004** — Auto-loaded sources apply the adapter's capabilities (`roofline` when points exist, `hardwareDetails`, `memoryDiagram`, `dependencies`); a source-only mount with roofline points renders `stats-roofline`; the prop overrides the derived set wholesale; host-managed models and a removed `source` publish none and clear operator state (no stale OP selector or timeline-trace selector).
 5. **PR-ROOT-005** — Multi-op npu-rep source renders OP selector; switching operator updates `selectedOperatorId` / active menu item and swaps models and capabilities; re-select is a no-op; closing the aside then switching operator keeps the aside closed; a manually resized aside keeps its preferred width across operator switches (does not reset to 480).
 6. **PR-ROOT-006** — *WITHDRAWN (2026-09-01)* — the corner wash moved to the toolbar strip, which now owns it; at the root it was occluded by `.pr-main`.
 7. **PR-ROOT-007** — Marquee of two or more events mounts MultiSelectSummary; `select-single` / Escape / an empty commit swap back. A one-event marquee commit demotes to single-select DetailPanel (no multi-select summary).
@@ -207,7 +207,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 28. **PR-ROOT-028** — With `capabilities: ['sourceTab']` and a non-mock `reportModel.sourceCorrelation`, 源码 opens `source-view` via `v-if` (Timeline unmounts); Timeline → Source → Timeline keeps the `viewState` time window (`startTime` / `endTime`). A `mock: true` model does not show the tab.
 29. **PR-ROOT-029** — A Parameter frame whose basename matches a bundled source file switches to 源码 and moves the caret to that line. A bare path opens line 1; `path:line` opens that line. A fresh load and an operator switch clear that caret, so the next report does not reopen the previous file and line.
 30. **PR-ROOT-030** — Optional `resolveSourceFile` fills missing Ascend C text after load ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)): embed present → hook not called; missing embed + resolve text → SourceView shows real source (async after first paint); `null` / throw → placeholder unchanged; hook attached after first paint still resolves.
-31. **PR-ROOT-031** — Multi-timeline source shows 流水视图显示; switching traces swaps swimlane without re-parse; re-select is a no-op.
+31. **PR-ROOT-031** — Multi-timeline source shows 流水视图显示; switching traces swaps swimlane without re-parse and resets the viewport; re-select is a no-op; clearing source hides the selector.
 
 ## Edge Cases
 

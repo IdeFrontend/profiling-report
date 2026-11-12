@@ -28,18 +28,22 @@ function minimalCtefUs(name: string): string {
 
 describe('timelineTraces (§11.14 / DATA-56)', () => {
   it('PR-TLTRACE-001: discovers catalog aliases case-insensitively', () => {
-    const payloads = {
-      'communication.json': enc.encode(minimalCtefUs('comm')),
-        'SimtWarpOccupy.json': enc.encode(minimalCtefUs('warp')),
-      'PipeTrace.json': enc.encode(minimalCtefUs('pipe')),
-    };
-    const traces = discoverTimelineTraces(payloads);
+    const traces = discoverTimelineTraces({
+      'COMMUNICATION.JSON': enc.encode(minimalCtefUs('comm')),
+      'SimtWarpOccpy.json': enc.encode(minimalCtefUs('warp')),
+      'pipetrace.json': enc.encode(minimalCtefUs('pipe')),
+    });
     expect(traces.map((t) => t.id)).toEqual(['communication', 'warpOccupy', 'pipeTrace']);
     expect(traces.map((t) => t.embedName)).toEqual([
-      'communication.json',
-      'SimtWarpOccupy.json',
-      'PipeTrace.json',
+      'COMMUNICATION.JSON',
+      'SimtWarpOccpy.json',
+      'pipetrace.json',
     ]);
+
+    const warpAlias = discoverTimelineTraces({
+      'simt_warp_occupancy.json': enc.encode(minimalCtefUs('warp2')),
+    });
+    expect(warpAlias.map((t) => t.embedName)).toEqual(['simt_warp_occupancy.json']);
   });
 
   it('PR-TLTRACE-002: omits unmatched kinds (no stat)', () => {
@@ -77,6 +81,7 @@ describe('timelineTraces (§11.14 / DATA-56)', () => {
       'pipeTrace',
     ]);
     expect(bundle!.swimlaneModel.processes[0]?.threads[0]?.name).toContain('pipe');
+    expect(bundle!.swimlaneModel.processes[0]?.threads[0]?.events[0]?.duration).toBe(100_000);
   });
 
   it('PR-TLTRACE-005: adaptPayloads exposes multi-trace fields; legacy trace.json when catalog empty', () => {
@@ -101,5 +106,21 @@ describe('timelineTraces (§11.14 / DATA-56)', () => {
     });
     expect(classic.timelineTraces).toBeUndefined();
     expect(classic.swimlaneModel).not.toBeNull();
+    expect(classic.swimlaneModel?.processes[0]?.threads[0]?.events[0]?.duration).toBe(1000);
+
+    const mixed = adaptPayloads({
+      'trace.json': enc.encode(
+        JSON.stringify({
+          traceEvents: [
+            { ph: 'M', name: 'thread_name', pid: 1, tid: 1, args: { name: 'classic' } },
+            { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 1000 },
+          ],
+        }),
+      ),
+      'PipeTrace.json': enc.encode(minimalCtefUs('pipe')),
+    });
+    expect(mixed.timelineTraces?.map((t) => t.id)).toEqual(['pipeTrace']);
+    expect(mixed.selectedTimelineTraceId).toBe('pipeTrace');
+    expect(mixed.swimlaneModel?.processes[0]?.threads[0]?.events[0]?.duration).toBe(100_000);
   });
 });

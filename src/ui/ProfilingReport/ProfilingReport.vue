@@ -1084,6 +1084,9 @@ watch(
     operators.value = [];
     operatorReports.value = {};
     selectedOperatorId.value = null;
+    timelineTraces.value = [];
+    timelineTraceModels.value = {};
+    selectedTimelineTraceId.value = null;
     internalSwim.value = null;
     internalReport.value = null;
     internalCapabilities.value = null;

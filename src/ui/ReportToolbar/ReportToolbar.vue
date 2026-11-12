@@ -122,6 +122,9 @@ const displayControlOpen = ref(false);
 const displayWrapRef = ref<HTMLElement | null>(null);
 const timelineTraceOpen = ref(false);
 const timelineTraceWrapRef = ref<HTMLElement | null>(null);
+const timelineTraceTriggerRef = ref<HTMLButtonElement | null>(null);
+const timelineTraceMenuRef = ref<HTMLElement | null>(null);
+const activeTimelineIndex = ref(0);
 /** Shortcut-help (快捷键说明) popover state — same dismiss contract as display control. */
 const shortcutHelpOpen = ref(false);
 const shortcutWrapRef = ref<HTMLElement | null>(null);
@@ -151,31 +154,76 @@ watch(showTimelineTraceSelector, (show) => {
   if (!show) timelineTraceOpen.value = false;
 });
 
-function toggleTimelineTraceMenu() {
-  timelineTraceOpen.value = !timelineTraceOpen.value;
+function focusActiveTimelineOption() {
+  const items = timelineTraceMenuRef.value?.querySelectorAll<HTMLElement>(
+    '[data-testid="timeline-trace-option"]',
+  );
+  items?.[activeTimelineIndex.value]?.focus();
 }
 
-function closeTimelineTraceMenu() {
+async function openTimelineTraceMenu() {
+  const traces = props.timelineTraces ?? [];
+  const i = traces.findIndex((t) => t.id === props.selectedTimelineTraceId);
+  activeTimelineIndex.value = i >= 0 ? i : 0;
+  timelineTraceOpen.value = true;
+  await nextTick();
+  focusActiveTimelineOption();
+}
+
+async function closeTimelineTraceMenu(opts?: { restoreFocus?: boolean }) {
   timelineTraceOpen.value = false;
+  if (opts?.restoreFocus) {
+    await nextTick();
+    timelineTraceTriggerRef.value?.focus();
+  }
+}
+
+function toggleTimelineTraceMenu() {
+  if (timelineTraceOpen.value) void closeTimelineTraceMenu();
+  else void openTimelineTraceMenu();
 }
 
 function selectTimelineTrace(id: TimelineTraceKind) {
   if (id !== props.selectedTimelineTraceId) {
     emit('update:selectedTimelineTraceId', id);
   }
-  closeTimelineTraceMenu();
+  void closeTimelineTraceMenu({ restoreFocus: true });
 }
 
 function onTimelineTraceOutsidePointerDown(e: PointerEvent) {
   const wrap = timelineTraceWrapRef.value;
   if (!wrap || !(e.target instanceof Node) || wrap.contains(e.target)) return;
-  closeTimelineTraceMenu();
+  void closeTimelineTraceMenu();
 }
 
 function onTimelineTraceEscape(e: KeyboardEvent) {
-  if (e.key !== 'Escape') return;
+  if (e.key !== 'Escape' || !timelineTraceOpen.value) return;
   e.preventDefault();
-  closeTimelineTraceMenu();
+  e.stopPropagation();
+  void closeTimelineTraceMenu({ restoreFocus: true });
+}
+
+function onTimelineTraceTriggerKeydown(e: KeyboardEvent) {
+  if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !timelineTraceOpen.value) {
+    e.preventDefault();
+    void openTimelineTraceMenu();
+  }
+}
+
+function onTimelineTraceOptionKeydown(e: KeyboardEvent, id: TimelineTraceKind, index: number) {
+  const traces = props.timelineTraces ?? [];
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    selectTimelineTrace(id);
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (traces.length === 0) return;
+    const delta = e.key === 'ArrowDown' ? 1 : -1;
+    activeTimelineIndex.value = (index + delta + traces.length) % traces.length;
+    void nextTick(focusActiveTimelineOption);
+  }
 }
 
 watch(timelineTraceOpen, (open) => {
@@ -866,6 +914,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         data-testid="timeline-trace-selector"
       >
         <button
+          ref="timelineTraceTriggerRef"
           type="button"
           class="pr-toolbar__icon-btn pr-icon-tip"
           data-testid="toggle-timeline-trace"
@@ -876,17 +925,19 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           :class="{ 'pr-toolbar__icon-btn--on': timelineTraceOpen }"
           :aria-label="t('timelineTraceView', locale)"
           @click="toggleTimelineTraceMenu"
+          @keydown="onTimelineTraceTriggerKeydown"
         >
           <PrIcon name="list" />
         </button>
         <ul
           v-if="timelineTraceOpen"
+          ref="timelineTraceMenuRef"
           class="pr-toolbar__trace-menu"
           role="menu"
           :aria-label="t('timelineTraceView', locale)"
         >
           <li
-            v-for="trace in timelineTraces"
+            v-for="(trace, index) in timelineTraces"
             :key="trace.id"
             class="pr-toolbar__trace-item"
             :class="{ 'pr-toolbar__trace-item--active': trace.id === selectedTimelineTraceId }"
@@ -896,8 +947,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
             :data-trace-id="trace.id"
             tabindex="0"
             @click="selectTimelineTrace(trace.id)"
-            @keydown.enter.prevent="selectTimelineTrace(trace.id)"
-            @keydown.space.prevent="selectTimelineTrace(trace.id)"
+            @keydown="onTimelineTraceOptionKeydown($event, trace.id, index)"
+            @focus="activeTimelineIndex = index"
           >
             <span
               class="pr-toolbar__trace-radio"

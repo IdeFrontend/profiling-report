@@ -1701,6 +1701,9 @@ describe('ProfilingReport scaffold', () => {
       await wrapper.find('[data-trace-id="pipeTrace"]').trigger('click');
       expect(toolbar().props('selectedTimelineTraceId')).toBe('pipeTrace');
 
+      wrapper.vm.selectEventById('ep');
+      expect(wrapper.vm.viewState.selectedEventId).toBe('ep');
+
       await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
       await wrapper.find('[data-trace-id="communication"]').trigger('click');
       expect(toolbar().props('selectedTimelineTraceId')).toBe('communication');
@@ -1708,6 +1711,15 @@ describe('ProfilingReport scaffold', () => {
         (wrapper.findComponent(TimelineView).props('displaySwim') as typeof swimComm).processes[0]
           ?.threads[0]?.name,
       ).toBe('comm-lane');
+      expect(wrapper.vm.viewState.startTime).toBe(0);
+      expect(wrapper.vm.viewState.endTime).toBe(swimComm.maxTime);
+      expect(wrapper.vm.viewState.selectedEventId).toBeNull();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      await wrapper.setProps({ source: undefined });
+      await flushPromises();
+      expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(false);
+      expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
     } finally {
       spy.mockRestore();
     }
