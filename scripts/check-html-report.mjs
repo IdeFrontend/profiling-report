@@ -91,6 +91,8 @@ if (!existsSync(fixture)) fail(`missing fixture ${fixture}`);
 
 const shellSource = readFileSync(join(root, 'report-shell/App.vue'), 'utf8');
 for (const binding of [
+  ':baselines="viewerBaselines"',
+  ':selected-baseline-id="selectedBaselineId"',
   ':pick-baseline-file="pickBaselineFile"',
   ':recent-baselines="DEMO_RECENT_BASELINES"',
   '@update:baselines="onBaselinesUpdate"',
