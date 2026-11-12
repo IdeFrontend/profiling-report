@@ -6,7 +6,7 @@
 
 Top toolbar with search, zoom controls, display-control popover (task display unit + dependency depth), measure (bars + Δt arrow) toggle, and aside panel toggle.
 
-Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/measure-active.png`](./visual/measure-active.png), [`visual/display-control.png`](./visual/display-control.png), [`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
+Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/zoom.png), [`visual/actions.png`](./visual/actions.png), [`visual/measure-active.png`](./visual/measure-active.png), [`visual/display-control.png`](./visual/display-control.png), [`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png), [`visual/timeline-trace-selector.png`](./visual/timeline-trace-selector.png) — provenance in [`visual/provenance.yaml`](./visual/provenance.yaml).
 
 ## Inputs
 
@@ -224,11 +224,14 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [op-selector](./visual/op-selector.png) — closed OP算子 text+chevron from `v930/entry`
 - [op-selector-tabs](./visual/op-selector-tabs.png) — OP + 时间线 context + chrome gradient from `v930/entry`
 - [op-selector-open](./visual/op-selector-open.png) — open menu from `v930/hardware-more-detail`
+- [timeline-trace-selector](./visual/timeline-trace-selector.png) — 流水视图显示 trigger + radio menu from `1130/pipeline-display-filter`
 - [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
 - [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger + open OP menu
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
+- [pipeline-display-filter](../../../docs/ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg) — full-frame 流水显示筛选 mockup
 
 ## Changelog
+- **2026-11-12** — Design crop for 流水视图显示 radio selector from 1130 mockup (`timeline-trace-selector.png`).
 - **2026-10-21** — **详情** / **缓存** removed from the tab strip ([UI-37](../../../docs/context/decisions/UI.md)). **源码** stays disabled; **时间线** stays the only active tab (`PR-TOOLBAR-026`).
 - **2026-10-12** — User-guide default URL is the Profiling Report section of the plugin README (`https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`). English hosts override `userGuideUrl`.
 - **2026-10-06** — ProfilingReport `allowHtmlExport` defaults false; toolbar control still opt-in via `htmlExportAvailable`.
