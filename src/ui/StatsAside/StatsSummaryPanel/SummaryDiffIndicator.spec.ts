@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 import SummaryDiffIndicator from './SummaryDiffIndicator.vue';
 
 describe('SummaryDiffIndicator', () => {
-  it('increase tone renders the up arrow, red badge class, and the text', () => {
+  it('PR-SDI-001: increase tone renders the up arrow, red badge class, and the text', () => {
     const wrapper = mount(SummaryDiffIndicator, {
       props: { tone: 'increase', text: '5%', directionLabel: 'increased' },
     });
@@ -14,7 +14,7 @@ describe('SummaryDiffIndicator', () => {
     wrapper.unmount();
   });
 
-  it('decrease tone renders the down arrow and green badge class', () => {
+  it('PR-SDI-002: decrease tone renders the down arrow and green badge class', () => {
     const wrapper = mount(SummaryDiffIndicator, {
       props: { tone: 'decrease', text: '3%', directionLabel: 'decreased' },
     });
@@ -24,7 +24,7 @@ describe('SummaryDiffIndicator', () => {
     wrapper.unmount();
   });
 
-  it('renders a single root span so fallthrough attrs bind to it', () => {
+  it('PR-SDI-003: renders a single root span so fallthrough attrs bind to it', () => {
     const wrapper = mount(SummaryDiffIndicator, {
       props: { tone: 'increase', text: '2.4', directionLabel: 'increased' },
       attrs: { 'data-testid': 'stats-diff' },
