@@ -37,3 +37,7 @@ crops:
     source: v930/hardware-more-detail
     region: "Open OP算子 selector — up-chevron + floating dark menu of operator items"
     box: { x: 255, y: 325, w: 420, h: 280 }
+  timeline-trace-selector.png:
+    source: 1130/pipeline-display-filter
+    region: "流水视图显示 trigger + tooltip + open radio menu (communication / warp occupy / pipe trace / stat) and single-select callout"
+    box: { x: 3800, y: 80, w: 1600, h: 900 }

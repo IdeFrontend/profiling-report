@@ -135,6 +135,16 @@ batches:
         scenes: [source, sass]
         components: [SourceView]
 
+  # 1130 仿真上板公共 — multi-trace timeline selector (流水显示筛选) and related frames.
+  "1130":
+    label: "1130 仿真上板公共（流水显示筛选）"
+    files:
+      - id: pipeline-display-filter
+        path: "1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg"
+        original_name: "1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg"
+        scenes: [timeline, toolbar, pipeline-display-filter]
+        components: [ReportToolbar, TimelineView]
+
   # Official Asc 内存拓扑 chrome export (448×423, AIC + one AIV × 2). Append-only copy of the
   # runtime panel asset — do not overwrite; bump a new batch if the Figma export changes again.
   v930-chrome:
