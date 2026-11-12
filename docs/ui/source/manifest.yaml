@@ -136,7 +136,8 @@ batches:
         components: [SourceView]
 
   # 1130 仿真上板公共 — multi-trace timeline selector (流水显示筛选) and related frames.
-  "1130":
+  # Unquoted batch key: scripts/check-design-assets.mjs parseSimpleYaml keeps quotes in keys.
+  1130:
     label: "1130 仿真上板公共（流水显示筛选）"
     files:
       - id: pipeline-display-filter
