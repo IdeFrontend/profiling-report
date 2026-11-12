@@ -61,7 +61,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 
 ## Dependencies
 
-- [ProfilingReport.spec.md](../../ProfilingReport/ProfilingReport.spec.md) — owns the list, appends and selects on `add-baseline`.
+- [ProfilingReport.spec.md](../../ProfilingReport/ProfilingReport.spec.md) — owns the checked set; the picker emits `update:baselines` only (the aside's Baseline dropdown is the global selector).
 - [ReportToolbar.spec.md](../ReportToolbar.spec.md) — hosts the trigger in the timeline action list.
 - Popover dismiss contract mirrors 显示控制 ([PR-TOOLBAR-010](../ReportToolbar.spec.md)).
 
@@ -75,7 +75,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 - **2026-11-12** — ТЗ rework: a single checkbox view replaces the two-view design — the checked set IS the host-owned baseline list (`update:baselines` on every toggle/Browse), no saved-list view, radios, −, Add Selected or other actions (PR-BASELINE-023..027; old 003..005, 007, 012..022 withdrawn).
 - **2026-11-11** — Second view (Add Recent) with the host's recent reports as checkboxes + Add Selected / Browse, footer actions on the list view (Set current as Baseline / Add Recent / Clear all / Deselect / Browse), per-view titles, and a content-adaptive panel width (PR-BASELINE-014..022).
 - **2026-11-11** — Selection radio per row (PR-BASELINE-013): real radio inputs in one native group on each row's left; checked = current baseline, none by default; clicking one selects exactly like the row click.
-- **2026-11-11** — Per-row − remove button (PR-BASELINE-012): emits `remove-baseline`, never selects, popover stays open.
+- **2026-11-12** — ТЗ rework (PR-BASELINE-012 withdrawn): row actions are gone — the single checkbox view is the whole picker; toggles emit `update:baselines`, Browse appends, nothing else. The popover stays open while rows are toggled.
 - **2026-11-11** — Trigger glyph replaced with the mockup-extracted add-baseline icon (1130 batch; replaces the flag; PR-BASELINE-011 restated).
 - **2026-11-10** — Review pass 2: panel bg uses the `--pr-surface-raised` token; popover closes when the hook gate is removed at runtime (root is `v-if`-gated, component survives); PR-BASELINE-010 asserts the rendered chrome classes (the tokens.css block is owned by PR-TOOLBAR-009c).
 - **2026-11-10** — Review pass: action-icon chrome moved to the shared `tokens.css` (PR-BASELINE-010 restated); trigger binds fallthrough attrs (`data-toolbar-clip`); root not rendered without the hook (no dead flex gap); listeners detach on unmount; Escape/× restore focus (PR-BASELINE-008b); hand-drawn glyph replaced with the HDesign 时间轴打点 export (PR-BASELINE-011); hook call is the only thing inside the add try/catch.
