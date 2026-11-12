@@ -161,14 +161,18 @@ const fields = computed(() => {
             :data-testid="part.match ? 'summary-field-match' : undefined"
           >{{ part.text }}</span>
         </span>
-        <span class="pr-summ__field-value">{{ field.value }}</span>
-        <SummaryDiffIndicator
-          v-if="field.diff && trimDiffMagnitude(field.diff.magnitude) !== '0'"
-          :tone="field.diff.tone"
-          :text="trimDiffMagnitude(field.diff.magnitude)"
-          :direction-label="t(field.diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased', locale)"
-          :data-testid="`summary-field-diff-${field.key}`"
-        />
+        <span class="pr-summ__field-side">
+          <span class="pr-summ__field-value">{{ field.value }}</span>
+          <!-- The delta badge stays on the SAME line, right after the value
+               (baseline-compare details mockup 1130). -->
+          <SummaryDiffIndicator
+            v-if="field.diff && trimDiffMagnitude(field.diff.magnitude) !== '0'"
+            :tone="field.diff.tone"
+            :text="trimDiffMagnitude(field.diff.magnitude)"
+            :direction-label="t(field.diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased', locale)"
+            :data-testid="`summary-field-diff-${field.key}`"
+          />
+        </span>
       </li>
     </ul>
   </div>
@@ -255,5 +259,14 @@ const fields = computed(() => {
   font-variant-numeric: tabular-nums;
   text-align: right;
   word-break: break-all;
+}
+
+/* Value + delta badge share one flex row so the badge never wraps under it. */
+.pr-summ__field-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
 }
 </style>

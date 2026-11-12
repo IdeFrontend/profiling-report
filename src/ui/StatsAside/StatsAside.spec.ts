@@ -3214,14 +3214,74 @@ describe('StatsAside', () => {
     });
     const chips = wrapper.findAll('[data-testid="pipe-baseline-value"]');
     expect(chips.map((c) => c.text())).toEqual(['80%', '60%']);
-    expect(wrapper.findAll('.pr-pipe-row__bar-val').map((v) => v.text())).toEqual(['50%', '30%']);
+    // The baseline bar rides the SAME chrome as the current bar: same
+    // `.pr-pipe-row__track`/`__bar`/`__bar-val` classes, value on the fill —
+    // the label is the only difference.
+    expect(
+      wrapper
+        .findAll('.pr-pipe-row')
+        .map((r) => r.findAll('.pr-pipe-row__bar-val').map((v) => v.text())),
+    ).toEqual([
+      ['50%', '80%'],
+      ['30%', '60%'],
+    ]);
     // The trailing pct yields to the on-bar value in comparison mode.
     expect(wrapper.findAll('.pr-pipe-row__pct')).toHaveLength(0);
-    // The baseline bar sits in the same row as the current track.
     const row = wrapper.findAll('.pr-pipe-row')[0];
-    expect(row.find('.pr-pipe-row__base-track').exists()).toBe(true);
-    expect(row.get('.pr-pipe-row__base-chip').text()).toBe('80%');
+    expect(row.findAll('.pr-pipe-row__track')).toHaveLength(2);
+    expect(row.findAll('.pr-pipe-row__bar')).toHaveLength(2);
+    expect(row.get('.pr-pipe-row__label--base').text()).toBe(t('baselineLabel'));
+    // The baseline bar uses the pipe's own chrome, not a special tone: the
+    // only class delta between the two tracks is the `--base` modifier.
+    const tracks = row.findAll('.pr-pipe-row__track');
+    expect(tracks[0].classes()).toEqual(['pr-pipe-row__track']);
+    expect(tracks[1].classes()).toEqual(['pr-pipe-row__track', 'pr-pipe-row__track--base']);
+    expect(tracks[1].find('.pr-pipe-row__bar').classes()).toEqual(
+      tracks[0].find('.pr-pipe-row__bar').classes(),
+    );
     wrapper.unmount();
+
+    // Baseline-only rows (the report has no such pipe) still show a bar.
+    const richer = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1 }, pipeOccupancy: pipes }),
+        baselineReport: adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const },
+              { id: 'cube', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' as const },
+            ],
+          }),
+        ),
+      },
+    });
+    const cubeRow = richer.findAll('.pr-pipe-row').find((r) => r.get('.pr-pipe-row__label').text() === 'Cube');
+    expect(cubeRow).toBeTruthy();
+    expect(cubeRow!.findAll('.pr-pipe-row__bar')).toHaveLength(1);
+    expect(cubeRow!.get('[data-testid="pipe-baseline-value"]').text()).toBe('40%');
+    richer.unmount();
+
+    // The section itself renders for a baseline pack even when the report has
+    // no pipe rows at all (sample.lite.rep carries no pipe payload).
+    const noPipes = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1 } }),
+        baselineReport: adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'cube', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' as const },
+            ],
+          }),
+        ),
+      },
+    });
+    expect(noPipes.find('[data-testid="pipe-occupancy"]').exists()).toBe(true);
+    const only = noPipes.findAll('.pr-pipe-row');
+    expect(only).toHaveLength(1);
+    expect(only[0].findAll('.pr-pipe-row__bar')).toHaveLength(1);
+    noPipes.unmount();
   });
 
   it('PR-STATS-046: duration diff shows green down / red up with the card-unit magnitude', () => {

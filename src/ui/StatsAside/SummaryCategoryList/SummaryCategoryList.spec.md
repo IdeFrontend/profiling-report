@@ -27,7 +27,7 @@ Searchable `summary.jsonl` category field list used under **All** block scope in
 1. **PR-SUMM-001** — Renders a tab per category; switching tabs changes visible fields.
 2. **PR-SUMM-002** — Search filters and highlights matching keys (same chip tokens as CsvFieldListPanel / UI-43).
 3. **PR-SUMM-003** — Zero matches leave an empty list; query survives tab switch.
-4. **PR-SUMM-004** — With `baselineCategories`, a field whose numeric value differs from the baseline's gets a tone badge with the bare delta right of its value (details show DELTAS); non-numeric or equal fields carry none.
+4. **PR-SUMM-004** — With `baselineCategories`, a field whose numeric value differs from the baseline's gets a tone badge with the bare delta right of its value (details show DELTAS); the badge shares the value's flex line wrapper, so it sits on the SAME line right after the value and never wraps under it; non-numeric or equal fields carry none.
 
 ## Visual
 

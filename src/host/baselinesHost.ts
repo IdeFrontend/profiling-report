@@ -73,25 +73,41 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
       ],
     };
   }
-  if (!model.pipeOccupancy?.length) {
-    // Broad demo row set so the baseline bar pairs with the open report's rows
-    // whatever the fixture: compute (Cube/Vector sides) and emulate cores.
-    const pipeSeed: Array<[string, string, string, string]> = [
-      ['cube', 'Cube', 'cube', 'cube'],
-      ['mte1', 'MTE1', 'mte1', 'cube'],
-      ['mte2', 'MTE2', 'mte2', 'cube'],
-      ['mte3', 'MTE3', 'mte3', 'cube'],
-      ['vector', 'Vector', 'vector', 'vector'],
-      ['mte1', 'MTE1', 'mte1', 'vector'],
-      ['mte2', 'MTE2', 'mte2', 'vector'],
-      ['mte3', 'MTE3', 'mte3', 'vector'],
-      ['scalar', 'Scalar', 'scalar', 'aic'],
-      ['scalar', 'Scalar', 'scalar', 'aiv0'],
-      ['scalar', 'Scalar', 'scalar', 'aiv1'],
-      ['mte3', 'MTE3', 'mte3', 'aic'],
-      ['mte3', 'MTE3', 'mte3', 'aiv0'],
-      ['mte3', 'MTE3', 'mte3', 'aiv1'],
-    ];
+  {
+    // Demo pipes REPLACE whatever the baseline fixture carried: the demo row
+    // set mirrors the real fixture shapes (vector-side reports plus the
+    // gelu-like aic/aiv0/aiv1 compute cores), so the bars pair with the open
+    // report's rows on every toggle — including Cube on fixtures whose own
+    // cube rows are all-zero or absent (out.rep carries no aic rows at all,
+    // which once left the Cube toggle without baseline bars).
+    const pipeSeed: Array<[string, string, string, string]> = [];
+    // Classic compute sides — sample.lite.rep and vector_muladd carry
+    // cube[..]/vector[..] rows (a mix report: cube AND vector side sets).
+    for (const side of ['cube', 'vector']) {
+      pipeSeed.push(
+        ['cube', 'Cube', 'cube', side],
+        ['mte1', 'MTE1', 'mte1', side],
+        ['mte2', 'MTE2', 'mte2', side],
+        ['mte3', 'MTE3', 'mte3', side],
+        ['fixp', 'Fixp', 'fixp', side],
+        ['scalar', 'Scalar', 'scalar', side],
+        ['icache', 'ICache', 'icache', side],
+        ['vector', 'Vector', 'vector', side],
+      );
+    }
+    // Emulate cores — gelu.npu-rep carries aic/aiv0/aiv1 rows.
+    for (const side of ['aic', 'aiv0', 'aiv1']) {
+      pipeSeed.push(
+        ['scalar', 'Scalar', 'scalar', side],
+        ['cube', 'Cube', 'cube', side],
+        ['fixp', 'Fixp', 'fixp', side],
+        ['mte1', 'MTE1', 'mte1', side],
+        ['mte2', 'MTE2', 'mte2', side],
+        ['mte3', 'MTE3', 'mte3', side],
+        ['simt', 'Simt', 'simt', side],
+        ['vector', 'Vector', 'vector', side],
+      );
+    }
     model.pipeOccupancy = pipeSeed.map(([id, label, colorKey, side], i) => ({
       id,
       label,

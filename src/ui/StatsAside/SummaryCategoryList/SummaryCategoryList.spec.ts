@@ -110,6 +110,15 @@ describe('SummaryCategoryList', () => {
     const up = wrapper.get('[data-testid="summary-field-diff-aiv_vec_ratio"]');
     expect(up.classes()).toContain('pr-diff--decrease');
     expect(up.get('.pr-diff__text').text()).toBe('0.2');
+    // The badge shares the value's flex line wrapper and follows it in DOM
+    // order — the same line, never wrapped under the first one.
+    const field = up.element.closest('.pr-summ__field') as HTMLElement;
+    const side = field.querySelector('.pr-summ__field-side') as HTMLElement;
+    expect(side.contains(field.querySelector('.pr-summ__field-value')!)).toBe(true);
+    expect(side.contains(up.element)).toBe(true);
+    expect(
+      (side.querySelector('.pr-summ__field-value') as HTMLElement).nextElementSibling,
+    ).toBe(up.element);
     // 0.6 − 0.8 = −0.2 → red up badge.
     const down = wrapper.get('[data-testid="summary-field-diff-aic_mte2_ratio"]');
     expect(down.classes()).toContain('pr-diff--increase');

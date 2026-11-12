@@ -1311,5 +1311,31 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
   // details: delta badges right of the values.
   await page.getByTestId('pipe-details').click();
   await expect(page.getByTestId('summary-category-list')).toBeVisible();
-  await expect(page.locator('[data-testid^="summary-field-diff-"]').first()).toBeVisible();
+  const badge = page.locator('[data-testid^="summary-field-diff-"]').first();
+  await expect(badge).toBeVisible();
+  // The badge shares the value's flex line wrapper — the same line, no wrap.
+  await expect(badge.locator('xpath=..')).toHaveClass(/pr-summ__field-side/);
+
+  // Cube fixture: the Cube toggle rows pair with the baseline and DIFFER.
+  await page.goto('/?fixture=gelu');
+  await page.getByTestId('toggle-baselines').click();
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+  await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
+  // Default side is Cube (aic): every row carries TWO identical-chrome bars.
+  await expect(page.getByTestId('pipe-side-toggle')).toBeVisible();
+  const cubeRow = page.locator('.pr-pipe-row').first();
+  await expect(cubeRow).toBeVisible();
+  await expect(cubeRow.locator('.pr-pipe-row__bar')).toHaveCount(2);
+  // The baseline bar reuses the current bar's chrome — only the label differs.
+  await expect(cubeRow.locator('.pr-pipe-row__label--base')).toBeVisible();
+  const baseA = await cubeRow.locator('[data-testid="pipe-baseline-value"]').textContent();
+  expect(baseA).toMatch(/\d+%/);
+  // Switching the operator visibly changes the cube baseline values.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect
+    .poll(async () => cubeRow.locator('[data-testid="pipe-baseline-value"]').textContent())
+    .not.toBe(baseA);
 });
