@@ -5,6 +5,7 @@ import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
+import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import * as adapters from '../../adapters';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
@@ -1689,17 +1690,24 @@ describe('ProfilingReport scaffold', () => {
       });
       await flushPromises();
       expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(true);
-      expect(wrapper.vm.selectedTimelineTraceId).toBe('pipeTrace');
-      expect(wrapper.vm.internalSwim?.processes[0]?.threads[0]?.name).toBe('pipe-lane');
+      const toolbar = () => wrapper.findComponent(ReportToolbar);
+      expect(toolbar().props('selectedTimelineTraceId')).toBe('pipeTrace');
+      expect(
+        (wrapper.findComponent(TimelineView).props('displaySwim') as typeof swimPipe).processes[0]
+          ?.threads[0]?.name,
+      ).toBe('pipe-lane');
 
       await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
       await wrapper.find('[data-trace-id="pipeTrace"]').trigger('click');
-      expect(wrapper.vm.selectedTimelineTraceId).toBe('pipeTrace');
+      expect(toolbar().props('selectedTimelineTraceId')).toBe('pipeTrace');
 
       await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
       await wrapper.find('[data-trace-id="communication"]').trigger('click');
-      expect(wrapper.vm.selectedTimelineTraceId).toBe('communication');
-      expect(wrapper.vm.internalSwim?.processes[0]?.threads[0]?.name).toBe('comm-lane');
+      expect(toolbar().props('selectedTimelineTraceId')).toBe('communication');
+      expect(
+        (wrapper.findComponent(TimelineView).props('displaySwim') as typeof swimComm).processes[0]
+          ?.threads[0]?.name,
+      ).toBe('comm-lane');
     } finally {
       spy.mockRestore();
     }
