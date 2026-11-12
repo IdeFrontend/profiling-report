@@ -145,3 +145,37 @@ batches:
         original_name: "memory-topology.svg"
         scenes: [memory-load, memory-topology]
         components: [MemoryTopologyPanel]
+
+  1130:
+    label: "1130 基线对比（baseline & source diff）"
+    files:
+      - id: baseline-compare
+        path: 1130/baseline-compare.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_基线数据对比.jpeg"
+        scenes: [baseline-compare, report-stats]
+        components: [StatsAside, StatsSummaryPanel]
+      - id: add-baseline
+        path: 1130/add-baseline.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_增加基线操作.jpeg"
+        scenes: [add-baseline]
+        components: [ReportToolbar]
+      - id: diff-detail
+        path: 1130/diff-detail.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_详情diff.jpeg"
+        scenes: [diff-detail]
+        components: [StatsAside]
+      - id: source-add-compare
+        path: 1130/source-add-compare.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_源码增加对比操作.jpeg"
+        scenes: [source-add-compare]
+        components: [SourceView]
+      - id: source-compare
+        path: 1130/source-compare.jpeg
+        original_name: "1130_仿真上板公共_baseline和源码diff_源码对比-Source.jpeg"
+        scenes: [source-compare]
+        components: [SourceView]
+      - id: lane-filter
+        path: 1130/lane-filter.jpeg
+        original_name: "1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg"
+        scenes: [lane-filter]
+        components: [SwimlaneView]

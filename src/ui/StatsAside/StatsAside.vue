@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue';
 import { t, archMetricModeLabel } from '../../i18n';
+import {
+  summaryDiffs,
+  type MetricDiff,
+  type SummaryMetricValues,
+} from '../../domain/metricDiff';
 import type {
+  AdaptedReport,
   BandwidthCardModel,
   Baseline,
   MemoryHeatmapUnitId,
@@ -36,6 +42,7 @@ import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import CannbotIcon from './CannbotIcon.vue';
 import CloseButton from '../CloseButton.vue';
+import SummaryDiffIndicator from './StatsSummaryPanel/SummaryDiffIndicator.vue';
 import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import type { CannbotScope } from '../../domain/cannbot';
 
@@ -58,7 +65,16 @@ const props = defineProps<{
   baselines?: Baseline[];
   /** Current baseline id; null/absent = "Not selected". */
   selectedBaselineId?: string | null;
+  /**
+   * The selected baseline's adapted pack (对比基线). Absent = the comparison state is
+   * off and the aside renders exactly as before. Data-only side channel: never enters
+   * the main load path.
+   */
+  baselineReport?: AdaptedReport | null;
+  /** Current report's operator id — auto-pairs the baseline pack when it matches. */
+  selectedOperatorId?: string | null;
 }>();
+
 
 const emit = defineEmits<{
   close: [];
@@ -105,9 +121,11 @@ const hasDuration = computed(
 /** One block selector for every widget (DATA-19 / DATA-29): `''` = All, else that `block_id`. */
 const blockId = ref('');
 
-/** Rows for one CSV in the picked block; searches compute and memory tabs (DATA-19). */
-function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
-  const report = props.report;
+function rowsForBlockOf(
+  report: ReportViewModel | null | undefined,
+  fileName: string,
+  id: string,
+): Record<string, string>[] {
   if (!report) return [];
   const table = [...report.computeTables, ...report.memoryTables].find(
     (t) => t.fileName === fileName,
@@ -115,26 +133,168 @@ function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
   return table ? table.rows.filter((r) => r['block_id'] === id) : [];
 }
 
-const bandwidthCards = computed(() => {
-  const id = blockId.value;
-  const all = props.report?.bandwidthCards ?? [];
+/** Rows for one CSV in the picked block; searches compute and memory tabs (DATA-19). */
+function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
+  return rowsForBlockOf(props.report, fileName, id);
+}
+
+function bandwidthCardsOf(
+  report: ReportViewModel | null | undefined,
+  id: string,
+): BandwidthCardModel[] {
+  const all = report?.bandwidthCards ?? [];
   if (!id) return all;
-  const peak = props.report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
+  const peak = report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
   // A block with no `Memory.csv` shows no tile — never the All aggregate wearing its label.
-  return bandwidthCardsFromRows(rowsForBlock('Memory.csv', id), peak);
-});
-const computeCard = computed(() => {
-  const id = blockId.value;
-  const all = props.report?.computeCard;
+  return bandwidthCardsFromRows(rowsForBlockOf(report, 'Memory.csv', id), peak);
+}
+
+function computeCardOf(report: ReportViewModel | null | undefined, id: string) {
+  const all = report?.computeCard;
   if (!id) return all;
   // Peak is per-chip (DATA-29), so the picked block re-reads only the measured side and inherits
   // the peak; nothing to read (no row) blanks the tile rather than repeating the All value.
   return computeCardFromRows(
-    rowsForBlock('ArithmeticUtilization.csv', id),
-    props.report?.summary ?? {},
+    rowsForBlockOf(report, 'ArithmeticUtilization.csv', id),
+    report?.summary ?? {},
     all,
   );
+}
+
+const bandwidthCards = computed(() => bandwidthCardsOf(props.report, blockId.value));
+const computeCard = computed(() => computeCardOf(props.report, blockId.value));
+
+/* ===== Baseline comparison (对比基线) — summary cards slice =====
+ * Later slices (PIPE, roofline, topology, 详情) read the same context: the
+ * resolved baseline model + `summaryDiffs` stay aside-local and reusable. */
+
+const baselineReport = computed(() => props.baselineReport ?? null);
+
+/** Operator options for the baseline pack; a flat pack synthesizes one option (fix: dropdown is always shown). */
+const baselineOperatorOptions = computed(() => {
+  const rep = baselineReport.value;
+  if (!rep) return [];
+  if (rep.operators && rep.operators.length > 0) {
+    return rep.operators.map((o) => ({ id: o.id, label: o.label }));
+  }
+  const keys = Object.keys(rep.operatorReports ?? {});
+  if (keys.length > 0) return keys.map((id) => ({ id, label: id }));
+  const opName = rep.reportModel?.summary.opName;
+  return opName ? [{ id: opName, label: opName }] : [];
 });
+
+/** Session-only aside choice; auto-pairs the current report's operator when it matches. */
+const baselineOperatorChoice = ref<string | null>(null);
+
+const resolvedBaselineOperatorId = computed(() => {
+  const options = baselineOperatorOptions.value;
+  if (options.length === 0) return null;
+  const choice = baselineOperatorChoice.value;
+  if (choice != null && options.some((o) => o.id === choice)) return choice;
+  const paired = props.selectedOperatorId;
+  if (paired != null && options.some((o) => o.id === paired)) return paired;
+  return options[0].id;
+});
+
+/** The baseline pack's ReportViewModel for the resolved operator. */
+const baselineModel = computed<ReportViewModel | null>(() => {
+  const rep = baselineReport.value;
+  if (!rep) return null;
+  const id = resolvedBaselineOperatorId.value;
+  if (id == null) return rep.reportModel;
+  return rep.operatorReports?.[id]?.reportModel ?? rep.reportModel;
+});
+
+function sumMeasuredGBs(cards: BandwidthCardModel[], id: string): number | undefined {
+  const card = cards.find((c) => c.id === id);
+  if (!card || card.sides.length === 0) return undefined;
+  return card.sides.reduce((a, s) => a + s.measuredGBs, 0);
+}
+
+/** Raw card metrics of one report side, in the card's own units. */
+function metricValues(report: ReportViewModel | null | undefined, id: string): SummaryMetricValues {
+  const bw = bandwidthCardsOf(report, id);
+  const readCard = bw.find((c) => c.id === 'input');
+  const writeCard = bw.find((c) => c.id === 'output');
+  const compute = computeCardOf(report, id);
+  return {
+    taskDurationUs: report?.summary.taskDurationUs,
+    parallelUtilization: report?.summary.parallelUtilization,
+    parallelBalance: report?.summary.parallelBalance,
+    compute: {
+      aic: compute?.sides.find((s) => s.side === 'aic'),
+      aiv: compute?.sides.find((s) => s.side === 'aiv'),
+    },
+    bandwidth: {
+      read: readCard
+        ? { measuredGBs: sumMeasuredGBs(bw, 'input'), peakGBs: readCard.sides[0]?.peakGBs }
+        : undefined,
+      write: writeCard
+        ? { measuredGBs: sumMeasuredGBs(bw, 'output'), peakGBs: writeCard.sides[0]?.peakGBs }
+        : undefined,
+    },
+  };
+}
+
+const diffs = computed(() => {
+  const bl = baselineModel.value;
+  if (!bl || !props.report) return null;
+  return summaryDiffs(
+    metricValues(props.report, blockId.value),
+    metricValues(bl, blockId.value),
+  );
+});
+
+/** 2 decimals max, trailing zeros trimmed: 5.00 → '5', 2.40 → '2.4'. */
+function trimNum(n: number): string {
+  return String(Number(n.toFixed(2)));
+}
+
+/**
+ * Diff text per metric — the mockup prints the unsigned magnitude in the
+ * metric's own unit: bare number for duration (unit implied by the base
+ * value) and compute, `%` attached for AICore/BW. Returns '' when a magnitude
+ * rounds to zero (no badge).
+ */
+function diffText(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): string {
+  if (!diff) return '';
+  if (kind === 'pct') {
+    const s = trimNum(diff.magnitude);
+    return s === '0' ? '' : `${s}%`;
+  }
+  if (kind === 'duration') {
+    // Same unit as the current card's base value: ms when it prints ms, else µs.
+    const us = props.report?.summary.taskDurationUs;
+    const s = us != null && us >= 1000 ? trimNum(diff.magnitude / 1000) : trimNum(diff.magnitude);
+    return s === '0' ? '' : s;
+  }
+  const s = trimNum(diff.magnitude);
+  return s === '0' ? '' : s;
+}
+
+function diffDirectionLabel(tone: MetricDiff['tone']): string {
+  return tone === 'increase' ? t('diffIncreased', props.locale) : t('diffDecreased', props.locale);
+}
+
+interface DiffView {
+  tone: MetricDiff['tone'];
+  text: string;
+  label: string;
+}
+
+/** A renderable diff: null when the metric is missing, equal, or rounds to zero. */
+function diffView(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): DiffView | null {
+  const text = diffText(diff, kind);
+  return diff && text ? { tone: diff.tone, text, label: diffDirectionLabel(diff.tone) } : null;
+}
+
+const durationDiff = computed(() => diffView(diffs.value?.taskDurationUs, 'duration'));
+const parallelDiff = computed(() => diffView(diffs.value?.parallelUtilization, 'pct'));
+const balanceDiff = computed(() => diffView(diffs.value?.parallelBalance, 'pct'));
+const computeAicDiff = computed(() => diffView(diffs.value?.computeAic, 'bare'));
+const computeAivDiff = computed(() => diffView(diffs.value?.computeAiv, 'bare'));
+const bwReadDiff = computed(() => diffView(diffs.value?.bandwidthRead, 'pct'));
+const bwWriteDiff = computed(() => diffView(diffs.value?.bandwidthWrite, 'pct'));
 const roofline = computed(() => {
   const id = blockId.value;
   if (!id) return props.report?.roofline;
@@ -668,6 +828,7 @@ watch(
   { immediate: true },
 );
 
+
 function numericBlockDim(blockDim: string | number | undefined): number | undefined {
   if (blockDim == null || blockDim === '') return undefined;
   const n = typeof blockDim === 'number' ? blockDim : Number(blockDim);
@@ -1006,6 +1167,31 @@ const detailTestId = computed(() => {
           @click="emit('close')"
         />
       </div>
+      <div
+        v-if="baselineReport && baselineOperatorOptions.length > 0"
+        class="pr-aside__baseline"
+        data-testid="stats-baseline-compare"
+      >
+        <span class="pr-aside__baseline-label">{{ t('baselineCompare', locale) }}</span>
+        <span class="pr-aside__baseline-select">
+          <select
+            data-testid="stats-baseline-operator"
+            :value="resolvedBaselineOperatorId ?? ''"
+            @change="baselineOperatorChoice = ($event.target as HTMLSelectElement).value"
+          >
+            <option
+              v-for="o in baselineOperatorOptions"
+              :key="o.id"
+              :value="o.id"
+            >{{ o.label }}</option>
+          </select>
+          <span
+            class="pr-aside__baseline-chevron"
+            aria-hidden="true"
+          />
+        </span>
+      </div>
+
       <p
         v-if="hasMeta || showMore"
         class="pr-aside__meta"
@@ -1104,7 +1290,13 @@ const detailTestId = computed(() => {
             >
               <span class="pr-card__num">{{ durationParts.value }}</span>
               <span class="pr-card__unit">{{ durationParts.unit }}</span>
-            </div>
+              <SummaryDiffIndicator
+                v-if="durationDiff"
+                :tone="durationDiff.tone"
+                :text="durationDiff.text"
+                :direction-label="durationDiff.label"
+                data-testid="stats-duration-diff"
+              />            </div>
             <div
               v-if="durationSecondary && !durationBreakdown"
               class="pr-card__value-meta"
@@ -1168,7 +1360,13 @@ const detailTestId = computed(() => {
                 >
                   <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
                   <span class="pr-card__unit">%</span>
-                </span>
+                  <SummaryDiffIndicator
+                    v-if="row.id === 'util' ? parallelDiff : balanceDiff"
+                    :tone="(row.id === 'util' ? parallelDiff : balanceDiff)!.tone"
+                    :text="(row.id === 'util' ? parallelDiff : balanceDiff)!.text"
+                    :direction-label="(row.id === 'util' ? parallelDiff : balanceDiff)!.label"
+                    :data-testid="`stats-aicore-${row.id}-diff`"
+                  />                </span>
                 <span
                   class="pr-bw-col__side"
                   :data-tip="row.labelTip.value"
@@ -1218,7 +1416,13 @@ const detailTestId = computed(() => {
                   v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
-                </span>
+                  <SummaryDiffIndicator
+                    v-if="row.side === 'aic' ? computeAicDiff : computeAivDiff"
+                    :tone="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.tone"
+                    :text="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.text"
+                    :direction-label="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.label"
+                    :data-testid="`stats-compute-${row.side}-diff`"
+                  />                </span>
                 <span
                   class="pr-bw-col__side"
                   :data-tip="row.labelTip.value"
@@ -1282,7 +1486,13 @@ const detailTestId = computed(() => {
                 >
                   <span class="pr-card__num">{{ row.score }}</span>
                   <span class="pr-card__unit">%</span>
-                </span>
+                  <SummaryDiffIndicator
+                    v-if="row.dir === 'read' ? bwReadDiff : bwWriteDiff"
+                    :tone="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.tone"
+                    :text="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.text"
+                    :direction-label="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.label"
+                    :data-testid="`stats-bandwidth-${row.dir}-diff`"
+                  />                </span>
                 <span
                   class="pr-bw-col__side"
                   :data-tip="row.labelTip.value"
@@ -1879,6 +2089,77 @@ const detailTestId = computed(() => {
   line-height: 16px;
   color: #999999;
   white-space: nowrap;
+}
+
+/* 对比基线 operator row (1130 方案一, baseline-compare.jpeg): inline 基线 label +
+   flat #2a2a2a select with a thin chevron, between the title and the meta row. */
+.pr-aside__baseline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0 0;
+}
+
+.pr-aside__baseline-label {
+  font-size: 12px;
+  line-height: 16px;
+  color: #999999;
+}
+
+.pr-aside__baseline-select {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pr-aside__baseline-select select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 24px 0 9px;
+  border: 0;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #e6e6e6;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.pr-aside__baseline-select select:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
+}
+
+.pr-aside__baseline-chevron {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  color: #b3b3b3;
+}
+
+/* Same border-triangle glyph as the toolbar select chevron, drawn down. */
+.pr-aside__baseline-chevron::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 1.2px 1.2px 0;
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
 }
 
 .pr-aside__meta-seg {

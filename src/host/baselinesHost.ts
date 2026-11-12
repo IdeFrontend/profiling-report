@@ -1,10 +1,13 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import type { Ref } from 'vue';
-import type { Baseline, BaselinePick } from '../domain/types';
+import { loadReportSource } from '../adapters/loadReportSource';
+import type { Baseline, BaselinePick, BaselineReportData } from '../domain/types';
 
 export interface BaselinesHost {
   baselines: Ref<Baseline[]>;
   selectedBaselineId: Ref<string | null>;
+  /** Adapted pack of the selected baseline; null until adapted / on failure. */
+  baselineReport: Ref<BaselineReportData | null>;
   pickBaselineFile(): Promise<BaselinePick | null>;
   onBaselinesUpdate(next: Baseline[]): void;
   onSelectedBaselineId(id: string | null): void;
@@ -82,8 +85,60 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
 export function createBaselinesHost(
   input: () => HTMLInputElement | null,
 ): BaselinesHost {
-  const baselines = ref<Baseline[]>([]);
+const baselines = ref<Baseline[]>([]);
   const selectedBaselineId = ref<string | null>(null);
+  /**
+   * Adapted pack of the selected baseline (对比基线 comparison). The library
+   * renders and selects; this host adapts the picked File itself via the public
+   * `loadReportSource` and tags the result with the baseline id, so a late
+   * adaptation can never paint under a new selection.
+   */
+  const baselineReport = ref<BaselineReportData | null>(null);
+
+  /** Picked File by pseudo-path — the browser cannot reopen a path, so the bytes live here. */
+  const filesByPath = new Map<string, File>();
+
+  /**
+   * Bumped on every resolved pick, even when the path dedupes onto the already
+   * selected row: the watcher below would otherwise never re-run and a
+   * re-pick after reload would never refresh the payload.
+   */
+  const pickNonce = ref(0);
+
+  /** Monotonic guard: a stale adaptation is discarded. */
+  let adaptGen = 0;
+
+  watch(
+    () => [baselines.value, selectedBaselineId.value, pickNonce.value] as const,
+    async ([list, sel]) => {
+      const gen = ++adaptGen;
+      if (!sel) {
+        baselineReport.value = null;
+        return;
+      }
+      const entry = list.find((b) => b.id === sel);
+      const file = entry ? filesByPath.get(entry.path) : undefined;
+      if (!entry || !file) {
+        // No retained bytes (e.g. a demo list entry with no backing file):
+        // graceful no-comparison state until the user picks a real file.
+        baselineReport.value = null;
+        return;
+      }
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const report = loadReportSource(
+          bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+        );
+        if (gen !== adaptGen) return; // stale — a newer pick superseded this run
+        baselineReport.value = { baselineId: sel, report };
+      } catch (err) {
+        // Corrupt/unsupported baseline degrades to "no comparison", never to the main report's error state.
+        console.warn('[baselinesHost] baseline adaptation failed', err);
+        baselineReport.value = null;
+      }
+    },
+    { immediate: true },
+  );
 
   function onBaselinesUpdate(next: Baseline[]): void {
     baselines.value = next;
@@ -121,7 +176,10 @@ export function createBaselinesHost(
     // size/mtime) appends instead of re-selecting; comparison rendering must
     // treat `path` as opaque. Real hosts (MSTT) return absolute paths and never
     // see this.
-    resolve({ name: file.name, path: `${file.name} (${file.size} B, ${file.lastModified})` });
+    const path = `${file.name} (${file.size} B, ${file.lastModified})`;
+    filesByPath.set(path, file);
+    pickNonce.value += 1;
+    resolve({ name: file.name, path });
   }
 
   function onPickCancel(): void {
@@ -133,6 +191,7 @@ export function createBaselinesHost(
   return {
     baselines,
     selectedBaselineId,
+    baselineReport,
     pickBaselineFile,
     onBaselinesUpdate,
     onSelectedBaselineId,

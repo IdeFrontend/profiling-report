@@ -36,6 +36,7 @@ import {
   normalizeDependencyDepth,
   type AdaptedReport,
   type Baseline,
+  type BaselineReportData,
   type BaselinePick,
   type DependencyMode,
   type MeasureRange,
@@ -175,6 +176,14 @@ const props = withDefaults(defineProps<{
    * the bundled web hosts: the shared demo list). Host-owned: the checked set
    * IS the `baselines` list and every toggle comes back as `update:baselines`.
    */
+  /**
+   * The selected baseline's adapted pack (对比基线 comparison), supplied by the
+   * host: it adapts the baseline bytes itself via the public `loadReportSource`
+   * and tags the result with the baseline id. Data-only side channel — never
+   * enters the main load path; a payload whose id does not match the current
+   * selection is ignored (a late adaptation must not paint under a new pick).
+   */
+  baselineReport?: BaselineReportData | null;
   recentBaselines?: Baseline[];
 }>(), {
   title: undefined,
@@ -1777,6 +1786,18 @@ function onAside(visible: boolean) {
 }
 
 /**
+ * The baseline payload is honored only while it matches the current selection:
+ * a late adaptation (the host re-picked while an earlier one was in flight)
+ * must not paint under the new selection. Data-only — never touches the load
+ * path, never sets loadError / capabilities / view state.
+ */
+const activeBaselineReport = computed<AdaptedReport | null>(() => {
+  const payload = props.baselineReport;
+  if (!payload || payload.baselineId !== props.selectedBaselineId) return null;
+  return payload.report;
+});
+
+/**
  * The picker's checkbox set IS the baseline list (host-owned, one view). The
  * only invariant the root adds: the selection can never point at a baseline
  * that is not in the list — an uncheck of the selected report clears it.
@@ -2054,6 +2075,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           v-model:arch-metric-mode="archMetricMode"
           :baselines="baselines ?? []"
           :selected-baseline-id="selectedBaselineId ?? null"
+          :baseline-report="activeBaselineReport"
           @update:selected-baseline-id="emit('update:selectedBaselineId', $event)"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"

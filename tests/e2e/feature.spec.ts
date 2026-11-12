@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../../src/ui/panelResize';
@@ -1090,6 +1092,46 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   for (let i = 0; i < 5; i++) {
     await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
   }
+});
+
+test('PR-E2E-021: a browsed real report adapts and paints the aside comparison badges', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('stats-aside')).toBeVisible();
+  // No comparison without an adapted baseline pack.
+  await expect(page.locator('.pr-diff')).toHaveCount(0);
+
+  // Browse a REAL report (real bytes, so the host glue can adapt it).
+  const outRep = readFileSync(resolve(process.cwd(), 'data/out.rep'));
+  await page.getByTestId('toggle-baselines').click();
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('baseline-browse').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'out.rep',
+    mimeType: 'application/octet-stream',
+    buffer: outRep,
+  });
+
+  // The browsed report is checked; pick it in the aside Baseline dropdown —
+  // the host adapts its retained bytes and hands the pack to the aside.
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+  await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
+
+  // The comparison slice paints the 基线 operator row (flat pack synthesizes
+  // its opName option) and tone badges with deltas on the summary cards.
+  await expect(page.getByTestId('stats-baseline-compare')).toBeVisible();
+  await expect(page.locator('.pr-diff').first()).toBeVisible();
+
+  // Demo-list entries carry no backing bytes: checking + selecting one
+  // degrades gracefully — no comparison row, no badges, no error. (The
+  // popover is still open — the aside select stops pointerdown, so the
+  // outside-dismiss never fires; a toggle here would CLOSE it.)
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(2).click();
+  await expect(page.getByTestId('stats-baseline-compare')).toBeHidden();
+  await expect(page.locator('.pr-diff')).toHaveCount(0);
 });
 
 test('PR-E2E-022: the aside Baseline dropdown always shows and follows the checked set', async ({ page }) => {

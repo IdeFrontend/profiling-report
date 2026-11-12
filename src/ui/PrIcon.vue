@@ -27,7 +27,9 @@ export type PrIconName =
   | 'sort-asc'
   | 'sort-desc'
   | 'layers'
-  | 'add-baseline';
+  | 'add-baseline'
+  | 'diff-up'
+  | 'diff-down';
 
 defineProps<{ name: PrIconName }>();
 </script>
@@ -144,5 +146,15 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--add-baseline {
   -webkit-mask-image: url('./icons/add-baseline.png');
   mask-image: url('./icons/add-baseline.png');
+}
+
+.pr-icon--diff-up {
+  -webkit-mask-image: url('./icons/diff-up.png');
+  mask-image: url('./icons/diff-up.png');
+}
+
+.pr-icon--diff-down {
+  -webkit-mask-image: url('./icons/diff-down.png');
+  mask-image: url('./icons/diff-down.png');
 }
 </style>

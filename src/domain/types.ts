@@ -668,3 +668,15 @@ export interface BaselinePick {
   /** Display name; the root falls back to the path basename when omitted. */
   name?: string;
 }
+
+/**
+ * The selected baseline's adapted pack, supplied by the host: it adapts the
+ * baseline bytes itself via the public `loadReportSource` and tags the result
+ * with the baseline id it belongs to. The root ignores a payload whose id does
+ * not match the current selection (a late adaptation must not paint under a
+ * new selection). The library never reads the filesystem.
+ */
+export interface BaselineReportData {
+  baselineId: string;
+  report: AdaptedReport;
+}

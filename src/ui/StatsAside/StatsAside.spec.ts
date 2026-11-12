@@ -8,7 +8,7 @@ import {
   firstLabelledMemoryTopology,
 } from '../../adapters/memoryTopology';
 import { parseRep } from '../../adapters/parseRep';
-import type { ReportViewModel, RooflineViewModel } from '../../domain/types';
+import type { AdaptedReport, ReportViewModel, RooflineViewModel } from '../../domain/types';
 import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
 import { t } from '../../i18n';
 
@@ -3093,4 +3093,276 @@ describe('StatsAside', () => {
     });
     expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(false);
   });
+  /* ===== Baseline comparison (对比基线, 1130 方案一) — PR-STATS-044..051 ===== */
+
+  /** Minimal baseline pack: the aside reads only `reportModel` (and operators) for the slice. */
+  function adaptedPack(model: ReportViewModel): AdaptedReport {
+    return { reportModel: model, swimlaneModel: null };
+  }
+
+  const BASELINE_ROW = '[data-testid="stats-baseline-compare"]';
+
+  it('PR-STATS-044: 基线 operator row renders only with a pack, between title and meta', () => {
+    // No baseline: no operator row, no diff chrome — the aside renders as before.
+    const plain = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', taskDurationUs: 1000 } }),
+      },
+    });
+    expect(plain.find(BASELINE_ROW).exists()).toBe(false);
+    expect(plain.findAll('.pr-diff')).toHaveLength(0);
+
+    const withBase = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', taskDurationUs: 1000 } }),
+        baselineReport: adaptedPack(report({ summary: { taskDurationUs: 900, opName: 'relu' } })),
+      },
+    });
+    const row = withBase.get(BASELINE_ROW);
+    expect(row.text()).toContain(t('baselineCompare'));
+    expect(row.find('[data-testid="stats-baseline-operator"]').exists()).toBe(true);
+    // Placement (1130 方案一): after the title row, before the meta paragraph.
+    const head = withBase.get('.pr-aside__head');
+    const title = head.get('.pr-aside__title-row');
+    const meta = head.get('[data-testid="stats-aside-meta"]');
+    expect(
+      row.element.compareDocumentPosition(title.element) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(
+      row.element.compareDocumentPosition(meta.element) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('PR-STATS-045: operator select lists the pack, pairs with the current op, keeps a session-only pick', async () => {
+    const baseline: AdaptedReport = {
+      ...adaptedPack(report({ summary: { taskDurationUs: 500, opName: 'op-a' } })),
+      operators: [
+        { id: 'op-a', label: 'Op A' },
+        { id: 'op-b', label: 'Op B' },
+      ],
+      operatorReports: {
+        'op-a': adaptedPack(report({ summary: { taskDurationUs: 500, parallelUtilization: 0.9 } })),
+        'op-b': adaptedPack(report({ summary: { taskDurationUs: 700, parallelUtilization: 0.7 } })),
+      },
+    };
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000, parallelUtilization: 0.5 } }),
+        baselineReport: baseline,
+        selectedOperatorId: 'op-b',
+      },
+    });
+    const select = wrapper.get('[data-testid="stats-baseline-operator"]');
+    expect(select.findAll('option').map((o) => o.element.value)).toEqual(['op-a', 'op-b']);
+    // Auto-pairing: a valid selectedOperatorId is the default.
+    expect((select.element as HTMLSelectElement).value).toBe('op-b');
+    // op-b baseline 0.7 vs current 0.5 → 70% − 50% = green down 20%.
+    expect(wrapper.get('[data-testid="stats-aicore-util-diff"] .pr-diff__text').text()).toBe('20%');
+
+    // A session-only pick overrides the pairing and emits nothing (host state untouched).
+    await select.setValue('op-a');
+    expect((select.element as HTMLSelectElement).value).toBe('op-a');
+    expect(
+      Object.keys(wrapper.emitted()).filter((k) => k.startsWith('update:')),
+    ).toEqual([]);
+    // op-a baseline 0.9 vs current 0.5 → 90% − 50% = green down 40%.
+    expect(wrapper.get('[data-testid="stats-aicore-util-diff"] .pr-diff__text').text()).toBe('40%');
+  });
+
+  it('PR-STATS-045: a flat pack synthesizes its single option from summary.opName', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000 } }),
+        baselineReport: adaptedPack(report({ summary: { taskDurationUs: 500, opName: 'relu' } })),
+      },
+    });
+    const select = wrapper.get('[data-testid="stats-baseline-operator"]');
+    expect(select.findAll('option').map((o) => o.element.value)).toEqual(['relu']);
+    expect((select.element as HTMLSelectElement).value).toBe('relu');
+  });
+
+  it('PR-STATS-046: duration diff shows green down / red up with the card-unit magnitude', () => {
+    // current 4.60 ms vs baseline 7.00 ms → 2400 µs lower = green down 2.4 (ms, not µs).
+    const decreased = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 4600 } }),
+        baselineReport: adaptedPack(report({ summary: { taskDurationUs: 7000, opName: 'relu' } })),
+      },
+    });
+    const down = decreased.get('[data-testid="stats-duration-diff"]');
+    expect(down.classes()).toContain('pr-diff--decrease');
+    expect(down.find('.pr-icon').classes()).toContain('pr-icon--diff-down');
+    expect(down.get('.pr-diff__text').text()).toBe('2.4');
+
+    const increased = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 7000 } }),
+        baselineReport: adaptedPack(report({ summary: { taskDurationUs: 4600, opName: 'relu' } })),
+      },
+    });
+    const up = increased.get('[data-testid="stats-duration-diff"]');
+    expect(up.classes()).toContain('pr-diff--increase');
+    expect(up.find('.pr-icon').classes()).toContain('pr-icon--diff-up');
+    expect(up.get('.pr-diff__text').text()).toBe('2.4');
+
+    // A sub-ms card prints µs, so the delta stays in µs.
+    const micro = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 500 } }),
+        baselineReport: adaptedPack(report({ summary: { taskDurationUs: 700, opName: 'relu' } })),
+      },
+    });
+    expect(micro.get('[data-testid="stats-duration-diff"] .pr-diff__text').text()).toBe('200');
+  });
+
+  it('PR-STATS-047: AICore 并行使用率/负载均衡度 diffs in percentage points per column', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, parallelUtilization: 0.5, parallelBalance: 0.7 },
+        }),
+        baselineReport: adaptedPack(
+          report({
+            summary: { taskDurationUs: 1000, opName: 'relu', parallelUtilization: 0.7, parallelBalance: 0.5 },
+          }),
+        ),
+      },
+    });
+    const util = wrapper.get('[data-testid="stats-aicore-util-diff"]');
+    expect(util.classes()).toContain('pr-diff--decrease'); // 70% − 50%
+    expect(util.get('.pr-diff__text').text()).toBe('20%');
+    const bal = wrapper.get('[data-testid="stats-aicore-balance-diff"]');
+    expect(bal.classes()).toContain('pr-diff--increase'); // 50% − 70%
+    expect(bal.get('.pr-diff__text').text()).toBe('20%');
+  });
+
+  it('PR-STATS-048: compute Cube/Vector diffs render as bare numbers', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          computeCard: {
+            sides: [
+              { side: 'aic', measuredTflops: 100, peakTflops: 200 },
+              { side: 'aiv', measuredTflops: 80, peakTflops: 160 },
+            ],
+          },
+        }),
+        baselineReport: adaptedPack(
+          report({
+            summary: { taskDurationUs: 1000, opName: 'relu' },
+            computeCard: {
+              sides: [
+                { side: 'aic', measuredTflops: 172, peakTflops: 320 },
+                { side: 'aiv', measuredTflops: 70, peakTflops: 160 },
+              ],
+            },
+          }),
+        ),
+      },
+    });
+    const aic = wrapper.get('[data-testid="stats-compute-aic-diff"]');
+    expect(aic.classes()).toContain('pr-diff--decrease'); // 53.75 − 50
+    expect(aic.get('.pr-diff__text').text()).toBe('3.75');
+    const aiv = wrapper.get('[data-testid="stats-compute-aiv-diff"]');
+    expect(aiv.classes()).toContain('pr-diff--increase'); // 43.75 − 50
+    expect(aiv.get('.pr-diff__text').text()).toBe('6.25');
+  });
+
+  it('PR-STATS-049: bandwidth 读/写 diffs in percentage points with % attached', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          bandwidthCards: [
+            {
+              id: 'input',
+              sides: [
+                { side: 'aic', measuredGBs: 80, peakGBs: 1600 },
+                { side: 'aiv', measuredGBs: 80, peakGBs: 1600 },
+              ],
+            },
+            { id: 'output', sides: [{ side: 'aiv', measuredGBs: 32, peakGBs: 1600 }] },
+          ],
+        }),
+        baselineReport: adaptedPack(
+          report({
+            summary: { taskDurationUs: 1000, opName: 'relu' },
+            bandwidthCards: [
+              { id: 'input', sides: [{ side: 'aic', measuredGBs: 800, peakGBs: 1600 }] },
+              { id: 'output', sides: [{ side: 'aiv', measuredGBs: 16, peakGBs: 1600 }] },
+            ],
+          }),
+        ),
+      },
+    });
+    const read = wrapper.get('[data-testid="stats-bandwidth-read-diff"]');
+    expect(read.classes()).toContain('pr-diff--decrease'); // 50 − 10
+    expect(read.get('.pr-diff__text').text()).toBe('40%');
+    const write = wrapper.get('[data-testid="stats-bandwidth-write-diff"]');
+    expect(write.classes()).toContain('pr-diff--increase'); // 1 − 2
+    expect(write.get('.pr-diff__text').text()).toBe('1%');
+  });
+
+  it('PR-STATS-050: missing sides, equal values, and sub-precision deltas suppress badges', () => {
+    // Baseline without 负载均衡度: the util badge renders, the balance one does not.
+    const missing = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, parallelUtilization: 0.5, parallelBalance: 0.7 },
+        }),
+        baselineReport: adaptedPack(
+          report({ summary: { taskDurationUs: 1000, opName: 'relu', parallelUtilization: 0.7 } }),
+        ),
+      },
+    });
+    expect(missing.find('[data-testid="stats-aicore-util-diff"]').exists()).toBe(true);
+    expect(missing.find('[data-testid="stats-aicore-balance-diff"]').exists()).toBe(false);
+
+    // Self-compare: equal metrics → no badges, but the operator row stays.
+    const equal = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000, parallelUtilization: 0.5 } }),
+        baselineReport: adaptedPack(
+          report({ summary: { taskDurationUs: 1000, opName: 'relu', parallelUtilization: 0.5 } }),
+        ),
+      },
+    });
+    expect(equal.find(BASELINE_ROW).exists()).toBe(true);
+    expect(equal.findAll('.pr-diff')).toHaveLength(0);
+
+    // 0.2 µs on a card that prints ms rounds to zero → suppressed.
+    const tiny = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000 } }),
+        baselineReport: adaptedPack(report({ summary: { taskDurationUs: 1000.2, opName: 'relu' } })),
+      },
+    });
+    expect(tiny.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-051: indicator chrome matches the mockup badge (tone tint, arrow mask, muted delta, sr word)', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        locale: 'en',
+        report: report({ summary: { taskDurationUs: 2000 } }),
+        baselineReport: adaptedPack(report({ summary: { taskDurationUs: 1000, opName: 'relu' } })),
+      },
+    });
+    const badge = wrapper.get('[data-testid="stats-duration-diff"]');
+    expect(badge.classes()).toContain('pr-diff');
+    expect(badge.classes()).toContain('pr-diff--increase');
+    expect(badge.get('.pr-diff__badge .pr-icon').classes()).toContain('pr-icon--diff-up');
+    expect(badge.get('.pr-diff__text').text()).toBe('1');
+    // The sr-only direction word keeps AT informed of the tone.
+    expect(badge.get('.pr-field-sr').text()).toBe('Increased');
+
+    const src = (await import('./StatsSummaryPanel/SummaryDiffIndicator.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-diff__badge\s*\{[^}]*width:\s*12px/);
+    expect(src).toMatch(/\.pr-diff__badge\s*\{[^}]*height:\s*12px/);
+    expect(src).toMatch(/\.pr-diff__badge \.pr-icon\s*\{[^}]*width:\s*8px/);
+    expect(src).toMatch(/\.pr-diff__text\s*\{[^}]*font-size:\s*13px/);
+    expect(src).toMatch(/\.pr-diff__text\s*\{[^}]*color:\s*#b3b3b3/);
+  });
+
 });

@@ -29,6 +29,7 @@ const baselineInputRef = ref<HTMLInputElement | null>(null);
 const {
   baselines,
   selectedBaselineId,
+  baselineReport,
   pickBaselineFile,
   onBaselinesUpdate,
   onSelectedBaselineId,
@@ -105,6 +106,7 @@ onMounted(() => {
       :selected-baseline-id="selectedBaselineId"
       :pick-baseline-file="pickBaselineFile"
       :recent-baselines="DEMO_RECENT_BASELINES"
+      :baseline-report="baselineReport"
       @update:baselines="onBaselinesUpdate"
       @update:selected-baseline-id="onSelectedBaselineId"
     />

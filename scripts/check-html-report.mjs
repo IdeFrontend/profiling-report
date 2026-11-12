@@ -93,6 +93,7 @@ const shellSource = readFileSync(join(root, 'report-shell/App.vue'), 'utf8');
 for (const binding of [
   ':pick-baseline-file="pickBaselineFile"',
   ':recent-baselines="DEMO_RECENT_BASELINES"',
+  ':baseline-report="baselineReport"',
   '@update:baselines="onBaselinesUpdate"',
   '@update:selected-baseline-id="onSelectedBaselineId"',
 ]) {

@@ -13,7 +13,7 @@ import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
-import type { Baseline, SwimlaneModel } from '../../domain/types';
+import type { AdaptedReport, Baseline, SwimlaneModel } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 vi.mock('@sudu-ide/code-review', () => ({
@@ -2622,6 +2622,76 @@ describe('ProfilingReport scaffold', () => {
     aside.vm.$emit('update:selectedBaselineId', null);
     await nextTick();
     expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2'], [null]]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-036: a matching baselineReport reaches the aside; a mismatched one is ignored', async () => {
+    const baselinePack: AdaptedReport = {
+      reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 900, opName: 'relu' } },
+      swimlaneModel: null,
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+        selectedBaselineId: 'b1',
+        baselineReport: { baselineId: 'b1', report: baselinePack },
+      },
+    });
+    await flushPromises();
+    // Matching id: the aside renders the comparison row.
+    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(true);
+
+    // A payload for another id is ignored — the aside receives nothing.
+    await wrapper.setProps({ baselineReport: { baselineId: 'b9', report: baselinePack } });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(false);
+
+    // The selection moving onto the payload's id re-enters the comparison state.
+    await wrapper.setProps({ selectedBaselineId: 'b9' });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-037: the baseline payload is a data-only side channel', async () => {
+    const baselinePack: AdaptedReport = {
+      reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 900, opName: 'relu' } },
+      swimlaneModel: null,
+    };
+    const base = {
+      swimlaneModel: depsModel(),
+      reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+      selectedBaselineId: 'b1',
+      baselineReport: { baselineId: 'b1', report: baselinePack },
+    };
+    const wrapper = mount(ProfilingReport, { props: base });
+    await flushPromises();
+    // The payload rides alongside the normal mount: one ready, no error.
+    expect(wrapper.emitted('ready')).toHaveLength(1);
+    expect(wrapper.emitted('error')).toBeUndefined();
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+
+    // Select an event so view state has something a reset would destroy.
+    const vm = wrapper.vm as unknown as { viewState: { selectedEventId: string | null } };
+    const only = [depsModel().processes[0]!.threads[0]!.events[0]!];
+    wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', only);
+    await nextTick();
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    const selects = wrapper.emitted('select')?.length ?? 0;
+
+    // Swapping the payload (even to a mismatched id) must not re-load or reset.
+    await wrapper.setProps({ baselineReport: { baselineId: 'b9', report: baselinePack } });
+    await flushPromises();
+    expect(wrapper.emitted('ready')).toHaveLength(1);
+    expect(wrapper.emitted('error')).toBeUndefined();
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selects);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    // Only the comparison chrome left (mismatched id), the rest is untouched.
+    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
