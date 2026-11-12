@@ -54,7 +54,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-018**: Source tab is absent without source embeds and opens `source-view` (no mock badge) when they are present; returning to Timeline unmounts it (UI-37).
 1. **PR-E2E-019**: Single-click an event that a closed DetailPanel would cover; after the dock height tween the selected lane row stays visible above the dock (timeline ensure-scrolls).
 1. **PR-E2E-020**: The playground's **baselines** link opens the picker's checkbox view (the single view): the five demo reports unchecked, checking rows survives closing the popover, Browse appends the picked file as a checked row, and a reload starts with nothing checked again (session-only).
-1. **PR-E2E-021**: Baseline comparison in the playground: Browse a report whose metrics differ from the current one adapts it (host glue, real bytes) and the aside renders the 基线 operator row plus tone badges with deltas on the summary cards; the demo-list entries (no backing bytes) degrade gracefully to no comparison.
+1. **PR-E2E-021**: Baseline comparison in the playground: Browse a report whose metrics differ from the current one adapts it (host glue, real bytes) and the aside renders the 基线 operator row plus tone badges with deltas on the summary cards; demo-list entries adapt the same way — their paths are fixture URLs the glue fetches.
 1. **PR-E2E-022**: The aside Baseline dropdown always renders (Not selected when nothing is checked), lists exactly the checked set + Not selected, picks globally, and unchecking the selected report clears the selection back to Not selected.
 1. **PR-E2E-023**: The aside Operator dropdown defaults to the selected baseline's first operator, keeps a session-local pick, re-defaults on baseline change, and works for browsed picks too.
 
@@ -63,7 +63,7 @@ Outside-in tests verifying the full component tree and playground render correct
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
-- **2026-11-12** — PR-E2E-021: the sidebar comparison slice e2e — a browsed real report adapts and paints the aside comparison row + diff badges.
+- **2026-11-12** — PR-E2E-021: the sidebar comparison slice e2e — a browsed real report (and the demo fixture entries, fetched by the glue) adapt and paint the aside comparison row + diff badges.
 - **2026-11-12** — ТЗ rework (PR-E2E-020/022/023 restated): the picker is a single checkbox view — the checked set IS the baseline list; the aside dropdowns always render with Not selected sentinels.
 y saved list — nothing seeded, nothing selected) + PR-E2E-022: the recent-reports checkbox flow (Add Selected / pre-checked duplicates / Set current as Baseline).
 - **2026-11-11** — PR-E2E-020 restated: baselines are session-only in the bundled hosts — the `?baselines=sample` link seeds the demo list (radio selection, none by default), a custom pick dies with the page, no storage anywhere.

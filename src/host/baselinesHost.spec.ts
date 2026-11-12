@@ -92,11 +92,37 @@ describe('createBaselinesHost', () => {
 
   it('a selected entry without retained bytes degrades to no comparison', async () => {
     const host = createBaselinesHost(() => null);
-    // Demo-list entry: in the list, selected, but never picked through Browse.
-    host.onBaselinesUpdate([{ id: 'demo-1', name: 'OPPROF_X', path: '/opprof/x' }]);
-    host.onSelectedBaselineId('demo-1');
+    // Non-demo entry without retained bytes: in the list, selected, but never
+    // picked through Browse (path outside /data — no fetch fallback).
+    host.onBaselinesUpdate([{ id: 'other-1', name: 'OPPROF_X', path: '/opprof/x' }]);
+    host.onSelectedBaselineId('other-1');
     await flushPromises();
     expect(host.baselineReport.value).toBeNull();
+  });
+
+  it('a demo entry fetches its fixture bytes and adapts them', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(loadOutRepBytes().buffer as ArrayBuffer, { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const host = createBaselinesHost(() => null);
+    host.onBaselinesUpdate([{ id: 'demo-recent-1', name: 'OPPROF_A', path: '/data/out.rep' }]);
+    host.onSelectedBaselineId('demo-recent-1');
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledWith('/data/out.rep');
+    const adapted = host.baselineReport.value;
+    expect(adapted?.baselineId).toBe('demo-recent-1');
+    expect(adapted?.report.reportModel).toBeDefined();
+    vi.unstubAllGlobals();
+
+    // A 404 (e.g. the exported HTML shell has no /data files) degrades.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
+    const miss = createBaselinesHost(() => null);
+    miss.onBaselinesUpdate([{ id: 'demo-recent-1', name: 'OPPROF_A', path: '/data/out.rep' }]);
+    miss.onSelectedBaselineId('demo-recent-1');
+    await flushPromises();
+    expect(miss.baselineReport.value).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it('a corrupt file degrades with a warning, never an error state', async () => {

@@ -183,14 +183,13 @@ const baselineOperatorOptions = computed(() => {
   return opName ? [{ id: opName, label: opName }] : [];
 });
 
-/** Session-only aside choice; auto-pairs the current report's operator when it matches. */
-const baselineOperatorChoice = ref<string | null>(null);
-
 const resolvedBaselineOperatorId = computed(() => {
   const options = baselineOperatorOptions.value;
   if (options.length === 0) return null;
-  const choice = baselineOperatorChoice.value;
-  if (choice != null && options.some((o) => o.id === choice)) return choice;
+  // The bar's Operator select drives the comparison; an unmatched pick
+  // falls back to the pack's first operator.
+  const choice = asideBaselineOperator.value;
+  if (choice && options.some((o) => o.id === choice)) return choice;
   const paired = props.selectedOperatorId;
   if (paired != null && options.some((o) => o.id === paired)) return paired;
   return options[0].id;
@@ -1167,30 +1166,6 @@ const detailTestId = computed(() => {
           @click="emit('close')"
         />
       </div>
-      <div
-        v-if="baselineReport && baselineOperatorOptions.length > 0"
-        class="pr-aside__baseline"
-        data-testid="stats-baseline-compare"
-      >
-        <span class="pr-aside__baseline-label">{{ t('baselineCompare', locale) }}</span>
-        <span class="pr-aside__baseline-select">
-          <select
-            data-testid="stats-baseline-operator"
-            :value="resolvedBaselineOperatorId ?? ''"
-            @change="baselineOperatorChoice = ($event.target as HTMLSelectElement).value"
-          >
-            <option
-              v-for="o in baselineOperatorOptions"
-              :key="o.id"
-              :value="o.id"
-            >{{ o.label }}</option>
-          </select>
-          <span
-            class="pr-aside__baseline-chevron"
-            aria-hidden="true"
-          />
-        </span>
-      </div>
 
       <p
         v-if="hasMeta || showMore"
@@ -2089,77 +2064,6 @@ const detailTestId = computed(() => {
   line-height: 16px;
   color: #999999;
   white-space: nowrap;
-}
-
-/* 对比基线 operator row (1130 方案一, baseline-compare.jpeg): inline 基线 label +
-   flat #2a2a2a select with a thin chevron, between the title and the meta row. */
-.pr-aside__baseline {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin: 12px 0 0;
-}
-
-.pr-aside__baseline-label {
-  font-size: 12px;
-  line-height: 16px;
-  color: #999999;
-}
-
-.pr-aside__baseline-select {
-  position: relative;
-  display: block;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.pr-aside__baseline-select select {
-  box-sizing: border-box;
-  width: 100%;
-  height: 28px;
-  padding: 0 24px 0 9px;
-  border: 0;
-  border-radius: 4px;
-  background-color: #2a2a2a;
-  color: #e6e6e6;
-  font-size: 12px;
-  line-height: 16px;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-}
-
-.pr-aside__baseline-select select:focus-visible {
-  outline: 2px solid var(--pr-playhead, #3078f0);
-  outline-offset: 1px;
-}
-
-.pr-aside__baseline-chevron {
-  position: absolute;
-  top: 50%;
-  right: 13px;
-  transform: translateY(-50%);
-  pointer-events: none;
-  box-sizing: border-box;
-  width: 10px;
-  height: 10px;
-  color: #b3b3b3;
-}
-
-/* Same border-triangle glyph as the toolbar select chevron, drawn down. */
-.pr-aside__baseline-chevron::before {
-  content: '';
-  position: absolute;
-  top: 1px;
-  left: 2px;
-  box-sizing: border-box;
-  border-style: solid;
-  border-color: currentColor;
-  border-width: 0 1.2px 1.2px 0;
-  width: 5px;
-  height: 5px;
-  transform: rotate(45deg);
 }
 
 .pr-aside__meta-seg {

@@ -1123,15 +1123,15 @@ test('PR-E2E-021: a browsed real report adapts and paints the aside comparison b
   await expect(page.getByTestId('stats-baseline-compare')).toBeVisible();
   await expect(page.locator('.pr-diff').first()).toBeVisible();
 
-  // Demo-list entries carry no backing bytes: checking + selecting one
-  // degrades gracefully — no comparison row, no badges, no error. (The
-  // popover is still open — the aside select stops pointerdown, so the
-  // outside-dismiss never fires; a toggle here would CLOSE it.)
+  // A demo-list entry works the same way: its path is a fixture URL, the host
+  // glue fetches the bytes and adapts them. (The popover is still open — the
+  // aside select stops pointerdown, so the outside-dismiss never fires; a
+  // toggle here would CLOSE it.)
   await page.locator('.pr-baseline__item--check').nth(0).click();
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid^="aside-baseline-option-"]').nth(2).click();
-  await expect(page.getByTestId('stats-baseline-compare')).toBeHidden();
-  await expect(page.locator('.pr-diff')).toHaveCount(0);
+  await expect(page.getByTestId('stats-baseline-compare')).toBeVisible();
+  await expect(page.locator('.pr-diff').first()).toBeVisible();
 });
 
 test('PR-E2E-022: the aside Baseline dropdown always shows and follows the checked set', async ({ page }) => {

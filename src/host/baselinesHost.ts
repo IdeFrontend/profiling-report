@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import { loadReportSource } from '../adapters/loadReportSource';
-import type { Baseline, BaselinePick, BaselineReportData } from '../domain/types';
+import type { AdaptedReport, Baseline, BaselinePick, BaselineReportData } from '../domain/types';
 
 export interface BaselinesHost {
   baselines: Ref<Baseline[]>;
@@ -37,6 +37,51 @@ export function withDemoBaselineOperators(baselines: Baseline[]): Baseline[] {
     b.operators && b.operators.length > 0 ? b : { ...b, operators: [...DEMO_BASELINE_OPERATORS] });
 }
 
+/** Per-operator metric scales for the demo multi-operator packs — ops below the
+ * base scale (0.4..0.85) read as increases (red up) against the open report,
+ * ops above (1.15..1.6) as decreases (green down), so flipping the Operator
+ * select paints both tones. MSTT's real packs pass through untouched. */
+const DEMO_OPERATOR_SCALES = [0.4, 0.55, 0.7, 0.85, 1.15, 1.3, 1.45, 1.6];
+
+/** Scale one ReportViewModel's measured metrics (peaks stay chip-level). */
+function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number): void {
+  const s = model.summary ?? {};
+  if (typeof s.taskDurationUs === 'number') model.summary.taskDurationUs = s.taskDurationUs * scale;
+  if (typeof s.parallelUtilization === 'number') {
+    model.summary.parallelUtilization = s.parallelUtilization * scale;
+  }
+  if (typeof s.parallelBalance === 'number') model.summary.parallelBalance = s.parallelBalance * scale;
+  for (const side of model.computeCard?.sides ?? []) {
+    if (typeof side.measuredTflops === 'number') side.measuredTflops *= scale;
+  }
+  for (const card of model.bandwidthCards ?? []) {
+    for (const side of card.sides) {
+      if (typeof side.measuredGBs === 'number') side.measuredGBs *= scale;
+    }
+  }
+}
+
+/**
+ * Wrap an adapted flat pack into a demo multi-operator pack: one synthetic
+ * operator per demo name, each with the same metrics scaled differently — the
+ * aside's Operator select then drives per-operator comparison values.
+ */
+export function withDemoOperatorPack(report: AdaptedReport): AdaptedReport {
+  if (report.operators && report.operators.length > 0) return report;
+  const base = report.reportModel;
+  const operatorReports: Record<string, AdaptedReport> = {};
+  DEMO_BASELINE_OPERATORS.forEach((name, i) => {
+    const model = structuredClone(base);
+    scaleMeasuredMetrics(model, DEMO_OPERATOR_SCALES[i]);
+    operatorReports[name] = { reportModel: model, swimlaneModel: report.swimlaneModel };
+  });
+  return {
+    ...report,
+    operators: DEMO_BASELINE_OPERATORS.map((name) => ({ id: name, label: name })),
+    operatorReports,
+  };
+}
+
 /**
  * Demo recent-report list for the picker's second view (Add Recent). The web
  * hosts have no plugin behind them, so the host supplies these the way MSTT
@@ -48,27 +93,27 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
   {
     id: 'demo-recent-1',
     name: 'OPPROF_20261108142517_QKWFPLXZVTRNBGMA',
-    path: '/workspace/.vscode/opprof/OPPROF_20261108142517_QKWFPLXZVTRNBGMA',
+    path: '/data/out.rep',
   },
   {
     id: 'demo-recent-2',
     name: 'OPPROF_20261109111842_MJNHEYSDCQXVBRUW',
-    path: '/workspace/.vscode/opprof/OPPROF_20261109111842_MJNHEYSDCQXVBRUW',
+    path: '/data/example.rep',
   },
   {
     id: 'demo-recent-3',
     name: 'OPPROF_20261109152306_ZAXWQPLOKMNJIUHY',
-    path: '/workspace/.vscode/opprof/OPPROF_20261109152306_ZAXWQPLOKMNJIUHY',
+    path: '/data/gelu.npu-rep',
   },
   {
     id: 'demo-recent-4',
     name: 'OPPROF_20261110100955_BGTRFVEDCWSXQAZP',
-    path: '/workspace/.vscode/opprof/OPPROF_20261110100955_BGTRFVEDCWSXQAZP',
+    path: '/data/gather_2d.npu-rep',
   },
   {
     id: 'demo-recent-5',
     name: 'OPPROF_20261110135206_HYGTFRDESWQAZXCV',
-    path: '/workspace/.vscode/opprof/OPPROF_20261110135206_HYGTFRDESWQAZXCV',
+    path: '/data/roofline_multi.npu-rep',
   },
 ];
 
@@ -117,20 +162,41 @@ const baselines = ref<Baseline[]>([]);
         return;
       }
       const entry = list.find((b) => b.id === sel);
-      const file = entry ? filesByPath.get(entry.path) : undefined;
-      if (!entry || !file) {
-        // No retained bytes (e.g. a demo list entry with no backing file):
-        // graceful no-comparison state until the user picks a real file.
+      if (!entry) {
+        baselineReport.value = null;
+        return;
+      }
+      const file = filesByPath.get(entry.path);
+      let bytes: Uint8Array | null = null;
+      try {
+        if (file) {
+          bytes = new Uint8Array(await file.arrayBuffer());
+        } else if (entry.path.startsWith('/data/') && typeof fetch === 'function') {
+          // Demo entries carry the playground fixture URLs as their path —
+          // no retained File, so the glue fetches the bytes itself.
+          // ponytail: the exported HTML shell has no /data files, so the fetch
+          // 404s there and degrades to no comparison, exactly like MSTT
+          // passing paths this glue cannot open.
+          const res = await fetch(entry.path);
+          if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
+        }
+      } catch (err) {
+        console.warn('[baselinesHost] baseline adaptation failed', err);
+        baselineReport.value = null;
+        return;
+      }
+      if (!bytes) {
+        // No backing bytes (a non-demo entry picked outside Browse):
+        // graceful no-comparison state.
         baselineReport.value = null;
         return;
       }
       try {
-        const bytes = new Uint8Array(await file.arrayBuffer());
         const report = loadReportSource(
           bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
         );
         if (gen !== adaptGen) return; // stale — a newer pick superseded this run
-        baselineReport.value = { baselineId: sel, report };
+        baselineReport.value = { baselineId: sel, report: withDemoOperatorPack(report) };
       } catch (err) {
         // Corrupt/unsupported baseline degrades to "no comparison", never to the main report's error state.
         console.warn('[baselinesHost] baseline adaptation failed', err);
