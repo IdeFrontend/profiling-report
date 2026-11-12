@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 import { createBaselinesHost } from './baselinesHost';
+import { loadOutRepBytes } from '../../tests/helpers/fixtures';
 
 /** Files-like target for onFileChosen — the host never reads beyond these fields. */
 function fileEvent(name: string, size = 10, lastModified = 123): Event {
   const el = { files: [{ name, size, lastModified }], value: '' };
+  return { target: el } as unknown as Event;
+}
+
+/** A real File the host retains and adapts (Browse flow). */
+function realFileEvent(name: string, bytes: Uint8Array, lastModified = 123): Event {
+  const file = new File([bytes.buffer as ArrayBuffer], name, { lastModified });
+  const el = { files: [file], value: '' };
   return { target: el } as unknown as Event;
 }
 
@@ -54,5 +63,73 @@ describe('createBaselinesHost', () => {
     const el = { files: [], value: '' };
     host.onFileChosen({ target: el } as unknown as Event);
     expect(await pending).toBeNull();
+  });
+
+  it('adapts the selected baseline file into baselineReport via loadReportSource', async () => {
+    const host = createBaselinesHost(() => null);
+    // Browse: the pick resolves with the pseudo-path; the bytes stay in the glue.
+    const pending = host.pickBaselineFile();
+    host.onFileChosen(realFileEvent('out.rep', loadOutRepBytes()));
+    const pick = await pending;
+    expect(pick?.name).toBe('out.rep');
+
+    // The picker emits the checked set; the entry carries the same pseudo-path.
+    const entry = { id: 'b1', name: 'out.rep', path: pick!.path };
+    host.onBaselinesUpdate([entry]);
+    host.onSelectedBaselineId('b1');
+    await flushPromises();
+
+    const adapted = host.baselineReport.value;
+    expect(adapted).not.toBeNull();
+    expect(adapted!.baselineId).toBe('b1');
+    expect(adapted!.report.reportModel).toBeDefined();
+
+    // Deselecting (Not selected) drops the payload.
+    host.onSelectedBaselineId(null);
+    await flushPromises();
+    expect(host.baselineReport.value).toBeNull();
+  });
+
+  it('a selected entry without retained bytes degrades to no comparison', async () => {
+    const host = createBaselinesHost(() => null);
+    // Demo-list entry: in the list, selected, but never picked through Browse.
+    host.onBaselinesUpdate([{ id: 'demo-1', name: 'OPPROF_X', path: '/opprof/x' }]);
+    host.onSelectedBaselineId('demo-1');
+    await flushPromises();
+    expect(host.baselineReport.value).toBeNull();
+  });
+
+  it('a corrupt file degrades with a warning, never an error state', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const host = createBaselinesHost(() => null);
+    const pending = host.pickBaselineFile();
+    host.onFileChosen(realFileEvent('broken.rep', new Uint8Array([1, 2, 3, 4])));
+    const pick = await pending;
+    host.onBaselinesUpdate([{ id: 'b1', name: 'broken.rep', path: pick!.path }]);
+    host.onSelectedBaselineId('b1');
+    await flushPromises();
+    expect(host.baselineReport.value).toBeNull();
+    expect(warn).toHaveBeenCalledWith('[baselinesHost] baseline adaptation failed', expect.anything());
+  });
+
+  it('re-picking the same file re-adapts (pickNonce bump after a stale payload)', async () => {
+    const host = createBaselinesHost(() => null);
+    const pending = host.pickBaselineFile();
+    host.onFileChosen(realFileEvent('out.rep', loadOutRepBytes()));
+    const pick = await pending;
+    const entry = { id: 'b1', name: 'out.rep', path: pick!.path };
+    host.onBaselinesUpdate([entry]);
+    host.onSelectedBaselineId('b1');
+    await flushPromises();
+    expect(host.baselineReport.value?.baselineId).toBe('b1');
+
+    // The same file picked again (e.g. after a reload lost the payload):
+    // the nonce re-runs the adaptation against the retained bytes.
+    const again = host.pickBaselineFile();
+    host.onFileChosen(realFileEvent('out.rep', loadOutRepBytes()));
+    await again;
+    host.onBaselinesUpdate([entry]);
+    await flushPromises();
+    expect(host.baselineReport.value?.baselineId).toBe('b1');
   });
 });
