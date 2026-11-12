@@ -643,3 +643,28 @@ export interface SwimlaneRenderer {
   hitTest(x: number, y: number): string | null;
   dispose(): void;
 }
+
+/** A saved comparison report — host-owned list, the library only renders and selects. */
+export interface Baseline {
+  id: string;
+  name: string;
+  /**
+   * Host-meaningful identity (absolute path / URI). The library never opens
+   * it; browser hosts fabricate a display pseudo-path (see
+   * `src/host/baselinesHost.ts`).
+   */
+  path: string;
+  /**
+   * The baseline's operator names, in pack order (MSTT: the pack's operators;
+   * bundled web hosts: demo values via `withDemoBaselineOperators`). The aside
+   * Operator dropdown lists them; absent = no operator dropdown.
+   */
+  operators?: string[];
+}
+
+/** What the host file dialog resolved after the picker + press; `null` = cancelled. */
+export interface BaselinePick {
+  path: string;
+  /** Display name; the root falls back to the path basename when omitted. */
+  name?: string;
+}

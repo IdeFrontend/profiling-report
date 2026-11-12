@@ -94,6 +94,18 @@ Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
 
 **Phase 2+.**
 
+## Floating chrome (popovers)
+
+Family: 显示控制 and the OP selector ([ReportToolbar.spec.md](../../src/ui/ReportToolbar/ReportToolbar.spec.md)), 快捷键说明, the baselines picker ([BaselinePicker.spec.md](../../src/ui/ReportToolbar/BaselinePicker/BaselinePicker.spec.md)). Shared core, with per-member variations called out explicitly:
+
+- **Trigger.** The owning action-icon button toggles the surface; open state is carried by `aria-expanded` (plus `aria-pressed` and the shared `--on` tint `#1e2a3e` / `#2d70e3` on the action-icon popovers — 显示控制 / 快捷键说明 / baselines; the OP selector trigger has no `--on`/`aria-pressed`, just the chevron flip).
+- **Panel tokens.** Raised surface (`--pr-surface-raised`, `#363636`), `1px solid #5e5e5e` border, `12px` radius, soft shadow `0 6px 20px rgba(0, 0, 0, 0.55)`; title `13px` / 600 / `#ffffff` (the 450px help card uses 16px / 700). Menu variant (OP selector): `8px` radius, `4px` item padding; row radius elsewhere (baselines rows) is `4px` with `6px 10px` padding.
+- **Rows.** One pair of tints for interactive rows and steppers: hover `rgba(255, 255, 255, 0.1)` + white, active/selected `rgba(49, 122, 247, 0.2)` + white. Hover must **lighten** against the raised surface, never darken.
+- **Anchoring.** Under the trigger (`top: calc(100% + …)`), right-aligned (`right: 0`) for the trailing actions so the toolbar's `overflow-x: clip` cannot crop the panel; left-aligned (`left: 0`, `+2px`) for the OP selector at the strip's left edge. A popover too wide for the remaining viewport (e.g. 450px 快捷键说明) teleports to `body` with fixed coordinates clamped into the viewport.
+- **Dismiss.** × close button (where present), a second press of the trigger, a pointerdown outside the wrap (trigger + panel), or **Escape** (APG dialog pattern). Listeners attach while open and detach on close **and unmount**; a hook-gated trigger (baselines) also closes when its gate is removed at runtime. Focus: the baselines picker and the OP selector restore focus to the trigger on Escape/close-button; 显示控制 and 快捷键说明 do not restore (they only close). An outside pointerdown leaves focus where the user clicked.
+- **No OK/Cancel.** These surfaces are transient: changes apply immediately on the click that makes them; there is no confirm row anywhere in the family. A cancel-only flow (e.g. a file dialog the host opens) resolves to "no change" and keeps the popover open.
+- **Accessibility.** Panel surfaces are `role="dialog"` with an i18n `aria-label` and button rows; the OP selector is a `role="listbox"` with `role="option"` items and `aria-selected`.
+
 ## Dependencies
 
 Sketch: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (swimlane beziers + Relevant toolbar callout)

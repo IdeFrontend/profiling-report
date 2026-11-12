@@ -220,6 +220,49 @@
 }
 
 /*
+ * Toolbar action-icon button. Shared home (ReportToolbar + BaselinePicker) —
+ * a scoped copy in ReportToolbar could not reach the picker's trigger inside
+ * its child component, so the rule lives in the global token sheet.
+ */
+.pr-toolbar__icon-btn {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  outline: none;
+  background: #363636;
+  color: #b3b3b3;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.pr-toolbar__icon-btn:focus {
+  outline: none;
+}
+
+.pr-toolbar__icon-btn:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
+}
+
+.pr-toolbar__icon-btn:hover,
+.pr-toolbar__icon-btn:active,
+.pr-toolbar__icon-btn--on,
+.pr-toolbar__icon-btn[aria-pressed='true'],
+.pr-toolbar__icon-btn[aria-expanded='true'] {
+  background: #1e2a3e;
+  color: #2d70e3;
+}
+
+/*
  * Instant tip for icon-only chrome buttons.
  * Native `title` waits ~1s and draws light-mode OS chrome (AC-20.2) — use
  * `aria-label` + this class instead. Tip hides while a popover is expanded.

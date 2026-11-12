@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import ReportToolbar from './ReportToolbar.vue';
 import { MAX_DEPENDENCY_DEPTH, MIN_DEPENDENCY_DEPTH } from '../../domain/types';
 import { t } from '../../i18n';
@@ -281,22 +283,25 @@ describe('ReportToolbar', () => {
   });
 
   it('PR-TOOLBAR-009c: action icon rest/hover/pressed match sketch', async () => {
+    const tokens = readFileSync(resolve(__dirname, '../tokens.css'), 'utf8');
     const src = (await import('./ReportToolbar.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*background:\s*#363636/);
-    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*color:\s*#b3b3b3/);
-    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*border-radius:\s*6px/);
-    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*outline:\s*none/);
-    expect(src).toMatch(/\.pr-toolbar__icon-btn:focus\s*\{[^}]*outline:\s*none/);
-    expect(src).toMatch(
+    // The action-icon block is shared chrome — tokens.css (the BaselinePicker
+    // trigger in a child component needs it too).
+    expect(tokens).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*background:\s*#363636/);
+    expect(tokens).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*color:\s*#b3b3b3/);
+    expect(tokens).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*border-radius:\s*6px/);
+    expect(tokens).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*outline:\s*none/);
+    expect(tokens).toMatch(/\.pr-toolbar__icon-btn:focus\s*\{[^}]*outline:\s*none/);
+    expect(tokens).toMatch(
       /\.pr-toolbar__icon-btn:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--pr-playhead/,
     );
+    expect(tokens).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?background:\s*#1e2a3e/);
+    expect(tokens).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?color:\s*#2d70e3/);
     expect(src).toMatch(/\.pr-toolbar__zoom-btn\s*\{[^}]*outline:\s*none/);
     expect(src).toMatch(/\.pr-toolbar__zoom-btn:focus\s*\{[^}]*outline:\s*none/);
     expect(src).toMatch(
       /\.pr-toolbar__zoom-btn:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--pr-playhead/,
     );
-    expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?background:\s*#1e2a3e/);
-    expect(src).toMatch(/\.pr-toolbar__icon-btn:hover[\s\S]*?color:\s*#2d70e3/);
   });
 
   it('PR-TOOLBAR-010: display control closes via X, layers toggle, outside pointerdown, or Escape', async () => {
@@ -568,6 +573,22 @@ describe('ReportToolbar', () => {
     expect(guide.hasAttribute('inert')).toBe(true);
 
     wrapper.unmount();
+
+    // The baselines trigger is a conditional clip member too: it carries the
+    // attribute (fallthrough lands on the button, not the wrapper) and gets
+    // the same inert treatment when it sits past the clip edge.
+    const withBaseline = mount(ReportToolbar, {
+      props: { ...defaultProps, pickBaselineFile: vi.fn().mockResolvedValue(null) },
+      attachTo: document.body,
+    });
+    const baseline = withBaseline.find('[data-testid="toggle-baselines"]').element as HTMLElement;
+    expect(baseline.hasAttribute('data-toolbar-clip')).toBe(true);
+    const bar2 = withBaseline.find('.pr-toolbar').element as HTMLElement;
+    vi.spyOn(bar2, 'getBoundingClientRect').mockReturnValue(rect(0, 100));
+    vi.spyOn(baseline, 'getBoundingClientRect').mockReturnValue(rect(120, 148));
+    (withBaseline.vm as { syncToolbarClipInert: () => void }).syncToolbarClipInert();
+    expect(baseline.hasAttribute('inert')).toBe(true);
+    withBaseline.unmount();
   });
 
   it('PR-TOOLBAR-021: shortcut-help action renders first, before zoom-to-fit, with the keyboard glyph', () => {
@@ -677,6 +698,61 @@ describe('ReportToolbar', () => {
     expect(actions[actions.length - 2].attributes('data-testid')).toBe('export-html');
     await wrapper.find('[data-testid="export-html"]').trigger('click');
     expect(wrapper.emitted('export-html')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-029: baselines control sits after the aside toggle and before export/user-guide', () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        asideAvailable: true,
+        htmlExportAvailable: true,
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const baselineWrap = wrapper.get('[data-testid="toggle-baselines"]').element.closest('[data-toolbar-clip]')!;
+    const aside = wrapper.get('[data-testid="toggle-aside"]').element;
+    const exportBtn = wrapper.get('[data-testid="export-html"]').element;
+    const guide = wrapper.get('[data-testid="open-user-guide"]').element;
+    // Baseline after aside, before export and user-guide.
+    expect(baselineWrap.compareDocumentPosition(aside) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(baselineWrap.compareDocumentPosition(exportBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(baselineWrap.compareDocumentPosition(guide) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-030: baselines hidden without the hook; forwards the checked-set emits', async () => {
+    const hidden = mount(ReportToolbar, { props: defaultProps });
+    expect(hidden.find('[data-testid="toggle-baselines"]').exists()).toBe(false);
+    hidden.unmount();
+
+    const hook = vi.fn().mockResolvedValue({ path: '/x.npu-rep', name: 'x' });
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        baselines: [],
+        pickBaselineFile: hook,
+        recentBaselines: [
+          { id: 'r1', name: 'r1', path: '/r1' },
+          { id: 'r2', name: 'r2', path: '/r2' },
+        ],
+      },
+    });
+
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    await wrapper.findAll('[data-testid="baseline-check"]')[0].setValue(true);
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[{ id: 'r1', name: 'r1', path: '/r1' }]],
+    ]);
+    // The host applies the emitted list back through the prop.
+    await wrapper.setProps({ baselines: [{ id: 'r1', name: 'r1', path: '/r1' }] });
+
+    // Browse forwards the appended checked list too.
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    const appended = wrapper.emitted('update:baselines')![1][0] as { id: string; name: string; path: string }[];
+    expect(appended).toHaveLength(2);
+    expect(appended[1]).toMatchObject({ name: 'x', path: '/x.npu-rep' });
     wrapper.unmount();
   });
 });
