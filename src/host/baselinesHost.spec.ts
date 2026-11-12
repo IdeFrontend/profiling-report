@@ -139,7 +139,7 @@ describe('createBaselinesHost', () => {
     expect(warn).toHaveBeenCalledWith('[baselinesHost] baseline adaptation failed', expect.anything());
   });
 
-  it('re-picking the same file re-adapts (pickNonce bump after a stale payload)', async () => {
+  it('re-picking the same file re-adapts through the pickNonce alone', async () => {
     const host = createBaselinesHost(() => null);
     const pending = host.pickBaselineFile();
     host.onFileChosen(realFileEvent('out.rep', loadOutRepBytes()));
@@ -149,15 +149,20 @@ describe('createBaselinesHost', () => {
     host.onSelectedBaselineId('b1');
     await flushPromises();
     expect(host.baselineReport.value?.baselineId).toBe('b1');
+    const first = host.baselineReport.value?.report;
 
-    // The same file picked again (e.g. after a reload lost the payload):
-    // the nonce re-runs the adaptation against the retained bytes.
+    // The same file picked again (e.g. after a reload lost the retained
+    // payload): BaselinePicker dedupes the already-checked path and emits
+    // NOTHING — no baselines update, no selection change — so the pickNonce
+    // bump is the ONLY trigger that can re-run the adaptation.
     const again = host.pickBaselineFile();
     host.onFileChosen(realFileEvent('out.rep', loadOutRepBytes()));
     await again;
-    host.onBaselinesUpdate([entry]);
+    // No onBaselinesUpdate / onSelectedBaselineId — mimic the picker's dedupe.
     await flushPromises();
     expect(host.baselineReport.value?.baselineId).toBe('b1');
+    // A fresh adaptation object proves the watcher re-ran on the nonce alone.
+    expect(host.baselineReport.value?.report).not.toBe(first);
   });
 
   it('synthesizes eight operators with distinct metrics on every card family', () => {

@@ -62,17 +62,23 @@ function hashKey(key: string): number {
 function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): void {
   if (!model.summary) model.summary = {};
   const s = model.summary;
-  if (typeof s.taskDurationUs !== 'number') s.taskDurationUs = 800 + (seed % 20) * 60;
-  if (typeof s.parallelUtilization !== 'number') s.parallelUtilization = 0.3 + (seed % 8) * 0.05;
-  if (typeof s.parallelBalance !== 'number') s.parallelBalance = 0.3 + ((seed >> 3) % 8) * 0.05;
-  if (!model.computeCard?.sides?.length) {
-    model.computeCard = {
-      sides: [
-        { side: 'aic', measuredTflops: 40 + (seed % 10) * 5, peakTflops: 100 },
-        { side: 'aiv', measuredTflops: 30 + ((seed >> 2) % 10) * 4, peakTflops: 100 },
-      ],
-    };
-  }
+  // Unconditional: the pack is synthetic demo data, so the measured metrics
+  // are always reseeded. Filling only missing fields once left fixtures that
+  // share values (sample / out.rep / example all adapt to the same
+  // taskDurationUs) with a zero delta on the default operator — no badge on
+  // any card — which broke the "every demo operator diffs every card"
+  // guarantee. Peaks stay chip-level constants.
+  s.taskDurationUs = 800 + (seed % 20) * 60;
+  s.parallelUtilization = 0.3 + (seed % 8) * 0.05;
+  s.parallelBalance = 0.3 + ((seed >> 3) % 8) * 0.05;
+  // Both sides always seeded: a single-side fixture (roofline_multi carries
+  // only aiv) must still diff the AIC compute card.
+  model.computeCard = {
+    sides: [
+      { side: 'aic', measuredTflops: 40 + (seed % 10) * 5, peakTflops: 100 },
+      { side: 'aiv', measuredTflops: 30 + ((seed >> 2) % 10) * 4, peakTflops: 100 },
+    ],
+  };
   {
     // Demo pipes REPLACE whatever the baseline fixture carried: the demo row
     // set mirrors the real fixture shapes (vector-side reports plus the
@@ -145,14 +151,10 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
       fields: fields.map(([key, value]) => ({ key, value: String(value) })),
     }));
   }
-  const bw = model.bandwidthCards ?? [];
-  if (!bw.some((c) => c.id === 'input')) {
-    bw.push({ id: 'input', sides: [{ side: 'aic', measuredGBs: 300 + (seed % 10) * 40, peakGBs: 800 }] });
-  }
-  if (!bw.some((c) => c.id === 'output')) {
-    bw.push({ id: 'output', sides: [{ side: 'aic', measuredGBs: 150 + ((seed >> 4) % 10) * 30, peakGBs: 800 }] });
-  }
-  model.bandwidthCards = bw;
+  model.bandwidthCards = [
+    { id: 'input', sides: [{ side: 'aic', measuredGBs: 300 + (seed % 10) * 40, peakGBs: 800 }] },
+    { id: 'output', sides: [{ side: 'aic', measuredGBs: 150 + ((seed >> 4) % 10) * 30, peakGBs: 800 }] },
+  ];
 }
 
 /** Scale one ReportViewModel's measured metrics (peaks stay chip-level). */
@@ -190,7 +192,12 @@ function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number
  * aside's Operator select then drives per-operator comparison values.
  */
 export function withDemoOperatorPack(report: AdaptedReport, variationKey = ''): AdaptedReport {
-  if (report.operators && report.operators.length > 0) return report;
+  // No early return for packs that already carry `operators`: the aside's
+  // Operator dropdown is stamped with the eight demo names
+  // (withDemoBaselineOperators), so a native op1/op2 pack (example.npu.rep,
+  // browsed nested reports) would resolve every demo name to its first
+  // operator and never change values. The demo pack ALWAYS synthesizes the
+  // eight operators.
   const seed = hashKey(variationKey);
   const base = report.reportModel;
   const operatorReports: Record<string, AdaptedReport> = {};
@@ -306,13 +313,15 @@ const baselines = ref<Baseline[]>([]);
         }
       } catch (err) {
         console.warn('[baselinesHost] baseline adaptation failed', err);
-        baselineReport.value = null;
+        // Only the current run may degrade the payload — a superseded run
+        // failing after a newer selection must not wipe that newer payload.
+        if (gen === adaptGen) baselineReport.value = null;
         return;
       }
       if (!bytes) {
         // No backing bytes (a non-demo entry picked outside Browse):
         // graceful no-comparison state.
-        baselineReport.value = null;
+        if (gen === adaptGen) baselineReport.value = null;
         return;
       }
       try {
