@@ -2557,6 +2557,26 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-035: the empty-report toolbar mount also forwards baseline toggles', async () => {
+    // No swimlaneModel → the standalone toolbar mount
+    // (v-if="!showTimeline && !showSource"), which binds the same baseline props
+    // and the same update:baselines emit as the timeline mount.
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'empty',
+        baselines: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    await wrapper.findAll('[data-testid="baseline-check"]')[0].setValue(true);
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[{ id: 'r1', name: 'R1', path: '/r1' }]],
+    ]);
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-032: Browse appends the picked report as a checked baseline', async () => {
     const pick = vi.fn().mockResolvedValue({ path: '/data/new.npu-rep', name: 'new-baseline' });
     const wrapper = mount(ProfilingReport, {

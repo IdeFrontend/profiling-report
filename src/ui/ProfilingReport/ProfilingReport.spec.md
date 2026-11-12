@@ -211,6 +211,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 32. **PR-ROOT-032** — Browse appends the picked report as a checked baseline (`update:baselines` with a fresh-id `{name, path}` entry).
 33. **PR-ROOT-033** — Host-owned invariant: when the applied list no longer contains the current selection, the root emits `update:selectedBaselineId` with `null` (unchecking the selected baseline deselects).
 34. **PR-ROOT-034** — The aside receives `baselines` / `selectedBaselineId`, and its Baseline dropdown pick — an id or `null` (Not selected) — is forwarded as the global `update:selectedBaselineId`.
+35. **PR-ROOT-035** — Both toolbar mounts forward baseline toggles: the empty-report mount (no timeline/source) binds the baseline props and emits `update:baselines` too.
 
 ## Edge Cases
 
@@ -244,6 +245,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-11-12** — Review fix: `PR-ROOT-035` now covers the second (empty-report) toolbar mount forwarding baseline toggles; the earlier withdrawn 035 keeps its history in the entry below.
 - **2026-11-12** — ТЗ rework: the picker is a single checkbox view and the checked set IS the baseline list (`PR-ROOT-031..034` restated; old 031..035, 038..042 withdrawn); the root keeps one invariant — a selection that leaves the list clears.
 - **2026-11-11** — Baseline picker second view: `recentBaselines` prop forwarded to the picker, `add-baselines` appends checked reports (dedupe, no auto-select), `clear-baselines` empties list + selection, `set-current-as-baseline` appends the displayed report as selected (`PR-ROOT-038` / `039` / `040`).
 - **2026-11-11** — Baseline removal: `remove-baseline` drops the row and re-picks the current baseline when needed (`PR-ROOT-035`).
