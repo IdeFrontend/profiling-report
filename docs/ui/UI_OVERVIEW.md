@@ -9,7 +9,7 @@ For usage scenarios, static vs interactive surfaces, and cross-view sync, see **
 Sketches place the viewer inside a VS Code–like IDE with:
 
 - File tab: report filename (e.g. `result.npu-rep`; active), sometimes beside `trace.json`
-- Secondary nav: **OP算子** | **时间线** (Timeline) | **源码**
+- Secondary nav: **概览** (Overview, first in strip; operator table + 低利用率 dock) | **OP算子** | **时间线** (Timeline; default) | **源码**
 - Left activity bar / explorer (host-owned in MSTT; not part of the Vue library shell)
 
 **MVP:** **Timeline** is the primary view. **源码** appears only when the pack has a real Source | SASS model ([UI-37](../context/decisions/UI.md)). **详情** / **缓存** are not in the chrome (see [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
