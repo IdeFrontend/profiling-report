@@ -3100,17 +3100,16 @@ describe('StatsAside', () => {
     return { reportModel: model, swimlaneModel: null };
   }
 
-  const BASELINE_ROW = '[data-testid="stats-baseline-compare"]';
-
-  it('PR-STATS-044: 基线 operator row renders only with a pack, between title and meta', () => {
-    // No baseline: no operator row, no diff chrome — the aside renders as before.
+  it('PR-STATS-044: comparison badges render only with a baselineReport pack', () => {
+    // No baseline: no diff chrome — the aside renders exactly as before, and the
+    // always-visible Baseline/Operator bar stays inert.
     const plain = mount(StatsAside, {
       props: {
         report: report({ summary: { pid: '9', taskDurationUs: 1000 } }),
       },
     });
-    expect(plain.find(BASELINE_ROW).exists()).toBe(false);
     expect(plain.findAll('.pr-diff')).toHaveLength(0);
+    expect(plain.find('[data-testid="stats-baseline-bar"]').exists()).toBe(true);
 
     const withBase = mount(StatsAside, {
       props: {
@@ -3118,22 +3117,11 @@ describe('StatsAside', () => {
         baselineReport: adaptedPack(report({ summary: { taskDurationUs: 900, opName: 'relu' } })),
       },
     });
-    const row = withBase.get(BASELINE_ROW);
-    expect(row.text()).toContain(t('baselineCompare'));
-    expect(row.find('[data-testid="stats-baseline-operator"]').exists()).toBe(true);
-    // Placement (1130 方案一): after the title row, before the meta paragraph.
-    const head = withBase.get('.pr-aside__head');
-    const title = head.get('.pr-aside__title-row');
-    const meta = head.get('[data-testid="stats-aside-meta"]');
-    expect(
-      row.element.compareDocumentPosition(title.element) & Node.DOCUMENT_POSITION_PRECEDING,
-    ).toBeTruthy();
-    expect(
-      row.element.compareDocumentPosition(meta.element) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(withBase.findAll('.pr-diff').length).toBeGreaterThan(0);
+    expect(withBase.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
   });
 
-  it('PR-STATS-045: operator select lists the pack, pairs with the current op, keeps a session-only pick', async () => {
+  it('PR-STATS-045: the bar Operator select drives the comparison per operator', async () => {
     const baseline: AdaptedReport = {
       ...adaptedPack(report({ summary: { taskDurationUs: 500, opName: 'op-a' } })),
       operators: [
@@ -3142,43 +3130,57 @@ describe('StatsAside', () => {
       ],
       operatorReports: {
         'op-a': adaptedPack(report({ summary: { taskDurationUs: 500, parallelUtilization: 0.9 } })),
-        'op-b': adaptedPack(report({ summary: { taskDurationUs: 700, parallelUtilization: 0.7 } })),
+        'op-b': adaptedPack(report({ summary: { taskDurationUs: 700, parallelUtilization: 0.3 } })),
       },
     };
     const wrapper = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 1000, parallelUtilization: 0.5 } }),
+        baselines: [{ id: 'b1', name: 'x', path: '/x', operators: ['op-a', 'op-b'] }],
+        selectedBaselineId: 'b1',
         baselineReport: baseline,
-        selectedOperatorId: 'op-b',
       },
     });
-    const select = wrapper.get('[data-testid="stats-baseline-operator"]');
-    expect(select.findAll('option').map((o) => o.element.value)).toEqual(['op-a', 'op-b']);
-    // Auto-pairing: a valid selectedOperatorId is the default.
-    expect((select.element as HTMLSelectElement).value).toBe('op-b');
-    // op-b baseline 0.7 vs current 0.5 → 70% − 50% = green down 20%.
-    expect(wrapper.get('[data-testid="stats-aicore-util-diff"] .pr-diff__text').text()).toBe('20%');
+    // Default = the bar's first operator; op-a 0.9 vs current 0.5 → green down 40%.
+    expect(
+      wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('op-a');
+    const util = wrapper.get('[data-testid="stats-aicore-util-diff"]');
+    expect(util.classes()).toContain('pr-diff--decrease');
+    expect(util.get('.pr-diff__text').text()).toBe('40%');
 
-    // A session-only pick overrides the pairing and emits nothing (host state untouched).
-    await select.setValue('op-a');
-    expect((select.element as HTMLSelectElement).value).toBe('op-a');
+    // Picking op-b in the always-visible bar repaints the comparison:
+    // 0.3 vs current 0.5 → red up 20%.
+    await wrapper
+      .get('[data-testid="aside-baseline-operator-select"]')
+      .get('.pr-metric-select__trigger')
+      .trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-operator-option-op-b"]') as HTMLElement).click();
+    await nextTick();
+    expect(
+      wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('op-b');
+    const utilB = wrapper.get('[data-testid="stats-aicore-util-diff"]');
+    expect(utilB.classes()).toContain('pr-diff--increase');
+    expect(utilB.get('.pr-diff__text').text()).toBe('20%');
+    // The operator choice stays aside-local: no update:* emit.
     expect(
       Object.keys(wrapper.emitted()).filter((k) => k.startsWith('update:')),
     ).toEqual([]);
-    // op-a baseline 0.9 vs current 0.5 → 90% − 50% = green down 40%.
-    expect(wrapper.get('[data-testid="stats-aicore-util-diff"] .pr-diff__text').text()).toBe('40%');
   });
 
-  it('PR-STATS-045: a flat pack synthesizes its single option from summary.opName', () => {
+  it('PR-STATS-045: a flat pack falls back to summary.opName', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 1000 } }),
         baselineReport: adaptedPack(report({ summary: { taskDurationUs: 500, opName: 'relu' } })),
       },
     });
-    const select = wrapper.get('[data-testid="stats-baseline-operator"]');
-    expect(select.findAll('option').map((o) => o.element.value)).toEqual(['relu']);
-    expect((select.element as HTMLSelectElement).value).toBe('relu');
+    // No operators / operatorReports: the pack's single model is the comparison.
+    // current 1000 µs vs baseline 500 µs → 0.5 ms red up.
+    const badge = wrapper.get('[data-testid="stats-duration-diff"]');
+    expect(badge.classes()).toContain('pr-diff--increase');
+    expect(badge.get('.pr-diff__text').text()).toBe('0.5');
   });
 
   it('PR-STATS-046: duration diff shows green down / red up with the card-unit magnitude', () => {
@@ -3319,7 +3321,7 @@ describe('StatsAside', () => {
     expect(missing.find('[data-testid="stats-aicore-util-diff"]').exists()).toBe(true);
     expect(missing.find('[data-testid="stats-aicore-balance-diff"]').exists()).toBe(false);
 
-    // Self-compare: equal metrics → no badges, but the operator row stays.
+    // Self-compare: equal metrics → no badges, and the bar stays (always visible).
     const equal = mount(StatsAside, {
       props: {
         report: report({ summary: { taskDurationUs: 1000, parallelUtilization: 0.5 } }),
@@ -3328,7 +3330,7 @@ describe('StatsAside', () => {
         ),
       },
     });
-    expect(equal.find(BASELINE_ROW).exists()).toBe(true);
+    expect(equal.find('[data-testid="stats-baseline-bar"]').exists()).toBe(true);
     expect(equal.findAll('.pr-diff')).toHaveLength(0);
 
     // 0.2 µs on a card that prints ms rounds to zero → suppressed.

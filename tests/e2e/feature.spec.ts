@@ -1094,7 +1094,7 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   }
 });
 
-test('PR-E2E-021: a browsed real report adapts and paints the aside comparison badges', async ({ page }) => {
+test('PR-E2E-021: the bar Operator select drives per-operator comparison badges', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
   await expect(page.getByTestId('stats-aside')).toBeVisible();
   // No comparison without an adapted baseline pack.
@@ -1113,25 +1113,57 @@ test('PR-E2E-021: a browsed real report adapts and paints the aside comparison b
   });
 
   // The browsed report is checked; pick it in the aside Baseline dropdown —
-  // the host adapts its retained bytes and hands the pack to the aside.
+  // the host adapts its retained bytes, wraps them in a demo multi-operator
+  // pack, and hands that to the aside.
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
   await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
-
-  // The comparison slice paints the 基线 operator row (flat pack synthesizes
-  // its opName option) and tone badges with deltas on the summary cards.
-  await expect(page.getByTestId('stats-baseline-compare')).toBeVisible();
   await expect(page.locator('.pr-diff').first()).toBeVisible();
 
+  // The always-visible bar's Operator select drives the comparison: the default
+  // is the pack's first demo operator…
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+  const durationBadge = page.getByTestId('stats-duration-diff');
+  await expect(durationBadge).toBeVisible();
+  const before = await durationBadge.locator('.pr-diff__text').textContent();
+
+  // …and a different operator repaints the badge value.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'gelu');
+  await expect
+    .poll(async () => durationBadge.locator('.pr-diff__text').textContent())
+    .not.toBe(before);
+
+  // Both tones appear across the demo operators (the scaled read bandwidth
+  // straddles the open report's value).
+  const readBadge = page.getByTestId('stats-bandwidth-read-diff');
+  const tones = new Set<string>();
+  const operators = ['matmul', 'matmul_t', 'add_n', 'relu', 'gelu', 'layernorm', 'softmax', 'conv2d'];
+  for (const op of operators) {
+    await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+    await page.getByTestId(`aside-baseline-operator-option-${op}`).click();
+    await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', op);
+    await expect(readBadge).toBeVisible();
+    const cls = (await readBadge.getAttribute('class')) ?? '';
+    if (cls.includes('pr-diff--increase')) tones.add('increase');
+    if (cls.includes('pr-diff--decrease')) tones.add('decrease');
+  }
+  expect([...tones].sort()).toEqual(['decrease', 'increase']);
+
   // A demo-list entry works the same way: its path is a fixture URL, the host
-  // glue fetches the bytes and adapts them. (The popover is still open — the
-  // aside select stops pointerdown, so the outside-dismiss never fires; a
-  // toggle here would CLOSE it.)
+  // glue fetches the bytes, adapts them and wraps the demo operators. (The
+  // popover is still open — the aside select stops pointerdown, so the
+  // outside-dismiss never fires; a toggle here would CLOSE it.)
   await page.locator('.pr-baseline__item--check').nth(0).click();
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid^="aside-baseline-option-"]').nth(2).click();
-  await expect(page.getByTestId('stats-baseline-compare')).toBeVisible();
   await expect(page.locator('.pr-diff').first()).toBeVisible();
+  // The fetched pack adapted under the new selection: a high-scale operator
+  // repaints a green-down read badge.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-softmax').click();
+  await expect(page.getByTestId('stats-bandwidth-read-diff')).toHaveClass(/pr-diff--decrease/);
 });
 
 test('PR-E2E-022: the aside Baseline dropdown always shows and follows the checked set', async ({ page }) => {

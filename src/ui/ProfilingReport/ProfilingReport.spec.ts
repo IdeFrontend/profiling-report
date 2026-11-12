@@ -2639,18 +2639,18 @@ describe('ProfilingReport scaffold', () => {
       },
     });
     await flushPromises();
-    // Matching id: the aside renders the comparison row.
-    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(true);
+    // Matching id: the aside paints the comparison badges.
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
 
     // A payload for another id is ignored — the aside receives nothing.
     await wrapper.setProps({ baselineReport: { baselineId: 'b9', report: baselinePack } });
     await nextTick();
-    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
 
     // The selection moving onto the payload's id re-enters the comparison state.
     await wrapper.setProps({ selectedBaselineId: 'b9' });
     await nextTick();
-    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
     wrapper.unmount();
   });
 
@@ -2690,8 +2690,8 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.selectedEventId).toBe('a');
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
-    // Only the comparison chrome left (mismatched id), the rest is untouched.
-    expect(wrapper.find('[data-testid="stats-baseline-compare"]').exists()).toBe(false);
+    // The comparison badges are gone (mismatched id); the rest is untouched.
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
