@@ -33,6 +33,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Show/hide dependency links | P2 | |
 | Task display unit (auto s/ms/µs/ns or CPU clocks) | M | Two-tier auto ([UI-40](../context/decisions/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Optional **CPU clocks** when OpBasicInfo freq present — **derived** `ns × freq` ([UI-45](../context/decisions/UI.md)); tooltip + detail only. |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
+| 流水视图显示 (multi-timeline radio selector) | M | Switch among present §11.14 CTEF embeds (`Communication` / `PipeTrace` / SimtWarp); hide when &lt; 2; omit unmatched `stat` ([DATA-56](../context/decisions/DATA.md)). Sketch: [`1130/pipeline-display-filter`](./source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg) |
 | Settings | P2 | |
 
 ## Swimlane

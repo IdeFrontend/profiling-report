@@ -14,7 +14,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Dispatch.** Invoked when `loadReportSource` detects emulate `manifest.json` ([PROC-8](../../docs/context/decisions/PROC.md)).
 
-**Swimlane.** When `PipeTrace.json` **or** one or more native `*_tracing_report_*.json` embeds are present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). Multiple native core reports are **merged** with remapped pids ([PR-ASIM-007](#acceptance-criteria)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
+**Swimlane.** Prefer the §11.14 catalog when present ([DATA-56](../../docs/context/decisions/DATA.md) / [timeline-traces](./timeline-traces.spec.md)). Else when `PipeTrace.json` **or** one or more native `*_tracing_report_*.json` embeds are present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). Multiple native core reports are **merged** with remapped pids ([PR-ASIM-007](#acceptance-criteria)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
 
 **Summary chrome.** Emulate does **not** populate `reportModel.summary` from KernelInfo (or any embed). Set `reportModel.profile: 'emulate'`. Aside omits summary cards and the pid / opType / Blocks / 更多 meta row ([DATA-47](../../docs/context/decisions/DATA.md)). KernelInfo may still be packed in `csvTexts` when present.
 

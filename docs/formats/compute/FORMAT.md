@@ -21,6 +21,8 @@ Producer field catalog notes: [SCHEMA.md](SCHEMA.md). UI fill crosswalk: [METRIC
 | [`objdump.txt`](objdump.txt.md) |
 | [`OpBasicInfo.csv`](OpBasicInfo.csv.md) |
 | [`PipeTrace.json`](PipeTrace.json.md) |
+| [`Communication.json`](Communication.json.md) |
+| [`SimtWarpOccpy.json`](SimtWarpOccpy.json.md) |
 | [`PipeUtilization.csv`](PipeUtilization.csv.md) |
 | [`ResourceConflictRatio.csv`](ResourceConflictRatio.csv.md) |
 | [`Sampling.json`](Sampling.json.md) |
@@ -31,6 +33,7 @@ Producer field catalog notes: [SCHEMA.md](SCHEMA.md). UI fill crosswalk: [METRIC
 
 ## Notes
 
+- §11.14 流水视图显示 catalog embeds (`Communication.json` / `PipeTrace.json` / `SimtWarpOccpy.json`, µs) win over classic [`trace.json`](trace.json.md) when present ([DATA-56](../../context/decisions/DATA.md)).
 - Optional Ascend C / C++ source text embeds (`.asc` / `.cpp` / `.h`) have **variable** basenames; matching rules live under [`symbolizer.json.md`](symbolizer.json.md#source-text).
 - Nested SQLite tables `pc_sampling` / `PcSampling` are specified **inside** [`summary.db.md`](summary.db.md), not as separate files.
 - Lookup accepts `Summary.jsonl` / `SUMMARY.jsonl` as the same embed; only [`summary.jsonl.md`](summary.jsonl.md) is kept.

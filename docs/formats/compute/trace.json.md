@@ -2,7 +2,7 @@
 
 ## Timeline / trace payload
 
-Docx §11.2.8 tables for timeline and pipeline details are **empty**. The local sample embeds `trace.json` (Chrome Trace Event format).
+Docx §11.2.8 tables for timeline and pipeline details are **empty**. Classic / sample packs embed `trace.json` (Chrome Trace Event format, **ns**) as the legacy swimlane source when the §11.14 catalog is empty ([DATA-56](../../context/decisions/DATA.md)). The main playground sample (`data/sample.lite.rep` op1) prefers catalog CTEF embeds (`Communication.json`, `PipeTrace.json`, `SimtWarpOccpy.json`, µs) so 流水视图显示 is visible.
 
 ### 4.1 Top level
 
