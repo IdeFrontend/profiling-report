@@ -720,6 +720,41 @@ describe('ReportToolbar', () => {
     await wrapper.find('[data-trace-id="communication"]').trigger('click');
     expect(wrapper.emitted('update:selectedTimelineTraceId')).toEqual([['communication']]);
     expect(wrapper.find('[data-testid="timeline-trace-option"]').exists()).toBe(false);
+
+    const trigger = wrapper.find('[data-testid="toggle-timeline-trace"]');
+    expect(document.activeElement).toBe(trigger.element);
+    await trigger.trigger('keydown', { key: 'ArrowDown' });
+    await flushPromises();
+    let radios = wrapper.findAll('[data-testid="timeline-trace-option"]');
+    expect(document.activeElement).toBe(radios[1].element);
+    await radios[1].trigger('keydown', { key: 'ArrowUp' });
+    await flushPromises();
+    radios = wrapper.findAll('[data-testid="timeline-trace-option"]');
+    expect(document.activeElement).toBe(radios[0].element);
+
+    const seen: string[] = [];
+    const onWindow = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') seen.push('window');
+    };
+    window.addEventListener('keydown', onWindow);
+    radios[0].element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+    await flushPromises();
+    window.removeEventListener('keydown', onWindow);
+    expect(seen).toEqual([]);
+    expect(wrapper.find('[data-testid="timeline-trace-option"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+
+    await trigger.trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+    await wrapper.findAll('[data-testid="timeline-trace-option"]')[0].trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+    expect(wrapper.emitted('update:selectedTimelineTraceId')).toEqual([
+      ['communication'],
+      ['communication'],
+    ]);
+    expect(document.activeElement).toBe(trigger.element);
     wrapper.unmount();
   });
 });
