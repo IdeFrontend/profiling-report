@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } f
 import { t, archMetricModeLabel } from '../../i18n';
 import {
   summaryDiffs,
+  trimDiffMagnitude,
   type MetricDiff,
   type SummaryMetricValues,
 } from '../../domain/metricDiff';
@@ -72,7 +73,6 @@ const props = defineProps<{
    */
   baselineReport?: AdaptedReport | null;
   /** Current report's operator id — auto-pairs the baseline pack when it matches. */
-  selectedOperatorId?: string | null;
 }>();
 
 
@@ -190,8 +190,6 @@ const resolvedBaselineOperatorId = computed(() => {
   // falls back to the pack's first operator.
   const choice = asideBaselineOperator.value;
   if (choice && options.some((o) => o.id === choice)) return choice;
-  const paired = props.selectedOperatorId;
-  if (paired != null && options.some((o) => o.id === paired)) return paired;
   return options[0].id;
 });
 
@@ -244,11 +242,6 @@ const diffs = computed(() => {
   );
 });
 
-/** 2 decimals max, trailing zeros trimmed: 5.00 → '5', 2.40 → '2.4'. */
-function trimNum(n: number): string {
-  return String(Number(n.toFixed(2)));
-}
-
 /**
  * Diff text per metric — the mockup prints the unsigned magnitude in the
  * metric's own unit: bare number for duration (unit implied by the base
@@ -258,16 +251,16 @@ function trimNum(n: number): string {
 function diffText(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): string {
   if (!diff) return '';
   if (kind === 'pct') {
-    const s = trimNum(diff.magnitude);
+    const s = trimDiffMagnitude(diff.magnitude);
     return s === '0' ? '' : `${s}%`;
   }
   if (kind === 'duration') {
     // Same unit as the current card's base value: ms when it prints ms, else µs.
     const us = props.report?.summary.taskDurationUs;
-    const s = us != null && us >= 1000 ? trimNum(diff.magnitude / 1000) : trimNum(diff.magnitude);
+    const s = us != null && us >= 1000 ? trimDiffMagnitude(diff.magnitude / 1000) : trimDiffMagnitude(diff.magnitude);
     return s === '0' ? '' : s;
   }
-  const s = trimNum(diff.magnitude);
+  const s = trimDiffMagnitude(diff.magnitude);
   return s === '0' ? '' : s;
 }
 
@@ -958,10 +951,21 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
 }
 
 /** The selected baseline's PIPE row paired with a current row (same id + side). */
+/** Baseline PIPE rows under the picked block: the same scoping rules as the
+ * current side — a block with no PipeUtilization.csv rows blanks rather than
+ * repeat the All aggregate (DATA-19 / PR-STATS-014b). */
+const scopedBaselinePipeOccupancy = computed(() => {
+  const model = baselineModel.value;
+  const all = model?.pipeOccupancy ?? [];
+  if (!model || !blockId.value) return all;
+  const rows = rowsForBlockOf(model, 'PipeUtilization.csv', blockId.value);
+  return rows.length === 0 ? [] : pipeOccupancyFromRows(rows);
+});
+
 function baselinePipeFor(row: PipeOccupancyItem) {
   if (!baselineModel.value) return null;
   return (
-    baselineModel.value.pipeOccupancy?.find(
+    scopedBaselinePipeOccupancy.value.find(
       (b) => b.id === row.id && (b.side ?? row.side) === row.side,
     ) ?? null
   );

@@ -3183,7 +3183,7 @@ describe('StatsAside', () => {
     expect(badge.get('.pr-diff__text').text()).toBe('0.5');
   });
 
-  it('PR-STATS-055: comparison PIPE rows show two bars with values — current and baseline', () => {
+  it('PR-STATS-055: comparison PIPE rows show two bars with values — current and baseline', async () => {
     const pipes = [
       { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const },
       { id: 'mte2', label: 'MTE2', ratio: 0.3, colorKey: 'mte2', side: 'vector' as const },
@@ -3281,6 +3281,72 @@ describe('StatsAside', () => {
       richer.findAll('.pr-pipe-row').filter((r) => r.get('.pr-pipe-row__label').text() === 'Cube'),
     ).toHaveLength(0);
     richer.unmount();
+
+    // Block scope: with a block picked, BOTH bars re-read their own model's
+    // PipeUtilization.csv row — the baseline bar must not keep the All
+    // aggregate under a block label (PR-STATS-014b / DATA-19).
+    const blockTables = (rows: { block_id: string; aiv_vec_ratio: string }[]) => ({
+      fileName: 'PipeUtilization.csv',
+      headers: ['block_id', 'aiv_vec_ratio'],
+      rows,
+      blockIds: ['0', '1'],
+    });
+    const blockCurrent = report({
+      summary: { taskDurationUs: 1 },
+      pipeOccupancy: [
+        { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const },
+      ],
+      computeTables: [blockTables([
+        { block_id: '0', aiv_vec_ratio: '0.2' },
+        { block_id: '1', aiv_vec_ratio: '0.8' },
+      ])],
+      memoryTables: [],
+    });
+    const scoped = mount(StatsAside, {
+      props: {
+        report: blockCurrent,
+        baselineReport: adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const },
+            ],
+            computeTables: [blockTables([
+              { block_id: '0', aiv_vec_ratio: '0.9' },
+              { block_id: '1', aiv_vec_ratio: '0.4' },
+            ])],
+            memoryTables: [],
+          }),
+        ),
+      },
+    });
+    await pickPipeBlock(scoped, '1');
+    expect(scoped.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(scoped.get('[data-testid="pipe-baseline-value"]').text()).toBe(
+      `${t('baselineLabel')} 40%`,
+    );
+    scoped.unmount();
+
+    // A baseline without that block's rows blanks its bar — never the All
+    // aggregate wearing a block label.
+    const noBaselineRows = mount(StatsAside, {
+      props: {
+        report: blockCurrent,
+        baselineReport: adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const },
+            ],
+            computeTables: [],
+            memoryTables: [],
+          }),
+        ),
+      },
+    });
+    await pickPipeBlock(noBaselineRows, '1');
+    expect(noBaselineRows.find('[data-testid="pipe-baseline-value"]').exists()).toBe(false);
+    noBaselineRows.unmount();
 
     // Without report pipes the section stays hidden — the baseline never
     // invents fields.
