@@ -118,6 +118,8 @@ Library timeline MVP (engineering milestones 1–4) is green on `master` (`npm r
 
 Interim product defaults: [decisions/interim/](docs/context/decisions/interim/). See [specs/README.md](specs/README.md) for the spec index and `npm run check:specs` for traceability validation.
 
+UI source mockups under [`docs/ui/source/`](docs/ui/source/) use **Git LFS**. Install once (`git lfs install`) before cloning; otherwise you get pointer files instead of images.
+
 ```bash
 npm install
 npm run ci              # lint, typecheck, unit / component / e2e
