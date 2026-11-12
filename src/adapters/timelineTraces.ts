@@ -40,7 +40,7 @@ function payloadEntry(
     if (exact) return { name, bytes: exact };
   }
   const lower = new Map(
-    Object.entries(payloads).map(([k, v]) => [k.toLowerCase(), k] as const),
+    Object.entries(payloads).map(([k]) => [k.toLowerCase(), k] as const),
   );
   for (const name of names) {
     const key = lower.get(name.toLowerCase());
