@@ -26,7 +26,8 @@ export type PrIconName =
   | 'to-bottom'
   | 'sort-asc'
   | 'sort-desc'
-  | 'layers';
+  | 'layers'
+  | 'add-baseline';
 
 defineProps<{ name: PrIconName }>();
 </script>
@@ -138,5 +139,10 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--layers {
   -webkit-mask-image: url('./icons/layers.png');
   mask-image: url('./icons/layers.png');
+}
+
+.pr-icon--add-baseline {
+  -webkit-mask-image: url('./icons/add-baseline.png');
+  mask-image: url('./icons/add-baseline.png');
 }
 </style>

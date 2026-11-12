@@ -10,11 +10,11 @@ Crops: [`visual/search.png`](./visual/search.png), [`visual/zoom.png`](./visual/
 
 ## Inputs
 
-All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **timeDisplayMode** (`'time' | 'cycles'`) selects the current display unit in the 显示控制 popover, **clockFreqMHz** (optional) shows the **CPU clocks** option when set, **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only). Optional **userGuideUrl** overrides the default guide URL opened by the trailing help button.
+All inputs reflect current state owned by the parent: **searchQuery** drives the search input via v-model, **zoomPercent** fills the slider (log2-scaled integer: 0=fit / full span, 100=min window — same floor as Ctrl+wheel/`zoomAt`, not “1/100 of full”), **timeDisplayMode** (`'time' | 'cycles'`) selects the current display unit in the 显示控制 popover, **clockFreqMHz** (optional) shows the **CPU clocks** option when set, **dependencyDepth** sets hop count (default `1`, min `-1` = no hop cap, max `MAX_DEPENDENCY_DEPTH` = 100; walk is capped at 10 000 links per side), **asideVisible** and **asideAvailable** control toggle button state and visibility. Optional **locale** localizes button labels / `title` tooltips. Optional **title** shows in the toolbar header. Optional **measureMode** drives the caliper pressed state. Optional **operators** / **selectedOperatorId** drive the top-left OP selector (multi-operator packs only). Optional **userGuideUrl** overrides the default guide URL opened by the trailing help button. Optional **baselines** (`Baseline[]`) and **selectedBaselineId** feed the baseline control (对比基线); optional **pickBaselineFile** is the host file dialog — when it is absent the baseline control is hidden entirely.
 
 ## Outputs
 
-The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeDisplayMode** carries the selected display mode (`'time'` or `'cycles'`). **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector. **open-user-guide** carries the guide URL from the trailing help button (toolbar also attempts `window.open`).
+The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, **zoom-to-fit** signal button clicks — the parent ProfilingReport computes the actual zoom. **update:zoomPercent** carries the slider value. **update:searchQuery** carries text input. **update:timeDisplayMode** carries the selected display mode (`'time'` or `'cycles'`). **update:dependencyDepth** carries the hop count. **update:asideVisible** toggles the panel. **update:measureMode** toggles measure mode. **update:selectedOperatorId** carries the chosen operator id from the OP selector. **open-user-guide** carries the guide URL from the trailing help button (toolbar also attempts `window.open`). **update:selectedBaselineId**, **add-baseline**, and **remove-baseline** are forwarded verbatim from the baseline picker.
 
 ## Behavior
 
@@ -113,11 +113,13 @@ Resting fill from `v930/entry` actions strip; hover/pressed from `v930/hardware-
 | Hover / `:active` / `--on` / `aria-pressed` / `aria-expanded` | bg `#1e2a3e`; icon `#2d70e3` |
 | Gap between buttons | `4px` |
 
-Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, help). MVP implements fit, measure (caliper), **layers → 显示控制**, and **help → user guide**; remaining icons (chart, flag, deps) stay visual-reference until their capabilities land.
+Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, help). Implemented: fit, measure (caliper), **layers → 显示控制**, **help → user guide**, and **baselines (对比基线)** — the baselines trigger uses the mockup's own add-baseline icon (extracted from `docs/ui/source/1130/add-baseline.jpeg`, the highlighted toolbar action in the 增加基线操作 scene); remaining icons (chart, deps) stay visual-reference until their capabilities land.
 
 **User guide.** A **help** glyph button sits **last** in the action-icon list (after aside and HTML export when present). It emits `open-user-guide` with `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`) and also calls `window.open` in a new tab. The page is Chinese-only; English hosts override `userGuideUrl`. Distinct from the connection-level tip inside 显示控制, which also uses the `help` glyph.
 
 **HTML export.** When `htmlExportAvailable` is true, a **Download HTML Report** control sits immediately before user-guide (`data-testid="export-html"`). Click emits `export-html`. Default is hidden. ProfilingReport turns it on when `allowHtmlExport` is true (default false) and `source` bytes exist; report-shell leaves it false because it already *is* the bundle.
+
+**Baselines (对比基线).** An **add-baseline** glyph button (`data-testid="toggle-baselines"`, `data-toolbar-clip`) sits after the aside toggle (before HTML export / user-guide when those are shown). It renders only when `pickBaselineFile` is provided — the hook's absence hides the control. The popover, list, add and dismiss contracts belong to [BaselinePicker](BaselinePicker/BaselinePicker.spec.md); the toolbar forwards its `update:selectedBaselineId` and `add-baseline` emits verbatim.
 
 ### Display control popover
 
@@ -168,6 +170,7 @@ not serve.
 | `help` | `帮助.svg` | 任务连接层级 help (AC-20.2); user-guide action (PR-TOOLBAR-024) |
 | `close` | `ic_public_close.svg` | 显示控制 close (AC-20.5) |
 | `keyboard` | `icon.svg` | 快捷键说明 trigger (PR-TOOLBAR-021) |
+| `add-baseline` | `1130/add-baseline` crop (mockup extraction; provenance `docs/ui/review/icons/add-baseline-1130.png`) | Baselines trigger (PR-TOOLBAR-029) |
 
 Zoom-to-fit keeps its hand-drawn frame glyph — no design export was supplied for it.
 
@@ -197,7 +200,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 18. **PR-TOOLBAR-017** — The 任务连接层级 help control is a `<button type="button">` with a CSS hover/focus bubble (`data-testid="connection-level-help"`), not a native `title`. The tip has `role="tooltip"` and is linked from the button via `aria-describedby`; the button's `aria-label` is the short `helpConnectionLevel` name (distinct from the tip's `connectionLevelHelp` text) so AT does not announce the explanation twice.
 19. **PR-TOOLBAR-018** — The corner wash is the strip's first child, painting above the strip background and below the tabs, pinned with `top: 0; bottom: 0` so it fills the full `.pr-chrome` height (including when the toolbar wraps). Radial horizontal radius is **59%** so opacity reaches 0 at the 208px right edge (no hard seam into `#1f1f1f`). `.pr-chrome` is `position: relative` with **no** `z-index` or `isolation`: a stacking context there would trap the OP menu and 显示控制 popover inside the strip. `.pr-tabs` is positioned so labels paint over the wash.
 20. **PR-TOOLBAR-019** — The depth field's own stepper buttons emit `update:dependencyDepth` ±1 through `normalizeDependencyDepth`, disable at each clamp, and stay out of the tab order and the accessibility tree.
-21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside, html-export when shown, user-guide) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
+21. **PR-TOOLBAR-020** — Trailing toolbar icon actions (`zoom-to-fit`, measure, display-control, aside, baselines when the host hook is present, html-export when shown, user-guide) carry `data-toolbar-clip`; when `overflow-x: clip` crops them past the toolbar's right edge they receive `inert` so keyboard focus cannot land on an invisible control. Search and zoom are never marked.
 22. **PR-TOOLBAR-021** — The shortcut-help action renders **first** in the action list (immediately after the zoom pill, before `zoom-to-fit`), using the `keyboard` glyph (`data-testid="toggle-shortcuts"`, `data-toolbar-clip`).
 23. **PR-TOOLBAR-022** — Clicking the shortcut-help trigger opens the `shortcut-help` popover listing mouse / keyboard / combined bindings (W/S/A/D, Ctrl+wheel, Ctrl+drag, Alt+click); it closes via the X, a second press, an outside pointerdown, or Escape.
 24. **PR-TOOLBAR-023** — The popover renders bindings as PyPTO 24×24 SVG glyphs (`img[data-shortcut-icon]` for W/S/A/D, mouse wheel/click, Ctrl, Alt, single-finger, double-finger, box-select) and labels all sections through i18n (`shortcuts` / `mouseControl` / `keyboardControl` / `combinedControl`). Layout is Mouse‖Keyboard side-by-side with Combined full-width below; Combined scaling/pan/box-select rows include `/`-separated trackpad/gesture stand-ins.
@@ -206,6 +209,8 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 27. **PR-TOOLBAR-026** — Tab strip: **时间线** active by default; **源码** absent until `sourceTabEnabled`, then emits `update:activeTab`. **详情** and **缓存** are not rendered ([UI-37](../../../docs/context/decisions/UI.md)).
 28. **PR-TOOLBAR-027** — When `htmlExportAvailable` is true, `export-html` renders immediately before `open-user-guide` and emits `export-html` on click. When false (default), the control is absent. User-guide remains last among `data-toolbar-clip` actions.
 29. **PR-TOOLBAR-028** — Toolbar icon / zoom buttons tip via shared `.pr-icon-tip` (`aria-label` → CSS `::after`), not native `title` (same ~1s delay / light OS chrome as AC-20.2). Tip opens **below** the control so `.pr-chrome` / `.pr-root` overflow does not clip it. Trailing `data-toolbar-clip` tips (and `.pr-icon-tip--end`) right-align so the chrome's `overflow-x: clip` does not crop them.
+30. **PR-TOOLBAR-029** — The baselines control (`toggle-baselines`, add-baseline glyph, `data-toolbar-clip`) sits after the aside toggle and before HTML export / user-guide.
+31. **PR-TOOLBAR-030** — The baselines control is absent when `pickBaselineFile` is not provided; with the hook, row selection forwards `update:selectedBaselineId`, the + press forwards `add-baseline` with the resolved pick, and the row − forwards `remove-baseline` with the row id.
 
 ## Edge Cases
 
@@ -229,6 +234,10 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-11-11** — Baselines trigger glyph replaced: the mockup's own add-baseline icon (extracted from `docs/ui/source/1130/add-baseline.jpeg`) replaces the flag (Product decision, UI-61 icon part).
+- **2026-11-10** — Review pass 2: clip scan re-runs when a conditional clip member (baselines trigger, HTML export) appears/disappears — their scrollWidth change does not fire the ResizeObserver; PR-TOOLBAR-020 restated to include the baselines trigger.
+- **2026-11-10** — Review pass: action-icon button block moved to the shared `tokens.css` (the BaselinePicker trigger in a child component needs it too; PR-TOOLBAR-009c now reads tokens.css); flag row = HDesign 时间轴打点 export.
+- **2026-11-10** — Baselines (对比基线) control after the aside toggle; hidden without `pickBaselineFile`; forwards `update:selectedBaselineId` / `add-baseline` (`PR-TOOLBAR-029` / `030`).
 - **2026-10-21** — **详情** / **缓存** removed from the tab strip ([UI-37](../../../docs/context/decisions/UI.md)). **源码** stays disabled; **时间线** stays the only active tab (`PR-TOOLBAR-026`).
 - **2026-10-12** — User-guide default URL is the Profiling Report section of the plugin README (`https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`). English hosts override `userGuideUrl`.
 - **2026-10-06** — ProfilingReport `allowHtmlExport` defaults false; toolbar control still opt-in via `htmlExportAvailable`.
