@@ -145,6 +145,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 47. **PR-STATS-052** — The Baseline / Operator dropdown row renders under the meta line **always**: nothing checked → both dropdowns read Not selected; with a checked set the Baseline select shows the current pick (see UI-63 — hide-vs-empty is an open question).
 48. **PR-STATS-053** — The Baseline select (the Block switcher's chrome) lists the checked set by name plus the Not selected sentinel; a pick emits `update:selectedBaselineId` with the id, the sentinel forwards `null` — the host-owned selection, global.
 49. **PR-STATS-054** — The Operator select lists the selected baseline's `operators` (demo values in the bundled hosts), defaults to the first, re-defaults on baseline change, and reads Not selected without a baseline (or when it carries none).
+50. **PR-STATS-055** — The Baseline / Operator row is themed through `--pr-fg-select` / `--pr-fg-aside-muted`, so the value and caption stay readable on the light aside.
 
 ## Edge Cases
 
@@ -297,6 +298,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
+- **2026-11-12** — Review fix: the baseline row is themed through `--pr-fg-select` / `--pr-fg-aside-muted` so it stays readable on the light aside (PR-STATS-055).
 - **2026-11-12** — ТЗ rework (PR-STATS-052..054 restated): the row renders always with Not selected sentinels; the hide-vs-empty decision is open (UI-63).
 - **2026-10-01** — §11.2.3.2 heat units on the stacked diagram (PR-STATS-043): `selectableUnits` now needs the `memoryHeatmap` capability as well as a filled `memoryHeatmap` carrier, matching the overlay's own gate; a unit click re-emits `open-topology-fullscreen` with the clicked unit so 全屏 opens on it.
 - **2026-10-01** — A derived percent or ratio stops at **4 significant digits** (PR-STATS-042), from review: the compute scores printed as `41.1011153199%` / `39.4570707071%` and the ratio as `25 / 60.8256 TFLOPS`. `exactNumber`'s 12-digit default is right for a *published* measurement (a wall-clock amount, a raw throughput) but not for a value derived by multiplying or dividing one — those digits are arithmetic noise, not precision. Leading zeros never count as significant and trailing ones are dropped, so `41.1011153199%` reads `41.1%`; a percent that was already short (`68.25%`) is untouched. Scoped to the compute / BW scores, both `measured / peak` sub-ratios and the AICore percent: the duration amount and its secondary are measurements, and they keep the 12-digit rule that `1.000004 ms` depends on.

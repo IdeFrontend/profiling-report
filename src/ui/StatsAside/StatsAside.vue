@@ -1877,7 +1877,7 @@ const detailTestId = computed(() => {
 .pr-aside__baseline-k {
   font-size: 12px;
   line-height: 16px;
-  color: #999999;
+  color: var(--pr-fg-aside-muted, #999999);
   white-space: nowrap;
 }
 

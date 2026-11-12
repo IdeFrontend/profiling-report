@@ -2657,6 +2657,23 @@ describe('StatsAside', () => {
     ).toBe('');
   });
 
+  it('PR-STATS-055: the baseline row is themed for the light aside', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const tokens = readFileSync(resolve(__dirname, '../tokens.css'), 'utf8');
+    expect(tokens).toMatch(/--pr-fg-select:\s*#e8e8e8/);
+    expect(tokens).toMatch(/--pr-fg-aside-muted:\s*#999999/);
+    const light = tokens.split(".pr-root[data-theme='light']")[1] ?? '';
+    expect(light).toMatch(/--pr-fg-select:\s*#1f2328/);
+    expect(light).toMatch(/--pr-fg-aside-muted:\s*#5a6570/);
+    // No hardcoded dark-theme foregrounds on the shared trigger or the new caption.
+    const selectSrc = (await import('../TimelineView/SwimlaneView/CardMetricSelect.vue?raw'))
+      .default as string;
+    expect(selectSrc).toMatch(/\.pr-metric-select__trigger\s*\{[^}]*color:\s*var\(--pr-fg-select/s);
+    const asideSrc = (await import('./StatsAside.vue?raw')).default as string;
+    expect(asideSrc).toMatch(/\.pr-aside__baseline-k\s*\{[^}]*color:\s*var\(--pr-fg-aside-muted/s);
+  });
+
   it('PR-STATS-053: the Baseline select lists the checked set + Not selected and forwards picks', async () => {
     const wrapper = mount(StatsAside, {
       props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: 'b1' },
