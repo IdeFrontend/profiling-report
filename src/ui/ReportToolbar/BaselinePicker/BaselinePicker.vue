@@ -368,6 +368,7 @@ async function browse(): Promise<void> {
 }
 
 .pr-baseline__check-dot {
+  position: relative;
   box-sizing: border-box;
   width: 12px;
   height: 12px;
@@ -377,9 +378,22 @@ async function browse(): Promise<void> {
 }
 
 .pr-baseline__check-input:checked ~ .pr-baseline__check-dot {
-  border-color: var(--pr-accent, #2d70e3);
-  background: var(--pr-accent, #2d70e3);
-  box-shadow: inset 0 0 0 2px var(--pr-surface-raised, #363636);
+  border-color: var(--pr-accent, #6a9ff0);
+  background: var(--pr-accent, #6a9ff0);
+}
+
+/* Checked state gets a non-colour cue too (WCAG 1.4.1): a white tick inside the
+   filled square, so the state does not rely on the accent alone. */
+.pr-baseline__check-input:checked ~ .pr-baseline__check-dot::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 3px;
+  height: 7px;
+  border: solid #ffffff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
 }
 
 .pr-baseline__pick {

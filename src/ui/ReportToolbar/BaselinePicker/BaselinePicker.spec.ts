@@ -299,4 +299,15 @@ describe('BaselinePicker', () => {
     expect(src).toMatch(/\.pr-baseline\s*\{[^}]*min-width:\s*240px/s);
     expect(src).toMatch(/\.pr-baseline\s*\{[^}]*max-width:\s*480px/s);
   });
+
+  it('PR-BASELINE-031: the checked dot uses the declared accent and a non-colour tick', async () => {
+    const src = (await import('./BaselinePicker.vue?raw')).default as string;
+    expect(src).toMatch(/:checked ~ \.pr-baseline__check-dot\s*\{[^}]*var\(--pr-accent/s);
+    // Colour is not the only cue: a tick glyph paints over the filled square.
+    expect(src).toMatch(/:checked ~ \.pr-baseline__check-dot::after\s*\{[^}]*content:/s);
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const tokens = readFileSync(resolve(__dirname, '../../tokens.css'), 'utf8');
+    expect(tokens).toMatch(/--pr-accent:\s*#[0-9a-f]{6}/i);
+  });
 });

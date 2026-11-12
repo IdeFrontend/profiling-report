@@ -48,6 +48,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 12. **PR-BASELINE-011** — The mockup-extracted add-baseline glyph (`icons/add-baseline.png`) renders as the trigger mask.
 13. **PR-BASELINE-026** — Without `recentBaselines` the view shows the empty copy; Browse still works.
 14. **PR-BASELINE-027** — The panel adapts its width to the content (240–480px).
+15. **PR-BASELINE-031** — The checked dot paints the declared `--pr-accent` and adds a non-colour tick.
 
 ## Edge Cases
 
@@ -72,7 +73,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 - The **icon** is Product-confirmed (UI-61): the mockup's add-baseline glyph from the 1130 batch. The **popover chrome** (layout/placement) is still not Product-confirmed; see [UI-61](../../../../docs/context/questions/UI.md).
 
 ## Changelog
-- **2026-11-12** — Review fixes: secondary text and Browse clear WCAG AA on the panel and its hover tint.
+- **2026-11-12** — Review fixes: secondary text and Browse clear WCAG AA on the panel and its hover tint; the checked dot paints the declared `--pr-accent` and adds a non-colour tick.
 - **2026-11-12** — ТЗ rework: a single checkbox view replaces the two-view design — the checked set IS the host-owned baseline list (`update:baselines` on every toggle/Browse), no saved-list view, radios, −, Add Selected or other actions (PR-BASELINE-023..027; old 003..005, 007, 012..022 withdrawn).
 - **2026-11-11** — Second view (Add Recent) with the host's recent reports as checkboxes + Add Selected / Browse, footer actions on the list view (Set current as Baseline / Add Recent / Clear all / Deselect / Browse), per-view titles, and a content-adaptive panel width (PR-BASELINE-014..022).
 - **2026-11-11** — Selection radio per row (PR-BASELINE-013): real radio inputs in one native group on each row's left; checked = current baseline, none by default; clicking one selects exactly like the row click.

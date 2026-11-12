@@ -17,6 +17,9 @@
   --pr-axis-tick-muted: #313131;
   --pr-axis-band-muted: #1b1b1b;
   --pr-playhead: #3078f0;
+  /* Checked-state accent (baseline checkbox dot). Clears 3:1 on the raised panel
+     (#363636) and its hover tint (#4a4a4a), so the indicator is perceivable. */
+  --pr-accent: #6a9ff0;
   --pr-color-cube: #007084;
   --pr-color-vector: #007464;
   --pr-color-mte1: #885c00;
