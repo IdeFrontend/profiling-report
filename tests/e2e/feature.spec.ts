@@ -1279,3 +1279,30 @@ test('PR-E2E-023: the aside Operator dropdown defaults to the first, keeps a ses
   await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
 });
 
+test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta badges', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  // Check a demo baseline and select it in the aside.
+  await page.getByTestId('toggle-baselines').click();
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+  await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
+
+  // PIPE rows: TWO bars per metric with the VALUES on the bars (never deltas).
+  await expect(page.locator('.pr-pipe-row').first()).toBeVisible();
+  await expect(page.locator('[data-testid="pipe-baseline-value"]').first()).toBeVisible();
+  const chip = await page
+    .locator('[data-testid="pipe-baseline-value"]')
+    .first()
+    .textContent();
+  expect(chip).toMatch(/\d+%/);
+  const barVal = await page.locator('.pr-pipe-row__bar-val').first().textContent();
+  expect(barVal).toMatch(/\d+%/);
+  // The baseline bar shows the baseline's own value, not a delta.
+  expect(chip).not.toBe(barVal);
+
+  // details: delta badges right of the values.
+  await page.getByTestId('pipe-details').click();
+  await expect(page.getByTestId('summary-category-list')).toBeVisible();
+  await expect(page.locator('[data-testid^="summary-field-diff-"]').first()).toBeVisible();
+});

@@ -957,6 +957,18 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
   return (item.side ?? side) === side;
 }
 
+/** The selected baseline's PIPE row paired with a current row (same id + side). */
+function baselinePipeFor(row: PipeOccupancyItem) {
+  if (!baselineModel.value) return null;
+  return (
+    baselineModel.value.pipeOccupancy?.find(
+      (b) => b.id === row.id && (b.side ?? row.side) === row.side,
+    ) ?? null
+  );
+}
+/** Comparison active for the PIPE rows: the baseline pack is present. */
+const hasBaselinePipes = computed(() => baselineModel.value != null);
+
 const visiblePipes = computed(() => {
   const all = scopedPipeOccupancy.value;
   // Emulate sides (`aic`/`aiv0`/`aiv1`) must not fall through to compute knownSide
@@ -1603,7 +1615,14 @@ const detailTestId = computed(() => {
                   <span
                     class="pr-pipe-row__bar"
                     :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
-                  />
+                  >
+                    <!-- Comparison: the value rides ON the current bar (mockup
+                         1130 方案一) — values, never deltas. -->
+                    <span
+                      v-if="hasBaselinePipes"
+                      class="pr-pipe-row__bar-val"
+                    >{{ Math.round(pipe.ratio * 100) }}%</span>
+                  </span>
                   <span
                     class="pr-pipe-row__grid"
                     aria-hidden="true"
@@ -1613,7 +1632,26 @@ const detailTestId = computed(() => {
                     class="pr-pipe-row__abs"
                     data-testid="pipe-absolute"
                   >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
-                  <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+                  <span
+                    v-if="!hasBaselinePipes"
+                    class="pr-pipe-row__pct"
+                  >{{ Math.round(pipe.ratio * 100) }}%</span>
+                </span>
+                <!-- Baseline bar: slate fill + orange chip with the baseline's
+                     own value (1130 方案一). -->
+                <span
+                  v-if="baselinePipeFor(pipe)"
+                  class="pr-pipe-row__base-track"
+                >
+                  <span
+                    class="pr-pipe-row__base"
+                    :style="{ width: `${Math.min(100, Math.max(0, (baselinePipeFor(pipe)?.ratio ?? 0) * 100))}%` }"
+                  >
+                    <span
+                      class="pr-pipe-row__base-chip"
+                      data-testid="pipe-baseline-value"
+                    >{{ Math.round((baselinePipeFor(pipe)?.ratio ?? 0) * 100) }}%</span>
+                  </span>
                 </span>
               </li>
             </ul>
@@ -1709,6 +1747,7 @@ const detailTestId = computed(() => {
             :categories="computeCategories"
             :active-id="activeCategory"
             :locale="locale"
+            :baseline-categories="hasBaselinePipes ? (baselineModel?.summaryCategories ?? undefined) : undefined"
             @update:active-id="activeCategory = $event"
           />
           <CsvFieldListPanel
@@ -1828,6 +1867,7 @@ const detailTestId = computed(() => {
               :categories="computeCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="hasBaselinePipes ? (baselineModel?.summaryCategories ?? undefined) : undefined"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel
@@ -2725,6 +2765,52 @@ const detailTestId = computed(() => {
   white-space: nowrap;
   line-height: 1;
   pointer-events: none;
+}
+
+.pr-pipe-row__bar {
+  position: relative;
+}
+
+/* Comparison: the current value rides inside the bar fill (white, mockup 1130). */
+.pr-pipe-row__bar-val {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Baseline bar: muted slate fill (#657390 from the mockup) on the row's own
+   track, with the baseline value in an orange chip at the fill's end. */
+.pr-pipe-row__base-track {
+  position: relative;
+  display: block;
+  height: 8px;
+  margin: 3px 0 0;
+}
+
+.pr-pipe-row__base {
+  position: relative;
+  display: block;
+  height: 100%;
+  background: #657390;
+}
+
+.pr-pipe-row__base-chip {
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  border-radius: 2px;
+  background: #f69e3a;
+  font-size: 10px;
+  line-height: 14px;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
 .pr-pipe-row__pct {

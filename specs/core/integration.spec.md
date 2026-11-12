@@ -55,6 +55,7 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-019**: Single-click an event that a closed DetailPanel would cover; after the dock height tween the selected lane row stays visible above the dock (timeline ensure-scrolls).
 1. **PR-E2E-020**: The playground's **baselines** link opens the picker's checkbox view (the single view): the five demo reports unchecked, checking rows survives closing the popover, Browse appends the picked file as a checked row, and a reload starts with nothing checked again (session-only).
 1. **PR-E2E-021**: Baseline comparison in the playground: Browse a report whose metrics differ from the current one adapts it (host glue, real bytes) and the aside's always-visible bar drives the comparison — the Operator select repaints per-operator tone badges on the summary cards, both tones appear across the demo operators, and demo-list entries adapt the same way (their paths are fixture URLs the glue fetches).
+1. **PR-E2E-024**: PIPE comparison: with a demo baseline selected, every PIPE row shows two bars — the current value on the current bar and the baseline value in the baseline bar orange chip (values, never deltas); the compute details overlay paints delta badges right of its field values.
 1. **PR-E2E-022**: The aside Baseline dropdown always renders (Not selected when nothing is checked), lists exactly the checked set + Not selected, picks globally, and unchecking the selected report clears the selection back to Not selected.
 1. **PR-E2E-023**: The aside Operator dropdown defaults to the selected baseline's first operator, keeps a session-local pick, re-defaults on baseline change, and works for browsed picks too.
 
@@ -63,6 +64,7 @@ Outside-in tests verifying the full component tree and playground render correct
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-11-12** — PR-E2E-024: PIPE dual bars with values + details delta badges.
 - **2026-11-12** — PR-E2E-021 restated for the bar-driven comparison: the removed 基线 operator row is gone; the aside Operator select drives per-operator badge values and both tones across the eight demo operators, for browsed and demo-fetched packs alike.
 - **2026-11-12** — PR-E2E-021: the sidebar comparison slice e2e — per-operator, per-card, per-baseline badge coverage with both tones (demo packs synthesize eight scaled operators on every metric family).
 - **2026-11-12** — ТЗ rework (PR-E2E-020/022/023 restated): the picker is a single checkbox view — the checked set IS the baseline list; the aside dropdowns always render with Not selected sentinels.

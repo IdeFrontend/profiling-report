@@ -131,3 +131,8 @@ export function summaryDiffs(current: SummaryMetricValues, baseline: SummaryMetr
     bandwidthWrite: bwDir('write'),
   };
 }
+
+/** 2 decimals max, trailing zeros trimmed: 5.00 → '5', 2.40 → '2.4'. */
+export function trimDiffMagnitude(n: number): string {
+  return String(Number(n.toFixed(2)));
+}

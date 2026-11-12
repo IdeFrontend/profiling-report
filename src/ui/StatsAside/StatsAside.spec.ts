@@ -3183,6 +3183,47 @@ describe('StatsAside', () => {
     expect(badge.get('.pr-diff__text').text()).toBe('0.5');
   });
 
+  it('PR-STATS-055: comparison PIPE rows show two bars with values — current and baseline', () => {
+    const pipes = [
+      { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const },
+      { id: 'mte2', label: 'MTE2', ratio: 0.3, colorKey: 'mte2', side: 'vector' as const },
+    ];
+    const baseline = report({
+      summary: { taskDurationUs: 500, opName: 'relu' },
+      pipeOccupancy: [
+        { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const },
+        { id: 'mte2', label: 'MTE2', ratio: 0.6, colorKey: 'mte2', side: 'vector' as const },
+      ],
+    });
+
+    // Without a pack: the classic single bar + trailing pct.
+    const plain = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 }, pipeOccupancy: pipes }) },
+    });
+    expect(plain.find('[data-testid="pipe-baseline-value"]').exists()).toBe(false);
+    expect(plain.findAll('.pr-pipe-row__bar-val')).toHaveLength(0);
+    expect(plain.findAll('.pr-pipe-row__pct').map((p) => p.text())).toEqual(['50%', '30%']);
+    plain.unmount();
+
+    // With a pack: two bars per metric, values ON the bars (never deltas).
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1 }, pipeOccupancy: pipes }),
+        baselineReport: adaptedPack(baseline),
+      },
+    });
+    const chips = wrapper.findAll('[data-testid="pipe-baseline-value"]');
+    expect(chips.map((c) => c.text())).toEqual(['80%', '60%']);
+    expect(wrapper.findAll('.pr-pipe-row__bar-val').map((v) => v.text())).toEqual(['50%', '30%']);
+    // The trailing pct yields to the on-bar value in comparison mode.
+    expect(wrapper.findAll('.pr-pipe-row__pct')).toHaveLength(0);
+    // The baseline bar sits in the same row as the current track.
+    const row = wrapper.findAll('.pr-pipe-row')[0];
+    expect(row.find('.pr-pipe-row__base-track').exists()).toBe(true);
+    expect(row.get('.pr-pipe-row__base-chip').text()).toBe('80%');
+    wrapper.unmount();
+  });
+
   it('PR-STATS-046: duration diff shows green down / red up with the card-unit magnitude', () => {
     // current 4.60 ms vs baseline 7.00 ms → 2400 µs lower = green down 2.4 (ms, not µs).
     const decreased = mount(StatsAside, {

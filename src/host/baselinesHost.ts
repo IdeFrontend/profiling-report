@@ -63,6 +63,59 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel']): void {
       ],
     };
   }
+  if (!model.pipeOccupancy?.length) {
+    // Broad demo row set so the baseline bar pairs with the open report's rows
+    // whatever the fixture: compute (Cube/Vector sides) and emulate cores.
+    const seed: Array<[string, string, string, string]> = [
+      ['cube', 'Cube', 'cube', 'cube'],
+      ['mte1', 'MTE1', 'mte1', 'cube'],
+      ['mte2', 'MTE2', 'mte2', 'cube'],
+      ['mte3', 'MTE3', 'mte3', 'cube'],
+      ['vector', 'Vector', 'vector', 'vector'],
+      ['mte1', 'MTE1', 'mte1', 'vector'],
+      ['mte2', 'MTE2', 'mte2', 'vector'],
+      ['mte3', 'MTE3', 'mte3', 'vector'],
+      ['scalar', 'Scalar', 'scalar', 'aic'],
+      ['scalar', 'Scalar', 'scalar', 'aiv0'],
+      ['scalar', 'Scalar', 'scalar', 'aiv1'],
+      ['mte3', 'MTE3', 'mte3', 'aic'],
+      ['mte3', 'MTE3', 'mte3', 'aiv0'],
+      ['mte3', 'MTE3', 'mte3', 'aiv1'],
+    ];
+    model.pipeOccupancy = seed.map(([id, label, colorKey, side], i) => ({
+      id,
+      label,
+      colorKey,
+      side: side as never,
+      ratio: 0.5 + (i % 5) * 0.04,
+    }));
+  }
+  if (!model.summaryCategories?.length) {
+    // Demo details set mirroring the typical op categories so the 详情 overlay
+    // pairs field-by-field with the open report's fields.
+    const cats: Record<string, [string, number][]> = {
+      PipeUtilization: [
+        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000], ['aiv_vec_time(us)', 39],
+        ['aiv_vec_ratio', 0.9], ['aiv_scalar_time(us)', 1], ['aiv_scalar_ratio', 0.02],
+        ['aiv_mte2_time(us)', 0.004], ['aiv_mte2_ratio', 0.0002], ['aiv_mte2_active_bw(GB/s)', 30],
+        ['aiv_mte3_time(us)', 0.002], ['aiv_mte3_ratio', 0.0001], ['aiv_icache_miss_rate', 0.01],
+      ],
+      ArithmeticUtilization: [
+        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000], ['aiv_vec_ratio', 0.9],
+        ['aiv_vec_vf_ratio', 0.1], ['aiv_vec_sfu_ratio', 0.05], ['aiv_vec_simt_vf_ratio', 0.9],
+      ],
+      ResourceConflictRatio: [
+        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000], ['aiv_vec_stu_cflt_ratio', 0.02],
+        ['aiv_vec_ldu_cflt_ratio', 0.01], ['aiv_vec_sfu_cflt_ratio', 0.01], ['aiv_vec_wait_ratio', 0.03],
+        ['aiv_mte2_wait_ratio', 0.01], ['aiv_mte3_wait_ratio', 0.01],
+      ],
+    };
+    model.summaryCategories = Object.entries(cats).map(([id, fields]) => ({
+      id,
+      title: id,
+      fields: fields.map(([key, value]) => ({ key, value: String(value) })),
+    }));
+  }
   const bw = model.bandwidthCards ?? [];
   if (!bw.some((c) => c.id === 'input')) {
     bw.push({ id: 'input', sides: [{ side: 'aic', measuredGBs: 400, peakGBs: 800 }] });
@@ -88,6 +141,15 @@ function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number
   for (const card of model.bandwidthCards ?? []) {
     for (const side of card.sides) {
       if (typeof side.measuredGBs === 'number') side.measuredGBs *= scale;
+    }
+  }
+  for (const p of model.pipeOccupancy ?? []) {
+    p.ratio = Math.min(1, Math.max(0, p.ratio * scale));
+  }
+  for (const c of model.summaryCategories ?? []) {
+    for (const f of c.fields) {
+      const n = Number(f.value);
+      if (Number.isFinite(n)) f.value = String(n * scale);
     }
   }
 }
