@@ -755,6 +755,23 @@ describe('ReportToolbar', () => {
       ['communication'],
     ]);
     expect(document.activeElement).toBe(trigger.element);
+
+    await wrapper.setProps({ sourceTabEnabled: true });
+    await trigger.trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="timeline-trace-option"]').exists()).toBe(true);
+    const leaked: string[] = [];
+    const onWindowEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') leaked.push('window');
+    };
+    window.addEventListener('keydown', onWindowEscape);
+    await wrapper.setProps({ activeTab: 'source' });
+    await flushPromises();
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+    window.removeEventListener('keydown', onWindowEscape);
+    expect(leaked).toEqual(['window']);
     wrapper.unmount();
   });
 });

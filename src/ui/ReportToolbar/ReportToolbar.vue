@@ -154,6 +154,16 @@ watch(showTimelineTraceSelector, (show) => {
   if (!show) timelineTraceOpen.value = false;
 });
 
+// The menu sits in the Timeline toolbar (`v-if="activeTab === 'timeline'`). A keyboard
+// tab switch unmounts that div without a pointerdown, which would leave the document
+// Escape listener attached and swallowing keys on Source.
+watch(
+  () => props.activeTab,
+  (tab) => {
+    if (tab !== 'timeline') void closeTimelineTraceMenu();
+  },
+);
+
 function focusActiveTimelineOption() {
   const items = timelineTraceMenuRef.value?.querySelectorAll<HTMLElement>(
     '[data-testid="timeline-trace-option"]',
