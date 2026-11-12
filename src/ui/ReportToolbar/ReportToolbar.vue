@@ -55,8 +55,6 @@ const props = withDefaults(
     htmlExportAvailable?: boolean;
     /** Host-owned baseline list (对比基线); forwarded to the BaselinePicker. */
     baselines?: Baseline[];
-    /** Current baseline id; forwarded to the BaselinePicker. */
-    selectedBaselineId?: string | null;
     /** Host file dialog for the + press; absent = the baseline control is hidden. */
     pickBaselineFile?: () => Promise<BaselinePick | null>;
     /** Recent performance reports (Add Recent view); forwarded to the BaselinePicker. */
@@ -84,7 +82,6 @@ const emit = defineEmits<{
   'update:zoomPercent': [value: number];
   'open-user-guide': [url: string];
   'export-html': [];
-  'update:selectedBaselineId': [id: string | null];
   'update:baselines': [baselines: Baseline[]];
 }>();
 
