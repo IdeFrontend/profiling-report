@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, ref, useId, watch } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import PrIcon from '../../PrIcon.vue';
 import CloseButton from '../../CloseButton.vue';
 import { t } from '../../../i18n';
@@ -50,6 +51,8 @@ const open = ref(false);
 /** Wrap owns the trigger and the panel, so an outside hit is anything not in here. */
 const wrapRef = ref<HTMLElement | null>(null);
 const triggerRef = ref<HTMLButtonElement | null>(null);
+const closeRef = ref<ComponentPublicInstance | null>(null);
+const panelId = useId().replace(/:/g, '');
 
 /**
  * Checkbox rows: the host's recent reports first, then checked entries the
@@ -64,15 +67,46 @@ function isChecked(id: string): boolean {
   return props.baselines.some((b) => b.id === id);
 }
 
+/**
+ * Row to receive focus after the host applies an uncheck that unmounts the row.
+ * Extra rows exist only while checked, so unchecking one removes the focused
+ * checkbox from the DOM; without a move, focus falls to `body` and keyboard
+ * users restart tabbing from the top. `undefined` = no pending move.
+ */
+let pendingFocusId: string | null | undefined;
+watch(
+  () => props.baselines,
+  async () => {
+    if (pendingFocusId === undefined) return;
+    const targetId = pendingFocusId;
+    pendingFocusId = undefined;
+    await nextTick();
+    const inputs = [
+      ...(wrapRef.value?.querySelectorAll<HTMLInputElement>('[data-testid="baseline-check"]') ?? []),
+    ];
+    const target = targetId != null ? inputs.find((el) => el.dataset.rowId === targetId) : undefined;
+    (target ?? triggerRef.value)?.focus();
+  },
+);
+
 function setChecked(row: Baseline, checked: boolean): void {
   const next = checked
     ? [...props.baselines.filter((b) => b.id !== row.id), row]
     : props.baselines.filter((b) => b.id !== row.id);
   emit('update:baselines', next);
+  if (checked || recentIds.value.has(row.id)) return;
+  const index = rows.value.findIndex((r) => r.id === row.id);
+  const neighbour = rows.value[index + 1] ?? rows.value[index - 1];
+  pendingFocusId = neighbour?.id ?? null;
 }
 
-function toggle() {
+async function toggle() {
   open.value = !open.value;
+  if (!open.value) return;
+  // A dialog must be entered, not merely shown: move focus to its close button
+  // so screen readers announce the panel and Tab continues inside it.
+  await nextTick();
+  (closeRef.value?.$el as HTMLElement | undefined)?.focus();
 }
 
 async function close(opts?: { restoreFocus?: boolean }) {
@@ -170,6 +204,7 @@ async function browse(): Promise<void> {
       data-testid="toggle-baselines"
       :aria-expanded="open"
       :aria-pressed="open"
+      :aria-controls="open ? panelId : undefined"
       :class="{ 'pr-toolbar__icon-btn--on': open }"
       :aria-label="t('baselines', locale)"
       @click="toggle"
@@ -179,6 +214,7 @@ async function browse(): Promise<void> {
 
     <div
       v-if="open"
+      :id="panelId"
       class="pr-baseline"
       data-testid="baselines-popover"
       role="dialog"
@@ -187,6 +223,7 @@ async function browse(): Promise<void> {
       <div class="pr-baseline__head">
         <span class="pr-baseline__title">{{ t('baselineAddTitle', locale) }}</span>
         <CloseButton
+          ref="closeRef"
           class="pr-baseline__close"
           data-testid="baselines-close"
           :label="t('closePanel', locale)"
@@ -215,6 +252,7 @@ async function browse(): Promise<void> {
               type="checkbox"
               class="pr-baseline__check-input"
               data-testid="baseline-check"
+              :data-row-id="row.id"
               :checked="isChecked(row.id)"
               @change="setChecked(row, ($event.target as HTMLInputElement).checked)"
             >

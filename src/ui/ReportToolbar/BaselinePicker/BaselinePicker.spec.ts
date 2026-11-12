@@ -135,17 +135,26 @@ describe('BaselinePicker', () => {
     wrapper.unmount();
   });
 
-  it('PR-BASELINE-024: checked entries missing from the recent list render as extra rows', async () => {
+  it('PR-BASELINE-024: checked entries missing from the recent list render as extra rows; unchecking keeps focus in the list', async () => {
     const extra: Baseline = { id: 'browse-1', name: 'picked.npu-rep', path: '/picked' };
-    const wrapper = mountPicker({ baselines: [extra] });
+    const wrapper = mountPicker({ baselines: [extra], attachToBody: true });
     await open(wrapper);
     const rows = wrapper.findAll('.pr-baseline__item--check');
     expect(rows).toHaveLength(3);
     expect(rows[2].text()).toContain('picked.npu-rep');
-    expect((rows[2].get('[data-testid="baseline-check"]').element as HTMLInputElement).checked).toBe(true);
+    const extraInput = rows[2].get('[data-testid="baseline-check"]');
+    expect((extraInput.element as HTMLInputElement).checked).toBe(true);
     // Unchecking an extra row removes it from the list.
-    await rows[2].get('[data-testid="baseline-check"]').setValue(false);
+    (extraInput.element as HTMLInputElement).focus();
+    await extraInput.setValue(false);
     expect(wrapper.emitted('update:baselines')).toEqual([[[]]]);
+    // The host applies the list, the row unmounts, focus moves to the neighbour
+    // (the previous recent row here) instead of falling to `body`.
+    await wrapper.setProps({ baselines: [] });
+    await flushPromises();
+    const checks = wrapper.findAll('[data-testid="baseline-check"]');
+    expect(checks).toHaveLength(2);
+    expect(document.activeElement).toBe(checks[1].element);
     wrapper.unmount();
   });
 
@@ -298,6 +307,19 @@ describe('BaselinePicker', () => {
     expect(src).toMatch(/\.pr-baseline\s*\{[^}]*width:\s*max-content/s);
     expect(src).toMatch(/\.pr-baseline\s*\{[^}]*min-width:\s*240px/s);
     expect(src).toMatch(/\.pr-baseline\s*\{[^}]*max-width:\s*480px/s);
+  });
+
+  it('PR-BASELINE-028: opening enters the dialog — focus on close, trigger linked via aria-controls', async () => {
+    const wrapper = mountPicker({ attachToBody: true });
+    const trigger = wrapper.get('[data-testid="toggle-baselines"]');
+    expect(trigger.attributes('aria-controls')).toBeUndefined();
+    await open(wrapper);
+    await flushPromises();
+    const panel = wrapper.get('[data-testid="baselines-popover"]');
+    expect(panel.attributes('id')).toBeTruthy();
+    expect(trigger.attributes('aria-controls')).toBe(panel.attributes('id'));
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="baselines-close"]').element);
+    wrapper.unmount();
   });
 
   it('PR-BASELINE-031: the checked dot uses the declared accent and a non-colour tick', async () => {
