@@ -2625,7 +2625,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-036: a matching baselineReport reaches the aside; a mismatched one is ignored', async () => {
+  it('PR-ROOT-036: a baselineReport payload stays mounted across selection switches (no tear-down)', async () => {
     const baselinePack: AdaptedReport = {
       reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 900, opName: 'relu' } },
       swimlaneModel: null,
@@ -2642,15 +2642,28 @@ describe('ProfilingReport scaffold', () => {
     // Matching id: the aside paints the comparison badges.
     expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
 
-    // A payload for another id is ignored — the aside receives nothing.
-    await wrapper.setProps({ baselineReport: { baselineId: 'b9', report: baselinePack } });
-    await nextTick();
-    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
-
-    // The selection moving onto the payload's id re-enters the comparison state.
+    // The selection moving to another id keeps the last payload mounted —
+    // the host replaces it asynchronously, and dropping the comparison for
+    // that gap tears the aside down (the PIPE rows shrink, the sections
+    // below jump up and flicker). The chrome must not vanish.
     await wrapper.setProps({ selectedBaselineId: 'b9' });
     await nextTick();
     expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+
+    // The host's replacement payload updates the comparison in place.
+    await wrapper.setProps({
+      baselineReport: {
+        baselineId: 'b9',
+        report: { reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 700, opName: 'relu' } }, swimlaneModel: null },
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+
+    // Only a null payload (deselect / failed adaptation) ends the comparison.
+    await wrapper.setProps({ baselineReport: null });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -2690,7 +2703,10 @@ describe('ProfilingReport scaffold', () => {
     expect(vm.viewState.selectedEventId).toBe('a');
     expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
-    // The comparison badges are gone (mismatched id); the rest is untouched.
+    // The last payload stays mounted until the host nulls it — no tear-down.
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+    await wrapper.setProps({ baselineReport: null });
+    await nextTick();
     expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
     wrapper.unmount();
   });

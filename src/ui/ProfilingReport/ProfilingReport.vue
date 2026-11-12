@@ -1793,7 +1793,14 @@ function onAside(visible: boolean) {
  */
 const activeBaselineReport = computed<AdaptedReport | null>(() => {
   const payload = props.baselineReport;
-  if (!payload || payload.baselineId !== props.selectedBaselineId) return null;
+  if (!payload) return null;
+  // Keep the last payload mounted while its id no longer matches the current
+  // selection: the host delivers the replacement asynchronously (fetch/IPC),
+  // and dropping the comparison for that gap tears the aside down and back —
+  // the PIPE rows lose their baseline bars, the sections below jump up and
+  // flicker. The host nulls the payload on failure / deselect, which is what
+  // actually ends the comparison; a fresh matching payload updates values in
+  // place (stale-while-revalidate).
   return payload.report;
 });
 

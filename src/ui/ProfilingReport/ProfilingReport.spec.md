@@ -212,7 +212,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 33. **PR-ROOT-033** — Host-owned invariant: when the applied list no longer contains the current selection, the root emits `update:selectedBaselineId` with `null` (unchecking the selected baseline deselects).
 34. **PR-ROOT-034** — The aside receives `baselines` / `selectedBaselineId`, and its Baseline dropdown pick — an id or `null` (Not selected) — is forwarded as the global `update:selectedBaselineId`.
 
-36. **PR-ROOT-036** — A `baselineReport` payload whose `baselineId` matches the current selection reaches the aside; a mismatched payload is ignored (the aside receives nothing).
+36. **PR-ROOT-036** — The root keeps the last `baselineReport` payload mounted while none matches the current selection: the host delivers the replacement asynchronously, and dropping the comparison for that gap would tear the aside down (PIPE rows shrink, the sections below jump up and flicker). Only a **null** payload (deselect / failed adaptation) ends the comparison; a fresh matching payload updates the values in place.
 37. **PR-ROOT-037** — The baseline payload is a data-only side channel: supplying it does not emit `ready`, set `loadError`, change capabilities, or reset view state — the main load path is untouched.
 
 

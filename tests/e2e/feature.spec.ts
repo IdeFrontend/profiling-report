@@ -1240,6 +1240,45 @@ test('PR-E2E-022: the aside Baseline dropdown always shows and follows the check
   // The other checked report remains listed.
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await expect(page.locator('[data-testid^="aside-baseline-option-"]')).toHaveCount(2);
+
+  // Baseline switch = in-place update, never a tear-down: while the host
+  // adapts the new selection, the comparison chrome must stay mounted (the
+  // PIPE tracks used to drop and re-add, shrinking the section so the memory
+  // block below jumped up and flickered).
+  await page.goto('/?fixture=sample');
+  await page.getByTestId('toggle-baselines').click();
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.locator('.pr-baseline__item--check').nth(1).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
+  await expect(page.locator('[data-testid="pipe-baseline-value"]').first()).toBeVisible();
+  const pairedTracks = await page.locator('.pr-pipe-row__track').count();
+  await page.evaluate(() => {
+    (window as unknown as { __trackSamples: number[] }).__trackSamples = [];
+    (window as unknown as { __trackSampling: boolean }).__trackSampling = true;
+    const tick = () => {
+      if (!(window as unknown as { __trackSampling: boolean }).__trackSampling) return;
+      (window as unknown as { __trackSamples: number[] }).__trackSamples.push(
+        document.querySelectorAll('.pr-pipe-row__track').length,
+      );
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-2"]').click();
+  await expect
+    .poll(async () => page.getByTestId('aside-baseline-select').getAttribute('data-value'))
+    .toBe('demo-recent-2');
+  await page.waitForTimeout(400);
+  const samples = await page.evaluate(() => {
+    (window as unknown as { __trackSampling: boolean }).__trackSampling = false;
+    return (window as unknown as { __trackSamples: number[] }).__trackSamples;
+  });
+  expect(samples.length).toBeGreaterThan(5);
+  // Every sampled frame during the switch kept the paired bars mounted.
+  expect(Math.min(...samples)).toBe(pairedTracks);
+  await expect(page.locator('[data-testid="pipe-baseline-value"]').first()).toBeVisible();
 });
 
 test('PR-E2E-023: the aside Operator dropdown defaults to the first, keeps a session pick, and resets on baseline change', async ({ page }) => {
