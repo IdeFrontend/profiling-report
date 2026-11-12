@@ -1288,24 +1288,27 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
   await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
   await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
 
-  // PIPE rows: TWO bars per metric with the VALUES on the bars (never deltas).
-  await expect(page.locator('.pr-pipe-row').first()).toBeVisible();
-  await expect(page.locator('[data-testid="pipe-baseline-value"]').first()).toBeVisible();
-  const chip = await page
-    .locator('[data-testid="pipe-baseline-value"]')
-    .first()
-    .textContent();
-  expect(chip).toMatch(/\d+%/);
-  const barVal = await page.locator('.pr-pipe-row__bar-val').first().textContent();
-  expect(barVal).toMatch(/\d+%/);
+  // PIPE rows: TWO bars per metric, BOTH in the classic layout — value
+  // left, percent right; the baseline bar's right text = 基线 <value>%.
+  const firstRow = page.locator('.pr-pipe-row').first();
+  await expect(firstRow).toBeVisible();
+  await expect(firstRow.locator('.pr-pipe-row__track')).toHaveCount(2);
+  await expect(firstRow.locator('[data-testid="pipe-baseline-value"]')).toBeVisible();
+  const chip = await firstRow.locator('[data-testid="pipe-baseline-value"]').textContent();
+  expect(chip).toMatch(/基线 \d+%/);
   // The baseline bar shows the baseline's own value, not a delta.
-  expect(chip).not.toBe(barVal);
+  const curPct = await firstRow.locator('.pr-pipe-row__track').first().locator('.pr-pipe-row__pct').textContent();
+  expect(chip).not.toBe(curPct);
+  // Both bars carry the same fields: percent on the right of each track.
+  await expect(firstRow.locator('.pr-pipe-row__pct')).toHaveCount(2);
+  // The label column stays the metric label alone — no 基线 stacked under it.
+  await expect(firstRow.locator('.pr-pipe-row__label')).toHaveCount(1);
 
   // Switching the operator visibly changes the baseline bar values.
   await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
   await page.getByTestId('aside-baseline-operator-option-gelu').click();
   await expect
-    .poll(async () => page.locator('[data-testid="pipe-baseline-value"]').first().textContent())
+    .poll(async () => firstRow.locator('[data-testid="pipe-baseline-value"]').textContent())
     .not.toBe(chip);
 
   // details: delta badges right of the values.
@@ -1323,15 +1326,15 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
   await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
-  // Default side is Cube (aic): every row carries TWO identical-chrome bars.
+  // Default side is Cube (aic): every row carries TWO identical-layout bars
+  // with the SAME fields — value left, percent right.
   await expect(page.getByTestId('pipe-side-toggle')).toBeVisible();
   const cubeRow = page.locator('.pr-pipe-row').first();
   await expect(cubeRow).toBeVisible();
-  await expect(cubeRow.locator('.pr-pipe-row__bar')).toHaveCount(2);
-  // The baseline bar reuses the current bar's chrome — only the label differs.
-  await expect(cubeRow.locator('.pr-pipe-row__label--base')).toBeVisible();
+  await expect(cubeRow.locator('.pr-pipe-row__track')).toHaveCount(2);
+  await expect(cubeRow.locator('.pr-pipe-row__pct')).toHaveCount(2);
   const baseA = await cubeRow.locator('[data-testid="pipe-baseline-value"]').textContent();
-  expect(baseA).toMatch(/\d+%/);
+  expect(baseA).toMatch(/基线 \d+%/);
   // Switching the operator visibly changes the cube baseline values.
   await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
   await page.getByTestId('aside-baseline-operator-option-gelu').click();

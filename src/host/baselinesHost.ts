@@ -114,6 +114,9 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
       colorKey,
       side: side as never,
       ratio: 0.3 + ((i + seed) % 7) * 0.08,
+      // The baseline bar shows the SAME fields as the current bar — its own
+      // value rides at the left of the track, percent at the right.
+      absoluteValue: 0.3 + ((i + seed) % 7) * 0.08,
     }));
   }
   if (!model.summaryCategories?.length) {
@@ -171,6 +174,7 @@ function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number
   }
   for (const p of model.pipeOccupancy ?? []) {
     p.ratio = Math.min(1, Math.max(0, p.ratio * scale));
+    if (typeof p.absoluteValue === 'number') p.absoluteValue *= scale;
   }
   for (const c of model.summaryCategories ?? []) {
     for (const f of c.fields) {

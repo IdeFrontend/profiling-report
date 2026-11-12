@@ -626,14 +626,7 @@ watch(
     activeCategory.value = '';
   },
 );
-/** The PIPE section renders when the report OR the baseline pack carries pipe
- * rows — the comparison shows baseline pipes even where the report has none
- * (sample.lite.rep carries no pipe payload at all). */
-const showPipe = computed(
-  () =>
-    (props.report?.pipeOccupancy?.length ?? 0) > 0 ||
-    (baselineModel.value?.pipeOccupancy?.length ?? 0) > 0,
-);
+const showPipe = computed(() => (props.report?.pipeOccupancy?.length ?? 0) > 0);
 const showCompute = computed(
   () => (props.report?.computeTables?.length ?? 0) > 0 || computeCategories.value.length > 0,
 );
@@ -915,21 +908,12 @@ function resolveKnownSide(raw: string): PipeSide | null {
 const knownSide = computed(() => resolveKnownSide(opType.value));
 const pipeSide = ref<PipeSide>('cube');
 
-/** Distinct sides present in scoped PIPE rows, stable order (UI-54). When the
- * open report carries no pipe rows at all (sample.lite.rep), the comparison
- * falls back to the baseline pack's sides so the toggle still shows. */
+/** Distinct sides present in scoped PIPE rows, stable order (UI-54). */
 const pipeSideOptions = computed((): PipeSide[] => {
   const present = new Set<PipeSide>();
   for (const p of scopedPipeOccupancy.value) {
     if (p.side && (PIPE_SIDE_ORDER as string[]).includes(p.side)) {
       present.add(p.side as PipeSide);
-    }
-  }
-  if (present.size === 0 && baselineModel.value != null) {
-    for (const p of baselineModel.value.pipeOccupancy ?? []) {
-      if (p.side && (PIPE_SIDE_ORDER as string[]).includes(p.side)) {
-        present.add(p.side as PipeSide);
-      }
     }
   }
   return PIPE_SIDE_ORDER.filter((s) => present.has(s));
@@ -985,46 +969,6 @@ function baselinePipeFor(row: PipeOccupancyItem) {
 /** Comparison active for the PIPE rows: the baseline pack is present. */
 const hasBaselinePipes = computed(() => baselineModel.value != null);
 
-/** One comparison row: the current pipe paired with the baseline's same
- * id+side row. Baseline-only rows are appended so the baseline's pipes show
- * even where the open report has none (sample.lite.rep has no pipe payload). */
-type ComparisonPipeRow = {
-  key: string;
-  label: string;
-  colorKey: string;
-  side: PipeSide;
-  current: PipeOccupancyItem | null;
-  baseline: PipeOccupancyItem | null;
-};
-
-const displayPipeRows = computed<ComparisonPipeRow[]>(() => {
-  const rows: ComparisonPipeRow[] = visiblePipes.value.map((p) => ({
-    key: `${p.id}-${p.side ?? 'x'}`,
-    label: p.label,
-    colorKey: p.colorKey,
-    side: (p.side ?? activePipeSide.value ?? 'vector') as PipeSide,
-    current: p,
-    baseline: baselinePipeFor(p),
-  }));
-  if (!hasBaselinePipes.value) return rows;
-  const side = activePipeSide.value;
-  for (const b of baselineModel.value?.pipeOccupancy ?? []) {
-    if (side != null && !matchesSide(b, side)) continue;
-    const paired = rows.some(
-      (r) => r.current != null && r.current.id === b.id && (b.side ?? r.current.side) === r.current.side,
-    );
-    if (paired) continue;
-    rows.push({
-      key: `${b.id}-${b.side ?? 'x'}-base`,
-      label: b.label,
-      colorKey: b.colorKey,
-      side: (b.side ?? side ?? 'vector') as PipeSide,
-      current: null,
-      baseline: b,
-    });
-  }
-  return rows;
-});
 
 /** The side the PIPE list is filtered by right now (null = show both). */
 const activePipeSide = computed<PipeSide | null>(() => {
@@ -1662,21 +1606,40 @@ const detailTestId = computed(() => {
             </div>
             <ul class="pr-pipe-list">
               <li
-                v-for="row in displayPipeRows"
-                :key="row.key"
+                v-for="pipe in visiblePipes"
+                :key="`${pipe.id}-${pipe.side ?? 'x'}`"
                 class="pr-pipe-row"
-                :style="{ '--pr-pipe': COLOR[row.colorKey] ?? COLOR.default }"
+                :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
               >
                 <span class="pr-pipe-row__labels">
-                  <span class="pr-pipe-row__label">{{ row.label }}</span>
-                  <span
-                    v-if="row.baseline"
-                    class="pr-pipe-row__label pr-pipe-row__label--base"
-                  >{{ t('baselineLabel', locale) }}</span>
+                  <span class="pr-pipe-row__label">{{ pipe.label }}</span>
                 </span>
                 <span class="pr-pipe-row__stack">
+                <span class="pr-pipe-row__track">
+                  <span
+                    class="pr-pipe-row__hatch"
+                    aria-hidden="true"
+                  />
+                  <span
+                    class="pr-pipe-row__bar"
+                    :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
+                  />
+                  <span
+                    class="pr-pipe-row__grid"
+                    aria-hidden="true"
+                  />
+                  <span
+                    v-if="pipe.absoluteValue != null"
+                    class="pr-pipe-row__abs"
+                    data-testid="pipe-absolute"
+                  >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+                  <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+                </span>
+                <!-- Baseline bar: the SAME layout as the current bar — value
+                     left, percent right; only its right text differs: the
+                     基线 word before the baseline's own percent (1130 方案一). -->
                 <span
-                  v-if="row.current"
+                  v-if="baselinePipeFor(pipe)"
                   class="pr-pipe-row__track"
                 >
                   <span
@@ -1685,44 +1648,21 @@ const detailTestId = computed(() => {
                   />
                   <span
                     class="pr-pipe-row__bar"
-                    :style="{ width: `${Math.min(100, Math.max(0, row.current.ratio * 100))}%` }"
-                  >
-                    <!-- Comparison: the value rides ON the bar (mockup 1130
-                         方案一) — values, never deltas. -->
-                    <span
-                      v-if="hasBaselinePipes"
-                      class="pr-pipe-row__bar-val"
-                    >{{ Math.round(row.current.ratio * 100) }}%</span>
-                  </span>
+                    :style="{ width: `${Math.min(100, Math.max(0, (baselinePipeFor(pipe)?.ratio ?? 0) * 100))}%` }"
+                  />
                   <span
                     class="pr-pipe-row__grid"
                     aria-hidden="true"
                   />
                   <span
-                    v-if="row.current.absoluteValue != null"
+                    v-if="baselinePipeFor(pipe)?.absoluteValue != null"
                     class="pr-pipe-row__abs"
-                    data-testid="pipe-absolute"
-                  >{{ formatPipeAbsolute(row.current.absoluteValue) }}</span>
+                    data-testid="pipe-baseline-absolute"
+                  >{{ formatPipeAbsolute(baselinePipeFor(pipe)!.absoluteValue!) }}</span>
                   <span
-                    v-if="!hasBaselinePipes"
                     class="pr-pipe-row__pct"
-                  >{{ Math.round(row.current.ratio * 100) }}%</span>
-                </span>
-                <!-- Baseline bar: the SAME chrome as the current bar — the
-                     label is the only difference (mockup 1130 方案一). -->
-                <span
-                  v-if="row.baseline"
-                  class="pr-pipe-row__track pr-pipe-row__track--base"
-                >
-                  <span
-                    class="pr-pipe-row__bar"
-                    :style="{ width: `${Math.min(100, Math.max(0, row.baseline.ratio * 100))}%` }"
-                  >
-                    <span
-                      class="pr-pipe-row__bar-val"
-                      data-testid="pipe-baseline-value"
-                    >{{ Math.round(row.baseline.ratio * 100) }}%</span>
-                  </span>
+                    data-testid="pipe-baseline-value"
+                  >{{ t('baselineLabel', locale) }} {{ Math.round((baselinePipeFor(pipe)?.ratio ?? 0) * 100) }}%</span>
                 </span>
                 </span>
               </li>
@@ -2762,16 +2702,11 @@ const detailTestId = computed(() => {
   min-width: 0;
 }
 
-".pr-pipe-row__labels {
+.pr-pipe-row__labels {
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-}
-
-/* The baseline bar's label (基线) — the only difference between the two bars. */
-.pr-pipe-row__label--base {
-  color: #8a8a8a;
 }
 
 .pr-pipe-row__stack {
@@ -2856,27 +2791,6 @@ const detailTestId = computed(() => {
   white-space: nowrap;
   line-height: 1;
   pointer-events: none;
-}
-
-".pr-pipe-row__bar {
-  position: relative;
-}
-
-/* Comparison: the value rides inside the bar fill (white, mockup 1130). */
-.pr-pipe-row__bar-val {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 11px;
-  line-height: 1;
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-/* The baseline bar: same chrome as the current bar, only the label differs. */
-.pr-pipe-row__track--base {
-  margin: 0;
 }
 
 .pr-pipe-row__pct {

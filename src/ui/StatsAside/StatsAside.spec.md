@@ -156,7 +156,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 48. **PR-STATS-053** — The Baseline select (the Block switcher's chrome) lists the checked set by name plus the Not selected sentinel; a pick emits `update:selectedBaselineId` with the id, the sentinel forwards `null` — the host-owned selection, global.
 49. **PR-STATS-054** — The Operator select lists the selected baseline's `operators` (demo values in the bundled hosts), defaults to the first, re-defaults on baseline change, and reads Not selected without a baseline (or when it carries none).
 
-50. **PR-STATS-055** — Comparison PIPE rows show TWO bars per metric with the VALUES on the bars — never deltas. The baseline bar reuses the CURRENT bar's chrome (same fill var, same white on-bar value); the only difference is the 基线 label under the metric label. A pipe the open report lacks but the baseline has (e.g. sample.lite.rep has no pipe payload) renders as a baseline-only row with its bar.
+50. **PR-STATS-055** — Comparison PIPE rows show TWO bars per metric, BOTH in the classic layout (value left, percent right) — never deltas. The baseline bar is a full clone of the current bar (same hatch/fill/grid chrome, its own value at the left); the only difference is its right text: 基线 before the baseline's own percent (基线 46%). The label column stays the metric label alone, and the row set is the report's own fields — the baseline never adds rows (cube and vector show the same fields).
 ### Baseline comparison (对比基线, 1130 方案一)
 
 Renders only while a baseline pack is supplied: the host adapts the selected baseline's bytes via the public `loadReportSource` and passes the adapted pack as **baselineReport** ([ProfilingReport](../ProfilingReport/ProfilingReport.spec.md) — the root ignores a payload whose id does not match the current selection). This slice covers the summary cards; later slices reuse the same aside-local context (`baselineModel` + `summaryDiffs`) for PIPE / roofline / topology / 详情.
@@ -396,7 +396,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 [COLOR_TOKENS.md](../../../docs/ui/COLOR_TOKENS.md), [view-models](../../../specs/core/view-models.spec.md), [INTERACTIONS.md](../../../docs/ui/INTERACTIONS.md), DATA-8, DATA-19, DATA-28, DATA-29, DATA-33a, DATA-33d, DATA-33e, DATA-33f, DATA-33h, DATA-34a, DATA-37a–f.
 
 ## Changelog
-- **2026-11-12** — PIPE comparison (PR-STATS-055): two identical-chrome bars per metric (current + baseline) with values on the bars; the 基线 label is the only difference; baseline-only pipes (report has none) still render their bar.
+- **2026-11-12** — PIPE comparison (PR-STATS-055): two identical-layout bars per metric (current + baseline), classic value-left/percent-right fields on both; the 基线 word sits on the baseline bar's right before its percent; the row set is the report's own fields (no extra rows).
 - **2026-11-12** — Baseline comparison follows the always-visible bar (PR-STATS-044 / 045 restated): the dedicated 基线 operator row is gone; the bar's Operator select resolves the compared operator (the pack's first by default, `summary.opName` for a flat pack), so a pick repaints the per-operator badges. The web glue synthesizes demo multi-operator packs so the Operator select drives real per-operator values.
 - **2026-11-11** — Baseline comparison slice (1130 方案一): operator row + per-card diffs with the mockup badge chrome (PR-STATS-044..051). Diff math lives in `src/domain/metricDiff.ts` — later aside slices reuse it.
 
