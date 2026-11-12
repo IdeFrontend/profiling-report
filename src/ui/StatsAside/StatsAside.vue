@@ -651,6 +651,13 @@ function baselineNameOf(id: string): string {
   if (id === NOT_SELECTED) return t('baselineNotSelected', props.locale);
   return baselineRows.value.find((b) => b.id === id)?.name ?? id;
 }
+/**
+ * The trigger's accessible name carries the value too: `aria-label` replaces the
+ * rendered value span, so a bare "Baseline" would announce a nameless button.
+ */
+const baselineSelectLabel = computed(
+  () => `${t('baselineLabel', props.locale)}: ${baselineNameOf(asideBaselineId.value)}`,
+);
 const baselineOperators = computed(() => selectedBaseline.value?.operators ?? []);
 const baselineIds = computed(() => [NOT_SELECTED, ...baselineRows.value.map((b) => b.id)]);
 /** Operator dropdown: session-local; defaults to (and re-defaults to) the first. */
@@ -660,6 +667,9 @@ const operatorOptions = computed(() =>
 function operatorNameOf(op: string): string {
   return op === NOT_SELECTED ? t('baselineNotSelected', props.locale) : op;
 }
+const operatorSelectLabel = computed(
+  () => `${t('operatorLabel', props.locale)}: ${operatorNameOf(asideBaselineOperator.value)}`,
+);
 watch(
   () => selectedBaseline.value?.id,
   () => {
@@ -1057,7 +1067,7 @@ const detailTestId = computed(() => {
           :options="baselineIds"
           variant="inline"
           test-id-prefix="aside-baseline"
-          :ariaLabel="t('baselineLabel', locale)"
+          :ariaLabel="baselineSelectLabel"
           :label-of="baselineNameOf"
         />
         <span class="pr-aside__baseline-k">{{ t('operatorLabel', locale) }}:</span>
@@ -1066,7 +1076,7 @@ const detailTestId = computed(() => {
           :options="operatorOptions"
           variant="inline"
           test-id-prefix="aside-baseline-operator"
-          :ariaLabel="t('operatorLabel', locale)"
+          :ariaLabel="operatorSelectLabel"
           :label-of="operatorNameOf"
         />
       </div>

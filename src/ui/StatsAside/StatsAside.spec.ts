@@ -2641,6 +2641,15 @@ describe('StatsAside', () => {
     expect(plain.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('');
     expect(plain.get('.pr-metric-select__label').text()).toBe(t('baselineNotSelected'));
     expect(plain.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('');
+    // The accessible name carries the value — otherwise `aria-label` hides it.
+    expect(
+      plain.get('[data-testid="aside-baseline-select"] .pr-metric-select__trigger').attributes('aria-label'),
+    ).toBe(`${t('baselineLabel')}: ${t('baselineNotSelected')}`);
+    expect(
+      plain
+        .get('[data-testid="aside-baseline-operator-select"] .pr-metric-select__trigger')
+        .attributes('aria-label'),
+    ).toBe(`${t('operatorLabel')}: ${t('baselineNotSelected')}`);
     // Header placement: right under the meta line (Process/OpType row).
     const meta = plain.get('[data-testid="stats-aside-meta"]').element;
     expect(
@@ -2691,6 +2700,9 @@ describe('StatsAside', () => {
     ]);
     // The trigger label is the baseline's name, not its id.
     expect(select.get('.pr-metric-select__label').text()).toBe(baselineList[0].name);
+    expect(select.get('.pr-metric-select__trigger').attributes('aria-label')).toBe(
+      `${t('baselineLabel')}: ${baselineList[0].name}`,
+    );
     (document.querySelector('[data-testid="aside-baseline-option-b2"]') as HTMLElement).click();
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2']]);
@@ -2708,8 +2720,11 @@ describe('StatsAside', () => {
       props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: 'b1' },
     });
     const opSelect = wrapper.get('[data-testid="aside-baseline-operator-select"]');
-    // Default = the baseline's first operator.
+    // Default = the baseline's first operator; the accessible name shows it.
     expect(opSelect.attributes('data-value')).toBe('matmul');
+    expect(opSelect.get('.pr-metric-select__trigger').attributes('aria-label')).toBe(
+      `${t('operatorLabel')}: matmul`,
+    );
     await opSelect.get('.pr-metric-select__trigger').trigger('click');
     (document.querySelector('[data-testid="aside-baseline-operator-option-add_n"]') as HTMLElement).click();
     await wrapper.vm.$nextTick();
