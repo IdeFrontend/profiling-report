@@ -63,7 +63,6 @@ Outside-in tests verifying the full component tree and playground render correct
 
 ## Changelog
 - **2026-11-12** — ТЗ rework (PR-E2E-020/022/023 restated): the picker is a single checkbox view — the checked set IS the baseline list; the aside dropdowns always render with Not selected sentinels.
-y saved list — nothing seeded, nothing selected) + PR-E2E-022: the recent-reports checkbox flow (Add Selected / pre-checked duplicates / Set current as Baseline).
 - **2026-11-11** — PR-E2E-020 restated: baselines are session-only in the bundled hosts — the `?baselines=sample` link seeds the demo list (radio selection, none by default), a custom pick dies with the page, no storage anywhere.
 - **2026-10-23** — PR-E2E-019: closed-dock single-click ensure-scrolls the selected row above the DetailPanel (wait for dock height to settle; Vue enter-from + 200ms ease can outlast a 280ms cap).
 - **2026-10-23** — PR-E2E-018: the default sample now has real Source embeds, so the absent-tab check uses `vector_muladd`.
