@@ -1607,6 +1607,7 @@ const detailTestId = computed(() => {
                 :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
               >
                 <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+                <span class="pr-pipe-row__stack">
                 <span class="pr-pipe-row__track">
                   <span
                     class="pr-pipe-row__hatch"
@@ -1652,6 +1653,7 @@ const detailTestId = computed(() => {
                       data-testid="pipe-baseline-value"
                     >{{ Math.round((baselinePipeFor(pipe)?.ratio ?? 0) * 100) }}%</span>
                   </span>
+                </span>
                 </span>
               </li>
             </ul>
@@ -2687,6 +2689,13 @@ const detailTestId = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.pr-pipe-row__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
 }
 

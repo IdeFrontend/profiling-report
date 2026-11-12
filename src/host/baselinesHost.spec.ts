@@ -190,4 +190,13 @@ describe('createBaselinesHost', () => {
       expect(values.size).toBe(8);
     }
   });
+
+  it('different variation keys yield visibly different demo packs', () => {
+    const a = withDemoOperatorPack({ reportModel: emptyReportViewModel(), swimlaneModel: null }, 'demo-recent-1');
+    const b = withDemoOperatorPack({ reportModel: emptyReportViewModel(), swimlaneModel: null }, 'demo-recent-2');
+    const first = (pack: typeof a) => Object.values(pack.operatorReports ?? {})[0].reportModel;
+    expect(first(a).summary.taskDurationUs).not.toBe(first(b).summary.taskDurationUs);
+    expect(first(a).pipeOccupancy?.[0].ratio).not.toBe(first(b).pipeOccupancy?.[0].ratio);
+    expect(first(a).bandwidthCards?.[0].sides[0].measuredGBs).not.toBe(first(b).bandwidthCards?.[0].sides[0].measuredGBs);
+  });
 });

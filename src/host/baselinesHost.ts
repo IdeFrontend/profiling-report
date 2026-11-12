@@ -41,32 +41,42 @@ export function withDemoBaselineOperators(baselines: Baseline[]): Baseline[] {
  * base scale (0.4..0.85) read as increases (red up) against the open report,
  * ops above (1.15..1.6) as decreases (green down), so flipping the Operator
  * select paints both tones. MSTT's real packs pass through untouched. */
-const DEMO_OPERATOR_SCALES = [0.35, 0.5, 0.65, 0.8, 1.2, 1.4, 1.6, 1.8];
+// The default (first) operator keeps scale 1.0 so the demo bars/badges are
+// fat and visible on first selection; flipping operators alternates smaller
+// and larger scales (both tones).
+const DEMO_OPERATOR_SCALES = [1.0, 0.35, 1.2, 0.5, 1.4, 0.65, 1.6, 0.8];
+
+function hashKey(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h;
+}
 
 /**
  * Seed every metric family the summary cards display, so that a demo pack
  * always diffs against EVERY card the open report shows (a fixture that
  * lacks, say, bandwidthCards would otherwise leave those cards badge-less
- * for every operator).
+ * for every operator). Every seeded default varies with `seed` — the
+ * baseline's id — so flipping baselines visibly changes the demo values.
  */
-function ensureDemoMetrics(model: AdaptedReport['reportModel']): void {
+function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): void {
   if (!model.summary) model.summary = {};
   const s = model.summary;
-  if (typeof s.taskDurationUs !== 'number') s.taskDurationUs = 1000;
-  if (typeof s.parallelUtilization !== 'number') s.parallelUtilization = 0.5;
-  if (typeof s.parallelBalance !== 'number') s.parallelBalance = 0.5;
+  if (typeof s.taskDurationUs !== 'number') s.taskDurationUs = 800 + (seed % 20) * 60;
+  if (typeof s.parallelUtilization !== 'number') s.parallelUtilization = 0.3 + (seed % 8) * 0.05;
+  if (typeof s.parallelBalance !== 'number') s.parallelBalance = 0.3 + ((seed >> 3) % 8) * 0.05;
   if (!model.computeCard?.sides?.length) {
     model.computeCard = {
       sides: [
-        { side: 'aic', measuredTflops: 60, peakTflops: 100 },
-        { side: 'aiv', measuredTflops: 40, peakTflops: 100 },
+        { side: 'aic', measuredTflops: 40 + (seed % 10) * 5, peakTflops: 100 },
+        { side: 'aiv', measuredTflops: 30 + ((seed >> 2) % 10) * 4, peakTflops: 100 },
       ],
     };
   }
   if (!model.pipeOccupancy?.length) {
     // Broad demo row set so the baseline bar pairs with the open report's rows
     // whatever the fixture: compute (Cube/Vector sides) and emulate cores.
-    const seed: Array<[string, string, string, string]> = [
+    const pipeSeed: Array<[string, string, string, string]> = [
       ['cube', 'Cube', 'cube', 'cube'],
       ['mte1', 'MTE1', 'mte1', 'cube'],
       ['mte2', 'MTE2', 'mte2', 'cube'],
@@ -82,12 +92,12 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel']): void {
       ['mte3', 'MTE3', 'mte3', 'aiv0'],
       ['mte3', 'MTE3', 'mte3', 'aiv1'],
     ];
-    model.pipeOccupancy = seed.map(([id, label, colorKey, side], i) => ({
+    model.pipeOccupancy = pipeSeed.map(([id, label, colorKey, side], i) => ({
       id,
       label,
       colorKey,
       side: side as never,
-      ratio: 0.5 + (i % 5) * 0.04,
+      ratio: 0.3 + ((i + seed) % 7) * 0.08,
     }));
   }
   if (!model.summaryCategories?.length) {
@@ -118,17 +128,17 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel']): void {
   }
   const bw = model.bandwidthCards ?? [];
   if (!bw.some((c) => c.id === 'input')) {
-    bw.push({ id: 'input', sides: [{ side: 'aic', measuredGBs: 400, peakGBs: 800 }] });
+    bw.push({ id: 'input', sides: [{ side: 'aic', measuredGBs: 300 + (seed % 10) * 40, peakGBs: 800 }] });
   }
   if (!bw.some((c) => c.id === 'output')) {
-    bw.push({ id: 'output', sides: [{ side: 'aic', measuredGBs: 200, peakGBs: 800 }] });
+    bw.push({ id: 'output', sides: [{ side: 'aic', measuredGBs: 150 + ((seed >> 4) % 10) * 30, peakGBs: 800 }] });
   }
   model.bandwidthCards = bw;
 }
 
 /** Scale one ReportViewModel's measured metrics (peaks stay chip-level). */
-function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number): void {
-  ensureDemoMetrics(model);
+function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number, seed: number): void {
+  ensureDemoMetrics(model, seed);
   const s = model.summary;
   if (typeof s.taskDurationUs === 'number') model.summary.taskDurationUs = s.taskDurationUs * scale;
   if (typeof s.parallelUtilization === 'number') {
@@ -159,13 +169,14 @@ function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number
  * operator per demo name, each with the same metrics scaled differently — the
  * aside's Operator select then drives per-operator comparison values.
  */
-export function withDemoOperatorPack(report: AdaptedReport): AdaptedReport {
+export function withDemoOperatorPack(report: AdaptedReport, variationKey = ''): AdaptedReport {
   if (report.operators && report.operators.length > 0) return report;
+  const seed = hashKey(variationKey);
   const base = report.reportModel;
   const operatorReports: Record<string, AdaptedReport> = {};
   DEMO_BASELINE_OPERATORS.forEach((name, i) => {
     const model = structuredClone(base);
-    scaleMeasuredMetrics(model, DEMO_OPERATOR_SCALES[i]);
+    scaleMeasuredMetrics(model, DEMO_OPERATOR_SCALES[i], seed);
     operatorReports[name] = { reportModel: model, swimlaneModel: report.swimlaneModel };
   });
   return {
@@ -289,7 +300,7 @@ const baselines = ref<Baseline[]>([]);
           bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
         );
         if (gen !== adaptGen) return; // stale — a newer pick superseded this run
-        baselineReport.value = { baselineId: sel, report: withDemoOperatorPack(report) };
+        baselineReport.value = { baselineId: sel, report: withDemoOperatorPack(report, sel) };
       } catch (err) {
         // Corrupt/unsupported baseline degrades to "no comparison", never to the main report's error state.
         console.warn('[baselinesHost] baseline adaptation failed', err);

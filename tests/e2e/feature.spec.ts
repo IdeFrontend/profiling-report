@@ -1301,6 +1301,13 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
   // The baseline bar shows the baseline's own value, not a delta.
   expect(chip).not.toBe(barVal);
 
+  // Switching the operator visibly changes the baseline bar values.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect
+    .poll(async () => page.locator('[data-testid="pipe-baseline-value"]').first().textContent())
+    .not.toBe(chip);
+
   // details: delta badges right of the values.
   await page.getByTestId('pipe-details').click();
   await expect(page.getByTestId('summary-category-list')).toBeVisible();
