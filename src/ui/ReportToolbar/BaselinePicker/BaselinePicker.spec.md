@@ -26,7 +26,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 
 **Toggling.** Checking a row emits `update:baselines` with it appended; unchecking emits the list without it. Closing and reopening the popover keeps whatever is checked (the component holds no local state). Unchecking an extra row unmounts the focused checkbox once the host applies the list, so focus moves to the neighbouring checkbox — or the trigger when nothing remains — instead of falling to `body`.
 
-**Browse.** The footer button (`data-testid="baseline-browse"`) calls `pickBaselineFile()`. A `null` result or a rejected hook changes nothing. A pick appends `{ id, name, path }` (fresh id; name falls back to the path basename) to the checked set via `update:baselines` — the new row renders as a checked extra row. Re-picking an already-checked path emits nothing.
+**Browse.** The footer button (`data-testid="baseline-browse"`) calls `pickBaselineFile()`. A `null` result or a rejected hook changes nothing. A pick appends `{ id, name, path }` (fresh id; name falls back to the path basename) to the checked set via `update:baselines` — the new row renders as a checked extra row. Re-picking an already-checked path emits nothing. While the hook is in flight the button is disabled, so one press opens one dialog.
 
 **Empty state.** With no `recentBaselines` and nothing checked, the body shows dim copy (暂无最近的报告 / No recent reports); Browse stays available.
 
@@ -50,6 +50,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 14. **PR-BASELINE-027** — The panel adapts its width to the content (240–480px).
 15. **PR-BASELINE-031** — The checked dot paints the declared `--pr-accent` and adds a non-colour tick.
 16. **PR-BASELINE-028** — Opening moves focus into the panel (close button); the trigger links it via `aria-controls`.
+17. **PR-BASELINE-029** — Browse disables while the host pick is in flight; one press, one hook call.
 
 ## Edge Cases
 
@@ -74,7 +75,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 - The **icon** is Product-confirmed (UI-61): the mockup's add-baseline glyph from the 1130 batch. The **popover chrome** (layout/placement) is still not Product-confirmed; see [UI-61](../../../../docs/context/questions/UI.md).
 
 ## Changelog
-- **2026-11-12** — Review fixes: secondary text and Browse clear WCAG AA on the panel and its hover tint; the checked dot paints the declared `--pr-accent` and adds a non-colour tick; opening moves focus to the close button and links the panel via `aria-controls`; unchecking an extra row keeps focus on its neighbour.
+- **2026-11-12** — Review fixes: secondary text and Browse clear WCAG AA on the panel and its hover tint; the checked dot paints the declared `--pr-accent` and adds a non-colour tick; opening moves focus to the close button and links the panel via `aria-controls`; unchecking an extra row keeps focus on its neighbour; Browse disables while the host pick is in flight.
 - **2026-11-12** — ТЗ rework: a single checkbox view replaces the two-view design — the checked set IS the host-owned baseline list (`update:baselines` on every toggle/Browse), no saved-list view, radios, −, Add Selected or other actions (PR-BASELINE-023..027; old 003..005, 007, 012..022 withdrawn).
 - **2026-11-11** — Second view (Add Recent) with the host's recent reports as checkboxes + Add Selected / Browse, footer actions on the list view (Set current as Baseline / Add Recent / Clear all / Deselect / Browse), per-view titles, and a content-adaptive panel width (PR-BASELINE-014..022).
 - **2026-11-11** — Selection radio per row (PR-BASELINE-013): real radio inputs in one native group on each row's left; checked = current baseline, none by default; clicking one selects exactly like the row click.

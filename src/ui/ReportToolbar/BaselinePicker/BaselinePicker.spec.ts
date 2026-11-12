@@ -197,6 +197,25 @@ describe('BaselinePicker', () => {
     wrapper.unmount();
   });
 
+  it('PR-BASELINE-029: Browse disables while the host pick is in flight', async () => {
+    let resolvePick: (pick: BaselinePick | null) => void = () => {};
+    const hook = vi.fn(
+      () => new Promise<BaselinePick | null>((resolve) => { resolvePick = resolve; }),
+    );
+    const wrapper = mountPicker({ pickBaselineFile: hook });
+    await open(wrapper);
+    const browse = () => wrapper.get('[data-testid="baseline-browse"]');
+    await browse().trigger('click');
+    expect(browse().attributes('disabled')).toBeDefined();
+    // A second press while the dialog is open must not open another one.
+    await browse().trigger('click');
+    expect(hook).toHaveBeenCalledTimes(1);
+    resolvePick(null);
+    await flushPromises();
+    expect(browse().attributes('disabled')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('PR-BASELINE-008: dismiss via ×, second press, outside pointerdown, Escape', async () => {
     const wrapper = mountPicker();
     const pop = () => wrapper.find('[data-testid="baselines-popover"]');

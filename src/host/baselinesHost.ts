@@ -96,9 +96,16 @@ export function createBaselinesHost(
   let resolvePick: ((pick: BaselinePick | null) => void) | null = null;
 
   function pickBaselineFile(): Promise<BaselinePick | null> {
+    // A second pick replaces the first: settle the orphan with `null` instead
+    // of leaving it (and its awaiting caller) pending forever.
+    resolvePick?.(null);
+    resolvePick = null;
+    const el = input();
+    // No input in the host DOM: settle as a cancel rather than hang Browse.
+    if (!el) return Promise.resolve(null);
     return new Promise((resolve) => {
       resolvePick = resolve;
-      input()?.click();
+      el.click();
     });
   }
 

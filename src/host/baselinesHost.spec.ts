@@ -7,6 +7,14 @@ function fileEvent(name: string, size = 10, lastModified = 123): Event {
   return { target: el } as unknown as Event;
 }
 
+/** Host with a real input in the DOM; the native dialog itself never opens. */
+function hostWithInput() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+  return { host: createBaselinesHost(() => input), input, click };
+}
+
 describe('createBaselinesHost', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -30,11 +38,12 @@ describe('createBaselinesHost', () => {
   });
 
   it('resolves the pick with a disambiguated pseudo-path; cancel resolves null', async () => {
-    const host = createBaselinesHost(() => null);
+    const { host, click } = hostWithInput();
     const pending = host.pickBaselineFile();
     host.onFileChosen(fileEvent('profile.npu-rep', 42, 7));
     const pick = await pending;
     expect(pick).toEqual({ name: 'profile.npu-rep', path: 'profile.npu-rep (42 B, 7)' });
+    expect(click).toHaveBeenCalledTimes(1);
     // Same name, different size/mtime → different path (no false dedupe).
     const second = host.pickBaselineFile();
     host.onFileChosen(fileEvent('profile.npu-rep', 99, 8));
@@ -49,10 +58,25 @@ describe('createBaselinesHost', () => {
   });
 
   it('resolves null when the change event carries no file', async () => {
-    const host = createBaselinesHost(() => null);
+    const { host } = hostWithInput();
     const pending = host.pickBaselineFile();
     const el = { files: [], value: '' };
     host.onFileChosen({ target: el } as unknown as Event);
     expect(await pending).toBeNull();
+  });
+
+  it('settles a replaced pick with null and resolves immediately without an input', async () => {
+    const { host, click } = hostWithInput();
+    const first = host.pickBaselineFile();
+    const second = host.pickBaselineFile();
+    expect(click).toHaveBeenCalledTimes(2);
+    // The orphaned first promise settles instead of leaking.
+    await expect(first).resolves.toBeNull();
+    host.onPickCancel();
+    await expect(second).resolves.toBeNull();
+
+    // No input in the host DOM → Browse must not hang.
+    const bare = createBaselinesHost(() => null);
+    await expect(bare.pickBaselineFile()).resolves.toBeNull();
   });
 });

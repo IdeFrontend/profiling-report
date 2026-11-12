@@ -53,6 +53,8 @@ const wrapRef = ref<HTMLElement | null>(null);
 const triggerRef = ref<HTMLButtonElement | null>(null);
 const closeRef = ref<ComponentPublicInstance | null>(null);
 const panelId = useId().replace(/:/g, '');
+/** True while the host file dialog is open — Browse stays disabled meanwhile. */
+const picking = ref(false);
 
 /**
  * Checkbox rows: the host's recent reports first, then checked entries the
@@ -171,22 +173,27 @@ watch(
  * The same file already checked changes nothing.
  */
 async function browse(): Promise<void> {
-  if (!props.pickBaselineFile) return;
-  let pick: BaselinePick | null;
+  if (!props.pickBaselineFile || picking.value) return;
+  picking.value = true;
   try {
-    pick = await props.pickBaselineFile();
-  } catch {
-    return;
+    let pick: BaselinePick | null;
+    try {
+      pick = await props.pickBaselineFile();
+    } catch {
+      return;
+    }
+    if (!pick) return;
+    const path = pick.path;
+    if (props.baselines.some((b) => b.path === path)) return;
+    const entry: Baseline = {
+      id: newBaselineId(),
+      name: pick.name?.trim() || path.split(/[\\/]/).pop() || path,
+      path,
+    };
+    emit('update:baselines', [...props.baselines, entry]);
+  } finally {
+    picking.value = false;
   }
-  if (!pick) return;
-  const path = pick.path;
-  if (props.baselines.some((b) => b.path === path)) return;
-  const entry: Baseline = {
-    id: newBaselineId(),
-    name: pick.name?.trim() || path.split(/[\\/]/).pop() || path,
-    path,
-  };
-  emit('update:baselines', [...props.baselines, entry]);
 }
 </script>
 
@@ -273,6 +280,7 @@ async function browse(): Promise<void> {
           type="button"
           class="pr-baseline__action pr-baseline__action--primary"
           data-testid="baseline-browse"
+          :disabled="picking"
           @click="browse"
         >
           {{ t('baselineBrowse', locale) }}
@@ -495,5 +503,10 @@ async function browse(): Promise<void> {
 
 .pr-baseline__action:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.pr-baseline__action:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 </style>
