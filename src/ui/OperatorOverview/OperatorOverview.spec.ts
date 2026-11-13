@@ -80,7 +80,7 @@ describe('OperatorOverview', () => {
     const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
     const dock = wrapper.get('[data-testid="operator-overview-dock"]');
     expect(dock.text()).toContain('低利用率');
-    expect(dock.text()).toContain('预计本地加速比: 88.69%');
+    expect(dock.text()).toContain('预计本地加速比（示例）: 88.69%');
     expect(dock.text()).toContain('选中算子的优化建议');
   });
 
@@ -266,10 +266,11 @@ describe('OperatorOverview', () => {
     expect(wrapper.emitted('optimize')?.[1]).toEqual([{ opName: 'demo_linear_tiled' }]);
   });
 
-  it('PR-OVW-017: suggestions link keeps highlighted row selected', async () => {
+  it('PR-OVW-017: suggestions link stays disabled and keeps the highlighted row', async () => {
     const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
     await wrapper.findAll('tbody tr')[1].trigger('click');
     const link = wrapper.findAll('button').find((b) => b.text() === '选中算子的优化建议');
+    expect(link!.attributes('disabled')).toBeDefined();
     await link!.trigger('click');
     expect(wrapper.findAll('[aria-selected="true"]')).toHaveLength(1);
     expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
@@ -481,5 +482,17 @@ describe('OperatorOverview', () => {
     await nextTick();
     expect(Number.parseFloat(popover().style.left)).toBeLessThanOrEqual(window.innerWidth - 200);
     wrapper.unmount();
+  });
+
+  it('PR-OVW-028: dock speedup keeps the sample marker with the value', () => {
+    const zh = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
+    const zhText = zh.get('[data-testid="operator-overview-dock"]').text();
+    expect(zhText).toContain('预计本地加速比（示例）');
+    expect(zhText).toContain('88.69%');
+
+    const en = mount(OperatorOverview, { props: { rows, locale: 'en-US' } });
+    const enText = en.get('[data-testid="operator-overview-dock"]').text();
+    expect(enText).toContain('Estimated local speedup (sample)');
+    expect(enText).toContain('88.69%');
   });
 });

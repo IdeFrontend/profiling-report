@@ -20,6 +20,9 @@ const props = withDefaults(
 
 const emit = defineEmits<{ optimize: [{ opName: string }] }>();
 
+/** Sample dock metric: the report does not compute a speedup yet. */
+const DEMO_SPEEDUP = '88.69%';
+
 type FilterKey = 'opName' | 'opType';
 type SortableKey =
   | 'demangledName'
@@ -271,11 +274,6 @@ function selectRow(row: ReportOperatorRow | null) {
   if (row != null) selectedRow.value = toRaw(row);
 }
 
-/** The suggestion link acts on the highlighted row; it never navigates. */
-function selectHighlighted() {
-  selectRow(selectedRow.value);
-}
-
 /** Host contract: the optimize event carries the highlighted row's raw op name. */
 function optimizeSelected() {
   const opName = selectedRow.value?.opName;
@@ -503,14 +501,14 @@ function duration(value: number | undefined): string {
             {{ t('overviewLowUtilization', locale) }}
           </p>
           <p class="pr-operator-overview__speedup">
-            {{ t('overviewSpeedup', locale) }}
+            {{ t('overviewSpeedup', locale).replace('{value}', DEMO_SPEEDUP) }}
           </p>
         </div>
       </div>
       <button
         type="button"
         class="pr-operator-overview__link"
-        @click="selectHighlighted"
+        disabled
       >
         {{ t('overviewOptimizationSuggestion', locale) }}
       </button>
@@ -817,6 +815,11 @@ function duration(value: number | undefined): string {
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+
+.pr-operator-overview__link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .pr-operator-overview__action {

@@ -1638,7 +1638,7 @@ def main():
         op_basic={"op_name": "matmul_mock", "op_type": "mix", "duration": "3.502000",
                   "block_dim": "16", "mix_dim": "8", "freq": "1500",
                   "demangled_name": "matmul_mock<float>", "grid_size": "90.01",
-                  "block_size": "32"},
+                  "block_size": "48"},
         demo=op2_demo,
         include_trace=False,
         sampling_seed=0x51A102,
@@ -1647,12 +1647,12 @@ def main():
     )
 
     # 概览 fixture: 3-4 lightweight operators (no trace.json) with distinct
-    # demangled / grid / block values, plus the op1/op2 rows above.
+    # demangled / duration / grid / block / blockDim values, plus the op1/op2 rows above.
     extra_ops = [
-        ("demo_linear_tiled", "vector", "0.730000", "32", "90.01", "32"),
-        ("demo_bias_gelu", "vector", "0.020000", "16", "90.01", "16"),
-        ("demo_layer_norm", "vector", "0.020000", "19", "40.92", "19"),
-        ("demo_softmax", "vector", "0.020000", "19", "75.54", "19"),
+        ("demo_linear_tiled", "vector", "0.730000", "24", "88.40", "40"),
+        ("demo_bias_gelu", "vector", "0.412500", "20", "96.75", "24"),
+        ("demo_layer_norm", "vector", "0.268300", "12", "40.92", "36"),
+        ("demo_softmax", "vector", "0.155800", "28", "75.54", "20"),
     ]
     extra_bytes = []
     for i, (name, optype, duration, block_dim, grid, block) in enumerate(extra_ops):

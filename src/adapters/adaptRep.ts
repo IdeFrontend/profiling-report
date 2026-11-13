@@ -497,8 +497,8 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   const row = rows[0];
   if (!row) return {};
   return {
-    opName: row['Op Name'] || undefined,
-    opType: row['Op Type'] || undefined,
+    opName: firstDefined(row, 'Op Name'),
+    opType: firstDefined(row, 'Op Type'),
     taskDurationUs: parseNumber(row['Task Duration(us)']),
     currentFreq: parseNumber(row['Current Freq']),
     ratedFreq: parseNumber(row['Rated Freq']),
@@ -522,8 +522,8 @@ function operatorRowsFromOpBasicInfo(payload?: Uint8Array): ReportOperatorRow[] 
   if (!payload) return [];
   const { rows } = parseCsv(decodeUtf8(payload));
   return rows.map((row) => ({
-    opName: row['Op Name'] || undefined,
-    opType: row['Op Type'] || undefined,
+    opName: firstDefined(row, 'Op Name'),
+    opType: firstDefined(row, 'Op Type'),
     taskDurationUs: parseNumber(row['Task Duration(us)']),
     blockDim: optionalDim(row['Block Dim']),
     mixBlockDim: optionalMixBlockDim(firstDefined(row, 'Mix Block Dim', 'MixBlockDim')),

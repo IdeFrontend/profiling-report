@@ -1012,6 +1012,22 @@ describe('PR-VM: report view-models (interim)', () => {
       },
     ]);
 
+    const absentIdentity = adaptPayloads({
+      'OpBasicInfo.csv': encoder.encode(
+        ['Op Name,Op Type,Task Duration(us)', 'NA,NA,0.5', ', ,0.6'].join('\n'),
+      ),
+    });
+    const [naRow, blankRow] = absentIdentity.reportModel.operatorRows ?? [];
+    expect(naRow.opName).toBeUndefined();
+    expect(naRow.opType).toBeUndefined();
+    expect(naRow.taskDurationUs).toBe(0.5);
+    expect(blankRow.opName).toBeUndefined();
+    expect(blankRow.opType).toBeUndefined();
+    expect(blankRow.taskDurationUs).toBe(0.6);
+    expect(absentIdentity.reportModel.summary.opName).toBeUndefined();
+    expect(absentIdentity.reportModel.summary.opType).toBeUndefined();
+    expect(absentIdentity.reportModel.summary.taskDurationUs).toBe(0.5);
+
     const single = adaptPayloads({
       'Summary.jsonl': encoder.encode(
         JSON.stringify({
