@@ -211,9 +211,11 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 32. **PR-ROOT-032** — Analysis, stop, optimize and open CANNWork reach the host while reference and view are hidden.
 33. **PR-ROOT-033** — Stop, optimize and open CANNWork have independent 1s cooldowns.
 34. **PR-ROOT-034** — 统计分析 charts show for pipeTrace (and catalog-absent legacy); hide for communication / warpOccupy.
-35. **PR-ROOT-035** — **概览** is first in the tab strip but 时间线 stays the landing tab. Clicking 概览 mounts [OperatorOverview](../OperatorOverview/OperatorOverview.spec.md) with `reportModel.operatorRows` and unmounts the timeline canvas; 详情 and 缓存 tabs never render.
+35. **PR-ROOT-035** — **概览** renders only when the report model carries operator rows; a chrome-trace or empty model has no 概览 tab and 时间线 is the only tab. When enabled it is first in the tab strip but 时间线 stays the landing tab. Clicking 概览 mounts [OperatorOverview](../OperatorOverview/OperatorOverview.spec.md) with `reportModel.operatorRows` and unmounts the timeline canvas; 详情 and 缓存 tabs never render.
 36. **PR-ROOT-036** — With at most one operator, the tab-strip brand shows the short operator name of the effective report model's `summary.opName` when present (host prop or adapter-loaded `source`), else the host `title` file name. Multi-operator packs keep the operator-selector label.
-37. **PR-ROOT-037** — On the 概览 tab, the 执行优化 button forwards `optimize` from `OperatorOverview` to the root `optimize` emit.
+37. **PR-ROOT-037** — On the 概览 tab (present only when operator rows gate it in), the 执行优化 button forwards `optimize` from `OperatorOverview` to the root `optimize` emit.
+38. **PR-ROOT-038** — A failed load while 概览 is active keeps the tab strip mounted and returns the active tab to 时间线 while the load error shows.
+39. **PR-ROOT-039** — Bare W/S/A/D and Shift+P do not zoom/pan/pin the unmounted timeline while 概览 is active; `viewState` start / end / pinned lanes stay unchanged.
 
 ## Edge Cases
 
@@ -247,6 +249,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-11-13** — **概览** is gated on operator rows (no tab for chrome-trace / empty models), a failed load while it is active falls back to 时间线, and bare W/S/A/D / Shift+P are inert on the unmounted timeline (`PR-ROOT-034`, `PR-ROOT-037`, `PR-ROOT-038`).
 - **2026-11-12** — 概览 tab joins the strip ahead of 时间线 and mounts the operator overview (`PR-ROOT-034`); the tab-strip brand shortens to the pack operator name (`PR-ROOT-035`).
 - **2026-10-30** — CANNWork 优化 (design doc R3–R9): new **cannbotSessions** input forwarded to StatsAside, and five new host intents — **open-cannbot-stop** / **cannbot-reference** / **cannbot-view** (scope-carrying), **perform-optimization** (aside title-row 执行优化 pill), **open-cannwork** (toolbar trigger) — each behind its **own** 1s leading-edge cooldown (independent locks; R9 防抖), unlike the shared `cannbot-request` lock (PR-ROOT-032 / PR-ROOT-033).
 - **2026-10-29** — Late-bound `resolveSourceFile` still fills missing embeds (presence-only watch — unstable callback identity does not re-resolve); SourceView `session` resets search on operator / host swap but not on resolve overlay (`PR-ROOT-030`).
