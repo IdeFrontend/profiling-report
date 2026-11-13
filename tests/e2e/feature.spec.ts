@@ -1460,11 +1460,14 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
     const badges = [...document.querySelectorAll('[data-testid^="topo-diff-"]')].map((g) => {
       const rect = g.querySelector('rect')!;
       const arrow = g.querySelector('path')!;
-      const bb = rect.getBoundingClientRect();
+      const text = g.querySelector('text')!;
+      const rbb = rect.getBoundingClientRect();
+      const tbb = text.getBoundingClientRect();
       return {
         id: g.getAttribute('data-testid') ?? '',
-        cx: bb.left + bb.width / 2,
-        top: bb.top,
+        groupLeft: Math.min(rbb.left, tbb.left),
+        groupRight: Math.max(rbb.right, tbb.right),
+        top: rbb.top,
         fill: getComputedStyle(rect).fill,
         arrowSubpaths: (arrow.getAttribute('d') ?? '').match(/M/g)?.length ?? 0,
       };
@@ -1492,9 +1495,11 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
         : b.id.replace(/^topo-diff-/, 'plate-');
     const v = geometry.values.find(([k]) => k === valueKey);
     expect(v, `badge ${b.id} has a matching value`).toBeTruthy();
-    // Centred on the value, below its bottom edge, white circle, full arrow.
-    expect(Math.abs(b.cx - v![1].x)).toBeLessThan(2);
-    expect(b.top).toBeGreaterThan(v![1].bottom - panelBox!.y - 0.5);
+    // The circle+text GROUP is centred on the value's centre, and sits below
+    // its bottom edge with air; white circle, full arrow.
+    const groupCentre = (b.groupLeft + b.groupRight) / 2;
+    expect(Math.abs(groupCentre - v![1].x)).toBeLessThan(4);
+    expect(b.top).toBeGreaterThan(v![1].bottom - panelBox!.y + 1);
     expect(b.fill).toBe('rgb(255, 255, 255)');
     expect(b.arrowSubpaths).toBe(2);
   }

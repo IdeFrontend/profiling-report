@@ -14,6 +14,8 @@ import MemoryTopologyPanel, {
   ZOOM_WHEEL_TWEEN_MIN_DELTA,
   continuousZoomFromDelta,
   diffBadgeY,
+  diffBadgeCircleX,
+  DIFF_BADGE_TEXT_FALLBACK_W,
   fitFontSize,
   nextZoom,
 } from './MemoryTopologyPanel.vue';
@@ -828,19 +830,25 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
 
     const badge = wrapper.get('[data-testid="topo-diff-vec-0"]');
     const rect = badge.get('rect.pr-topo__diff-box');
-    // The white circle is centred on the value's own centre and sits BELOW it.
-    expect(Number(rect.attributes('x'))).toBeCloseTo(vecX - DIFF_BADGE_SIZE / 2, 6);
+    // The white circle is part of a circle+text GROUP centred on the value's
+    // centre and sitting BELOW it (jsdom has no text metrics → the fallback
+    // text width drives the circle offset).
+    const circleCx = diffBadgeCircleX(vecX, DIFF_BADGE_TEXT_FALLBACK_W);
+    expect(circleCx).toBeLessThan(vecX);
+    expect(Number(rect.attributes('x'))).toBeCloseTo(circleCx - DIFF_BADGE_SIZE / 2, 6);
     expect(Number(rect.attributes('width'))).toBeCloseTo(DIFF_BADGE_SIZE, 6);
     expect(Number(rect.attributes('height'))).toBeCloseTo(DIFF_BADGE_SIZE, 6);
     expect(Number(rect.attributes('y'))).toBeCloseTo(
       diffBadgeY(vecY) - DIFF_BADGE_SIZE / 2,
       6,
     );
-    expect(diffBadgeY(vecY)).toBeGreaterThan(vecY);
+    expect(diffBadgeY(vecY) - DIFF_BADGE_SIZE / 2).toBeGreaterThan(
+      Number(vec.attributes('y')),
+    );
     // Delta text sits right of the circle, vertically centred on it.
     const delta = badge.get('text.pr-topo__diff-text');
     expect(Number(delta.attributes('x'))).toBeCloseTo(
-      vecX + DIFF_BADGE_SIZE / 2 + DIFF_BADGE_TEXT_GAP,
+      circleCx + DIFF_BADGE_SIZE / 2 + DIFF_BADGE_TEXT_GAP,
       6,
     );
     // The arrow is FULL: a shaft subpath plus a two-stroke head subpath.
@@ -851,7 +859,7 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     // The L2 peak badge shares the plate's slot constant, so the two cannot drift.
     const peakBadge = wrapper.get('[data-testid="topo-diff-l2-peak"]');
     expect(Number(peakBadge.get('rect').attributes('x'))).toBeCloseTo(
-      L2_PEAK_SLOT[0] - DIFF_BADGE_SIZE / 2,
+      diffBadgeCircleX(L2_PEAK_SLOT[0], DIFF_BADGE_TEXT_FALLBACK_W) - DIFF_BADGE_SIZE / 2,
       6,
     );
     expect(Number(peakBadge.get('rect').attributes('y'))).toBeCloseTo(

@@ -165,18 +165,26 @@ export function fitFontSize(
  * tone arrow (shaft + head), BELOW the value, and the unsigned delta in white at the value's
  * own size right of the circle.
  */
-export const DIFF_BADGE_SIZE = 7.4;
-/** Vertical air between the percentage's baseline band and the badge's centre —
- *  clears the value's own half-height (the 6.3px glyphs) so the circle never
- *  touches the text above it. */
-export const DIFF_BADGE_Y_OFFSET = 7.6;
+export const DIFF_BADGE_SIZE = 12;
+/** Vertical offset from the percentage's centre to the badge's centre — enough air that the
+ *  circle clears the glyph box (mockup-measured: the badge floats below the value). */
+export const DIFF_BADGE_Y_OFFSET = 12.5;
 /** Air between the badge circle and its delta text. */
-export const DIFF_BADGE_TEXT_GAP = 0.8;
+export const DIFF_BADGE_TEXT_GAP = 1;
+/** Delta-text width the group layout falls back to when text metrics are unavailable (jsdom):
+ *  roughly the widest short delta like `88.88%`. */
+export const DIFF_BADGE_TEXT_FALLBACK_W = 12;
 
 /** Vertical centre of a badge for a value centred at `y`: BELOW the value, one
  *  `DIFF_BADGE_Y_OFFSET` down (the 1130 mockup centres the badge under the percentage). */
 export function diffBadgeY(y: number): number {
   return y + DIFF_BADGE_Y_OFFSET;
+}
+
+/** Circle centre x for a badge whose circle+text GROUP is centred on the value's centre `cx`:
+ *  the circle sits left of the text, so it moves left by half the text width plus the gap. */
+export function diffBadgeCircleX(cx: number, textWidth: number): number {
+  return cx - (DIFF_BADGE_TEXT_GAP + textWidth) / 2;
 }
 
 /** The L2 peak plate's own centre on the chrome — the same slot the `<text>` renders at, shared
@@ -410,16 +418,23 @@ interface DiffBadge {
 function makeBadge(
   sourceKey: string,
   testid: string,
-  cx: number,
+  valueCx: number,
   y: number,
   diff: MetricDiff,
 ): DiffBadge {
   const text = `${trimDiffMagnitude(diff.magnitude)}%`;
+  // The circle+text GROUP is centred under the value: the circle centre sits
+  // left of the value's centre by half the text run (measured, with the
+  // fallback when metrics are unavailable).
+  const cx = diffBadgeCircleX(
+    valueCx,
+    naturalWidths.value[testid] ?? DIFF_BADGE_TEXT_FALLBACK_W,
+  );
   // Full arrow: a vertical shaft plus a two-stroke head joined at the tip.
   const arrow =
     diff.tone === 'increase'
-      ? `M${cx} ${y + 1.6} L${cx} ${y - 1.6} M${cx - 1.5} ${y - 0.1} L${cx} ${y - 1.6} L${cx + 1.5} ${y - 0.1}`
-      : `M${cx} ${y - 1.6} L${cx} ${y + 1.6} M${cx - 1.5} ${y + 0.1} L${cx} ${y + 1.6} L${cx + 1.5} ${y + 0.1}`;
+      ? `M${cx} ${y + 2.4} L${cx} ${y - 2.4} M${cx - 2.2} ${y - 0.1} L${cx} ${y - 2.4} L${cx + 2.2} ${y - 0.1}`
+      : `M${cx} ${y - 2.4} L${cx} ${y + 2.4} M${cx - 2.2} ${y + 0.1} L${cx} ${y + 2.4} L${cx + 2.2} ${y + 0.1}`;
   return {
     sourceKey,
     testid,
@@ -536,10 +551,13 @@ const measureTwin = ref<SVGTextElement | null>(null);
 
 /** Per-slot type size, set only where a value outgrows its slot (PR-MEMTOP-010). */
 const fitted = ref<Record<string, number>>({});
+/** Natural delta-text widths (CSS px, used as chrome units like the old painted-width rule). */
+const naturalWidths = ref<Record<string, number>>({});
 
 watchEffect(() => {
   const el = measureTwin.value;
   const next: Record<string, number> = {};
+  const widths: Record<string, number> = {};
   if (el && typeof el.getComputedTextLength === 'function') {
     const measure = (text: string): number => {
       if (!text) return 0;
@@ -559,8 +577,13 @@ watchEffect(() => {
     const peak = measure(peakText.value ?? '');
     const peakPx = fitFontSize(peak, 'l2-peak');
     if (peakPx < BASE_FONT_PX) next.peak = peakPx;
+    for (const d of diffBadges.value) {
+      const natural = measure(d.text);
+      if (natural > 0) widths[d.testid] = natural;
+    }
   }
   fitted.value = next;
+  naturalWidths.value = widths;
 });
 
 function fitStyle(key: string): { fontSize: string } | undefined {
