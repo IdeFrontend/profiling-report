@@ -147,6 +147,7 @@ describe('vscodeSourceFile bridge', () => {
 
   it('PR-SRC-013: source-file-updated forwards valid payloads and unsubscribes', () => {
     const cb = vi.fn();
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
     const unsubscribe = onSourceFileUpdate(cb);
 
     window.dispatchEvent(
@@ -164,6 +165,11 @@ describe('vscodeSourceFile bridge', () => {
       basename: 'a.asc',
       text: 'extern "C" void updated() {}\n',
     });
+    expect(debug).toHaveBeenCalledWith('[profiling-report] source file update', {
+      fileName: '/build/a.asc',
+      basename: 'a.asc',
+      chars: 29,
+    });
 
     // Malformed payloads are ignored silently.
     window.dispatchEvent(
@@ -172,6 +178,7 @@ describe('vscodeSourceFile bridge', () => {
       }),
     );
     expect(cb).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledTimes(1);
 
     unsubscribe();
     window.dispatchEvent(

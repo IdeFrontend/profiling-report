@@ -111,6 +111,11 @@ export function onSourceFileUpdate(
     ) {
       return;
     }
+    console.debug('[profiling-report] source file update', {
+      fileName: data.fileName,
+      basename: data.basename,
+      chars: data.text.length,
+    });
     cb({ fileName: data.fileName, basename: data.basename, text: data.text });
   };
   window.addEventListener('message', onMessage);

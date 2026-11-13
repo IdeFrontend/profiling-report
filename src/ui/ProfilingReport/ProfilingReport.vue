@@ -1074,6 +1074,11 @@ function onHostSourceFileUpdate(update: { fileName: string; basename: string; te
   const matching = sc.files.filter(
     (file) => file.path === update.fileName || basenameOf(file.path) === update.basename,
   );
+  if (matching.length === 0) {
+    console.debug('[profiling-report] source update unmatched', update.basename);
+  } else {
+    console.debug('[profiling-report] source update applied', update.basename, matching.length);
+  }
   for (const file of matching) applySourceText(file.id, update.text);
 }
 

@@ -860,6 +860,12 @@ defineExpose({
           @pointerdown="onEditorPointerDown"
           @contextmenu.capture.prevent.stop="onEditorContextMenu"
         >
+          <div
+            v-if="loadError"
+            class="pr-sudu-pane__error"
+            data-testid="sudu-error"
+            role="status"
+          >{{ loadError }}</div>
           <pre
             v-if="loadError"
             class="pr-sudu-pane__fallback"
@@ -1147,6 +1153,14 @@ defineExpose({
 
 .pr-sudu-pane__table {
   height: 100%;
+}
+
+.pr-sudu-pane__error {
+  padding: 3px 4px;
+  color: #c98a8a;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: pre-wrap;
 }
 
 .pr-sudu-pane__fallback {
