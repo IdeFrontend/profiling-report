@@ -82,12 +82,13 @@ export const PLATE_METRICS: Record<TopologyPlateNodeId | 'l2-peak', SlotMetrics>
   'l2-peak': { titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
 };
 
-/** Half the 6.3px value's glyph box: values are painted `dominant-baseline="middle"`, so a
- *  value centred at `vc` covers `vc ± 3.15`. */
-const VALUE_HALF_H = 3.15;
-/** Value glyph box + default badge circle + one unit of frame air — the height the rhythm
- *  needs before the two equal-air gaps. Keeps `g`, value, `g`, badge, ≥1 air inside `F - T`. */
-const RHYTHM_SLACK = 13.9;
+/** Fallback ink extents (chrome units) of the 6.3px / 800 value glyphs: digits + `%` have no
+ *  descenders, so the ink sits asymmetrically inside the text box — roughly 2.5 above and 1.8
+ *  below the `dominant-baseline="middle"` centre. The real extents are measured per text via
+ *  `getBBox()` (see the measurement watch) and replace these when metrics exist; the equal-gap
+ *  layout must read the INK, not the box, or the visible gaps come out lopsided. */
+export const VALUE_INK_TOP = 1.5;
+export const VALUE_INK_BOTTOM = 2.4;
 const RHYTHM_AIR_MIN = 0.5;
 const RHYTHM_AIR_MAX = 4.5;
 
@@ -112,21 +113,25 @@ export interface SlotRhythm {
  * to the room left above `F - 1` — the largest circle that keeps `bc + d/2 ≤ F - 1` — so it
  * never crosses the element frame.
  */
-export function slotRhythm(node: TopologyPlateNodeId | 'l2-peak'): SlotRhythm {
+export function slotRhythm(
+  node: TopologyPlateNodeId | 'l2-peak',
+  ink: { top: number; bottom: number } = { top: VALUE_INK_TOP, bottom: VALUE_INK_BOTTOM },
+): SlotRhythm {
   const { titleBottom, frameBottom } = PLATE_METRICS[node];
   const air = Math.min(
     RHYTHM_AIR_MAX,
     Math.max(RHYTHM_AIR_MIN, Math.floor((frameBottom - titleBottom - RHYTHM_SLACK) / 2)),
   );
-  const valueY = titleBottom + air + VALUE_HALF_H;
-  // The shrink leaves visible frame air (not a tangent): -1.2 instead of -1
-  // keeps 0.2 units between the circle's bottom and the inner stroke band
-  // (vec: 5.4 with the bottom at F - 1.2).
+  // The value centre places the glyph INK one gap under the title (the box
+  // would look lopsided — the ink sits high inside it).
+  const valueY = titleBottom + air + ink.top;
+  // The circle hangs one gap under the ink's bottom; the shrink leaves
+  // visible frame air (-1.2) so the bottom never sits on the stroke band.
   const badgeD = Math.min(
     DIFF_BADGE_SIZE,
-    frameBottom - 1.2 - valueY - (VALUE_HALF_H + air),
+    frameBottom - 1.2 - valueY - (ink.bottom + air),
   );
-  const badgeY = valueY + (VALUE_HALF_H + air) + badgeD / 2;
+  const badgeY = valueY + (ink.bottom + air) + badgeD / 2;
   return { air, valueY, badgeD, badgeY };
 }
 
@@ -238,6 +243,10 @@ export function fitFontSize(
  * own size right of the circle.
  */
 export const DIFF_BADGE_SIZE = 6.6;
+
+/** Ink top + ink bottom + the 6.6 circle + 1.2 frame air — the height the layout needs before
+ *  its two equal gaps. Keeps gap, value ink, gap, badge, ≥1.2 air inside `F - T`. */
+const RHYTHM_SLACK = VALUE_INK_TOP + VALUE_INK_BOTTOM + DIFF_BADGE_SIZE + 1.2;
 /** Air between the badge circle and its delta text. */
 export const DIFF_BADGE_TEXT_GAP = 1;
 /** Delta-text width the group layout falls back to when text metrics are unavailable (jsdom):

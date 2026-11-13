@@ -1427,14 +1427,16 @@ const TOPO_BADGE_METRICS: Record<
   'l2-peak': { titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
 };
 
-/** Fixed constants of the rhythm (chrome units): half the 6.3px value's glyph box, the full
- *  row's slack (value box `2 × 3.15` + `6.6` circle + one unit of frame air), the equal-air
- *  clamp, the circle→text gap, and the air the row keeps on each box wall. */
-const TOPO_VALUE_HALF_H = 3.15;
-const TOPO_RHYTHM_SLACK = 13.9;
+/** Fixed constants of the layout (chrome units): the value digit ink extents (measured —
+ *  the symmetric glyph box would make the visible gaps lopsided), the row's slack (ink
+ *  `1.5 + 2.4` + the `6.6` circle + `1.2` frame air), the equal-gap clamp, the circle→text
+ *  gap, and the air the row keeps on each box wall. */
+const TOPO_VALUE_INK_TOP = 1.5;
+const TOPO_VALUE_INK_BOTTOM = 2.4;
 const TOPO_RHYTHM_AIR_MIN = 0.5;
 const TOPO_RHYTHM_AIR_MAX = 4.5;
 const TOPO_BADGE_SIZE = 6.6;
+const TOPO_RHYTHM_SLACK = TOPO_VALUE_INK_TOP + TOPO_VALUE_INK_BOTTOM + TOPO_BADGE_SIZE + 1.2;
 const TOPO_BADGE_TEXT_GAP = 1;
 const TOPO_BADGE_ROW_AIR = 2;
 /** SVG text boxes carry the font's bearings, so the ink box measures up to ~2 chrome units
@@ -1443,9 +1445,9 @@ const TOPO_BADGE_ROW_AIR = 2;
 const TOPO_BADGE_INK_SLOP = 2;
 
 /**
- * The panel's per-slot badge rhythm (PR-MEMTOP-027): equal air `g` above and below the value,
- * derived value centre `vc = T + g + 3.15`, a circle `d` that shrinks to the room above one
- * unit of frame air in a shallow frame, badge centre `bc = vc + (3.15 + g) + d / 2`, and the
+ * The panel's per-slot badge layout (PR-MEMTOP-027): equal gap `g` above and below the value
+ * ink, derived value centre `vc = T + g + 1.5`, a circle `d` that shrinks to the room above
+ * the frame air in a shallow frame, badge centre `bc = vc + (2.4 + g) + d / 2`, and the
  * delta-text width bound `boxW − d − gap − 2`.
  */
 function topoBadgeRhythm(node: string) {
@@ -1454,12 +1456,12 @@ function topoBadgeRhythm(node: string) {
     TOPO_RHYTHM_AIR_MAX,
     Math.max(TOPO_RHYTHM_AIR_MIN, Math.floor((frameBottom - titleBottom - TOPO_RHYTHM_SLACK) / 2)),
   );
-  const valueY = titleBottom + air + TOPO_VALUE_HALF_H;
+  const valueY = titleBottom + air + TOPO_VALUE_INK_TOP;
   const badgeD = Math.min(
     TOPO_BADGE_SIZE,
-    frameBottom - 1.2 - valueY - (TOPO_VALUE_HALF_H + air),
+    frameBottom - 1.2 - valueY - (TOPO_VALUE_INK_BOTTOM + air),
   );
-  const badgeY = valueY + (TOPO_VALUE_HALF_H + air) + badgeD / 2;
+  const badgeY = valueY + (TOPO_VALUE_INK_BOTTOM + air) + badgeD / 2;
   const textBound = boxWidth - badgeD - TOPO_BADGE_TEXT_GAP - TOPO_BADGE_ROW_AIR;
   return { air, valueY, badgeD, badgeY, textBound, frameBottom, boxWidth };
 }
