@@ -250,7 +250,7 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-chrome\s*\{[^}]*padding:\s*8px/);
     expect(src).not.toMatch(/\.pr-chrome\s*\{[^}]*[^-\w]height:\s*60px/);
     expect(src).toMatch(/\.pr-chrome\s*\{[^}]*overflow-x:\s*clip/);
-    expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*flex-wrap:\s*nowrap/);
+    expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*flex-wrap:\s*wrap/);
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*overflow-x:\s*clip/);
     expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*max-width:\s*100%/);
     const searchSrc = (await import('./ToolbarSearch.vue?raw')).default as string;
@@ -260,6 +260,14 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/#1a1a1a\s+var\(--pr-zoom-fill/); // unfilled webkit
     expect(src).toMatch(/::-moz-range-track[\s\S]*?background:\s*#1a1a1a/);
     expect(src).toMatch(/::-moz-range-progress[\s\S]*?background:\s*#ffffff/);
+  });
+
+  it('PR-TOOLBAR-031: the toolbar wraps to a second line instead of clipping trailing actions', async () => {
+    // With the stats aside open, widths below ~1092px used to push the
+    // baselines trigger (and export / help) past the clip edge into `inert`.
+    // Wrapping keeps every action inside the band and reachable at any width.
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-toolbar\s*\{[^}]*flex-wrap:\s*wrap/);
   });
 
   it('PR-TOOLBAR-009b: display-control popover uses sketch surface tokens', async () => {

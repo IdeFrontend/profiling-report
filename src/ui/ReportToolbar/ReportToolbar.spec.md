@@ -211,6 +211,8 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 29. **PR-TOOLBAR-028** — Toolbar icon / zoom buttons tip via shared `.pr-icon-tip` (`aria-label` → CSS `::after`), not native `title` (same ~1s delay / light OS chrome as AC-20.2). Tip opens **below** the control so `.pr-chrome` / `.pr-root` overflow does not clip it. Trailing `data-toolbar-clip` tips (and `.pr-icon-tip--end`) right-align so the chrome's `overflow-x: clip` does not crop them.
 30. **PR-TOOLBAR-029** — The baselines control (`toggle-baselines`, add-baseline glyph, `data-toolbar-clip`) sits after the aside toggle and before HTML export / user-guide.
 31. **PR-TOOLBAR-030** — The baselines control is absent when `pickBaselineFile` is not provided; with the hook, every checkbox toggle and Browse forwards the new checked set as `update:baselines` (removal is unchecking; there are no per-row add/remove events).
+32. **PR-TOOLBAR-031** — The toolbar wraps to a second line instead of clipping its trailing actions: at narrow widths (e.g. 1024px with the stats aside open) every control — including the baselines trigger — stays visible and clickable, and the clip-`inert` scan only guards the degenerate single-item-overflow case.
+33. **PR-E2E-024** — At 1024px the baselines trigger is visible, not `inert`, and opens the popover.
 
 ## Edge Cases
 
@@ -234,6 +236,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
 
 ## Changelog
+- **2026-11-13** — The toolbar wraps to a second line instead of clipping its trailing actions (PR-TOOLBAR-031): with the stats aside open, widths below ~1092px used to push the baselines trigger (and export / help) past the clip edge into `inert` with no overflow menu; wrapping keeps every action reachable at any width.
 - **2026-11-12** — Review fix: the withdrawn per-row add/remove contract is gone from the spec — the picker forwards `update:baselines` on every toggle and Browse (PR-TOOLBAR-030 restated); the unused `selectedBaselineId` prop/emit is removed (the aside owns the selection).
 - **2026-11-11** — Baselines trigger glyph replaced: the mockup's own add-baseline icon (extracted from `docs/ui/source/1130/add-baseline.jpeg`) replaces the flag (Product decision, UI-61 icon part).
 - **2026-11-10** — Review pass 2: clip scan re-runs when a conditional clip member (baselines trigger, HTML export) appears/disappears — their scrollWidth change does not fire the ResizeObserver; PR-TOOLBAR-020 restated to include the baselines trigger.

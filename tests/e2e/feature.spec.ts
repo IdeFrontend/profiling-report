@@ -1167,3 +1167,18 @@ test('PR-E2E-023: the aside Operator dropdown defaults to the first, keeps a ses
   await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
 });
 
+test('PR-E2E-024: at 1024px the baselines control stays reachable — the toolbar wraps instead of clipping', async ({ page }) => {
+  // With the stats aside open, 1024px used to push the trigger past the
+  // toolbar's clip edge: `inert` and unusable, with no overflow menu.
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('stats-aside')).toBeVisible();
+  await expect(page.getByTestId('toggle-baselines')).toBeVisible();
+  await expect(page.getByTestId('toggle-baselines')).not.toHaveAttribute('inert', '');
+  // The control actually works: it opens the popover with the row list + Browse.
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
+  await expect(page.getByTestId('baseline-browse')).toBeVisible();
+});
+

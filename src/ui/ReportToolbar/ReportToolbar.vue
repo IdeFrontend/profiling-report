@@ -85,6 +85,9 @@ const emit = defineEmits<{
   'update:baselines': [baselines: Baseline[]];
 }>();
 
+/** One stable array for the picker binding (`?? []` would re-allocate every render). */
+const baselineList = computed(() => props.baselines ?? []);
+
 function onDepthChange(event: Event) {
   // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
   // anything unparsable) into the shared default rather than letting NaN through.
@@ -948,7 +951,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 
       <BaselinePicker
         data-toolbar-clip
-        :baselines="baselines ?? []"
+        :baselines="baselineList"
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="recentBaselines"
         :locale="locale"
@@ -1197,13 +1200,17 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 .pr-toolbar {
   position: relative;
   display: flex;
-  /* Keep search + zoom + actions as one unit so they wrap to row 2 together. */
-  flex-wrap: nowrap;
+  /* Overflow wraps to a second toolbar line instead of clipping: with the stats
+     aside open, a narrow window used to push the trailing actions (baseline
+     picker, export, help) past the clip edge — `inert` and unreachable with no
+     overflow menu. Wrapping keeps every action clickable at any width; the
+     chrome band grows to hold the extra line. `overflow-x: clip` stays for the
+     degenerate single-item-wider-than-the-band case. */
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: flex-start;
-  /* Prefer wrapping over shrinking beside the tabs (`flex-shrink: 0`). Cap at the
-     chrome width so a second-row toolbar that is still too wide crops trailing icons. */
+  /* Prefer wrapping over shrinking beside the tabs (`flex-shrink: 0`). */
   margin-left: auto;
   flex: 0 0 auto;
   max-width: 100%;
