@@ -23,12 +23,14 @@ a HardwareInfo Roofline category, and UbRwAccesses rows. op1 Code frames point a
 summary.db is pc_sampling; Sampling Stall on Source / SASS comes from those counters.
 
 Operators:
-  op1 — machine-view style (~100 X events) + product Summary.jsonl / Sampling.json
-        + demo-worthy FLOPS/BW/parallel util. Intentionally plants call-stack nests
-        across SCALAR (depth 3), MTE2 and ALL (depth 2) so multi-height lanes are
-        visible; CUBE / FIXP / MTE1 / MTE3 stay exclusive.
-  op2 — CSVs/Summary/Sampling only; ~150k-event stress trace injected at hydrate.
-        Exclusive leaf spans (no multi-height).
+  op1 — §11.14 catalog CTEF embeds (Communication / SimtWarpOccpy / PipeTrace, µs)
+        so 流水视图显示 is visible; each ~100 X events + product Summary.jsonl /
+        Sampling.json + demo-worthy FLOPS/BW/parallel util. PipeTrace plants
+        call-stack nests across SCALAR (depth 3), MTE2 and ALL (depth 2);
+        CUBE / FIXP / MTE1 / MTE3 stay exclusive. Classic `trace.json` omitted
+        (catalog wins over the legacy ns fallback).
+  op2 — CSVs/Summary/Sampling only; ~150k-event stress `trace.json` injected at
+        hydrate. Exclusive leaf spans (no multi-height); single-trace (no selector).
 """
 
 import json
@@ -227,8 +229,8 @@ def profiler_step_bands(count, time_span):
     return bands
 
 
-def _doc(events, band_count=0, time_span=0, nest_card_tree=False):
-    doc = {"displayTimeUnit": "ns", "traceEvents": events}
+def _doc(events, band_count=0, time_span=0, nest_card_tree=False, display_time_unit="ns"):
+    doc = {"displayTimeUnit": display_time_unit, "traceEvents": events}
     # Opt-in Card→计算→Core→pipe nesting in adaptRep (not applied to every .rep).
     if nest_card_tree:
         doc["nestCardTree"] = True
@@ -441,39 +443,49 @@ def inject_multiheight_nests(pid, tid, pipe, emitted, rand, id_prefix, plan):
     return merged
 
 
-def small_trace():
+def small_trace(
+    *,
+    seed=0xA11CE,
+    id_prefix="op1",
+    process_name="Card0",
+    time_span=30_000,
+    display_time_unit="ns",
+    multiheight=True,
+    nest_card_tree=True,
+):
     """
     Machine-view style (~100 X events): a few Core/pipe lanes with bursty
     irregular occupancy, Ascend-style op names, and dense 3–6 connections
     per event (cross-pipe when timing allows).
 
-    SCALAR / MTE2 / ALL carry intentional overlapping call-stack nests
-    (multi-height demo) spaced across the timeline.
+    When multiheight=True, SCALAR / MTE2 / ALL carry intentional overlapping
+    call-stack nests spaced across the timeline. `time_span` / event times use
+    the unit named by `display_time_unit` (catalog embeds use µs).
     """
-    rand = mulberry32(0xA11CE)
+    rand = mulberry32(seed)
     # Calibrated so emit_bursty_lane yields ~100 X events across 7 lanes.
-    time_span = 30_000
-    evs = [_m_process(1, "Card0")]
+    evs = [_m_process(1, process_name)]
     lanes = [
-        (1, "SCALAR", "Core0.Cube/SCALAR"),
-        (2, "MTE2",   "Core0.Cube/MTE2"),
-        (3, "MTE1",   "Core0.Cube/MTE1"),
-        (4, "CUBE",   "Core0.Cube/CUBE"),
-        (5, "FIXP",   "Core0.Cube/FIXP"),
-        (6, "MTE3",   "Core0.Vec0/MTE3"),
-        (7, "ALL",    "Core0.Vec0/ALL"),
+        (1, "SCALAR", f"Core0.Cube/SCALAR"),
+        (2, "MTE2",   f"Core0.Cube/MTE2"),
+        (3, "MTE1",   f"Core0.Cube/MTE1"),
+        (4, "CUBE",   f"Core0.Cube/CUBE"),
+        (5, "FIXP",   f"Core0.Cube/FIXP"),
+        (6, "MTE3",   f"Core0.Vec0/MTE3"),
+        (7, "ALL",    f"Core0.Vec0/ALL"),
     ]
     pipe_map = {}
     for tid, pipe, label in lanes:
         evs.append(_m_thread(1, tid, label))
-        lane_rand = mulberry32((0xA11CE + tid * 97) & 0xFFFFFFFF)
+        lane_rand = mulberry32((seed + tid * 97) & 0xFFFFFFFF)
         emitted = emit_bursty_lane(
-            1, tid, pipe, time_span, lane_rand, id_prefix=f"op1-{pipe}",
+            1, tid, pipe, time_span, lane_rand, id_prefix=f"{id_prefix}-{pipe}",
         )
-        plan = OP1_MULTIHEIGHT.get(pipe)
+        plan = OP1_MULTIHEIGHT.get(pipe) if multiheight else None
         if plan:
             emitted = inject_multiheight_nests(
-                1, tid, pipe, emitted, lane_rand, id_prefix=f"op1-{pipe}", plan=plan,
+                1, tid, pipe, emitted, lane_rand,
+                id_prefix=f"{id_prefix}-{pipe}", plan=plan,
             )
         pipe_map[pipe] = emitted
         for _eid, _s, _e, ev in emitted:
@@ -481,7 +493,70 @@ def small_trace():
 
     wire_dense_deps(pipe_map, rand, min_deg=3, max_deg=6)
     # Match stress-small band count (3).
-    return _doc(evs, band_count=3, time_span=time_span, nest_card_tree=True)
+    return _doc(
+        evs,
+        band_count=3,
+        time_span=time_span,
+        nest_card_tree=nest_card_tree,
+        display_time_unit=display_time_unit,
+    )
+
+
+# Generator space for op1 catalog (same numeric span as the former ns
+# `trace.json`). Divided by 1000 into µs CTEF so `sourceTimeUnit: 'us'` yields
+# the same swimlane ns range — keeps e2e zoom / gap-measure thresholds stable.
+OP1_TRACE_GEN_SPAN = 30_000
+
+
+def scale_ctef_times(doc, factor):
+    """Multiply every ts/dur on traceEvents + bands (keeps metadata events intact)."""
+    out = dict(doc)
+    events = []
+    for raw in doc.get("traceEvents", []):
+        e = dict(raw)
+        if isinstance(e.get("ts"), (int, float)):
+            e["ts"] = e["ts"] * factor
+        if isinstance(e.get("dur"), (int, float)):
+            e["dur"] = e["dur"] * factor
+        events.append(e)
+    out["traceEvents"] = events
+    if "bands" in doc:
+        bands = []
+        for raw in doc["bands"]:
+            b = dict(raw)
+            if isinstance(b.get("ts"), (int, float)):
+                b["ts"] = b["ts"] * factor
+            if isinstance(b.get("dur"), (int, float)):
+                b["dur"] = b["dur"] * factor
+            bands.append(b)
+        out["bands"] = bands
+    return out
+
+
+def op1_catalog_traces():
+    """Return [(embedName, ctef_doc), ...] in menu order (µs CTEF)."""
+    specs = [
+        ("Communication.json", dict(
+            seed=0xC011, id_prefix="comm", process_name="Communication",
+            multiheight=False,
+        )),
+        ("SimtWarpOccpy.json", dict(
+            seed=0xA17A, id_prefix="warp", process_name="WarpOccupy",
+            multiheight=False,
+        )),
+        ("PipeTrace.json", dict(
+            seed=0xA11CE, id_prefix="pipe", process_name="PipeTrace",
+            multiheight=True,
+        )),
+    ]
+    out = []
+    for embed_name, kwargs in specs:
+        # Build in historical ns-numeric space, then convert to µs.
+        doc = small_trace(time_span=OP1_TRACE_GEN_SPAN, display_time_unit="ns", **kwargs)
+        doc = scale_ctef_times(doc, 1 / 1000.0)
+        doc["displayTimeUnit"] = "us"
+        out.append((embed_name, doc))
+    return out
 
 
 # ------------------------------------------------------------------ CSV gen
@@ -1489,7 +1564,8 @@ BW_COLUMNS = (
 def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
                  ai_core_count, ai_vector_count, block_offset, n_rows,
                  aic_seed, aic_scale, op_basic, demo, include_trace=True,
-                 sampling_seed=0x51A1, roofline_scale=1.0, heatmap_seed=0x4E47):
+                 sampling_seed=0x51A1, roofline_scale=1.0, heatmap_seed=0x4E47,
+                 catalog_traces=None, sampling_duration_us=None):
     texts = {}
     for name, data in out_rep.items():
         if name == "trace.json":
@@ -1549,14 +1625,21 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
     texts.update(source_demo_texts(heatmap_seed))
     texts["statistical_utilization.json"] = json.dumps({"operator": sub_label}) + "\n"
     texts["Summary.jsonl"] = build_summary_jsonl(texts, op_basic=op_basic, demo=demo)
-    texts["Sampling.json"] = build_sampling_json(
-        sampling_seed, float(op_basic["duration"]) * 8.0, n_points=48,
+    samp_dur = (
+        sampling_duration_us
+        if sampling_duration_us is not None
+        else float(op_basic["duration"]) * 8.0
     )
+    texts["Sampling.json"] = build_sampling_json(sampling_seed, samp_dur, n_points=48)
     summary_db = build_summary_db(heatmap_seed, roofline_scale)
 
     payloads = []
     if include_trace and trace is not None:
         payloads.append(("trace.json", TYPE_JSON, trace))
+    for embed_name, doc in catalog_traces or ():
+        payloads.append(
+            (embed_name, TYPE_JSON, json.dumps(doc, separators=(",", ":")).encode("utf-8"))
+        )
 
     for name, text in texts.items():
         if name.endswith(".csv"):
@@ -1601,7 +1684,7 @@ def main():
 
     op1 = leaf_entries(
         out_rep,
-        trace=json.dumps(small_trace(), separators=(",", ":")).encode("utf-8"),
+        trace=None,
         transform=False,
         sub_label="vector0",
         chip_info="Ascend 950PR_9599 V100",
@@ -1614,6 +1697,8 @@ def main():
         op_basic={"op_name": "add_custom", "op_type": "mix", "duration": "1.800036",
                   "block_dim": "8", "mix_dim": "4", "freq": "1650"},
         demo=op1_demo,
+        include_trace=False,
+        catalog_traces=op1_catalog_traces(),
         sampling_seed=0x51A101,
         roofline_scale=1.0,
         heatmap_seed=0x4E4701,

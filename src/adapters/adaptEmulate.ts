@@ -25,6 +25,7 @@ import {
 } from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
 import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
+import { buildTimelineTraceBundle } from './timelineTraces';
 
 export {
   pipeOccupancyFromHist,
@@ -307,24 +308,30 @@ export function adaptEmulate(
     },
   );
 
-  // Trace optional: PipeTrace.json or native core_*_tracing_report_*.json.
+  // Trace optional: §11.14 catalog (PipeTrace / Communication / SimtWarp) when
+  // present; else PipeTrace.json or native core_*_tracing_report_*.json merge.
   // Absent → null swimlane; corrupt → throw. Values are µs (DATA-46); override
   // misleading displayTimeUnit:"ns" on native emulate traces.
   let swimlaneModel: SwimlaneModel | null = null;
-  const trace = findEmulateTracePayload(payloads);
-  if (trace) {
-    let traceJson: unknown;
-    try {
-      traceJson = JSON.parse(decodeUtf8(trace.bytes));
-    } catch {
-      throw new Error(
-        `[profiling-report] adaptEmulate: ${trace.name} is not valid JSON`,
+  const catalog = buildTimelineTraceBundle(payloads, pipeOccupancy);
+  if (catalog) {
+    swimlaneModel = catalog.swimlaneModel;
+  } else {
+    const trace = findEmulateTracePayload(payloads);
+    if (trace) {
+      let traceJson: unknown;
+      try {
+        traceJson = JSON.parse(decodeUtf8(trace.bytes));
+      } catch {
+        throw new Error(
+          `[profiling-report] adaptEmulate: ${trace.name} is not valid JSON`,
+        );
+      }
+      swimlaneModel = withPipeLaneUtilizations(
+        chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' }),
+        pipeOccupancy,
       );
     }
-    swimlaneModel = withPipeLaneUtilizations(
-      chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' }),
-      pipeOccupancy,
-    );
   }
 
   // UI-55: prefer projected hist (aic_/aiv0_/aiv1_ *_ratio); omit raw PipesUtilization when hist exists.
@@ -398,5 +405,12 @@ export function adaptEmulate(
     swimlaneModel,
     reportModel,
     capabilities,
+    ...(catalog
+      ? {
+          timelineTraces: catalog.timelineTraces,
+          selectedTimelineTraceId: catalog.selectedTimelineTraceId,
+          timelineTraceModels: catalog.timelineTraceModels,
+        }
+      : {}),
   };
 }

@@ -531,6 +531,19 @@ export interface ReportOperator {
   label: string;
 }
 
+/**
+ * §11.14 multi-timeline catalog kinds (流水视图显示). `stat` is omitted until a
+ * matched embed exists (DATA-56).
+ */
+export type TimelineTraceKind = 'communication' | 'warpOccupy' | 'pipeTrace';
+
+/** A selectable CTEF timeline embed present in the leaf pack. */
+export interface TimelineTraceOption {
+  id: TimelineTraceKind;
+  /** Actual basename found in the pack (preserves producer casing). */
+  embedName: string;
+}
+
 export interface AdaptedReport {
   /** `null` when the source has no timeline (metrics-only pack, no `trace.json`). */
   swimlaneModel: SwimlaneModel | null;
@@ -542,6 +555,15 @@ export interface AdaptedReport {
   operatorReports?: Record<string, AdaptedReport>;
   /** Currently selected operator id (multi-op only; defaults to the first). */
   selectedOperatorId?: string;
+  /**
+   * Present §11.14 catalog timeline embeds (Communication / PipeTrace / SimtWarp).
+   * Omit when empty. Toolbar shows the radio selector only when length > 1.
+   */
+  timelineTraces?: TimelineTraceOption[];
+  /** Active catalog timeline id (when `timelineTraces` is set). */
+  selectedTimelineTraceId?: TimelineTraceKind;
+  /** Pre-adapted swimlane per timeline id (when `timelineTraces` is set). */
+  timelineTraceModels?: Record<string, SwimlaneModel>;
 }
 
 export interface SelectedEvent {

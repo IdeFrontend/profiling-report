@@ -1,6 +1,6 @@
 # Metrics CSVs and Trace Semantics
 
-How embedded files inside a `.npu-rep` (or classic sample `.rep`) map to UI panels, and what the sample `trace.json` actually contains.
+How embedded files inside a `.npu-rep` (or classic sample `.rep`) map to UI panels, and what the sample timeline embeds contain (`sample.lite.rep` op1 ships the §11.14 catalog; classic packs may still use `trace.json`).
 
 ## Common CSV conventions
 
@@ -34,9 +34,12 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | `MemoryUB.csv` | — | UB path details |
 | `L2Cache.csv` | — | Cache tab / L2 hit-rate panels |
 | `ResourceConflictRatio.csv` | — | Stall/conflict insights in details |
-| `trace.json` | Swimlane lanes and event intervals | Dependency overlays if args provide them; markers |
+| `trace.json` | Swimlane lanes and event intervals (legacy when no §11.14 catalog file) | Dependency overlays if args provide them; markers |
+| `PipeTrace.json` | Swimlane (µs); 流水视图显示 option **pipe trace** | Multi-trace switch with Communication / SimtWarp ([DATA-56](../../context/decisions/DATA.md)) |
+| `Communication.json` | Swimlane (µs); option **communication 通信** | Same catalog |
+| `SimtWarpOccpy.json` / `simt_warp_occupancy.json` | Swimlane (µs); option **warp occupy** | Same catalog |
 
-Sketches: [`docs/ui/`](../../ui/).
+Sketches: [`docs/ui/`](../../ui/), [`1130/pipeline-display-filter`](../../ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg).
 
 ---
 

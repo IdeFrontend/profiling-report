@@ -28,7 +28,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 
 **CSV detail tables (M1).** Builds `CsvTableModel` entries for compute tabs (`PipeUtilization`, `ArithmeticUtilization`, `ResourceConflictRatio`) and memory tabs (`Memory.csv`, `L2Cache`, `MemoryL0`, `MemoryUB`). Each table includes headers, rows, and distinct `blockIds` in fixture order (DATA-19 / DATA-29). Missing embeds are omitted. Raw CSV text is stored in `csvTexts[fileName]` for 查看全部 (DATA-33d).
 
-**Swimlane model.** Extracts the timeline via `chromeTraceToSwimlane`: `trace.json` with `sourceTimeUnit: 'ns'` (classic `.rep`), or `PipeTrace.json` with `sourceTimeUnit: 'us'` (product `npu-rep`; its `displayTimeUnit: "ns"` label is misleading — ts/dur are microseconds).
+**Swimlane model.** Prefer the §11.14 catalog ([timeline-traces](./timeline-traces.spec.md), [DATA-56](../../docs/context/decisions/DATA.md)): present `Communication.json` / `PipeTrace.json` / SimtWarp* embeds each become a µs `SwimlaneModel` exposed on **timelineTraces** / **timelineTraceModels**. Default **swimlaneModel** prefers PipeTrace. When the catalog is empty, fall back to classic `trace.json` with `sourceTimeUnit: 'ns'`. Product `PipeTrace.json` alone still uses µs (its `displayTimeUnit: "ns"` label is misleading).
 
 **Overview series.** From product `Sampling.json` Chrome Trace `ph:"C"` counters ([DATA-39](../../docs/context/decisions/DATA.md)): one `OverviewSeries` per distinct counter `name` present (`id`/`label` = `name`); `points[{t,v}]` from `ts` (µs→canonical ns) and finite `args.value`. Empty when Sampling absent or no counters — hide UI ([DATA-32](../../docs/context/decisions/DATA.md)). Do not invent from `PipeUtilization`.
 

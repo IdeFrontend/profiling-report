@@ -5,6 +5,7 @@ import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
+import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import * as adapters from '../../adapters';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
@@ -1625,6 +1626,100 @@ describe('ProfilingReport scaffold', () => {
       await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
       expect(wrapper.vm.selectedOperatorId).toBe('b.npu.rep');
       expect(wrapper.find('.pr-layout').attributes('style')).toContain('--pr-aside-width: 600px');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('PR-ROOT-031: multi-timeline source swaps swimlane via 流水视图显示; re-select is a no-op', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const swimPipe = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'pipe-lane',
+              events: [{ id: 'ep', name: 'pipe-op', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    };
+    const swimComm = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'comm-lane',
+              events: [{ id: 'ec', name: 'comm-op', startTime: 0, duration: 50 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 50,
+    };
+    const report = emptyReportViewModel();
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swimPipe,
+      reportModel: report,
+      capabilities: [],
+      timelineTraces: [
+        { id: 'communication', embedName: 'Communication.json' },
+        { id: 'pipeTrace', embedName: 'PipeTrace.json' },
+      ],
+      selectedTimelineTraceId: 'pipeTrace',
+      timelineTraceModels: {
+        communication: swimComm,
+        pipeTrace: swimPipe,
+      },
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      await flushPromises();
+      expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(true);
+      const toolbar = () => wrapper.findComponent(ReportToolbar);
+      expect(toolbar().props('selectedTimelineTraceId')).toBe('pipeTrace');
+      expect(
+        (wrapper.findComponent(TimelineView).props('displaySwim') as typeof swimPipe).processes[0]
+          ?.threads[0]?.name,
+      ).toBe('pipe-lane');
+
+      await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+      await wrapper.find('[data-trace-id="pipeTrace"]').trigger('click');
+      expect(toolbar().props('selectedTimelineTraceId')).toBe('pipeTrace');
+
+      wrapper.vm.selectEventById('ep');
+      expect(wrapper.vm.viewState.selectedEventId).toBe('ep');
+
+      await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+      await wrapper.find('[data-trace-id="communication"]').trigger('click');
+      expect(toolbar().props('selectedTimelineTraceId')).toBe('communication');
+      expect(
+        (wrapper.findComponent(TimelineView).props('displaySwim') as typeof swimComm).processes[0]
+          ?.threads[0]?.name,
+      ).toBe('comm-lane');
+      expect(wrapper.vm.viewState.startTime).toBe(0);
+      expect(wrapper.vm.viewState.endTime).toBe(swimComm.maxTime);
+      expect(wrapper.vm.viewState.selectedEventId).toBeNull();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      await wrapper.setProps({ source: undefined });
+      await flushPromises();
+      expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(false);
+      expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
     } finally {
       spy.mockRestore();
     }

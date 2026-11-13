@@ -3,14 +3,19 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'v
 import PrIcon from '../PrIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import ToolbarSearch from './ToolbarSearch.vue';
-import type { ReportOperator, TimeDisplayMode } from '../../domain/types';
+import type {
+  ReportOperator,
+  TimeDisplayMode,
+  TimelineTraceKind,
+  TimelineTraceOption,
+} from '../../domain/types';
 import Chevron from '../Chevron.vue';
 import {
   MAX_DEPENDENCY_DEPTH,
   MIN_DEPENDENCY_DEPTH,
   normalizeDependencyDepth,
 } from '../../domain/types';
-import { t } from '../../i18n';
+import { t, type MessageKey } from '../../i18n';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 /* PyPTO multi-color glyphs — img, not PrIcon masks (masks kill #5291FF accents). */
 import shortcutMouseWheel from '../icons/shortcuts/mouse-scrollwheel-dark.svg';
@@ -40,6 +45,9 @@ const props = withDefaults(
     measureMode?: boolean;
     operators?: ReportOperator[];
     selectedOperatorId?: string | null;
+    /** §11.14 catalog timeline embeds; selector shows when length > 1. */
+    timelineTraces?: TimelineTraceOption[];
+    selectedTimelineTraceId?: TimelineTraceKind | null;
     /** Opens in a new tab from the trailing help button. */
     userGuideUrl?: string;
     /** Active secondary tab (UI-37). */
@@ -68,6 +76,7 @@ const emit = defineEmits<{
   'update:dependencyDepth': [value: number];
   'update:measureMode': [value: boolean];
   'update:selectedOperatorId': [id: string];
+  'update:selectedTimelineTraceId': [id: TimelineTraceKind];
   'update:activeTab': [tab: 'timeline' | 'source'];
   'zoom-to-fit': [];
   'zoom-in': [];
@@ -76,6 +85,16 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'export-html': [];
 }>();
+
+const TIMELINE_TRACE_LABEL_KEY: Record<TimelineTraceKind, MessageKey> = {
+  communication: 'timelineTraceCommunication',
+  warpOccupy: 'timelineTraceWarpOccupy',
+  pipeTrace: 'timelineTracePipeTrace',
+};
+
+function timelineTraceLabel(id: TimelineTraceKind): string {
+  return t(TIMELINE_TRACE_LABEL_KEY[id], props.locale);
+}
 
 function onDepthChange(event: Event) {
   // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
@@ -101,6 +120,11 @@ const atDepthMin = computed(() => props.dependencyDepth <= MIN_DEPENDENCY_DEPTH)
 const displayControlOpen = ref(false);
 /** Wrap owns the trigger and the panel, so an outside hit is anything not in here. */
 const displayWrapRef = ref<HTMLElement | null>(null);
+const timelineTraceOpen = ref(false);
+const timelineTraceWrapRef = ref<HTMLElement | null>(null);
+const timelineTraceTriggerRef = ref<HTMLButtonElement | null>(null);
+const timelineTraceMenuRef = ref<HTMLElement | null>(null);
+const activeTimelineIndex = ref(0);
 /** Shortcut-help (快捷键说明) popover state — same dismiss contract as display control. */
 const shortcutHelpOpen = ref(false);
 const shortcutWrapRef = ref<HTMLElement | null>(null);
@@ -119,10 +143,107 @@ const opTriggerRef = ref<HTMLButtonElement | null>(null);
 const opMenuRef = ref<HTMLElement | null>(null);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
+const showTimelineTraceSelector = computed(() => (props.timelineTraces?.length ?? 0) > 1);
 
 /** Drop stale open state when the selector unmounts (e.g. host swaps to a single-op source). */
 watch(showOperatorSelector, (show) => {
   if (!show) opMenuOpen.value = false;
+});
+
+watch(showTimelineTraceSelector, (show) => {
+  if (!show) timelineTraceOpen.value = false;
+});
+
+// The menu sits in the Timeline toolbar (`v-if="activeTab === 'timeline'`). A keyboard
+// tab switch unmounts that div without a pointerdown, which would leave the document
+// Escape listener attached and swallowing keys on Source.
+watch(
+  () => props.activeTab,
+  (tab) => {
+    if (tab !== 'timeline') void closeTimelineTraceMenu();
+  },
+);
+
+function focusActiveTimelineOption() {
+  const items = timelineTraceMenuRef.value?.querySelectorAll<HTMLElement>(
+    '[data-testid="timeline-trace-option"]',
+  );
+  items?.[activeTimelineIndex.value]?.focus();
+}
+
+async function openTimelineTraceMenu() {
+  const traces = props.timelineTraces ?? [];
+  const i = traces.findIndex((t) => t.id === props.selectedTimelineTraceId);
+  activeTimelineIndex.value = i >= 0 ? i : 0;
+  timelineTraceOpen.value = true;
+  await nextTick();
+  focusActiveTimelineOption();
+}
+
+async function closeTimelineTraceMenu(opts?: { restoreFocus?: boolean }) {
+  timelineTraceOpen.value = false;
+  if (opts?.restoreFocus) {
+    await nextTick();
+    timelineTraceTriggerRef.value?.focus();
+  }
+}
+
+function toggleTimelineTraceMenu() {
+  if (timelineTraceOpen.value) void closeTimelineTraceMenu();
+  else void openTimelineTraceMenu();
+}
+
+function selectTimelineTrace(id: TimelineTraceKind) {
+  if (id !== props.selectedTimelineTraceId) {
+    emit('update:selectedTimelineTraceId', id);
+  }
+  void closeTimelineTraceMenu({ restoreFocus: true });
+}
+
+function onTimelineTraceOutsidePointerDown(e: PointerEvent) {
+  const wrap = timelineTraceWrapRef.value;
+  if (!wrap || !(e.target instanceof Node) || wrap.contains(e.target)) return;
+  void closeTimelineTraceMenu();
+}
+
+function onTimelineTraceEscape(e: KeyboardEvent) {
+  if (e.key !== 'Escape' || !timelineTraceOpen.value) return;
+  e.preventDefault();
+  e.stopPropagation();
+  void closeTimelineTraceMenu({ restoreFocus: true });
+}
+
+function onTimelineTraceTriggerKeydown(e: KeyboardEvent) {
+  if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !timelineTraceOpen.value) {
+    e.preventDefault();
+    void openTimelineTraceMenu();
+  }
+}
+
+function onTimelineTraceOptionKeydown(e: KeyboardEvent, id: TimelineTraceKind, index: number) {
+  const traces = props.timelineTraces ?? [];
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    selectTimelineTrace(id);
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (traces.length === 0) return;
+    const delta = e.key === 'ArrowDown' ? 1 : -1;
+    activeTimelineIndex.value = (index + delta + traces.length) % traces.length;
+    void nextTick(focusActiveTimelineOption);
+  }
+}
+
+watch(timelineTraceOpen, (open) => {
+  if (open) {
+    document.addEventListener('pointerdown', onTimelineTraceOutsidePointerDown);
+    document.addEventListener('keydown', onTimelineTraceEscape);
+  } else {
+    document.removeEventListener('pointerdown', onTimelineTraceOutsidePointerDown);
+    document.removeEventListener('keydown', onTimelineTraceEscape);
+  }
 });
 
 /** Trigger shows the selected operator label (falls back to OP算子 brand). */
@@ -264,6 +385,8 @@ watch(
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDisplayOutsidePointerDown);
   document.removeEventListener('keydown', onDisplayEscape);
+  document.removeEventListener('pointerdown', onTimelineTraceOutsidePointerDown);
+  document.removeEventListener('keydown', onTimelineTraceEscape);
   document.removeEventListener('pointerdown', onShortcutOutsidePointerDown);
   document.removeEventListener('keydown', onShortcutEscape);
   window.removeEventListener('resize', positionShortcutHelp);
@@ -795,6 +918,58 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       </button>
 
       <div
+        v-if="showTimelineTraceSelector"
+        ref="timelineTraceWrapRef"
+        class="pr-toolbar__trace-wrap"
+        data-testid="timeline-trace-selector"
+      >
+        <button
+          ref="timelineTraceTriggerRef"
+          type="button"
+          class="pr-toolbar__icon-btn pr-icon-tip"
+          data-testid="toggle-timeline-trace"
+          data-toolbar-clip
+          :aria-expanded="timelineTraceOpen"
+          :aria-pressed="timelineTraceOpen"
+          :aria-haspopup="'menu'"
+          :class="{ 'pr-toolbar__icon-btn--on': timelineTraceOpen }"
+          :aria-label="t('timelineTraceView', locale)"
+          @click="toggleTimelineTraceMenu"
+          @keydown="onTimelineTraceTriggerKeydown"
+        >
+          <PrIcon name="list" />
+        </button>
+        <ul
+          v-if="timelineTraceOpen"
+          ref="timelineTraceMenuRef"
+          class="pr-toolbar__trace-menu"
+          role="menu"
+          :aria-label="t('timelineTraceView', locale)"
+        >
+          <li
+            v-for="(trace, index) in timelineTraces"
+            :key="trace.id"
+            class="pr-toolbar__trace-item"
+            :class="{ 'pr-toolbar__trace-item--active': trace.id === selectedTimelineTraceId }"
+            role="menuitemradio"
+            :aria-checked="trace.id === selectedTimelineTraceId"
+            data-testid="timeline-trace-option"
+            :data-trace-id="trace.id"
+            tabindex="0"
+            @click="selectTimelineTrace(trace.id)"
+            @keydown="onTimelineTraceOptionKeydown($event, trace.id, index)"
+            @focus="activeTimelineIndex = index"
+          >
+            <span
+              class="pr-toolbar__trace-radio"
+              aria-hidden="true"
+            />
+            <span class="pr-toolbar__trace-label">{{ timelineTraceLabel(trace.id) }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div
         ref="displayWrapRef"
         class="pr-toolbar__display-wrap"
       >
@@ -1196,6 +1371,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 .pr-toolbar__zoom-pill,
 .pr-toolbar__icon-btn,
 .pr-toolbar__display-wrap,
+.pr-toolbar__trace-wrap,
 .pr-toolbar__shortcut-wrap {
   flex-shrink: 0;
 }
@@ -1333,9 +1509,64 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   color: #2d70e3;
 }
 
-.pr-toolbar__display-wrap {
+.pr-toolbar__display-wrap,
+.pr-toolbar__trace-wrap {
   position: relative;
   display: inline-flex;
+}
+
+.pr-toolbar__trace-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 6px 0;
+  min-width: 180px;
+  list-style: none;
+  background: #363636;
+  border: 1px solid #5e5e5e;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.pr-toolbar__trace-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 14px;
+  color: #e6e6e6;
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.pr-toolbar__trace-item:hover,
+.pr-toolbar__trace-item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.pr-toolbar__trace-radio {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #b3b3b3;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.pr-toolbar__trace-item--active .pr-toolbar__trace-radio {
+  border-color: #2d70e3;
+  background:
+    radial-gradient(circle at center, #2d70e3 0 4px, transparent 5px),
+    transparent;
+}
+
+.pr-toolbar__trace-label {
+  white-space: nowrap;
 }
 
 .pr-toolbar__display-control {
