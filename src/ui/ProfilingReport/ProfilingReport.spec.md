@@ -212,7 +212,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 33. **PR-ROOT-033** — Host-owned invariant: when the applied list no longer contains the current selection, the root emits `update:selectedBaselineId` with `null` (unchecking the selected baseline deselects).
 34. **PR-ROOT-034** — The aside receives `baselines` / `selectedBaselineId`, and its Baseline dropdown pick — an id or `null` (Not selected) — is forwarded as the global `update:selectedBaselineId`.
 35. **PR-ROOT-035** — Both toolbar mounts forward baseline toggles: the empty-report mount (no timeline/source) binds the baseline props and emits `update:baselines` too.
-36. **PR-ROOT-036** — A restored selection survives mount: while `baselines` is `undefined` (the host has not loaded the list yet) the root emits no `update:selectedBaselineId`; validation starts once the list arrives (host ordering: list first, then id).
+36. **PR-ROOT-036** — A restored selection survives mount: while `baselines` is `undefined` (not loaded yet — hosts must omit the prop, `[]` means a known-empty list) the root emits no `update:selectedBaselineId`; validation starts once the list arrives (host ordering: list first, then id).
 37. **PR-ROOT-037** — The aside's Operator pick forwards to the host: `selectedBaselineOperator` in, `update:selectedBaselineOperator` (`null` = Not selected) out.
 
 ## Edge Cases

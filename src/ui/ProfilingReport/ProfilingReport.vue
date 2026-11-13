@@ -1791,7 +1791,9 @@ function onAside(visible: boolean) {
  * While `baselines` is `undefined` (the host has not loaded/restored the list
  * yet) nothing is validated: an immediate check here would clear a selection
  * the host restored from its own storage before the async list arrived.
- * Host ordering (public-api.spec.md): pass the list first (or with) the id.
+ * Host ordering (public-api.spec.md): pass the list first (or with) the id,
+ * and OMIT `baselines` while it is not loaded yet — `[]` means a known-empty
+ * list and IS validated (it clears a restored selection by design).
  */
 watch(
   () => [props.baselines, props.selectedBaselineId] as const,
