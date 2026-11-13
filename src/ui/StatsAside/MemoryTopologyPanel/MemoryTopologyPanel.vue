@@ -165,10 +165,11 @@ export function fitFontSize(
  * tone arrow (shaft + head), BELOW the value, and the unsigned delta in white at the value's
  * own size right of the circle.
  */
-export const DIFF_BADGE_SIZE = 12;
-/** Vertical offset from the percentage's centre to the badge's centre — enough air that the
- *  circle clears the glyph box (mockup-measured: the badge floats below the value). */
-export const DIFF_BADGE_Y_OFFSET = 12.5;
+export const DIFF_BADGE_SIZE = 6.6;
+/** Vertical offset from the percentage's centre to the badge's centre: the circle hangs right
+ *  under the value with one unit of air — close enough that it stays inside the plate's own band
+ *  and never touches the box's nested chrome (pills, walls). */
+export const DIFF_BADGE_Y_OFFSET = 8.5;
 /** Air between the badge circle and its delta text. */
 export const DIFF_BADGE_TEXT_GAP = 1;
 /** Delta-text width the group layout falls back to when text metrics are unavailable (jsdom):
@@ -433,8 +434,8 @@ function makeBadge(
   // Full arrow: a vertical shaft plus a two-stroke head joined at the tip.
   const arrow =
     diff.tone === 'increase'
-      ? `M${cx} ${y + 2.4} L${cx} ${y - 2.4} M${cx - 2.2} ${y - 0.1} L${cx} ${y - 2.4} L${cx + 2.2} ${y - 0.1}`
-      : `M${cx} ${y - 2.4} L${cx} ${y + 2.4} M${cx - 2.2} ${y + 0.1} L${cx} ${y + 2.4} L${cx + 2.2} ${y + 0.1}`;
+      ? `M${cx} ${y + 1.5} L${cx} ${y - 1.5} M${cx - 1.3} ${y - 0.05} L${cx} ${y - 1.5} L${cx + 1.3} ${y - 0.05}`
+      : `M${cx} ${y - 1.5} L${cx} ${y + 1.5} M${cx - 1.3} ${y + 0.05} L${cx} ${y + 1.5} L${cx + 1.3} ${y + 0.05}`;
   return {
     sourceKey,
     testid,
