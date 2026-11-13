@@ -82,6 +82,8 @@ export const PLATE_METRICS: Record<TopologyPlateNodeId | 'l2-peak', SlotMetrics>
   'l2-peak': { titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
 };
 
+/** Half the 6.3px value's glyph box (the classic slot position). */
+const VALUE_HALF_H = 3.15;
 /** Fallback ink extents (chrome units) of the 6.3px / 800 value glyphs: digits + `%` have no
  *  descenders, so the ink sits asymmetrically inside the text box — roughly 2.5 above and 1.8
  *  below the `dominant-baseline="middle"` centre. The real extents are measured per text via
@@ -105,13 +107,12 @@ export interface SlotRhythm {
 }
 
 /**
- * Per-slot rhythm (PR-MEMTOP-027): equal air
- * `g = clamp(floor((F - T - 13.9) / 2), 0.5, 4.5)` between title→value and value→badge; the
- * value centre is `vc = T + g + 3.15`, which makes the value's lift inside its element DERIVED
- * (`slotY - vc`) instead of a static per-node map. The badge hangs one `g` under the value;
- * where that would put the circle past the frame (`vec`'s shallow SIMD box), the circle shrinks
- * to the room left above `F - 1` — the largest circle that keeps `bc + d/2 ≤ F - 1` — so it
- * never crosses the element frame.
+ * Per-slot badge layout (PR-MEMTOP-027). The VALUE keeps its classic glyph-box position
+ * `vc = T + g + 3.15` (g = clamp(floor((F − T − 13.9) / 2), 0.5, 4.5)) — the title→value
+ * spacing reads exactly as it always did. The badge then hangs below the value's ink so the
+ * VISIBLE gap between the value and the badge equals the visible gap between the title and
+ * the value: `E = g + 3.15 − inkTop`; circle top = `vc + inkBottom + E`; the circle shrinks
+ * where that would cross the frame (`d = F − 1.2 − circleTop`).
  */
 export function slotRhythm(
   node: TopologyPlateNodeId | 'l2-peak',
@@ -122,16 +123,11 @@ export function slotRhythm(
     RHYTHM_AIR_MAX,
     Math.max(RHYTHM_AIR_MIN, Math.floor((frameBottom - titleBottom - RHYTHM_SLACK) / 2)),
   );
-  // The value centre places the glyph INK one gap under the title (the box
-  // would look lopsided — the ink sits high inside it).
-  const valueY = titleBottom + air + ink.top;
-  // The circle hangs one gap under the ink's bottom; the shrink leaves
-  // visible frame air (-1.2) so the bottom never sits on the stroke band.
-  const badgeD = Math.min(
-    DIFF_BADGE_SIZE,
-    frameBottom - 1.2 - valueY - (ink.bottom + air),
-  );
-  const badgeY = valueY + (ink.bottom + air) + badgeD / 2;
+  const valueY = titleBottom + air + VALUE_HALF_H;
+  const equalGap = air + VALUE_HALF_H - ink.top;
+  const circleTop = valueY + ink.bottom + equalGap;
+  const badgeD = Math.min(DIFF_BADGE_SIZE, frameBottom - 1.2 - circleTop);
+  const badgeY = circleTop + badgeD / 2;
   return { air, valueY, badgeD, badgeY };
 }
 
@@ -246,7 +242,7 @@ export const DIFF_BADGE_SIZE = 6.6;
 
 /** Ink top + ink bottom + the 6.6 circle + 1.2 frame air — the height the layout needs before
  *  its two equal gaps. Keeps gap, value ink, gap, badge, ≥1.2 air inside `F - T`. */
-const RHYTHM_SLACK = VALUE_INK_TOP + VALUE_INK_BOTTOM + DIFF_BADGE_SIZE + 1.2;
+const RHYTHM_SLACK = 2 * VALUE_HALF_H + DIFF_BADGE_SIZE + 1;
 /** Air between the badge circle and its delta text. */
 export const DIFF_BADGE_TEXT_GAP = 1;
 /** Delta-text width the group layout falls back to when text metrics are unavailable (jsdom):

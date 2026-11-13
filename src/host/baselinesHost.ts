@@ -221,6 +221,10 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
   if (!model.summaryCategories?.length) {
     // Demo details set mirroring the typical op categories so the 详情 overlay
     // pairs field-by-field with the open report's fields.
+    // DEMO-DIFF RULE: the compute detail values vary per baseline too (a
+    // per-baseline factor keeps them strictly above sample's own values while
+    // the per-operator scale still applies).
+    const vary = 1 + (mixed % 6) * 0.05;
     const cats: Record<string, [string, number][]> = {
       PipeUtilization: [
         ['aiv_time(us)', 40], ['aiv_total_cycles', 60000], ['aiv_vec_time(us)', 39],
@@ -246,7 +250,7 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
     model.summaryCategories = Object.entries(cats).map(([id, fields]) => ({
       id,
       title: id,
-      fields: fields.map(([key, value]) => ({ key, value: String(value) })),
+      fields: fields.map(([key, value]) => ({ key, value: String(value * vary) })),
     }));
   } else {
     // The fixture already carries categories: append the missing memory ids

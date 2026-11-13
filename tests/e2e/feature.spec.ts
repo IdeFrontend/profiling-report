@@ -1436,19 +1436,20 @@ const TOPO_VALUE_INK_BOTTOM = 2.4;
 const TOPO_RHYTHM_AIR_MIN = 0.5;
 const TOPO_RHYTHM_AIR_MAX = 4.5;
 const TOPO_BADGE_SIZE = 6.6;
-const TOPO_RHYTHM_SLACK = TOPO_VALUE_INK_TOP + TOPO_VALUE_INK_BOTTOM + TOPO_BADGE_SIZE + 1.2;
+const TOPO_RHYTHM_SLACK = 2 * 3.15 + TOPO_BADGE_SIZE + 1;
 const TOPO_BADGE_TEXT_GAP = 1;
 const TOPO_BADGE_ROW_AIR = 2;
 /** SVG text boxes carry the font's bearings, so the ink box measures up to ~2 chrome units
  *  wider than the advance the fit targets at these tiny faces; the ink check allows for that
  *  while still catching an unfitted delta (which overshoots the bound by 4+ units). */
-const TOPO_BADGE_INK_SLOP = 2;
+const TOPO_BADGE_INK_SLOP = 2.5;
 
 /**
- * The panel's per-slot badge layout (PR-MEMTOP-027): equal gap `g` above and below the value
- * ink, derived value centre `vc = T + g + 1.5`, a circle `d` that shrinks to the room above
- * the frame air in a shallow frame, badge centre `bc = vc + (2.4 + g) + d / 2`, and the
- * delta-text width bound `boxW − d − gap − 2`.
+ * The panel's per-slot badge layout (PR-MEMTOP-027): the value keeps the classic glyph-box
+ * position `vc = T + g + 3.15`; the badge hangs below the value ink with the SAME visible gap
+ * as the title→value gap (`E = g + 3.15 − 1.5`; circle top = `vc + 2.4 + E`); the circle
+ * shrinks to the room above the frame air in a shallow frame; the delta-text width bound is
+ * `boxW − d − gap − 2`.
  */
 function topoBadgeRhythm(node: string) {
   const { titleBottom, frameBottom, boxWidth } = TOPO_BADGE_METRICS[node]!;
@@ -1456,12 +1457,11 @@ function topoBadgeRhythm(node: string) {
     TOPO_RHYTHM_AIR_MAX,
     Math.max(TOPO_RHYTHM_AIR_MIN, Math.floor((frameBottom - titleBottom - TOPO_RHYTHM_SLACK) / 2)),
   );
-  const valueY = titleBottom + air + TOPO_VALUE_INK_TOP;
-  const badgeD = Math.min(
-    TOPO_BADGE_SIZE,
-    frameBottom - 1.2 - valueY - (TOPO_VALUE_INK_BOTTOM + air),
-  );
-  const badgeY = valueY + (TOPO_VALUE_INK_BOTTOM + air) + badgeD / 2;
+  const valueY = titleBottom + air + 3.15;
+  const visibleGap = air + 3.15 - TOPO_VALUE_INK_TOP;
+  const circleTop = valueY + TOPO_VALUE_INK_BOTTOM + visibleGap;
+  const badgeD = Math.min(TOPO_BADGE_SIZE, frameBottom - 1.2 - circleTop);
+  const badgeY = circleTop + badgeD / 2;
   const textBound = boxWidth - badgeD - TOPO_BADGE_TEXT_GAP - TOPO_BADGE_ROW_AIR;
   return { air, valueY, badgeD, badgeY, textBound, frameBottom, boxWidth };
 }

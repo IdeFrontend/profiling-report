@@ -407,12 +407,12 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    // The vertical centre is DERIVED by the slot's equal-gap layout (PR-MEMTOP-027):
-    // vc = T + g + inkTop (1.5) — aiv_scalar 312.1 + 2 + 1.5, vec 362.1 + 1 + 1.5,
-    // L2 peak 207.6 + 4.5 + 1.5. The old static lift map is gone.
-    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(315.6, 5);
-    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(364.6, 5);
-    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(213.6, 5);
+    // The vertical centre keeps the classic glyph-box position (PR-MEMTOP-027):
+    // vc = T + g + 3.15 — aiv_scalar 312.1 + 1 + 3.15, vec 362.1 + 0.5 + 3.15,
+    // L2 peak 207.6 + 4.5 + 3.15. The old static lift map is gone.
+    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(316.25, 5);
+    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(365.75, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(215.25, 5);
     expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('x'))).toBeCloseTo(114.1, 5);
     // L2 peak vs L2 word (114.2, 204.5) — the derived centre must still clear the word's
     // half-cap (~3.15); the rhythm puts it 10.75u under the word's centre.
@@ -852,32 +852,34 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     // Worked values from the measured constants: equal gap g both sides, vc = T + g + inkTop,
     // d = min(6.6, F - 1.2 - vc - (inkBottom + g)), bc = vc + (inkBottom + g) + d / 2.
     const EXPECTED = {
-      aiv_scalar: { air: 2, valueY: 315.6, badgeD: 6.6, badgeY: 323.3 },
-      vec: { air: 1, valueY: 364.6, badgeD: 6.6, badgeY: 371.3 },
-      cube: { air: 4.5, valueY: 93.6, badgeD: 6.6, badgeY: 103.8 },
-      'l2-peak': { air: 4.5, valueY: 213.6, badgeD: 6.6, badgeY: 223.8 },
+      aiv_scalar: { air: 1, valueY: 316.25, badgeD: 6.5, badgeY: 324.55 },
+      vec: { air: 0.5, valueY: 365.75, badgeD: 4.5, badgeY: 372.55 },
+      cube: { air: 4.5, valueY: 95.25, badgeD: 6.6, badgeY: 107.1 },
+      'l2-peak': { air: 4.5, valueY: 215.25, badgeD: 6.6, badgeY: 227.1 },
     } as const;
 
     for (const slot of Object.keys(MEASURED) as (keyof typeof MEASURED)[]) {
       const m = MEASURED[slot];
       const g = Math.min(
         4.5,
-        Math.max(0.5, Math.floor((m.frameBottom - m.titleBottom - (VALUE_INK_TOP + VALUE_INK_BOTTOM + DIFF_BADGE_SIZE + 1.2)) / 2)),
+        Math.max(0.5, Math.floor((m.frameBottom - m.titleBottom - (2 * 3.15 + DIFF_BADGE_SIZE + 1)) / 2)),
       );
-      const vc = m.titleBottom + g + VALUE_INK_TOP;
-      const d = Math.min(DIFF_BADGE_SIZE, m.frameBottom - 1.2 - vc - (VALUE_INK_BOTTOM + g));
-      const bc = vc + (VALUE_INK_BOTTOM + g) + d / 2;
+      const vc = m.titleBottom + g + 3.15;
+      const circleTop = vc + VALUE_INK_BOTTOM + (g + 3.15 - VALUE_INK_TOP);
+      const d = Math.min(DIFF_BADGE_SIZE, m.frameBottom - 1.2 - circleTop);
+      const bc = circleTop + d / 2;
       const rhythm = slotRhythm(slot);
       expect(rhythm.air, slot).toBe(g);
       expect(rhythm.valueY, slot).toBeCloseTo(vc, 6);
       expect(rhythm.badgeD, slot).toBeCloseTo(d, 6);
       expect(rhythm.badgeY, slot).toBeCloseTo(bc, 6);
       // Equal gap above (title -> value ink) and below (value ink -> badge).
-      expect(rhythm.valueY - VALUE_INK_TOP - m.titleBottom, `${slot} title->value`).toBeCloseTo(g, 6);
+      const visibleGap = g + 3.15 - VALUE_INK_TOP;
+      expect(rhythm.valueY - VALUE_INK_TOP - m.titleBottom, `${slot} title->value`).toBeCloseTo(visibleGap, 6);
       expect(
         rhythm.badgeY - rhythm.badgeD / 2 - (rhythm.valueY + VALUE_INK_BOTTOM),
         `${slot} value->badge`,
-      ).toBeCloseTo(g, 6);
+      ).toBeCloseTo(visibleGap, 6);
       // The circle never crosses the frame and never grows past the design size.
       expect(rhythm.badgeY + rhythm.badgeD / 2, `${slot} bottom`).toBeLessThanOrEqual(
         m.frameBottom - 1 + 1e-9,
@@ -923,7 +925,7 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
       expect(
         rhythm.badgeY - rhythm.badgeD / 2 - (rhythm.valueY + VALUE_INK_BOTTOM),
         `${slot} gap`,
-      ).toBeCloseTo(rhythm.air, 6);
+      ).toBeCloseTo(rhythm.air + 3.15 - VALUE_INK_TOP, 6);
     }
   });
 
@@ -940,11 +942,11 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     const rect = badge.get('rect.pr-topo__diff-box');
     // The white circle is part of a circle+text GROUP centred on the value's
     // centre and sitting BELOW it (jsdom has no text metrics → the fallback
-    // text width drives the circle offset). The ink-based layout leaves room
-    // for the FULL circle even in the shallow vec frame (PR-MEMTOP-027).
+    // text width drives the circle offset). The shallow vec frame shrinks the
+    // circle so the equal visible gap still fits (PR-MEMTOP-027).
     const circleCx = diffBadgeCircleX(vecX, DIFF_BADGE_TEXT_FALLBACK_W);
     expect(circleCx).toBeLessThan(vecX);
-    expect(vecRhythm.badgeD).toBe(DIFF_BADGE_SIZE);
+    expect(vecRhythm.badgeD).toBeCloseTo(4.5, 6);
     expect(Number(rect.attributes('x'))).toBeCloseTo(circleCx - vecRhythm.badgeD / 2, 6);
     expect(Number(rect.attributes('width'))).toBeCloseTo(vecRhythm.badgeD, 6);
     expect(Number(rect.attributes('height'))).toBeCloseTo(vecRhythm.badgeD, 6);

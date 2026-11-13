@@ -260,6 +260,22 @@ describe('createBaselinesHost', () => {
     }
     // Both tones appear at once for every baseline.
     expect([...tones].sort()).toEqual(['decrease', 'increase']);
+
+    // The compute detail fields vary baseline-to-baseline too (the per-
+    // baseline factor), and stay one-sided vs sample's own values.
+    const computeVecRatios = new Set<number>();
+    for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+      const pack = withDemoOperatorPack(
+        { reportModel: { ...emptyReportViewModel() }, swimlaneModel: null },
+        id,
+      );
+      const bl = pack.operatorReports!['matmul']!.reportModel as any;
+      const v = fieldOf(bl, 'ArithmeticUtilization', 'aiv_vec_ratio');
+      expect(v, `${id}: compute detail seeded`).toBeTypeOf('number');
+      expect(v! - 0.067157625, `${id}: compute detail non-zero delta`).not.toBe(0);
+      computeVecRatios.add(v!);
+    }
+    expect(computeVecRatios.size, 'compute details vary per baseline').toBeGreaterThan(1);
   });
 
   it('synthesizes eight operators with distinct metrics on every card family', () => {
