@@ -68,13 +68,18 @@ const {
  * session-only.
  */
 function openBaselinesPicker(): void {
-  const attempt = (n: number): void => {
+  const attempt = (): void => {
     const trigger = document.querySelector<HTMLElement>('[data-testid="toggle-baselines"]');
-    if (trigger) trigger.click();
-    // The viewer may still be loading — retry briefly (ponytail: demo harness).
-    else if (n < 30) requestAnimationFrame(() => attempt(n + 1));
+    if (trigger) {
+      trigger.click();
+      return;
+    }
+    // The viewer may still be loading — keep polling until the toolbar mounts
+    // (ponytail: demo harness; the e2e test timeout bounds this, so no frame
+    // cap — under parallel load a fixed cap fired the click before the mount).
+    setTimeout(attempt, 50);
   };
-  attempt(0);
+  attempt();
 }
 
 /** Baselines as passed to the viewer: every entry carries demo operators (the
