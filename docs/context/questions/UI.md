@@ -81,3 +81,23 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 **Answer so far:** Sketch has **no** heat tint. An amber fill was tried and removed as non-sketch. Leave cells uncolored until Product asks for heat.
 
 **Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [COLOR_TOKENS](../../ui/COLOR_TOKENS.md), [UX_SPEC](../../ui/UX_SPEC.md).
+
+### UI-61 — Baselines control icon and chrome
+
+**Status:** `partial`
+
+**Question:** Which icon does the baselines (对比基线) toolbar control use, and is the popover chrome (title copy, row layout, + placement) Product-approved?
+
+**Answer so far:** **Icon — resolved (2026-11-11):** the mockup's own add-baseline glyph from the 1130 batch (`docs/ui/source/1130/add-baseline.jpeg`, the highlighted toolbar action of the 增加基线操作 scene; mask `src/ui/icons/add-baseline.png`, provenance crop `docs/ui/review/icons/add-baseline-1130.png`). **Chrome — still open:** the popover layout follows the floating-chrome canon ([INTERACTIONS.md](../../ui/INTERACTIONS.md)) until a design frame covers the surface.
+
+**Specs when answered:** [BaselinePicker.spec.md](../../../src/ui/ReportToolbar/BaselinePicker/BaselinePicker.spec.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [baselines](../../views/baselines.md).
+
+### UI-63 — Baselines aside dropdowns: show empty or hide?
+
+**Status:** `open`
+
+**Question:** When no baseline is checked, the aside's Baseline / Operator dropdown row currently renders **always** with both selectors reading **Not selected** (2026-11-12 ТЗ: the row must stay visible so the user knows comparison mode exists). Is that the final behavior, or should the row hide when nothing is checked / when the selected baseline IS the open report (self-compare)? Hiding keeps the panel clean but loses the "we are in comparison mode" affordance the ТЗ wanted.
+
+**Answer so far:** ТЗ (2026-11-12) mandates always-visible with **Not selected**; the hide-vs-empty decision is deferred.
+
+**Specs when answered:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-052), [baselines](../../views/baselines.md).

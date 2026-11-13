@@ -3,7 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'v
 import PrIcon from '../PrIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import ToolbarSearch from './ToolbarSearch.vue';
-import type { ReportOperator, TimeDisplayMode } from '../../domain/types';
+import BaselinePicker from './BaselinePicker/BaselinePicker.vue';
+import type { Baseline, BaselinePick, ReportOperator, TimeDisplayMode } from '../../domain/types';
 import Chevron from '../Chevron.vue';
 import {
   MAX_DEPENDENCY_DEPTH,
@@ -52,6 +53,12 @@ const props = withDefaults(
      * pass true when original report bytes exist.
      */
     htmlExportAvailable?: boolean;
+    /** Host-owned baseline list (对比基线); forwarded to the BaselinePicker. */
+    baselines?: Baseline[];
+    /** Host file dialog for the + press; absent = the baseline control is hidden. */
+    pickBaselineFile?: () => Promise<BaselinePick | null>;
+    /** Recent performance reports (Add Recent view); forwarded to the BaselinePicker. */
+    recentBaselines?: Baseline[];
   }>(),
   {
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
@@ -75,7 +82,11 @@ const emit = defineEmits<{
   'update:zoomPercent': [value: number];
   'open-user-guide': [url: string];
   'export-html': [];
+  'update:baselines': [baselines: Baseline[]];
 }>();
+
+/** One stable array for the picker binding (`?? []` would re-allocate every render). */
+const baselineList = computed(() => props.baselines ?? []);
 
 function onDepthChange(event: Event) {
   // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
@@ -255,6 +266,19 @@ onMounted(() => {
 
 watch(
   () => props.asideAvailable,
+  async () => {
+    await nextTick();
+    syncToolbarClipInert();
+  },
+);
+
+/**
+ * Conditional clip members change the toolbar's scrollWidth without changing
+ * its observed border box, so the ResizeObserver does not fire — re-scan when
+ * the baselines trigger or the HTML export button appear/disappear.
+ */
+watch(
+  [() => props.pickBaselineFile != null, () => props.htmlExportAvailable],
   async () => {
     await nextTick();
     syncToolbarClipInert();
@@ -925,6 +949,15 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         <PrIcon name="stats" />
       </button>
 
+      <BaselinePicker
+        data-toolbar-clip
+        :baselines="baselineList"
+        :pick-baseline-file="pickBaselineFile"
+        :recent-baselines="recentBaselines"
+        :locale="locale"
+        @update:baselines="emit('update:baselines', $event)"
+      />
+
       <button
         v-if="htmlExportAvailable"
         type="button"
@@ -1167,13 +1200,17 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 .pr-toolbar {
   position: relative;
   display: flex;
-  /* Keep search + zoom + actions as one unit so they wrap to row 2 together. */
-  flex-wrap: nowrap;
+  /* Overflow wraps to a second toolbar line instead of clipping: with the stats
+     aside open, a narrow window used to push the trailing actions (baseline
+     picker, export, help) past the clip edge — `inert` and unreachable with no
+     overflow menu. Wrapping keeps every action clickable at any width; the
+     chrome band grows to hold the extra line. `overflow-x: clip` stays for the
+     degenerate single-item-wider-than-the-band case. */
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: flex-start;
-  /* Prefer wrapping over shrinking beside the tabs (`flex-shrink: 0`). Cap at the
-     chrome width so a second-row toolbar that is still too wide crops trailing icons. */
+  /* Prefer wrapping over shrinking beside the tabs (`flex-shrink: 0`). */
   margin-left: auto;
   flex: 0 0 auto;
   max-width: 100%;
@@ -1294,45 +1331,9 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   border: 0;
 }
 
-/* Square action icon buttons — no mouse-click focus ring; keyboard Tab keeps :focus-visible. */
-.pr-toolbar__icon-btn {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  border: 0;
-  border-radius: 6px;
-  outline: none;
-  background: #363636;
-  color: #b3b3b3;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 0;
-}
-
-.pr-toolbar__icon-btn:focus {
-  outline: none;
-}
-
-.pr-toolbar__icon-btn:focus-visible {
-  outline: 2px solid var(--pr-playhead, #3078f0);
-  outline-offset: 1px;
-}
-
-.pr-toolbar__icon-btn:hover,
-.pr-toolbar__icon-btn:active,
-.pr-toolbar__icon-btn--on,
-.pr-toolbar__icon-btn[aria-pressed='true'],
-.pr-toolbar__icon-btn[aria-expanded='true'] {
-  background: #1e2a3e;
-  color: #2d70e3;
-}
-
+/* Square action icon buttons — the shared block lives in tokens.css (the
+   BaselinePicker trigger in a child component needs it too); this file keeps
+   the toolbar-local zoom-btn / strip rules. */
 .pr-toolbar__display-wrap {
   position: relative;
   display: inline-flex;

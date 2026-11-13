@@ -1041,3 +1041,144 @@ test.describe('PR-E2E-019 closed-dock click ensure-scroll', () => {
       .toEqual(expect.objectContaining({ above: true, wrapShrunk: true }));
   });
 });
+
+test('PR-E2E-020: the baselines link opens the checkbox view; checked state is session-only', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('toggle-baselines')).toBeVisible();
+
+  // The "baselines" link opens the picker. The single view is the checkbox
+  // list of the app's reports — nothing checked initially.
+  await page.getByTestId('baselines-link').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  await expect(page.getByTestId('baselines-recent-list')).toBeVisible();
+  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
+  for (let i = 0; i < 5; i++) {
+    await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
+  }
+  // Only Browse in the footer — no Add Selected / radios / other actions.
+  await expect(page.getByTestId('baseline-browse')).toBeVisible();
+  await expect(page.getByTestId('baseline-add-selected')).toHaveCount(0);
+
+  // Check two reports: the checked set survives closing and reopening.
+  const checkRows = page.locator('.pr-baseline__item--check');
+  await checkRows.nth(0).click();
+  await checkRows.nth(1).click();
+  await page.getByTestId('baselines-close').click();
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baseline-check').nth(0)).toBeChecked();
+  await expect(page.getByTestId('baseline-check').nth(1)).toBeChecked();
+  await expect(page.getByTestId('baseline-check').nth(2)).not.toBeChecked();
+
+  // Browse appends the picked file as a checked row.
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('baseline-browse').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'baseline-a.npu-rep',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('npu-rep\0fake-baseline'),
+  });
+  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await expect(page.getByTestId('baseline-check').last()).toBeChecked();
+  await expect(page.locator('.pr-baseline__item--check').last()).toContainText('baseline-a.npu-rep');
+
+  // Session-only: a reload starts with nothing checked again.
+  await page.reload();
+  await expect(page.getByTestId('toggle-baselines')).toBeVisible();
+  await page.getByTestId('baselines-link').click();
+  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
+  for (let i = 0; i < 5; i++) {
+    await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
+  }
+});
+
+test('PR-E2E-022: the aside Baseline dropdown always shows and follows the checked set', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('stats-aside')).toBeVisible();
+  // The row always renders: nothing checked → Not selected in both dropdowns.
+  await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '__none__');
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', '__none__');
+
+  // Check two reports: they join the Baseline dropdown's option list.
+  await page.getByTestId('toggle-baselines').click();
+  const checkRows = page.locator('.pr-baseline__item--check');
+  await checkRows.nth(0).click();
+  await checkRows.nth(1).click();
+
+  // Pick one globally through the aside: the value follows, the dropdown
+  // lists exactly the checked set + Not selected.
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await expect(page.locator('[data-testid^="aside-baseline-option-"]')).toHaveCount(3);
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+  const firstId = await page
+    .getByTestId('aside-baseline-select')
+    .getAttribute('data-value');
+  expect(firstId).not.toBe('');
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+
+  // Unchecking the SELECTED report clears the selection: Not selected again
+  // (the popover is still open — the earlier toggle opened it).
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '__none__');
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', '__none__');
+
+  // The other checked report remains listed.
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await expect(page.locator('[data-testid^="aside-baseline-option-"]')).toHaveCount(2);
+});
+
+test('PR-E2E-023: the aside Operator dropdown defaults to the first, keeps a session pick, and resets on baseline change', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  // Check two reports and select the first.
+  await page.getByTestId('toggle-baselines').click();
+  const checkRows = page.locator('.pr-baseline__item--check');
+  await checkRows.nth(0).click();
+  await checkRows.nth(1).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+
+  // Default operator = the baseline's first demo operator.
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+  // A session-local pick sticks…
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'gelu');
+
+  // …and switching the baseline re-defaults to ITS first operator.
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(2).click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+
+  // A browsed pick joins the dropdowns too: the web host attaches the demo
+  // operators, so its Operator select defaults to the first of them.
+  const chooserPromise = page.waitForEvent('filechooser');
+  // The popover is still open from the start of the test.
+  await page.getByTestId('baseline-browse').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'plain.npu-rep',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('npu-rep\0plain'),
+  });
+  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').last().click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+});
+
+test('PR-E2E-024: at 1024px the baselines control stays reachable — the toolbar wraps instead of clipping', async ({ page }) => {
+  // With the stats aside open, 1024px used to push the trigger past the
+  // toolbar's clip edge: `inert` and unusable, with no overflow menu.
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('stats-aside')).toBeVisible();
+  await expect(page.getByTestId('toggle-baselines')).toBeVisible();
+  await expect(page.getByTestId('toggle-baselines')).not.toHaveAttribute('inert', '');
+  // The control actually works: it opens the popover with the row list + Browse.
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
+  await expect(page.getByTestId('baseline-browse')).toBeVisible();
+});
+

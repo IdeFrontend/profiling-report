@@ -43,6 +43,7 @@ Specs are co-located with their components.
 |-----------|--------|-------|----------|
 | ProfilingReport | `PR-ROOT-*` | MVP | `src/ui/ProfilingReport/ProfilingReport.spec.md` |
 | ReportToolbar | `PR-TOOLBAR-*` | MVP | `src/ui/ReportToolbar/ReportToolbar.spec.md` |
+| BaselinePicker | `PR-BASELINE-*` | M | `src/ui/ReportToolbar/BaselinePicker/BaselinePicker.spec.md` |
 | SourceView | `PR-SOURCE-*` | M | `src/ui/SourceView/SourceView.spec.md` |
 | TimelineView | `PR-TIMELINE-*` | MVP | `src/ui/TimelineView/TimelineView.spec.md` |
 | TimeOverviewBar | `PR-OVERVIEW-*` | MVP | `src/ui/TimelineView/TimeOverviewBar/TimeOverviewBar.spec.md` |

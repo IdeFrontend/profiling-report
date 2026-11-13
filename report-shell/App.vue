@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, shallowRef } from 'vue';
+import { computed, onMounted, ref, shallowRef } from 'vue';
 import { ProfilingReport } from '../src/index';
 import { HTML_EXPORT_B64_PLACEHOLDER, HTML_EXPORT_LOCALE_PLACEHOLDER, htmlExportLocale } from '../src/export/stitchHtmlReport';
+import { createBaselinesHost } from '../src/host/baselinesHost';
 
 declare global {
   interface Window {
@@ -13,6 +14,25 @@ declare global {
 
 const error = shallowRef<string | null>(null);
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
+
+/**
+ * Baselines (对比基线) — the exported HTML is a host too: shared host glue
+ * lives in `src/host/baselinesHost.ts` (session-only state + hidden
+ * file input), so the offline artifact keeps the control and cannot drift
+ * from the playground twin.
+ */
+const baselineInputRef = ref<HTMLInputElement | null>(null);
+const {
+  baselines,
+  selectedBaselineId,
+  selectedBaselineOperator,
+  pickBaselineFile,
+  onBaselinesUpdate,
+  onSelectedBaselineId,
+  onSelectedBaselineOperator,
+  onFileChosen: onBaselineFileChosen,
+  onPickCancel: onBaselinePickCancel,
+} = createBaselinesHost(() => baselineInputRef.value);
 
 const reportName = computed(() => {
   const raw = window.__NPU_REP_NAME__;
@@ -76,6 +96,14 @@ onMounted(() => {
       :report-meta="reportMeta"
       :locale="locale"
       :allow-html-export="false"
+      :baselines="baselines"
+      :selected-baseline-id="selectedBaselineId"
+      :selected-baseline-operator="selectedBaselineOperator"
+      :pick-baseline-file="pickBaselineFile"
+      :recent-baselines="[]"
+      @update:baselines="onBaselinesUpdate"
+      @update:selected-baseline-id="onSelectedBaselineId"
+      @update:selected-baseline-operator="onSelectedBaselineOperator"
     />
     <p
       v-else
@@ -84,6 +112,17 @@ onMounted(() => {
     >
       Loading…
     </p>
+    <!-- Last child on purpose: anything between ProfilingReport and the
+         v-else paragraph would break the v-if / v-else-if / v-else chain. -->
+    <input
+      ref="baselineInputRef"
+      class="report-shell__file"
+      type="file"
+      accept=".rep,.ncrep,.npu-rep,.json"
+      data-testid="baseline-file-input"
+      @change="onBaselineFileChosen"
+      @cancel="onBaselinePickCancel"
+    >
   </main>
 </template>
 
@@ -113,5 +152,9 @@ body,
 .report-shell__loading {
   margin: 24px;
   opacity: 0.7;
+}
+
+.report-shell__file {
+  display: none;
 }
 </style>

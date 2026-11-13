@@ -32,6 +32,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
 | Show/hide dependency links | P2 | |
 | Task display unit (auto s/ms/µs/ns or CPU clocks) | M | Two-tier auto ([UI-40](../context/decisions/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Optional **CPU clocks** when OpBasicInfo freq present — **derived** `ns × freq` ([UI-45](../context/decisions/UI.md)); tooltip + detail only. |
+| Baselines (对比基线) picker | M | add-baseline glyph after the aside toggle; the popover is one checkbox view of the host's reports (`recentBaselines`) — the checked set IS the baseline list, every toggle and Browse emits `update:baselines`, and Browse adds a file through the `pickBaselineFile` hook. Removal is unchecking. The aside's Baseline/Operator dropdowns pick the current baseline (`update:selectedBaselineId`) and operator (`update:selectedBaselineOperator`) — both forwarded to the host. Storage is host-owned — the library renders and selects only. Playground **and the exported HTML shell** bundle the host contract (the shell ships no demo data), so the offline artifact keeps the control ([baselines](../views/baselines.md), [BaselinePicker](../../src/ui/ReportToolbar/BaselinePicker/BaselinePicker.spec.md)) |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
 | Settings | P2 | |
 

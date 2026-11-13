@@ -35,6 +35,8 @@ import {
   DEFAULT_DEPENDENCY_DEPTH,
   normalizeDependencyDepth,
   type AdaptedReport,
+  type Baseline,
+  type BaselinePick,
   type DependencyMode,
   type MeasureRange,
   type MemoryHeatmapUnitId,
@@ -155,6 +157,31 @@ const props = withDefaults(defineProps<{
    * Library never reads the filesystem; return `null` to keep the placeholder.
    */
   resolveSourceFile?: ResolveSourceFile;
+  /** Host-owned baseline list (对比基线) — the library renders and selects; the
+   *  host persists (ARCHITECTURE: host persistence via props/state, no storage in
+   *  the library). */
+  baselines?: Baseline[];
+  /** Current baseline id. */
+  selectedBaselineId?: string | null;
+  /**
+   * Current baseline operator (the aside's Operator dropdown). Session-local:
+   * the root forwards the pick to the host (`update:selectedBaselineOperator`)
+   * so the host can read what comparison rendering means (views/baselines.md).
+   */
+  selectedBaselineOperator?: string | null;
+  /**
+   * Optional host hook: opens the file dialog for the baseline picker + press.
+   * The library never reads the filesystem; return `null` to cancel. Absent =
+   * the baseline control is hidden.
+   */
+  pickBaselineFile?: () => Promise<BaselinePick | null>;
+  /**
+   * Recent performance reports for the picker's checkbox view — what the host
+   * currently lists as its own reports (MSTT: the Performance results tree;
+   * the bundled web hosts: the shared demo list). Host-owned: the checked set
+   * IS the `baselines` list and every toggle comes back as `update:baselines`.
+   */
+  recentBaselines?: Baseline[];
 }>(), {
   title: undefined,
   source: undefined,
@@ -187,6 +214,9 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
   'export-html': [{ fileName: string }];
+  'update:baselines': [baselines: Baseline[]];
+  'update:selectedBaselineId': [id: string | null];
+  'update:selectedBaselineOperator': [operator: string | null];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -1152,6 +1182,11 @@ onBeforeUnmount(() => {
 
 /** Escape drops the measure overlay and the marquee multi-selection alike. */
 function onRootKeydown(e: KeyboardEvent) {
+  // A popover that already handled Escape (显示控制, 快捷键说明, the baseline
+  // picker, …) calls preventDefault on its document-level listener — which runs
+  // before this window listener. Respect that: one Escape press must dismiss
+  // only the popover, not also clear measure / the multi-selection behind it.
+  if (e.defaultPrevented) return;
   if (e.key === 'Escape' && htmlExportOpen.value) {
     e.preventDefault();
     closeHtmlExportDialog();
@@ -1749,6 +1784,32 @@ function onAside(visible: boolean) {
 }
 
 /**
+ * The picker's checkbox set IS the baseline list (host-owned, one view). The
+ * only invariant the root adds: the selection can never point at a baseline
+ * that is not in the list — an uncheck of the selected report clears it.
+ *
+ * While `baselines` is `undefined` (the host has not loaded/restored the list
+ * yet) nothing is validated: an immediate check here would clear a selection
+ * the host restored from its own storage before the async list arrived.
+ * Host ordering (public-api.spec.md): pass the list first (or with) the id,
+ * and OMIT `baselines` while it is not loaded yet — `[]` means a known-empty
+ * list and IS validated (it clears a restored selection by design).
+ */
+watch(
+  () => [props.baselines, props.selectedBaselineId] as const,
+  ([list, sel]) => {
+    if (list === undefined) return;
+    if (sel != null && !list.some((b) => b.id === sel)) {
+      emit('update:selectedBaselineId', null);
+    }
+  },
+  { immediate: true },
+);
+
+/** One stable array for the toolbar/aside bindings (`?? []` would re-allocate every render). */
+const baselineList = computed(() => props.baselines ?? []);
+
+/**
  * StatsAside title-row 性能分析 trigger → environment-routed (`environments.ts`).
  *
  * `vscode`: hand the request to the host (`open-performance-hints-in-problems`) and leave
@@ -1855,6 +1916,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :active-tab="activeTab"
       :source-tab-enabled="sourceTabEnabled"
       :html-export-available="htmlExportAvailable"
+      :baselines="baselineList"
+      :pick-baseline-file="pickBaselineFile"
+      :recent-baselines="recentBaselines"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:aside-visible="onAside"
@@ -1869,6 +1933,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @zoom-out="onZoomOut"
       @open-user-guide="emit('open-user-guide', $event)"
       @export-html="onExportHtml"
+      @update:baselines="emit('update:baselines', $event)"
     />
 
     <p
@@ -1906,6 +1971,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :active-tab="activeTab"
           :source-tab-enabled="sourceTabEnabled"
           :html-export-available="htmlExportAvailable"
+          :baselines="baselineList"
+          :pick-baseline-file="pickBaselineFile"
+          :recent-baselines="recentBaselines"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:aside-visible="onAside"
@@ -1919,6 +1987,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-out="onZoomOut"
           @open-user-guide="emit('open-user-guide', $event)"
           @export-html="onExportHtml"
+          @update:baselines="emit('update:baselines', $event)"
         />
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
@@ -2001,6 +2070,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :locale="locale"
           :capabilities="caps"
           v-model:arch-metric-mode="archMetricMode"
+          :baselines="baselineList"
+          :selected-baseline-id="selectedBaselineId ?? null"
+          :selected-baseline-operator="selectedBaselineOperator ?? null"
+          @update:selected-baseline-id="emit('update:selectedBaselineId', $event)"
+          @update:selected-baseline-operator="emit('update:selectedBaselineOperator', $event)"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
