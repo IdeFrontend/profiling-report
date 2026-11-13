@@ -310,6 +310,13 @@ export interface MemoryTopologyPlate {
   node: MemoryTopologyPlateNodeId;
   /** `{n}%` of the unit's own utilization (DATA-28 ratio, not a peak-relative percent). */
   label: string;
+  /**
+   * Numeric percent behind `label` — `Number((ratio × 100).toFixed(2))`, e.g. `33.24` — from the
+   * same PipeUtilization ratio, so baseline comparison can diff plates without parsing strings.
+   * Optional: a hand-built / host model carrying only `label` stays valid and paints no delta.
+   * The compute adapters always fill it.
+   */
+  value?: number;
 }
 
 /** M2 memory topology: static node set + data-driven buffer-link labels. */

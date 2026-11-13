@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { markRaw, nextTick } from 'vue';
+import { defineComponent, h, markRaw, nextTick } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
@@ -13,7 +13,12 @@ import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
-import type { AdaptedReport, Baseline, SwimlaneModel } from '../../domain/types';
+import type {
+  AdaptedReport,
+  Baseline,
+  MemoryTopologyModel,
+  SwimlaneModel,
+} from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 vi.mock('@sudu-ide/code-review', () => ({
@@ -2708,6 +2713,97 @@ describe('ProfilingReport scaffold', () => {
     await wrapper.setProps({ baselineReport: null });
     await nextTick();
     expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-041: topology 全屏 badges against the active baseline payload, in place', async () => {
+    /** Panel stub: the root's baseline pass-through is the contract here, not the SVG chrome. */
+    const TopologyPanelStub = defineComponent({
+      name: 'MemoryTopologyPanel',
+      props: {
+        model: { type: Object, default: null },
+        baseline: { type: Object, default: null },
+      },
+      emits: ['open-details', 'open-fullscreen', 'open-memory-unit'],
+      setup(_props, { emit }) {
+        return () =>
+          h('div', { 'data-testid': 'topology-panel-stub' }, [
+            h(
+              'button',
+              {
+                'data-testid': 'topology-panel-stub-fullscreen',
+                onClick: () => emit('open-fullscreen'),
+              },
+              'fs',
+            ),
+          ]);
+      },
+    });
+    const memoryTable = (value: string) => ({
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+      rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': value }],
+      blockIds: ['0'],
+    });
+    const topologyOf = (value: string): MemoryTopologyModel =>
+      firstLabelledMemoryTopology([memoryTable(value)])!.model;
+    const packOf = (topology: MemoryTopologyModel): AdaptedReport => ({
+      reportModel: {
+        ...emptyReportViewModel(),
+        summary: { taskDurationUs: 900, opName: 'relu' },
+        memoryTopology: topology,
+      },
+      swimlaneModel: null,
+    });
+    const baselineTopology = topologyOf('3.4');
+    const nextTopology = topologyOf('5.6');
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: markRaw(topologyReport()),
+        selectedBaselineId: 'b1',
+        baselineReport: { baselineId: 'b1', report: packOf(baselineTopology) },
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    // The stacked aside receives the same baseline (PR-STATS-056) …
+    expect(wrapper.findComponent({ name: 'MemoryTopologyPanel' }).props('baseline')).toEqual(
+      baselineTopology,
+    );
+
+    // … and so does the 全屏 overlay's own panel (emit-carried snapshot).
+    await wrapper.get('[data-testid="topology-panel-stub-fullscreen"]').trigger('click');
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    const fullscreen = wrapper
+      .findAllComponents({ name: 'MemoryTopologyPanel' })
+      .find((p) => overlay.element.contains(p.element));
+    expect(fullscreen).toBeDefined();
+    expect(fullscreen!.props('baseline')).toEqual(baselineTopology);
+    const node = fullscreen!.element;
+
+    // The open overlay is a one-shot snapshot: a payload switch does not
+    // remount the panel and does not chase the payload (the aside resolves
+    // the Operator pick — the root cannot). No tear-down, no jump.
+    await wrapper.setProps({ baselineReport: { baselineId: 'b9', report: packOf(nextTopology) } });
+    await nextTick();
+    const stillOverlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    const after = wrapper
+      .findAllComponents({ name: 'MemoryTopologyPanel' })
+      .find((p) => stillOverlay.element.contains(p.element))!;
+    expect(after.element).toBe(node);
+    expect(after.props('baseline')).toEqual(baselineTopology);
+
+    // A fresh emit (re-opening) picks up the current resolution…
+    await wrapper.get('[data-testid="topology-panel-stub-fullscreen"]').trigger('click');
+    await nextTick();
+    expect(after.props('baseline')).toEqual(nextTopology);
+
+    // … and a null payload carries a null baseline through.
+    await wrapper.setProps({ baselineReport: null });
+    await nextTick();
+    await wrapper.get('[data-testid="topology-panel-stub-fullscreen"]').trigger('click');
+    await nextTick();
+    expect(after.props('baseline')).toBeNull();
     wrapper.unmount();
   });
 

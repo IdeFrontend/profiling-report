@@ -1,7 +1,15 @@
 import { ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import { loadReportSource } from '../adapters/loadReportSource';
-import type { AdaptedReport, Baseline, BaselinePick, BaselineReportData } from '../domain/types';
+import { MEMORY_TOPOLOGY_NODE_DEFS } from '../adapters/memoryTopology';
+import type {
+  AdaptedReport,
+  Baseline,
+  BaselinePick,
+  BaselineReportData,
+  MemoryTopologyModel,
+  MemoryTopologyPlate,
+} from '../domain/types';
 
 export interface BaselinesHost {
   baselines: Ref<Baseline[]>;
@@ -50,6 +58,53 @@ function hashKey(key: string): number {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
   return h;
+}
+
+/** Percentages clamp at 100, like the PIPE demo ratios clamp at 1. */
+function clampPercent(n: number): number {
+  return Math.min(100, Math.max(0, n));
+}
+
+/**
+ * Seed a full memory topology for the demo pack. Values are derived from the
+ * mixed baseline seed, never from whatever the fixture carried: the bundled
+ * fixtures that share a topology (out.rep / example / roofline_multi all read
+ * 23.04% / 7.19% with a 0% L2 peak) would otherwise leave most demo baselines
+ * visually identical — the exact failure the summary metrics were reseeded
+ * for. The demo pack is synthetic (its PIPE rows are replaced the same way),
+ * so the topology is reseeded too; `scaleMeasuredMetrics` then spreads it per
+ * operator.
+ *
+ * The node ids are the adapter's real ones (`TOPOLOGY_PLATE_NODE_IDS` plus the
+ * `l2` peak node), so the seeded model badges through the same code path as a
+ * natively adapted one.
+ */
+function ensureDemoTopology(model: AdaptedReport['reportModel'], seed: number): void {
+  const topology: MemoryTopologyModel = model.memoryTopology ?? {
+    nodes: MEMORY_TOPOLOGY_NODE_DEFS.map((n) => ({ ...n })),
+    edges: [],
+  };
+  model.memoryTopology = topology;
+  // The demo baselines are consecutive ids ("demo-recent-1", "-2", …), and
+  // hashKey returns consecutive integers for them; Knuth-multiply the seed so
+  // every slice of bits below still varies between two neighbouring baselines
+  // (plain shifts collapsed vec/cube/peak onto the same value).
+  const mixed = Math.imul(seed, 0x9e3779b1) >>> 0;
+  const plate = (node: MemoryTopologyPlate['node'], value: number): MemoryTopologyPlate => ({
+    node,
+    // Same `{n.toFixed(2)}%` contract the adapter's `formatLabel` emits.
+    label: `${value.toFixed(2)}%`,
+    value,
+  });
+  topology.plates = [
+    plate('aiv_scalar', 28 + (mixed % 31)),
+    plate('vec', 18 + ((mixed >>> 5) % 27)),
+    plate('cube', 40 + ((mixed >>> 10) % 31)),
+  ];
+  const peakPct = 6 + ((mixed >>> 15) % 30);
+  const l2 = topology.nodes.find((n) => n.id === 'l2');
+  if (l2) l2.peakPct = peakPct;
+  else topology.nodes.push({ id: 'l2', label: 'L2 Cache', peakPct });
 }
 
 /**
@@ -145,6 +200,23 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
         ['aiv_mte2_wait_ratio', 0.01], ['aiv_mte3_wait_ratio', 0.01],
       ],
     };
+    // The memory 详情 field keys mirror the sample report's Memory /
+    // MemoryL0 / MemoryUB categories so the delta badges pair field-by-field.
+    const memoryCats: Record<string, [string, number][]> = {
+      Memory: [
+        ['aic_main_mem_read_bw(GB/s)', 300], ['aic_main_mem_write_bw(GB/s)', 260],
+        ['aiv_mte2_ratio', 0.38], ['aiv_mte3_ratio', 0.16],
+        ['GM_to_UB_bw_usage_rate(%)', 40], ['UB_to_GM_bw_usage_rate(%)', 30],
+      ],
+      MemoryL0: [['aiv_time(us)', 40], ['aiv_total_cycles', 60000]],
+      MemoryUB: [
+        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000],
+        ['aiv_ub_read_bw_vector(GB/s)', 30],
+      ],
+    };
+    cats['Memory'] = memoryCats['Memory'];
+    cats['MemoryL0'] = memoryCats['MemoryL0'];
+    cats['MemoryUB'] = memoryCats['MemoryUB'];
     model.summaryCategories = Object.entries(cats).map(([id, fields]) => ({
       id,
       title: id,
@@ -155,6 +227,7 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
     { id: 'input', sides: [{ side: 'aic', measuredGBs: 300 + (seed % 10) * 40, peakGBs: 800 }] },
     { id: 'output', sides: [{ side: 'aic', measuredGBs: 150 + ((seed >> 4) % 10) * 30, peakGBs: 800 }] },
   ];
+  ensureDemoTopology(model, seed);
 }
 
 /** Scale one ReportViewModel's measured metrics (peaks stay chip-level). */
@@ -178,6 +251,17 @@ function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number
     p.ratio = Math.min(1, Math.max(0, p.ratio * scale));
     if (typeof p.absoluteValue === 'number') p.absoluteValue *= scale;
   }
+  // Memory-topology plates and the L2 peak are percentages (0..100), so they
+  // clamp there instead of at 1. `label` is rewritten with the numeric value:
+  // the diagram prints the label and the badge diffs the number, and the two
+  // must never disagree after a scale.
+  for (const plate of model.memoryTopology?.plates ?? []) {
+    if (typeof plate.value !== 'number') continue;
+    plate.value = clampPercent(plate.value * scale);
+    plate.label = `${plate.value.toFixed(2)}%`;
+  }
+  const l2 = model.memoryTopology?.nodes.find((n) => n.id === 'l2');
+  if (l2 && typeof l2.peakPct === 'number') l2.peakPct = clampPercent(l2.peakPct * scale);
   for (const c of model.summaryCategories ?? []) {
     for (const f of c.fields) {
       const n = Number(f.value);

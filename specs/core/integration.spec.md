@@ -58,12 +58,14 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-022**: The aside Baseline dropdown always renders (Not selected when nothing is checked), lists exactly the checked set + Not selected, picks globally, and unchecking the selected report clears the selection back to Not selected.
 1. **PR-E2E-023**: The aside Operator dropdown defaults to the selected baseline's first operator, keeps a session-local pick, re-defaults on baseline change, and works for browsed picks too.
 1. **PR-E2E-024**: PIPE comparison: with a demo baseline selected, every PIPE row shows two bars in the SAME classic layout (value left, percent right); the baseline bar's right text is 基线 + its own value + % (values, never deltas) and the label column stays the metric label alone; on a cube fixture (gelu) the Cube toggle shows baseline bars whose values differ per baseline AND change when the aside Operator switches; the compute details overlay paints delta badges on the SAME line right of its field values.
+1. **PR-E2E-025**: Memory load analysis comparison: with no baseline selected the topology renders **no** delta badges; selecting a demo baseline paints a tone-classed badge on the node percentages (the in-box unit utilities and the L2 peak — never the arrows' GB/s values), the aside Operator switch repaints their values, unchecking the selected baseline removes them, and a baseline **switch** keeps the badge elements mounted on every sampled animation frame (in-place update, no tear-down).
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-11-13** — PR-E2E-025: memory load analysis comparison — no baseline means no badges; a selected demo baseline paints per-node percentage tone badges that repaint per operator, disappear on unselect, and stay mounted across a baseline switch.
 - **2026-11-12** — PR-E2E-024: PIPE dual classic-layout bars (value left, percent right; 基线 word on the baseline bar's right) + same-line details delta badges.
 - **2026-11-12** — PR-E2E-021 restated for the bar-driven comparison: the removed 基线 operator row is gone; the aside Operator select drives per-operator badge values and both tones across the eight demo operators, for browsed and demo-fetched packs alike.
 - **2026-11-12** — PR-E2E-021: the sidebar comparison slice e2e — per-operator, per-card, per-baseline badge coverage with both tones (demo packs synthesize eight scaled operators on every metric family).

@@ -158,6 +158,31 @@ export function fitFontSize(
   return natural > max ? (max / natural) * base : base;
 }
 
+/**
+ * 对比基线 (baseline comparison) badge, in chrome units. The diagram's own values are 6.3px, so
+ * the badge is drawn at chrome scale — it re-creates `SummaryDiffIndicator`'s chrome (tone-tinted
+ * circle, chevron, muted delta text) rather than reusing the 12px HTML component, which cannot
+ * render inside SVG.
+ */
+export const DIFF_BADGE_SIZE = 7.4;
+/** Air between the percentage's right edge and the badge. */
+export const DIFF_BADGE_GAP = 1.5;
+/** Air between the badge circle and its delta text. */
+export const DIFF_BADGE_TEXT_GAP = 0.8;
+
+/** Left edge of a badge for a percentage centred at `x` and painted `painted` units wide: the
+ *  badge sits to the RIGHT of the value, one `DIFF_BADGE_GAP` off its painted right edge.
+ *  ponytail: on the narrow Vec/Cube boxes a long delta can run past the box wall into the
+ *  surrounding chrome (the 1130 mockup puts the badge below the value). Right placement is
+ *  Product's fixed decision, so the ceiling is documented in the spec rather than clamped. */
+export function diffBadgeLeft(x: number, painted: number): number {
+  return x + painted / 2 + DIFF_BADGE_GAP;
+}
+
+/** The L2 peak plate's own centre on the chrome — the same slot the `<text>` renders at, shared
+ *  with the badge anchor so the two cannot drift (PR-MEMTOP-026). */
+export const L2_PEAK_SLOT = [114.1, 218.3] as const;
+
 /** Zoom ladder (%) for the bar's **+** / **−**. 100 is the design's default readout and means
  *  *fitted to the box*, not 1:1 units. Stops are a fixed **1.5×** geometric series around 100,
  *  clamped to **50…500** (`50 → ≈67 → 100 → 150 → 225 → 337.5 → 500`). Pinch uses a continuous
@@ -219,6 +244,7 @@ export function continuousZoomFromDelta(current: number, deltaY: number): number
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
+import { metricDiff, trimDiffMagnitude, type DiffTone, type MetricDiff } from '../../../domain/metricDiff';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
  *  448×423). Static labels stay outlined paths (including white `MTE_*` / `FixPipe` ink on
@@ -255,6 +281,13 @@ const props = withDefaults(
     selectableUnits?: boolean;
     /** §11.2.3.2: unit the heat panel is showing — painted as the selected highlight (PR-MEMTOP-022). */
     selectedUnit?: MemoryHeatmapUnitId | null;
+    /**
+     * 对比基线 (baseline comparison): the selected baseline's topology model. Every node
+     * percentage that also exists in this side — the three in-box plates and the L2 peakPct —
+     * gets a delta badge right of its value. Absent / null means no comparison at all: the panel
+     * then renders exactly the nodes it rendered before this prop existed (PR-MEMTOP-024).
+     */
+    baseline?: MemoryTopologyModel | null;
   }>(),
   // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
   // back), but the linter needs the key present to see the optional prop as intentional.
@@ -265,6 +298,7 @@ const props = withDefaults(
     wheelGestures: false,
     selectableUnits: false,
     selectedUnit: null,
+    baseline: undefined,
   },
 );
 
@@ -336,11 +370,128 @@ const peakText = computed(() =>
  */
 const plates = computed(() =>
   TOPOLOGY_PLATE_NODE_IDS.flatMap((node) => {
-    const text = props.model?.plates?.find((p) => p.node === node)?.label;
+    const plate = props.model?.plates?.find((p) => p.node === node);
+    const text = plate?.label;
     if (!text) return [];
-    return PLATE_SLOTS[node].map(([x, y], i) => ({ node, x, y, key: `plate-${node}-${i}`, text }));
+    return PLATE_SLOTS[node].map(([x, y], i) => ({
+      node,
+      x,
+      y,
+      key: `plate-${node}-${i}`,
+      text,
+      /** Numeric percent behind `label` (PR-VM-028); absent on a hand-built label-only model. */
+      value: plate.value,
+    }));
   }),
 );
+
+/** Painted width of a plate / peak value: the fit rule shrinks an over-wide label to its slot
+ *  bound, so the painted run is `min(natural, bound)`. jsdom and hidden mounts report no metrics
+ *  (0), where the bound is the fallback — the widest the fit rule ever allows. */
+const naturalWidths = ref<Record<string, number>>({});
+function paintedWidth(key: string, bound: number): number {
+  const natural = naturalWidths.value[key] ?? 0;
+  return natural > 0 ? Math.min(natural, bound) : bound;
+}
+
+/** One 对比基线 badge. `text` is the unsigned delta in percentage points plus `%`; `direction`
+ *  is the i18n word carried by the `<title>` and the hidden description (the SVG is `role="img"`,
+ *  so its own `<title>` is not the surfaced alternative — the summary is). */
+interface DiffBadge {
+  /** `topo-diff-{node}-{slot}` / `topo-diff-l2-peak` — deliberately outside the `plate-` and
+   *  `edge-` testid prefixes, which existing tests use to count the drawn values. */
+  testid: string;
+  /** Plate key or `peak` — the comparison this badge belongs to; stable across baseline switches. */
+  sourceKey: string;
+  x: number;
+  y: number;
+  tone: DiffTone;
+  text: string;
+  direction: string;
+  /** Chevron path in chrome units: up for `increase`, down for `decrease`. */
+  chevron: string;
+}
+
+function makeBadge(
+  sourceKey: string,
+  testid: string,
+  x: number,
+  y: number,
+  diff: MetricDiff,
+): DiffBadge {
+  const text = `${trimDiffMagnitude(diff.magnitude)}%`;
+  const cx = x + DIFF_BADGE_SIZE / 2;
+  const chevron =
+    diff.tone === 'increase'
+      ? `M${cx - 1.3} ${y + 0.85} L${cx} ${y - 0.85} L${cx + 1.3} ${y + 0.85}`
+      : `M${cx - 1.3} ${y - 0.85} L${cx} ${y + 0.85} L${cx + 1.3} ${y - 0.85}`;
+  return {
+    sourceKey,
+    testid,
+    x,
+    y,
+    tone: diff.tone,
+    text,
+    direction: t(
+      diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased',
+      props.locale,
+    ),
+    chevron,
+  };
+}
+
+/**
+ * 对比基线, plate half (PR-MEMTOP-025): every in-box percentage that also exists in the baseline
+ * model, diffed by `metricDiff` (delta = baseline − current; negative = increased = red up).
+ * Only the adapter's numeric `value` is comparable — a label-only hand-built plate has no number
+ * and paints no badge rather than diffing a formatted string.
+ */
+const plateDiffs = computed<DiffBadge[]>(() => {
+  const baseline = props.baseline;
+  if (!baseline?.plates?.length) return [];
+  return plates.value.flatMap((p) => {
+    const baselinePlate = baseline.plates?.find((bp) => bp.node === p.node);
+    const diff = metricDiff(p.value, baselinePlate?.value);
+    // metricDiff already drops missing/equal pairs; a delta that trims to `0` has no visible
+    // badge either (the same rule SummaryCategoryList uses).
+    if (!diff || trimDiffMagnitude(diff.magnitude) === '0') return [];
+    return [
+      makeBadge(
+        p.key,
+        p.key.replace(/^plate-/, 'topo-diff-'),
+        diffBadgeLeft(p.x, paintedWidth(p.key, PLATE_MAX_W[p.node])),
+        p.y,
+        diff,
+      ),
+    ];
+  });
+});
+
+/**
+ * 对比基线, L2 peak half (PR-MEMTOP-026): diffed only when BOTH sides carry the numeric
+ * `peakPct`. The `l2-hit` fallback label is a string plate, not a comparable percentage, and is
+ * never parsed.
+ */
+const peakDiff = computed<DiffBadge | null>(() => {
+  const baselinePeak = props.baseline?.nodes.find((n) => n.id === 'l2')?.peakPct;
+  const diff = metricDiff(l2PeakPct.value, baselinePeak);
+  if (!diff || trimDiffMagnitude(diff.magnitude) === '0') return null;
+  return makeBadge(
+    'peak',
+    'topo-diff-l2-peak',
+    diffBadgeLeft(L2_PEAK_SLOT[0], paintedWidth('peak', SLOT_MAX_W['l2-peak']!)),
+    L2_PEAK_SLOT[1],
+    diff,
+  );
+});
+
+/** All badges in one list so the template has a single, stably keyed loop: the plates in their
+ *  slot order, then the L2 peak. Switching baselines patches `text` / tone in place — the loop
+ *  key is the node/slot, never the delta — and no badge node exists without a baseline. */
+const diffBadges = computed<DiffBadge[]>(() => [
+  ...plateDiffs.value,
+  ...(peakDiff.value ? [peakDiff.value] : []),
+]);
 
 /** Unique per instance: the panel renders twice at once (stacked + fullscreen overlay). */
 const summaryId = useId();
@@ -353,8 +504,13 @@ const summaryId = useId();
  */
 const summary = computed(() => {
   const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
+  const diffs = new Map(plateDiffs.value.map((d) => [d.sourceKey, d]));
   const parts: string[] = [];
-  if (peakText.value) parts.push(`${names.get('l2') ?? 'L2'}: ${peakText.value}`);
+  if (peakText.value) {
+    parts.push(
+      `${names.get('l2') ?? 'L2'}: ${peakText.value}${peakDiff.value ? ` (${peakDiff.value.direction} ${peakDiff.value.text})` : ''}`,
+    );
+  }
   const seen = new Set<string>();
   for (const v of values.value) {
     if (!v.text || seen.has(v.id)) continue;
@@ -368,7 +524,10 @@ const summary = computed(() => {
   for (const p of plates.value) {
     if (seen.has(p.node)) continue;
     seen.add(p.node);
-    parts.push(`${names.get(p.node) ?? p.node}: ${p.text}`);
+    const diff = diffs.get(p.key);
+    parts.push(
+      `${names.get(p.node) ?? p.node}: ${p.text}${diff ? ` (${diff.direction} ${diff.text})` : ''}`,
+    );
   }
   return parts.join('; ');
 });
@@ -386,6 +545,7 @@ const fitted = ref<Record<string, number>>({});
 watchEffect(() => {
   const el = measureTwin.value;
   const next: Record<string, number> = {};
+  const widths: Record<string, number> = {};
   if (el && typeof el.getComputedTextLength === 'function') {
     const measure = (text: string): number => {
       if (!text) return 0;
@@ -398,14 +558,18 @@ watchEffect(() => {
     }
     // In-box badges get their own, tighter wall table — they sit inside a box, not a corridor.
     for (const p of plates.value) {
-      const px = fitFontSize(measure(p.text), p.node, BASE_FONT_PX, PLATE_MAX_W);
+      const natural = measure(p.text);
+      widths[p.key] = natural;
+      const px = fitFontSize(natural, p.node, BASE_FONT_PX, PLATE_MAX_W);
       if (px < BASE_FONT_PX) next[p.key] = px;
     }
     const peak = measure(peakText.value ?? '');
+    widths.peak = peak;
     const peakPx = fitFontSize(peak, 'l2-peak');
     if (peakPx < BASE_FONT_PX) next.peak = peakPx;
   }
   fitted.value = next;
+  naturalWidths.value = widths;
 });
 
 function fitStyle(key: string): { fontSize: string } | undefined {
@@ -846,8 +1010,8 @@ onBeforeUnmount(stopZoomAnim);
                  element; the testid still tells the two sources apart. -->
             <text
               v-if="peakText"
-              x="114.1"
-              y="218.3"
+              :x="L2_PEAK_SLOT[0]"
+              :y="L2_PEAK_SLOT[1]"
               text-anchor="middle"
               dominant-baseline="middle"
               class="pr-topo__pct"
@@ -882,6 +1046,43 @@ onBeforeUnmount(stopZoomAnim);
           :style="fitStyle(p.key)"
           :data-testid="p.key"
         >{{ p.text }}</text>
+
+        <!-- 对比基线 (PR-MEMTOP-024..027): one badge per node percentage that also exists in the
+             selected baseline, to the RIGHT of that value — plates first, then the L2 peak. The
+             list is empty without a baseline, so the un-compared DOM keeps exactly its old nodes;
+             edge (GB/s) values are never badged. Keys are the node/slot, never the delta, so a
+             baseline switch patches text and tone in place. -->
+        <g
+          v-for="d in diffBadges"
+          :key="d.testid"
+          class="pr-topo__diff"
+          :class="`pr-topo__diff--${d.tone}`"
+          :data-testid="d.testid"
+        >
+          <title>{{ d.direction }} {{ d.text }}</title>
+          <rect
+            class="pr-topo__diff-box"
+            :x="d.x"
+            :y="d.y - DIFF_BADGE_SIZE / 2"
+            :width="DIFF_BADGE_SIZE"
+            :height="DIFF_BADGE_SIZE"
+            :rx="DIFF_BADGE_SIZE / 2"
+          />
+          <path
+            class="pr-topo__diff-arrow"
+            :d="d.chevron"
+            fill="none"
+            stroke-width="0.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <text
+            class="pr-topo__diff-text"
+            :x="d.x + DIFF_BADGE_SIZE + DIFF_BADGE_TEXT_GAP"
+            :y="d.y"
+            dominant-baseline="middle"
+          >{{ d.text }}</text>
+        </g>
 
         <text
           ref="measureTwin"
@@ -1229,6 +1430,33 @@ onBeforeUnmount(stopZoomAnim);
   fill: #fff;
   font-size: 6.3px;
   font-weight: 800;
+}
+
+/* 对比基线 badge (PR-MEMTOP-027): `SummaryDiffIndicator`'s chrome re-created at the diagram's
+ * own scale — a tone-tinted circle with a chevron, and the unsigned delta in the aside's muted
+ * text colour. The circle is about one glyph of the 6.3px value type, so the badge reads as an
+ * annotation beside the percentage rather than a second value. Green is the default (decrease);
+ * the increase class repaints both the tint and the arrow red. */
+.pr-topo__diff-box {
+  fill: rgba(136, 200, 88, 0.2);
+}
+
+.pr-topo__diff--increase .pr-topo__diff-box {
+  fill: rgba(231, 67, 74, 0.2);
+}
+
+.pr-topo__diff-arrow {
+  stroke: #88c858;
+}
+
+.pr-topo__diff--increase .pr-topo__diff-arrow {
+  stroke: #e7434a;
+}
+
+.pr-topo__diff-text {
+  fill: #b3b3b3;
+  font-size: 3.6px;
+  font-weight: 600;
 }
 
 /* Visually hidden, still in the a11y tree: the diagram's text alternative (PR-MEMTOP-011).

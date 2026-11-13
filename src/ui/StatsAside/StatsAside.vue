@@ -17,6 +17,7 @@ import type {
   PipeOccupancySide,
   ReportCapability,
   ReportViewModel,
+  SummaryCategory,
 } from '../../domain/types';
 import {
   bandwidthCardsFromRows,
@@ -82,7 +83,7 @@ const emit = defineEmits<{
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-pipe-details': [];
   /** §11.2.3.2: `unit` is the heat unit clicked on the diagram, so 全屏 opens on it. */
-  'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId];
+  'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId, baseline?: MemoryTopologyModel | null];
   'open-cannbot': [scope: CannbotScope];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
   /** Baseline dropdown pick — the host-owned selection, global (`null` = Not selected). */
@@ -164,9 +165,9 @@ function computeCardOf(report: ReportViewModel | null | undefined, id: string) {
 const bandwidthCards = computed(() => bandwidthCardsOf(props.report, blockId.value));
 const computeCard = computed(() => computeCardOf(props.report, blockId.value));
 
-/* ===== Baseline comparison (对比基线) — summary cards slice =====
- * Later slices (PIPE, roofline, topology, 详情) read the same context: the
- * resolved baseline model + `summaryDiffs` stay aside-local and reusable. */
+/* ===== Baseline comparison (对比基线) — summary cards, PIPE, topology, 详情 =====
+ * Every slice reads the same aside-local context: the resolved baseline model,
+ * plus `summaryDiffs` for the card metrics. Roofline is the remaining slice. */
 
 const baselineReport = computed(() => props.baselineReport ?? null);
 
@@ -605,12 +606,14 @@ const computeCategories = computed(() =>
     ),
   ),
 );
+/** The four `summary.jsonl` categories the memory 详情 lists. One predicate for the current and
+ *  the baseline side, so the comparison can never pair a category the list itself would drop. */
+const MEMORY_CATEGORY_IDS = ['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const;
+function isMemoryCategory(c: SummaryCategory): boolean {
+  return (MEMORY_CATEGORY_IDS as readonly string[]).includes(c.id);
+}
 const memoryCategories = computed(() =>
-  (props.report?.summaryCategories ?? []).filter((c) =>
-    (['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const).includes(
-      c.id as 'MemoryL0' | 'L2Cache' | 'Memory' | 'MemoryUB',
-    ),
-  ),
+  (props.report?.summaryCategories ?? []).filter(isMemoryCategory),
 );
 const activeCategory = ref('');
 watch(
@@ -715,10 +718,14 @@ watch(
  * the picked-block topology rebuild (UI-49's in-box Scalar/Vec/Cube badges live in PipeUtilization)
  * and the memory 详情 CSV field list (UI-38's MTE utilizations do too).
  */
-const memoryTablesWithPipe = computed(() => [
-  ...(props.report?.memoryTables ?? []),
-  ...(props.report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
-]);
+function memoryTablesWithPipeOf(report: ReportViewModel | null | undefined) {
+  return [
+    ...(report?.memoryTables ?? []),
+    ...(report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
+  ];
+}
+
+const memoryTablesWithPipe = computed(() => memoryTablesWithPipeOf(props.report));
 
 /** Emulate Architecture Diagram (DATA-48a): metric mode switches `*_gbs` / `*_ratio` / `*_cnt`. */
 const isArchDiagram = computed(() => (props.capabilities ?? []).includes('archDiagram'));
@@ -746,17 +753,32 @@ watch(isArchDiagram, (on) => {
  * Emulate / `archDiagram`: rebuild from ArchDiagramMetrics + selected metric mode only — never
  * `?? report.memoryTopology` (that snapshot is always default `*_gbs`; a blank mode must DATA-30 hide).
  */
-const topologyModel = computed(() => {
+function topologyOf(report: ReportViewModel | null | undefined) {
   if (isArchDiagram.value) {
-    const csv = archDiagramCsvFromTexts(props.report?.csvTexts);
+    // Each side rebuilds from its own ArchDiagramMetrics with the shared mode — never the
+    // adapter snapshot, which is always the default `*_gbs` (DATA-30 / PR-STATS-037).
+    const csv = archDiagramCsvFromTexts(report?.csvTexts);
     return topologyFromArchDiagramMetrics(csv, archMetricMode.value);
   }
   const id = blockId.value;
-  const tables = memoryTablesWithPipe.value;
+  const tables = memoryTablesWithPipeOf(report);
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
   if (id && tables.length > 0) return buildMemoryTopology(tables, id);
-  return props.report?.memoryTopology;
-});
+  return report?.memoryTopology;
+}
+
+const topologyModel = computed(() => topologyOf(props.report));
+
+/**
+ * The selected baseline's topology in the SAME scope as `topologyModel` (PR-STATS-056): All reads
+ * the baseline's adapter snapshot, a picked block rebuilds from the baseline's own CSVs (the one
+ * block selector scopes both sides), and ArchDiagram rebuilds from the baseline's own
+ * ArchDiagramMetrics with the selected metric mode. `null` without a pack, so the panel paints
+ * no delta nodes and its DOM stays exactly as before comparison.
+ */
+const topologyBaseline = computed(() =>
+  baselineModel.value ? topologyOf(baselineModel.value) : null,
+);
 
 /**
  * UI-38: the chrome's MTE blocks carry no value plate, so their utilizations are not drawn on the
@@ -973,6 +995,16 @@ function baselinePipeFor(row: PipeOccupancyItem) {
 /** Comparison active for the PIPE rows: the baseline pack is present. */
 const hasBaselinePipes = computed(() => baselineModel.value != null);
 
+/**
+ * The baseline pack's memory categories for the 详情 delta badges (PR-STATS-056), filtered by the
+ * same four ids as `memoryCategories` — compute categories never pair into the memory list.
+ * `undefined` without a pack keeps the list's no-baseline DOM identical.
+ */
+const baselineMemoryCategories = computed<SummaryCategory[] | undefined>(() => {
+  const model = baselineModel.value;
+  return model ? (model.summaryCategories ?? []).filter(isMemoryCategory) : undefined;
+});
+
 
 /** The side the PIPE list is filtered by right now (null = show both). */
 const activePipeSide = computed<PipeSide | null>(() => {
@@ -1088,7 +1120,11 @@ function openMemoryDetails() {
 
 function openTopologyFullscreen() {
   const m = topologyModel.value;
-  if (m) emit('open-topology-fullscreen', m);
+  // The resolved baseline topology rides along: the root's fullscreen overlay
+  // has no access to the aside's Operator pick or block scope, so the aside —
+  // the only place that resolution lives — hands over the same comparison the
+  // stacked diagram paints (PR-STATS-056 / PR-ROOT-041).
+  if (m) emit('open-topology-fullscreen', m, undefined, topologyBaseline.value ?? null);
 }
 
 /**
@@ -1097,7 +1133,7 @@ function openTopologyFullscreen() {
  */
 function openMemoryUnit(unit: MemoryHeatmapUnitId) {
   const m = topologyModel.value;
-  if (m) emit('open-topology-fullscreen', m, unit);
+  if (m) emit('open-topology-fullscreen', m, unit, topologyBaseline.value ?? null);
 }
 
 /**
@@ -1727,6 +1763,7 @@ const detailTestId = computed(() => {
           <MemoryTopologyPanel
             v-if="showTopology"
             :model="topologyModel"
+            :baseline="topologyBaseline"
             :locale="locale"
             :selectable-units="hasMemoryHeatmap"
             show-fullscreen
@@ -1801,6 +1838,7 @@ const detailTestId = computed(() => {
             :categories="memoryCategories"
             :active-id="activeCategory"
             :locale="locale"
+            :baseline-categories="baselineMemoryCategories"
             @update:active-id="activeCategory = $event"
           />
           <CsvFieldListPanel
@@ -1902,6 +1940,7 @@ const detailTestId = computed(() => {
               :categories="memoryCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="baselineMemoryCategories"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel

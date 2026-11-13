@@ -1409,3 +1409,149 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
     .poll(async () => cubeRow.locator('[data-testid="pipe-baseline-value"]').textContent())
     .not.toBe(baseA);
 });
+
+test('PR-E2E-025: memory topology node percentages paint in-place baseline badges', async ({ page }) => {
+  // sample.lite.rep is drawable (all three in-box plates + an L2 peak), so every node
+  // percentage has something to diff once a baseline is selected.
+  await page.goto('/?fixture=sample');
+  await expect(page.getByTestId('playground-ready')).toBeVisible();
+  await expect(page.getByTestId('stats-topology')).toBeVisible({ timeout: 30_000 });
+
+  const topology = page.getByTestId('stats-topology');
+  const badges = topology.locator('[data-testid^="topo-diff-"]');
+  // No baseline: zero badge nodes — the un-compared DOM is exactly the old diagram.
+  await expect(badges).toHaveCount(0);
+
+  // Check two demo baselines and select the first in the aside.
+  await page.getByTestId('toggle-baselines').click();
+  const checkRows = page.locator('.pr-baseline__item--check');
+  await checkRows.nth(0).click();
+  await checkRows.nth(1).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute(
+    'data-value',
+    'demo-recent-1',
+  );
+
+  // Node badges appear: one per comparable node percentage, never on an edge (GB/s) value.
+  await expect(badges.first()).toBeVisible({ timeout: 15_000 });
+  const badgeIds = await badges.evaluateAll((els) =>
+    els.map((el) => el.getAttribute('data-testid') ?? ''),
+  );
+  // sample carries three in-box plates + the L2 peak — all four must badge.
+  expect(badgeIds.length).toBe(4);
+  for (const id of badgeIds) {
+    expect(id).toMatch(/^topo-diff-(aiv_scalar|vec|cube)-\d+$|^topo-diff-l2-peak$/);
+  }
+  // Tone classes: every badge is an increase or a decrease, and its text is an unsigned
+  // percentage-point magnitude — never a zero.
+  for (const badge of await badges.all()) {
+    const cls = (await badge.getAttribute('class')) ?? '';
+    expect(cls).toMatch(/pr-topo__diff--(increase|decrease)/);
+    const text = (await badge.locator('.pr-topo__diff-text').textContent()) ?? '';
+    expect(text).toMatch(/^\d+(\.\d+)?%$/);
+    expect(text).not.toBe('0%');
+  }
+  // Placed to the RIGHT of the value: the badge's circle starts past the plate's centre.
+  const geometry = await topology.evaluate(() => {
+    const badgeRects = [...document.querySelectorAll('[data-testid^="topo-diff-"]')].map(
+      (g) => {
+        const rect = g.querySelector('rect')!;
+        return {
+          id: g.getAttribute('data-testid') ?? '',
+          x: Number(rect.getAttribute('x')),
+        };
+      },
+    );
+    const plateX = new Map(
+      [...document.querySelectorAll('[data-testid^="plate-"]')].map((t) => [
+        t.getAttribute('data-testid') ?? '',
+        Number(t.getAttribute('x')),
+      ]),
+    );
+    const peakX = Number(
+      document.querySelector('[data-testid="node-l2-peak"]')?.getAttribute('x') ?? NaN,
+    );
+    return { badgeRects, plateX: [...plateX], peakX };
+  });
+  for (const { id, x } of geometry.badgeRects) {
+    if (id === 'topo-diff-l2-peak') {
+      expect(x).toBeGreaterThan(geometry.peakX);
+      continue;
+    }
+    const plateId = id.replace(/^topo-diff-/, 'plate-');
+    const plate = geometry.plateX.find(([pid]) => pid === plateId);
+    expect(plate, `badge ${id} has a matching plate value`).toBeTruthy();
+    expect(x).toBeGreaterThan(plate![1]);
+  }
+
+  // Switching the aside Operator repaints the badge values in place.
+  const textsNow = async (): Promise<string[]> =>
+    badges.locator('.pr-topo__diff-text').allTextContents();
+  const beforeOperator = (await textsNow()).join(',');
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute(
+    'data-value',
+    'gelu',
+  );
+  await expect.poll(async () => (await textsNow()).join(',')).not.toBe(beforeOperator);
+
+  // Back to the default operator: a baseline switch re-defaults to it anyway (PR-E2E-023),
+  // so keeping it fixed here makes the next delta clearly a BASELINE difference, not the
+  // operator reset.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-matmul').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute(
+    'data-value',
+    'matmul',
+  );
+
+  // A baseline SWITCH is an in-place update: sample every animation frame while the host
+  // adapts the next selection — the badge nodes must never leave the DOM (no tear-down).
+  // The sampled set is the badges present both before and after the switch (a delta that
+  // legitimately becomes zero may drop its own node, per the panel's suppression rule).
+  const idsNow = async (): Promise<string[]> =>
+    badges.evaluateAll((els) => els.map((el) => el.getAttribute('data-testid') ?? ''));
+  const idsBefore = await idsNow();
+  const beforeSwitch = (await textsNow()).join(',');
+  await page.evaluate(() => {
+    (window as unknown as { __topoBadgeSamples: string[][] }).__topoBadgeSamples = [];
+    (window as unknown as { __topoBadgeSampling: boolean }).__topoBadgeSampling = true;
+    const tick = () => {
+      if (!(window as unknown as { __topoBadgeSampling: boolean }).__topoBadgeSampling) return;
+      (window as unknown as { __topoBadgeSamples: string[][] }).__topoBadgeSamples.push(
+        [...document.querySelectorAll('[data-testid^="topo-diff-"]')].map(
+          (el) => el.getAttribute('data-testid') ?? '',
+        ),
+      );
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-2"]').click();
+  await expect
+    .poll(async () => page.getByTestId('aside-baseline-select').getAttribute('data-value'))
+    .toBe('demo-recent-2');
+  // Different baselines paint different deltas on the same nodes.
+  await expect.poll(async () => (await textsNow()).join(',')).not.toBe(beforeSwitch);
+  await page.waitForTimeout(400);
+  const samples = await page.evaluate(() => {
+    (window as unknown as { __topoBadgeSampling: boolean }).__topoBadgeSampling = false;
+    return (window as unknown as { __topoBadgeSamples: string[][] }).__topoBadgeSamples;
+  });
+  const idsAfter = await idsNow();
+  const persisted = idsBefore.filter((id) => idsAfter.includes(id));
+  expect(persisted.length).toBeGreaterThanOrEqual(2);
+  expect(samples.length).toBeGreaterThan(5);
+  for (const frame of samples) {
+    for (const id of persisted) expect(frame).toContain(id);
+  }
+
+  // Unchecking the selected report clears the selection and the badges go with it.
+  await checkRows.nth(1).click();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '');
+  await expect.poll(async () => badges.count()).toBe(0);
+});

@@ -434,6 +434,13 @@ watch(archMetricMode, (mode) => {
   if (!topologyFullscreen.value || !isArchDiagram.value) return;
   const csv = archDiagramCsvFromTexts(report.value?.csvTexts);
   fullscreenTopology.value = topologyFromArchDiagramMetrics(csv, mode) ?? null;
+  if (fullscreenBaselineTopology.value) {
+    const baseCsv = archDiagramCsvFromTexts(
+      activeBaselineReport.value?.reportModel?.csvTexts,
+    );
+    fullscreenBaselineTopology.value =
+      topologyFromArchDiagramMetrics(baseCsv, mode) ?? null;
+  }
 });
 
 /** Environment-routed behavior for host-dependent actions (extensible map in `environments.ts`). */
@@ -995,8 +1002,13 @@ function onTopologyFullscreenAfterLeave() {
   selectedMemoryUnit.value = null;
 }
 
-function onOpenTopologyFullscreen(model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId) {
+function onOpenTopologyFullscreen(
+  model: MemoryTopologyModel,
+  unit?: MemoryHeatmapUnitId,
+  baseline?: MemoryTopologyModel | null,
+) {
   fullscreenTopology.value = model;
+  fullscreenBaselineTopology.value = baseline ?? null;
   // 如果是直接点击一个 memory 进来则直接对应显示相应的内容; via 全屏 it defaults (activeMemoryUnit).
   selectedMemoryUnit.value = unit ?? null;
   topologyFullscreen.value = true;
@@ -1786,10 +1798,10 @@ function onAside(visible: boolean) {
 }
 
 /**
- * The baseline payload is honored only while it matches the current selection:
- * a late adaptation (the host re-picked while an earlier one was in flight)
- * must not paint under the new selection. Data-only — never touches the load
- * path, never sets loadError / capabilities / view state.
+ * The comparison's baseline model (对比基线). The last payload stays mounted while
+ * the host swaps the selection (stale-while-revalidate); only a **null** payload
+ * ends the comparison. Data-only — never touches the load path, never sets
+ * loadError / capabilities / view state.
  */
 const activeBaselineReport = computed<AdaptedReport | null>(() => {
   const payload = props.baselineReport;
@@ -1803,6 +1815,20 @@ const activeBaselineReport = computed<AdaptedReport | null>(() => {
   // place (stale-while-revalidate).
   return payload.report;
 });
+
+/**
+ * Topology 全屏 comparison (PR-ROOT-041): the fullscreen panel is mounted from a
+ * one-shot current-model snapshot, so its baseline comes from the same active
+ * payload the aside compares against. Scope mirrors the stacked aside's rule:
+ * All reads the pack's adapter snapshot; ArchDiagram rebuilds from the pack's
+ * own ArchDiagramMetrics with the shared metric mode (its snapshot is always
+ * the default `*_gbs`). `null` without a payload.
+ */
+/** The aside-resolved baseline topology for the 全屏 overlay, carried by the
+ * open-topology-fullscreen emit: the aside is the only place that resolves
+ * the baseline pack's Operator pick and block scope, so the fullscreen paints
+ * exactly the comparison the stacked diagram paints (PR-ROOT-041). */
+const fullscreenBaselineTopology = ref<MemoryTopologyModel | null>(null);
 
 /**
  * The picker's checkbox set IS the baseline list (host-owned, one view). The
@@ -2233,6 +2259,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             <MemoryTopologyPanel
               v-if="fullscreenTopology"
               :model="fullscreenTopology"
+              :baseline="fullscreenBaselineTopology"
               :locale="locale"
               :open-details-on-contextmenu="false"
               :selectable-units="hasMemoryHeatmap"

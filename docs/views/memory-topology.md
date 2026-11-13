@@ -40,7 +40,7 @@ Fixed memory-path chrome with data-driven edge labels (BW / hit rate / util):
 
 | Field | Role | Required? |
 |-------|------|-----------|
-| `reportModel.memoryTopology` | Nodes + edges with labels; optional `peakPct` / `plates` | **Required to show** |
+| `reportModel.memoryTopology` | Nodes + edges with labels; optional `peakPct` / `plates` (formatted `label` + numeric `value`) | **Required to show** |
 | capability `memoryDiagram` | Compute feature gate | Set when topology present (compute only) |
 | capability `archDiagram` | Emulate feature gate | Set when ArchDiagramMetrics yields drawable topology |
 
@@ -66,7 +66,7 @@ The panel renders the official chrome [`memory-topology.svg`](../../src/ui/Stats
 | topology (block) | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv`, `PipeUtilization.csv` | `block_id` = selected id on each CSV | `buildMemoryTopology(tables, blockId)` |
 | `edges[].label` | per [EDGE_MAP](#edge-field-source) | _(column pick, not FK)_ | First present non-`NA` source column, except GM↔L2 Main Read/Write = **sum** aic+aiv; format `{n} GB/s` / KB / `%` |
 | `nodes[l2].peakPct` | `L2Cache` hit-rate cols | _(same as `l2-hit` edge)_ | DATA-21 column order |
-| `plates` (in-box utils) | `PipeUtilization` | _(none)_ | `aiv_scalar_ratio` / `aiv_vec_ratio` / `aic_cube_ratio` → `{ratio×100}%` on nodes `aiv_scalar` / `vec` / `cube` (UI-49) |
+| `plates` (in-box utils) | `PipeUtilization` | _(none)_ | `aiv_scalar_ratio` / `aiv_vec_ratio` / `aic_cube_ratio` → `{ratio×100}%` on nodes `aiv_scalar` / `vec` / `cube` (UI-49); each plate's numeric `value` is the printed 2dp percent (`Number((ratio×100).toFixed(2))`) for baseline-comparison diffs (PR-VM-028) |
 | show / hide | — | — | `hasDrawableTopology`: plated label or L2 peak required (PR-VM-018) |
 
 Code: `memoryTopology.ts` (`EDGE_MAP`, `PLATE_MAP`, `buildMemoryTopology*`).
@@ -110,7 +110,7 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** (or KB) on edges from the mapping tables. Hide `NA`; show `0`.
-- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (compute: hit rate DATA-20; emulate: `l2_cached_ratio`). **No other unit** carries a Peak(%). Compute in-box badges are **unit utilizations** (UI-49); emulate interim leaves those blank.
+- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (compute: hit rate DATA-20; emulate: `l2_cached_ratio`). **No other unit** carries a Peak(%). Compute in-box badges are **unit utilizations** (UI-49); emulate interim leaves those blank. In comparison mode the numeric `plate.value` and `nodes[l2].peakPct` are diffed against the baseline model; edge labels are never diffed ([MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), PR-VM-028).
 - **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
 - Labels are **block-scoped** via the same block switcher as memory details ([DATA-19](../context/decisions/DATA.md)) on compute; emulate ArchDiagramMetrics is report-scoped.
 

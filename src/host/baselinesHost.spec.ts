@@ -1,8 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { createBaselinesHost, withDemoOperatorPack } from './baselinesHost';
-import { loadOutRepBytes } from '../../tests/helpers/fixtures';
+import { loadOutRepBuffer, loadOutRepBytes } from '../../tests/helpers/fixtures';
 import { emptyReportViewModel } from '../adapters/adaptRep';
+import { loadReportSource } from '../adapters/loadReportSource';
+import type { MemoryTopologyPlate, ReportViewModel } from '../domain/types';
+
+function platesOf(model: ReportViewModel): MemoryTopologyPlate[] {
+  return model.memoryTopology?.plates ?? [];
+}
+
+function plateValue(model: ReportViewModel, node: MemoryTopologyPlate['node']): number {
+  return platesOf(model).find((p) => p.node === node)?.value ?? 0;
+}
+
+function peakPctOf(model: ReportViewModel): number {
+  return model.memoryTopology?.nodes.find((n) => n.id === 'l2')?.peakPct ?? 0;
+}
 
 /** Files-like target for onFileChosen — the host never reads beyond these fields. */
 function fileEvent(name: string, size = 10, lastModified = 123): Event {
@@ -182,6 +196,10 @@ describe('createBaselinesHost', () => {
       (m) => m.computeCard?.sides.find((s) => s.side === 'aiv')?.measuredTflops ?? 0,
       (m) => m.bandwidthCards?.find((c) => c.id === 'input')?.sides[0]?.measuredGBs ?? 0,
       (m) => m.bandwidthCards?.find((c) => c.id === 'output')?.sides[0]?.measuredGBs ?? 0,
+      (m) => plateValue(m, 'aiv_scalar'),
+      (m) => plateValue(m, 'vec'),
+      (m) => plateValue(m, 'cube'),
+      (m) => peakPctOf(m),
     ];
     // Every family exists in every operator model…
     for (const m of reports) {
@@ -203,5 +221,50 @@ describe('createBaselinesHost', () => {
     expect(first(a).summary.taskDurationUs).not.toBe(first(b).summary.taskDurationUs);
     expect(first(a).pipeOccupancy?.[0].ratio).not.toBe(first(b).pipeOccupancy?.[0].ratio);
     expect(first(a).bandwidthCards?.[0].sides[0].measuredGBs).not.toBe(first(b).bandwidthCards?.[0].sides[0].measuredGBs);
+    expect(plateValue(first(a), 'aiv_scalar')).not.toBe(plateValue(first(b), 'aiv_scalar'));
+    expect(plateValue(first(a), 'vec')).not.toBe(plateValue(first(b), 'vec'));
+    expect(plateValue(first(a), 'cube')).not.toBe(plateValue(first(b), 'cube'));
+    expect(peakPctOf(first(a))).not.toBe(peakPctOf(first(b)));
+  });
+
+  it('reseeds the memory topology per baseline and scales it per operator', () => {
+    // out.rep carries real plates (23.04% / 7.19%) and a 0% L2 peak — the demo
+    // seeding must REPLACE them: filling only missing values would leave
+    // out.rep / example / roofline_multi (same fixture topology) identical.
+    const a = withDemoOperatorPack(loadReportSource(loadOutRepBuffer()), 'demo-recent-1');
+    const b = withDemoOperatorPack(loadReportSource(loadOutRepBuffer()), 'demo-recent-2');
+    const reports = Object.values(a.operatorReports ?? {}).map((r) => r.reportModel);
+    expect(reports).toHaveLength(8);
+
+    for (const model of reports) {
+      // The adapter's real plate node ids, always present so every demo
+      // baseline can badge every node the diagram knows how to paint.
+      expect(platesOf(model).map((p) => p.node).sort()).toEqual(['aiv_scalar', 'cube', 'vec']);
+      for (const plate of platesOf(model)) {
+        expect(typeof plate.value).toBe('number');
+        expect(plate.value!).toBeGreaterThan(0);
+        expect(plate.value!).toBeLessThanOrEqual(100);
+        // One number feeds both the diagram and the badge.
+        expect(plate.label).toBe(`${plate.value!.toFixed(2)}%`);
+      }
+      expect(peakPctOf(model)).toBeGreaterThan(0);
+      expect(peakPctOf(model)).toBeLessThanOrEqual(100);
+    }
+
+    // Per operator: every seeded topology metric differs across the eight
+    // operators, so flipping the Operator select repaints the badges.
+    for (const node of ['aiv_scalar', 'vec', 'cube'] as const) {
+      expect(new Set(reports.map((m) => plateValue(m, node))).size).toBe(8);
+    }
+    expect(new Set(reports.map((m) => peakPctOf(m))).size).toBe(8);
+
+    // Per baseline: the SAME fixture adapted under a different baseline id
+    // yields different topology values (seed-derived, not fixture-derived).
+    const firstA = Object.values(a.operatorReports ?? {})[0].reportModel;
+    const firstB = Object.values(b.operatorReports ?? {})[0].reportModel;
+    expect(plateValue(firstA, 'aiv_scalar')).not.toBe(plateValue(firstB, 'aiv_scalar'));
+    expect(plateValue(firstA, 'vec')).not.toBe(plateValue(firstB, 'vec'));
+    expect(plateValue(firstA, 'cube')).not.toBe(plateValue(firstB, 'cube'));
+    expect(peakPctOf(firstA)).not.toBe(peakPctOf(firstB));
   });
 });

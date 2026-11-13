@@ -381,9 +381,13 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
   );
 
   // UI-49: in-box unit-utilization badges. The ratio is a fraction of the unit's own busy time.
+  // `value` mirrors the printed percentage (`Number(pct.toFixed(2))`) from the same ratio, so
+  // baseline comparison diffs plates without parsing the formatted `label` (PR-VM-028).
   const plates = PLATE_MAP.flatMap((p) => {
     const ratio = read(p.file, p.columns);
-    return ratio == null ? [] : [{ node: p.node, label: formatLabel(ratio * 100, '%') }];
+    if (ratio == null) return [];
+    const pct = ratio * 100;
+    return [{ node: p.node, label: formatLabel(pct, '%'), value: Number(pct.toFixed(2)) }];
   });
 
   return {

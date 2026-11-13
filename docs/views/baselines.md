@@ -17,6 +17,14 @@ _Sketch gap: no design frame covers this surface yet. Chrome follows the toolbar
 
 Let the user pick comparison baselines (对比基线): the timeline toolbar's add-baseline control opens a single checkbox view listing the app's reports (MSTT: the live Performance results tree; web: the demo list). The checked set IS the saved baseline list — toggles apply immediately, survive closing the popover, and the host persists. The aside's Baseline / Operator dropdown row shows the checked set (Not selected when nothing is checked); the host decides what comparison rendering means.
 
+## Comparison rendering
+
+Comparison rendering is driven by the host-adapted **baselineReport**; the library paints deltas against the Operator selected in the aside's Operator dropdown. With no baseline selected — or no adapted pack — every surface renders exactly as the plain report: no delta chrome and no extra nodes.
+
+- **Summary cards / PIPE / compute 详情** — the existing comparison surfaces: card deltas, the PIPE dual bars, and the compute details' per-field delta badges.
+- **内存负载分析 (memory load analysis)** — with a baseline selected, every topology **node percentage** carries a delta badge to the right of its value: the in-box unit utilities (AIV `Scalar` / `Vec`, AIC `Cube`) and the L2 peak percentage. The badge is the SVG form of the summary-card badge — a tone-tinted circle with an up or down chevron (red = increase, green = decrease) and the unsigned magnitude in muted text, in **percentage points** with `%`. The delta is `baseline − current`; equal or missing values paint no badge. The **arrows' GB/s values are never badged** — comparison covers utilization percentages only. Badges repaint in place when the Operator or the baseline changes; a report without a baseline has no badge nodes at all. The stacked diagram and the topology 全屏 overlay use the same comparison, so 全屏 shows the badges too.
+- **内存 详情 (memory details)** — every memory `SummaryCategoryList` (the stacked section and the 详情 overlay) paints the same per-field delta badges the compute details overlay has, right of each field value; the list pairs the baseline's categories by category id and field key over the same memory-category ids (`MemoryL0`, `L2Cache`, `Memory`, `MemoryUB`). A picked block shows CSV field lists (values, no badges), exactly like compute; a baseline that carries no memory categories paints no memory badges.
+
 ## View-model
 
 | Field | Role | Required? |

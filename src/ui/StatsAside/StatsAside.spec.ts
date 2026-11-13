@@ -1,14 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 import StatsAside from './StatsAside.vue';
 import { adaptRep, emptyReportViewModel } from '../../adapters/adaptRep';
 import {
+  buildMemoryTopology,
   buildMemoryTopologyFromCategories,
   firstLabelledMemoryTopology,
 } from '../../adapters/memoryTopology';
+import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import { parseRep } from '../../adapters/parseRep';
-import type { AdaptedReport, ReportViewModel, RooflineViewModel } from '../../domain/types';
+import type {
+  AdaptedReport,
+  MemoryTopologyModel,
+  ReportViewModel,
+  RooflineViewModel,
+} from '../../domain/types';
 import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
 import { t } from '../../i18n';
 
@@ -3551,4 +3558,274 @@ describe('StatsAside', () => {
     expect(src).toMatch(/\.pr-diff__text\s*\{[^}]*color:\s*#b3b3b3/);
   });
 
+});
+
+/* ===== Comparison wiring: topology nodes + memory 详情 (PR-STATS-056) ===== */
+
+/** Panel stub: these tests assert the aside's own wiring; the SVG badge chrome is the panel spec's. */
+const TopologyPanelStub = defineComponent({
+  name: 'MemoryTopologyPanel',
+  props: {
+    model: { type: Object, default: null },
+    baseline: { type: Object, default: null },
+    locale: { type: String, default: undefined },
+    selectableUnits: { type: Boolean, default: false },
+    showFullscreen: { type: Boolean, default: false },
+  },
+  emits: ['open-details', 'open-fullscreen', 'open-memory-unit'],
+  setup(_props, { emit }) {
+    return () =>
+      h('div', { 'data-testid': 'topology-panel-stub' }, [
+        h(
+          'button',
+          {
+            'data-testid': 'topology-panel-stub-fullscreen',
+            onClick: () => emit('open-fullscreen'),
+          },
+          'fs',
+        ),
+      ]);
+  },
+});
+
+function pack(model: ReportViewModel): AdaptedReport {
+  return { reportModel: model, swimlaneModel: null };
+}
+
+function memoryTableOf(value: string) {
+  return {
+    fileName: 'Memory.csv',
+    headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+    rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': value }],
+    blockIds: ['0'],
+  };
+}
+
+/** Adapter snapshot from the same Memory.csv — the aside's All-scope topology source. */
+function topologySnapshotOf(value: string) {
+  return firstLabelledMemoryTopology([memoryTableOf(value)])!.model;
+}
+
+function memoryCategoryOf(id: string, value: string) {
+  return { id, title: id, fields: [{ key: 'aiv_main_mem_read_bw', value }] };
+}
+
+describe('StatsAside comparison wiring — topology + memory 详情 (PR-STATS-056)', () => {
+  it('PR-STATS-056: the topology panel gets the baseline model only with a pack, scoped to the aside', async () => {
+    const plain = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [memoryTableOf('1.2')],
+          memoryTopology: topologySnapshotOf('1.2'),
+        }),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    // No pack: no baseline model, so the panel paints zero extra nodes.
+    expect(plain.findComponent({ name: 'MemoryTopologyPanel' }).props('baseline')).toBeNull();
+    plain.unmount();
+
+    const baseline = report({
+      summary: { taskDurationUs: 2, opName: 'relu' },
+      memoryTables: [memoryTableOf('3.4')],
+      memoryTopology: topologySnapshotOf('3.4'),
+    });
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [memoryTableOf('1.2')],
+          memoryTopology: topologySnapshotOf('1.2'),
+        }),
+        baselineReport: pack(baseline),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    const panel = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    expect(panel.props('baseline')).toEqual(baseline.memoryTopology);
+
+    // A baseline switch patches the same panel node — values change in place, no remount.
+    const node = panel.element;
+    const replacement = report({
+      summary: { taskDurationUs: 3, opName: 'gelu' },
+      memoryTables: [memoryTableOf('5.6')],
+      memoryTopology: topologySnapshotOf('5.6'),
+    });
+    await wrapper.setProps({ baselineReport: pack(replacement) });
+    await nextTick();
+    const after = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    expect(after.element).toBe(node);
+    expect(after.props('baseline')).toEqual(replacement.memoryTopology);
+    wrapper.unmount();
+  });
+
+  it('PR-STATS-056: a picked block rebuilds BOTH topology sides from their own CSVs', async () => {
+    const blockMemory = (first: string, second: string) => ({
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+      rows: [
+        { block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': first },
+        { block_id: '1', 'aiv_gm_to_ub_bw(GB/s)': second },
+      ],
+      blockIds: ['0', '1'],
+    });
+    const blockPipe = (scalar: string, vec: string) => ({
+      fileName: 'PipeUtilization.csv',
+      headers: ['block_id', 'aiv_scalar_ratio', 'aiv_vec_ratio'],
+      rows: [
+        { block_id: '0', aiv_scalar_ratio: '0.1', aiv_vec_ratio: '0.2' },
+        { block_id: '1', aiv_scalar_ratio: scalar, aiv_vec_ratio: vec },
+      ],
+      blockIds: ['0', '1'],
+    });
+    const baseline = report({
+      summary: { taskDurationUs: 2, opName: 'relu' },
+      computeTables: [blockPipe('0.3', '0.4')],
+      memoryTables: [blockMemory('2.0', '4.5')],
+      // A stale All snapshot must never answer for the picked block.
+      memoryTopology: { nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 88 }], edges: [] },
+    });
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' }],
+          computeTables: [blockPipe('0.5', '0.6')],
+          memoryTables: [blockMemory('1.0', '3.4')],
+        }),
+        baselineReport: pack(baseline),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    await pickPipeBlock(wrapper, '1');
+    const panel = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    expect(panel.exists()).toBe(true);
+    const expected = buildMemoryTopology(
+      [...baseline.memoryTables, ...baseline.computeTables],
+      '1',
+    );
+    expect(panel.props('baseline')).toEqual(expected);
+    expect((panel.props('baseline') as MemoryTopologyModel).plates).toEqual([
+      { node: 'aiv_scalar', label: '30.00%', value: 30 },
+      { node: 'vec', label: '40.00%', value: 40 },
+    ]);
+    // Rebuilt from the block's own metrics — not the All snapshot's L2 peak.
+    expect(
+      (panel.props('baseline') as MemoryTopologyModel).nodes.find((n) => n.id === 'l2')?.peakPct,
+    ).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('PR-STATS-056: ArchDiagram rebuilds each side from its own metrics and the shared mode', async () => {
+    const { topologyFromArchDiagramMetrics, ARCH_DIAGRAM_DEFAULT_METRIC_MODE } = await import(
+      '../../adapters/emulateMemoryTopology'
+    );
+    const archCsv = (gbs: string, cnt: string) =>
+      [
+        'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+        '1,l2_cached_ratio,50',
+        `2,hbm_to_l2_syn_gbs,${gbs}`,
+        `3,hbm_to_l2_syn_cnt,${cnt}`,
+        '4,hbm_to_l2_syn_ratio,0.25',
+      ].join('\n');
+    const archTable = () => ({
+      fileName: 'ArchDiagramMetrics.csv',
+      headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+      rows: [],
+      blockIds: [],
+    });
+    const currentCsv = archCsv('1.5', '8');
+    const baselineCsv = archCsv('2.5', '4');
+    const baseline = report({
+      profile: 'emulate',
+      csvTexts: { 'ArchDiagramMetrics.csv': baselineCsv },
+      memoryTables: [archTable()],
+      // Snapshot is always the default mode — the diff must rebuild instead of reading it.
+      memoryTopology: { nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 88 }], edges: [] },
+    });
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['archDiagram'],
+        report: report({
+          profile: 'emulate',
+          csvTexts: { 'ArchDiagramMetrics.csv': currentCsv },
+          memoryTables: [archTable()],
+          memoryTopology: { nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 77 }], edges: [] },
+        }),
+        baselineReport: pack(baseline),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    const panel = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    const expected = topologyFromArchDiagramMetrics(baselineCsv, ARCH_DIAGRAM_DEFAULT_METRIC_MODE)!;
+    expect(panel.props('baseline')).toEqual(expected);
+    expect(
+      (panel.props('baseline') as MemoryTopologyModel).nodes.find((n) => n.id === 'l2')?.peakPct,
+    ).toBe(50);
+
+    // The shared Metric select rebuilds the baseline too (never a stale snapshot).
+    await wrapper.get('[data-testid="topology-metric-select"] .pr-metric-select__trigger').trigger('click');
+    (document.querySelector('[data-testid="topology-metric-option-number_of_requests"]') as HTMLElement).click();
+    await nextTick();
+    expect(wrapper.findComponent({ name: 'MemoryTopologyPanel' }).props('baseline')).toEqual(
+      topologyFromArchDiagramMetrics(baselineCsv, 'number_of_requests'),
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-STATS-056: memory 详情 paints baseline deltas in the stacked list and the overlay', async () => {
+    // Stacked CSV-only report: the memory category list is on the report surface.
+    const stacked = mount(StatsAside, {
+      props: {
+        report: report({ summaryCategories: [memoryCategoryOf('Memory', '100')] }),
+        baselineReport: pack(report({ summaryCategories: [memoryCategoryOf('Memory', '80')] })),
+      },
+    });
+    const stackedDiff = stacked.get(
+      '[data-testid="stats-memory"] [data-testid="summary-field-diff-aiv_main_mem_read_bw"]',
+    );
+    expect(stackedDiff.classes()).toContain('pr-diff--increase'); // baseline 80 − current 100
+    expect(stackedDiff.get('.pr-diff__text').text()).toBe('20');
+    stacked.unmount();
+
+    // The drilled-in memory overlay pairs the same categories.
+    const overlayMount = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [memoryTableOf('1.2')],
+          memoryTopology: topologySnapshotOf('1.2'),
+          summaryCategories: [memoryCategoryOf('Memory', '100')],
+        }),
+        baselineReport: pack(report({ summaryCategories: [memoryCategoryOf('Memory', '80')] })),
+      },
+    });
+    await overlayMount.get('[data-testid="topology-details"]').trigger('click');
+    const overlay = overlayMount.get('[data-testid="stats-memory"]');
+    const overlayDiff = overlay.get('[data-testid="summary-field-diff-aiv_main_mem_read_bw"]');
+    expect(overlayDiff.get('.pr-diff__text').text()).toBe('20');
+    overlayMount.unmount();
+
+    // The filter is the four memory ids: a compute-only baseline pairs nothing into the list.
+    const filtered = mount(StatsAside, {
+      props: {
+        report: report({ summaryCategories: [memoryCategoryOf('Memory', '100')] }),
+        baselineReport: pack(
+          report({ summaryCategories: [memoryCategoryOf('PipeUtilization', '0.8')] }),
+        ),
+      },
+    });
+    expect(filtered.findComponent(SummaryCategoryList).props('baselineCategories')).toEqual([]);
+    expect(filtered.findAll('.pr-diff')).toHaveLength(0);
+    filtered.unmount();
+
+    // Without a pack the prop stays undefined and the list paints no delta nodes.
+    const plain = mount(StatsAside, {
+      props: { report: report({ summaryCategories: [memoryCategoryOf('Memory', '100')] }) },
+    });
+    expect(plain.findComponent(SummaryCategoryList).props('baselineCategories')).toBeUndefined();
+    expect(plain.findAll('.pr-diff')).toHaveLength(0);
+    plain.unmount();
+  });
 });
