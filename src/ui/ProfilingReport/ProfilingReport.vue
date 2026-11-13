@@ -71,6 +71,8 @@ import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '..
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
+import { shortOperatorName } from '../operatorName';
+import OperatorOverview from '../OperatorOverview/OperatorOverview.vue';
 import PerformanceHintsDock from '../PerformanceHintsDock/PerformanceHintsDock.vue';
 import {
   ASIDE_WIDTH_DEFAULT,
@@ -187,6 +189,7 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
   'export-html': [{ fileName: string }];
+  optimize: [{ opName: string }];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -363,6 +366,14 @@ const report = computed(() => {
 });
 /** Host-managed mode has no adapter to ask, so adapter flags must not survive the switch. */
 const hostManaged = computed(() => props.swimlaneModel != null || props.reportModel != null);
+/** Single-operator packs brand with the op name; multi-operator packs keep the archive name. */
+const toolbarBrand = computed(() => {
+  if (operators.value.length <= 1) {
+    const opName = shortOperatorName(report.value?.summary.opName);
+    if (opName) return opName;
+  }
+  return props.title;
+});
 /** Host prop wins; otherwise the ones the adapter derived from the loaded source. */
 const caps = computed<ReportCapability[]>(() => {
   if (props.capabilities) return props.capabilities;
@@ -449,7 +460,10 @@ const sourceTabEnabled = computed(
     report.value?.sourceCorrelation != null &&
     report.value.sourceCorrelation.mock !== true,
 );
-const activeTab = ref<'timeline' | 'source'>('timeline');
+/** 概览 lists operator rows; chrome-trace / emulate models carry none. */
+const overviewTabEnabled = computed(() => (report.value?.operatorRows?.length ?? 0) > 0);
+const activeTab = ref<'overview' | 'timeline' | 'source'>('timeline');
+const showOverviewTab = computed(() => activeTab.value === 'overview');
 /** Caret the Source tab applies after a Parameter frame click. */
 const sourceFocus = ref<SourceFrameTarget | null>(null);
 const showSource = computed(
@@ -459,14 +473,21 @@ const showSource = computed(
     report.value?.sourceCorrelation != null,
 );
 /** Timeline canvas mounts only while the Timeline tab is active (releases WebGL). */
-const showTimelineSurface = computed(() => showTimeline.value && !showSource.value);
+const showTimelineSurface = computed(
+  () => showTimeline.value && !showSource.value && !showOverviewTab.value,
+);
 
 watch(sourceTabEnabled, (ok) => {
   if (!ok && activeTab.value === 'source') activeTab.value = 'timeline';
 });
 
-function onActiveTab(tab: 'timeline' | 'source') {
+watch(overviewTabEnabled, (ok) => {
+  if (!ok && activeTab.value === 'overview') activeTab.value = 'timeline';
+});
+
+function onActiveTab(tab: 'overview' | 'timeline' | 'source') {
   if (tab === 'source' && !sourceTabEnabled.value) return;
+  if (tab === 'overview' && !overviewTabEnabled.value) return;
   activeTab.value = tab;
 }
 
@@ -984,6 +1005,7 @@ function failLoad(cause: unknown) {
   hovered.value = null;
   viewState.value = createViewState(null);
   closeTopologyFullscreen();
+  activeTab.value = 'timeline';
   loadError.value = cause instanceof Error ? cause.message : String(cause);
   emit('error', { message: loadError.value, cause });
 }
@@ -1181,7 +1203,7 @@ function onRootKeydown(e: KeyboardEvent) {
   // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
   // WASD must not pan/zoom the hidden view.
   if (htmlExportOpen.value || topologyFullscreen.value || fullscreenTopology.value != null) return;
-  if (!showTimeline.value) return;
+  if (!showTimeline.value || showOverviewTab.value) return;
   const target = e.target as HTMLElement | null;
   // Ignore shortcuts while typing — search, dependency depth, and editable controls own them.
   if (
@@ -1837,8 +1859,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
-      v-if="!showTimeline && !showSource"
-      :title="title"
+      v-if="loadError || (!showTimeline && !showSource && !showOverviewTab)"
+      :title="toolbarBrand"
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
       :aside-available="asideAvailable"
@@ -1854,6 +1876,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :user-guide-url="userGuideUrl"
       :active-tab="activeTab"
       :source-tab-enabled="sourceTabEnabled"
+      :overview-tab-enabled="overviewTabEnabled"
       :html-export-available="htmlExportAvailable"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
@@ -1880,17 +1903,17 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     </p>
 
     <ReportLayout
-      v-else-if="showTimeline || showAside || showSource"
+      v-else-if="showTimeline || showAside || showSource || showOverviewTab"
       ref="layoutRef"
-      :show-aside="showAside && !showSource"
+      :show-aside="showAside && !showSource && !showOverviewTab"
       :aside-width="asideWidth"
       :locale="locale"
       @update:aside-width="onAsideWidth"
     >
       <template #main>
         <ReportToolbar
-          v-if="showTimeline || showSource"
-          :title="title"
+          v-if="showTimeline || showSource || showOverviewTab"
+          :title="toolbarBrand"
           :search-query="viewState.searchQuery"
           :aside-visible="viewState.asideVisible"
           :aside-available="asideAvailable"
@@ -1905,6 +1928,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :user-guide-url="userGuideUrl"
           :active-tab="activeTab"
           :source-tab-enabled="sourceTabEnabled"
+          :overview-tab-enabled="overviewTabEnabled"
           :html-export-available="htmlExportAvailable"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
@@ -1919,6 +1943,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @zoom-out="onZoomOut"
           @open-user-guide="emit('open-user-guide', $event)"
           @export-html="onExportHtml"
+        />
+        <OperatorOverview
+          v-if="showOverviewTab"
+          :rows="report?.operatorRows ?? []"
+          :locale="locale"
+          @optimize="emit('optimize', $event)"
         />
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
@@ -1987,7 +2017,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @dismiss="onContextMenuDismiss"
         />
         <p
-          v-if="!showTimeline"
+          v-if="!showTimeline && !showOverviewTab"
           class="pr-error"
           data-testid="no-timeline"
         >

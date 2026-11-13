@@ -650,10 +650,13 @@ def transform_metric_csv(text, scale, block_offset, sub_label, n_rows):
 
 def transform_op_basic_info(text, *, op_name="matmul_mock", op_type="mix",
                             duration="3.502000", block_dim="16", mix_dim="8",
-                            freq="1500"):
+                            freq="1500", demangled_name="matmul_mock<float>",
+                            grid_size="90.01", block_size="32"):
     """Swap the single OpBasicInfo row for a different operator identity."""
-    header = text.split("\n", 1)[0]
-    row = f"{op_name},{op_type},{duration},{block_dim},{mix_dim},0,3073000,{freq},{freq},"
+    header = ("Op Name,Op Type,Task Duration(us),Block Dim,Mix Block Dim,Device Id,"
+              "Pid,Current Freq,Rated Freq,Demangled Name,Grid Size,Block Size")
+    row = (f"{op_name},{op_type},{duration},{block_dim},{mix_dim},0,3073000,"
+           f"{freq},{freq},{demangled_name},{grid_size},{block_size}")
     return header + "\n" + row + "\n"
 
 
@@ -1612,7 +1615,9 @@ def main():
         aic_seed=0xC0BE01,
         aic_scale=0.85,
         op_basic={"op_name": "add_custom", "op_type": "mix", "duration": "1.800036",
-                  "block_dim": "8", "mix_dim": "4", "freq": "1650"},
+                  "block_dim": "8", "mix_dim": "4", "freq": "1650",
+                  "demangled_name": "add_custom<float>", "grid_size": "85.25",
+                  "block_size": "32"},
         demo=op1_demo,
         sampling_seed=0x51A101,
         roofline_scale=1.0,
@@ -1631,7 +1636,9 @@ def main():
         aic_seed=0xC0BE02,
         aic_scale=1.15,
         op_basic={"op_name": "matmul_mock", "op_type": "mix", "duration": "3.502000",
-                  "block_dim": "16", "mix_dim": "8", "freq": "1500"},
+                  "block_dim": "16", "mix_dim": "8", "freq": "1500",
+                  "demangled_name": "matmul_mock<float>", "grid_size": "90.01",
+                  "block_size": "48"},
         demo=op2_demo,
         include_trace=False,
         sampling_seed=0x51A102,
@@ -1639,11 +1646,53 @@ def main():
         heatmap_seed=0x4E4702,
     )
 
+    # 概览 fixture: 3-4 lightweight operators (no trace.json) with distinct
+    # demangled / duration / grid / block / blockDim values, plus the op1/op2 rows above.
+    extra_ops = [
+        ("demo_linear_tiled", "vector", "0.730000", "24", "88.40", "40"),
+        ("demo_bias_gelu", "vector", "0.412500", "20", "96.75", "24"),
+        ("demo_layer_norm", "vector", "0.268300", "12", "40.92", "36"),
+        ("demo_softmax", "vector", "0.155800", "28", "75.54", "20"),
+    ]
+    extra_bytes = []
+    for i, (name, optype, duration, block_dim, grid, block) in enumerate(extra_ops):
+        extra = leaf_entries(
+            out_rep,
+            trace=None,
+            transform=True,
+            sub_label=f"vector{2 + i}",
+            chip_info="Ascend 910B",
+            ai_core_count=24,
+            ai_vector_count=48,
+            block_offset=200 + i * 20,
+            n_rows=8,
+            aic_seed=0xC0BE10 + i,
+            aic_scale=1.0,
+            op_basic={
+                "op_name": name,
+                "op_type": optype,
+                "duration": duration,
+                "block_dim": block_dim,
+                "mix_dim": "0",
+                "freq": "1500",
+                "demangled_name": f"{name}<float>",
+                "grid_size": grid,
+                "block_size": block,
+            },
+            demo=op2_demo,
+            include_trace=False,
+            sampling_seed=0x51A110 + i,
+            roofline_scale=0.8,
+            heatmap_seed=0x4E4710 + i,
+        )
+        extra_bytes.append((f"op{3 + i}.npu.rep", TYPE_NESTED, pack_npu_rep(extra)))
+
     op1_bytes = pack_npu_rep(op1)
     op2_bytes = pack_npu_rep(op2)
     container = pack_npu_rep([
         ("op1.npu.rep", TYPE_NESTED, op1_bytes),
         ("op2.npu.rep", TYPE_NESTED, op2_bytes),
+        *extra_bytes,
     ])
 
     out_path = os.path.join(here, "sample.lite.rep")
@@ -1653,6 +1702,7 @@ def main():
     print(f"[OK] wrote {out_path} ({len(container)} bytes)")
     print(f"     op1 leaf: {len(op1_bytes)} bytes, {len(op1)} files")
     print(f"     op2 leaf: {len(op2_bytes)} bytes, {len(op2)} files")
+    print(f"     extra leaves: {len(extra_bytes)} (no trace.json)")
 
 
 if __name__ == "__main__":

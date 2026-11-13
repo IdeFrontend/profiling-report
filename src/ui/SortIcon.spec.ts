@@ -21,4 +21,15 @@ describe('SortIcon', () => {
     expect(w.find('[data-testid="sort-icon-desc"]').exists()).toBe(true);
     expect(w.find('[data-testid="sort-icon-none"]').exists()).toBe(false);
   });
+
+  it('PR-SORT-004: all states keep a 10x14 box', () => {
+    for (const direction of [null, 'asc', 'desc'] as const) {
+      const w = mount(SortIcon, { props: { direction } });
+      const svg = w.get('svg');
+      expect(svg.attributes('viewBox')).toBe('0 0 10 14');
+      expect(svg.attributes('width')).toBe('10');
+      expect(svg.attributes('height')).toBe('14');
+      expect(svg.attributes('aria-hidden')).toBe('true');
+    }
+  });
 });

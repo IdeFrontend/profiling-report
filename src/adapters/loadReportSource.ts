@@ -86,6 +86,16 @@ function adaptNpuRepLike(
   }
 
   const selectedOperatorId = operators[0].id;
+  // 概览 lists every operator in the pack, on every operator's report model so
+  // switching the OP selector keeps the same table.
+  const operatorRows = operators.flatMap(
+    (op) => operatorReports[op.id].reportModel.operatorRows ?? [],
+  );
+  if (operatorRows.length > 0) {
+    for (const report of Object.values(operatorReports)) {
+      report.reportModel = { ...report.reportModel, operatorRows };
+    }
+  }
   return {
     ...operatorReports[selectedOperatorId],
     operators,
