@@ -2,11 +2,7 @@
 import { computed, onMounted, ref, shallowRef } from 'vue';
 import { ProfilingReport } from '../src/index';
 import { HTML_EXPORT_B64_PLACEHOLDER, HTML_EXPORT_LOCALE_PLACEHOLDER, htmlExportLocale } from '../src/export/stitchHtmlReport';
-import {
-  createBaselinesHost,
-  DEMO_RECENT_BASELINES,
-  withDemoBaselineOperators,
-} from '../src/host/baselinesHost';
+import { createBaselinesHost } from '../src/host/baselinesHost';
 
 declare global {
   interface Window {
@@ -37,9 +33,6 @@ const {
   onFileChosen: onBaselineFileChosen,
   onPickCancel: onBaselinePickCancel,
 } = createBaselinesHost(() => baselineInputRef.value);
-
-/** Every entry carries demo operators the way MSTT would pass the pack's real ones. */
-const viewerBaselines = computed(() => withDemoBaselineOperators(baselines.value));
 
 const reportName = computed(() => {
   const raw = window.__NPU_REP_NAME__;
@@ -103,11 +96,11 @@ onMounted(() => {
       :report-meta="reportMeta"
       :locale="locale"
       :allow-html-export="false"
-      :baselines="viewerBaselines"
+      :baselines="baselines"
       :selected-baseline-id="selectedBaselineId"
       :selected-baseline-operator="selectedBaselineOperator"
       :pick-baseline-file="pickBaselineFile"
-      :recent-baselines="DEMO_RECENT_BASELINES"
+      :recent-baselines="[]"
       @update:baselines="onBaselinesUpdate"
       @update:selected-baseline-id="onSelectedBaselineId"
       @update:selected-baseline-operator="onSelectedBaselineOperator"

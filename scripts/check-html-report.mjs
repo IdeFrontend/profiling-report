@@ -41,14 +41,21 @@ function assertHtml(html, label) {
   // The shell is a host: it must keep the baseline picker contract wired
   // (report-shell/App.vue — views/baselines.md "every host that mounts
   // ProfilingReport"). Without it the control silently vanishes from the
-  // offline artifact. Artifact markers prove the glue is bundled; the source
-  // assertions prove the bindings exist (bundle strings alone survive even
-  // with the `:pick-baseline-file` binding dropped).
+  // offline artifact. DOM markers prove the glue is bundled: the trigger
+  // (`data-testid="toggle-baselines"`) and the hidden file input the pick
+  // hook clicks (`baseline-file-input`) must both survive into the artifact.
   if (
     !html.includes('toggle-baselines')
     || !html.includes('baseline-file-input')
   ) {
     fail(`${label}: exported shell lost the baseline picker host glue`);
+  }
+  // A user's exported report must not ship the playground's fabricated demo
+  // list (DEMO_RECENT_BASELINES — OPPROF_2026... run folders). The smoke
+  // fixture is vector_muladd_plain.npu-rep, so any OPPROF_ run name in the
+  // artifact means demo data leaked into the shell bundle.
+  if (html.includes('OPPROF_2026')) {
+    fail(`${label}: exported shell ships fabricated demo baseline data`);
   }
 }
 
@@ -91,16 +98,21 @@ if (!existsSync(fixture)) fail(`missing fixture ${fixture}`);
 
 const shellSource = readFileSync(join(root, 'report-shell/App.vue'), 'utf8');
 for (const binding of [
-  ':baselines="viewerBaselines"',
+  ':baselines="baselines"',
   ':selected-baseline-id="selectedBaselineId"',
+  ':selected-baseline-operator="selectedBaselineOperator"',
   ':pick-baseline-file="pickBaselineFile"',
-  ':recent-baselines="DEMO_RECENT_BASELINES"',
+  ':recent-baselines="[]"',
   '@update:baselines="onBaselinesUpdate"',
   '@update:selected-baseline-id="onSelectedBaselineId"',
+  '@update:selected-baseline-operator="onSelectedBaselineOperator"',
 ]) {
   if (!shellSource.includes(binding)) {
     fail(`report-shell/App.vue lost the baseline binding: ${binding}`);
   }
+}
+if (shellSource.includes('DEMO_RECENT_BASELINES') || shellSource.includes('withDemoBaselineOperators')) {
+  fail('report-shell/App.vue must not ship the playground demo baseline data');
 }
 
 runGenerate(generate, join(root, 'dist/report-shell/smoke-vector_muladd.html'));
