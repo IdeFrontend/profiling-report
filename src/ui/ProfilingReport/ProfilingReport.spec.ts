@@ -2548,6 +2548,9 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.emitted('update:baselines')).toEqual([
       [[{ id: 'r1', name: 'R1', path: '/r1' }]],
     ]);
+    // The host applies the emitted list back — the box is controlled (PR-BASELINE-037).
+    await wrapper.setProps({ baselines: [{ id: 'r1', name: 'R1', path: '/r1' }] });
+    await nextTick();
     // Unchecking removes it — the checked set IS the host-owned list.
     await wrapper.findAll('[data-testid="baseline-check"]')[0].setValue(false);
     expect(wrapper.emitted('update:baselines')).toEqual([

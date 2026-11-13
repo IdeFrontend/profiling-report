@@ -106,22 +106,42 @@ watch(
 
 function setChecked(row: Baseline, checked: boolean): void {
   if (checked) {
-    // Insert at the row's visible position, not at the end: hosts may use the
-    // list order (comparison order, persistence), and appending would make the
-    // stored order drift from the visible one on every toggle.
+    // Insert at the row's checked-set position, not its display index: rows
+    // before it that are unchecked do not exist in the checked list, so a
+    // display index would push the entry past its visible checked neighbours
+    // (hosts may use the list order — comparison order, persistence).
     const rest = props.baselines.filter((b) => b.id !== row.id);
-    const index = rows.value.findIndex((r) => r.id === row.id);
-    const next = index >= 0 && index <= rest.length
-      ? [...rest.slice(0, index), row, ...rest.slice(index)]
+    const displayIndex = rows.value.findIndex((r) => r.id === row.id);
+    const checkedBefore =
+      displayIndex > 0
+        ? rows.value.slice(0, displayIndex).filter((r) => isChecked(r.id)).length
+        : 0;
+    const next = displayIndex >= 0 && checkedBefore <= rest.length
+      ? [...rest.slice(0, checkedBefore), row, ...rest.slice(checkedBefore)]
       : [...rest, row];
     emit('update:baselines', next);
-    return;
+  } else {
+    emit('update:baselines', props.baselines.filter((b) => b.id !== row.id));
+    if (recentIds.value.has(row.id)) return;
+    const index = rows.value.findIndex((r) => r.id === row.id);
+    const neighbour = rows.value[index + 1] ?? rows.value[index - 1];
+    pendingFocusId = neighbour?.id ?? null;
   }
-  emit('update:baselines', props.baselines.filter((b) => b.id !== row.id));
-  if (recentIds.value.has(row.id)) return;
-  const index = rows.value.findIndex((r) => r.id === row.id);
-  const neighbour = rows.value[index + 1] ?? rows.value[index - 1];
-  pendingFocusId = neighbour?.id ?? null;
+  void resyncCheckbox(row);
+}
+
+/**
+ * The checkbox is controlled: the host may reject or normalize the emitted
+ * list. Resync the DOM to the prop state after the emit — otherwise the
+ * browser keeps the optimistic toggle while `props.baselines` disagrees, and
+ * the next patch flips the box back (read by the user as state loss).
+ */
+async function resyncCheckbox(row: Baseline): Promise<void> {
+  await nextTick();
+  const input = [
+    ...(wrapRef.value?.querySelectorAll<HTMLInputElement>('[data-testid="baseline-check"]') ?? []),
+  ].find((el) => el.dataset.rowId === row.id);
+  if (input) input.checked = isChecked(row.id);
 }
 
 async function toggle() {
@@ -205,12 +225,16 @@ watch(
 );
 
 /**
- * Dedupe identity: the same file written differently (letter case, a trailing
- * separator) must not become two baselines — compare a normalized form.
+ * Dedupe identity: the same file written differently (a trailing separator)
+ * must not become two baselines — compare a normalized form. Letter case is
+ * folded for Windows-style paths only (drive letter or backslashes): on POSIX
+ * `/data/A.rep` and `/data/a.rep` are two files and a pick must not be refused.
  */
 function sameBaselinePath(a: string, b: string): boolean {
-  const norm = (p: string) =>
-    p.trim().replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+  const norm = (p: string): string => {
+    const t = p.trim().replace(/[\\/]+/g, '/').replace(/\/+$/, '');
+    return /^[a-zA-Z]:\//.test(t) || p.includes('\\') ? t.toLowerCase() : t;
+  };
   return norm(a) === norm(b);
 }
 
@@ -234,7 +258,17 @@ async function browse(): Promise<void> {
     }
     if (!pick) return;
     const path = pick.path;
-    if (props.baselines.some((b) => sameBaselinePath(b.path, path))) return;
+    // One file, one row: dedupe against the WHOLE row list (recents included),
+    // not just the checked set — a Browse of an unchecked recent row checks
+    // that row instead of appending a second entry with the same path.
+    const existing = rows.value.find((r) => sameBaselinePath(r.path, path));
+    if (existing) {
+      if (!isChecked(existing.id)) {
+        setChecked(existing, true);
+        announcePick(existing.name);
+      }
+      return;
+    }
     const entry: Baseline = {
       id: newBaselineId(),
       name: pick.name?.trim() || path.split(/[\\/]/).pop() || path,
@@ -284,8 +318,8 @@ function announcePick(name: string) {
       :id="panelId"
       class="pr-baseline"
       data-testid="baselines-popover"
-      role="dialog"
-      :aria-label="t('baselines', locale)"
+      role="group"
+      :aria-labelledby="titleId"
       :style="{ maxHeight: panelMaxHeight }"
     >
       <p
@@ -306,11 +340,12 @@ function announcePick(name: string) {
         />
       </div>
 
+      <!-- No role here: the PANEL is the labelled group (a non-modal popover,
+           not a dialog — Tab may leave it, so claiming modal semantics would
+           lie to assistive tech). -->
       <div
         class="pr-baseline__list"
         data-testid="baselines-recent-list"
-        role="group"
-        :aria-labelledby="titleId"
       >
         <p
           v-if="rows.length === 0"
@@ -392,6 +427,11 @@ function announcePick(name: string) {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
   /* Inline `max-height` on open caps the panel to the viewport; the list takes
      the remainder and scrolls, so the footer (Browse) stays reachable. */
+  /* Dark chrome in BOTH themes (the toolbar popover family: 显示控制, the OP
+     menu, 快捷键说明 — `--pr-surface-raised` has no light override), so the
+     row/path/empty ink below is tuned to this surface and cleared for AA on it
+     (BaselinePicker.spec.md). If `--pr-surface-raised` ever gains a light
+     value, these colours must move to tokens with light overrides. */
 }
 
 .pr-baseline__sr {

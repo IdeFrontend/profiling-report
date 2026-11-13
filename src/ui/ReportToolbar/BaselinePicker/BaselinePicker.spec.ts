@@ -182,6 +182,17 @@ describe('BaselinePicker', () => {
     await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
     await flushPromises();
     expect(wrapper.emitted('update:baselines')).toHaveLength(1);
+
+    // Browse a file that already has an UNCHECKED recent row: that row is
+    // emitted checked — one file, one row, no second entry with a fresh id.
+    hook.mockResolvedValue({ path: recentBaselines[1].path, name: 'different-name' });
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.emitted('update:baselines')).toHaveLength(2);
+    const recentChecked = wrapper.emitted('update:baselines')![1][0] as Baseline[];
+    // Checked-set position: r2 is the first checked row visible, so it leads.
+    expect(recentChecked).toEqual([recentBaselines[1], ...appended]);
+    expect(recentChecked[0].id).toBe(recentBaselines[1].id);
     wrapper.unmount();
   });
 
@@ -352,7 +363,7 @@ describe('BaselinePicker', () => {
     expect(tokens).toMatch(/--pr-accent:\s*#[0-9a-f]{6}/i);
   });
 
-  it('PR-BASELINE-032: checking inserts at the visible position, so the emitted list keeps the displayed order', async () => {
+  it('PR-BASELINE-032: checking inserts at the checked-set position, so the emitted list keeps the displayed order', async () => {
     const wrapper = mountPicker({ baselines: [recentBaselines[1]] });
     await open(wrapper);
     // r2 is already checked ([r2]); checking r1 (first visible row) must not
@@ -363,10 +374,23 @@ describe('BaselinePicker', () => {
       [[recentBaselines[0], recentBaselines[1]]],
     ]);
     wrapper.unmount();
+
+    // Non-adjacent: recents [r1, r2, r3], checked [r3]. Checking r2 (display
+    // index 1 with an UNCHECKED r1 before it): the checked-set position is 0,
+    // so the emit is [r2, r3] — a display-index insert would read [r3, r2].
+    const third: Baseline = { id: 'r3', name: 'OPPROF_3', path: '/w3' };
+    const gap = mountPicker({ recentBaselines: [...recentBaselines, third], baselines: [third] });
+    await open(gap);
+    await gap.findAll('[data-testid="baseline-check"]')[1].setValue(true);
+    expect(gap.emitted('update:baselines')).toEqual([
+      [[recentBaselines[1], third]],
+    ]);
+    gap.unmount();
   });
 
   it('PR-BASELINE-033: Browse dedupes on the normalized path and logs a rejected hook', async () => {
-    const pick: BaselinePick = { path: '/data/extra.npu-rep/', name: 'extra.npu-rep' };
+    // Windows-style path: case and a trailing separator are folded.
+    const pick: BaselinePick = { path: 'C:\\Data\\extra.npu-rep\\', name: 'extra.npu-rep' };
     const hook = vi.fn().mockResolvedValue(pick);
     const wrapper = mountPicker({ pickBaselineFile: hook, baselines: [] });
     await open(wrapper);
@@ -375,11 +399,17 @@ describe('BaselinePicker', () => {
     const applied = (wrapper.emitted('update:baselines')![0][0] as Baseline[]);
     await wrapper.setProps({ baselines: applied });
 
-    // The same file with different letter case and no trailing slash: no emit.
-    hook.mockResolvedValue({ path: '/DATA/Extra.npu-rep', name: 'extra.npu-rep' });
+    // The same Windows file with different letter case and no slash: no emit.
+    hook.mockResolvedValue({ path: 'c:/data/Extra.npu-rep', name: 'extra.npu-rep' });
     await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
     await flushPromises();
     expect(wrapper.emitted('update:baselines')).toHaveLength(1);
+
+    // POSIX: letter case is NOT folded — `A.rep` and `a.rep` are two files.
+    hook.mockResolvedValue({ path: '/data/Extra.npu-rep', name: 'other.npu-rep' });
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.emitted('update:baselines')).toHaveLength(2);
 
     // A rejected hook logs the failure (not a silent Cancel) and emits nothing.
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -387,22 +417,26 @@ describe('BaselinePicker', () => {
     await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
     await flushPromises();
     expect(errorSpy).toHaveBeenCalledOnce();
-    expect(wrapper.emitted('update:baselines')).toHaveLength(1);
+    expect(wrapper.emitted('update:baselines')).toHaveLength(2);
     expect(wrapper.find('[data-testid="baselines-popover"]').exists()).toBe(true);
     errorSpy.mockRestore();
     wrapper.unmount();
   });
 
-  it('PR-BASELINE-034: the list is a labelled group, the trigger has no aria-pressed, an append announces live', async () => {
+  it('PR-BASELINE-034: the panel is a labelled non-modal group, the trigger has no aria-pressed, an append announces live', async () => {
     const wrapper = mountPicker({ attachToBody: true });
     const trigger = wrapper.get('[data-testid="toggle-baselines"]');
     expect(trigger.attributes('aria-pressed')).toBeUndefined();
     await open(wrapper);
-    const list = wrapper.get('[data-testid="baselines-recent-list"]');
-    expect(list.attributes('role')).toBe('group');
-    const labelledBy = list.attributes('aria-labelledby');
+    // Non-modal popover: the PANEL is the labelled group (no dialog role that
+    // would claim modal semantics Tab does not honour).
+    const panel = wrapper.get('[data-testid="baselines-popover"]');
+    expect(panel.attributes('role')).toBe('group');
+    expect(panel.attributes('role')).not.toBe('dialog');
+    const labelledBy = panel.attributes('aria-labelledby');
     expect(labelledBy).toBeTruthy();
     expect(document.getElementById(labelledBy!)?.textContent).toContain(t('baselineAddTitle'));
+    expect(wrapper.get('[data-testid="baselines-recent-list"]').attributes('role')).toBeUndefined();
 
     // A Browse append fills the live region so screen readers hear the new row.
     const hook = vi.fn().mockResolvedValue({ path: '/data/extra.npu-rep', name: 'extra.npu-rep' });
@@ -412,6 +446,22 @@ describe('BaselinePicker', () => {
     const live = wrapper.get('[role="status"]');
     expect(live.text()).toContain('extra.npu-rep');
     expect(live.text()).toContain(t('baselineAdded').replace('{name}', ''));
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-037: the controlled checkbox resyncs to the host-applied list after an emit', async () => {
+    // A host that REJECTS the emitted list (keeps its own) must not leave the
+    // browser's optimistic toggle on the box — the next patch would flip it
+    // back and the user reads it as state loss.
+    const wrapper = mountPicker();
+    await open(wrapper);
+    const check = () => wrapper.findAll('[data-testid="baseline-check"]')[0];
+    expect((check().element as HTMLInputElement).checked).toBe(false);
+    await check().setValue(true);
+    expect(wrapper.emitted('update:baselines')).toEqual([[[recentBaselines[0]]]]);
+    // The host rejects: `baselines` stays [] — the box resyncs to unchecked.
+    await flushPromises();
+    expect((check().element as HTMLInputElement).checked).toBe(false);
     wrapper.unmount();
   });
 
