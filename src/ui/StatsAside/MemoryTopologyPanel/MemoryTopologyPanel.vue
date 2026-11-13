@@ -59,18 +59,76 @@ export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number
 };
 
 /**
- * Vertical lift (chrome units) for plates whose badge row would NOT fit under
- * the design slot: the value text moves UP inside its element so the badge
- * stays inside the element's frame. Measured off the chrome export:
- * `aiv_scalar`'s nested plate rect ends at y 329 (badge bottom 332.8), `vec`'s
- * SIMD box ends at y 376 (badge bottom 379.6); a 5-unit lift brings both
- * badge bottoms back inside with ~1 unit of frame air. The badge anchors to
- * the LIFTED text, so it follows automatically.
+ * Vertical chrome metrics of every plated slot, in chrome units, keyed by the adapter's
+ * `TOPOLOGY_PLATE_NODE_IDS` plus the L2 peak plate. `titleBottom` (T) is the bottom of the
+ * unit title's outline (the next label's top for the peak), `frameBottom` (F) the bottom of
+ * the element frame the value + badge row has to stay inside, and `boxWidth` the width of
+ * that element's inner box. Measured off `memory-topology.svg`; the `Record` makes a newly
+ * plated unit fail typecheck until it carries its own metrics.
  */
-export const PLATE_TEXT_LIFT: Partial<Record<TopologyPlateNodeId, number>> = {
-  aiv_scalar: 5,
-  vec: 5,
+export interface SlotMetrics {
+  /** Bottom of the title outline (T). */
+  titleBottom: number;
+  /** Bottom of the element frame (F). */
+  frameBottom: number;
+  /** Inner box width the value + badge row must fit into. */
+  boxWidth: number;
+}
+
+export const PLATE_METRICS: Record<TopologyPlateNodeId | 'l2-peak', SlotMetrics> = {
+  aiv_scalar: { titleBottom: 312.1, frameBottom: 329, boxWidth: 26.5 },
+  vec: { titleBottom: 362.1, frameBottom: 376, boxWidth: 22 },
+  cube: { titleBottom: 87.6, frameBottom: 123, boxWidth: 28.5 },
+  'l2-peak': { titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
 };
+
+/** Half the 6.3px value's glyph box: values are painted `dominant-baseline="middle"`, so a
+ *  value centred at `vc` covers `vc ± 3.15`. */
+const VALUE_HALF_H = 3.15;
+/** Value glyph box + default badge circle + one unit of frame air — the height the rhythm
+ *  needs before the two equal-air gaps. Keeps `g`, value, `g`, badge, ≥1 air inside `F - T`. */
+const RHYTHM_SLACK = 13.9;
+const RHYTHM_AIR_MIN = 0.5;
+const RHYTHM_AIR_MAX = 4.5;
+
+/** Derived vertical rhythm of one slot. */
+export interface SlotRhythm {
+  /** Equal air above and below the value (g). */
+  air: number;
+  /** Value centre y (vc). */
+  valueY: number;
+  /** Badge circle diameter (d). */
+  badgeD: number;
+  /** Badge circle centre y (bc). */
+  badgeY: number;
+}
+
+/**
+ * Per-slot rhythm (PR-MEMTOP-027): equal air
+ * `g = clamp(floor((F - T - 13.9) / 2), 0.5, 4.5)` between title→value and value→badge; the
+ * value centre is `vc = T + g + 3.15`, which makes the value's lift inside its element DERIVED
+ * (`slotY - vc`) instead of a static per-node map. The badge hangs one `g` under the value;
+ * where that would put the circle past the frame (`vec`'s shallow SIMD box), the circle shrinks
+ * to the room left above `F - 1` — the largest circle that keeps `bc + d/2 ≤ F - 1` — so it
+ * never crosses the element frame.
+ */
+export function slotRhythm(node: TopologyPlateNodeId | 'l2-peak'): SlotRhythm {
+  const { titleBottom, frameBottom } = PLATE_METRICS[node];
+  const air = Math.min(
+    RHYTHM_AIR_MAX,
+    Math.max(RHYTHM_AIR_MIN, Math.floor((frameBottom - titleBottom - RHYTHM_SLACK) / 2)),
+  );
+  const valueY = titleBottom + air + VALUE_HALF_H;
+  // The shrink leaves visible frame air (not a tangent): -1.2 instead of -1
+  // keeps 0.2 units between the circle's bottom and the inner stroke band
+  // (vec: 5.4 with the bottom at F - 1.2).
+  const badgeD = Math.min(
+    DIFF_BADGE_SIZE,
+    frameBottom - 1.2 - valueY - (VALUE_HALF_H + air),
+  );
+  const badgeY = valueY + (VALUE_HALF_H + air) + badgeD / 2;
+  return { air, valueY, badgeD, badgeY };
+}
 
 /**
  * Room an in-box badge has inside its own unit box before it touches a wall, in chrome units,
@@ -180,21 +238,35 @@ export function fitFontSize(
  * own size right of the circle.
  */
 export const DIFF_BADGE_SIZE = 6.6;
-/** Vertical offset from the percentage's centre to the badge's centre: the circle hangs right
- *  under the value with one unit of air — close enough that it stays inside the plate's own band
- *  and never touches the box's nested chrome (pills, walls). */
-export const DIFF_BADGE_Y_OFFSET = 8.5;
 /** Air between the badge circle and its delta text. */
 export const DIFF_BADGE_TEXT_GAP = 1;
 /** Delta-text width the group layout falls back to when text metrics are unavailable (jsdom):
  *  roughly the widest short delta like `88.88%`. */
 export const DIFF_BADGE_TEXT_FALLBACK_W = 12;
 
-/** Vertical centre of a badge for a value centred at `y`: BELOW the value, one
- *  `DIFF_BADGE_Y_OFFSET` down (the 1130 mockup centres the badge under the percentage). */
-export function diffBadgeY(y: number): number {
-  return y + DIFF_BADGE_Y_OFFSET;
+/** Air the badge row leaves on each wall of its element box (one unit per side). */
+const BADGE_ROW_AIR = 2;
+
+/** Text-width bound of a badge inside `node`'s box: the box minus the circle, the text gap and
+ *  one unit of air per wall. It is the badge counterpart of `PLATE_MAX_W`. */
+function badgeTextBound(node: TopologyPlateNodeId | 'l2-peak'): number {
+  return (
+    PLATE_METRICS[node].boxWidth -
+    slotRhythm(node).badgeD -
+    DIFF_BADGE_TEXT_GAP -
+    BADGE_ROW_AIR
+  );
 }
+
+/** Per-node horizontal bound for a badge's delta text (`boxW - d - gap - 2`), fed to
+ *  `fitFontSize` with the value's base size: a long delta is scaled down proportionally so the
+ *  circle + text row never crosses the element's own walls. */
+export const BADGE_MAX_W: Record<TopologyPlateNodeId | 'l2-peak', number> = {
+  aiv_scalar: badgeTextBound('aiv_scalar'),
+  vec: badgeTextBound('vec'),
+  cube: badgeTextBound('cube'),
+  'l2-peak': badgeTextBound('l2-peak'),
+};
 
 /** Circle centre x for a badge whose circle+text GROUP is centred on the value's centre `cx`:
  *  the circle sits left of the text, so it moves left by half the text width plus the gap. */
@@ -202,7 +274,7 @@ export function diffBadgeCircleX(cx: number, textWidth: number): number {
   return cx - (DIFF_BADGE_TEXT_GAP + textWidth) / 2;
 }
 
-/** The L2 peak plate's own centre on the chrome — the same slot the `<text>` renders at, shared
+/** The L2 peak plate's own centre on the chrome — the design slot the rhythm engine lifts the `<text>` from, shared
  *  with the badge anchor so the two cannot drift (PR-MEMTOP-026). */
 export const L2_PEAK_SLOT = [114.1, 218.3] as const;
 
@@ -385,6 +457,9 @@ const peakText = computed(() =>
   l2PeakPct.value != null ? `${l2PeakPct.value.toFixed(2)}%` : label('l2-hit'),
 );
 
+/** L2 peak plate's derived value centre (the rhythm engine's `vc` for the peak slot). */
+const peakValueY = slotRhythm('l2-peak').valueY;
+
 /**
  * UI-49 in-box unit-utilization badges. Iterates the adapter's node tuple, not the model, so the
  * ids stay typed; a unit the model gives no value is skipped entirely — an `NA` badge stays blank
@@ -396,11 +471,13 @@ const plates = computed(() =>
     const plate = props.model?.plates?.find((p) => p.node === node);
     const text = plate?.label;
     if (!text) return [];
-    const lift = PLATE_TEXT_LIFT[node] ?? 0;
-    return PLATE_SLOTS[node].map(([x, y], i) => ({
+    // The value's centre comes from the slot's own rhythm (equal air above and below), so the
+    // old static lift is now derived from `vc` rather than kept as a per-node map.
+    const { valueY } = slotRhythm(node);
+    return PLATE_SLOTS[node].map(([x], i) => ({
       node,
       x,
-      y: y - lift,
+      y: valueY,
       key: `plate-${node}-${i}`,
       text,
       /** Numeric percent behind `label` (PR-VM-028); absent on a hand-built label-only model. */
@@ -409,9 +486,6 @@ const plates = computed(() =>
   }),
 );
 
-/** Painted width of a plate / peak value: the fit rule shrinks an over-wide label to its slot
- *  bound, so the painted run is `min(natural, bound)`. jsdom and hidden mounts report no metrics
- *  (0), where the bound is the fallback — the widest the fit rule ever allows. */
 /** One 对比基线 badge. `text` is the unsigned delta in percentage points plus `%`; `direction`
  *  is the i18n word carried by the `<title>` and the hidden description (the SVG is `role="img"`,
  *  so its own `<title>` is not the surfaced alternative — the summary is). */
@@ -421,9 +495,14 @@ interface DiffBadge {
   testid: string;
   /** Plate key or `peak` — the comparison this badge belongs to; stable across baseline switches. */
   sourceKey: string;
-  /** Circle centre (the value's own centre — the badge sits BELOW it). */
+  /** Slot whose metrics drive the circle and its `BADGE_MAX_W` text bound. */
+  node: TopologyPlateNodeId | 'l2-peak';
+  /** Circle centre x (the value's own centre — the badge sits BELOW it). */
   x: number;
+  /** Circle centre y (the slot's derived `bc`). */
   y: number;
+  /** Circle diameter in chrome units (the slot's `d`, shrunk inside shallow frames). */
+  diameter: number;
   tone: DiffTone;
   text: string;
   direction: string;
@@ -434,28 +513,35 @@ interface DiffBadge {
 function makeBadge(
   sourceKey: string,
   testid: string,
+  node: TopologyPlateNodeId | 'l2-peak',
   valueCx: number,
-  y: number,
   diff: MetricDiff,
 ): DiffBadge {
+  const { badgeD, badgeY } = slotRhythm(node);
   const text = `${trimDiffMagnitude(diff.magnitude)}%`;
   // The circle+text GROUP is centred under the value: the circle centre sits
-  // left of the value's centre by half the text run (measured, with the
-  // fallback when metrics are unavailable).
+  // left of the value's centre by half the text run at its PAINTED size
+  // (naturalWidths stores the fitted run; fallback when metrics are
+  // unavailable).
   const cx = diffBadgeCircleX(
     valueCx,
     naturalWidths.value[testid] ?? DIFF_BADGE_TEXT_FALLBACK_W,
   );
-  // Full arrow: a vertical shaft plus a two-stroke head joined at the tip.
+  // Full arrow: a vertical shaft plus a two-stroke head joined at the tip. Both scale with the
+  // circle (shaft half-length 0.23d, head half-width 0.2d) so a shrunk badge keeps its drawing.
+  const shaft = 0.23 * badgeD;
+  const head = 0.2 * badgeD;
   const arrow =
     diff.tone === 'increase'
-      ? `M${cx} ${y + 1.5} L${cx} ${y - 1.5} M${cx - 1.3} ${y - 0.05} L${cx} ${y - 1.5} L${cx + 1.3} ${y - 0.05}`
-      : `M${cx} ${y - 1.5} L${cx} ${y + 1.5} M${cx - 1.3} ${y + 0.05} L${cx} ${y + 1.5} L${cx + 1.3} ${y + 0.05}`;
+      ? `M${cx} ${badgeY + shaft} L${cx} ${badgeY - shaft} M${cx - head} ${badgeY - 0.05} L${cx} ${badgeY - shaft} L${cx + head} ${badgeY - 0.05}`
+      : `M${cx} ${badgeY - shaft} L${cx} ${badgeY + shaft} M${cx - head} ${badgeY + 0.05} L${cx} ${badgeY + shaft} L${cx + head} ${badgeY + 0.05}`;
   return {
     sourceKey,
     testid,
+    node,
     x: cx,
-    y,
+    y: badgeY,
+    diameter: badgeD,
     tone: diff.tone,
     text,
     direction: t(
@@ -485,8 +571,8 @@ const plateDiffs = computed<DiffBadge[]>(() => {
       makeBadge(
         p.key,
         p.key.replace(/^plate-/, 'topo-diff-'),
+        p.node,
         p.x,
-        diffBadgeY(p.y),
         diff,
       ),
     ];
@@ -502,13 +588,7 @@ const peakDiff = computed<DiffBadge | null>(() => {
   const baselinePeak = props.baseline?.nodes.find((n) => n.id === 'l2')?.peakPct;
   const diff = metricDiff(l2PeakPct.value, baselinePeak);
   if (!diff || trimDiffMagnitude(diff.magnitude) === '0') return null;
-  return makeBadge(
-    'peak',
-    'topo-diff-l2-peak',
-    L2_PEAK_SLOT[0],
-    diffBadgeY(L2_PEAK_SLOT[1]),
-    diff,
-  );
+  return makeBadge('peak', 'topo-diff-l2-peak', 'l2-peak', L2_PEAK_SLOT[0], diff);
 });
 
 /** All badges in one list so the template has a single, stably keyed loop: the plates in their
@@ -567,12 +647,18 @@ const measureTwin = ref<SVGTextElement | null>(null);
 
 /** Per-slot type size, set only where a value outgrows its slot (PR-MEMTOP-010). */
 const fitted = ref<Record<string, number>>({});
-/** Natural delta-text widths (CSS px, used as chrome units like the old painted-width rule). */
+/** Per-badge delta type size, keyed by the badge's testid: a delta wider than its node's
+ *  `BADGE_MAX_W` box shrinks the same way an over-wide value does. */
+const badgeFitted = ref<Record<string, number>>({});
+/** Delta-text widths at the badge's PAINTED size (CSS px, used as chrome units like the old
+ *  painted-width rule): a fitted badge text is smaller than the base, so the centring reads the
+ *  natural run scaled by the fitted/base ratio — the ink actually painted, not the 6.3px run. */
 const naturalWidths = ref<Record<string, number>>({});
 
 watchEffect(() => {
   const el = measureTwin.value;
   const next: Record<string, number> = {};
+  const nextBadge: Record<string, number> = {};
   const widths: Record<string, number> = {};
   if (el && typeof el.getComputedTextLength === 'function') {
     const measure = (text: string): number => {
@@ -595,15 +681,31 @@ watchEffect(() => {
     if (peakPx < BASE_FONT_PX) next.peak = peakPx;
     for (const d of diffBadges.value) {
       const natural = measure(d.text);
-      if (natural > 0) widths[d.testid] = natural;
+      // The badge's own wall table: the delta must clear the circle, the text gap and the
+      // element's two walls. The group centring reads the PAINTED run — the natural
+      // measurement scaled by the fitted/base ratio (svg text width is linear in
+      // font-size) — so the circle+text group centres on the ink actually drawn, not on
+      // a base-size run that is never painted.
+      if (natural > 0) {
+        const px = fitFontSize(natural, d.node, BASE_FONT_PX, BADGE_MAX_W);
+        widths[d.testid] = px < BASE_FONT_PX ? natural * (px / BASE_FONT_PX) : natural;
+        if (px < BASE_FONT_PX) nextBadge[d.testid] = px;
+      }
     }
   }
   fitted.value = next;
+  badgeFitted.value = nextBadge;
   naturalWidths.value = widths;
 });
 
 function fitStyle(key: string): { fontSize: string } | undefined {
   const px = fitted.value[key];
+  return px != null ? { fontSize: `${px}px` } : undefined;
+}
+
+/** The badge's own fitted size, keyed by its testid (the delta text's `BADGE_MAX_W` bound). */
+function badgeFitStyle(testid: string): { fontSize: string } | undefined {
+  const px = badgeFitted.value[testid];
   return px != null ? { fontSize: `${px}px` } : undefined;
 }
 
@@ -1041,7 +1143,7 @@ onBeforeUnmount(stopZoomAnim);
             <text
               v-if="peakText"
               :x="L2_PEAK_SLOT[0]"
-              :y="L2_PEAK_SLOT[1]"
+              :y="peakValueY"
               text-anchor="middle"
               dominant-baseline="middle"
               class="pr-topo__pct"
@@ -1078,7 +1180,7 @@ onBeforeUnmount(stopZoomAnim);
         >{{ p.text }}</text>
 
         <!-- 对比基线 (PR-MEMTOP-024..027): one badge per node percentage that also exists in the
-             selected baseline, to the RIGHT of that value — plates first, then the L2 peak. The
+             selected baseline, BELOW that value — plates first, then the L2 peak. The
              list is empty without a baseline, so the un-compared DOM keeps exactly its old nodes;
              edge (GB/s) values are never badged. Keys are the node/slot, never the delta, so a
              baseline switch patches text and tone in place. -->
@@ -1092,11 +1194,11 @@ onBeforeUnmount(stopZoomAnim);
           <title>{{ d.direction }} {{ d.text }}</title>
           <rect
             class="pr-topo__diff-box"
-            :x="d.x - DIFF_BADGE_SIZE / 2"
-            :y="d.y - DIFF_BADGE_SIZE / 2"
-            :width="DIFF_BADGE_SIZE"
-            :height="DIFF_BADGE_SIZE"
-            :rx="DIFF_BADGE_SIZE / 2"
+            :x="d.x - d.diameter / 2"
+            :y="d.y - d.diameter / 2"
+            :width="d.diameter"
+            :height="d.diameter"
+            :rx="d.diameter / 2"
           />
           <path
             class="pr-topo__diff-arrow"
@@ -1108,10 +1210,10 @@ onBeforeUnmount(stopZoomAnim);
           />
           <text
             class="pr-topo__diff-text"
-            :x="d.x + DIFF_BADGE_SIZE / 2 + DIFF_BADGE_TEXT_GAP"
+            :x="d.x + d.diameter / 2 + DIFF_BADGE_TEXT_GAP"
             :y="d.y"
             dominant-baseline="middle"
-            :style="fitStyle(d.sourceKey)"
+            :style="badgeFitStyle(d.testid)"
           >{{ d.text }}</text>
         </g>
 

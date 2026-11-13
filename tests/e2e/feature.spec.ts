@@ -1410,6 +1410,60 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
     .not.toBe(baseA);
 });
 
+/**
+ * Chrome metrics of the four badged topology slots, in the diagram's own 448×423 units — the
+ * measured table the panel's badge rhythm uses (`PLATE_METRICS` in MemoryTopologyPanel.vue:
+ * `titleBottom` is the title outline's bottom T, `frameBottom` the element frame's bottom F,
+ * `boxWidth` the element box's inner width). The e2e runner cannot import a Vue SFC, so the
+ * numbers are mirrored here; the assertions below fail if the panel's rhythm drifts from them.
+ */
+const TOPO_BADGE_METRICS: Record<
+  string,
+  { titleBottom: number; frameBottom: number; boxWidth: number }
+> = {
+  aiv_scalar: { titleBottom: 312.1, frameBottom: 329, boxWidth: 26.5 },
+  vec: { titleBottom: 362.1, frameBottom: 376, boxWidth: 22 },
+  cube: { titleBottom: 87.6, frameBottom: 123, boxWidth: 28.5 },
+  'l2-peak': { titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
+};
+
+/** Fixed constants of the rhythm (chrome units): half the 6.3px value's glyph box, the full
+ *  row's slack (value box `2 × 3.15` + `6.6` circle + one unit of frame air), the equal-air
+ *  clamp, the circle→text gap, and the air the row keeps on each box wall. */
+const TOPO_VALUE_HALF_H = 3.15;
+const TOPO_RHYTHM_SLACK = 13.9;
+const TOPO_RHYTHM_AIR_MIN = 0.5;
+const TOPO_RHYTHM_AIR_MAX = 4.5;
+const TOPO_BADGE_SIZE = 6.6;
+const TOPO_BADGE_TEXT_GAP = 1;
+const TOPO_BADGE_ROW_AIR = 2;
+/** SVG text boxes carry the font's bearings, so the ink box measures up to ~2 chrome units
+ *  wider than the advance the fit targets at these tiny faces; the ink check allows for that
+ *  while still catching an unfitted delta (which overshoots the bound by 4+ units). */
+const TOPO_BADGE_INK_SLOP = 2;
+
+/**
+ * The panel's per-slot badge rhythm (PR-MEMTOP-027): equal air `g` above and below the value,
+ * derived value centre `vc = T + g + 3.15`, a circle `d` that shrinks to the room above one
+ * unit of frame air in a shallow frame, badge centre `bc = vc + (3.15 + g) + d / 2`, and the
+ * delta-text width bound `boxW − d − gap − 2`.
+ */
+function topoBadgeRhythm(node: string) {
+  const { titleBottom, frameBottom, boxWidth } = TOPO_BADGE_METRICS[node]!;
+  const air = Math.min(
+    TOPO_RHYTHM_AIR_MAX,
+    Math.max(TOPO_RHYTHM_AIR_MIN, Math.floor((frameBottom - titleBottom - TOPO_RHYTHM_SLACK) / 2)),
+  );
+  const valueY = titleBottom + air + TOPO_VALUE_HALF_H;
+  const badgeD = Math.min(
+    TOPO_BADGE_SIZE,
+    frameBottom - 1.2 - valueY - (TOPO_VALUE_HALF_H + air),
+  );
+  const badgeY = valueY + (TOPO_VALUE_HALF_H + air) + badgeD / 2;
+  const textBound = boxWidth - badgeD - TOPO_BADGE_TEXT_GAP - TOPO_BADGE_ROW_AIR;
+  return { air, valueY, badgeD, badgeY, textBound, frameBottom, boxWidth };
+}
+
 test('PR-E2E-025: memory topology node percentages paint in-place baseline badges', async ({ page }) => {
   // sample.lite.rep is drawable (all three in-box plates + an L2 peak), so every node
   // percentage has something to diff once a baseline is selected.
@@ -1428,6 +1482,7 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   const checkRows = page.locator('.pr-baseline__item--check');
   for (let i = 0; i < 5; i++) {
     await checkRows.nth(i).click();
+    await expect(checkRows.nth(i).locator('input')).toBeChecked();
   }
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
@@ -1476,52 +1531,101 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   // Close the overlay so the in-place switch sampling below runs on the stack.
   await page.getByTestId('stats-aside-back').click();
   await expect(page.getByTestId('summary-category-list')).toHaveCount(0);
-  // The 1130 mockup geometry: each badge's WHITE circle sits BELOW the value it
-  // annotates, centred on the value's own centre; the arrow is a full shaft+head.
-  const geometry = await topology.evaluate(() => {
-    const badges = [...document.querySelectorAll('[data-testid^="topo-diff-"]')].map((g) => {
-      const rect = g.querySelector('rect')!;
-      const arrow = g.querySelector('path')!;
-      const text = g.querySelector('text')!;
-      const rbb = rect.getBoundingClientRect();
-      const tbb = text.getBoundingClientRect();
-      return {
-        id: g.getAttribute('data-testid') ?? '',
-        groupLeft: Math.min(rbb.left, tbb.left),
-        groupRight: Math.max(rbb.right, tbb.right),
-        top: rbb.top,
-        fill: getComputedStyle(rect).fill,
-        arrowSubpaths: (arrow.getAttribute('d') ?? '').match(/M/g)?.length ?? 0,
-      };
-    });
+  // The rhythm geometry (PR-MEMTOP-027): every badge's WHITE circle hangs BELOW its value on
+  // the slot's equal-air row, the circle+text GROUP is centred on the value's x, the badge's
+  // bottom stays INSIDE the element frame, and the delta text is fitted inside the element
+  // box's width bound. Chrome units are mapped to CSS px through the svg's own screen CTM, so
+  // the checks hold at every painted zoom. White circle / full arrow stay as they were.
+  const geometry = await topology.evaluate((root, metrics) => {
+    const svg = root.querySelector('.pr-topo__svg') as SVGSVGElement;
+    const ctm = svg.getScreenCTM()!;
+    const scale = Math.abs(ctm.d);
+    const toChromeY = (cssY: number): number => (cssY - ctm.f) / scale;
+    const valueTestid = (id: string): string =>
+      id === 'topo-diff-l2-peak' ? 'node-l2-peak' : id.replace(/^topo-diff-/, 'plate-');
     const values = new Map(
       [
-        ...document.querySelectorAll(
+        ...root.querySelectorAll(
           '[data-testid^="plate-"], [data-testid="node-l2-peak"]',
         ),
       ].map((t) => {
         const bb = t.getBoundingClientRect();
         return [
           t.getAttribute('data-testid') ?? '',
-          { x: bb.left + bb.width / 2, bottom: bb.bottom },
-        ] as [string, { x: number; bottom: number }];
+          { x: bb.left + bb.width / 2, top: bb.top, bottom: bb.bottom },
+        ] as [string, { x: number; top: number; bottom: number }];
       }),
     );
-    return { badges, values: [...values] };
-  });
-  const panelBox = await topology.boundingBox();
+    const badges = [...root.querySelectorAll('[data-testid^="topo-diff-"]')].map((g) => {
+      const id = g.getAttribute('data-testid') ?? '';
+      const node =
+        id === 'topo-diff-l2-peak' ? 'l2-peak' : (id.match(/^topo-diff-(.+?)-\d+$/)?.[1] ?? '');
+      const rect = g.querySelector('rect') as SVGRectElement;
+      const arrow = g.querySelector('path') as SVGPathElement;
+      const text = g.querySelector('text') as SVGTextElement;
+      const rbb = rect.getBoundingClientRect();
+      const tbb = text.getBoundingClientRect();
+      const v = values.get(valueTestid(id))!;
+      return {
+        id,
+        node,
+        groupCentre: (Math.min(rbb.left, tbb.left) + Math.max(rbb.right, tbb.right)) / 2,
+        valueX: v.x,
+        valueTop: v.top,
+        valueBottom: v.bottom,
+        badgeTop: rbb.top,
+        badgeBottom: rbb.bottom,
+        // The element frame's chrome-unit bottom, converted to the same CSS px the DOM
+        // measurements are in through the svg's own screen CTM.
+        frameBottomPx: ctm.d * (metrics[node]?.frameBottom ?? 0) + ctm.f,
+        badgeCentreChrome: toChromeY(rbb.top + rbb.height / 2),
+        diameterChrome: rbb.width / scale,
+        // `getComputedTextLength` is already in the SVG's user (chrome) units.
+        textAdvanceChrome: text.getComputedTextLength(),
+        textBboxChrome: tbb.width / scale,
+        fill: getComputedStyle(rect).fill,
+        arrowSubpaths: (arrow.getAttribute('d') ?? '').match(/M/g)?.length ?? 0,
+      };
+    });
+    return { scale, badges };
+  }, TOPO_BADGE_METRICS);
+
+  // sample carries the three in-box plates plus the L2 peak.
+  expect(geometry.badges).toHaveLength(4);
   for (const b of geometry.badges) {
-    const valueKey =
-      b.id === 'topo-diff-l2-peak'
-        ? 'node-l2-peak'
-        : b.id.replace(/^topo-diff-/, 'plate-');
-    const v = geometry.values.find(([k]) => k === valueKey);
-    expect(v, `badge ${b.id} has a matching value`).toBeTruthy();
-    // The circle+text GROUP is centred on the value's centre, and sits below
-    // its bottom edge with air; white circle, full arrow.
-    const groupCentre = (b.groupLeft + b.groupRight) / 2;
-    expect(Math.abs(groupCentre - v![1].x)).toBeLessThan(4);
-    expect(b.top).toBeGreaterThan(v![1].bottom - panelBox!.y + 1);
+    const metric = TOPO_BADGE_METRICS[b.node];
+    expect(metric, `badge ${b.id} has a chrome metric row`).toBeTruthy();
+    const { badgeD, badgeY, textBound } = topoBadgeRhythm(b.node);
+    // The rhythm, computed from the same measured constants: the circle is the design size
+    // (shrunk only when the frame is shallow) and sits on the derived badge centre.
+    expect(b.diameterChrome, `badge ${b.id} circle diameter`).toBeCloseTo(badgeD, 1);
+    expect(b.badgeCentreChrome, `badge ${b.id} derived centre`).toBeCloseTo(badgeY, 1);
+    // (a) The circle+text group is centred on the value's own x. The group is laid out on the
+    //     text's advance while the ink box carries side bearings — allow 1.5 chrome units.
+    expect(
+      Math.abs(b.groupCentre - b.valueX),
+      `badge ${b.id} group is centred on its value`,
+    ).toBeLessThanOrEqual(1.5 * geometry.scale);
+    // (b) The badge sits BELOW the value, and its bottom stays inside the element frame
+    //     (one unit of frame air where the circle has to shrink).
+    expect(b.badgeTop, `badge ${b.id} sits below the value`).toBeGreaterThanOrEqual(
+      b.valueBottom - 0.1,
+    );
+    expect(
+      b.badgeBottom,
+      `badge ${b.id} bottom is inside the frame`,
+    ).toBeLessThanOrEqual(b.frameBottomPx + 0.05);
+    // (c) The delta text is fitted inside the element box's width bound (bbox check); the ink
+    //     allowance covers the side bearings the advance does not include.
+    expect(
+      b.textAdvanceChrome,
+      `badge ${b.id} advance fits the box bound`,
+    ).toBeLessThanOrEqual(textBound + 0.25);
+    expect(
+      b.textBboxChrome,
+      `badge ${b.id} ink fits the box bound`,
+    ).toBeLessThanOrEqual(textBound + TOPO_BADGE_INK_SLOP);
+    // Chrome unchanged: white circle, full two-subpath arrow.
     expect(b.fill).toBe('rgb(255, 255, 255)');
     expect(b.arrowSubpaths).toBe(2);
   }

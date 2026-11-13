@@ -2,23 +2,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryTopologyPanel, {
+  BADGE_MAX_W,
   DEFAULT_MAX_W,
   DIFF_BADGE_SIZE,
   DIFF_BADGE_TEXT_GAP,
   L2_PEAK_SLOT,
   PLATE_MAX_W,
+  PLATE_METRICS,
   PLATE_SLOTS,
   SLOT_MAX_W,
   SLOTS,
   ZOOM_STEPS,
   ZOOM_WHEEL_TWEEN_MIN_DELTA,
   continuousZoomFromDelta,
-  diffBadgeY,
-  PLATE_TEXT_LIFT,
   diffBadgeCircleX,
   DIFF_BADGE_TEXT_FALLBACK_W,
   fitFontSize,
   nextZoom,
+  slotRhythm,
 } from './MemoryTopologyPanel.vue';
 import { TOPOLOGY_PLATE_NODE_IDS, hasDrawableTopology } from '../../../adapters/memoryTopology';
 import type { TopologyPlateNodeId, TopologySlotEdgeId } from '../../../adapters/memoryTopology';
@@ -356,7 +357,11 @@ describe('MemoryTopologyPanel', () => {
       .filter((el) => el.text() === '0.00 GB/s' && Number(el.attributes('x')) > 360);
     expect(cubeGb).toHaveLength(1);
     expect(wrapper.get('[data-testid="plate-cube-0"]').text()).toBe('0.00%');
-    expect(Number(wrapper.get('[data-testid="plate-cube-0"]').attributes('y'))).toBeCloseTo(95.3, 5);
+    // The painted y is the rhythm-derived value centre (PR-MEMTOP-027), not the sample slot y.
+    expect(Number(wrapper.get('[data-testid="plate-cube-0"]').attributes('y'))).toBeCloseTo(
+      slotRhythm('cube').valueY,
+      5,
+    );
   });
 
   it('PR-MEMTOP-016: unit badges sit on stripped util centres, clear of the unit word', () => {
@@ -400,14 +405,21 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    // PLATE_TEXT_LIFT: aiv_scalar and vec sit 5 units above their design
-    // slots so their comparison badges stay inside the element frames.
-    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(321.0 - PLATE_TEXT_LIFT.aiv_scalar!, 5);
-    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(367.8 - PLATE_TEXT_LIFT.vec!, 5);
-    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(218.3, 5);
+    // The vertical centre is DERIVED by the slot's equal-air rhythm (PR-MEMTOP-027):
+    // vc = T + g + 3.15 — aiv_scalar 312.1 + 1 + 3.15, vec 362.1 + 0.5 + 3.15,
+    // L2 peak 207.6 + 4.5 + 3.15. The old static lift map is gone.
+    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(316.25, 5);
+    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(365.75, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(215.25, 5);
     expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('x'))).toBeCloseTo(114.1, 5);
-    // L2 peak vs L2 word (114.2, 204.5) — must clear half-cap (~3.15); sample band is ~13.8u under.
-    expect(Math.hypot(114.1 - 114.2, 218.3 - 204.5)).toBeGreaterThanOrEqual(12);
+    // L2 peak vs L2 word (114.2, 204.5) — the derived centre must still clear the word's
+    // half-cap (~3.15); the rhythm puts it 10.75u under the word's centre.
+    expect(
+      Math.hypot(
+        114.1 - 114.2,
+        Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y')) - 204.5,
+      ),
+    ).toBeGreaterThanOrEqual(6);
   });
 
   it('PR-MEMTOP-002b: every drawn value has a unique testid', () => {
@@ -825,48 +837,158 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     expect(noBaselinePeak.find('[data-testid="topo-diff-vec-0"]').exists()).toBe(true);
   });
 
+  it('PR-MEMTOP-027: derives vc, d and bc per slot from the measured chrome', () => {
+    // Measured off memory-topology.svg (chrome units) — the rhythm must not re-measure them.
+    const MEASURED = {
+      aiv_scalar: { titleBottom: 312.1, frameBottom: 329, boxWidth: 26.5 },
+      vec: { titleBottom: 362.1, frameBottom: 376, boxWidth: 22 },
+      cube: { titleBottom: 87.6, frameBottom: 123, boxWidth: 28.5 },
+      'l2-peak': { titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
+    } as const;
+    expect(PLATE_METRICS).toEqual(MEASURED);
+
+    // Worked values from the measured constants: equal air g both sides, vc = T + g + 3.15,
+    // d = min(6.6, F - 1 - vc - (3.15 + g)), bc = vc + (3.15 + g) + d / 2.
+    const EXPECTED = {
+      aiv_scalar: { air: 1, valueY: 316.25, badgeD: 6.6, badgeY: 323.7 },
+      vec: { air: 0.5, valueY: 365.75, badgeD: 5.4, badgeY: 372.1 },
+      cube: { air: 4.5, valueY: 95.25, badgeD: 6.6, badgeY: 106.2 },
+      'l2-peak': { air: 4.5, valueY: 215.25, badgeD: 6.6, badgeY: 226.2 },
+    } as const;
+
+    for (const slot of Object.keys(MEASURED) as (keyof typeof MEASURED)[]) {
+      const m = MEASURED[slot];
+      const g = Math.min(
+        4.5,
+        Math.max(0.5, Math.floor((m.frameBottom - m.titleBottom - 13.9) / 2)),
+      );
+      const vc = m.titleBottom + g + 3.15;
+      const d = Math.min(DIFF_BADGE_SIZE, m.frameBottom - 1.2 - vc - (3.15 + g));
+      const bc = vc + (3.15 + g) + d / 2;
+      const rhythm = slotRhythm(slot);
+      expect(rhythm.air, slot).toBe(g);
+      expect(rhythm.valueY, slot).toBeCloseTo(vc, 6);
+      expect(rhythm.badgeD, slot).toBeCloseTo(d, 6);
+      expect(rhythm.badgeY, slot).toBeCloseTo(bc, 6);
+      // Equal air above (title -> value) and below (value -> badge) the value.
+      expect(rhythm.valueY - 3.15 - m.titleBottom, `${slot} title->value`).toBeCloseTo(g, 6);
+      expect(
+        rhythm.badgeY - rhythm.badgeD / 2 - (rhythm.valueY + 3.15),
+        `${slot} value->badge`,
+      ).toBeCloseTo(g, 6);
+      // The circle never crosses the frame and never grows past the design size.
+      expect(rhythm.badgeY + rhythm.badgeD / 2, `${slot} bottom`).toBeLessThanOrEqual(
+        m.frameBottom - 1 + 1e-9,
+      );
+      expect(rhythm.badgeD).toBeLessThanOrEqual(DIFF_BADGE_SIZE);
+      // Worked values with the measured constants (only the shallow vec frame shrinks).
+      expect(rhythm.air).toBe(EXPECTED[slot].air);
+      expect(rhythm.valueY).toBeCloseTo(EXPECTED[slot].valueY, 6);
+      expect(rhythm.badgeD).toBeCloseTo(EXPECTED[slot].badgeD, 6);
+      expect(rhythm.badgeY).toBeCloseTo(EXPECTED[slot].badgeY, 6);
+    }
+
+    // The rendered DOM follows the same rhythm: value centre, circle diameter and circle centre.
+    const withCubeDiff = {
+      ...baseline,
+      plates: (baseline.plates ?? []).map((p) =>
+        p.node === 'cube' ? { ...p, label: '1.00%', value: 1 } : p,
+      ),
+    };
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model: current, baseline: withCubeDiff },
+    });
+    const cases = [
+      ['aiv_scalar', 'plate-aiv_scalar-0', 'topo-diff-aiv_scalar-0'],
+      ['vec', 'plate-vec-0', 'topo-diff-vec-0'],
+      ['cube', 'plate-cube-0', 'topo-diff-cube-0'],
+      ['l2-peak', 'node-l2-peak', 'topo-diff-l2-peak'],
+    ] as const;
+    for (const [slot, valueTestid, badgeTestid] of cases) {
+      const rhythm = slotRhythm(slot);
+      expect(
+        Number(wrapper.get(`[data-testid="${valueTestid}"]`).attributes('y')),
+        `${slot} value`,
+      ).toBeCloseTo(rhythm.valueY, 6);
+      const rect = wrapper.get(`[data-testid="${badgeTestid}"] rect`);
+      expect(Number(rect.attributes('width')), `${slot} d`).toBeCloseTo(rhythm.badgeD, 6);
+      expect(Number(rect.attributes('height')), `${slot} d`).toBeCloseTo(rhythm.badgeD, 6);
+      const circleY = Number(rect.attributes('y')) + rhythm.badgeD / 2;
+      expect(circleY, `${slot} bc`).toBeCloseTo(rhythm.badgeY, 6);
+      expect(circleY + rhythm.badgeD / 2, `${slot} bottom`).toBeLessThanOrEqual(
+        MEASURED[slot].frameBottom - 1 + 1e-9,
+      );
+      expect(
+        rhythm.badgeY - rhythm.badgeD / 2 - (rhythm.valueY + 3.15),
+        `${slot} air`,
+      ).toBeCloseTo(rhythm.air, 6);
+    }
+  });
+
   it('PR-MEMTOP-027: anchors the badge BELOW the value with the mockup chrome', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model: current, baseline } });
     const vec = wrapper.get('[data-testid="plate-vec-0"]');
     const vecX = Number(vec.attributes('x'));
     const vecY = Number(vec.attributes('y'));
+    const vecRhythm = slotRhythm('vec');
+    // The value's centre is the rhythm's derived `vc`, not the sample slot y.
+    expect(vecY).toBeCloseTo(vecRhythm.valueY, 6);
 
     const badge = wrapper.get('[data-testid="topo-diff-vec-0"]');
     const rect = badge.get('rect.pr-topo__diff-box');
     // The white circle is part of a circle+text GROUP centred on the value's
     // centre and sitting BELOW it (jsdom has no text metrics → the fallback
-    // text width drives the circle offset).
+    // text width drives the circle offset). The vec frame is shallow, so its
+    // circle is the shrunk per-slot diameter (PR-MEMTOP-027).
     const circleCx = diffBadgeCircleX(vecX, DIFF_BADGE_TEXT_FALLBACK_W);
     expect(circleCx).toBeLessThan(vecX);
-    expect(Number(rect.attributes('x'))).toBeCloseTo(circleCx - DIFF_BADGE_SIZE / 2, 6);
-    expect(Number(rect.attributes('width'))).toBeCloseTo(DIFF_BADGE_SIZE, 6);
-    expect(Number(rect.attributes('height'))).toBeCloseTo(DIFF_BADGE_SIZE, 6);
+    expect(vecRhythm.badgeD).toBeLessThan(DIFF_BADGE_SIZE);
+    expect(Number(rect.attributes('x'))).toBeCloseTo(circleCx - vecRhythm.badgeD / 2, 6);
+    expect(Number(rect.attributes('width'))).toBeCloseTo(vecRhythm.badgeD, 6);
+    expect(Number(rect.attributes('height'))).toBeCloseTo(vecRhythm.badgeD, 6);
     expect(Number(rect.attributes('y'))).toBeCloseTo(
-      diffBadgeY(vecY) - DIFF_BADGE_SIZE / 2,
+      vecRhythm.badgeY - vecRhythm.badgeD / 2,
       6,
     );
-    expect(diffBadgeY(vecY) - DIFF_BADGE_SIZE / 2).toBeGreaterThan(
-      Number(vec.attributes('y')),
+    expect(vecRhythm.badgeY - vecRhythm.badgeD / 2).toBeGreaterThan(vecY);
+    // The whole row stays inside the element frame with air to spare.
+    expect(vecRhythm.badgeY + vecRhythm.badgeD / 2).toBeLessThanOrEqual(
+      PLATE_METRICS.vec.frameBottom - 1 + 1e-9,
     );
     // Delta text sits right of the circle, vertically centred on it.
     const delta = badge.get('text.pr-topo__diff-text');
     expect(Number(delta.attributes('x'))).toBeCloseTo(
-      circleCx + DIFF_BADGE_SIZE / 2 + DIFF_BADGE_TEXT_GAP,
+      circleCx + vecRhythm.badgeD / 2 + DIFF_BADGE_TEXT_GAP,
       6,
     );
-    // The arrow is FULL: a shaft subpath plus a two-stroke head subpath.
+    // The arrow is FULL (a shaft subpath plus a two-stroke head subpath) and scales with
+    // the circle: shaft half-length 0.23d, head half-width 0.2d.
     const arrowD = badge.get('path.pr-topo__diff-arrow').attributes('d')!;
     expect(arrowD.match(/M/g)).toHaveLength(2);
     expect(arrowD).toMatch(/L[\d.]+ [\d.]+ L[\d.]+ [\d.]+$/);
+    const arrowNums = [...arrowD.matchAll(/-?\d+(?:\.\d+)?/g)].map((m) => Number(m[0]));
+    expect(Math.abs(arrowNums[1]! - vecRhythm.badgeY)).toBeCloseTo(
+      0.23 * vecRhythm.badgeD,
+      6,
+    );
+    expect(Math.abs(arrowNums[0]! - arrowNums[4]!)).toBeCloseTo(
+      0.2 * vecRhythm.badgeD,
+      6,
+    );
 
     // The L2 peak badge shares the plate's slot constant, so the two cannot drift.
+    const peakRhythm = slotRhythm('l2-peak');
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(
+      peakRhythm.valueY,
+      6,
+    );
     const peakBadge = wrapper.get('[data-testid="topo-diff-l2-peak"]');
     expect(Number(peakBadge.get('rect').attributes('x'))).toBeCloseTo(
-      diffBadgeCircleX(L2_PEAK_SLOT[0], DIFF_BADGE_TEXT_FALLBACK_W) - DIFF_BADGE_SIZE / 2,
+      diffBadgeCircleX(L2_PEAK_SLOT[0], DIFF_BADGE_TEXT_FALLBACK_W) - peakRhythm.badgeD / 2,
       6,
     );
     expect(Number(peakBadge.get('rect').attributes('y'))).toBeCloseTo(
-      diffBadgeY(L2_PEAK_SLOT[1]) - DIFF_BADGE_SIZE / 2,
+      peakRhythm.badgeY - peakRhythm.badgeD / 2,
       6,
     );
 
@@ -1632,6 +1754,9 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     '12.34 GB/s': 37.33,
     '1.56 GB/s': 32.75,
     '100.00%': 31.11,
+    // 对比基线 delta text: wide enough to outgrow the Vec badge bound, and one that fits.
+    '88.88%': 30,
+    '7.9%': 10,
   };
 
   /** jsdom has no SVG text metrics; stand in for the browser's `getComputedTextLength`. */
@@ -1788,6 +1913,80 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       expect(plate.text()).toBe('100.00%');
       const px = /font-size:\s*([\d.]+)px/.exec(plate.attributes('style') ?? '')?.[1];
       expect(Number(px)).toBeCloseTo((PLATE_MAX_W['vec']! / 31.11) * 6.3, 4);
+    } finally {
+      restore();
+    }
+  });
+
+  it('PR-MEMTOP-027: shrinks a delta wider than its BADGE_MAX_W bound', async () => {
+    const restore = stubMetrics();
+    try {
+      // The bound is the element's box less the circle, the text gap and one unit per wall.
+      for (const slot of ['aiv_scalar', 'vec', 'cube', 'l2-peak'] as const) {
+        expect(BADGE_MAX_W[slot], slot).toBeCloseTo(
+          PLATE_METRICS[slot].boxWidth -
+            slotRhythm(slot).badgeD -
+            DIFF_BADGE_TEXT_GAP -
+            2,
+          6,
+        );
+      }
+      // Vec's SIMD box is the narrow one, so its bound is the tightest of the four.
+      expect(BADGE_MAX_W.vec).toBeLessThan(BADGE_MAX_W.aiv_scalar);
+      expect(BADGE_MAX_W.vec).toBeLessThan(BADGE_MAX_W.cube);
+
+      const wrapper = mount(MemoryTopologyPanel, {
+        props: {
+          model: {
+            ...model,
+            nodes: [
+              ...model.nodes,
+              { id: 'vec', label: 'Vec' },
+              { id: 'aiv_scalar', label: 'Scalar' },
+            ],
+            plates: [
+              { node: 'aiv_scalar', label: '57.90%', value: 57.9 },
+              { node: 'vec', label: '0.00%', value: 0 },
+            ],
+          },
+          baseline: {
+            ...model,
+            nodes: [
+              ...model.nodes,
+              { id: 'vec', label: 'Vec' },
+              { id: 'aiv_scalar', label: 'Scalar' },
+            ],
+            plates: [
+              { node: 'aiv_scalar', label: '50.00%', value: 50 },
+              { node: 'vec', label: '88.88%', value: 88.88 },
+            ],
+          },
+        },
+      });
+      await nextTick();
+      // `88.88%` measures 30 units — wider than Vec's bound — so the delta shrinks to the bound;
+      // a delta that fits (Scalar's `7.9%`, 10 units) keeps the value's own size.
+      expect(BADGE_MAX_W.vec).toBeLessThan(30);
+      const wide = wrapper.get('[data-testid="topo-diff-vec-0"] text.pr-topo__diff-text');
+      expect(wide.text()).toBe('88.88%');
+      const px = Number(/font-size:\s*([\d.]+)px/.exec(wide.attributes('style') ?? '')?.[1]);
+      expect(px).toBeCloseTo((BADGE_MAX_W.vec! / 30) * 6.3, 4);
+      expect(px).toBeLessThan(6.3);
+
+      const fits = wrapper.get(
+        '[data-testid="topo-diff-aiv_scalar-0"] text.pr-topo__diff-text',
+      );
+      expect(fits.text()).toBe('7.9%');
+      expect(fits.attributes('style') ?? '').not.toContain('font-size');
+
+      // The fitted size is per badge (keyed by its testid), while the group centring reads
+      // the PAINTED run: the natural width scaled by the fitted/base ratio — for vec's
+      // `88.88%` (natural 30) that is exactly `BADGE_MAX_W.vec`, the bound it shrinks to.
+      const plateVec = wrapper.get('[data-testid="plate-vec-0"]');
+      const circleCx = diffBadgeCircleX(Number(plateVec.attributes('x')), BADGE_MAX_W.vec!);
+      expect(
+        Number(wrapper.get('[data-testid="topo-diff-vec-0"] rect').attributes('x')),
+      ).toBeCloseTo(circleCx - slotRhythm('vec').badgeD / 2, 6);
     } finally {
       restore();
     }
