@@ -179,6 +179,89 @@ describe('createBaselinesHost', () => {
     expect(host.baselineReport.value?.report).not.toBe(first);
   });
 
+  it('DEMO-DIFF RULE: every demo baseline diffs every memory element vs sample.rep with both tones', () => {
+    // The open report's real shape (sample.lite.rep): three plates + the L2
+    // peak + the memory summary categories the 详情 lists.
+    const sampleShape = {
+      memoryTopology: {
+        nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 0.603448125 }],
+        edges: [],
+        plates: [
+          { node: 'aiv_scalar', label: '33.24%', value: 33.24 },
+          { node: 'vec', label: '6.72%', value: 6.72 },
+          { node: 'cube', label: '51.40%', value: 51.4 },
+        ],
+      },
+      summaryCategories: [
+        {
+          id: 'Memory',
+          title: 'Memory',
+          fields: [
+            { key: 'aic_main_mem_read_bw(GB/s)', value: '560' },
+            { key: 'aiv_mte2_ratio', value: '0.3812395' },
+          ],
+        },
+        {
+          id: 'MemoryL0',
+          title: 'MemoryL0',
+          fields: [
+            { key: 'aiv_time(us)', value: '0.97962125' },
+          ],
+        },
+        {
+          id: 'L2Cache',
+          title: 'L2Cache',
+          fields: [
+            { key: 'aiv_total_hit_rate(%)', value: '0.603448125' },
+          ],
+        },
+      ],
+    };
+    const fieldOf = (model: any, catId: string, key: string): number | undefined => {
+      const f = model.summaryCategories
+        ?.find((c: { id: string }) => c.id === catId)
+        ?.fields?.find((x: { key: string }) => x.key === key);
+      return f == null ? undefined : Number(f.value);
+    };
+    const tones = new Set<string>();
+    for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+      const pack = withDemoOperatorPack(
+        { reportModel: { ...emptyReportViewModel() }, swimlaneModel: null },
+        id,
+      );
+      const bl = pack.operatorReports!['matmul']!.reportModel as any;
+      // Every topology element diffs, non-zero, on the right side of the values.
+      for (const plate of sampleShape.memoryTopology.plates) {
+        const cur = plate.value;
+        const base = bl.memoryTopology?.plates?.find((p: any) => p.node === plate.node)?.value;
+        expect(base, `${id}: ${plate.node} seeded`).toBeTypeOf('number');
+        const diff = base! - cur;
+        expect(diff, `${id}: ${plate.node} non-zero delta`).not.toBe(0);
+        tones.add(diff > 0 ? 'decrease' : 'increase');
+      }
+      const l2Cur = sampleShape.memoryTopology.nodes[0].peakPct!;
+      const l2Base = bl.memoryTopology?.nodes?.find((n: any) => n.id === 'l2')?.peakPct;
+      expect(l2Base, `${id}: l2 peak seeded`).toBeTypeOf('number');
+      expect(l2Base! - l2Cur, `${id}: l2 peak non-zero delta`).not.toBe(0);
+      tones.add(l2Base! > l2Cur ? 'decrease' : 'increase');
+      // Memory 详情 fields diff too.
+      for (const [catId, key] of [
+        ['Memory', 'aic_main_mem_read_bw(GB/s)'],
+        ['Memory', 'aiv_mte2_ratio'],
+        ['MemoryL0', 'aiv_time(us)'],
+        ['L2Cache', 'aiv_total_hit_rate(%)'],
+      ] as const) {
+        const cur = fieldOf(sampleShape, catId, key)!;
+        const base = fieldOf(bl, catId, key);
+        expect(base, `${id}: ${catId}.${key} seeded`).toBeTypeOf('number');
+        expect(base! - cur, `${id}: ${catId}.${key} non-zero delta`).not.toBe(0);
+        tones.add(base! > cur ? 'decrease' : 'increase');
+      }
+    }
+    // Both tones appear at once for every baseline.
+    expect([...tones].sort()).toEqual(['decrease', 'increase']);
+  });
+
   it('synthesizes eight operators with distinct metrics on every card family', () => {
     const pack = withDemoOperatorPack({
       reportModel: emptyReportViewModel(),

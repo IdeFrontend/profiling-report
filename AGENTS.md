@@ -83,3 +83,7 @@ Do **not** load these into every turn. Use only when the user asks or the trigge
 | **npu-rep-html** | HTML / offline report from `.npu-rep`, `npu-rep-html`, share/CI HTML artifact | [`.agents/skills/npu-rep-html/SKILL.md`](.agents/skills/npu-rep-html/SKILL.md); downloads the latest GitCode release of `npu-rep-html.mjs` when that tag is not cached (Linux, macOS, and Windows). First-party — not in `skills-lock.json`. |
 
 Read the matching `SKILL.md` only for that turn/session.
+
+## Demo data — every element must visibly differ
+
+When a comparison surface is demo-visible, EVERY element that can carry a comparison (summary card, PIPE bar, topology node percentage, details field) must show a non-zero difference against the open demo report for EVERY demo baseline, with both tones (increase/decrease) present at once, and values must vary baseline-to-baseline and operator-to-operator. A zero/equal value anywhere is a defect. Verify by looping every demo baseline in tests (unit + e2e), not by checking one; seeded ranges must sit strictly on one side of every fixture's own values so no baseline can land on a zero delta.

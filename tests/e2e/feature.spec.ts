@@ -1422,11 +1422,13 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   // No baseline: zero badge nodes — the un-compared DOM is exactly the old diagram.
   await expect(badges).toHaveCount(0);
 
-  // Check two demo baselines and select the first in the aside.
+  // Check ALL five demo baselines (DEMO-DIFF RULE: every baseline must show
+  // every badgeable element with both tones at once).
   await page.getByTestId('toggle-baselines').click();
   const checkRows = page.locator('.pr-baseline__item--check');
-  await checkRows.nth(0).click();
-  await checkRows.nth(1).click();
+  for (let i = 0; i < 5; i++) {
+    await checkRows.nth(i).click();
+  }
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute(
@@ -1436,24 +1438,44 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
 
   // Node badges appear: one per comparable node percentage, never on an edge (GB/s) value.
   await expect(badges.first()).toBeVisible({ timeout: 15_000 });
-  const badgeIds = await badges.evaluateAll((els) =>
-    els.map((el) => el.getAttribute('data-testid') ?? ''),
-  );
-  // sample carries three in-box plates + the L2 peak — all four must badge.
-  expect(badgeIds.length).toBe(4);
-  for (const id of badgeIds) {
-    expect(id).toMatch(/^topo-diff-(aiv_scalar|vec|cube)-\d+$|^topo-diff-l2-peak$/);
+  const allTones = new Set<string>();
+  const textsPerBaseline = new Set<string>();
+  for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+    await page.getByTestId('aside-baseline-select').getByRole('button').click();
+    await page.getByTestId(`aside-baseline-option-${id}`).click();
+    await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', id);
+    await expect(badges.first()).toBeVisible({ timeout: 15_000 });
+    const badgeIds = await badges.evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-testid') ?? ''),
+    );
+    // sample carries three in-box plates + the L2 peak — all four must badge.
+    expect(badgeIds.length).toBe(4);
+    for (const bid of badgeIds) {
+      expect(bid).toMatch(/^topo-diff-(aiv_scalar|vec|cube)-\d+$|^topo-diff-l2-peak$/);
+    }
+    for (const badge of await badges.all()) {
+      const cls = (await badge.getAttribute('class')) ?? '';
+      if (cls.includes('pr-topo__diff--increase')) allTones.add('increase');
+      if (cls.includes('pr-topo__diff--decrease')) allTones.add('decrease');
+      const text = (await badge.locator('.pr-topo__diff-text').textContent()) ?? '';
+      expect(text).toMatch(/^\d+(\.\d+)?%$/);
+      expect(text).not.toBe('0%');
+    }
+    textsPerBaseline.add((await badges.locator('.pr-topo__diff-text').allTextContents()).join(','));
   }
-  // Tone classes: every badge is an increase or a decrease, and its text is an unsigned
-  // percentage-point magnitude — never a zero.
-  for (const badge of await badges.all()) {
-    const cls = (await badge.getAttribute('class')) ?? '';
-    expect(cls).toMatch(/pr-topo__diff--(increase|decrease)/);
-    const text = (await badge.locator('.pr-topo__diff-text').textContent()) ?? '';
-    expect(text).toMatch(/^\d+(\.\d+)?%$/);
-    expect(text).not.toBe('0%');
-  }
-  // Placed to the RIGHT of the value: the badge's circle starts past the plate's centre.
+  // Every baseline shows both tones at once, and values vary baseline-to-baseline.
+  expect([...allTones].sort()).toEqual(['decrease', 'increase']);
+  expect(textsPerBaseline.size).toBeGreaterThan(1);
+
+  // The memory 详情 lists paint the same delta badges (PR-STATS-056).
+  await page.getByTestId('topology-details').click();
+  await expect(page.getByTestId('summary-category-list')).toBeVisible();
+  await expect(page.locator('[data-testid^="summary-field-diff-"]').first()).toBeVisible({ timeout: 15_000 });
+  const detailsBadgeCount = await page.locator('[data-testid^="summary-field-diff-"]').count();
+  expect(detailsBadgeCount).toBeGreaterThanOrEqual(4);
+  // Close the overlay so the in-place switch sampling below runs on the stack.
+  await page.getByTestId('stats-aside-back').click();
+  await expect(page.getByTestId('summary-category-list')).toHaveCount(0);
   // The 1130 mockup geometry: each badge's WHITE circle sits BELOW the value it
   // annotates, centred on the value's own centre; the arrow is a full shaft+head.
   const geometry = await topology.evaluate(() => {
@@ -1569,7 +1591,11 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   }
 
   // Unchecking the selected report clears the selection and the badges go with it.
-  await checkRows.nth(1).click();
+  // (The details click above closed the picker popover — reopen it.)
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.locator('.pr-baseline__item--check')).toHaveCount(5);
+  // The in-place sampling above left demo-recent-2 selected — uncheck it.
+  await page.locator('.pr-baseline__item--check').nth(1).click();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '');
   await expect.poll(async () => badges.count()).toBe(0);
 });

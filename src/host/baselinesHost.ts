@@ -96,12 +96,20 @@ function ensureDemoTopology(model: AdaptedReport['reportModel'], seed: number): 
     label: `${value.toFixed(2)}%`,
     value,
   });
+  // DEMO-DIFF RULE (AGENTS.md): every badgeable element must show a non-zero
+  // difference against the open report (sample.rep: aiv_scalar 33.24, vec
+  // 6.72, cube 51.40, l2 peak 0.60) for EVERY demo baseline, with both tones
+  // visible at once. The ranges sit strictly on one side of every fixture's
+  // own values (and never contain them), so no baseline can land on a zero
+  // delta; the seed still varies each value baseline-to-baseline.
   topology.plates = [
-    plate('aiv_scalar', 28 + (mixed % 31)),
-    plate('vec', 18 + ((mixed >>> 5) % 27)),
-    plate('cube', 40 + ((mixed >>> 10) % 31)),
+    // Ranges also keep every operator scale (up to 1.6) below the 100 clamp,
+    // so all eight operators stay pairwise distinct (the host spec asserts it).
+    plate('aiv_scalar', 45 + (mixed % 17)), // always ABOVE current -> red up
+    plate('vec', 1 + (mixed % 4)), // always BELOW current -> green down
+    plate('cube', 8 + ((mixed >>> 10) % 10)), // always BELOW current -> green down
   ];
-  const peakPct = 6 + ((mixed >>> 15) % 30);
+  const peakPct = 55 + ((mixed >>> 15) % 8); // always ABOVE current -> red up
   const l2 = topology.nodes.find((n) => n.id === 'l2');
   if (l2) l2.peakPct = peakPct;
   else topology.nodes.push({ id: 'l2', label: 'L2 Cache', peakPct });
@@ -115,6 +123,9 @@ function ensureDemoTopology(model: AdaptedReport['reportModel'], seed: number): 
  * baseline's id — so flipping baselines visibly changes the demo values.
  */
 function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): void {
+  // Same seed mixing as ensureDemoTopology: consecutive demo ids must not
+  // collapse onto equal values in any bit slice.
+  const mixed = Math.imul(seed, 0x9e3779b1) >>> 0;
   if (!model.summary) model.summary = {};
   const s = model.summary;
   // Unconditional: the pack is synthetic demo data, so the measured metrics
@@ -180,6 +191,33 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
       absoluteValue: 0.3 + ((i + seed) % 7) * 0.08,
     }));
   }
+  // DEMO-DIFF RULE: the memory 详情 fields mirror sample.rep's Memory /
+  // MemoryL0 / MemoryUB / L2Cache keys and sit strictly on one side of
+  // sample's own values (never equal), with per-baseline variation and
+  // mixed tones (some above -> green, some below -> red).
+  const memoryCats: Record<string, [string, number][]> = {
+    Memory: [
+      ['aic_main_mem_read_bw(GB/s)', 700 + (mixed % 10) * 10],
+      ['aic_main_mem_write_bw(GB/s)', 600 + ((mixed >>> 4) % 10) * 10],
+      ['aiv_mte2_ratio', 0.15 + ((mixed >>> 8) % 5) * 0.02],
+      ['aiv_mte3_ratio', 0.35 + ((mixed >>> 12) % 5) * 0.03],
+      ['GM_to_UB_bw_usage_rate(%)', 60 + (mixed % 20)],
+      ['UB_to_GM_bw_usage_rate(%)', 1 + ((mixed >>> 5) % 3)],
+    ],
+    MemoryL0: [
+      ['aiv_time(us)', 12 + (mixed % 10)],
+      ['aiv_total_cycles', 8000 + (mixed % 500)],
+    ],
+    MemoryUB: [
+      ['aiv_time(us)', 12 + (mixed % 10)],
+      ['aiv_total_cycles', 8000 + (mixed % 500)],
+      ['aiv_ub_read_bw_vector(GB/s)', 90 + (mixed % 30)],
+    ],
+    L2Cache: [
+      ['aiv_total_hit_rate(%)', 85 + (mixed % 10)],
+      ['aiv_read_hit_rate(%)', 90 + (mixed % 5)],
+    ],
+  };
   if (!model.summaryCategories?.length) {
     // Demo details set mirroring the typical op categories so the 详情 overlay
     // pairs field-by-field with the open report's fields.
@@ -202,26 +240,23 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
     };
     // The memory 详情 field keys mirror the sample report's Memory /
     // MemoryL0 / MemoryUB categories so the delta badges pair field-by-field.
-    const memoryCats: Record<string, [string, number][]> = {
-      Memory: [
-        ['aic_main_mem_read_bw(GB/s)', 300], ['aic_main_mem_write_bw(GB/s)', 260],
-        ['aiv_mte2_ratio', 0.38], ['aiv_mte3_ratio', 0.16],
-        ['GM_to_UB_bw_usage_rate(%)', 40], ['UB_to_GM_bw_usage_rate(%)', 30],
-      ],
-      MemoryL0: [['aiv_time(us)', 40], ['aiv_total_cycles', 60000]],
-      MemoryUB: [
-        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000],
-        ['aiv_ub_read_bw_vector(GB/s)', 30],
-      ],
-    };
-    cats['Memory'] = memoryCats['Memory'];
-    cats['MemoryL0'] = memoryCats['MemoryL0'];
-    cats['MemoryUB'] = memoryCats['MemoryUB'];
+    for (const id of ['Memory', 'MemoryL0', 'MemoryUB', 'L2Cache'] as const) {
+      if (!cats[id]) cats[id] = memoryCats[id];
+    }
     model.summaryCategories = Object.entries(cats).map(([id, fields]) => ({
       id,
       title: id,
       fields: fields.map(([key, value]) => ({ key, value: String(value) })),
     }));
+  } else {
+    // The fixture already carries categories: append the missing memory ids
+    // so the memory 详情 comparison badges exist for EVERY demo baseline.
+    const existing = new Set(model.summaryCategories.map((c) => c.id));
+    for (const id of ['Memory', 'MemoryL0', 'MemoryUB', 'L2Cache'] as const) {
+      if (existing.has(id)) continue;
+      const fields = memoryCats[id].map(([key, value]) => ({ key, value: String(value) }));
+      model.summaryCategories.push({ id, title: id, fields });
+    }
   }
   model.bandwidthCards = [
     { id: 'input', sides: [{ side: 'aic', measuredGBs: 300 + (seed % 10) * 40, peakGBs: 800 }] },
