@@ -108,6 +108,7 @@ import {
   type GutterMetric,
 } from '../../domain/gutterMetrics';
 import { resolveEnvironmentBehavior } from '../environments';
+import { requestSourceFile } from '../vscodeSourceFile';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import {
   DEFAULT_HTML_EXPORT_TEMPLATE_URL,
@@ -431,6 +432,12 @@ watch(archMetricMode, (mode) => {
 
 /** Environment-routed behavior for host-dependent actions (extensible map in `environments.ts`). */
 const environmentBehavior = computed(() => resolveEnvironmentBehavior(props.environment));
+/** Effective source resolver: explicit host hook first, else the VS Code webview bridge. */
+const hostResolveSourceFile = computed<ResolveSourceFile | undefined>(
+  () =>
+    props.resolveSourceFile ??
+    (props.environment === 'vscode' ? requestSourceFile : undefined),
+);
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
@@ -1036,8 +1043,9 @@ async function fillMissingSourceFiles(
   resolveGen: number,
 ) {
   const sc = reportModel?.sourceCorrelation;
-  if (!sc || sc.mock || !props.resolveSourceFile) return;
-  const next = await resolveMissingSourceFiles(sc, props.resolveSourceFile);
+  const resolve = hostResolveSourceFile.value;
+  if (!sc || sc.mock || !resolve) return;
+  const next = await resolveMissingSourceFiles(sc, resolve);
   if (resolveGen !== sourceResolveGen) return;
   if (next === sc) return;
   resolvedSourceCorrelation.value = next;
@@ -1135,7 +1143,7 @@ watch(
 // arrow each parent render would cancel in-flight fills and re-hit the host
 // for every still-placeholder file on the base model.
 watch(
-  () => !!props.resolveSourceFile,
+  () => !!hostResolveSourceFile.value,
   (present, wasPresent) => {
     if (!present || wasPresent) return;
     const rm = props.source ? internalReport.value : props.reportModel;
@@ -2013,6 +2021,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
           :model="report.sourceCorrelation"
+          :resolve-source-file="hostResolveSourceFile"
           :session="sourceSession"
           :focus="sourceFocus"
           :locale="locale"

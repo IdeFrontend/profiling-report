@@ -2812,4 +2812,68 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.emitted('open-cannwork')).toHaveLength(2);
     wrapper.unmount();
   });
+  it('PR-ROOT-034: vscode environment fills missing source through the webview bridge', async () => {
+    const base = mockSourceCorrelation();
+    const missingPath = '/home/build/gather_2d.asc';
+    const withMissing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          id: 'gather_2d.asc',
+          path: missingPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${missingPath}\n`,
+        },
+      ],
+    };
+    const host = window as Window & {
+      acquireVsCodeApi?: () => { postMessage: (message: unknown) => void };
+    };
+    const postMessage = vi.fn((message: unknown) => {
+      const sent = message as { type: string; requestId: string };
+      if (sent.type !== 'profiling-report/source-file-request') return;
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            type: 'profiling-report/source-file-response',
+            requestId: sent.requestId,
+            text: 'extern "C" void gather_2d_bridge() {}\n',
+          },
+        }),
+      );
+    });
+    host.acquireVsCodeApi = () => ({ postMessage });
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: {
+          title: 'vscode-bridge',
+          swimlaneModel: depsModel(),
+          reportModel: {
+            ...topologyReport(),
+            sourceCorrelation: withMissing,
+          },
+          capabilities: ['sourceTab'],
+          environment: 'vscode',
+        },
+      });
+      await flushPromises();
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'profiling-report/source-file-request',
+          fileName: missingPath,
+          basename: 'gather_2d.asc',
+        }),
+      );
+      await wrapper.find('[data-testid="tab-source"]').trigger('click');
+      await nextTick();
+      await flushPromises();
+      const text = wrapper.findComponent(SourceView).props('model').files[0].text as string;
+      expect(text).toContain('gather_2d_bridge');
+      expect(text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(false);
+      wrapper.unmount();
+    } finally {
+      delete host.acquireVsCodeApi;
+    }
+  });
 });

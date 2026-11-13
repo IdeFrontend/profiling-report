@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SourceFrameTarget } from '../../adapters/sourceCorrelation/resolveSourceFrame';
+import {
+  applyResolvedSourceText,
+  fileNeedsSourceResolve,
+  type ResolveSourceFile,
+} from '../../adapters/sourceCorrelation/resolveSourceFile';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
@@ -45,6 +50,8 @@ const props = withDefaults(
     locale?: string;
     suduWorkerUrl?: string;
     userGuideUrl?: string;
+    /** Optional host hook for a source file whose pack text is the missing embed. */
+    resolveSourceFile?: ResolveSourceFile;
   }>(),
   {
     session: 0,
@@ -52,6 +59,7 @@ const props = withDefaults(
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
+    resolveSourceFile: undefined,
   },
 );
 
@@ -77,6 +85,12 @@ const sourceLine = ref<number | null>(null);
 const asmLine = ref<number | null>(null);
 const sourcePane = ref<PaneApi | null>(null);
 const asmPane = ref<PaneApi | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+/** User-supplied / host-resolved text keyed by source file id. */
+const overrides = ref<Record<string, string>>({});
+const dragActive = ref(false);
+/** Files already asked from the host once — null replies must not loop. */
+const attemptedResolve = new Set<string>();
 
 const searchQuery = ref('');
 /** Shared Link Views state — both pane toggles stay in sync. */
@@ -161,6 +175,8 @@ watch(
     syncOrigin.value = null;
     showFileMatch.value = false;
     appliedFocusKey = '';
+    overrides.value = {};
+    attemptedResolve.clear();
     applyFocus();
   },
 );
@@ -205,8 +221,92 @@ function onSourceFileChange(fileId: string) {
 }
 
 const sourceFile = computed<SourceFileModel | null>(() => {
-  return props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null;
+  const raw =
+    props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null;
+  if (!raw) return null;
+  const override = overrides.value[raw.id];
+  return override != null && fileNeedsSourceResolve(raw)
+    ? applyResolvedSourceText(raw, override)
+    : raw;
 });
+
+/** Raw model file, before any drop / host override. */
+const rawSourceFile = computed<SourceFileModel | null>(() =>
+  props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null,
+);
+
+/** Placeholder overlay only while no override exists for the selected file. */
+const showResolveOverlay = computed(() => {
+  const file = sourceFile.value;
+  return file != null && fileNeedsSourceResolve(file) && overrides.value[file.id] == null;
+});
+
+function basenameOf(path: string): string {
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1] || path;
+}
+
+function setOverride(fileId: string, text: string) {
+  overrides.value = { ...overrides.value, [fileId]: text };
+}
+
+/** Ask the host once per file id; `force` is the explicit retry button. */
+async function resolveSelected(force = false) {
+  const raw = rawSourceFile.value;
+  const resolve = props.resolveSourceFile;
+  if (!raw || !resolve || !fileNeedsSourceResolve(raw)) return;
+  if (!force && attemptedResolve.has(raw.id)) return;
+  attemptedResolve.add(raw.id);
+  try {
+    const text = await resolve({ fileName: raw.path, basename: basenameOf(raw.path) });
+    if (text == null) return;
+    const current = sourceFile.value;
+    if (current?.id !== raw.id || !fileNeedsSourceResolve(current)) return;
+    setOverride(raw.id, text);
+  } catch {
+    // Host miss: keep the placeholder.
+  }
+}
+
+async function applyLocalFile(file: File) {
+  const raw = rawSourceFile.value;
+  if (!raw || !fileNeedsSourceResolve(raw)) return;
+  try {
+    const text = await file.text();
+    if (sourceFile.value?.id !== raw.id) return;
+    setOverride(raw.id, text);
+  } catch {
+    // Unreadable file: keep the placeholder.
+  }
+}
+
+function openFilePicker() {
+  fileInput.value?.click();
+}
+
+async function onFilePicked(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (file) await applyLocalFile(file);
+}
+
+async function onDrop(event: DragEvent) {
+  dragActive.value = false;
+  const file = event.dataTransfer?.files?.[0];
+  if (file) await applyLocalFile(file);
+}
+
+function onDragLeave(event: DragEvent) {
+  const zone = event.currentTarget as HTMLElement | null;
+  const next = event.relatedTarget as Node | null;
+  if (!zone || !next || !zone.contains(next)) dragActive.value = false;
+}
+
+watch(
+  () => selectedFileId.value,
+  () => { void resolveSelected(); },
+);
 
 /** Scroll the shared listing to the first instruction of the selected file. */
 function scrollToFileMatch() {
@@ -568,6 +668,7 @@ watch(
 
 onMounted(() => {
   refreshChromeHost();
+  void resolveSelected();
   syncPaneBars();
   bindPaneBarObserver();
   window.addEventListener('resize', syncPaneBars);
@@ -768,6 +869,50 @@ onBeforeUnmount(() => {
           :editor-ratio="0.62"
           @update:current-line="onSourceLine"
         />
+        <div
+          v-if="showResolveOverlay"
+          class="pr-source-view__resolve"
+          :class="{ 'pr-source-view__resolve--over': dragActive }"
+          data-testid="source-resolve-drop"
+          role="region"
+          :aria-label="t('sourceResolveDropAria', locale)"
+          @dragover.prevent
+          @dragenter.prevent="dragActive = true"
+          @dragleave="onDragLeave"
+          @drop.prevent="onDrop"
+        >
+          <p class="pr-source-view__resolve-hint">
+            {{ t('sourceResolveDropHint', locale) }}
+          </p>
+          <div class="pr-source-view__resolve-actions">
+            <button
+              type="button"
+              class="pr-source-view__resolve-btn"
+              data-testid="source-resolve-browse"
+              @click="openFilePicker"
+            >
+              {{ t('sourceResolveChooseFile', locale) }}
+            </button>
+            <button
+              v-if="resolveSourceFile"
+              type="button"
+              class="pr-source-view__resolve-btn"
+              data-testid="source-resolve-retry"
+              @click="resolveSelected(true)"
+            >
+              {{ t('sourceResolveRetry', locale) }}
+            </button>
+          </div>
+          <input
+            ref="fileInput"
+            class="pr-source-view__resolve-input"
+            data-testid="source-resolve-input"
+            type="file"
+            accept=".asc,.c,.cc,.cpp,.cxx,.h,.hpp,.txt,text/plain"
+            :aria-label="t('sourceResolveInputAria', locale)"
+            @change="onFilePicked"
+          >
+        </div>
       </div>
       <div
         class="pr-source-view__pane"
@@ -907,6 +1052,8 @@ onBeforeUnmount(() => {
   padding: 5px 10px;
   background: var(--pr-src-bg-deep);
   min-width: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .pr-source-view__pane-bar-lead,
@@ -996,6 +1143,7 @@ onBeforeUnmount(() => {
   flex: 1 1 50%;
   min-width: 0;
   min-height: 0;
+  position: relative;
 }
 
 .pr-source-view__pane-body {
@@ -1010,6 +1158,69 @@ onBeforeUnmount(() => {
 
 .pr-source-view__pane--selected .pr-source-view__pane-body {
   border-color: var(--pr-src-accent, #3078f0);
+}
+
+/* Missing-embed overlay: absolute over the Source pane body, below the pane bar. */
+.pr-source-view__resolve {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 16px 16px;
+  border: 2px dashed var(--pr-src-border, #333333);
+  border-radius: 6px;
+  background: var(--pr-src-bg-body, #1a1a1a);
+  color: var(--pr-src-label, #b3b3b3);
+  font-family: var(--pr-src-ui-font);
+  font-size: 12px;
+  text-align: center;
+}
+
+.pr-source-view__resolve--over {
+  border-color: var(--pr-src-accent, #3078f0);
+  background: color-mix(in srgb, var(--pr-src-accent, #3078f0) 12%, var(--pr-src-bg-body, #1a1a1a));
+}
+
+.pr-source-view__resolve-hint {
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.pr-source-view__resolve-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pr-source-view__resolve-btn {
+  height: var(--pr-src-control-h, 28px);
+  padding: 0 12px;
+  border: 1px solid var(--pr-src-border, #333333);
+  border-radius: var(--pr-src-control-radius, 6px);
+  background: var(--pr-src-bg-control, #363636);
+  color: var(--pr-src-text, #c8c8c8);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pr-source-view__resolve-btn:hover {
+  border-color: var(--pr-src-accent, #3078f0);
+}
+
+.pr-source-view__resolve-btn:focus-visible {
+  outline: 2px solid var(--pr-src-accent, #3078f0);
+  outline-offset: 2px;
+}
+
+.pr-source-view__resolve-input {
+  display: none;
 }
 
 .pr-source-view__asm-empty {

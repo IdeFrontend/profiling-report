@@ -1432,4 +1432,97 @@ describe('SourceView', () => {
     ).toBe(false);
     wrapper.unmount();
   });
+
+  it('PR-SOURCE-028: placeholder shows the resolve drop zone; real text does not', async () => {
+    const base = mockSourceCorrelation();
+    const missing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          path: '/home/build/gather_2d.asc',
+          text: '// missing source embed: /home/build/gather_2d.asc\n',
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model: missing } });
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="source-resolve-browse"]').text()).toBe(
+      t('sourceResolveChooseFile'),
+    );
+    wrapper.unmount();
+
+    const real = mount(SourceView, { props: { model: { ...base, mock: false } } });
+    expect(real.find('[data-testid="source-resolve-drop"]').exists()).toBe(false);
+    real.unmount();
+  });
+
+  it('PR-SOURCE-029: dropping a source file fills the pane and hides the drop zone', async () => {
+    const base = mockSourceCorrelation();
+    const missing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          path: '/home/build/gather_2d.asc',
+          text: '// missing source embed: /home/build/gather_2d.asc\n',
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model: missing } });
+    const file = new File(['extern "C" void dropped_source() {}\n'], 'gather_2d.asc', {
+      type: 'text/plain',
+    });
+
+    await wrapper.get('[data-testid="source-resolve-drop"]').trigger('drop', {
+      dataTransfer: { files: [file] },
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(false);
+    expect(
+      wrapper.findComponent({ name: 'SuduCodePane' }).props('file').text as string,
+    ).toContain('dropped_source');
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-030: retry asks the resolver and applies its reply', async () => {
+    const base = mockSourceCorrelation();
+    const missingPath = '/home/build/gather_2d.asc';
+    const missing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          path: missingPath,
+          text: `// missing source embed: ${missingPath}\n`,
+        },
+      ],
+    };
+    const resolveSourceFile = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce('extern "C" void retried_source() {}\n');
+    const wrapper = mount(SourceView, {
+      props: { model: missing, resolveSourceFile },
+    });
+    await flushPromises();
+    expect(resolveSourceFile).toHaveBeenCalledTimes(1);
+
+    await wrapper.get('[data-testid="source-resolve-retry"]').trigger('click');
+    await flushPromises();
+
+    expect(resolveSourceFile).toHaveBeenLastCalledWith({
+      fileName: missingPath,
+      basename: 'gather_2d.asc',
+    });
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(false);
+    expect(
+      wrapper.findComponent({ name: 'SuduCodePane' }).props('file').text as string,
+    ).toContain('retried_source');
+    wrapper.unmount();
+  });
 });
