@@ -55,6 +55,8 @@ const props = withDefaults(
     activeTab?: 'overview' | 'timeline' | 'source';
     /** When true, 源码 is selectable. */
     sourceTabEnabled?: boolean;
+    /** When true, 概览 is selectable (models with operator rows). */
+    overviewTabEnabled?: boolean;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
      * leave this false. Playground (and other hosts that serve the shell template)
@@ -66,6 +68,7 @@ const props = withDefaults(
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
     activeTab: 'timeline',
     sourceTabEnabled: false,
+    overviewTabEnabled: false,
     htmlExportAvailable: false,
     clockFreqMHz: undefined,
     locale: undefined,
@@ -561,6 +564,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         class="pr-tabs__brand"
       >{{ title || t('tabOp', locale) }}</span>
       <button
+        v-if="overviewTabEnabled"
         type="button"
         class="pr-tabs__tab"
         :class="{ 'pr-tabs__tab--active': activeTab === 'overview' }"
