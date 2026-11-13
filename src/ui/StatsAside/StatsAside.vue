@@ -643,7 +643,10 @@ const summary = computed(() => props.report?.summary);
  * (session-local, defaults to the baseline's first, Not selected without a
  * baseline). The row shares the Block dropdown's CardMetricSelect chrome. */
 
-const NOT_SELECTED = '';
+/** Non-id sentinel: `''` would collide with a host entry carrying an empty id,
+ *  collapsing it into the Not selected option. A string no `Baseline.id` can be
+ *  (ids are opaque and minted, never `__none__`). */
+const NOT_SELECTED = '__none__';
 const baselineRows = computed(() => props.baselines ?? []);
 const selectedBaseline = computed(
   () => baselineRows.value.find((b) => b.id === props.selectedBaselineId) ?? null,
@@ -708,11 +711,15 @@ watch(
 watch(
   () => selectedBaseline.value,
   (b, prev) => {
+    // No baseline yet (`baselines` still `undefined` or empty): nothing to
+    // repair — running on would wipe a host-restored operator at mount, the
+    // same mount-order bug the root guards for the selection (PR-ROOT-036).
+    if (!b) return;
     // Same baseline, operators changed (arrived later): repair a stale pick
     // only — baseline changes are owned by the id watcher above.
-    if (b?.id !== prev?.id) return;
+    if (b.id !== prev?.id) return;
     if (operatorOptions.value.includes(asideBaselineOperator.value)) return;
-    setOperator(b?.operators?.[0] ?? NOT_SELECTED);
+    setOperator(b.operators?.[0] ?? NOT_SELECTED);
   },
   { immediate: true },
 );

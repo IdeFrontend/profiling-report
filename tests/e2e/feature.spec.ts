@@ -1097,8 +1097,8 @@ test('PR-E2E-022: the aside Baseline dropdown always shows and follows the check
   await expect(page.getByTestId('stats-aside')).toBeVisible();
   // The row always renders: nothing checked → Not selected in both dropdowns.
   await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
-  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '');
-  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', '');
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '__none__');
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', '__none__');
 
   // Check two reports: they join the Baseline dropdown's option list.
   await page.getByTestId('toggle-baselines').click();
@@ -1120,8 +1120,8 @@ test('PR-E2E-022: the aside Baseline dropdown always shows and follows the check
   // Unchecking the SELECTED report clears the selection: Not selected again
   // (the popover is still open — the earlier toggle opened it).
   await page.locator('.pr-baseline__item--check').nth(0).click();
-  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '');
-  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', '');
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '__none__');
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', '__none__');
 
   // The other checked report remains listed.
   await page.getByTestId('aside-baseline-select').getByRole('button').click();

@@ -146,7 +146,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 48. **PR-STATS-053** — The Baseline select (the Block switcher's chrome) lists the checked set by name plus the Not selected sentinel; a pick emits `update:selectedBaselineId` with the id, the sentinel forwards `null` — the host-owned selection, global.
 49. **PR-STATS-054** — The Operator select lists the selected baseline's `operators` (demo values in the bundled hosts), defaults to the first, re-defaults on baseline change, and reads Not selected without a baseline (or when it carries none).
 50. **PR-STATS-055** — The Baseline / Operator row is themed through `--pr-fg-select` / `--pr-fg-aside-muted`, so the value and caption stay readable on the light aside.
-51. **PR-STATS-056** — The Operator pick is host-owned: the select reads `selectedBaselineOperator` and every pick forwards `update:selectedBaselineOperator` (`null` = Not selected); when the baseline's `operators` arrive later, a stale value re-defaults to the first.
+51. **PR-STATS-056** — The Operator pick is host-owned: the select reads `selectedBaselineOperator` and every pick forwards `update:selectedBaselineOperator` (`null` = Not selected); a host-restored value survives a mount with no `baselines` yet, and when the baseline's `operators` arrive later a stale value re-defaults to the first.
 
 ## Edge Cases
 
@@ -299,7 +299,7 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 
 ## Changelog
 
-- **2026-11-13** — The Operator pick is host-owned (PR-STATS-056): the select reads `selectedBaselineOperator` and forwards `update:selectedBaselineOperator`; a stale pick re-defaults when the baseline's `operators` arrive later.
+- **2026-11-13** — The Operator pick is host-owned (PR-STATS-056): the select reads `selectedBaselineOperator` and forwards `update:selectedBaselineOperator`; a stale pick re-defaults when the baseline's `operators` arrive later; a mount with no `baselines` yet leaves a host-restored value alone. The Not selected sentinel is the non-id `__none__`, so a host entry with an empty id cannot collide with it.
 - **2026-11-12** — Review fixes: the baseline row is themed through `--pr-fg-select` / `--pr-fg-aside-muted` so it stays readable on the light aside (PR-STATS-055); both triggers' accessible names include the selected value (PR-STATS-052).
 - **2026-11-12** — ТЗ rework (PR-STATS-052..054 restated): the row renders always with Not selected sentinels; the hide-vs-empty decision is open (UI-63).
 - **2026-10-01** — §11.2.3.2 heat units on the stacked diagram (PR-STATS-043): `selectableUnits` now needs the `memoryHeatmap` capability as well as a filled `memoryHeatmap` carrier, matching the overlay's own gate; a unit click re-emits `open-topology-fullscreen` with the clicked unit so 全屏 opens on it.

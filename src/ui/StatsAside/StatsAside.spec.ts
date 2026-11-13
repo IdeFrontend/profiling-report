@@ -2638,9 +2638,9 @@ describe('StatsAside', () => {
     const plainBar = plain.get('[data-testid="stats-baseline-bar"]');
     expect(plainBar.text()).toContain(t('baselineLabel'));
     expect(plainBar.text()).toContain(t('operatorLabel'));
-    expect(plain.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('');
+    expect(plain.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('__none__');
     expect(plain.get('.pr-metric-select__label').text()).toBe(t('baselineNotSelected'));
-    expect(plain.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('');
+    expect(plain.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('__none__');
     // The accessible name carries the value — otherwise `aria-label` hides it.
     expect(
       plain.get('[data-testid="aside-baseline-select"] .pr-metric-select__trigger').attributes('aria-label'),
@@ -2660,10 +2660,10 @@ describe('StatsAside', () => {
     const unselected = mount(StatsAside, {
       props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: null },
     });
-    expect(unselected.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('');
+    expect(unselected.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('__none__');
     expect(
       unselected.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
-    ).toBe('');
+    ).toBe('__none__');
   });
 
   it('PR-STATS-055: the baseline row is themed for the light aside', async () => {
@@ -2694,7 +2694,7 @@ describe('StatsAside', () => {
       el.getAttribute('data-testid'),
     );
     expect(options).toEqual([
-      'aside-baseline-option-',
+      'aside-baseline-option-__none__',
       'aside-baseline-option-b1',
       'aside-baseline-option-b2',
     ]);
@@ -2710,7 +2710,7 @@ describe('StatsAside', () => {
 
     // Picking the Not selected sentinel forwards null.
     await select.get('.pr-metric-select__trigger').trigger('click');
-    (document.querySelector('[data-testid="aside-baseline-option-"]') as HTMLElement).click();
+    (document.querySelector('[data-testid="aside-baseline-option-__none__"]') as HTMLElement).click();
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2'], [null]]);
   });
@@ -2754,7 +2754,7 @@ describe('StatsAside', () => {
       },
     });
     const bareOp = bare.get('[data-testid="aside-baseline-operator-select"]');
-    expect(bareOp.attributes('data-value')).toBe('');
+    expect(bareOp.attributes('data-value')).toBe('__none__');
     expect(bareOp.get('.pr-metric-select__label').text()).toBe(t('baselineNotSelected'));
   });
 
@@ -2798,6 +2798,20 @@ describe('StatsAside', () => {
     await fresh.setProps({ baselines: [{ ...late, operators: ['conv2d'] }] });
     await fresh.vm.$nextTick();
     expect(fresh.emitted('update:selectedBaselineOperator')).toEqual([['conv2d']]);
+
+    // A host-restored value with no `baselines` prop yet survives the mount:
+    // the repair watcher must not wipe it before the list arrives (the aside
+    // twin of PR-ROOT-036's selection guard).
+    const early = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        selectedBaselineOperator: 'gelu',
+      },
+    });
+    expect(early.emitted('update:selectedBaselineOperator')).toBeUndefined();
+    await early.setProps({ selectedBaselineId: 'b9' });
+    await early.vm.$nextTick();
+    expect(early.emitted('update:selectedBaselineOperator')).toBeUndefined();
   });
 
   it('PR-STATS-037: archDiagram Metric select sits above the diagram and rebuilds labels', async () => {
