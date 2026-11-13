@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { t } from '../../../i18n';
 import type { SummaryCategory } from '../../../domain/types';
+import { formatDetailValue } from '../../../domain/detailValue';
 import { highlightParts } from '../../searchHighlight';
 import SummaryDiffIndicator from '../StatsSummaryPanel/SummaryDiffIndicator.vue';
 import { metricDiff, trimDiffMagnitude, type MetricDiff } from '../../../domain/metricDiff';
@@ -162,7 +163,7 @@ const fields = computed(() => {
           >{{ part.text }}</span>
         </span>
         <span class="pr-summ__field-side">
-          <span class="pr-summ__field-value">{{ field.value }}</span>
+          <span class="pr-summ__field-value">{{ formatDetailValue(field.value) }}</span>
           <!-- The delta badge stays on the SAME line, right after the value
                (baseline-compare details mockup 1130). -->
           <SummaryDiffIndicator

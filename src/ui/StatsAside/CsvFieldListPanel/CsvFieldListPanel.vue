@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { t } from '../../../i18n';
 import type { CsvTableModel } from '../../../domain/types';
+import { formatDetailValue } from '../../../domain/detailValue';
 import { highlightParts } from '../../searchHighlight';
 
 const props = withDefaults(
@@ -274,7 +275,7 @@ function onViewAll() {
             :data-testid="part.match ? 'csv-field-match' : undefined"
           >{{ part.text }}</span>
         </span>
-        <span class="pr-csv__field-value">{{ field.value }}</span>
+        <span class="pr-csv__field-value">{{ formatDetailValue(field.value) }}</span>
       </li>
     </ul>
   </div>

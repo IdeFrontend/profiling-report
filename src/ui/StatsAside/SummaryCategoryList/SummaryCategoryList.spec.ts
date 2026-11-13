@@ -78,6 +78,26 @@ describe('SummaryCategoryList', () => {
     expect(wrapper.find('[data-testid="summary-category-fields"]').findAll('li')).toHaveLength(0);
   });
 
+  it('PR-SUMM-005: field values display at most four decimals, residue trimmed', () => {
+    const cats = [
+      {
+        id: 'Memory',
+        title: 'Memory',
+        fields: [
+          { key: 'residue', value: '0.9796212499999999' },
+          { key: 'trailing', value: '1.50000' },
+          { key: 'fine', value: '1616.375' },
+          { key: 'integer', value: '1616' },
+          { key: 'note', value: 'text-only' },
+        ],
+      },
+    ];
+    const wrapper = mount(SummaryCategoryList, { props: { categories: cats } });
+    const values = wrapper.findAll('.pr-summ__field-value').map((v) => v.text());
+    expect(values).toEqual(['0.9796', '1.5', '1616.375', '1616', 'text-only']);
+    wrapper.unmount();
+  });
+
   it('PR-SUMM-004: baseline categories paint delta badges right of the values', () => {
     const cats = [
       {
