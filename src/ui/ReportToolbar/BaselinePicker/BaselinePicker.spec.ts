@@ -351,4 +351,103 @@ describe('BaselinePicker', () => {
     const tokens = readFileSync(resolve(__dirname, '../../tokens.css'), 'utf8');
     expect(tokens).toMatch(/--pr-accent:\s*#[0-9a-f]{6}/i);
   });
+
+  it('PR-BASELINE-032: checking inserts at the visible position, so the emitted list keeps the displayed order', async () => {
+    const wrapper = mountPicker({ baselines: [recentBaselines[1]] });
+    await open(wrapper);
+    // r2 is already checked ([r2]); checking r1 (first visible row) must not
+    // append — the host list would then read [r2, r1] while rows show r1, r2.
+    const checks = () => wrapper.findAll('[data-testid="baseline-check"]');
+    await checks()[0].setValue(true);
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[recentBaselines[0], recentBaselines[1]]],
+    ]);
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-033: Browse dedupes on the normalized path and logs a rejected hook', async () => {
+    const pick: BaselinePick = { path: '/data/extra.npu-rep/', name: 'extra.npu-rep' };
+    const hook = vi.fn().mockResolvedValue(pick);
+    const wrapper = mountPicker({ pickBaselineFile: hook, baselines: [] });
+    await open(wrapper);
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    const applied = (wrapper.emitted('update:baselines')![0][0] as Baseline[]);
+    await wrapper.setProps({ baselines: applied });
+
+    // The same file with different letter case and no trailing slash: no emit.
+    hook.mockResolvedValue({ path: '/DATA/Extra.npu-rep', name: 'extra.npu-rep' });
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.emitted('update:baselines')).toHaveLength(1);
+
+    // A rejected hook logs the failure (not a silent Cancel) and emits nothing.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    hook.mockRejectedValue(new Error('host dialog failed'));
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    expect(errorSpy).toHaveBeenCalledOnce();
+    expect(wrapper.emitted('update:baselines')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="baselines-popover"]').exists()).toBe(true);
+    errorSpy.mockRestore();
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-034: the list is a labelled group, the trigger has no aria-pressed, an append announces live', async () => {
+    const wrapper = mountPicker({ attachToBody: true });
+    const trigger = wrapper.get('[data-testid="toggle-baselines"]');
+    expect(trigger.attributes('aria-pressed')).toBeUndefined();
+    await open(wrapper);
+    const list = wrapper.get('[data-testid="baselines-recent-list"]');
+    expect(list.attributes('role')).toBe('group');
+    const labelledBy = list.attributes('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    expect(document.getElementById(labelledBy!)?.textContent).toContain(t('baselineAddTitle'));
+
+    // A Browse append fills the live region so screen readers hear the new row.
+    const hook = vi.fn().mockResolvedValue({ path: '/data/extra.npu-rep', name: 'extra.npu-rep' });
+    await wrapper.setProps({ pickBaselineFile: hook });
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    const live = wrapper.get('[role="status"]');
+    expect(live.text()).toContain('extra.npu-rep');
+    expect(live.text()).toContain(t('baselineAdded').replace('{name}', ''));
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-035: a row hides the path line when it equals the name', async () => {
+    const twin: Baseline = { id: 'twin-1', name: 'run-a', path: 'run-a' };
+    const wrapper = mountPicker({ recentBaselines: [twin, recentBaselines[0]] });
+    await open(wrapper);
+    const rows = wrapper.findAll('.pr-baseline__item--check');
+    expect(rows[0].findAll('.pr-baseline__path')).toHaveLength(0);
+    expect(rows[0].findAll('.pr-baseline__name')).toHaveLength(1);
+    expect(rows[1].findAll('.pr-baseline__path')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-036: on a short viewport the panel caps to the space under the trigger and Browse stays reachable', async () => {
+    const src = (await import('./BaselinePicker.vue?raw')).default as string;
+    // The panel is a flex column: head/foot fixed, the list takes the remainder
+    // and scrolls — Browse can never fall below the viewport.
+    expect(src).toMatch(/\.pr-baseline\s*\{[^}]*display:\s*flex/s);
+    expect(src).toMatch(/\.pr-baseline__list\s*\{[^}]*flex:\s*1 1 auto/s);
+    expect(src).toMatch(/\.pr-baseline__list\s*\{[^}]*min-height:\s*0/s);
+    expect(src).toMatch(/\.pr-baseline__list\s*\{[^}]*overflow-y:\s*auto/s);
+
+    const wrapper = mountPicker({ attachToBody: true });
+    const trigger = wrapper.get('[data-testid="toggle-baselines"]');
+    const rect = (bottom: number) =>
+      ({ x: 0, y: 0, left: 0, right: 28, top: bottom - 28, bottom, width: 28, height: 28, toJSON() { return this; } }) as DOMRect;
+    vi.spyOn(trigger.element, 'getBoundingClientRect').mockReturnValue(rect(146));
+    Object.defineProperty(window, 'innerHeight', { value: 300, configurable: true });
+    await open(wrapper);
+    await flushPromises();
+    const panel = wrapper.get('[data-testid="baselines-popover"]');
+    // cap = innerHeight - trigger.bottom - 6 - 10 = 300 - 146 - 16 = 138.
+    expect(panel.attributes('style')).toContain('max-height: 138px');
+    // Browse is inside the capped panel — the footer cannot fall below the viewport.
+    wrapper.get('[data-testid="baseline-browse"]');
+    wrapper.unmount();
+  });
 });

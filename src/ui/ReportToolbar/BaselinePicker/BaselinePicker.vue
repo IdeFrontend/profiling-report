@@ -53,8 +53,13 @@ const wrapRef = ref<HTMLElement | null>(null);
 const triggerRef = ref<HTMLButtonElement | null>(null);
 const closeRef = ref<ComponentPublicInstance | null>(null);
 const panelId = useId().replace(/:/g, '');
+const titleId = useId().replace(/:/g, '');
 /** True while the host file dialog is open — Browse stays disabled meanwhile. */
 const picking = ref(false);
+/** Inline max-height so the panel + Browse stay inside short viewports. */
+const panelMaxHeight = ref('none');
+/** Live region: announces a Browse pick that appended a row (WCAG 4.1.3). */
+const announce = ref('');
 
 /**
  * Checkbox rows: the host's recent reports first, then checked entries the
@@ -63,7 +68,15 @@ const picking = ref(false);
  */
 const recentIds = computed(() => new Set((props.recentBaselines ?? []).map((r) => r.id)));
 const extraRows = computed(() => props.baselines.filter((b) => !recentIds.value.has(b.id)));
-const rows = computed<Baseline[]>(() => [...(props.recentBaselines ?? []), ...extraRows.value]);
+/* Dedupe by id: a host bug must not yield duplicate keys or an ambiguous row. */
+const rows = computed<Baseline[]>(() => {
+  const seen = new Set<string>();
+  return [...(props.recentBaselines ?? []), ...extraRows.value].filter((b) => {
+    if (seen.has(b.id)) return false;
+    seen.add(b.id);
+    return true;
+  });
+});
 
 function isChecked(id: string): boolean {
   return props.baselines.some((b) => b.id === id);
@@ -92,11 +105,20 @@ watch(
 );
 
 function setChecked(row: Baseline, checked: boolean): void {
-  const next = checked
-    ? [...props.baselines.filter((b) => b.id !== row.id), row]
-    : props.baselines.filter((b) => b.id !== row.id);
-  emit('update:baselines', next);
-  if (checked || recentIds.value.has(row.id)) return;
+  if (checked) {
+    // Insert at the row's visible position, not at the end: hosts may use the
+    // list order (comparison order, persistence), and appending would make the
+    // stored order drift from the visible one on every toggle.
+    const rest = props.baselines.filter((b) => b.id !== row.id);
+    const index = rows.value.findIndex((r) => r.id === row.id);
+    const next = index >= 0 && index <= rest.length
+      ? [...rest.slice(0, index), row, ...rest.slice(index)]
+      : [...rest, row];
+    emit('update:baselines', next);
+    return;
+  }
+  emit('update:baselines', props.baselines.filter((b) => b.id !== row.id));
+  if (recentIds.value.has(row.id)) return;
   const index = rows.value.findIndex((r) => r.id === row.id);
   const neighbour = rows.value[index + 1] ?? rows.value[index - 1];
   pendingFocusId = neighbour?.id ?? null;
@@ -105,10 +127,25 @@ function setChecked(row: Baseline, checked: boolean): void {
 async function toggle() {
   open.value = !open.value;
   if (!open.value) return;
+  await nextTick();
+  positionPanel();
   // A dialog must be entered, not merely shown: move focus to its close button
   // so screen readers announce the panel and Tab continues inside it.
-  await nextTick();
   (closeRef.value?.$el as HTMLElement | undefined)?.focus();
+}
+
+/**
+ * Cap the panel to the space under the trigger so the footer (Browse) never
+ * falls below the viewport — the page cannot scroll the chrome away.
+ * ponytail: the cap is computed on open only; a resize while open keeps the
+ * old cap. Upgrade path: recompute on window resize while open.
+ */
+function positionPanel() {
+  const trigger = triggerRef.value;
+  if (!trigger) return;
+  const bottom = trigger.getBoundingClientRect().bottom;
+  const cap = Math.max(120, window.innerHeight - bottom - 6 - 10);
+  panelMaxHeight.value = `${cap}px`;
 }
 
 async function close(opts?: { restoreFocus?: boolean }) {
@@ -168,9 +205,19 @@ watch(
 );
 
 /**
+ * Dedupe identity: the same file written differently (letter case, a trailing
+ * separator) must not become two baselines — compare a normalized form.
+ */
+function sameBaselinePath(a: string, b: string): boolean {
+  const norm = (p: string) =>
+    p.trim().replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+  return norm(a) === norm(b);
+}
+
+/**
  * Browse: the file dialog pick joins the checkbox list as a CHECKED row (it is
  * appended to the host-owned list right away — the popover has no local state).
- * The same file already checked changes nothing.
+ * The same file already checked changes nothing (normalized path compare).
  */
 async function browse(): Promise<void> {
   if (!props.pickBaselineFile || picking.value) return;
@@ -179,21 +226,35 @@ async function browse(): Promise<void> {
     let pick: BaselinePick | null;
     try {
       pick = await props.pickBaselineFile();
-    } catch {
+    } catch (cause) {
+      // A host dialog failure (permissions, VS Code API error) must not look
+      // like a silent Cancel: log it so the host/devtools can see it.
+      console.error('[BaselinePicker] pickBaselineFile failed', cause);
       return;
     }
     if (!pick) return;
     const path = pick.path;
-    if (props.baselines.some((b) => b.path === path)) return;
+    if (props.baselines.some((b) => sameBaselinePath(b.path, path))) return;
     const entry: Baseline = {
       id: newBaselineId(),
       name: pick.name?.trim() || path.split(/[\\/]/).pop() || path,
       path,
     };
     emit('update:baselines', [...props.baselines, entry]);
+    announcePick(entry.name);
   } finally {
     picking.value = false;
   }
+}
+
+/** Screen readers hear a Browse append; the text is cleared then set so an
+ *  identical re-add still re-announces (mutation, not assignment). */
+function announcePick(name: string) {
+  announce.value = '';
+  const text = t('baselineAdded', props.locale).replace('{name}', name);
+  void nextTick(() => {
+    announce.value = text;
+  });
 }
 </script>
 
@@ -210,7 +271,6 @@ async function browse(): Promise<void> {
       class="pr-toolbar__icon-btn pr-icon-tip"
       data-testid="toggle-baselines"
       :aria-expanded="open"
-      :aria-pressed="open"
       :aria-controls="open ? panelId : undefined"
       :class="{ 'pr-toolbar__icon-btn--on': open }"
       :aria-label="t('baselines', locale)"
@@ -226,9 +286,17 @@ async function browse(): Promise<void> {
       data-testid="baselines-popover"
       role="dialog"
       :aria-label="t('baselines', locale)"
+      :style="{ maxHeight: panelMaxHeight }"
     >
+      <p
+        class="pr-baseline__sr"
+        role="status"
+      >{{ announce }}</p>
       <div class="pr-baseline__head">
-        <span class="pr-baseline__title">{{ t('baselineAddTitle', locale) }}</span>
+        <span
+          :id="titleId"
+          class="pr-baseline__title"
+        >{{ t('baselineAddTitle', locale) }}</span>
         <CloseButton
           ref="closeRef"
           class="pr-baseline__close"
@@ -241,6 +309,8 @@ async function browse(): Promise<void> {
       <div
         class="pr-baseline__list"
         data-testid="baselines-recent-list"
+        role="group"
+        :aria-labelledby="titleId"
       >
         <p
           v-if="rows.length === 0"
@@ -270,7 +340,12 @@ async function browse(): Promise<void> {
           </span>
           <span class="pr-baseline__pick">
             <span class="pr-baseline__name">{{ row.name }}</span>
-            <span class="pr-baseline__path">{{ row.path }}</span>
+            <!-- The path is how users tell same-named runs apart; when it IS the
+                 name (demo OPPROF rows) a second copy only halves the line. -->
+            <span
+              v-if="row.path !== row.name"
+              class="pr-baseline__path"
+            >{{ row.path }}</span>
           </span>
         </label>
       </div>
@@ -305,6 +380,8 @@ async function browse(): Promise<void> {
   right: 0;
   z-index: 20;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   width: max-content;
   min-width: 240px;
   max-width: 480px;
@@ -313,6 +390,25 @@ async function browse(): Promise<void> {
   border: 1px solid #5e5e5e;
   border-radius: 12px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  /* Inline `max-height` on open caps the panel to the viewport; the list takes
+     the remainder and scrolls, so the footer (Browse) stays reachable. */
+}
+
+.pr-baseline__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pr-baseline__head,
+.pr-baseline__foot {
+  flex: 0 0 auto;
 }
 
 .pr-baseline__head {
@@ -351,6 +447,10 @@ async function browse(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Natural cap for tall viewports; the panel's inline max-height (short
+     viewports) shrinks this first, then it scrolls. */
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: 260px;
   overflow-y: auto;
 }

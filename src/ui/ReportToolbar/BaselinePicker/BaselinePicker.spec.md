@@ -14,19 +14,19 @@ Sketch gap: no design frame covers this surface yet; chrome follows the toolbar 
 
 ## Outputs
 
-Every checkbox change emits **update:baselines** with the new checked set — the host owns persistence (session-only in the bundled web hosts; a real host persists). Browse emits the same with the picked report appended as a checked entry (new id, name falls back to the path basename; an already-checked path changes nothing). The picker emits nothing else.
+Every checkbox change emits **update:baselines** with the new checked set — the host owns persistence (session-only in the bundled web hosts; a real host persists). A checked row is inserted at its visible position, so the emitted list keeps the order the user sees. Browse emits the same with the picked report appended as a checked entry (new id, name falls back to the path basename; an already-checked path changes nothing — the compare is normalized: case-insensitive, trailing separators ignored). A rejected host hook logs the failure instead of looking like a Cancel. The picker emits nothing else.
 
 ## Behavior
 
 **Trigger.** A square action-icon button (`data-testid="toggle-baselines"`) with the mockup's **add-baseline** glyph (extracted from `docs/ui/source/1130/add-baseline.jpeg` — the highlighted toolbar action of the 增加基线操作 scene; provenance crop `docs/ui/review/icons/add-baseline-1130.png`), rendered only when `pickBaselineFile` is provided. It opens the popover and reflects the open state through `aria-expanded` and the `--on` class (shared action-icon states, now in the global `tokens.css`). Fallthrough attrs (the toolbar's `data-toolbar-clip`) bind to the trigger button, so the clip-inert scan and the right-aligned tooltip rule see the button, not the wrapper.
 
-**Popover.** Anchored under the trigger, right-aligned, same panel tokens as 显示控制; width adapts to its content (240–480px) so full opprof run names fit. Header carries the title (添加基线 / Add baselines) and a CloseButton (×). Body is the checkbox list; the footer is a single **Browse** button. No OK/Cancel: a toggle applies immediately, and every dismiss path simply closes the popover — the checked set survives closing (host-owned). Opening moves focus to the ×, so the dialog is entered rather than merely shown; the trigger links it with `aria-controls` (the panel carries the matching id).
+**Popover.** Anchored under the trigger, right-aligned, same panel tokens as 显示控制; width adapts to its content (240–480px) so full opprof run names fit. Header carries the title (添加基线 / Add baselines) and a CloseButton (×). Body is the checkbox list; the footer is a single **Browse** button. No OK/Cancel: a toggle applies immediately, and every dismiss path simply closes the popover — the checked set survives closing (host-owned). Opening moves focus to the ×, so the dialog is entered rather than merely shown; the trigger links it with `aria-controls` (the panel carries the matching id). On short viewports the panel caps its height to the space under the trigger and the list scrolls, so **Browse** stays reachable (the page cannot scroll the chrome away).
 
-**List rows.** One row per report: a checkbox (the whole row is its label; the native input is sr-clipped, a 12px square dot paints the state), **name** as the primary line, **path** as a secondary dimmed line. A checked row shows the filled accent dot; the checked state comes from `baselines` — nothing else selects or highlights rows. Secondary text (the path, the empty copy) and the Browse action clear WCAG AA (4.5:1) on both the panel and the row-hover tint — the path is how same-named runs are told apart.
+**List rows.** One row per report: a checkbox (the whole row is its label; the native input is sr-clipped, a 12px square dot paints the state), **name** as the primary line, **path** as a secondary dimmed line — hidden when it equals the name (demo `OPPROF` rows carry the run id in both; a second copy would only halve the line). The list is a labelled group (`role="group"` pointing at the title) and duplicate ids from a host bug are collapsed, so rows stay uniquely keyed. A checked row shows the filled accent dot; the checked state comes from `baselines` — nothing else selects or highlights rows. Secondary text (the path, the empty copy) and the Browse action clear WCAG AA (4.5:1) on both the panel and the row-hover tint — the path is how same-named runs are told apart. A Browse append is announced through a live region, so screen readers hear the added row. The trigger is a dialog opener: `aria-expanded`, no `aria-pressed`.
 
-**Toggling.** Checking a row emits `update:baselines` with it appended; unchecking emits the list without it. Closing and reopening the popover keeps whatever is checked (the component holds no local state). Unchecking an extra row unmounts the focused checkbox once the host applies the list, so focus moves to the neighbouring checkbox — or the trigger when nothing remains — instead of falling to `body`.
+**Toggling.** Checking a row emits `update:baselines` with it inserted at the row's visible position — hosts may use the list order (comparison order, persistence), and appending would make the stored order drift from the visible one on every toggle. Unchecking emits the list without it. Closing and reopening the popover keeps whatever is checked (the component holds no local state). Unchecking an extra row unmounts the focused checkbox once the host applies the list, so focus moves to the neighbouring checkbox — or the trigger when nothing remains — instead of falling to `body`.
 
-**Browse.** The footer button (`data-testid="baseline-browse"`) calls `pickBaselineFile()`. A `null` result or a rejected hook changes nothing. A pick appends `{ id, name, path }` (fresh id; name falls back to the path basename) to the checked set via `update:baselines` — the new row renders as a checked extra row. Re-picking an already-checked path emits nothing. While the hook is in flight the button is disabled, so one press opens one dialog.
+**Browse.** The footer button (`data-testid="baseline-browse"`) calls `pickBaselineFile()`. A `null` result changes nothing; a rejected hook logs the failure (`console.error`) so a host dialog error is not mistaken for a Cancel. A pick appends `{ id, name, path }` (fresh id; name falls back to the path basename) to the checked set via `update:baselines` — the new row renders as a checked extra row and the append is announced in a live region. Re-picking an already-checked path emits nothing (normalized compare: case-insensitive, trailing separators ignored). While the hook is in flight the button is disabled, so one press opens one dialog.
 
 **Empty state.** With no `recentBaselines` and nothing checked, the body shows dim copy (暂无最近的报告 / No recent reports); Browse stays available.
 
@@ -51,16 +51,24 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 15. **PR-BASELINE-031** — The checked dot paints the declared `--pr-accent` and adds a non-colour tick.
 16. **PR-BASELINE-028** — Opening moves focus into the panel (close button); the trigger links it via `aria-controls`.
 17. **PR-BASELINE-029** — Browse disables while the host pick is in flight; one press, one hook call.
+18. **PR-BASELINE-032** — Checking inserts the row at its visible position, so the emitted list keeps the displayed order.
+19. **PR-BASELINE-033** — Browse dedupes on the normalized path (case + trailing separators) and logs a rejected hook.
+20. **PR-BASELINE-034** — A11y: the list is a labelled group, the trigger has no `aria-pressed`, and an append is announced live.
+21. **PR-BASELINE-035** — A row hides the path line when it equals the name.
+22. **PR-BASELINE-036** — On short viewports the panel caps to the trigger's space and Browse stays reachable.
 
 ## Edge Cases
 
 | Case | Behavior |
 |------|----------|
 | `pickBaselineFile` absent | Trigger and popover absent |
-| `pickBaselineFile` rejects | Treated as cancel — no emit, popover stays open |
+| `pickBaselineFile` rejects | Logged (`console.error`) — no emit, popover stays open |
 | Dialog cancelled (`null`) | No emit, popover stays open |
+| Same file, different case / trailing separator | Not re-added (normalized path compare) |
+| Duplicate ids in the host lists | Collapsed into one row (unique keys) |
 | No `recentBaselines`, nothing checked | Empty-state copy; Browse available |
 | Unchecking the selected baseline | The parent clears the selection (its invariant, not the picker's) |
+| Short viewport (e.g. 420px tall) | Panel caps to the space under the trigger; list scrolls; Browse reachable |
 
 ## Dependencies
 
@@ -75,6 +83,7 @@ Every checkbox change emits **update:baselines** with the new checked set — th
 - The **icon** is Product-confirmed (UI-61): the mockup's add-baseline glyph from the 1130 batch. The **popover chrome** (layout/placement) is still not Product-confirmed; see [UI-61](../../../../docs/context/questions/UI.md).
 
 ## Changelog
+- **2026-11-13** — Review pass 3 (PR-BASELINE-032..036): a checked row inserts at its visible position (list order stops drifting); Browse dedupes on a normalized path and logs host hook failures; the row list is a labelled group, the trigger drops `aria-pressed`, appends announce in a live region; a row hides the path when it equals the name; short viewports cap the panel so Browse stays reachable; duplicate host ids collapse into one row.
 - **2026-11-12** — Review fixes: secondary text and Browse clear WCAG AA on the panel and its hover tint; the checked dot paints the declared `--pr-accent` and adds a non-colour tick; opening moves focus to the close button and links the panel via `aria-controls`; unchecking an extra row keeps focus on its neighbour; Browse disables while the host pick is in flight.
 - **2026-11-12** — ТЗ rework: a single checkbox view replaces the two-view design — the checked set IS the host-owned baseline list (`update:baselines` on every toggle/Browse), no saved-list view, radios, −, Add Selected or other actions (PR-BASELINE-023..027; old 003..005, 007, 012..022 withdrawn).
 - **2026-11-11** — Second view (Add Recent) with the host's recent reports as checkboxes + Add Selected / Browse, footer actions on the list view (Set current as Baseline / Add Recent / Clear all / Deselect / Browse), per-view titles, and a content-adaptive panel width (PR-BASELINE-014..022).
