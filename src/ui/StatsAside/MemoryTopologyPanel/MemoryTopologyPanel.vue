@@ -125,7 +125,11 @@ export function slotRhythm(
   );
   const valueY = titleBottom + air + VALUE_HALF_H;
   const equalGap = air + VALUE_HALF_H - ink.top;
-  const circleTop = valueY + ink.bottom + equalGap;
+  // Empirical (measured in the browser): the badge hangs `equalGap` under the
+  // value's CENTRE, not under `ink.bottom` — the visible gap below the value
+  // then matches the visible gap above it (the middle-aligned bbox shifts the
+  // ink up ~2.4 units, which the +ink.bottom term would double-count).
+  const circleTop = valueY + equalGap;
   const badgeD = Math.min(DIFF_BADGE_SIZE, frameBottom - 1.2 - circleTop);
   const badgeY = circleTop + badgeD / 2;
   return { air, valueY, badgeD, badgeY };

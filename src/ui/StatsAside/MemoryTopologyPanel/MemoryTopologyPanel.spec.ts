@@ -18,7 +18,6 @@ import MemoryTopologyPanel, {
   diffBadgeCircleX,
   DIFF_BADGE_TEXT_FALLBACK_W,
   VALUE_INK_TOP,
-  VALUE_INK_BOTTOM,
   fitFontSize,
   nextZoom,
   slotRhythm,
@@ -852,10 +851,10 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     // Worked values from the measured constants: equal gap g both sides, vc = T + g + inkTop,
     // d = min(6.6, F - 1.2 - vc - (inkBottom + g)), bc = vc + (inkBottom + g) + d / 2.
     const EXPECTED = {
-      aiv_scalar: { air: 1, valueY: 316.25, badgeD: 6.5, badgeY: 324.55 },
-      vec: { air: 0.5, valueY: 365.75, badgeD: 4.5, badgeY: 372.55 },
-      cube: { air: 4.5, valueY: 95.25, badgeD: 6.6, badgeY: 107.1 },
-      'l2-peak': { air: 4.5, valueY: 215.25, badgeD: 6.6, badgeY: 227.1 },
+      aiv_scalar: { air: 1, valueY: 316.25, badgeD: 6.6, badgeY: 322.2 },
+      vec: { air: 0.5, valueY: 365.75, badgeD: 6.6, badgeY: 371.2 },
+      cube: { air: 4.5, valueY: 95.25, badgeD: 6.6, badgeY: 104.7 },
+      'l2-peak': { air: 4.5, valueY: 215.25, badgeD: 6.6, badgeY: 224.7 },
     } as const;
 
     for (const slot of Object.keys(MEASURED) as (keyof typeof MEASURED)[]) {
@@ -865,7 +864,8 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
         Math.max(0.5, Math.floor((m.frameBottom - m.titleBottom - (2 * 3.15 + DIFF_BADGE_SIZE + 1)) / 2)),
       );
       const vc = m.titleBottom + g + 3.15;
-      const circleTop = vc + VALUE_INK_BOTTOM + (g + 3.15 - VALUE_INK_TOP);
+      const equalGap = g + 3.15 - VALUE_INK_TOP;
+      const circleTop = vc + equalGap;
       const d = Math.min(DIFF_BADGE_SIZE, m.frameBottom - 1.2 - circleTop);
       const bc = circleTop + d / 2;
       const rhythm = slotRhythm(slot);
@@ -876,8 +876,10 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
       // Equal gap above (title -> value ink) and below (value ink -> badge).
       const visibleGap = g + 3.15 - VALUE_INK_TOP;
       expect(rhythm.valueY - VALUE_INK_TOP - m.titleBottom, `${slot} title->value`).toBeCloseTo(visibleGap, 6);
+      // The badge hangs `visibleGap` under the value's CENTRE (empirical: the
+      // middle-aligned bbox shifts the ink up, so no extra ink-bottom term).
       expect(
-        rhythm.badgeY - rhythm.badgeD / 2 - (rhythm.valueY + VALUE_INK_BOTTOM),
+        rhythm.badgeY - rhythm.badgeD / 2 - rhythm.valueY,
         `${slot} value->badge`,
       ).toBeCloseTo(visibleGap, 6);
       // The circle never crosses the frame and never grows past the design size.
@@ -923,7 +925,7 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
         MEASURED[slot].frameBottom - 1 + 1e-9,
       );
       expect(
-        rhythm.badgeY - rhythm.badgeD / 2 - (rhythm.valueY + VALUE_INK_BOTTOM),
+        rhythm.badgeY - rhythm.badgeD / 2 - rhythm.valueY,
         `${slot} gap`,
       ).toBeCloseTo(rhythm.air + 3.15 - VALUE_INK_TOP, 6);
     }
@@ -942,11 +944,11 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     const rect = badge.get('rect.pr-topo__diff-box');
     // The white circle is part of a circle+text GROUP centred on the value's
     // centre and sitting BELOW it (jsdom has no text metrics → the fallback
-    // text width drives the circle offset). The shallow vec frame shrinks the
-    // circle so the equal visible gap still fits (PR-MEMTOP-027).
+    // text width drives the circle offset). The badge hangs the equal gap under the value centre, so the
+    // full circle fits even the shallow vec frame (PR-MEMTOP-027).
     const circleCx = diffBadgeCircleX(vecX, DIFF_BADGE_TEXT_FALLBACK_W);
     expect(circleCx).toBeLessThan(vecX);
-    expect(vecRhythm.badgeD).toBeCloseTo(4.5, 6);
+    expect(vecRhythm.badgeD).toBe(DIFF_BADGE_SIZE);
     expect(Number(rect.attributes('x'))).toBeCloseTo(circleCx - vecRhythm.badgeD / 2, 6);
     expect(Number(rect.attributes('width'))).toBeCloseTo(vecRhythm.badgeD, 6);
     expect(Number(rect.attributes('height'))).toBeCloseTo(vecRhythm.badgeD, 6);

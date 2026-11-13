@@ -1432,7 +1432,6 @@ const TOPO_BADGE_METRICS: Record<
  *  `1.5 + 2.4` + the `6.6` circle + `1.2` frame air), the equal-gap clamp, the circle→text
  *  gap, and the air the row keeps on each box wall. */
 const TOPO_VALUE_INK_TOP = 1.5;
-const TOPO_VALUE_INK_BOTTOM = 2.4;
 const TOPO_RHYTHM_AIR_MIN = 0.5;
 const TOPO_RHYTHM_AIR_MAX = 4.5;
 const TOPO_BADGE_SIZE = 6.6;
@@ -1446,10 +1445,10 @@ const TOPO_BADGE_INK_SLOP = 2.5;
 
 /**
  * The panel's per-slot badge layout (PR-MEMTOP-027): the value keeps the classic glyph-box
- * position `vc = T + g + 3.15`; the badge hangs below the value ink with the SAME visible gap
- * as the title→value gap (`E = g + 3.15 − 1.5`; circle top = `vc + 2.4 + E`); the circle
- * shrinks to the room above the frame air in a shallow frame; the delta-text width bound is
- * `boxW − d − gap − 2`.
+ * position `vc = T + g + 3.15`; the badge hangs the SAME visible gap under the value centre
+ * (`E = g + 3.15 − 1.5`; circle top = `vc + E` — measured equal on both sides of the value);
+ * the circle shrinks to the room above the frame air in a shallow frame; the delta-text width
+ * bound is `boxW − d − gap − 2`.
  */
 function topoBadgeRhythm(node: string) {
   const { titleBottom, frameBottom, boxWidth } = TOPO_BADGE_METRICS[node]!;
@@ -1459,7 +1458,7 @@ function topoBadgeRhythm(node: string) {
   );
   const valueY = titleBottom + air + 3.15;
   const visibleGap = air + 3.15 - TOPO_VALUE_INK_TOP;
-  const circleTop = valueY + TOPO_VALUE_INK_BOTTOM + visibleGap;
+  const circleTop = valueY + visibleGap;
   const badgeD = Math.min(TOPO_BADGE_SIZE, frameBottom - 1.2 - circleTop);
   const badgeY = circleTop + badgeD / 2;
   const textBound = boxWidth - badgeD - TOPO_BADGE_TEXT_GAP - TOPO_BADGE_ROW_AIR;
@@ -1608,10 +1607,11 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
       Math.abs(b.groupCentre - b.valueX),
       `badge ${b.id} group is centred on its value`,
     ).toBeLessThanOrEqual(1.5 * geometry.scale);
-    // (b) The badge sits BELOW the value, and its bottom stays inside the element frame
-    //     (one unit of frame air where the circle has to shrink).
+    // (b) The badge hangs the equal gap under the value CENTRE (the empirical
+    //     rule — its top clears the value's ink), and its bottom stays inside
+    //     the element frame.
     expect(b.badgeTop, `badge ${b.id} sits below the value`).toBeGreaterThanOrEqual(
-      b.valueBottom - 0.1,
+      (b.valueTop + b.valueBottom) / 2 - 0.1,
     );
     expect(
       b.badgeBottom,
