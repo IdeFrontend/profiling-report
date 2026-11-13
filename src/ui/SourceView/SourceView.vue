@@ -91,6 +91,8 @@ const overrides = ref<Record<string, string>>({});
 const dragActive = ref(false);
 /** Files already asked from the host once — null replies must not loop. */
 const attemptedResolve = new Set<string>();
+/** Host lookup progress for the retry button (`miss` keeps the drop zone). */
+const resolveStatus = ref<'idle' | 'pending' | 'miss'>('idle');
 
 const searchQuery = ref('');
 /** Shared Link Views state — both pane toggles stay in sync. */
@@ -177,6 +179,7 @@ watch(
     appliedFocusKey = '';
     overrides.value = {};
     attemptedResolve.clear();
+    resolveStatus.value = 'idle';
     applyFocus();
   },
 );
@@ -257,14 +260,21 @@ async function resolveSelected(force = false) {
   if (!raw || !resolve || !fileNeedsSourceResolve(raw)) return;
   if (!force && attemptedResolve.has(raw.id)) return;
   attemptedResolve.add(raw.id);
+  resolveStatus.value = 'pending';
   try {
     const text = await resolve({ fileName: raw.path, basename: basenameOf(raw.path) });
-    if (text == null) return;
+    if (sourceFile.value?.id !== raw.id) return;
+    if (text == null) {
+      resolveStatus.value = 'miss';
+      return;
+    }
     const current = sourceFile.value;
     if (current?.id !== raw.id || !fileNeedsSourceResolve(current)) return;
     setOverride(raw.id, text);
+    resolveStatus.value = 'idle';
   } catch {
     // Host miss: keep the placeholder.
+    if (sourceFile.value?.id === raw.id) resolveStatus.value = 'miss';
   }
 }
 
@@ -305,7 +315,10 @@ function onDragLeave(event: DragEvent) {
 
 watch(
   () => selectedFileId.value,
-  () => { void resolveSelected(); },
+  () => {
+    resolveStatus.value = 'idle';
+    void resolveSelected();
+  },
 );
 
 /** Scroll the shared listing to the first instruction of the selected file. */
@@ -884,6 +897,14 @@ onBeforeUnmount(() => {
           <p class="pr-source-view__resolve-hint">
             {{ t('sourceResolveDropHint', locale) }}
           </p>
+          <p
+            v-if="resolveStatus === 'miss'"
+            class="pr-source-view__resolve-miss"
+            data-testid="source-resolve-miss"
+            role="status"
+          >
+            {{ t('sourceResolveNotFound', locale) }}
+          </p>
           <div class="pr-source-view__resolve-actions">
             <button
               type="button"
@@ -898,9 +919,13 @@ onBeforeUnmount(() => {
               type="button"
               class="pr-source-view__resolve-btn"
               data-testid="source-resolve-retry"
+              :disabled="resolveStatus === 'pending'"
+              :aria-busy="resolveStatus === 'pending'"
               @click="resolveSelected(true)"
             >
-              {{ t('sourceResolveRetry', locale) }}
+              {{
+                t(resolveStatus === 'pending' ? 'sourceResolveSearching' : 'sourceResolveRetry', locale)
+              }}
             </button>
           </div>
           <input
@@ -1191,6 +1216,12 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
+.pr-source-view__resolve-miss {
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
 .pr-source-view__resolve-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1210,8 +1241,13 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.pr-source-view__resolve-btn:hover {
+.pr-source-view__resolve-btn:hover:not(:disabled) {
   border-color: var(--pr-src-accent, #3078f0);
+}
+
+.pr-source-view__resolve-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .pr-source-view__resolve-btn:focus-visible {

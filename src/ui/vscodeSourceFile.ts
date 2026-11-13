@@ -45,7 +45,10 @@ export function requestSourceFile(
   request: ResolveSourceFileRequest,
 ): Promise<string | null> {
   const api = vsCodeApi();
-  if (!api) return Promise.resolve(null);
+  if (!api) {
+    console.warn('[profiling-report] source file request skipped: no VS Code API');
+    return Promise.resolve(null);
+  }
   return new Promise((resolve) => {
     const requestId = `${Date.now()}-${++nextRequestId}`;
     let settled = false;
@@ -54,6 +57,10 @@ export function requestSourceFile(
       settled = true;
       clearTimeout(timer);
       window.removeEventListener('message', onMessage);
+      console.debug('[profiling-report] source file response', {
+        requestId,
+        hasText: typeof text === 'string',
+      });
       resolve(text);
     };
     const onMessage = (event: MessageEvent) => {
@@ -66,6 +73,10 @@ export function requestSourceFile(
     };
     const timer = setTimeout(() => finish(null), TIMEOUT_MS);
     window.addEventListener('message', onMessage);
+    console.debug('[profiling-report] source file request', {
+      fileName: request.fileName,
+      basename: request.basename,
+    });
     try {
       api.postMessage({
         type: REQUEST_TYPE,

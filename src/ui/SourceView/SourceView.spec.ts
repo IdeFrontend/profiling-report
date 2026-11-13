@@ -1511,6 +1511,12 @@ describe('SourceView', () => {
     });
     await flushPromises();
     expect(resolveSourceFile).toHaveBeenCalledTimes(1);
+    expect(wrapper.get('[data-testid="source-resolve-miss"]').text()).toBe(
+      t('sourceResolveNotFound'),
+    );
+    expect(
+      wrapper.get('[data-testid="source-resolve-retry"]').attributes('disabled'),
+    ).toBeUndefined();
 
     await wrapper.get('[data-testid="source-resolve-retry"]').trigger('click');
     await flushPromises();
@@ -1523,6 +1529,42 @@ describe('SourceView', () => {
     expect(
       wrapper.findComponent({ name: 'SuduCodePane' }).props('file').text as string,
     ).toContain('retried_source');
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-031: retry shows a searching state until the host replies', async () => {
+    const base = mockSourceCorrelation();
+    const missing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          path: '/home/build/gather_2d.asc',
+          text: '// missing source embed: /home/build/gather_2d.asc\n',
+        },
+      ],
+    };
+    const pending: ((text: string | null) => void)[] = [];
+    const resolveSourceFile = vi.fn(
+      () => new Promise<string | null>((done) => { pending.push(done); }),
+    );
+    const wrapper = mount(SourceView, { props: { model: missing, resolveSourceFile } });
+    await wrapper.vm.$nextTick();
+
+    const retry = () => wrapper.get('[data-testid="source-resolve-retry"]');
+    expect(retry().text()).toBe(t('sourceResolveSearching'));
+    expect(retry().attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-testid="source-resolve-miss"]').exists()).toBe(false);
+
+    pending.shift()?.(null);
+    await flushPromises();
+
+    expect(retry().text()).toBe(t('sourceResolveRetry'));
+    expect(retry().attributes('disabled')).toBeUndefined();
+    expect(wrapper.get('[data-testid="source-resolve-miss"]').text()).toBe(
+      t('sourceResolveNotFound'),
+    );
     wrapper.unmount();
   });
 });
