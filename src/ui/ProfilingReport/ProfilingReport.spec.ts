@@ -19,27 +19,33 @@ import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
-  newEditor: vi.fn(() => ({
-    setModel: vi.fn(),
-    setVScrollListener: vi.fn(),
-    setVScrollVisible: vi.fn(),
-    setCaretListener: vi.fn(),
-    setPosition: vi.fn(),
-    setTheme: vi.fn(),
-    getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
-    revealLine: vi.fn(),
-    revealLineInCenter: vi.fn(),
-    focus: vi.fn(),
-    dispose: vi.fn(),
-    getDevicePixelRatio: () => 1,
-    getLineHeight: () => 18,
-    getEditorHeight: () => 200,
-    getMaxVScrollPos: () => 0,
-    getNumLines: () => 10,
-    getFontSize: () => 12,
-    getFontFamily: () => 'monospace',
-    setVScrollPos: vi.fn(),
-  })),
+  newEditor: vi.fn(() => {
+    let lineNumber = 1;
+    return {
+      setModel: vi.fn(),
+      setVScrollListener: vi.fn(),
+      setVScrollVisible: vi.fn(),
+      setCaretListener: vi.fn(),
+      setPosition: vi.fn((pos: { lineNumber: number; column: number }) => {
+        lineNumber = pos.lineNumber;
+      }),
+      setTheme: vi.fn(),
+      getPosition: vi.fn(() => ({ lineNumber, column: 1 })),
+      revealLine: vi.fn(),
+      revealLineInCenter: vi.fn(),
+      focus: vi.fn(),
+      dispose: vi.fn(),
+      getDevicePixelRatio: () => 1,
+      getLineHeight: () => 18,
+      getEditorHeight: () => 200,
+      getMaxVScrollPos: () => 0,
+      getNumLines: () => 10,
+      getFontSize: () => 12,
+      getFontFamily: () => 'monospace',
+      setVScrollPos: vi.fn(),
+      highlightRanges: vi.fn(),
+    };
+  }),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
 }));
 
@@ -2875,5 +2881,160 @@ describe('ProfilingReport scaffold', () => {
     } finally {
       delete host.acquireVsCodeApi;
     }
+  });
+
+  it('PR-ROOT-035: dropped source text lives in the report and survives a tab switch', async () => {
+    const base = mockSourceCorrelation();
+    const missingPath = '/home/build/gather_2d.asc';
+    const withMissing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          id: 'gather_2d.asc',
+          path: missingPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${missingPath}\n`,
+        },
+      ],
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-text',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+      },
+    });
+    await flushPromises();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+
+    wrapper.findComponent(SourceView).vm.$emit('source-text', {
+      fileId: 'gather_2d.asc',
+      text: 'extern "C" void dropped_survives() {}\n',
+    });
+    await nextTick();
+    expect(wrapper.findComponent(SourceView).props('model').files[0].text).toContain(
+      'dropped_survives',
+    );
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    expect(wrapper.findComponent(SourceView).exists()).toBe(false);
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.findComponent(SourceView).props('model').files[0].text).toContain(
+      'dropped_survives',
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-036: a source-file-updated message updates a hidden placeholder', async () => {
+    const base = mockSourceCorrelation();
+    const missingPath = '/home/build/gather_2d.asc';
+    const withMissing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          id: 'gather_2d.asc',
+          path: missingPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${missingPath}\n`,
+        },
+      ],
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-updated',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+      },
+    });
+    await flushPromises();
+    // The Source tab is still hidden; the host update must still reach the overlay.
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'profiling-report/source-file-updated',
+          fileName: missingPath,
+          basename: 'gather_2d.asc',
+          text: 'extern "C" void live_update() {}\n',
+        },
+      }),
+    );
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    const text = wrapper.findComponent(SourceView).props('model').files[0].text as string;
+    expect(text).toContain('live_update');
+    expect(text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(false);
+
+    // Malformed payloads are ignored.
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'profiling-report/source-file-updated', fileName: missingPath, text: 42 },
+      }),
+    );
+    await nextTick();
+    expect(wrapper.findComponent(SourceView).props('model').files[0].text).toContain('live_update');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-037: a missing-source fill keeps previously dropped text', async () => {
+    const base = mockSourceCorrelation();
+    const droppedPath = '/home/build/gather_2d.asc';
+    const otherPath = '/home/build/other.cpp';
+    const withMissing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          id: 'gather_2d.asc',
+          path: droppedPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${droppedPath}\n`,
+        },
+        {
+          ...base.files[0]!,
+          id: 'other.cpp',
+          path: otherPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${otherPath}\n`,
+        },
+      ],
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-fill-merge',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+        capabilities: ['sourceTab'],
+      },
+    });
+    await flushPromises();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    wrapper.findComponent(SourceView).vm.$emit('source-text', {
+      fileId: 'gather_2d.asc',
+      text: 'extern "C" void dropped_survives() {}\n',
+    });
+    await nextTick();
+
+    const late = vi.fn(async (req: { fileName: string; basename: string }) => {
+      expect(req).toEqual({ fileName: otherPath, basename: 'other.cpp' });
+      return 'extern "C" void host_filled() {}\n';
+    });
+    await wrapper.setProps({ resolveSourceFile: late });
+    await flushPromises();
+
+    const files = wrapper.findComponent(SourceView).props('model').files;
+    const dropped = files.find((f: { id: string }) => f.id === 'gather_2d.asc')!;
+    const filled = files.find((f: { id: string }) => f.id === 'other.cpp')!;
+    expect(late).toHaveBeenCalledTimes(1);
+    expect(dropped.text).toContain('dropped_survives');
+    expect(filled.text).toContain('host_filled');
+    wrapper.unmount();
   });
 });

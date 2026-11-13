@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { hasVsCodeHost, requestSourceFile } from './vscodeSourceFile';
+import { hasVsCodeHost, onSourceFileUpdate, requestSourceFile } from './vscodeSourceFile';
 
 type VsCodeApi = { postMessage: (message: unknown) => void };
 type VsCodeWindow = Window & {
@@ -143,5 +143,47 @@ describe('vscodeSourceFile bridge', () => {
 
     await expect(pending).resolves.toBeNull();
     expect(remove).toHaveBeenCalledWith('message', expect.any(Function));
+  });
+
+  it('PR-SRC-013: source-file-updated forwards valid payloads and unsubscribes', () => {
+    const cb = vi.fn();
+    const unsubscribe = onSourceFileUpdate(cb);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'profiling-report/source-file-updated',
+          fileName: '/build/a.asc',
+          basename: 'a.asc',
+          text: 'extern "C" void updated() {}\n',
+        },
+      }),
+    );
+    expect(cb).toHaveBeenCalledWith({
+      fileName: '/build/a.asc',
+      basename: 'a.asc',
+      text: 'extern "C" void updated() {}\n',
+    });
+
+    // Malformed payloads are ignored silently.
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'profiling-report/source-file-updated', fileName: '/build/a.asc' },
+      }),
+    );
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'profiling-report/source-file-updated',
+          fileName: '/build/a.asc',
+          basename: 'a.asc',
+          text: 'after',
+        },
+      }),
+    );
+    expect(cb).toHaveBeenCalledTimes(1);
   });
 });

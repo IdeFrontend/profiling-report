@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SourceFrameTarget } from '../../adapters/sourceCorrelation/resolveSourceFrame';
-import {
-  applyResolvedSourceText,
-  fileNeedsSourceResolve,
-  type ResolveSourceFile,
-} from '../../adapters/sourceCorrelation/resolveSourceFile';
+import { fileNeedsSourceResolve } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
@@ -41,8 +37,8 @@ const props = withDefaults(
     model: SourceCorrelationModel;
     /**
      * Report-boundary generation from ProfilingReport. Bumps on load / operator /
-     * host model swap — not on `resolveSourceFile` text fill — so search resets
-     * across operators while same-shaped resolve overlays keep UI state.
+     * host model swap — not on a source-text overlay fill — so search resets
+     * across operators while same-shaped overlays keep UI state.
      */
     session?: number;
     /** One-shot Source caret from a task-detail frame. Applied once per file and line. */
@@ -50,8 +46,6 @@ const props = withDefaults(
     locale?: string;
     suduWorkerUrl?: string;
     userGuideUrl?: string;
-    /** Optional host hook for a source file whose pack text is the missing embed. */
-    resolveSourceFile?: ResolveSourceFile;
   }>(),
   {
     session: 0,
@@ -59,12 +53,12 @@ const props = withDefaults(
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
-    resolveSourceFile: undefined,
   },
 );
 
 const emit = defineEmits<{
   'open-user-guide': [url: string];
+  'source-text': [payload: { fileId: string; text: string }];
 }>();
 
 type PaneApi = {
@@ -86,13 +80,7 @@ const asmLine = ref<number | null>(null);
 const sourcePane = ref<PaneApi | null>(null);
 const asmPane = ref<PaneApi | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
-/** User-supplied / host-resolved text keyed by source file id. */
-const overrides = ref<Record<string, string>>({});
 const dragActive = ref(false);
-/** Files already asked from the host once — null replies must not loop. */
-const attemptedResolve = new Set<string>();
-/** Host lookup progress for the retry button (`miss` keeps the drop zone). */
-const resolveStatus = ref<'idle' | 'pending' | 'miss'>('idle');
 
 const searchQuery = ref('');
 /** Shared Link Views state — both pane toggles stay in sync. */
@@ -138,8 +126,8 @@ function applyFocus() {
   const focus = props.focus;
   const key = focusKey(focus);
   // Host cleared the frame caret (fresh load / operator switch). Do this even
-  // when the model keeps the same file ids — resolveSourceFile's same-shape
-  // preserve must not leave a stale current row.
+  // when the model keeps the same file ids — the same-shape overlay preserve
+  // must not leave a stale current row.
   if (!focus || !key) {
     if (appliedFocusKey) clearFocusCaret();
     return;
@@ -156,7 +144,7 @@ watch(
   ([m], prev) => {
     const prevModel = prev?.[0];
     const prevSession = prev?.[1];
-    // Same session + same file ids: resolveSourceFile filled Ascend C text —
+    // Same session + same file ids: a source-text overlay filled Ascend C text —
     // keep caret, search, and file selection. A new session (operator / load /
     // host report swap) always resets, even when basenames still match.
     const sameSession = prevSession === props.session;
@@ -177,9 +165,6 @@ watch(
     syncOrigin.value = null;
     showFileMatch.value = false;
     appliedFocusKey = '';
-    overrides.value = {};
-    attemptedResolve.clear();
-    resolveStatus.value = 'idle';
     applyFocus();
   },
 );
@@ -223,68 +208,24 @@ function onSourceFileChange(fileId: string) {
   scrollToFileMatch();
 }
 
-const sourceFile = computed<SourceFileModel | null>(() => {
-  const raw =
-    props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null;
-  if (!raw) return null;
-  const override = overrides.value[raw.id];
-  return override != null && fileNeedsSourceResolve(raw)
-    ? applyResolvedSourceText(raw, override)
-    : raw;
-});
-
-/** Raw model file, before any drop / host override. */
-const rawSourceFile = computed<SourceFileModel | null>(() =>
-  props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null,
+const sourceFile = computed<SourceFileModel | null>(
+  () => props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null,
 );
 
-/** Placeholder overlay only while no override exists for the selected file. */
+/** Placeholder overlay only while the selected file still has no embedded text. */
 const showResolveOverlay = computed(() => {
   const file = sourceFile.value;
-  return file != null && fileNeedsSourceResolve(file) && overrides.value[file.id] == null;
+  return file != null && fileNeedsSourceResolve(file);
 });
 
-function basenameOf(path: string): string {
-  const parts = path.split(/[\\/]/);
-  return parts[parts.length - 1] || path;
-}
-
-function setOverride(fileId: string, text: string) {
-  overrides.value = { ...overrides.value, [fileId]: text };
-}
-
-/** Ask the host once per file id; `force` is the explicit retry button. */
-async function resolveSelected(force = false) {
-  const raw = rawSourceFile.value;
-  const resolve = props.resolveSourceFile;
-  if (!raw || !resolve || !fileNeedsSourceResolve(raw)) return;
-  if (!force && attemptedResolve.has(raw.id)) return;
-  attemptedResolve.add(raw.id);
-  resolveStatus.value = 'pending';
-  try {
-    const text = await resolve({ fileName: raw.path, basename: basenameOf(raw.path) });
-    if (sourceFile.value?.id !== raw.id) return;
-    if (text == null) {
-      resolveStatus.value = 'miss';
-      return;
-    }
-    const current = sourceFile.value;
-    if (current?.id !== raw.id || !fileNeedsSourceResolve(current)) return;
-    setOverride(raw.id, text);
-    resolveStatus.value = 'idle';
-  } catch {
-    // Host miss: keep the placeholder.
-    if (sourceFile.value?.id === raw.id) resolveStatus.value = 'miss';
-  }
-}
-
 async function applyLocalFile(file: File) {
-  const raw = rawSourceFile.value;
-  if (!raw || !fileNeedsSourceResolve(raw)) return;
+  const source = sourceFile.value;
+  if (!source || !fileNeedsSourceResolve(source)) return;
+  const fileId = source.id;
   try {
     const text = await file.text();
-    if (sourceFile.value?.id !== raw.id) return;
-    setOverride(raw.id, text);
+    if (sourceFile.value?.id !== fileId) return;
+    emit('source-text', { fileId, text });
   } catch {
     // Unreadable file: keep the placeholder.
   }
@@ -312,14 +253,6 @@ function onDragLeave(event: DragEvent) {
   const next = event.relatedTarget as Node | null;
   if (!zone || !next || !zone.contains(next)) dragActive.value = false;
 }
-
-watch(
-  () => selectedFileId.value,
-  () => {
-    resolveStatus.value = 'idle';
-    void resolveSelected();
-  },
-);
 
 /** Scroll the shared listing to the first instruction of the selected file. */
 function scrollToFileMatch() {
@@ -681,7 +614,6 @@ watch(
 
 onMounted(() => {
   refreshChromeHost();
-  void resolveSelected();
   syncPaneBars();
   bindPaneBarObserver();
   window.addEventListener('resize', syncPaneBars);
@@ -897,14 +829,6 @@ onBeforeUnmount(() => {
           <p class="pr-source-view__resolve-hint">
             {{ t('sourceResolveDropHint', locale) }}
           </p>
-          <p
-            v-if="resolveStatus === 'miss'"
-            class="pr-source-view__resolve-miss"
-            data-testid="source-resolve-miss"
-            role="status"
-          >
-            {{ t('sourceResolveNotFound', locale) }}
-          </p>
           <div class="pr-source-view__resolve-actions">
             <button
               type="button"
@@ -913,19 +837,6 @@ onBeforeUnmount(() => {
               @click="openFilePicker"
             >
               {{ t('sourceResolveChooseFile', locale) }}
-            </button>
-            <button
-              v-if="resolveSourceFile"
-              type="button"
-              class="pr-source-view__resolve-btn"
-              data-testid="source-resolve-retry"
-              :disabled="resolveStatus === 'pending'"
-              :aria-busy="resolveStatus === 'pending'"
-              @click="resolveSelected(true)"
-            >
-              {{
-                t(resolveStatus === 'pending' ? 'sourceResolveSearching' : 'sourceResolveRetry', locale)
-              }}
             </button>
           </div>
           <input
@@ -1216,12 +1127,6 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
-.pr-source-view__resolve-miss {
-  margin: 0;
-  max-width: 320px;
-  line-height: 1.5;
-}
-
 .pr-source-view__resolve-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1241,13 +1146,8 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.pr-source-view__resolve-btn:hover:not(:disabled) {
+.pr-source-view__resolve-btn:hover {
   border-color: var(--pr-src-accent, #3078f0);
-}
-
-.pr-source-view__resolve-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 .pr-source-view__resolve-btn:focus-visible {

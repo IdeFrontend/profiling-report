@@ -77,6 +77,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 16. **PR-SRC-016** — `adaptSourceCorrelation` dispatches emulate ELF packs.
 17. **PR-SRC-017** — `adaptEmulate` with ELF attaches `sourceCorrelation` + `'sourceTab'`.
 18. **PR-SRC-018** — VS Code bridge posts the exact request, resolves matching text, ignores mismatches, and times out to null.
+19. **PR-SRC-019** — `source-file-updated` messages forward valid payloads to the subscriber, ignore malformed ones silently, and stop after unsubscribe.
 
 ## Dependencies
 

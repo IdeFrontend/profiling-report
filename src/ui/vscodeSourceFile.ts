@@ -2,6 +2,7 @@ import type { ResolveSourceFileRequest } from '../adapters/sourceCorrelation/res
 
 const REQUEST_TYPE = 'profiling-report/source-file-request';
 const RESPONSE_TYPE = 'profiling-report/source-file-response';
+const UPDATE_TYPE = 'profiling-report/source-file-updated';
 const TIMEOUT_MS = 10_000;
 
 type VsCodeApi = { postMessage(message: unknown): void };
@@ -88,4 +89,30 @@ export function requestSourceFile(
       finish(null);
     }
   });
+}
+
+/**
+ * Live source text pushed by the VS Code extension, e.g. after the user saves
+ * the file. Malformed payloads are ignored. Returns an unsubscribe function.
+ */
+export function onSourceFileUpdate(
+  cb: (update: { fileName: string; basename: string; text: string }) => void,
+): () => void {
+  const onMessage = (event: MessageEvent) => {
+    const data = event.data as
+      | { type?: unknown; fileName?: unknown; basename?: unknown; text?: unknown }
+      | null
+      | undefined;
+    if (!data || data.type !== UPDATE_TYPE) return;
+    if (
+      typeof data.fileName !== 'string' ||
+      typeof data.basename !== 'string' ||
+      typeof data.text !== 'string'
+    ) {
+      return;
+    }
+    cb({ fileName: data.fileName, basename: data.basename, text: data.text });
+  };
+  window.addEventListener('message', onMessage);
+  return () => window.removeEventListener('message', onMessage);
 }

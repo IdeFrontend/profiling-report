@@ -1379,7 +1379,7 @@ describe('SourceView', () => {
     missingEn.unmount();
   });
 
-  it('keeps caret and search when resolveSourceFile overlays same-shaped model', async () => {
+  it('keeps caret and search when a source-text overlay swaps the same-shaped model', async () => {
     const base = mockSourceCorrelation();
     const missing = {
       ...base,
@@ -1411,7 +1411,7 @@ describe('SourceView', () => {
         },
       ],
     };
-    // Same session: resolve overlay only — keep UI state even though file ids match.
+    // Same session: text overlay only — keep UI state even though file ids match.
     await wrapper.setProps({ model: filled, session: 1 });
     await wrapper.vm.$nextTick();
     expect((wrapper.get('[data-testid="source-search"]').element as HTMLInputElement).value).toBe(
@@ -1458,7 +1458,7 @@ describe('SourceView', () => {
     real.unmount();
   });
 
-  it('PR-SOURCE-029: dropping a source file fills the pane and hides the drop zone', async () => {
+  it('PR-SOURCE-029: dropping a source file emits its file id and text', async () => {
     const base = mockSourceCorrelation();
     const missing = {
       ...base,
@@ -1481,90 +1481,11 @@ describe('SourceView', () => {
     });
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(false);
-    expect(
-      wrapper.findComponent({ name: 'SuduCodePane' }).props('file').text as string,
-    ).toContain('dropped_source');
-    wrapper.unmount();
-  });
-
-  it('PR-SOURCE-030: retry asks the resolver and applies its reply', async () => {
-    const base = mockSourceCorrelation();
-    const missingPath = '/home/build/gather_2d.asc';
-    const missing = {
-      ...base,
-      mock: false as const,
-      files: [
-        {
-          ...base.files[0]!,
-          path: missingPath,
-          text: `// missing source embed: ${missingPath}\n`,
-        },
-      ],
-    };
-    const resolveSourceFile = vi
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce('extern "C" void retried_source() {}\n');
-    const wrapper = mount(SourceView, {
-      props: { model: missing, resolveSourceFile },
-    });
-    await flushPromises();
-    expect(resolveSourceFile).toHaveBeenCalledTimes(1);
-    expect(wrapper.get('[data-testid="source-resolve-miss"]').text()).toBe(
-      t('sourceResolveNotFound'),
-    );
-    expect(
-      wrapper.get('[data-testid="source-resolve-retry"]').attributes('disabled'),
-    ).toBeUndefined();
-
-    await wrapper.get('[data-testid="source-resolve-retry"]').trigger('click');
-    await flushPromises();
-
-    expect(resolveSourceFile).toHaveBeenLastCalledWith({
-      fileName: missingPath,
-      basename: 'gather_2d.asc',
-    });
-    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(false);
-    expect(
-      wrapper.findComponent({ name: 'SuduCodePane' }).props('file').text as string,
-    ).toContain('retried_source');
-    wrapper.unmount();
-  });
-
-  it('PR-SOURCE-031: retry shows a searching state until the host replies', async () => {
-    const base = mockSourceCorrelation();
-    const missing = {
-      ...base,
-      mock: false as const,
-      files: [
-        {
-          ...base.files[0]!,
-          path: '/home/build/gather_2d.asc',
-          text: '// missing source embed: /home/build/gather_2d.asc\n',
-        },
-      ],
-    };
-    const pending: ((text: string | null) => void)[] = [];
-    const resolveSourceFile = vi.fn(
-      () => new Promise<string | null>((done) => { pending.push(done); }),
-    );
-    const wrapper = mount(SourceView, { props: { model: missing, resolveSourceFile } });
-    await wrapper.vm.$nextTick();
-
-    const retry = () => wrapper.get('[data-testid="source-resolve-retry"]');
-    expect(retry().text()).toBe(t('sourceResolveSearching'));
-    expect(retry().attributes('disabled')).toBeDefined();
-    expect(wrapper.find('[data-testid="source-resolve-miss"]').exists()).toBe(false);
-
-    pending.shift()?.(null);
-    await flushPromises();
-
-    expect(retry().text()).toBe(t('sourceResolveRetry'));
-    expect(retry().attributes('disabled')).toBeUndefined();
-    expect(wrapper.get('[data-testid="source-resolve-miss"]').text()).toBe(
-      t('sourceResolveNotFound'),
-    );
+    expect(wrapper.emitted('source-text')).toEqual([
+      [{ fileId: missing.files[0]!.id, text: 'extern "C" void dropped_source() {}\n' }],
+    ]);
+    // The model is unchanged here, so the drop zone stays until the parent overlays text.
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(true);
     wrapper.unmount();
   });
 });

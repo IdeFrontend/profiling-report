@@ -338,6 +338,7 @@ async function boot() {
     waitForGeom();
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e);
+    console.error('[profiling-report] Sudu editor fallback', loadError.value);
     ready.value = true; // show fallback
   }
 }

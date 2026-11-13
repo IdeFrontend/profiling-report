@@ -8,7 +8,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Inputs
 
-**model** (`SourceCorrelationModel`) drives both panes, file select, navigate-by options, and correlation maps. Optional **focus** (`{ fileId, line }`) moves the Source caret once per file and line, including line 1, and follows Link views into the mapped asm rows. A later manual file change is left alone. Optional **locale** and **suduWorkerUrl** (default `/sudu/worker.js`). Optional **resolveSourceFile** asks the host for source text the pack did not embed.
+**model** (`SourceCorrelationModel`) drives both panes, file select, navigate-by options, and correlation maps. Optional **focus** (`{ fileId, line }`) moves the Source caret once per file and line, including line 1, and follows Link views into the mapped asm rows. A later manual file change is left alone. Optional **locale** and **suduWorkerUrl** (default `/sudu/worker.js`).
 
 ## Behavior
 
@@ -28,7 +28,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 **Sudu runtime.** The worker pool is process-lifetime cached (`suduRuntime`); panes dispose only editors/models on unmount. Until the editor reports usable geometry, the left pane shows a centered loading indicator and does not reveal the editor or its metrics columns. Those appear together once initialization finishes. The editor theme sets `editorFont` to 12px **`monospace`** with no fallback stack and no font assets (Sudu’s default 16px Consolas is too large for the sketch). Metrics tables use the editor’s `getFontFamily()` / `getFontSize()` so glyphs match the canvas (standalone-sample pattern). Editor ↔ metrics-table scroll sync follows `editorAndTable.js` (device-px vscroll ↔ CSS table scroll; row click = `setPosition` + `focus`; caret listener drives selection). **No custom canvas line overlays** — Sudu paints the current line. The metrics table also marks the current source line. Editor ↔ metrics scroll stays on regardless of the Source↔SASS link toggles. A right-click on the editor does not open Sudu’s native menu. A DOM menu with one **Copy** action copies the selected text. A caret with no range does not write the clipboard.
 
-**Missing source.** When the selected Source file still carries the `// missing source embed: …` placeholder, the Source pane body shows a resolve overlay (`source-resolve-drop`) with a drop zone, a file picker (`source-resolve-browse`), and, when a resolver exists, retry (`source-resolve-retry`). Dropping or picking a text file reads it locally and replaces the placeholder in the editor without touching the SASS pane; the overlay disappears. Unreadable files leave the placeholder. With **resolveSourceFile**, the pane also asks the host once per file on mount / file change and on retry, passing `{ fileName, basename }`; a non-null reply fills the pane, and null / throw keeps the placeholder without retrying automatically. The lookup has three states: **idle**, **pending** (retry button disabled and labelled `sourceResolveSearching`), and **miss** (`sourceResolveNotFound` under the hint; retry enabled, drop zone stays). A file change and a new session reset the state to idle. Diagnostics log the request `{ fileName, basename }` and the reply `{ requestId, hasText }` — never file contents — and warn when no VS Code API exists. A new report session clears local overrides and retry state.
+**Missing source.** When the selected Source file still carries the `// missing source embed: …` placeholder, the Source pane body shows a resolve overlay (`source-resolve-drop`) with a drop zone and a file picker (`source-resolve-browse`). Dropping or picking a text file reads it locally and emits **`source-text`** with the raw file id and text; the pane never changes its own model. Unreadable files emit nothing and leave the placeholder. **ProfilingReport** owns the text overlay, so a drop survives unmounting SourceView on a tab switch. When the parent applies the text, the placeholder check turns false and the overlay disappears. A new report session clears the parent overlay.
 
 ## Acceptance Criteria
 
@@ -62,9 +62,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 27. **PR-SOURCE-027** — Changing the Source file keeps the full shared SASS listing, including instructions mapped to other files. Link views on highlights the selected file's instructions. An empty assembly shows `asm-empty`.
 28. **PR-SOURCE-028** — Large metrics listings (>300 rows) virtualize the tbody (viewport window + pads).
 30. **PR-SOURCE-030** — Placeholder Source file shows the resolve drop zone; real text does not.
-31. **PR-SOURCE-031** — Dropping a text file fills the pane and hides the drop zone.
-32. **PR-SOURCE-032** — Retry calls `resolveSourceFile` with file name and basename, then applies the reply.
-33. **PR-SOURCE-033** — While a lookup is pending the retry button is disabled and reads `sourceResolveSearching`. A null reply or a throw shows `sourceResolveNotFound` and re-enables retry; the drop zone stays.
+31. **PR-SOURCE-031** — Dropping a text file emits `source-text` with the raw file id and file text; the model is unchanged until the parent applies it.
 
 ## Design sketches
 
@@ -76,7 +74,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 - **2026-11-19** — Scroll-origin guard is one echo: scrolling the metrics pane back to the mirrored offset still moves Sudu (`PR-SOURCE-014f`).
 - **2026-11-19** — Sudu `hasFocus()` blocks prop-driven caret echo; scroll mirror uses origin compare so metrics wheel still locks panes while focused (`PR-SOURCE-014f`).
 - **2026-11-17** — SASS metric columns come from the model (emulate MVP / compute stall set); assembly-only when `files` empty (DATA-53).
-- **2026-11-13** — Missing-embed Source pane gains drop / browse / retry overlay and host resolver auto-fill (`PR-SOURCE-030`–`033`). Retry shows pending and not-found states instead of looking dead.
+- **2026-11-13** — Missing-embed Source pane gains a drop / browse overlay. It emits `source-text` so ProfilingReport owns the text and it survives tab switches; manual retry and its statuses are gone (`PR-SOURCE-030`–`031`).
 - **2026-10-27** — `clearLine` pins Sudu `EditorBackground` and hides the current-line band with that same `#1e1f22` plane (Sudu dark `editBg`), so an unmapped asm clear no longer leaves a `#1a1a1a` strip (`PR-SOURCE-006`).
 - **2026-10-24** — Navigation tooltips are the full sentence for that button (next / previous row with data, highest, next higher, next lower, lowest) in the corresponding metric column.
 - **2026-10-24** — Navigation tooltips name the action in one short line: non-zero row, highest / lowest value, next higher / lower value.

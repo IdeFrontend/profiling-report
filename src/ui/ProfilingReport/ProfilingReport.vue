@@ -10,6 +10,7 @@ import {
   resolveSourceFrame,
   type SourceFrameTarget,
 } from '../../adapters/sourceCorrelation/resolveSourceFrame';
+import { applyResolvedSourceText } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import {
   applyWindow,
   clearMeasure,
@@ -108,7 +109,7 @@ import {
   type GutterMetric,
 } from '../../domain/gutterMetrics';
 import { resolveEnvironmentBehavior } from '../environments';
-import { requestSourceFile } from '../vscodeSourceFile';
+import { requestSourceFile, onSourceFileUpdate } from '../vscodeSourceFile';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import {
   DEFAULT_HTML_EXPORT_TEMPLATE_URL,
@@ -1038,11 +1039,50 @@ let sourceLoadGen = 0;
 /** Bumps when starting a resolve pass so stale host replies do not overwrite. */
 let sourceResolveGen = 0;
 
+/** Current correlation including drop / host text already overlaid. */
+function currentSourceCorrelation(): SourceCorrelationModel | null {
+  return (
+    resolvedSourceCorrelation.value ??
+    (props.reportModel ?? internalReport.value)?.sourceCorrelation ??
+    null
+  );
+}
+
+function basenameOf(path: string): string {
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1] || path;
+}
+
+/** Overlay one file's text so it survives SourceView unmounting on tab switch. */
+function applySourceText(fileId: string, text: string) {
+  const sc = currentSourceCorrelation();
+  if (!sc) return;
+  let changed = false;
+  const files = sc.files.map((file) => {
+    if (file.id !== fileId) return file;
+    changed = true;
+    return applyResolvedSourceText(file, text);
+  });
+  if (!changed) return;
+  resolvedSourceCorrelation.value = { ...sc, files };
+}
+
+/** Host pushed fresh source text: match by full path or basename, then overlay. */
+function onHostSourceFileUpdate(update: { fileName: string; basename: string; text: string }) {
+  const sc = currentSourceCorrelation();
+  if (!sc) return;
+  const matching = sc.files.filter(
+    (file) => file.path === update.fileName || basenameOf(file.path) === update.basename,
+  );
+  for (const file of matching) applySourceText(file.id, update.text);
+}
+
 async function fillMissingSourceFiles(
   reportModel: ReportViewModel | null | undefined,
   resolveGen: number,
 ) {
-  const sc = reportModel?.sourceCorrelation;
+  // Start from the live overlay so earlier drops / host updates are kept.
+  const sc = resolvedSourceCorrelation.value ?? reportModel?.sourceCorrelation;
   const resolve = hostResolveSourceFile.value;
   if (!sc || sc.mock || !resolve) return;
   const next = await resolveMissingSourceFiles(sc, resolve);
@@ -1187,7 +1227,10 @@ watch(showAside, () => {
   applyLayoutFit();
 });
 
+let unsubscribeSourceFileUpdate: (() => void) | undefined;
+
 onMounted(() => {
+  unsubscribeSourceFileUpdate = onSourceFileUpdate(onHostSourceFileUpdate);
   window.addEventListener('keydown', onRootKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
@@ -1200,6 +1243,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  unsubscribeSourceFileUpdate?.();
   cancelViewWindowAnim();
   cancelCollapseAnim();
   collapseAnim.value = null;
@@ -2021,13 +2065,13 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
           :model="report.sourceCorrelation"
-          :resolve-source-file="hostResolveSourceFile"
           :session="sourceSession"
           :focus="sourceFocus"
           :locale="locale"
           :sudu-worker-url="suduWorkerUrl"
           :user-guide-url="userGuideUrl"
           @open-user-guide="emit('open-user-guide', $event)"
+          @source-text="applySourceText($event.fileId, $event.text)"
         />
         <TimelineView
           v-if="showTimelineSurface"
