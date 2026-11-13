@@ -502,48 +502,61 @@ def small_trace(
     )
 
 
-# §11.14 catalog for op1 (µs). Distinct seeds / process names so the selector
-# swap is visible; PipeTrace keeps the multi-height demo and is the default.
-OP1_CATALOG_TIME_SPAN_US = 30_000
+# Generator space for op1 catalog (same numeric span as the former ns
+# `trace.json`). Divided by 1000 into µs CTEF so `sourceTimeUnit: 'us'` yields
+# the same swimlane ns range — keeps e2e zoom / gap-measure thresholds stable.
+OP1_TRACE_GEN_SPAN = 30_000
+
+
+def scale_ctef_times(doc, factor):
+    """Multiply every ts/dur on traceEvents + bands (keeps metadata events intact)."""
+    out = dict(doc)
+    events = []
+    for raw in doc.get("traceEvents", []):
+        e = dict(raw)
+        if isinstance(e.get("ts"), (int, float)):
+            e["ts"] = e["ts"] * factor
+        if isinstance(e.get("dur"), (int, float)):
+            e["dur"] = e["dur"] * factor
+        events.append(e)
+    out["traceEvents"] = events
+    if "bands" in doc:
+        bands = []
+        for raw in doc["bands"]:
+            b = dict(raw)
+            if isinstance(b.get("ts"), (int, float)):
+                b["ts"] = b["ts"] * factor
+            if isinstance(b.get("dur"), (int, float)):
+                b["dur"] = b["dur"] * factor
+            bands.append(b)
+        out["bands"] = bands
+    return out
 
 
 def op1_catalog_traces():
-    """Return [(embedName, ctef_doc), ...] in menu order."""
-    return [
-        (
-            "Communication.json",
-            small_trace(
-                seed=0xC011,
-                id_prefix="comm",
-                process_name="Communication",
-                time_span=OP1_CATALOG_TIME_SPAN_US,
-                display_time_unit="us",
-                multiheight=False,
-            ),
-        ),
-        (
-            "SimtWarpOccpy.json",
-            small_trace(
-                seed=0xA17A,
-                id_prefix="warp",
-                process_name="WarpOccupy",
-                time_span=OP1_CATALOG_TIME_SPAN_US,
-                display_time_unit="us",
-                multiheight=False,
-            ),
-        ),
-        (
-            "PipeTrace.json",
-            small_trace(
-                seed=0xA11CE,
-                id_prefix="pipe",
-                process_name="PipeTrace",
-                time_span=OP1_CATALOG_TIME_SPAN_US,
-                display_time_unit="us",
-                multiheight=True,
-            ),
-        ),
+    """Return [(embedName, ctef_doc), ...] in menu order (µs CTEF)."""
+    specs = [
+        ("Communication.json", dict(
+            seed=0xC011, id_prefix="comm", process_name="Communication",
+            multiheight=False,
+        )),
+        ("SimtWarpOccpy.json", dict(
+            seed=0xA17A, id_prefix="warp", process_name="WarpOccupy",
+            multiheight=False,
+        )),
+        ("PipeTrace.json", dict(
+            seed=0xA11CE, id_prefix="pipe", process_name="PipeTrace",
+            multiheight=True,
+        )),
     ]
+    out = []
+    for embed_name, kwargs in specs:
+        # Build in historical ns-numeric space, then convert to µs.
+        doc = small_trace(time_span=OP1_TRACE_GEN_SPAN, display_time_unit="ns", **kwargs)
+        doc = scale_ctef_times(doc, 1 / 1000.0)
+        doc["displayTimeUnit"] = "us"
+        out.append((embed_name, doc))
+    return out
 
 
 # ------------------------------------------------------------------ CSV gen
@@ -1686,8 +1699,6 @@ def main():
         demo=op1_demo,
         include_trace=False,
         catalog_traces=op1_catalog_traces(),
-        # Align Sampling overview with catalog µs span (PipeTrace default).
-        sampling_duration_us=float(OP1_CATALOG_TIME_SPAN_US),
         sampling_seed=0x51A101,
         roofline_scale=1.0,
         heatmap_seed=0x4E4701,
