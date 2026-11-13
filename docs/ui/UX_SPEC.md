@@ -166,7 +166,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 
 | Element | MVP | Notes |
 |---------|-----|-------|
-| Secondary tabs: OP算子 / **时间线** / 源码 | Timeline always; Source only with real embeds. **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)) | 源码 hidden without data |
+| Secondary tabs: OP算子 / **时间线** / **概览** / 源码 | Timeline always; Overview only with operator rows (`OpBasicInfo.csv`); Source only with real embeds. **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)) | 概览 = operator table + 低利用率 (underutilization) dock; a new source without operator rows falls back to 时间线; 源码 hidden without data |
 | Toolbar | Search, zoom, toggle aside | Extra icons P2 |
 | Main Timeline layout | Gutter + overview + swimlane + aside + detail | See UI_OVERVIEW |
 

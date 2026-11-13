@@ -1054,6 +1054,35 @@ describe('PR-VM: report view-models (interim)', () => {
     ]);
   });
 
+  it('PR-VM-028: NA is absent, so the OpBasicInfo alias cascade falls through', () => {
+    const encoder = new TextEncoder();
+    const adapted = adaptPayloads({
+      'OpBasicInfo.csv': encoder.encode(
+        [
+          'Op Name,Op Type,Demangled Name,Grid Size,Grid Dim,Block Size,Block Num',
+          'void sig_op<float>(float*),vector,NA,NA,4,NA,8',
+          'add_custom,vector,add_custom<float>,85.25,4,32,8',
+        ].join('\n'),
+      ),
+    });
+    expect(adapted.reportModel.operatorRows).toEqual([
+      {
+        opName: 'void sig_op<float>(float*)',
+        opType: 'vector',
+        demangledName: 'void sig_op<float>(float*)',
+        gridSize: 4,
+        blockSize: 8,
+      },
+      {
+        opName: 'add_custom',
+        opType: 'vector',
+        demangledName: 'add_custom<float>',
+        gridSize: 85.25,
+        blockSize: 32,
+      },
+    ]);
+  });
+
   it('PR-VM-026: OpInfoSummary duration fields fill the 整体耗时 bar; 计算时间 is the remainder', () => {
     const encoder = new TextEncoder();
     const line = (obj: Record<string, unknown>) =>

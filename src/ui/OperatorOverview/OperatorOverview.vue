@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, useId, watch } from 'vue';
 import type { ReportOperatorRow } from '../../domain/types';
 import { t, type MessageKey } from '../../i18n';
 import FilterIcon from '../FilterIcon.vue';
@@ -18,7 +18,7 @@ const props = withDefaults(
   },
 );
 
-const emit = defineEmits<{ optimize: [] }>();
+const emit = defineEmits<{ optimize: [{ opName: string }] }>();
 
 type FilterKey = 'opName' | 'opType';
 type SortableKey =
@@ -32,18 +32,20 @@ type SortableKey =
 interface Column {
   key: keyof ReportOperatorRow | 'index';
   labelKey: MessageKey;
+  /** Inline width; all rendered columns stay at or below 100%. */
+  width: string;
 }
 
 const baseColumns: Column[] = [
-  { key: 'index', labelKey: 'overviewColumnIndex' },
-  { key: 'opName', labelKey: 'overviewColumnOpName' },
-  { key: 'opType', labelKey: 'overviewColumnOpType' },
-  { key: 'demangledName', labelKey: 'overviewColumnDemangledName' },
-  { key: 'taskDurationUs', labelKey: 'overviewColumnTaskDuration' },
-  { key: 'blockDim', labelKey: 'overviewColumnBlockDim' },
-  { key: 'mixBlockDim', labelKey: 'overviewColumnMixBlockDim' },
-  { key: 'gridSize', labelKey: 'overviewColumnGridSize' },
-  { key: 'blockSize', labelKey: 'overviewColumnBlockSize' },
+  { key: 'index', labelKey: 'overviewColumnIndex', width: '8%' },
+  { key: 'opName', labelKey: 'overviewColumnOpName', width: '18%' },
+  { key: 'opType', labelKey: 'overviewColumnOpType', width: '9%' },
+  { key: 'demangledName', labelKey: 'overviewColumnDemangledName', width: '20%' },
+  { key: 'taskDurationUs', labelKey: 'overviewColumnTaskDuration', width: '11%' },
+  { key: 'blockDim', labelKey: 'overviewColumnBlockDim', width: '9%' },
+  { key: 'mixBlockDim', labelKey: 'overviewColumnMixBlockDim', width: '8%' },
+  { key: 'gridSize', labelKey: 'overviewColumnGridSize', width: '9%' },
+  { key: 'blockSize', labelKey: 'overviewColumnBlockSize', width: '8%' },
 ];
 
 function isFilterKey(key: Column['key']): key is FilterKey {
@@ -74,6 +76,9 @@ const openFilter = ref<FilterKey | null>(null);
 const filterAnchor = ref({ left: 0, top: 0 });
 const sortKey = ref<SortableKey | null>(null);
 const sortDirection = ref<'asc' | 'desc' | null>(null);
+const popoverRef = ref<HTMLElement | null>(null);
+const filterTrigger = ref<HTMLElement | null>(null);
+const filterPopoverId = useId();
 
 function distinctValues(key: FilterKey): string[] {
   const values = new Set<string>();
@@ -105,13 +110,27 @@ function filterLabel(col: Column): string {
   return t('overviewFilterFor', props.locale).replace('{name}', t(col.labelKey, props.locale));
 }
 
-/** Filter rows keep the raw signature; only the checkbox copy is shortened. */
-function filterOptionLabel(value: string): string {
-  return shortOperatorName(value) ?? value;
-}
-
 function sortLabel(col: Column): string {
   return t('overviewSortFor', props.locale).replace('{name}', t(col.labelKey, props.locale));
+}
+
+/** Matches the popover box in this file's stylesheet; used only to clamp it. */
+const POPOVER_WIDTH = 200;
+const POPOVER_MAX_HEIGHT = 240;
+
+/** Keep the fixed popover clamped to the viewport and attached to its funnel. */
+function positionFilterPopover() {
+  const trigger = filterTrigger.value;
+  if (trigger == null) return;
+  const rect = trigger.getBoundingClientRect();
+  const margin = 8;
+  filterAnchor.value = {
+    left: Math.max(margin, Math.min(rect.left, window.innerWidth - POPOVER_WIDTH - margin)),
+    top: Math.max(
+      margin,
+      Math.min(rect.bottom + 4, window.innerHeight - POPOVER_MAX_HEIGHT - margin),
+    ),
+  };
 }
 
 function toggleFilter(col: Column, event: MouseEvent) {
@@ -120,13 +139,16 @@ function toggleFilter(col: Column, event: MouseEvent) {
     closeFilter();
     return;
   }
-  const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect();
-  filterAnchor.value = { left: rect?.left ?? 0, top: (rect?.bottom ?? 0) + 4 };
+  filterTrigger.value = event.currentTarget as HTMLElement | null;
   openFilter.value = col.key;
+  positionFilterPopover();
 }
 
-function closeFilter() {
+function closeFilter(opts?: { restoreFocus?: boolean }) {
+  const trigger = filterTrigger.value;
   openFilter.value = null;
+  filterTrigger.value = null;
+  if (opts?.restoreFocus) void nextTick(() => trigger?.focus());
 }
 
 const openFilterColumn = computed<Column | null>(
@@ -188,17 +210,29 @@ const visibleRows = computed(() => {
 });
 
 /** Single-select table state; the first row is selected by default. */
-const selectedRow = ref<ReportOperatorRow | null>(props.rows[0] ?? null);
+const selectedRow = shallowRef<ReportOperatorRow | null>(
+  props.rows[0] != null ? toRaw(props.rows[0]) : null,
+);
+
+/** Rows may arrive as raw objects, so compare their raw identity, not proxies. */
+function isSelectedRow(row: ReportOperatorRow): boolean {
+  return selectedRow.value != null && toRaw(row) === selectedRow.value;
+}
 
 watch(
   () => props.rows,
   (rows) => {
-    selectedRow.value = rows[0] ?? null;
+    filterValues.value = { opName: [], opType: [] };
+    sortKey.value = null;
+    sortDirection.value = null;
+    closeFilter();
+    selectedRow.value = rows[0] != null ? toRaw(rows[0]) : null;
   },
 );
 
 watch(visibleRows, (rows) => {
-  if (selectedRow.value != null && !rows.includes(selectedRow.value)) selectedRow.value = null;
+  if (selectedRow.value == null) return;
+  if (!rows.some((row) => toRaw(row) === selectedRow.value)) selectedRow.value = null;
 });
 
 watch(hasMixBlockDim, (visible) => {
@@ -234,12 +268,19 @@ function ariaSort(col: Column): 'ascending' | 'descending' | 'none' {
 }
 
 function selectRow(row: ReportOperatorRow | null) {
-  if (row != null) selectedRow.value = row;
+  if (row != null) selectedRow.value = toRaw(row);
 }
 
 /** The suggestion link acts on the highlighted row; it never navigates. */
 function selectHighlighted() {
   selectRow(selectedRow.value);
+}
+
+/** Host contract: the optimize event carries the highlighted row's raw op name. */
+function optimizeSelected() {
+  const opName = selectedRow.value?.opName;
+  if (opName == null) return;
+  emit('optimize', { opName });
 }
 
 function onDocumentClick(event: MouseEvent) {
@@ -254,26 +295,38 @@ function onDocumentClick(event: MouseEvent) {
 }
 
 function onDocumentKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && openFilter.value != null) closeFilter();
+  if (event.key !== 'Escape' || openFilter.value == null) return;
+  /* Close only the popover: the host also listens for Escape on window. */
+  event.stopPropagation();
+  closeFilter({ restoreFocus: true });
 }
 
-/** A scroll or resize would detach the fixed popover from its header button. */
-function onViewportChange(event?: Event) {
+/** A table scroll moves the anchor; any other scroll detaches the fixed popover. */
+function onViewportChange(event: Event) {
   if (openFilter.value == null) return;
-  const target = event?.target;
+  if (event.type === 'resize') {
+    positionFilterPopover();
+    return;
+  }
+  const target = event.target;
   if (target instanceof Element) {
     if (target.closest('.pr-operator-overview__filter-popover')) return;
-    if (target.closest('.pr-operator-overview__table-wrap')) return;
+    if (target.closest('.pr-operator-overview__table-wrap')) {
+      positionFilterPopover();
+      return;
+    }
   }
   closeFilter();
 }
 
-watch(openFilter, (open) => {
+watch(openFilter, async (open) => {
   if (open != null) {
     document.addEventListener('click', onDocumentClick);
     document.addEventListener('keydown', onDocumentKeydown);
     window.addEventListener('scroll', onViewportChange, true);
     window.addEventListener('resize', onViewportChange);
+    await nextTick();
+    popoverRef.value?.querySelector<HTMLElement>('input[type="checkbox"]')?.focus();
   } else {
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('keydown', onDocumentKeydown);
@@ -317,6 +370,7 @@ function duration(value: number | undefined): string {
               scope="col"
               role="columnheader"
               :aria-sort="isSortable(col) ? ariaSort(col) : undefined"
+              :style="{ width: col.width }"
               :class="{ 'pr-operator-overview__header--numeric': isNumericColumn(col) }"
             >
               <button
@@ -326,6 +380,7 @@ function duration(value: number | undefined): string {
                 :aria-label="filterLabel(col)"
                 aria-haspopup="true"
                 :aria-expanded="openFilter === col.key"
+                :aria-controls="openFilter === col.key ? filterPopoverId : undefined"
                 @click.stop="toggleFilter(col, $event)"
               >
                 <span>{{ t(col.labelKey, locale) }}</span>
@@ -357,8 +412,8 @@ function duration(value: number | undefined): string {
             v-for="(row, index) in visibleRows"
             :key="index"
             class="pr-operator-overview__row"
-            :class="{ 'pr-operator-overview__row--selected': row === selectedRow }"
-            :aria-selected="row === selectedRow"
+            :class="{ 'pr-operator-overview__row--selected': isSelectedRow(row) }"
+            :aria-selected="isSelectedRow(row)"
             role="row"
             tabindex="0"
             @click="selectRow(row)"
@@ -414,6 +469,7 @@ function duration(value: number | undefined): string {
     </div>
 
     <div
+      v-if="rows.length > 0"
       class="pr-operator-overview__dock"
       data-testid="operator-overview-dock"
     >
@@ -461,7 +517,7 @@ function duration(value: number | undefined): string {
       <button
         type="button"
         class="pr-operator-overview__action"
-        @click="emit('optimize')"
+        @click="optimizeSelected"
       >
         <svg
           class="pr-operator-overview__action-glyph"
@@ -491,6 +547,7 @@ function duration(value: number | undefined): string {
     </div>
 
     <p
+      v-if="rows.length > 0"
       class="pr-operator-overview__banner"
       data-testid="operator-overview-banner"
     >
@@ -500,6 +557,8 @@ function duration(value: number | undefined): string {
     <Teleport to="body">
       <div
         v-if="openFilterColumn"
+        :id="filterPopoverId"
+        ref="popoverRef"
         class="pr-operator-overview__filter-popover"
         :style="{ left: `${filterAnchor.left}px`, top: `${filterAnchor.top}px` }"
         @click.stop
@@ -515,7 +574,7 @@ function duration(value: number | undefined): string {
               :checked="filterValuesFor(openFilterColumn).includes(value)"
               @change="toggleFilterValue(openFilterColumn, value)"
             >
-            <span>{{ filterOptionLabel(value) }}</span>
+            <span>{{ value }}</span>
           </label>
         </div>
         <button
@@ -579,30 +638,6 @@ function duration(value: number | undefined): string {
 
 .pr-operator-overview__header--numeric {
   text-align: right;
-}
-
-.pr-operator-overview__table th:nth-child(1) {
-  width: 64px;
-}
-
-.pr-operator-overview__table th:nth-child(2) {
-  width: 20%;
-}
-
-.pr-operator-overview__table th:nth-child(3) {
-  width: 10%;
-}
-
-.pr-operator-overview__table th:nth-child(4) {
-  width: 22%;
-}
-
-.pr-operator-overview__table th:nth-child(5) {
-  width: 12%;
-}
-
-.pr-operator-overview__table th:nth-child(n + 6) {
-  width: 10%;
 }
 
 .pr-operator-overview__header-button {
@@ -725,6 +760,10 @@ function duration(value: number | undefined): string {
 .pr-operator-overview__row--selected,
 .pr-operator-overview__row--selected:hover {
   background: #404040;
+}
+
+/* Cell-level color wins over `.row td`; a `<tr>` declaration would lose. */
+.pr-operator-overview__row--selected td {
   color: #ffffff;
 }
 

@@ -129,12 +129,12 @@ Format and statuses: [README.md](README.md).
 
 ## UI-37 (was: Q10)
 
-- **Resolved:** 2026-09-10; **Amended:** 2026-10-16, 2026-10-21
+- **Resolved:** 2026-09-10; **Amended:** 2026-10-16, 2026-10-21, 2026-11-13
 - **Was:** Secondary tabs **源码 / 详情 / 缓存** stay in chrome but are **disabled**; only **时间线** is active (2026-09-10).
 - **Question:** Source / Details / Cache tabs?
-- **Decision:** **源码** is shown only when the loaded report has a real Source correlation model (`mock !== true`). Packs without those embeds omit `sourceCorrelation` and `'sourceTab'`, and the 源码 control is absent. **详情** (Details) and **缓存** (Cache) are **not** in the chrome. OP算子 remains brand / multi-op selector, not a mode tab. A host may still pass `'sourceTab'` plus a non-mock `reportModel.sourceCorrelation`. Pure Chrome Trace loads omit both.
-- **Specs:** [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md)
-- **Source:** Product answer in chat (2026-09-10); Source tab implementation plan (2026-10-07); hide mock Source and the tab when embeds are absent (2026-10-16); remove Details and Cache tabs (2026-10-21).
+- **Decision:** **源码** is shown only when the loaded report has a real Source correlation model (`mock !== true`). Packs without those embeds omit `sourceCorrelation` and `'sourceTab'`, and the 源码 control is absent. **概览** (Overview) is shown beside **时间线** / **源码** only when the pack carries operator rows (`OpBasicInfo.csv`); Chrome Trace and empty packs have no 概览 tab. Selecting 概览 needs nothing from the host. Loading a new source while 概览 is active falls back to **时间线** when the new pack has no operator rows. 执行优化 (execute optimization) emits `optimize` with `{ opName: string }` from the highlighted row's `OpName`. **详情** (Details) and **缓存** (Cache) are **not** in the chrome. OP算子 remains brand / multi-op selector, not a mode tab. A host may still pass `'sourceTab'` plus a non-mock `reportModel.sourceCorrelation`. Pure Chrome Trace loads omit both.
+- **Specs:** [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md), [UI_OVERVIEW](../../ui/UI_OVERVIEW.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [public-api](../../../specs/architecture/public-api.spec.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [OperatorOverview.spec.md](../../../src/ui/OperatorOverview/OperatorOverview.spec.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md)
+- **Source:** Product answer in chat (2026-09-10); Source tab implementation plan (2026-10-07); hide mock Source and the tab when embeds are absent (2026-10-16); remove Details and Cache tabs (2026-10-21); 概览 gated on operator rows with `optimize` host event (2026-11-13).
 
 ---
 

@@ -23,7 +23,9 @@ describe('ReportToolbar', () => {
   });
 
   it('PR-TOOLBAR-026: 概览 first, 时间线 default, 源码 gated; 详情 / 缓存 absent', async () => {
-    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    const wrapper = mount(ReportToolbar, {
+      props: { ...defaultProps, overviewTabEnabled: true },
+    });
     const tabs = wrapper.findAll('.pr-tabs__tab');
     expect(tabs[0].attributes('data-testid')).toBe('tab-overview');
 
@@ -50,6 +52,15 @@ describe('ReportToolbar', () => {
     await wrapper.setProps({ activeTab: 'source' });
     expect(wrapper.find('[data-testid="search-input"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="zoom-pill"]').exists()).toBe(false);
+  });
+
+  it('PR-TOOLBAR-029: 概览 is gated by overviewTabEnabled (default hidden)', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    expect(wrapper.find('[data-testid="tab-overview"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-timeline"]').exists()).toBe(true);
+
+    await wrapper.setProps({ overviewTabEnabled: true });
+    expect(wrapper.find('[data-testid="tab-overview"]').exists()).toBe(true);
   });
 
   it('PR-TOOLBAR-025: clear × emits empty searchQuery; inset focus ring is not clipped', async () => {

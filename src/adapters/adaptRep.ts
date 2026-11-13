@@ -142,8 +142,14 @@ function collectCsvTables(
   return { tables, texts };
 }
 
+/** Producers write `NA` (or blank) for a missing cell: both are absent, never data. */
+function isAbsentValue(raw: string | undefined): boolean {
+  const v = raw?.trim();
+  return !v || v === 'NA';
+}
+
 function parseNumber(raw: string | undefined): number | undefined {
-  if (raw == null || raw === '' || raw === 'NA') return undefined;
+  if (isAbsentValue(raw)) return undefined;
   const n = Number(raw);
   return Number.isFinite(n) ? n : undefined;
 }
@@ -186,9 +192,7 @@ function durationBreakdownFromOpInfo(
 }
 
 function optionalText(raw: string | undefined): string | undefined {
-  const v = raw?.trim();
-  if (!v || v === 'NA') return undefined;
-  return v;
+  return isAbsentValue(raw) ? undefined : raw!.trim();
 }
 
 function meanFamily(rows: Record<string, string>[], columns: readonly string[]): number | undefined {
@@ -504,11 +508,11 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   };
 }
 
-/** Column spelling aliases on `OpBasicInfo`: first defined value wins. */
+/** Column spelling aliases on `OpBasicInfo`: first present value wins; `NA` falls through. */
 function firstDefined(row: Record<string, string>, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const v = row[key];
-    if (v != null && v !== '') return v;
+    if (!isAbsentValue(v)) return v;
   }
   return undefined;
 }
@@ -543,8 +547,8 @@ function signatureFromName(name: string | undefined): string | undefined {
 
 /** OpBasicInfo dim column: omit blank / NA. */
 function optionalDim(raw: string | undefined): string | number | undefined {
-  const v = raw?.trim();
-  if (!v || v === 'NA') return undefined;
+  if (isAbsentValue(raw)) return undefined;
+  const v = raw!.trim();
   const n = Number(v);
   return Number.isFinite(n) ? n : v;
 }

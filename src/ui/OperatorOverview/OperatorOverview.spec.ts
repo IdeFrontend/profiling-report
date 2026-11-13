@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { nextTick } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 import { DOMWrapper, mount } from '@vue/test-utils';
 import OperatorOverview from './OperatorOverview.vue';
 import type { ReportOperatorRow } from '../../domain/types';
@@ -255,11 +255,15 @@ describe('OperatorOverview', () => {
     expect(withMix.findAll('tbody tr')[0].findAll('td')[6].text()).toBe('4');
   });
 
-  it('PR-OVW-016: 执行优化 emits optimize', async () => {
+  it('PR-OVW-016: 执行优化 emits optimize with the highlighted op name', async () => {
     const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
     const button = wrapper.findAll('button').find((b) => b.text() === '执行优化');
     await button!.trigger('click');
-    expect(wrapper.emitted('optimize')).toHaveLength(1);
+    expect(wrapper.emitted('optimize')).toEqual([[{ opName: 'gather_2d_custom' }]]);
+
+    await wrapper.findAll('tbody tr')[1].trigger('click');
+    await button!.trigger('click');
+    expect(wrapper.emitted('optimize')?.[1]).toEqual([{ opName: 'demo_linear_tiled' }]);
   });
 
   it('PR-OVW-017: suggestions link keeps highlighted row selected', async () => {
@@ -287,7 +291,7 @@ describe('OperatorOverview', () => {
     const popover = new DOMWrapper(
       document.body.querySelector('.pr-operator-overview__filter-popover') as HTMLElement,
     );
-    expect(popover.get('.pr-operator-overview__filter-option').text()).toBe('gather_2d_custom');
+    expect(popover.get('.pr-operator-overview__filter-option').text()).toBe(signature);
     await popover.get('.pr-operator-overview__filter-option input').setValue(true);
     expect(wrapper.findAll('tbody tr')).toHaveLength(1);
     wrapper.unmount();
@@ -315,6 +319,167 @@ describe('OperatorOverview', () => {
 
     await popover.get('.pr-operator-overview__filter-clear').trigger('click');
     expectOutsideWrap();
+    wrapper.unmount();
+  });
+
+  it('PR-OVW-020: non-reactive rows still highlight and select', async () => {
+    const Host = defineComponent({
+      setup: () => () => h(OperatorOverview, { rows, locale: 'zh-CN' }),
+    });
+    const host = mount(Host, { attachTo: document.body });
+    const bodyRows = () => host.findAll('tbody tr');
+
+    expect(bodyRows()[0].attributes('aria-selected')).toBe('true');
+    expect(bodyRows()[0].classes()).toContain('pr-operator-overview__row--selected');
+
+    await bodyRows()[1].trigger('click');
+    expect(bodyRows()[0].attributes('aria-selected')).toBe('false');
+    expect(bodyRows()[1].attributes('aria-selected')).toBe('true');
+    expect(bodyRows()[1].classes()).toContain('pr-operator-overview__row--selected');
+
+    await host.findAll('thead th')[4].find('button').trigger('click');
+    expect(host.findAll('[aria-selected="true"]')).toHaveLength(1);
+    expect(bodyRows()[0].findAll('td')[1].text()).toBe('demo_linear_tiled');
+    expect(bodyRows()[0].attributes('aria-selected')).toBe('true');
+    host.unmount();
+  });
+
+  it('PR-OVW-021: rows change resets filter, sort, popover and selection', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
+    await wrapper.findAll('thead th')[2].find('button').trigger('click');
+    const popover = new DOMWrapper(
+      document.body.querySelector('.pr-operator-overview__filter-popover') as HTMLElement,
+    );
+    await popover.find('.pr-operator-overview__filter-option input').setValue(true);
+    await wrapper.findAll('thead th')[4].find('button').trigger('click');
+    expect(wrapper.findAll('thead th')[4].attributes('aria-sort')).toBe('ascending');
+    await wrapper.findAll('tbody tr')[1].trigger('click');
+    expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
+
+    const nextRows: ReportOperatorRow[] = [rows[0], { ...rows[1], opName: 'other', opType: 'cube' }];
+    await wrapper.setProps({ rows: nextRows });
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2);
+    expect(wrapper.find('.pr-operator-overview__filter-count').exists()).toBe(false);
+    expect(wrapper.findAll('thead th')[4].attributes('aria-sort')).toBe('none');
+    expect(wrapper.findAll('tbody tr')[0].attributes('aria-selected')).toBe('true');
+    expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('false');
+    expect(document.body.querySelector('.pr-operator-overview__filter-popover')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-OVW-022: column widths total 100% with MixBlockDim', () => {
+    const wrapper = mount(OperatorOverview, {
+      props: { rows: [{ ...rows[0], mixBlockDim: 4 }, rows[1]] },
+    });
+    const widths = wrapper.findAll('thead th').map((th) => {
+      const style = th.attributes('style') ?? '';
+      return Number.parseFloat(style.match(/width:\s*([\d.]+)%/)?.[1] ?? '0');
+    });
+    expect(widths).toHaveLength(9);
+    expect(widths.every((width) => width > 0)).toBe(true);
+    expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+  });
+
+  it('PR-OVW-023: filter options keep raw values that shorten alike', async () => {
+    const signatures: ReportOperatorRow[] = [
+      { opName: 'void Foo<float>(float*)', opType: 'vector' },
+      { opName: 'void Foo<int>(int*)', opType: 'cube' },
+    ];
+    const wrapper = mount(OperatorOverview, { props: { rows: signatures } });
+    expect(wrapper.findAll('tbody tr').map((tr) => tr.findAll('td')[1].text())).toEqual([
+      'Foo',
+      'Foo',
+    ]);
+
+    await wrapper.findAll('thead th')[1].find('button').trigger('click');
+    const options = [...document.body.querySelectorAll('.pr-operator-overview__filter-option')];
+    expect(options.map((option) => option.textContent?.trim())).toEqual([
+      'void Foo<float>(float*)',
+      'void Foo<int>(int*)',
+    ]);
+    await new DOMWrapper(options[0] as HTMLElement).find('input').setValue(true);
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1);
+    expect(wrapper.findAll('tbody tr')[0].findAll('td')[2].text()).toBe('vector');
+    wrapper.unmount();
+  });
+
+  it('PR-OVW-024: Escape closes only the popover and restores trigger focus', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows }, attachTo: document.body });
+    const filterButton = wrapper.findAll('thead th')[1].find('button');
+    await filterButton.trigger('click');
+    await nextTick();
+    const popoverInput = document.body.querySelector(
+      '.pr-operator-overview__filter-option input',
+    );
+    expect(document.activeElement).toBe(popoverInput);
+
+    let windowEscapes = 0;
+    const onWindowKeydown = () => {
+      windowEscapes += 1;
+    };
+    window.addEventListener('keydown', onWindowKeydown);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+    window.removeEventListener('keydown', onWindowKeydown);
+
+    expect(windowEscapes).toBe(0);
+    expect(document.body.querySelector('.pr-operator-overview__filter-popover')).toBeNull();
+    expect(document.activeElement).toBe(filterButton.element);
+    wrapper.unmount();
+  });
+
+  it('PR-OVW-025: funnel controls the popover through aria-controls', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows }, attachTo: document.body });
+    const filterButton = wrapper.findAll('thead th')[1].find('button');
+    expect(filterButton.attributes('aria-controls')).toBeUndefined();
+
+    await filterButton.trigger('click');
+    const popover = document.body.querySelector('.pr-operator-overview__filter-popover');
+    expect(popover?.id).toBeTruthy();
+    expect(filterButton.attributes('aria-controls')).toBe(popover?.id);
+    wrapper.unmount();
+  });
+
+  it('PR-OVW-026: empty rows render no dock, banner or numbers', () => {
+    const wrapper = mount(OperatorOverview, { props: { rows: [], locale: 'zh-CN' } });
+    expect(wrapper.find('[data-testid="operator-overview-dock"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="operator-overview-banner"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('88.69');
+    expect(wrapper.text()).not.toContain('低利用率');
+    expect(wrapper.findAll('button').some((b) => b.text() === '执行优化')).toBe(false);
+  });
+
+  it('PR-OVW-027: popover follows table scroll and clamps to viewport', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows }, attachTo: document.body });
+    const filterButton = wrapper.findAll('thead th')[1].find('button');
+    let left = 10;
+    (filterButton.element as HTMLElement).getBoundingClientRect = () => ({
+      left,
+      top: 0,
+      bottom: 20,
+      right: left + 60,
+      width: 60,
+      height: 20,
+      x: left,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    await filterButton.trigger('click');
+    const popover = () => document.body.querySelector(
+      '.pr-operator-overview__filter-popover',
+    ) as HTMLElement;
+    expect(popover().style.left).toBe('10px');
+
+    left = 40;
+    wrapper.get('.pr-operator-overview__table-wrap').element.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(popover().style.left).toBe('40px');
+
+    left = 5000;
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+    expect(Number.parseFloat(popover().style.left)).toBeLessThanOrEqual(window.innerWidth - 200);
     wrapper.unmount();
   });
 });
