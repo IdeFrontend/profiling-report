@@ -13,7 +13,7 @@ import MemoryTopologyPanel, {
   ZOOM_STEPS,
   ZOOM_WHEEL_TWEEN_MIN_DELTA,
   continuousZoomFromDelta,
-  diffBadgeLeft,
+  diffBadgeY,
   fitFontSize,
   nextZoom,
 } from './MemoryTopologyPanel.vue';
@@ -820,39 +820,42 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     expect(noBaselinePeak.find('[data-testid="topo-diff-vec-0"]').exists()).toBe(true);
   });
 
-  it('PR-MEMTOP-027: anchors the badge right of the painted value with the diff chrome', async () => {
+  it('PR-MEMTOP-027: anchors the badge BELOW the value with the mockup chrome', async () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model: current, baseline } });
     const vec = wrapper.get('[data-testid="plate-vec-0"]');
     const vecX = Number(vec.attributes('x'));
-    // jsdom has no text metrics, so painted width falls back to the slot's own bound.
-    const left = diffBadgeLeft(vecX, PLATE_MAX_W.vec);
-    expect(left).toBeGreaterThan(vecX);
+    const vecY = Number(vec.attributes('y'));
 
     const badge = wrapper.get('[data-testid="topo-diff-vec-0"]');
     const rect = badge.get('rect.pr-topo__diff-box');
-    expect(Number(rect.attributes('x'))).toBeCloseTo(left, 6);
+    // The white circle is centred on the value's own centre and sits BELOW it.
+    expect(Number(rect.attributes('x'))).toBeCloseTo(vecX - DIFF_BADGE_SIZE / 2, 6);
     expect(Number(rect.attributes('width'))).toBeCloseTo(DIFF_BADGE_SIZE, 6);
     expect(Number(rect.attributes('height'))).toBeCloseTo(DIFF_BADGE_SIZE, 6);
     expect(Number(rect.attributes('y'))).toBeCloseTo(
-      Number(vec.attributes('y')) - DIFF_BADGE_SIZE / 2,
+      diffBadgeY(vecY) - DIFF_BADGE_SIZE / 2,
       6,
     );
-    // Delta text sits right of the circle; the whole run is the exported badge width.
+    expect(diffBadgeY(vecY)).toBeGreaterThan(vecY);
+    // Delta text sits right of the circle, vertically centred on it.
     const delta = badge.get('text.pr-topo__diff-text');
     expect(Number(delta.attributes('x'))).toBeCloseTo(
-      left + DIFF_BADGE_SIZE + DIFF_BADGE_TEXT_GAP,
+      vecX + DIFF_BADGE_SIZE / 2 + DIFF_BADGE_TEXT_GAP,
       6,
     );
-    expect(badge.get('path.pr-topo__diff-arrow').attributes('d')).toMatch(/^M/);
+    // The arrow is FULL: a shaft subpath plus a two-stroke head subpath.
+    const arrowD = badge.get('path.pr-topo__diff-arrow').attributes('d')!;
+    expect(arrowD.match(/M/g)).toHaveLength(2);
+    expect(arrowD).toMatch(/L[\d.]+ [\d.]+ L[\d.]+ [\d.]+$/);
 
     // The L2 peak badge shares the plate's slot constant, so the two cannot drift.
     const peakBadge = wrapper.get('[data-testid="topo-diff-l2-peak"]');
     expect(Number(peakBadge.get('rect').attributes('x'))).toBeCloseTo(
-      diffBadgeLeft(L2_PEAK_SLOT[0], SLOT_MAX_W['l2-peak']!),
+      L2_PEAK_SLOT[0] - DIFF_BADGE_SIZE / 2,
       6,
     );
     expect(Number(peakBadge.get('rect').attributes('y'))).toBeCloseTo(
-      L2_PEAK_SLOT[1] - DIFF_BADGE_SIZE / 2,
+      diffBadgeY(L2_PEAK_SLOT[1]) - DIFF_BADGE_SIZE / 2,
       6,
     );
 
@@ -868,15 +871,13 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     });
     expect(en.get('[data-testid="topo-diff-vec-0"] title').text()).toBe('Decreased 0.82%');
 
-    // Tone chrome is the SummaryDiffIndicator palette, re-created in SVG.
+    // The 1130 mockup chrome: a WHITE circle, a full tone arrow, the delta in WHITE at the
+    // value's own size and weight.
     const src = (await import('./MemoryTopologyPanel.vue?raw')).default as string;
-    expect(src).toMatch(
-      /\.pr-topo__diff--increase \.pr-topo__diff-box\s*\{[^}]*fill:\s*rgba\(231, 67, 74, 0\.2\)/s,
-    );
-    expect(src).toMatch(/\.pr-topo__diff-box\s*\{[^}]*fill:\s*rgba\(136, 200, 88, 0\.2\)/s);
+    expect(src).toMatch(/\.pr-topo__diff-box\s*\{[^}]*fill:\s*#ffffff/s);
     expect(src).toMatch(/\.pr-topo__diff--increase \.pr-topo__diff-arrow\s*\{[^}]*stroke:\s*#e7434a/s);
     expect(src).toMatch(/\.pr-topo__diff-arrow\s*\{[^}]*stroke:\s*#88c858/s);
-    expect(src).toMatch(/\.pr-topo__diff-text\s*\{[^}]*fill:\s*#b3b3b3/s);
+    expect(src).toMatch(/\.pr-topo__diff-text\s*\{[^}]*fill:\s*#ffffff;[^}]*font-size:\s*6\.3px;[^}]*font-weight:\s*800/s);
   });
 
   it('PR-MEMTOP-027: badge testids stay outside the plate-/edge- prefixes and are unique', () => {

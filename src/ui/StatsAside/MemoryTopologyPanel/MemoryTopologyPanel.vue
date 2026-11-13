@@ -160,23 +160,23 @@ export function fitFontSize(
 
 /**
  * 对比基线 (baseline comparison) badge, in chrome units. The diagram's own values are 6.3px, so
- * the badge is drawn at chrome scale — it re-creates `SummaryDiffIndicator`'s chrome (tone-tinted
- * circle, chevron, muted delta text) rather than reusing the 12px HTML component, which cannot
- * render inside SVG.
+ * the badge is drawn at chrome scale — it re-creates the 1130 mockup's badge rather than
+ * reusing the 12px HTML component, which cannot render inside SVG: a WHITE circle with a full
+ * tone arrow (shaft + head), BELOW the value, and the unsigned delta in white at the value's
+ * own size right of the circle.
  */
 export const DIFF_BADGE_SIZE = 7.4;
-/** Air between the percentage's right edge and the badge. */
-export const DIFF_BADGE_GAP = 1.5;
+/** Vertical air between the percentage's baseline band and the badge's centre —
+ *  clears the value's own half-height (the 6.3px glyphs) so the circle never
+ *  touches the text above it. */
+export const DIFF_BADGE_Y_OFFSET = 7.6;
 /** Air between the badge circle and its delta text. */
 export const DIFF_BADGE_TEXT_GAP = 0.8;
 
-/** Left edge of a badge for a percentage centred at `x` and painted `painted` units wide: the
- *  badge sits to the RIGHT of the value, one `DIFF_BADGE_GAP` off its painted right edge.
- *  ponytail: on the narrow Vec/Cube boxes a long delta can run past the box wall into the
- *  surrounding chrome (the 1130 mockup puts the badge below the value). Right placement is
- *  Product's fixed decision, so the ceiling is documented in the spec rather than clamped. */
-export function diffBadgeLeft(x: number, painted: number): number {
-  return x + painted / 2 + DIFF_BADGE_GAP;
+/** Vertical centre of a badge for a value centred at `y`: BELOW the value, one
+ *  `DIFF_BADGE_Y_OFFSET` down (the 1130 mockup centres the badge under the percentage). */
+export function diffBadgeY(y: number): number {
+  return y + DIFF_BADGE_Y_OFFSET;
 }
 
 /** The L2 peak plate's own centre on the chrome — the same slot the `<text>` renders at, shared
@@ -388,12 +388,6 @@ const plates = computed(() =>
 /** Painted width of a plate / peak value: the fit rule shrinks an over-wide label to its slot
  *  bound, so the painted run is `min(natural, bound)`. jsdom and hidden mounts report no metrics
  *  (0), where the bound is the fallback — the widest the fit rule ever allows. */
-const naturalWidths = ref<Record<string, number>>({});
-function paintedWidth(key: string, bound: number): number {
-  const natural = naturalWidths.value[key] ?? 0;
-  return natural > 0 ? Math.min(natural, bound) : bound;
-}
-
 /** One 对比基线 badge. `text` is the unsigned delta in percentage points plus `%`; `direction`
  *  is the i18n word carried by the `<title>` and the hidden description (the SVG is `role="img"`,
  *  so its own `<title>` is not the surfaced alternative — the summary is). */
@@ -403,32 +397,33 @@ interface DiffBadge {
   testid: string;
   /** Plate key or `peak` — the comparison this badge belongs to; stable across baseline switches. */
   sourceKey: string;
+  /** Circle centre (the value's own centre — the badge sits BELOW it). */
   x: number;
   y: number;
   tone: DiffTone;
   text: string;
   direction: string;
-  /** Chevron path in chrome units: up for `increase`, down for `decrease`. */
-  chevron: string;
+  /** FULL arrow path in chrome units (shaft + head): up for `increase`, down for `decrease`. */
+  arrow: string;
 }
 
 function makeBadge(
   sourceKey: string,
   testid: string,
-  x: number,
+  cx: number,
   y: number,
   diff: MetricDiff,
 ): DiffBadge {
   const text = `${trimDiffMagnitude(diff.magnitude)}%`;
-  const cx = x + DIFF_BADGE_SIZE / 2;
-  const chevron =
+  // Full arrow: a vertical shaft plus a two-stroke head joined at the tip.
+  const arrow =
     diff.tone === 'increase'
-      ? `M${cx - 1.3} ${y + 0.85} L${cx} ${y - 0.85} L${cx + 1.3} ${y + 0.85}`
-      : `M${cx - 1.3} ${y - 0.85} L${cx} ${y + 0.85} L${cx + 1.3} ${y - 0.85}`;
+      ? `M${cx} ${y + 1.6} L${cx} ${y - 1.6} M${cx - 1.5} ${y - 0.1} L${cx} ${y - 1.6} L${cx + 1.5} ${y - 0.1}`
+      : `M${cx} ${y - 1.6} L${cx} ${y + 1.6} M${cx - 1.5} ${y + 0.1} L${cx} ${y + 1.6} L${cx + 1.5} ${y + 0.1}`;
   return {
     sourceKey,
     testid,
-    x,
+    x: cx,
     y,
     tone: diff.tone,
     text,
@@ -436,7 +431,7 @@ function makeBadge(
       diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased',
       props.locale,
     ),
-    chevron,
+    arrow,
   };
 }
 
@@ -459,8 +454,8 @@ const plateDiffs = computed<DiffBadge[]>(() => {
       makeBadge(
         p.key,
         p.key.replace(/^plate-/, 'topo-diff-'),
-        diffBadgeLeft(p.x, paintedWidth(p.key, PLATE_MAX_W[p.node])),
-        p.y,
+        p.x,
+        diffBadgeY(p.y),
         diff,
       ),
     ];
@@ -479,8 +474,8 @@ const peakDiff = computed<DiffBadge | null>(() => {
   return makeBadge(
     'peak',
     'topo-diff-l2-peak',
-    diffBadgeLeft(L2_PEAK_SLOT[0], paintedWidth('peak', SLOT_MAX_W['l2-peak']!)),
-    L2_PEAK_SLOT[1],
+    L2_PEAK_SLOT[0],
+    diffBadgeY(L2_PEAK_SLOT[1]),
     diff,
   );
 });
@@ -545,7 +540,6 @@ const fitted = ref<Record<string, number>>({});
 watchEffect(() => {
   const el = measureTwin.value;
   const next: Record<string, number> = {};
-  const widths: Record<string, number> = {};
   if (el && typeof el.getComputedTextLength === 'function') {
     const measure = (text: string): number => {
       if (!text) return 0;
@@ -559,17 +553,14 @@ watchEffect(() => {
     // In-box badges get their own, tighter wall table — they sit inside a box, not a corridor.
     for (const p of plates.value) {
       const natural = measure(p.text);
-      widths[p.key] = natural;
       const px = fitFontSize(natural, p.node, BASE_FONT_PX, PLATE_MAX_W);
       if (px < BASE_FONT_PX) next[p.key] = px;
     }
     const peak = measure(peakText.value ?? '');
-    widths.peak = peak;
     const peakPx = fitFontSize(peak, 'l2-peak');
     if (peakPx < BASE_FONT_PX) next.peak = peakPx;
   }
   fitted.value = next;
-  naturalWidths.value = widths;
 });
 
 function fitStyle(key: string): { fontSize: string } | undefined {
@@ -1062,7 +1053,7 @@ onBeforeUnmount(stopZoomAnim);
           <title>{{ d.direction }} {{ d.text }}</title>
           <rect
             class="pr-topo__diff-box"
-            :x="d.x"
+            :x="d.x - DIFF_BADGE_SIZE / 2"
             :y="d.y - DIFF_BADGE_SIZE / 2"
             :width="DIFF_BADGE_SIZE"
             :height="DIFF_BADGE_SIZE"
@@ -1070,7 +1061,7 @@ onBeforeUnmount(stopZoomAnim);
           />
           <path
             class="pr-topo__diff-arrow"
-            :d="d.chevron"
+            :d="d.arrow"
             fill="none"
             stroke-width="0.7"
             stroke-linecap="round"
@@ -1078,9 +1069,10 @@ onBeforeUnmount(stopZoomAnim);
           />
           <text
             class="pr-topo__diff-text"
-            :x="d.x + DIFF_BADGE_SIZE + DIFF_BADGE_TEXT_GAP"
+            :x="d.x + DIFF_BADGE_SIZE / 2 + DIFF_BADGE_TEXT_GAP"
             :y="d.y"
             dominant-baseline="middle"
+            :style="fitStyle(d.sourceKey)"
           >{{ d.text }}</text>
         </g>
 
@@ -1433,16 +1425,11 @@ onBeforeUnmount(stopZoomAnim);
 }
 
 /* 对比基线 badge (PR-MEMTOP-027): `SummaryDiffIndicator`'s chrome re-created at the diagram's
- * own scale — a tone-tinted circle with a chevron, and the unsigned delta in the aside's muted
- * text colour. The circle is about one glyph of the 6.3px value type, so the badge reads as an
- * annotation beside the percentage rather than a second value. Green is the default (decrease);
- * the increase class repaints both the tint and the arrow red. */
+ * own scale — the 1130 mockup's badge: a WHITE circle carrying a full tone arrow (shaft + head),
+ * and the unsigned delta in WHITE at the value's own size and weight, right of the circle. Green
+ * is the default (decrease); the increase class repaints the arrow red. */
 .pr-topo__diff-box {
-  fill: rgba(136, 200, 88, 0.2);
-}
-
-.pr-topo__diff--increase .pr-topo__diff-box {
-  fill: rgba(231, 67, 74, 0.2);
+  fill: #ffffff;
 }
 
 .pr-topo__diff-arrow {
@@ -1454,9 +1441,9 @@ onBeforeUnmount(stopZoomAnim);
 }
 
 .pr-topo__diff-text {
-  fill: #b3b3b3;
-  font-size: 3.6px;
-  font-weight: 600;
+  fill: #ffffff;
+  font-size: 6.3px;
+  font-weight: 800;
 }
 
 /* Visually hidden, still in the a11y tree: the diagram's text alternative (PR-MEMTOP-011).

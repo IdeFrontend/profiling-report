@@ -1454,36 +1454,49 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
     expect(text).not.toBe('0%');
   }
   // Placed to the RIGHT of the value: the badge's circle starts past the plate's centre.
+  // The 1130 mockup geometry: each badge's WHITE circle sits BELOW the value it
+  // annotates, centred on the value's own centre; the arrow is a full shaft+head.
   const geometry = await topology.evaluate(() => {
-    const badgeRects = [...document.querySelectorAll('[data-testid^="topo-diff-"]')].map(
-      (g) => {
-        const rect = g.querySelector('rect')!;
-        return {
-          id: g.getAttribute('data-testid') ?? '',
-          x: Number(rect.getAttribute('x')),
-        };
-      },
+    const badges = [...document.querySelectorAll('[data-testid^="topo-diff-"]')].map((g) => {
+      const rect = g.querySelector('rect')!;
+      const arrow = g.querySelector('path')!;
+      const bb = rect.getBoundingClientRect();
+      return {
+        id: g.getAttribute('data-testid') ?? '',
+        cx: bb.left + bb.width / 2,
+        top: bb.top,
+        fill: getComputedStyle(rect).fill,
+        arrowSubpaths: (arrow.getAttribute('d') ?? '').match(/M/g)?.length ?? 0,
+      };
+    });
+    const values = new Map(
+      [
+        ...document.querySelectorAll(
+          '[data-testid^="plate-"], [data-testid="node-l2-peak"]',
+        ),
+      ].map((t) => {
+        const bb = t.getBoundingClientRect();
+        return [
+          t.getAttribute('data-testid') ?? '',
+          { x: bb.left + bb.width / 2, bottom: bb.bottom },
+        ] as [string, { x: number; bottom: number }];
+      }),
     );
-    const plateX = new Map(
-      [...document.querySelectorAll('[data-testid^="plate-"]')].map((t) => [
-        t.getAttribute('data-testid') ?? '',
-        Number(t.getAttribute('x')),
-      ]),
-    );
-    const peakX = Number(
-      document.querySelector('[data-testid="node-l2-peak"]')?.getAttribute('x') ?? NaN,
-    );
-    return { badgeRects, plateX: [...plateX], peakX };
+    return { badges, values: [...values] };
   });
-  for (const { id, x } of geometry.badgeRects) {
-    if (id === 'topo-diff-l2-peak') {
-      expect(x).toBeGreaterThan(geometry.peakX);
-      continue;
-    }
-    const plateId = id.replace(/^topo-diff-/, 'plate-');
-    const plate = geometry.plateX.find(([pid]) => pid === plateId);
-    expect(plate, `badge ${id} has a matching plate value`).toBeTruthy();
-    expect(x).toBeGreaterThan(plate![1]);
+  const panelBox = await topology.boundingBox();
+  for (const b of geometry.badges) {
+    const valueKey =
+      b.id === 'topo-diff-l2-peak'
+        ? 'node-l2-peak'
+        : b.id.replace(/^topo-diff-/, 'plate-');
+    const v = geometry.values.find(([k]) => k === valueKey);
+    expect(v, `badge ${b.id} has a matching value`).toBeTruthy();
+    // Centred on the value, below its bottom edge, white circle, full arrow.
+    expect(Math.abs(b.cx - v![1].x)).toBeLessThan(2);
+    expect(b.top).toBeGreaterThan(v![1].bottom - panelBox!.y - 0.5);
+    expect(b.fill).toBe('rgb(255, 255, 255)');
+    expect(b.arrowSubpaths).toBe(2);
   }
 
   // Switching the aside Operator repaints the badge values in place.
