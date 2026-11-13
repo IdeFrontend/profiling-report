@@ -94,6 +94,20 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(collectLeafEventsFromModel(op2.swimlaneModel!).length).toBeLessThanOrEqual(160_000);
   });
 
+  it('op1 ships §11.14 catalog CTEF embeds so 流水视图显示 is visible', () => {
+    expect(op1.timelineTraces?.map((t) => t.id)).toEqual([
+      'communication',
+      'warpOccupy',
+      'pipeTrace',
+    ]);
+    expect(op1.selectedTimelineTraceId).toBe('pipeTrace');
+    expect(op1.timelineTraceModels?.communication).toBeTruthy();
+    expect(op1.timelineTraceModels?.warpOccupy).toBeTruthy();
+    expect(op1.timelineTraceModels?.pipeTrace).toBe(op1.swimlaneModel);
+    // op2 hydrate injects classic trace.json only — no multi-trace selector.
+    expect(op2.timelineTraces).toBeUndefined();
+  });
+
   it('both operators expose dependency connections', () => {
     expect(op1.capabilities).toContain('dependencies');
     expect(op2.capabilities).toContain('dependencies');
