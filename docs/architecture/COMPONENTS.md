@@ -198,7 +198,7 @@ WebGL2 interval backend with sudu-style analytical horizontal coverage AA combin
 
 ### `ProfilingReport` (M)
 
-Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`, and `environment` (`'vscode'` routes environment-dependent actions to the host, e.g. title-row 性能分析 → Problems; `'browser'`/omitted keeps them internal). Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside) | `open-performance-hints-in-problems` (title-row 性能分析 under `environment: 'vscode'`) | `open-user-guide` | `export-html` (single-file HTML from original `source`; hidden unless `allowHtmlExport` is true — default false). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
+Root entry: accepts `source` (bytes / parsed rep) **or** prebuilt `swimlaneModel` / `reportModel`, plus `theme`, `locale`, `capabilities`, and `environment` (`'vscode'` routes environment-dependent actions to the host, e.g. title-row 性能分析 → Problems; `'browser'`/omitted keeps them internal). Owns `SwimlaneViewState`. Emits `ready` | `select` | `error` | `view-full-csv` | `open-hardware-details` | `open-pipe-details` (forwarded from StatsAside) | `open-performance-hints-in-problems` (title-row 性能分析 under `environment: 'vscode'`) | `open-user-guide` | `export-html` (single-file HTML from original `source`; hidden unless `allowHtmlExport` is true — default false) | `optimize` (`{ opName: string }` from 执行优化 (execute optimization) on **概览** — the highlighted operator row's OpName). `select(null)` means "no single selection" — it also fires when a marquee commit swaps the single selection for a multi-selection (contract: `src/ui/ProfilingReport/ProfilingReport.spec.md`).
 
 **Why:** Single integration surface for MSTT (and later hosts). Encapsulates adapter invocation when `source` is provided.
 
@@ -319,7 +319,7 @@ Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is im
 | Concern | Owner |
 |---------|--------|
 | VS Code performance explorer / tree | MSTT host |
-| Secondary tabs OP算子 / 源码 | Library chrome: **源码** when the pack has a real Source model; **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)) |
+| Secondary tabs OP算子 / 概览 / 源码 | Library chrome: **概览** (Overview) when the pack carries operator rows (`OpBasicInfo.csv`); **源码** when the pack has a real Source model; **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)) |
 | Insight `.bin` viewing | MindStudio Insight |
 | PyPTO compute-graph three-column shell | pypto-tools until/unless adapted |
 

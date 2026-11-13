@@ -204,7 +204,7 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
   'export-html': [{ fileName: string }];
-  optimize: [];
+  optimize: [{ opName: string }];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -494,6 +494,8 @@ const sourceTabEnabled = computed(
     report.value?.sourceCorrelation != null &&
     report.value.sourceCorrelation.mock !== true,
 );
+/** 概览 lists operator rows; chrome-trace / emulate models carry none. */
+const overviewTabEnabled = computed(() => (report.value?.operatorRows?.length ?? 0) > 0);
 const activeTab = ref<'overview' | 'timeline' | 'source'>('timeline');
 const showOverviewTab = computed(() => activeTab.value === 'overview');
 /** Caret the Source tab applies after a Parameter frame click. */
@@ -513,8 +515,13 @@ watch(sourceTabEnabled, (ok) => {
   if (!ok && activeTab.value === 'source') activeTab.value = 'timeline';
 });
 
+watch(overviewTabEnabled, (ok) => {
+  if (!ok && activeTab.value === 'overview') activeTab.value = 'timeline';
+});
+
 function onActiveTab(tab: 'overview' | 'timeline' | 'source') {
   if (tab === 'source' && !sourceTabEnabled.value) return;
+  if (tab === 'overview' && !overviewTabEnabled.value) return;
   activeTab.value = tab;
 }
 
@@ -1036,6 +1043,7 @@ function failLoad(cause: unknown) {
   hovered.value = null;
   viewState.value = createViewState(null);
   closeTopologyFullscreen();
+  activeTab.value = 'timeline';
   loadError.value = cause instanceof Error ? cause.message : String(cause);
   emit('error', { message: loadError.value, cause });
 }
@@ -1248,7 +1256,7 @@ function onRootKeydown(e: KeyboardEvent) {
   // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
   // WASD must not pan/zoom the hidden view.
   if (htmlExportOpen.value || topologyFullscreen.value || fullscreenTopology.value != null) return;
-  if (!showTimeline.value) return;
+  if (!showTimeline.value || showOverviewTab.value) return;
   const target = e.target as HTMLElement | null;
   // Ignore shortcuts while typing — search, dependency depth, and editable controls own them.
   if (
@@ -1933,7 +1941,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
-      v-if="!showTimeline && !showSource && !showOverviewTab"
+      v-if="loadError || (!showTimeline && !showSource && !showOverviewTab)"
       :title="toolbarBrand"
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
@@ -1952,6 +1960,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :user-guide-url="userGuideUrl"
       :active-tab="activeTab"
       :source-tab-enabled="sourceTabEnabled"
+      :overview-tab-enabled="overviewTabEnabled"
       :html-export-available="htmlExportAvailable"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
@@ -2007,6 +2016,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :user-guide-url="userGuideUrl"
           :active-tab="activeTab"
           :source-tab-enabled="sourceTabEnabled"
+          :overview-tab-enabled="overviewTabEnabled"
           :html-export-available="htmlExportAvailable"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
@@ -2028,7 +2038,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           v-if="showOverviewTab"
           :rows="report?.operatorRows ?? []"
           :locale="locale"
-          @optimize="emit('optimize')"
+          @optimize="emit('optimize', $event)"
         />
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
