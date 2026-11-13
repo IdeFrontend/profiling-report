@@ -24,17 +24,23 @@ describe('createBaselinesHost', () => {
     const host = createBaselinesHost(() => null);
     expect(host.baselines.value).toEqual([]);
     expect(host.selectedBaselineId.value).toBeNull();
+    expect(host.selectedBaselineOperator.value).toBeNull();
 
     host.onBaselinesUpdate([{ id: 'b1', name: 'a', path: '/a.npu-rep' }]);
     host.onSelectedBaselineId('b1');
+    host.onSelectedBaselineOperator('matmul');
     expect(host.baselines.value).toEqual([{ id: 'b1', name: 'a', path: '/a.npu-rep' }]);
     expect(host.selectedBaselineId.value).toBe('b1');
+    expect(host.selectedBaselineOperator.value).toBe('matmul');
+    host.onSelectedBaselineOperator(null);
+    expect(host.selectedBaselineOperator.value).toBeNull();
 
     // Session-only by design: nothing survives a page reload, and no storage is
     // touched anywhere (persistence belongs to a real host like MSTT).
     const fresh = createBaselinesHost(() => null);
     expect(fresh.baselines.value).toEqual([]);
     expect(fresh.selectedBaselineId.value).toBeNull();
+    expect(fresh.selectedBaselineOperator.value).toBeNull();
   });
 
   it('resolves the pick with a disambiguated pseudo-path; cancel resolves null', async () => {

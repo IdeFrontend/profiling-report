@@ -5,9 +5,11 @@ import type { Baseline, BaselinePick } from '../domain/types';
 export interface BaselinesHost {
   baselines: Ref<Baseline[]>;
   selectedBaselineId: Ref<string | null>;
+  selectedBaselineOperator: Ref<string | null>;
   pickBaselineFile(): Promise<BaselinePick | null>;
   onBaselinesUpdate(next: Baseline[]): void;
   onSelectedBaselineId(id: string | null): void;
+  onSelectedBaselineOperator(operator: string | null): void;
   onFileChosen(e: Event): void;
   onPickCancel(): void;
 }
@@ -84,6 +86,7 @@ export function createBaselinesHost(
 ): BaselinesHost {
   const baselines = ref<Baseline[]>([]);
   const selectedBaselineId = ref<string | null>(null);
+  const selectedBaselineOperator = ref<string | null>(null);
 
   function onBaselinesUpdate(next: Baseline[]): void {
     baselines.value = next;
@@ -91,6 +94,10 @@ export function createBaselinesHost(
 
   function onSelectedBaselineId(id: string | null): void {
     selectedBaselineId.value = id;
+  }
+
+  function onSelectedBaselineOperator(operator: string | null): void {
+    selectedBaselineOperator.value = operator;
   }
 
   let resolvePick: ((pick: BaselinePick | null) => void) | null = null;
@@ -140,9 +147,11 @@ export function createBaselinesHost(
   return {
     baselines,
     selectedBaselineId,
+    selectedBaselineOperator,
     pickBaselineFile,
     onBaselinesUpdate,
     onSelectedBaselineId,
+    onSelectedBaselineOperator,
     onFileChosen,
     onPickCancel,
   };

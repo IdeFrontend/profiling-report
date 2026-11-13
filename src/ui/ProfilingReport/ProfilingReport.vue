@@ -164,6 +164,12 @@ const props = withDefaults(defineProps<{
   /** Current baseline id. */
   selectedBaselineId?: string | null;
   /**
+   * Current baseline operator (the aside's Operator dropdown). Session-local:
+   * the root forwards the pick to the host (`update:selectedBaselineOperator`)
+   * so the host can read what comparison rendering means (views/baselines.md).
+   */
+  selectedBaselineOperator?: string | null;
+  /**
    * Optional host hook: opens the file dialog for the baseline picker + press.
    * The library never reads the filesystem; return `null` to cancel. Absent =
    * the baseline control is hidden.
@@ -210,6 +216,7 @@ const emit = defineEmits<{
   'export-html': [{ fileName: string }];
   'update:baselines': [baselines: Baseline[]];
   'update:selectedBaselineId': [id: string | null];
+  'update:selectedBaselineOperator': [operator: string | null];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -1780,16 +1787,25 @@ function onAside(visible: boolean) {
  * The picker's checkbox set IS the baseline list (host-owned, one view). The
  * only invariant the root adds: the selection can never point at a baseline
  * that is not in the list — an uncheck of the selected report clears it.
+ *
+ * While `baselines` is `undefined` (the host has not loaded/restored the list
+ * yet) nothing is validated: an immediate check here would clear a selection
+ * the host restored from its own storage before the async list arrived.
+ * Host ordering (public-api.spec.md): pass the list first (or with) the id.
  */
 watch(
   () => [props.baselines, props.selectedBaselineId] as const,
   ([list, sel]) => {
-    if (sel != null && !(list ?? []).some((b) => b.id === sel)) {
+    if (list === undefined) return;
+    if (sel != null && !list.some((b) => b.id === sel)) {
       emit('update:selectedBaselineId', null);
     }
   },
   { immediate: true },
 );
+
+/** One stable array for the toolbar/aside bindings (`?? []` would re-allocate every render). */
+const baselineList = computed(() => props.baselines ?? []);
 
 /**
  * StatsAside title-row 性能分析 trigger → environment-routed (`environments.ts`).
@@ -1898,7 +1914,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :active-tab="activeTab"
       :source-tab-enabled="sourceTabEnabled"
       :html-export-available="htmlExportAvailable"
-      :baselines="baselines"
+      :baselines="baselineList"
       :pick-baseline-file="pickBaselineFile"
       :recent-baselines="recentBaselines"
       @update:search-query="onSearch"
@@ -1953,7 +1969,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :active-tab="activeTab"
           :source-tab-enabled="sourceTabEnabled"
           :html-export-available="htmlExportAvailable"
-          :baselines="baselines"
+          :baselines="baselineList"
           :pick-baseline-file="pickBaselineFile"
           :recent-baselines="recentBaselines"
           @update:search-query="onSearch"
@@ -2052,9 +2068,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :locale="locale"
           :capabilities="caps"
           v-model:arch-metric-mode="archMetricMode"
-          :baselines="baselines ?? []"
+          :baselines="baselineList"
           :selected-baseline-id="selectedBaselineId ?? null"
+          :selected-baseline-operator="selectedBaselineOperator ?? null"
           @update:selected-baseline-id="emit('update:selectedBaselineId', $event)"
+          @update:selected-baseline-operator="emit('update:selectedBaselineOperator', $event)"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"

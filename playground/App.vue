@@ -50,9 +50,11 @@ const baselineInputRef = ref<HTMLInputElement | null>(null);
 const {
   baselines,
   selectedBaselineId,
+  selectedBaselineOperator,
   pickBaselineFile,
   onBaselinesUpdate,
   onSelectedBaselineId,
+  onSelectedBaselineOperator,
   onFileChosen: onBaselineFileChosen,
   onPickCancel: onBaselinePickCancel,
 } = createBaselinesHost(() => baselineInputRef.value);
@@ -442,11 +444,13 @@ onMounted(async () => {
         :allow-html-export="true"
         :baselines="viewerBaselines"
         :selected-baseline-id="selectedBaselineId"
+        :selected-baseline-operator="selectedBaselineOperator"
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="DEMO_RECENT_BASELINES"
         @view-full-csv="onViewFullCsv"
         @update:baselines="onBaselinesUpdate"
         @update:selected-baseline-id="onSelectedBaselineId"
+        @update:selected-baseline-operator="onSelectedBaselineOperator"
       />
       <ProfilingReport
         v-else-if="stressModel"
@@ -458,11 +462,13 @@ onMounted(async () => {
         :locale="locale"
         :baselines="viewerBaselines"
         :selected-baseline-id="selectedBaselineId"
+        :selected-baseline-operator="selectedBaselineOperator"
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="DEMO_RECENT_BASELINES"
         @view-full-csv="onViewFullCsv"
         @update:baselines="onBaselinesUpdate"
         @update:selected-baseline-id="onSelectedBaselineId"
+        @update:selected-baseline-operator="onSelectedBaselineOperator"
       />
       <div
         v-else-if="!error"

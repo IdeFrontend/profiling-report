@@ -58,6 +58,13 @@ const props = defineProps<{
   baselines?: Baseline[];
   /** Current baseline id; null/absent = "Not selected". */
   selectedBaselineId?: string | null;
+  /**
+   * Current baseline operator (session-local). The pick forwards to the host
+   * (`update:selectedBaselineOperator`, `null` = Not selected); the aside
+   * re-defaults it to the baseline's first operator on baseline change and
+   * when the current value leaves the baseline's operator list.
+   */
+  selectedBaselineOperator?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -71,6 +78,8 @@ const emit = defineEmits<{
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
   /** Baseline dropdown pick — the host-owned selection, global (`null` = Not selected). */
   'update:selectedBaselineId': [id: string | null];
+  /** Operator dropdown pick — session-local, forwarded to the host (`null` = Not selected). */
+  'update:selectedBaselineOperator': [operator: string | null];
   'open-performance-hints': [];
 }>();
 
@@ -659,9 +668,13 @@ const baselineSelectLabel = computed(
   () => `${t('baselineLabel', props.locale)}: ${baselineNameOf(asideBaselineId.value)}`,
 );
 const baselineOperators = computed(() => selectedBaseline.value?.operators ?? []);
-const baselineIds = computed(() => [NOT_SELECTED, ...baselineRows.value.map((b) => b.id)]);
-/** Operator dropdown: session-local; defaults to (and re-defaults to) the first. */
-const asideBaselineOperator = ref('');
+/* Dedupe: a host bug must not produce duplicate options (or an ambiguous pick). */
+const baselineIds = computed(() => [NOT_SELECTED, ...new Set(baselineRows.value.map((b) => b.id))]);
+/** Operator dropdown: session-local, host-owned through the root — no local copy. */
+const asideBaselineOperator = computed<string>({
+  get: () => props.selectedBaselineOperator ?? NOT_SELECTED,
+  set: (op: string) => setOperator(op),
+});
 const operatorOptions = computed(() =>
   baselineOperators.value.length > 0 ? baselineOperators.value : [NOT_SELECTED]);
 function operatorNameOf(op: string): string {
@@ -670,10 +683,36 @@ function operatorNameOf(op: string): string {
 const operatorSelectLabel = computed(
   () => `${t('operatorLabel', props.locale)}: ${operatorNameOf(asideBaselineOperator.value)}`,
 );
+/** Emits the host-owned value only when it actually changes (no duplicate emits). */
+function setOperator(op: string): void {
+  const next = op === NOT_SELECTED ? null : op;
+  if ((next ?? null) === (props.selectedBaselineOperator ?? null)) return;
+  emit('update:selectedBaselineOperator', next);
+}
+/**
+ * Re-defaults to the baseline's first operator when the baseline changes. A
+ * second watcher repairs the pick when the baseline's `operators` arrive later
+ * (the host loads the pack after the entry) — the id alone does not change
+ * then, so the pick would otherwise stay Not selected or leave the list.
+ * A host-provided value at mount (restored session) is respected instead of
+ * clobbered — the repair watcher fixes it once the operators load.
+ */
 watch(
   () => selectedBaseline.value?.id,
-  () => {
-    asideBaselineOperator.value = baselineOperators.value[0] ?? NOT_SELECTED;
+  (_id, prevId) => {
+    if (prevId === undefined && props.selectedBaselineOperator != null) return;
+    setOperator(baselineOperators.value[0] ?? NOT_SELECTED);
+  },
+  { immediate: true },
+);
+watch(
+  () => selectedBaseline.value,
+  (b, prev) => {
+    // Same baseline, operators changed (arrived later): repair a stale pick
+    // only — baseline changes are owned by the id watcher above.
+    if (b?.id !== prev?.id) return;
+    if (operatorOptions.value.includes(asideBaselineOperator.value)) return;
+    setOperator(b?.operators?.[0] ?? NOT_SELECTED);
   },
   { immediate: true },
 );
@@ -1055,8 +1094,8 @@ const detailTestId = computed(() => {
       </p>
       <!-- Baseline / Operator dropdowns (对比基线): always under the meta line,
            same chrome as the Block switcher. Baseline is global (host-owned,
-           Not selected = null); Operator is session-local and defaults to the
-           baseline's first (Not selected without a baseline). -->
+           Not selected = null); Operator is session-local, host-owned through
+           `update:selectedBaselineOperator`, default the baseline's first. -->
       <div
         class="pr-aside__baseline-bar"
         data-testid="stats-baseline-bar"
@@ -1875,7 +1914,8 @@ const detailTestId = computed(() => {
 }
 
 /* Baseline / Operator dropdown row (对比基线): the Block switcher's chrome,
-   header placement under the meta line; hidden without a selected baseline. */
+   header placement under the meta line; always rendered — hide-vs-empty is
+   the open question UI-63 (both dropdowns read Not selected when empty). */
 .pr-aside__baseline-bar {
   display: flex;
   align-items: center;

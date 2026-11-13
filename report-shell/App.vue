@@ -29,9 +29,11 @@ const baselineInputRef = ref<HTMLInputElement | null>(null);
 const {
   baselines,
   selectedBaselineId,
+  selectedBaselineOperator,
   pickBaselineFile,
   onBaselinesUpdate,
   onSelectedBaselineId,
+  onSelectedBaselineOperator,
   onFileChosen: onBaselineFileChosen,
   onPickCancel: onBaselinePickCancel,
 } = createBaselinesHost(() => baselineInputRef.value);
@@ -103,10 +105,12 @@ onMounted(() => {
       :allow-html-export="false"
       :baselines="viewerBaselines"
       :selected-baseline-id="selectedBaselineId"
+      :selected-baseline-operator="selectedBaselineOperator"
       :pick-baseline-file="pickBaselineFile"
       :recent-baselines="DEMO_RECENT_BASELINES"
       @update:baselines="onBaselinesUpdate"
       @update:selected-baseline-id="onSelectedBaselineId"
+      @update:selected-baseline-operator="onSelectedBaselineOperator"
     />
     <p
       v-else

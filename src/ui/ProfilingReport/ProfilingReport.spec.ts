@@ -2645,4 +2645,59 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-ROOT-036: a restored selection survives mount while the list is undefined; validation starts when the list arrives', async () => {
+    // A host restores selectedBaselineId from storage and loads the list later:
+    // the immediate guard must not clear the selection before the list arrives.
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        selectedBaselineId: 'saved-1',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    expect(wrapper.emitted('update:selectedBaselineId')).toBeUndefined();
+    // The list arrives without the id → validation now clears it.
+    await wrapper.setProps({ baselines: [{ id: 'other', name: 'other', path: '/other' }] });
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([[null]]);
+    wrapper.unmount();
+
+    // The list arrives WITH the restored id → no clear at all.
+    const kept = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        selectedBaselineId: 'saved-2',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    await kept.setProps({ baselines: [{ id: 'saved-2', name: 'saved', path: '/saved' }] });
+    await nextTick();
+    expect(kept.emitted('update:selectedBaselineId')).toBeUndefined();
+    kept.unmount();
+  });
+
+  it('PR-ROOT-037: the aside Operator pick forwards to the host (selectedBaselineOperator / update:selectedBaselineOperator)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+        baselines: [{ id: 'b1', name: 'OPPROF_A', path: '/a', operators: ['matmul', 'relu'] }],
+        selectedBaselineId: 'b1',
+        selectedBaselineOperator: 'matmul',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const aside = wrapper.findComponent({ name: 'StatsAside' });
+    expect(aside.props('selectedBaselineOperator')).toBe('matmul');
+    aside.vm.$emit('update:selectedBaselineOperator', 'relu');
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([['relu']]);
+    aside.vm.$emit('update:selectedBaselineOperator', null);
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([['relu'], [null]]);
+    wrapper.unmount();
+  });
+
 });
