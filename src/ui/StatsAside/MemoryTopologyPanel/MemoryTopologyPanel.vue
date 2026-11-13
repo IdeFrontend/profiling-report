@@ -59,6 +59,20 @@ export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number
 };
 
 /**
+ * Vertical lift (chrome units) for plates whose badge row would NOT fit under
+ * the design slot: the value text moves UP inside its element so the badge
+ * stays inside the element's frame. Measured off the chrome export:
+ * `aiv_scalar`'s nested plate rect ends at y 329 (badge bottom 332.8), `vec`'s
+ * SIMD box ends at y 376 (badge bottom 379.6); a 5-unit lift brings both
+ * badge bottoms back inside with ~1 unit of frame air. The badge anchors to
+ * the LIFTED text, so it follows automatically.
+ */
+export const PLATE_TEXT_LIFT: Partial<Record<TopologyPlateNodeId, number>> = {
+  aiv_scalar: 5,
+  vec: 5,
+};
+
+/**
  * Room an in-box badge has inside its own unit box before it touches a wall, in chrome units,
  * measured off the export at the badge's height band. Unlike the corridors these are box
  * interiors: Scalar and Cube are ~30 units wide, Vec only ~22 — the sketch's own `2.18%` badge
@@ -382,10 +396,11 @@ const plates = computed(() =>
     const plate = props.model?.plates?.find((p) => p.node === node);
     const text = plate?.label;
     if (!text) return [];
+    const lift = PLATE_TEXT_LIFT[node] ?? 0;
     return PLATE_SLOTS[node].map(([x, y], i) => ({
       node,
       x,
-      y,
+      y: y - lift,
       key: `plate-${node}-${i}`,
       text,
       /** Numeric percent behind `label` (PR-VM-028); absent on a hand-built label-only model. */

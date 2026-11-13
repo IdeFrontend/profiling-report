@@ -14,6 +14,7 @@ import MemoryTopologyPanel, {
   ZOOM_WHEEL_TWEEN_MIN_DELTA,
   continuousZoomFromDelta,
   diffBadgeY,
+  PLATE_TEXT_LIFT,
   diffBadgeCircleX,
   DIFF_BADGE_TEXT_FALLBACK_W,
   fitFontSize,
@@ -399,8 +400,10 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(321.0, 5);
-    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(367.8, 5);
+    // PLATE_TEXT_LIFT: aiv_scalar and vec sit 5 units above their design
+    // slots so their comparison badges stay inside the element frames.
+    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(321.0 - PLATE_TEXT_LIFT.aiv_scalar!, 5);
+    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(367.8 - PLATE_TEXT_LIFT.vec!, 5);
     expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(218.3, 5);
     expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('x'))).toBeCloseTo(114.1, 5);
     // L2 peak vs L2 word (114.2, 204.5) — must clear half-cap (~3.15); sample band is ~13.8u under.
