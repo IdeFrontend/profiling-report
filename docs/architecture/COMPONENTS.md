@@ -319,7 +319,7 @@ Pin/context actions and multi-select aggregate table. `MultiSelectSummary` is im
 | Concern | Owner |
 |---------|--------|
 | VS Code performance explorer / tree | MSTT host |
-| Secondary tabs OP算子 / 概览 / 源码 | Library chrome: **概览** (Overview) when the pack carries operator rows (`OpBasicInfo.csv`); **源码** when the pack has a real Source model; **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)) |
+| Secondary tabs OP算子 / 概览 / 源码 | Library chrome: **概览** (Overview) when the pack carries operator rows (`OpBasicInfo.csv` or the `OpInfoSummary` fallback); **源码** when the pack has a real Source model; **详情** / **缓存** omitted ([UI-37](../context/decisions/UI.md)) |
 | Insight `.bin` viewing | MindStudio Insight |
 | PyPTO compute-graph three-column shell | pypto-tools until/unless adapted |
 

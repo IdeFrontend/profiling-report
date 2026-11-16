@@ -49,7 +49,7 @@ flowchart TB
 src/ui/
   ProfilingReport/                 (no pack)
   ReportToolbar/                   ✓  v930/entry
-  OperatorOverview/                ✓  1130/performance-overview
+  OperatorOverview/                (no pack)
   SourceView/                      ✓  v930-source/source-correlation
   ReportLayout/                    (no pack)
   EventTooltip/                    ✓  v930/task-hover

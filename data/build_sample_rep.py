@@ -51,22 +51,72 @@ TYPE_CSV = 4
 TYPE_SQLITE = 5
 TYPE_TXT = 7
 
-STRESS_PIPES = ["ALL", "SCALAR", "FLOWCTRL", "MTE1", "CUBE", "FIXP", "MTE2", "MTE3", "CACHEMISS"]
+STRESS_PIPES = [
+    "ALL",
+    "SCALAR",
+    "FLOWCTRL",
+    "MTE1",
+    "CUBE",
+    "FIXP",
+    "MTE2",
+    "MTE3",
+    "CACHEMISS",
+]
 STRESS_CORES = ["Core0.Cube", "Core0.Vec0", "Core0.Vec1"]
 # Typical Ascend data-path chain used for cross-pipe dependencies.
 PIPELINE_ORDER = ["MTE2", "MTE1", "CUBE", "FIXP", "MTE3"]
 
 # Per-pipe occupancy / duration profile (busy fraction of the timeline).
 PIPE_PROFILE = {
-    "ALL":       {"occupancy": 0.15, "avg_busy": 800,  "avg_gap": 4000, "names": ["ALL_busy"]},
-    "SCALAR":    {"occupancy": 0.25, "avg_busy": 400,  "avg_gap": 1200, "names": ["SCALAR_busy"]},
-    "FLOWCTRL":  {"occupancy": 0.08, "avg_busy": 200,  "avg_gap": 6000, "names": ["FLOWCTRL_busy"]},
-    "MTE1":      {"occupancy": 0.45, "avg_busy": 2200, "avg_gap": 1800, "names": ["MOV_IN_L1", "MTE1_busy"]},
-    "CUBE":      {"occupancy": 0.55, "avg_busy": 3500, "avg_gap": 1500, "names": ["matmul", "CUBE_busy"]},
-    "FIXP":      {"occupancy": 0.30, "avg_busy": 900,  "avg_gap": 2200, "names": ["FIX_LOC_TO_DST", "FIXP_busy"]},
-    "MTE2":      {"occupancy": 0.70, "avg_busy": 5000, "avg_gap": 800,  "names": ["MOV_OUT_TO_L1", "MTE2_busy"]},
-    "MTE3":      {"occupancy": 0.40, "avg_busy": 1800, "avg_gap": 2000, "names": ["MOV_OUT", "MTE3_busy"]},
-    "CACHEMISS": {"occupancy": 0.12, "avg_busy": 60,   "avg_gap": 3500, "names": ["CACHEMISS"]},
+    "ALL": {"occupancy": 0.15, "avg_busy": 800, "avg_gap": 4000, "names": ["ALL_busy"]},
+    "SCALAR": {
+        "occupancy": 0.25,
+        "avg_busy": 400,
+        "avg_gap": 1200,
+        "names": ["SCALAR_busy"],
+    },
+    "FLOWCTRL": {
+        "occupancy": 0.08,
+        "avg_busy": 200,
+        "avg_gap": 6000,
+        "names": ["FLOWCTRL_busy"],
+    },
+    "MTE1": {
+        "occupancy": 0.45,
+        "avg_busy": 2200,
+        "avg_gap": 1800,
+        "names": ["MOV_IN_L1", "MTE1_busy"],
+    },
+    "CUBE": {
+        "occupancy": 0.55,
+        "avg_busy": 3500,
+        "avg_gap": 1500,
+        "names": ["matmul", "CUBE_busy"],
+    },
+    "FIXP": {
+        "occupancy": 0.30,
+        "avg_busy": 900,
+        "avg_gap": 2200,
+        "names": ["FIX_LOC_TO_DST", "FIXP_busy"],
+    },
+    "MTE2": {
+        "occupancy": 0.70,
+        "avg_busy": 5000,
+        "avg_gap": 800,
+        "names": ["MOV_OUT_TO_L1", "MTE2_busy"],
+    },
+    "MTE3": {
+        "occupancy": 0.40,
+        "avg_busy": 1800,
+        "avg_gap": 2000,
+        "names": ["MOV_OUT", "MTE3_busy"],
+    },
+    "CACHEMISS": {
+        "occupancy": 0.12,
+        "avg_busy": 60,
+        "avg_gap": 3500,
+        "names": ["CACHEMISS"],
+    },
 }
 
 
@@ -83,7 +133,14 @@ def pack_npu_rep(entries):
 
     head = struct.pack(
         "<8sIHHIIIQ",
-        MAGIC, VERSION, ORIGIN, HEAD_SIZE, n, FILEINFO_SIZE, 0, total,
+        MAGIC,
+        VERSION,
+        ORIGIN,
+        HEAD_SIZE,
+        n,
+        FILEINFO_SIZE,
+        0,
+        total,
     )
     assert len(head) == HEAD_SIZE, f"head size {len(head)} != {HEAD_SIZE}"
 
@@ -96,9 +153,17 @@ def pack_npu_rep(entries):
             name_bytes = name_bytes.ljust(128, b"\x00")
         info = struct.pack(
             "<8s128sHHIQQ",
-            MAGIC, name_bytes, typ, 0, 0, length, offset,
+            MAGIC,
+            name_bytes,
+            typ,
+            0,
+            0,
+            length,
+            offset,
         )
-        assert len(info) == FILEINFO_SIZE, f"fileinfo size {len(info)} != {FILEINFO_SIZE}"
+        assert len(info) == FILEINFO_SIZE, (
+            f"fileinfo size {len(info)} != {FILEINFO_SIZE}"
+        )
         info_blocks.append(info)
 
     out = bytearray()
@@ -111,6 +176,7 @@ def pack_npu_rep(entries):
 
 
 # ---------------------------------------------------------------- PRNG / helpers
+
 
 def mulberry32(seed):
     """Deterministic PRNG (same family as generateStressSwimlane)."""
@@ -128,11 +194,23 @@ def mulberry32(seed):
 
 
 def _m_process(pid, name):
-    return {"ph": "M", "name": "process_name", "pid": pid, "tid": 0, "args": {"name": name}}
+    return {
+        "ph": "M",
+        "name": "process_name",
+        "pid": pid,
+        "tid": 0,
+        "args": {"name": name},
+    }
 
 
 def _m_thread(pid, tid, name):
-    return {"ph": "M", "name": "thread_name", "pid": pid, "tid": tid, "args": {"name": name}}
+    return {
+        "ph": "M",
+        "name": "thread_name",
+        "pid": pid,
+        "tid": tid,
+        "args": {"name": name},
+    }
 
 
 def _x(pid, tid, name, ts, dur, event_id=None, deps=None, extra=None):
@@ -143,7 +221,14 @@ def _x(pid, tid, name, ts, dur, event_id=None, deps=None, extra=None):
         args["dependencies"] = deps
     if extra:
         args.update(extra)
-    ev = {"ph": "X", "pid": pid, "tid": tid, "name": name, "ts": int(ts), "dur": int(dur)}
+    ev = {
+        "ph": "X",
+        "pid": pid,
+        "tid": tid,
+        "name": name,
+        "ts": int(ts),
+        "dur": int(dur),
+    }
     if args:
         ev["args"] = args
     return ev
@@ -220,12 +305,14 @@ def profiler_step_bands(count, time_span):
     for i in range(count):
         start = i * step
         end = time_span if i == count - 1 else (i + 1) * step
-        bands.append({
-            "id": f"band-step-{i + 1}",
-            "name": f"ProfilerStep#{i + 1}",
-            "ts": int(start),
-            "dur": int(max(1, end - start)),
-        })
+        bands.append(
+            {
+                "id": f"band-step-{i + 1}",
+                "name": f"ProfilerStep#{i + 1}",
+                "ts": int(start),
+                "dur": int(max(1, end - start)),
+            }
+        )
     return bands
 
 
@@ -277,7 +364,12 @@ def emit_bursty_lane(pid, tid, pipe, time_span, rand, id_prefix, seq_start=0):
                 dur = max(1, time_span - t)
             eid = f"{id_prefix}-{pipe}-{i}"
             ev = _x(
-                pid, tid, name, t, dur, event_id=eid,
+                pid,
+                tid,
+                name,
+                t,
+                dur,
+                event_id=eid,
                 extra=producer_params(pipe, name, rand, i, dur),
             )
             events.append((eid, t, t + dur, ev))
@@ -310,11 +402,15 @@ def wire_dense_deps(lane_events, rand, min_deg=1, max_deg=5):
     def add_edge(src_eid, dst_eid, *, force=False):
         if src_eid == dst_eid:
             return False
-        if not force and (len(neighbors[src_eid]) >= max_deg or len(neighbors[dst_eid]) >= max_deg):
+        if not force and (
+            len(neighbors[src_eid]) >= max_deg or len(neighbors[dst_eid]) >= max_deg
+        ):
             return False
         # Even when forcing min_deg, keep a soft ceiling so one hub cannot absorb all edges.
         hard = max_deg + 2
-        if force and (len(neighbors[src_eid]) >= hard or len(neighbors[dst_eid]) >= hard):
+        if force and (
+            len(neighbors[src_eid]) >= hard or len(neighbors[dst_eid]) >= hard
+        ):
             return False
         src_ev = ev_by_id[src_eid]
         deps = src_ev.setdefault("args", {}).setdefault("dependencies", [])
@@ -392,7 +488,11 @@ OP1_MULTIHEIGHT = {
 def _nest_specs(pipe, t0, width, depth):
     """Fixed nest geometry for one window. depth=3 → 3 concurrent rows; depth=2 → 2."""
     primary = PIPE_PROFILE[pipe]["names"][0]
-    mid_name = PIPE_PROFILE[pipe]["names"][1] if len(PIPE_PROFILE[pipe]["names"]) > 1 else f"{pipe}_helper"
+    mid_name = (
+        PIPE_PROFILE[pipe]["names"][1]
+        if len(PIPE_PROFILE[pipe]["names"]) > 1
+        else f"{pipe}_helper"
+    )
     w = width
     if depth >= 3:
         return [
@@ -433,7 +533,12 @@ def inject_multiheight_nests(pid, tid, pipe, emitted, rand, id_prefix, plan):
         for name, start, dur in _nest_specs(pipe, t0, width, depth):
             eid = f"{id_prefix}-nest-{nest_i}-{seq}"
             ev = _x(
-                pid, tid, name, start, dur, event_id=eid,
+                pid,
+                tid,
+                name,
+                start,
+                dur,
+                event_id=eid,
                 extra=producer_params(pipe, name, rand, 9000 + seq, dur),
             )
             nest.append((eid, start, start + dur, ev))
@@ -561,11 +666,12 @@ def op1_catalog_traces():
 
 # ------------------------------------------------------------------ CSV gen
 
+
 def read_out_rep(path):
     """Parse the flat `cann-rep` container (36-byte head + 160-byte fileinfo)."""
     buf = open(path, "rb").read()
-    _magic, _version, count, _file_length, _rep_length, _data_start = struct.unpack_from(
-        "<8sIIIQQ", buf, 0
+    _magic, _version, count, _file_length, _rep_length, _data_start = (
+        struct.unpack_from("<8sIIIQQ", buf, 0)
     )
     payloads = {}
     for i in range(count):
@@ -574,7 +680,7 @@ def read_out_rep(path):
             "<8s128sHHIQQ", buf, pos
         )
         name = name_b.split(b"\x00", 1)[0].decode("utf-8", "replace")
-        payloads[name] = buf[offset:offset + length]
+        payloads[name] = buf[offset : offset + length]
     return payloads
 
 
@@ -651,7 +757,7 @@ def fill_aic_columns(text, bases, seed, scale=1.0):
         # pad / trim to header width
         while len(cells) < len(headers):
             cells.append("")
-        cells = cells[:len(headers)]
+        cells = cells[: len(headers)]
         for j, h in enumerate(headers):
             if h not in bases:
                 continue
@@ -669,15 +775,24 @@ def enrich_cube_csvs(text_by_name, *, seed, scale=1.0):
     """Fill Cube-side NA columns on the metric CSVs the aside actually reads."""
     if "PipeUtilization.csv" in text_by_name:
         text_by_name["PipeUtilization.csv"] = fill_aic_columns(
-            text_by_name["PipeUtilization.csv"], AIC_PIPE_BASES, seed, scale,
+            text_by_name["PipeUtilization.csv"],
+            AIC_PIPE_BASES,
+            seed,
+            scale,
         )
     if "ArithmeticUtilization.csv" in text_by_name:
         text_by_name["ArithmeticUtilization.csv"] = fill_aic_columns(
-            text_by_name["ArithmeticUtilization.csv"], AIC_ARITH_BASES, seed + 1, scale,
+            text_by_name["ArithmeticUtilization.csv"],
+            AIC_ARITH_BASES,
+            seed + 1,
+            scale,
         )
     if "ResourceConflictRatio.csv" in text_by_name:
         text_by_name["ResourceConflictRatio.csv"] = fill_aic_columns(
-            text_by_name["ResourceConflictRatio.csv"], AIC_CONFLICT_BASES, seed + 2, scale,
+            text_by_name["ResourceConflictRatio.csv"],
+            AIC_CONFLICT_BASES,
+            seed + 2,
+            scale,
         )
     return text_by_name
 
@@ -723,31 +838,69 @@ def transform_metric_csv(text, scale, block_offset, sub_label, n_rows):
     return "\n".join(out) + "\n"
 
 
-def transform_op_basic_info(text, *, op_name="matmul_mock", op_type="mix",
-                            duration="3.502000", block_dim="16", mix_dim="8",
-                            freq="1500", demangled_name="matmul_mock<float>",
-                            grid_size="90.01", block_size="32"):
+def transform_op_basic_info(
+    text,
+    *,
+    op_name="matmul_mock",
+    op_type="mix",
+    duration="3.502000",
+    block_dim="16",
+    mix_dim="8",
+    freq="1500",
+    demangled_name="matmul_mock<float>",
+    grid_size="90.01",
+    block_size="32",
+):
     """Swap the single OpBasicInfo row for a different operator identity."""
-    header = ("Op Name,Op Type,Task Duration(us),Block Dim,Mix Block Dim,Device Id,"
-              "Pid,Current Freq,Rated Freq,Demangled Name,Grid Size,Block Size")
-    row = (f"{op_name},{op_type},{duration},{block_dim},{mix_dim},0,3073000,"
-           f"{freq},{freq},{demangled_name},{grid_size},{block_size}")
+    header = (
+        "Op Name,Op Type,Task Duration(us),Block Dim,Mix Block Dim,Device Id,"
+        "Pid,Current Freq,Rated Freq,Demangled Name,Grid Size,Block Size"
+    )
+    row = (
+        f"{op_name},{op_type},{duration},{block_dim},{mix_dim},0,3073000,"
+        f"{freq},{freq},{demangled_name},{grid_size},{block_size}"
+    )
     return header + "\n" + row + "\n"
 
 
-def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650, roofline_scale=1.0):
+def hardware_info(
+    chip_info, ai_core_count, ai_vector_count, freq_mhz=1650, roofline_scale=1.0
+):
     """Product-style spaced HardwareInfo.jsonl keys, plus a Roofline category."""
     lines = [
-        {"category": "Host Info", "cpu physical count": 2, "cpu logical count": 46,
-         "memory total size(MB)": 515563.11, "disk total size(GB)": 5864.53},
-        {"category": "Device Info", "npu count": 1, "chip info": chip_info, "arch info": "3510"},
-        {"category": "CPU Information", "control cpu count": 1, "ai cpu count": 6,
-         "ai cpu frequency(MHZ)": 1500},
-        {"category": "AI Core Information", "ai core count": ai_core_count,
-         "ai cube count": ai_core_count, "ai vector count": ai_vector_count,
-         "ai cube frequency(MHZ)": freq_mhz, "ai vector frequency(MHZ)": freq_mhz},
-        {"category": "Memory Information", "hbm total(MB)": 131072,
-         "hbm used(MB)": 5190.55, "hbm frequency(MHZ)": 3200},
+        {
+            "category": "Host Info",
+            "cpu physical count": 2,
+            "cpu logical count": 46,
+            "memory total size(MB)": 515563.11,
+            "disk total size(GB)": 5864.53,
+        },
+        {
+            "category": "Device Info",
+            "npu count": 1,
+            "chip info": chip_info,
+            "arch info": "3510",
+        },
+        {
+            "category": "CPU Information",
+            "control cpu count": 1,
+            "ai cpu count": 6,
+            "ai cpu frequency(MHZ)": 1500,
+        },
+        {
+            "category": "AI Core Information",
+            "ai core count": ai_core_count,
+            "ai cube count": ai_core_count,
+            "ai vector count": ai_vector_count,
+            "ai cube frequency(MHZ)": freq_mhz,
+            "ai vector frequency(MHZ)": freq_mhz,
+        },
+        {
+            "category": "Memory Information",
+            "hbm total(MB)": 131072,
+            "hbm used(MB)": 5190.55,
+            "hbm frequency(MHZ)": 3200,
+        },
         roofline_category(roofline_scale),
     ]
     return "\n".join(json.dumps(x, ensure_ascii=False) for x in lines) + "\n"
@@ -755,6 +908,7 @@ def hardware_info(chip_info, ai_core_count, ai_vector_count, freq_mhz=1650, roof
 
 def roofline_category(scale):
     """§11.8.2 Roofline circles (w/t/q) so the chart is more than the GM fallback dot."""
+
     def pt(p_peak, w, t, q, b_peak=1600):
         return {"p_peak": p_peak, "b_peak": b_peak, "w": w * scale, "t": t, "q": q}
 
@@ -1152,7 +1306,9 @@ def _build_objdump_and_symbolizer():
         "fixp_loc": (FIXP_LOC_CPP, FIXP_SRC_PATH, "fixp_loc"),
         "tile_n": (MATMUL_B_H, TILE_SRC_PATH, "tile_n"),
     }
-    code_lines = {fn: _code_lines(src) for fn, (src, _path, _name) in file_by_fn.items()}
+    code_lines = {
+        fn: _code_lines(src) for fn, (src, _path, _name) in file_by_fn.items()
+    }
     spread_at = {fn: 0 for fn in file_by_fn}
     lines = [
         "kernel.o:\tfile format elf64-hiipu",
@@ -1194,9 +1350,15 @@ def _build_objdump_and_symbolizer():
         got = len(mapped.get(path, ()))
         if got < minimum:
             raise RuntimeError(f"{path} maps {got} source lines, want >= {minimum}")
-    src_lines = sum(len(s.splitlines()) for s in (
-        CUBE_OP_CPP, MTE_COPY_CPP, FIXP_LOC_CPP, MATMUL_B_H,
-    ))
+    src_lines = sum(
+        len(s.splitlines())
+        for s in (
+            CUBE_OP_CPP,
+            MTE_COPY_CPP,
+            FIXP_LOC_CPP,
+            MATMUL_B_H,
+        )
+    )
     if src_lines < 32 * 5:
         raise RuntimeError(f"sample source is {src_lines} lines, want >= {32 * 5}")
     if len(_ASM_ROWS) < 8 * 5:
@@ -1285,16 +1447,18 @@ def _sym(addr, path, line, fn):
     return {
         "Address": addr,
         "ModuleName": "kernel.o",
-        "Symbol": [{
-            "Column": 1,
-            "Discriminator": 0,
-            "FileName": path,
-            "FunctionName": fn,
-            "Line": line,
-            "StartAddress": addr,
-            "StartFileName": path,
-            "StartLine": 1,
-        }],
+        "Symbol": [
+            {
+                "Column": 1,
+                "Discriminator": 0,
+                "FileName": path,
+                "FunctionName": fn,
+                "Line": line,
+                "StartAddress": addr,
+                "StartFileName": path,
+                "StartLine": 1,
+            }
+        ],
     }
 
 
@@ -1343,7 +1507,7 @@ def scale_column_values(text, column_names, scale):
         cells = line.split(",")
         while len(cells) < len(headers):
             cells.append("")
-        cells = cells[:len(headers)]
+        cells = cells[: len(headers)]
         for i in idx:
             c = cells[i].strip()
             if c in ("", "NA"):
@@ -1372,7 +1536,7 @@ def set_column_constant(text, column_name, value_fn):
         cells = line.split(",")
         while len(cells) < len(headers):
             cells.append("")
-        cells = cells[:len(headers)]
+        cells = cells[: len(headers)]
         cells[j] = _fmt(value_fn(row_i))
         out.append(",".join(cells))
     return "\n".join(out) + "\n"
@@ -1455,11 +1619,13 @@ def build_summary_jsonl(texts, *, op_basic, demo):
     mem = next((o for o in lines if o.get("category") == "Memory"), {})
     # npu-tools summarize_npu_rep.py: read / write = sum of the aic + aiv sides (non-null only).
     read_values = [
-        mem[k] for k in ("aic_main_mem_read_bw(GB/s)", "aiv_main_mem_read_bw(GB/s)")
+        mem[k]
+        for k in ("aic_main_mem_read_bw(GB/s)", "aiv_main_mem_read_bw(GB/s)")
         if mem.get(k) is not None
     ]
     write_values = [
-        mem[k] for k in ("aic_main_mem_write_bw(GB/s)", "aiv_main_mem_write_bw(GB/s)")
+        mem[k]
+        for k in ("aic_main_mem_write_bw(GB/s)", "aiv_main_mem_write_bw(GB/s)")
         if mem.get(k) is not None
     ]
     read_bw = sum(read_values) if read_values else demo["gm_read"]
@@ -1483,7 +1649,9 @@ def build_summary_jsonl(texts, *, op_basic, demo):
         "Op Type": op_basic["op_type"],
         "Task Duration(us)": float(op_basic["duration"]),
         "Block Dim": int(op_basic["block_dim"]),
-        "Mix Block Dim": int(op_basic["mix_dim"]) if op_basic.get("mix_dim") not in (None, "", "NA") else None,
+        "Mix Block Dim": int(op_basic["mix_dim"])
+        if op_basic.get("mix_dim") not in (None, "", "NA")
+        else None,
         "Device Id": 0,
         "Pid": 3073000,
         "Current Freq": int(op_basic["freq"]),
@@ -1502,18 +1670,21 @@ def build_summary_jsonl(texts, *, op_basic, demo):
         # 计算时间 is not a column; the adapter derives it as the remainder.
         "communication_time": float(op_basic["duration"]) * (10.0 / 24.6),
         "compute_overhead_time": float(op_basic["duration"]) * (2.2 / 24.6),
-        "compute_communication_overlap_time": float(op_basic["duration"]) * (8.4 / 24.6),
+        "compute_communication_overlap_time": float(op_basic["duration"])
+        * (8.4 / 24.6),
     }
     lines.append(op_info)
     # §11.10 PerformanceHints — producer-emitted advice strings (demo; not re-derived H01–H12).
-    lines.append({
-        "category": "PerformanceHints",
-        "hints": [
-            "Inspect the Vector instruction sequence, redundant compute, conversions, and reductions.",
-            "Average bytes per copy instruction is under 16 KiB. Check whether adjacent copies can merge.",
-            f"{op_basic['op_name']}: scalar pipe busy — inspect address math and loop-invariant code.",
-        ],
-    })
+    lines.append(
+        {
+            "category": "PerformanceHints",
+            "hints": [
+                "Inspect the Vector instruction sequence, redundant compute, conversions, and reductions.",
+                "Average bytes per copy instruction is under 16 KiB. Check whether adjacent copies can merge.",
+                f"{op_basic['op_name']}: scalar pipe busy — inspect address math and loop-invariant code.",
+            ],
+        }
+    )
     return "".join(json.dumps(o, ensure_ascii=False) + "\n" for o in lines)
 
 
@@ -1521,25 +1692,55 @@ def build_sampling_json(seed, duration_us, n_points=64):
     """Compact Sampling.json with CUBE + VECTOR util waves (ts in µs)."""
     rand = mulberry32(seed)
     events = [
-        {"name": "Accelerator", "pid": 1, "tid": 0, "ph": "M", "cat": "__metadata",
-         "args": {"name": "AI Accelerator"}},
-        {"name": "CUBE", "pid": 1, "tid": 1, "ph": "M", "cat": "__metadata",
-         "args": {"name": "CUBE Unit"}},
-        {"name": "VECTOR", "pid": 1, "tid": 2, "ph": "M", "cat": "__metadata",
-         "args": {"name": "VECTOR Unit"}},
+        {
+            "name": "Accelerator",
+            "pid": 1,
+            "tid": 0,
+            "ph": "M",
+            "cat": "__metadata",
+            "args": {"name": "AI Accelerator"},
+        },
+        {
+            "name": "CUBE",
+            "pid": 1,
+            "tid": 1,
+            "ph": "M",
+            "cat": "__metadata",
+            "args": {"name": "CUBE Unit"},
+        },
+        {
+            "name": "VECTOR",
+            "pid": 1,
+            "tid": 2,
+            "ph": "M",
+            "cat": "__metadata",
+            "args": {"name": "VECTOR Unit"},
+        },
     ]
     for i in range(n_points):
         ts = duration_us * (i / max(n_points - 1, 1))
         cube = 35 + 45 * (0.5 + 0.5 * math.sin(i / 5.0)) + 8 * (rand() - 0.5)
         vec = 30 + 40 * (0.5 + 0.5 * math.cos(i / 4.0)) + 8 * (rand() - 0.5)
-        events.append({
-            "name": "CUBE", "cat": "util", "ph": "C", "ts": round(ts, 6), "pid": 1,
-            "args": {"value": round(max(0.0, min(100.0, cube)), 3)},
-        })
-        events.append({
-            "name": "VECTOR", "cat": "util", "ph": "C", "ts": round(ts, 6), "pid": 1,
-            "args": {"value": round(max(0.0, min(100.0, vec)), 3)},
-        })
+        events.append(
+            {
+                "name": "CUBE",
+                "cat": "util",
+                "ph": "C",
+                "ts": round(ts, 6),
+                "pid": 1,
+                "args": {"value": round(max(0.0, min(100.0, cube)), 3)},
+            }
+        )
+        events.append(
+            {
+                "name": "VECTOR",
+                "cat": "util",
+                "ph": "C",
+                "ts": round(ts, 6),
+                "pid": 1,
+                "args": {"value": round(max(0.0, min(100.0, vec)), 3)},
+            }
+        )
     return json.dumps({"traceEvents": events}, separators=(",", ":")) + "\n"
 
 
@@ -1590,14 +1791,18 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
 
     # Align vector fops with demo aiv TFLOPS (fops = TFLOPS * time_us * 1e6).
     if "ArithmeticUtilization.csv" in texts:
-        aiv_time = csv_column_mean(texts["ArithmeticUtilization.csv"], "aiv_time(us)") or 1.0
+        aiv_time = (
+            csv_column_mean(texts["ArithmeticUtilization.csv"], "aiv_time(us)") or 1.0
+        )
         target_vec_fops = demo["aiv_flops"] * aiv_time * 1e6
         texts["ArithmeticUtilization.csv"] = set_column_constant(
             texts["ArithmeticUtilization.csv"],
             "aiv_vec_fops",
             lambda row_i: target_vec_fops * (0.92 + 0.16 * ((row_i * 13) % 5) / 4.0),
         )
-        aic_time = csv_column_mean(texts["ArithmeticUtilization.csv"], "aic_time(us)") or 1.25
+        aic_time = (
+            csv_column_mean(texts["ArithmeticUtilization.csv"], "aic_time(us)") or 1.25
+        )
         target_cube_fops = demo["aic_flops"] * aic_time * 1e6
         texts["ArithmeticUtilization.csv"] = set_column_constant(
             texts["ArithmeticUtilization.csv"],
@@ -1616,12 +1821,15 @@ def leaf_entries(out_rep, trace, *, transform, sub_label, chip_info,
             ("aiv_main_mem_write_bw(GB/s)", demo["gm_write"] * 0.95),
         ):
             texts["Memory.csv"] = set_column_constant(
-                texts["Memory.csv"], col,
+                texts["Memory.csv"],
+                col,
                 lambda row_i, t=target: t * (0.9 + 0.2 * ((row_i * 3) % 4) / 3.0),
             )
 
     texts["HardwareInfo.jsonl"] = hardware_info(
-        chip_info, ai_core_count, ai_vector_count,
+        chip_info,
+        ai_core_count,
+        ai_vector_count,
         freq_mhz=int(op_basic.get("freq", 1650)),
         roofline_scale=roofline_scale,
     )
@@ -1684,6 +1892,48 @@ def main():
         "gm_read": 640.0,
         "gm_write": 520.0,
     }
+    # Overview-only extras: each carries its own demo band so no two operators share a
+    # compute / bandwidth / parallel-util cell (AGENTS.md demo-data rule).
+    op3_demo = {
+        "parallel_util": 0.81,
+        "parallel_balance": 0.77,
+        "aic_flops": 21.5,
+        "aiv_flops": 8.5,
+        "aic_flops_theoretical": 52.224,
+        "aiv_flops_theoretical": 26.112,
+        "gm_read": 600.0,
+        "gm_write": 500.0,
+    }
+    op4_demo = {
+        "parallel_util": 0.76,
+        "parallel_balance": 0.84,
+        "aic_flops": 14.0,
+        "aiv_flops": 6.25,
+        "aic_flops_theoretical": 30.4128,
+        "aiv_flops_theoretical": 15.2064,
+        "gm_read": 470.0,
+        "gm_write": 395.0,
+    }
+    op5_demo = {
+        "parallel_util": 0.68,
+        "parallel_balance": 0.61,
+        "aic_flops": 9.75,
+        "aiv_flops": 4.5,
+        "aic_flops_theoretical": 18.432,
+        "aiv_flops_theoretical": 9.216,
+        "gm_read": 355.0,
+        "gm_write": 285.0,
+    }
+    op6_demo = {
+        "parallel_util": 0.57,
+        "parallel_balance": 0.72,
+        "aic_flops": 7.5,
+        "aiv_flops": 3.25,
+        "aic_flops_theoretical": 13.824,
+        "aiv_flops_theoretical": 6.912,
+        "gm_read": 305.0,
+        "gm_write": 240.0,
+    }
 
     op1 = leaf_entries(
         out_rep,
@@ -1697,10 +1947,17 @@ def main():
         n_rows=8,
         aic_seed=0xC0BE01,
         aic_scale=0.85,
-        op_basic={"op_name": "add_custom", "op_type": "mix", "duration": "1.800036",
-                  "block_dim": "8", "mix_dim": "4", "freq": "1650",
-                  "demangled_name": "add_custom<float>", "grid_size": "85.25",
-                  "block_size": "32"},
+        op_basic={
+            "op_name": "add_custom",
+            "op_type": "mix",
+            "duration": "1.800036",
+            "block_dim": "8",
+            "mix_dim": "4",
+            "freq": "1650",
+            "demangled_name": "add_custom<float>",
+            "grid_size": "85.25",
+            "block_size": "32",
+        },
         demo=op1_demo,
         include_trace=False,
         catalog_traces=op1_catalog_traces(),
@@ -1720,10 +1977,17 @@ def main():
         n_rows=12,
         aic_seed=0xC0BE02,
         aic_scale=1.15,
-        op_basic={"op_name": "matmul_mock", "op_type": "mix", "duration": "3.502000",
-                  "block_dim": "16", "mix_dim": "8", "freq": "1500",
-                  "demangled_name": "matmul_mock<float>", "grid_size": "90.01",
-                  "block_size": "48"},
+        op_basic={
+            "op_name": "matmul_mock",
+            "op_type": "mix",
+            "duration": "3.502000",
+            "block_dim": "16",
+            "mix_dim": "8",
+            "freq": "1500",
+            "demangled_name": "matmul_mock<float>",
+            "grid_size": "90.01",
+            "block_size": "48",
+        },
         demo=op2_demo,
         include_trace=False,
         sampling_seed=0x51A102,
@@ -1734,13 +1998,31 @@ def main():
     # 概览 fixture: 3-4 lightweight operators (no trace.json) with distinct
     # demangled / duration / grid / block / blockDim values, plus the op1/op2 rows above.
     extra_ops = [
-        ("demo_linear_tiled", "vector", "0.730000", "24", "88.40", "40"),
-        ("demo_bias_gelu", "vector", "0.412500", "20", "96.75", "24"),
-        ("demo_layer_norm", "vector", "0.268300", "12", "40.92", "36"),
-        ("demo_softmax", "vector", "0.155800", "28", "75.54", "20"),
+        (
+            "demo_linear_tiled",
+            "vector",
+            "0.730000",
+            "32",
+            "88.63",
+            "32",
+            op3_demo,
+            0.92,
+        ),
+        ("demo_bias_gelu", "vector", "0.412500", "16", "66.42", "16", op4_demo, 1.24),
+        ("demo_layer_norm", "vector", "0.268300", "19", "40.92", "19", op5_demo, 0.72),
+        ("demo_softmax", "vector", "0.155800", "24", "75.54", "24", op6_demo, 1.38),
     ]
     extra_bytes = []
-    for i, (name, optype, duration, block_dim, grid, block) in enumerate(extra_ops):
+    for i, (
+        name,
+        optype,
+        duration,
+        block_dim,
+        grid,
+        block,
+        demo,
+        aic_scale,
+    ) in enumerate(extra_ops):
         extra = leaf_entries(
             out_rep,
             trace=None,
@@ -1752,7 +2034,7 @@ def main():
             block_offset=200 + i * 20,
             n_rows=8,
             aic_seed=0xC0BE10 + i,
-            aic_scale=1.0,
+            aic_scale=aic_scale,
             op_basic={
                 "op_name": name,
                 "op_type": optype,
@@ -1764,7 +2046,7 @@ def main():
                 "grid_size": grid,
                 "block_size": block,
             },
-            demo=op2_demo,
+            demo=demo,
             include_trace=False,
             sampling_seed=0x51A110 + i,
             roofline_scale=0.8,
@@ -1774,11 +2056,13 @@ def main():
 
     op1_bytes = pack_npu_rep(op1)
     op2_bytes = pack_npu_rep(op2)
-    container = pack_npu_rep([
-        ("op1.npu.rep", TYPE_NESTED, op1_bytes),
-        ("op2.npu.rep", TYPE_NESTED, op2_bytes),
-        *extra_bytes,
-    ])
+    container = pack_npu_rep(
+        [
+            ("op1.npu.rep", TYPE_NESTED, op1_bytes),
+            ("op2.npu.rep", TYPE_NESTED, op2_bytes),
+            *extra_bytes,
+        ]
+    )
 
     out_path = os.path.join(here, "sample.lite.rep")
     with open(out_path, "wb") as fp:
@@ -1796,10 +2080,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--pack-parity":
         # Fixed entry set for tests/unit/packNpuRep.spec.ts ↔ packNpuRep.ts parity.
         # Note: product 160-byte layout; packNpuRep.ts (164) has its own fixtures.
-        parity = pack_npu_rep([
-            ("OpBasicInfo.csv", TYPE_CSV, b"a,b\n1,2"),
-            ("trace.json", TYPE_JSON, b"{}"),
-        ])
+        parity = pack_npu_rep(
+            [
+                ("OpBasicInfo.csv", TYPE_CSV, b"a,b\n1,2"),
+                ("trace.json", TYPE_JSON, b"{}"),
+            ]
+        )
         sys.stdout.buffer.write(parity)
         sys.exit(0)
 

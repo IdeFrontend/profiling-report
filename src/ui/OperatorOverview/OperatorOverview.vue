@@ -197,7 +197,7 @@ function compareValues(a: string | number | undefined, b: string | number | unde
   if (aMissing) return 1;
   if (bMissing) return -1;
   if (typeof a === 'number' && typeof b === 'number') return a - b;
-  return String(a).localeCompare(String(b));
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
 }
 
 const visibleRows = computed(() => {
@@ -273,6 +273,9 @@ function ariaSort(col: Column): 'ascending' | 'descending' | 'none' {
 function selectRow(row: ReportOperatorRow | null) {
   if (row != null) selectedRow.value = toRaw(row);
 }
+
+/** The action is only meaningful when the highlighted row carries an op name. */
+const optimizeEnabled = computed(() => !!selectedRow.value?.opName);
 
 /** Host contract: the optimize event carries the highlighted row's raw op name. */
 function optimizeSelected() {
@@ -515,6 +518,7 @@ function duration(value: number | undefined): string {
       <button
         type="button"
         class="pr-operator-overview__action"
+        :disabled="!optimizeEnabled"
         @click="optimizeSelected"
       >
         <svg
@@ -838,8 +842,13 @@ function duration(value: number | undefined): string {
   cursor: pointer;
 }
 
-.pr-operator-overview__action:hover {
+.pr-operator-overview__action:hover:not(:disabled) {
   border-color: var(--pr-playhead);
+}
+
+.pr-operator-overview__action:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .pr-operator-overview__action-glyph {
