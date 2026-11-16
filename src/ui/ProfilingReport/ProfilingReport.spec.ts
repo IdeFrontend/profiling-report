@@ -13,7 +13,7 @@ import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
-import type { SwimlaneModel } from '../../domain/types';
+import type { Baseline, SwimlaneModel } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 vi.mock('@sudu-ide/code-review', () => ({
@@ -2529,4 +2529,178 @@ describe('ProfilingReport scaffold', () => {
     expect(deferred.findComponent(SourceView).props('model').files[0].text).toContain('late_bound');
     deferred.unmount();
   });
+
+  it('PR-ROOT-031: a checkbox toggle forwards the checked set as update:baselines', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [
+          { id: 'r1', name: 'R1', path: '/r1' },
+          { id: 'r2', name: 'R2', path: '/r2' },
+        ],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    await wrapper.findAll('[data-testid="baseline-check"]')[0].setValue(true);
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[{ id: 'r1', name: 'R1', path: '/r1' }]],
+    ]);
+    // The host applies the emitted list back — the box is controlled (PR-BASELINE-037).
+    await wrapper.setProps({ baselines: [{ id: 'r1', name: 'R1', path: '/r1' }] });
+    await nextTick();
+    // Unchecking removes it — the checked set IS the host-owned list.
+    await wrapper.findAll('[data-testid="baseline-check"]')[0].setValue(false);
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[{ id: 'r1', name: 'R1', path: '/r1' }]],
+      [[]],
+    ]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-035: the empty-report toolbar mount also forwards baseline toggles', async () => {
+    // No swimlaneModel → the standalone toolbar mount
+    // (v-if="!showTimeline && !showSource"), which binds the same baseline props
+    // and the same update:baselines emit as the timeline mount.
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'empty',
+        baselines: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    await wrapper.findAll('[data-testid="baseline-check"]')[0].setValue(true);
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[{ id: 'r1', name: 'R1', path: '/r1' }]],
+    ]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-032: Browse appends the picked report as a checked baseline', async () => {
+    const pick = vi.fn().mockResolvedValue({ path: '/data/new.npu-rep', name: 'new-baseline' });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [],
+        pickBaselineFile: pick,
+        recentBaselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    await wrapper.get('[data-testid="baseline-browse"]').trigger('click');
+    await flushPromises();
+    const appended = wrapper.emitted('update:baselines')![0][0] as Baseline[];
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toMatchObject({ name: 'new-baseline', path: '/data/new.npu-rep' });
+    expect(typeof appended[0].id).toBe('string');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-033: unchecking the selected baseline clears the selection (host-owned invariant)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+        selectedBaselineId: 'r1',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    await wrapper.findAll('[data-testid="baseline-check"]')[0].setValue(false);
+    await nextTick();
+    expect(wrapper.emitted('update:baselines')).toEqual([[[]]]);
+    // The host applies the emptied list back → the stale selection clears.
+    await wrapper.setProps({ baselines: [] });
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([[null]]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-034: the aside receives the checked list and its pick stays global (null = Not selected)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+        baselines: [
+          { id: 'b1', name: 'OPPROF_A', path: '/a', operators: ['matmul'] },
+          { id: 'b2', name: 'OPPROF_B', path: '/b', operators: ['gelu'] },
+        ],
+        selectedBaselineId: 'b1',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const aside = wrapper.findComponent({ name: 'StatsAside' });
+    expect(aside.props('baselines')).toHaveLength(2);
+    expect(aside.props('selectedBaselineId')).toBe('b1');
+    aside.vm.$emit('update:selectedBaselineId', 'b2');
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2']]);
+    aside.vm.$emit('update:selectedBaselineId', null);
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2'], [null]]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-036: a restored selection survives mount while the list is undefined; validation starts when the list arrives', async () => {
+    // A host restores selectedBaselineId from storage and loads the list later:
+    // the immediate guard must not clear the selection before the list arrives.
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        selectedBaselineId: 'saved-1',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    expect(wrapper.emitted('update:selectedBaselineId')).toBeUndefined();
+    // The list arrives without the id → validation now clears it.
+    await wrapper.setProps({ baselines: [{ id: 'other', name: 'other', path: '/other' }] });
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([[null]]);
+    wrapper.unmount();
+
+    // The list arrives WITH the restored id → no clear at all.
+    const kept = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        selectedBaselineId: 'saved-2',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    await kept.setProps({ baselines: [{ id: 'saved-2', name: 'saved', path: '/saved' }] });
+    await nextTick();
+    expect(kept.emitted('update:selectedBaselineId')).toBeUndefined();
+    kept.unmount();
+  });
+
+  it('PR-ROOT-037: the aside Operator pick forwards to the host (selectedBaselineOperator / update:selectedBaselineOperator)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+        baselines: [{ id: 'b1', name: 'OPPROF_A', path: '/a', operators: ['matmul', 'relu'] }],
+        selectedBaselineId: 'b1',
+        selectedBaselineOperator: 'matmul',
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const aside = wrapper.findComponent({ name: 'StatsAside' });
+    expect(aside.props('selectedBaselineOperator')).toBe('matmul');
+    aside.vm.$emit('update:selectedBaselineOperator', 'relu');
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([['relu']]);
+    aside.vm.$emit('update:selectedBaselineOperator', null);
+    await nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([['relu'], [null]]);
+    wrapper.unmount();
+  });
+
 });

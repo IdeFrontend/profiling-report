@@ -17,6 +17,13 @@
   --pr-axis-tick-muted: #313131;
   --pr-axis-band-muted: #1b1b1b;
   --pr-playhead: #3078f0;
+  /* Checked-state accent (baseline checkbox dot). Clears 3:1 on the raised panel
+     (#363636) and its hover tint (#4a4a4a), so the indicator is perceivable. */
+  --pr-accent: #6a9ff0;
+  /* Inline select value and its caption (aside Baseline / Operator row). The
+     light theme overrides both below; hardcoded foregrounds read as blank there. */
+  --pr-fg-select: #e8e8e8;
+  --pr-fg-aside-muted: #999999;
   --pr-color-cube: #007084;
   --pr-color-vector: #007464;
   --pr-color-mte1: #885c00;
@@ -108,6 +115,9 @@
   --pr-bg-deep: #e8ecf0;
   --pr-bg-aside: #e8ecf0;
   --pr-bg-panel: #f4f4f4;
+  /* AA on the light aside: select value 13.31:1, muted caption 5.01:1. */
+  --pr-fg-select: #1f2328;
+  --pr-fg-aside-muted: #5a6570;
   color-scheme: light;
 }
 
@@ -217,6 +227,49 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+/*
+ * Toolbar action-icon button. Shared home (ReportToolbar + BaselinePicker) —
+ * a scoped copy in ReportToolbar could not reach the picker's trigger inside
+ * its child component, so the rule lives in the global token sheet.
+ */
+.pr-toolbar__icon-btn {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  outline: none;
+  background: #363636;
+  color: #b3b3b3;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.pr-toolbar__icon-btn:focus {
+  outline: none;
+}
+
+.pr-toolbar__icon-btn:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
+}
+
+.pr-toolbar__icon-btn:hover,
+.pr-toolbar__icon-btn:active,
+.pr-toolbar__icon-btn--on,
+.pr-toolbar__icon-btn[aria-pressed='true'],
+.pr-toolbar__icon-btn[aria-expanded='true'] {
+  background: #1e2a3e;
+  color: #2d70e3;
 }
 
 /*

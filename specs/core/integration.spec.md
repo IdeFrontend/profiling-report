@@ -53,12 +53,17 @@ Outside-in tests verifying the full component tree and playground render correct
 1. **PR-E2E-017**: Playground toolbar Export with `?locale=en` fetches `/npu-rep-html-template.txt`, stitches the loaded report using the HTML `<script>` embed slot (not marker strings inside the inlined viewer bundle), and downloads `{name}.html` whose embed slot is filled with `en`.
 1. **PR-E2E-018**: Source tab is absent without source embeds and opens `source-view` (no mock badge) when they are present; returning to Timeline unmounts it (UI-37).
 1. **PR-E2E-019**: Single-click an event that a closed DetailPanel would cover; after the dock height tween the selected lane row stays visible above the dock (timeline ensure-scrolls).
+1. **PR-E2E-020**: The playground's **baselines** link opens the picker's checkbox view (the single view): the five demo reports unchecked, checking rows survives closing the popover, Browse appends the picked file as a checked row, and a reload starts with nothing checked again (session-only).
+1. **PR-E2E-022**: The aside Baseline dropdown always renders (Not selected when nothing is checked), lists exactly the checked set + Not selected, picks globally, and unchecking the selected report clears the selection back to Not selected.
+1. **PR-E2E-023**: The aside Operator dropdown defaults to the selected baseline's first operator, keeps a session-local pick, re-defaults on baseline change, and works for browsed picks too.
 
 ## Dependencies
 
 [UX_SPEC.md](../../docs/ui/UX_SPEC.md) (scenarios S1–S3), [INTERACTIONS.md](../../docs/ui/INTERACTIONS.md).
 
 ## Changelog
+- **2026-11-12** — ТЗ rework (PR-E2E-020/022/023 restated): the picker is a single checkbox view — the checked set IS the baseline list; the aside dropdowns always render with Not selected sentinels.
+- **2026-11-11** — PR-E2E-020 restated: baselines are session-only in the bundled hosts — the `?baselines=sample` link seeds the demo list (radio selection, none by default), a custom pick dies with the page, no storage anywhere.
 - **2026-10-23** — PR-E2E-019: closed-dock single-click ensure-scrolls the selected row above the DetailPanel (wait for dock height to settle; Vue enter-from + 200ms ease can outlast a 280ms cap).
 - **2026-10-23** — PR-E2E-018: the default sample now has real Source embeds, so the absent-tab check uses `vector_muladd`.
 - **2026-10-05** — PR-E2E-017: playground HTML export (template fetch + stitch download). Vite `%ENV%` must not strip embed placeholders; template is served as `.txt`.

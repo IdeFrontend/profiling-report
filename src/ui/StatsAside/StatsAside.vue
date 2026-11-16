@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } f
 import { t, archMetricModeLabel } from '../../i18n';
 import type {
   BandwidthCardModel,
+  Baseline,
   MemoryHeatmapUnitId,
   MemoryTopologyModel,
   PipeOccupancyItem,
@@ -47,6 +48,23 @@ const props = defineProps<{
    * topology fullscreen share one selection; omit for standalone mounts (local default).
    */
   archMetricMode?: ArchDiagramMetricMode;
+  /**
+   * Host-owned checked baselines (对比基线) — the picker's checkbox set. The
+   * aside always renders the Baseline / Operator dropdown row under the meta
+   * line; nothing checked = both show "Not selected". The Baseline pick
+   * forwards to the host (`update:selectedBaselineId`, `null` = Not selected)
+   * so the choice is global.
+   */
+  baselines?: Baseline[];
+  /** Current baseline id; null/absent = "Not selected". */
+  selectedBaselineId?: string | null;
+  /**
+   * Current baseline operator (session-local). The pick forwards to the host
+   * (`update:selectedBaselineOperator`, `null` = Not selected); the aside
+   * re-defaults it to the baseline's first operator on baseline change and
+   * when the current value leaves the baseline's operator list.
+   */
+  selectedBaselineOperator?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -58,6 +76,10 @@ const emit = defineEmits<{
   'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId];
   'open-cannbot': [scope: CannbotScope];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
+  /** Baseline dropdown pick — the host-owned selection, global (`null` = Not selected). */
+  'update:selectedBaselineId': [id: string | null];
+  /** Operator dropdown pick — session-local, forwarded to the host (`null` = Not selected). */
+  'update:selectedBaselineOperator': [operator: string | null];
   'open-performance-hints': [];
 }>();
 
@@ -615,6 +637,93 @@ const csvOnly = computed(
 
 const summary = computed(() => props.report?.summary);
 
+/* ===== Baseline dropdown row (对比基线) =====
+ * Always rendered under the meta line (open question UI-63: show empty vs
+ * hide). Baseline (host-owned, global; `null` = Not selected) + Operator
+ * (session-local, defaults to the baseline's first, Not selected without a
+ * baseline). The row shares the Block dropdown's CardMetricSelect chrome. */
+
+/** Non-id sentinel: `''` would collide with a host entry carrying an empty id,
+ *  collapsing it into the Not selected option. A string no `Baseline.id` can be
+ *  (ids are opaque and minted, never `__none__`). */
+const NOT_SELECTED = '__none__';
+const baselineRows = computed(() => props.baselines ?? []);
+const selectedBaseline = computed(
+  () => baselineRows.value.find((b) => b.id === props.selectedBaselineId) ?? null,
+);
+/** Baseline dropdown: the checked set + the Not selected sentinel; picks are global. */
+const asideBaselineId = computed({
+  get: () => props.selectedBaselineId ?? NOT_SELECTED,
+  set: (id: string) => {
+    const next = id === NOT_SELECTED ? null : id;
+    if (next !== props.selectedBaselineId) emit('update:selectedBaselineId', next);
+  },
+});
+function baselineNameOf(id: string): string {
+  if (id === NOT_SELECTED) return t('baselineNotSelected', props.locale);
+  return baselineRows.value.find((b) => b.id === id)?.name ?? id;
+}
+/**
+ * The trigger's accessible name carries the value too: `aria-label` replaces the
+ * rendered value span, so a bare "Baseline" would announce a nameless button.
+ */
+const baselineSelectLabel = computed(
+  () => `${t('baselineLabel', props.locale)}: ${baselineNameOf(asideBaselineId.value)}`,
+);
+const baselineOperators = computed(() => selectedBaseline.value?.operators ?? []);
+/* Dedupe: a host bug must not produce duplicate options (or an ambiguous pick). */
+const baselineIds = computed(() => [NOT_SELECTED, ...new Set(baselineRows.value.map((b) => b.id))]);
+/** Operator dropdown: session-local, host-owned through the root — no local copy. */
+const asideBaselineOperator = computed<string>({
+  get: () => props.selectedBaselineOperator ?? NOT_SELECTED,
+  set: (op: string) => setOperator(op),
+});
+const operatorOptions = computed(() =>
+  baselineOperators.value.length > 0 ? baselineOperators.value : [NOT_SELECTED]);
+function operatorNameOf(op: string): string {
+  return op === NOT_SELECTED ? t('baselineNotSelected', props.locale) : op;
+}
+const operatorSelectLabel = computed(
+  () => `${t('operatorLabel', props.locale)}: ${operatorNameOf(asideBaselineOperator.value)}`,
+);
+/** Emits the host-owned value only when it actually changes (no duplicate emits). */
+function setOperator(op: string): void {
+  const next = op === NOT_SELECTED ? null : op;
+  if ((next ?? null) === (props.selectedBaselineOperator ?? null)) return;
+  emit('update:selectedBaselineOperator', next);
+}
+/**
+ * Re-defaults to the baseline's first operator when the baseline changes. A
+ * second watcher repairs the pick when the baseline's `operators` arrive later
+ * (the host loads the pack after the entry) — the id alone does not change
+ * then, so the pick would otherwise stay Not selected or leave the list.
+ * A host-provided value at mount (restored session) is respected instead of
+ * clobbered — the repair watcher fixes it once the operators load.
+ */
+watch(
+  () => selectedBaseline.value?.id,
+  (_id, prevId) => {
+    if (prevId === undefined && props.selectedBaselineOperator != null) return;
+    setOperator(baselineOperators.value[0] ?? NOT_SELECTED);
+  },
+  { immediate: true },
+);
+watch(
+  () => selectedBaseline.value,
+  (b, prev) => {
+    // No baseline yet (`baselines` still `undefined` or empty): nothing to
+    // repair — running on would wipe a host-restored operator at mount, the
+    // same mount-order bug the root guards for the selection (PR-ROOT-036).
+    if (!b) return;
+    // Same baseline, operators changed (arrived later): repair a stale pick
+    // only — baseline changes are owned by the id watcher above.
+    if (b.id !== prev?.id) return;
+    if (operatorOptions.value.includes(asideBaselineOperator.value)) return;
+    setOperator(b.operators?.[0] ?? NOT_SELECTED);
+  },
+  { immediate: true },
+);
+
 function numericBlockDim(blockDim: string | number | undefined): number | undefined {
   if (blockDim == null || blockDim === '') return undefined;
   const n = typeof blockDim === 'number' ? blockDim : Number(blockDim);
@@ -990,6 +1099,33 @@ const detailTestId = computed(() => {
           <CannbotIcon />
         </button>
       </p>
+      <!-- Baseline / Operator dropdowns (对比基线): always under the meta line,
+           same chrome as the Block switcher. Baseline is global (host-owned,
+           Not selected = null); Operator is session-local, host-owned through
+           `update:selectedBaselineOperator`, default the baseline's first. -->
+      <div
+        class="pr-aside__baseline-bar"
+        data-testid="stats-baseline-bar"
+      >
+        <span class="pr-aside__baseline-k">{{ t('baselineLabel', locale) }}:</span>
+        <CardMetricSelect
+          v-model="asideBaselineId"
+          :options="baselineIds"
+          variant="inline"
+          test-id-prefix="aside-baseline"
+          :ariaLabel="baselineSelectLabel"
+          :label-of="baselineNameOf"
+        />
+        <span class="pr-aside__baseline-k">{{ t('operatorLabel', locale) }}:</span>
+        <CardMetricSelect
+          v-model="asideBaselineOperator"
+          :options="operatorOptions"
+          variant="inline"
+          test-id-prefix="aside-baseline-operator"
+          :ariaLabel="operatorSelectLabel"
+          :label-of="operatorNameOf"
+        />
+      </div>
     </header>
 
     <div
@@ -1782,6 +1918,24 @@ const detailTestId = computed(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
+}
+
+/* Baseline / Operator dropdown row (对比基线): the Block switcher's chrome,
+   header placement under the meta line; always rendered — hide-vs-empty is
+   the open question UI-63 (both dropdowns read Not selected when empty). */
+.pr-aside__baseline-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 8px 0 0;
+}
+
+.pr-aside__baseline-k {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--pr-fg-aside-muted, #999999);
+  white-space: nowrap;
 }
 
 .pr-aside__meta-seg {

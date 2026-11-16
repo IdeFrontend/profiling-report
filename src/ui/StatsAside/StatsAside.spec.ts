@@ -8,7 +8,7 @@ import {
   firstLabelledMemoryTopology,
 } from '../../adapters/memoryTopology';
 import { parseRep } from '../../adapters/parseRep';
-import type { ReportViewModel, RooflineViewModel } from '../../domain/types';
+import type { Baseline, ReportViewModel, RooflineViewModel } from '../../domain/types';
 import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
 import { t } from '../../i18n';
 
@@ -2623,6 +2623,195 @@ describe('StatsAside', () => {
     // A standalone mount (no `capabilities` prop) falls back to the carrier.
     const standalone = mount(StatsAside, { props: { report: heatmapReport } });
     expect(standalone.find('[data-testid="memory-unit-ub"]').exists()).toBe(true);
+  });
+
+  /* ===== Baseline dropdown row (对比基线) — PR-STATS-052..054 ===== */
+
+  const baselineList = [
+    { id: 'b1', name: 'OPPROF_20261108142517_QKWFPLXZVTRNBGMA', path: '/opprof/b1', operators: ['matmul', 'add_n', 'relu'] },
+    { id: 'b2', name: 'OPPROF_20261109111842_MJNHEYSDCQXVBRUW', path: '/opprof/b2', operators: ['gelu', 'layernorm'] },
+  ];
+
+  it('PR-STATS-052: the Baseline/Operator row always renders; nothing chosen = Not selected', () => {
+    // No list at all → still the row, both dropdowns read Not selected.
+    const plain = mount(StatsAside, { props: { report: report({ summary: { pid: '9' } }) } });
+    const plainBar = plain.get('[data-testid="stats-baseline-bar"]');
+    expect(plainBar.text()).toContain(t('baselineLabel'));
+    expect(plainBar.text()).toContain(t('operatorLabel'));
+    expect(plain.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('__none__');
+    expect(plain.get('.pr-metric-select__label').text()).toBe(t('baselineNotSelected'));
+    expect(plain.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('__none__');
+    // The accessible name carries the value — otherwise `aria-label` hides it.
+    expect(
+      plain.get('[data-testid="aside-baseline-select"] .pr-metric-select__trigger').attributes('aria-label'),
+    ).toBe(`${t('baselineLabel')}: ${t('baselineNotSelected')}`);
+    expect(
+      plain
+        .get('[data-testid="aside-baseline-operator-select"] .pr-metric-select__trigger')
+        .attributes('aria-label'),
+    ).toBe(`${t('operatorLabel')}: ${t('baselineNotSelected')}`);
+    // Header placement: right under the meta line (Process/OpType row).
+    const meta = plain.get('[data-testid="stats-aside-meta"]').element;
+    expect(
+      plainBar.element.compareDocumentPosition(meta) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+
+    // A list without a selection → Not selected as well.
+    const unselected = mount(StatsAside, {
+      props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: null },
+    });
+    expect(unselected.get('[data-testid="aside-baseline-select"]').attributes('data-value')).toBe('__none__');
+    expect(
+      unselected.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('__none__');
+  });
+
+  it('PR-STATS-055: the baseline row is themed for the light aside', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const tokens = readFileSync(resolve(__dirname, '../tokens.css'), 'utf8');
+    expect(tokens).toMatch(/--pr-fg-select:\s*#e8e8e8/);
+    expect(tokens).toMatch(/--pr-fg-aside-muted:\s*#999999/);
+    const light = tokens.split(".pr-root[data-theme='light']")[1] ?? '';
+    expect(light).toMatch(/--pr-fg-select:\s*#1f2328/);
+    expect(light).toMatch(/--pr-fg-aside-muted:\s*#5a6570/);
+    // No hardcoded dark-theme foregrounds on the shared trigger or the new caption.
+    const selectSrc = (await import('../TimelineView/SwimlaneView/CardMetricSelect.vue?raw'))
+      .default as string;
+    expect(selectSrc).toMatch(/\.pr-metric-select__trigger\s*\{[^}]*color:\s*var\(--pr-fg-select/s);
+    const asideSrc = (await import('./StatsAside.vue?raw')).default as string;
+    expect(asideSrc).toMatch(/\.pr-aside__baseline-k\s*\{[^}]*color:\s*var\(--pr-fg-aside-muted/s);
+  });
+
+  it('PR-STATS-053: the Baseline select lists the checked set + Not selected and forwards picks', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: 'b1' },
+    });
+    const select = wrapper.get('[data-testid="aside-baseline-select"]');
+    expect(select.attributes('data-value')).toBe('b1');
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    const options = [...document.querySelectorAll('[data-testid^="aside-baseline-option-"]')].map((el) =>
+      el.getAttribute('data-testid'),
+    );
+    expect(options).toEqual([
+      'aside-baseline-option-__none__',
+      'aside-baseline-option-b1',
+      'aside-baseline-option-b2',
+    ]);
+    // The trigger label is the baseline's name, not its id.
+    expect(select.get('.pr-metric-select__label').text()).toBe(baselineList[0].name);
+    expect(select.get('.pr-metric-select__trigger').attributes('aria-label')).toBe(
+      `${t('baselineLabel')}: ${baselineList[0].name}`,
+    );
+    (document.querySelector('[data-testid="aside-baseline-option-b2"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2']]);
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+    // Picking the Not selected sentinel forwards null.
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-option-__none__"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineId')).toEqual([['b2'], [null]]);
+  });
+
+  it('PR-STATS-054: the Operator select lists the baseline operators, defaults to the first, and resets on baseline change', async () => {
+    const wrapper = mount(StatsAside, {
+      props: { report: report({ summary: { pid: '9' } }), baselines: baselineList, selectedBaselineId: 'b1' },
+    });
+    const opSelect = wrapper.get('[data-testid="aside-baseline-operator-select"]');
+    // Default = the baseline's first operator, forwarded to the host on mount.
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([['matmul']]);
+    // The host applies it — the select is host-owned and reads the prop.
+    await wrapper.setProps({ selectedBaselineOperator: 'matmul' });
+    expect(opSelect.attributes('data-value')).toBe('matmul');
+    expect(opSelect.get('.pr-metric-select__trigger').attributes('aria-label')).toBe(
+      `${t('operatorLabel')}: matmul`,
+    );
+    await opSelect.get('.pr-metric-select__trigger').trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-operator-option-add_n"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([['matmul'], ['add_n']]);
+    await wrapper.setProps({ selectedBaselineOperator: 'add_n' });
+    expect(wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('add_n');
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+    // Switching the baseline re-defaults the operator to that baseline's first.
+    await wrapper.setProps({ selectedBaselineId: 'b2' });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([
+      ['matmul'],
+      ['add_n'],
+      ['gelu'],
+    ]);
+
+    // A baseline without operators → the Operator select reads Not selected.
+    const bare = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [{ id: 'b3', name: 'plain.rep', path: '/plain.rep' }],
+        selectedBaselineId: 'b3',
+      },
+    });
+    const bareOp = bare.get('[data-testid="aside-baseline-operator-select"]');
+    expect(bareOp.attributes('data-value')).toBe('__none__');
+    expect(bareOp.get('.pr-metric-select__label').text()).toBe(t('baselineNotSelected'));
+  });
+
+  it('PR-STATS-056: the Operator pick is host-owned and re-defaults when the baseline operators load later', async () => {
+    // A host-restored value at mount is respected (no clobbering emit).
+    const late: Baseline = { id: 'b9', name: 'late.rep', path: '/late.rep' };
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [late],
+        selectedBaselineId: 'b9',
+        selectedBaselineOperator: 'gelu',
+      },
+    });
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toBeUndefined();
+    expect(wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('gelu');
+
+    // The pack's operators arrive for the same baseline: the pick is still in
+    // the list, so nothing changes.
+    await wrapper.setProps({ baselines: [{ ...late, operators: ['gelu', 'softmax'] }] });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toBeUndefined();
+
+    // New operators that no longer include the pick → re-default to the first.
+    await wrapper.setProps({ baselines: [{ ...late, operators: ['relu'] }] });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:selectedBaselineOperator')).toEqual([['relu']]);
+    await wrapper.setProps({ selectedBaselineOperator: 'relu' });
+    expect(wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('relu');
+
+    // Operators loading for a baseline picked while none existed: Not selected
+    // re-defaults to the first instead of staying empty.
+    const fresh = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [late],
+        selectedBaselineId: 'b9',
+      },
+    });
+    expect(fresh.emitted('update:selectedBaselineOperator')).toBeUndefined();
+    await fresh.setProps({ baselines: [{ ...late, operators: ['conv2d'] }] });
+    await fresh.vm.$nextTick();
+    expect(fresh.emitted('update:selectedBaselineOperator')).toEqual([['conv2d']]);
+
+    // A host-restored value with no `baselines` prop yet survives the mount:
+    // the repair watcher must not wipe it before the list arrives (the aside
+    // twin of PR-ROOT-036's selection guard).
+    const early = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        selectedBaselineOperator: 'gelu',
+      },
+    });
+    expect(early.emitted('update:selectedBaselineOperator')).toBeUndefined();
+    await early.setProps({ selectedBaselineId: 'b9' });
+    await early.vm.$nextTick();
+    expect(early.emitted('update:selectedBaselineOperator')).toBeUndefined();
   });
 
   it('PR-STATS-037: archDiagram Metric select sits above the diagram and rebuilds labels', async () => {

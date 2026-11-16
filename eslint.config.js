@@ -48,6 +48,9 @@ export default tseslint.config(
     },
     rules: {
       'vue/multi-word-component-names': 'off',
+      // `ariaLabel` is a declared prop of CardMetricSelect; binding it in
+      // kebab case would become an attribute instead of the prop.
+      'vue/attribute-hyphenation': ['warn', 'always', { ignore: ['ariaLabel'] }],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

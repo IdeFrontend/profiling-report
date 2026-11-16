@@ -271,7 +271,7 @@ watch(
   border: 1px solid transparent;
   border-radius: 2px;
   background: transparent;
-  color: #e8e8e8;
+  color: var(--pr-fg-select, #e8e8e8);
   font: inherit;
   font-size: 12px;
   font-weight: 400;
