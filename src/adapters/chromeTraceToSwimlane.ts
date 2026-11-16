@@ -168,9 +168,10 @@ export function chromeTraceToSwimlane(
     // Complete intervals: classic `ph:X`, plus emulate `ph:i` that carry a finite `dur`
     // (RVECLP / RVECSU instruction slices — #207). Instant `ph:i` without `dur` stay dropped
     // here (see #205 for min-tick markers).
-    const isInterval =
-      (e.ph === 'X' || e.ph === 'i') && e.ts != null && e.dur != null && Number.isFinite(e.dur);
-    if (!isInterval) continue;
+    if (e.ph !== 'X' && e.ph !== 'i') continue;
+    const ts = e.ts;
+    const dur = e.dur;
+    if (ts == null || dur == null || !Number.isFinite(dur)) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
     const k = key(e.pid, e.tid);
@@ -190,8 +191,8 @@ export function chromeTraceToSwimlane(
       threads.set(tid, thread);
     }
 
-    const startTime = e.ts * toNs;
-    const duration = e.dur * toNs;
+    const startTime = ts * toNs;
+    const duration = dur * toNs;
     minTime = Math.min(minTime, startTime);
     maxTime = Math.max(maxTime, startTime + duration);
 
