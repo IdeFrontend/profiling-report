@@ -901,22 +901,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         </svg>
       </button>
 
-      <button
-        type="button"
-        class="pr-toolbar__icon-btn pr-icon-tip"
-        data-testid="toggle-measure"
-        data-toolbar-clip
-        :aria-pressed="measureMode"
-        :aria-label="t('measure', locale)"
-        :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
-        @click="emit('update:measureMode', !measureMode)"
-      >
-        <PrIcon
-          name="measure"
-          data-testid="measure-icon"
-        />
-      </button>
-
+      <!-- 1130: 流水视图显示 sits immediately before measure (bars+eye glyph). -->
       <div
         v-if="showTimelineTraceSelector"
         ref="timelineTraceWrapRef"
@@ -937,7 +922,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           @click="toggleTimelineTraceMenu"
           @keydown="onTimelineTraceTriggerKeydown"
         >
-          <PrIcon name="list" />
+          <PrIcon
+            name="pipeline-view"
+            data-testid="timeline-trace-icon"
+          />
         </button>
         <ul
           v-if="timelineTraceOpen"
@@ -968,6 +956,22 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           </li>
         </ul>
       </div>
+
+      <button
+        type="button"
+        class="pr-toolbar__icon-btn pr-icon-tip"
+        data-testid="toggle-measure"
+        data-toolbar-clip
+        :aria-pressed="measureMode"
+        :aria-label="t('measure', locale)"
+        :class="{ 'pr-toolbar__icon-btn--on': measureMode }"
+        @click="emit('update:measureMode', !measureMode)"
+      >
+        <PrIcon
+          name="measure"
+          data-testid="measure-icon"
+        />
+      </button>
 
       <div
         ref="displayWrapRef"

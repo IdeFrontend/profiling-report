@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
+  <!-- 1130 流水视图显示: three decreasing bars + eye at bottom-right -->
+  <rect x="1.25" y="2.75" width="10.5" height="1.75" rx="0.875" fill="#fff" />
+  <rect x="1.25" y="6.625" width="8" height="1.75" rx="0.875" fill="#fff" />
+  <rect x="1.25" y="10.5" width="5.25" height="1.75" rx="0.875" fill="#fff" />
+  <!-- Eye almond with pupil cut out (evenodd → transparent hole for CSS mask). -->
+  <path
+    fill-rule="evenodd"
+    d="M8.35 12.1c.55-1.05 1.7-1.85 3.15-1.85s2.6.8 3.15 1.85c-.55 1.05-1.7 1.85-3.15 1.85s-2.6-.8-3.15-1.85ZM11.5 13a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8Z"
+    fill="#fff"
+  />
+</svg>

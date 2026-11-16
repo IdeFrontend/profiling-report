@@ -707,6 +707,15 @@ describe('ReportToolbar', () => {
       attachTo: document.body,
     });
     expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="timeline-trace-icon"]').exists()).toBe(true);
+    // 1130: bars+eye trigger sits immediately before measure.
+    const actionIds = wrapper
+      .findAll('[data-toolbar-clip]')
+      .map((n) => n.attributes('data-testid'));
+    const traceIdx = actionIds.indexOf('toggle-timeline-trace');
+    const measureIdx = actionIds.indexOf('toggle-measure');
+    expect(traceIdx).toBeGreaterThanOrEqual(0);
+    expect(measureIdx).toBe(traceIdx + 1);
     await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
     const options = wrapper.findAll('[data-testid="timeline-trace-option"]');
     expect(options).toHaveLength(2);
