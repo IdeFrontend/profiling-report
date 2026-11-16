@@ -101,10 +101,10 @@ defineProps<{ name: PrIconName }>();
   mask-image: url('./icons/list.png');
 }
 
-/* 1130 流水视图显示 — three bars + eye (mockup pipeline-display-filter). */
+/* 1130 流水视图显示 — bars + focus reticle (product glyph). */
 .pr-icon--pipeline-view {
-  -webkit-mask-image: url('./icons/pipeline-view.svg');
-  mask-image: url('./icons/pipeline-view.svg');
+  -webkit-mask-image: url('./icons/pipeline-view.png');
+  mask-image: url('./icons/pipeline-view.png');
 }
 
 .pr-icon--link {
