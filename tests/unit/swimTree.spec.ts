@@ -285,6 +285,32 @@ describe('swimTree + nested layout', () => {
     expect(nestCardTreeFromFlatCorePipes(flat).processes[0]!.name).toBe('Core0, Core1');
   });
 
+  it('nestCardTreeFromFlatCorePipes sorts Core ids numerically on the Card header (#197)', () => {
+    const flat: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 10,
+      processes: [
+        {
+          id: 'p',
+          name: 'Kernel',
+          threads: [
+            {
+              id: 't10',
+              name: 'Core10.Cube/SCALAR',
+              events: [{ id: 'e0', name: 'op', startTime: 0, duration: 1 }],
+            },
+            {
+              id: 't2',
+              name: 'Core2.Cube/SCALAR',
+              events: [{ id: 'e1', name: 'op', startTime: 0, duration: 1 }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(nestCardTreeFromFlatCorePipes(flat).processes[0]!.name).toBe('Core2, Core10');
+  });
+
   it('nestCardTreeFromFlatCorePipes no-ops on AIV pipe-state names', () => {
     const flat: SwimlaneModel = {
       minTime: 0,
