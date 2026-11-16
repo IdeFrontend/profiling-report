@@ -101,10 +101,10 @@ defineProps<{ name: PrIconName }>();
   mask-image: url('./icons/list.png');
 }
 
-/* 1130 流水视图显示 — bars + focus reticle (product glyph). */
+/* 1130 流水视图显示 — product SVG glyph (bars + focus reticle). */
 .pr-icon--pipeline-view {
-  -webkit-mask-image: url('./icons/pipeline-view.png');
-  mask-image: url('./icons/pipeline-view.png');
+  -webkit-mask-image: url('./icons/pipeline-view.svg');
+  mask-image: url('./icons/pipeline-view.svg');
 }
 
 .pr-icon--link {
