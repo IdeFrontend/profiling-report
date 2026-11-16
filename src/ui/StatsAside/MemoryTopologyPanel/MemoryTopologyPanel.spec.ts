@@ -74,6 +74,11 @@ afterEach(() => {
 });
 
 describe('MemoryTopologyPanel', () => {
+  it('PR-MEMTOP-001 / #202: paints SIMT cache chrome label at the former SIMT glyph', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model } });
+    expect(wrapper.get('[data-testid="chrome-label-simt-cache"]').text()).toBe('SIMT cache');
+  });
+
   it('PR-MEMTOP-001: renders the chrome asset and the L2 node anchor', () => {
     const wrapper = mount(MemoryTopologyPanel, { props: { model } });
     expect(wrapper.find('[data-testid="memory-topology-panel"]').exists()).toBe(true);
