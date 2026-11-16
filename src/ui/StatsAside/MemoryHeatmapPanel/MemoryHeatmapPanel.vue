@@ -109,16 +109,17 @@ function unitLabel(id: MemoryHeatmapUnitId): string {
   return t(UNIT_LABEL_KEY[id], props.locale);
 }
 
+/** View label: owner + buffer + core id from the pack (#198) — never invent a missing core. */
 function viewOptionLabel(view: MemoryHeatmapView): string {
-  if (view.ownerName) return `${view.ownerName} ${view.memoryName}`;
-  return view.memoryName;
+  const base = view.ownerName ? `${view.ownerName} ${view.memoryName}` : view.memoryName;
+  return `${base} · core ${view.coreId}`;
 }
 
-/** Under-grid title: owner + buffer when known, else the diagram's tab words. */
+/** Under-grid title: same as the view option label when known, else the diagram's tab words. */
 const unitName = computed(() => {
   const view = activeView.value;
   if (!view || !props.selectedUnit) return '';
-  if (view.ownerName) return `${view.ownerName} ${view.memoryName}`;
+  if (view.ownerName) return viewOptionLabel(view);
   return t(UNIT_NAME_KEY[props.selectedUnit], props.locale);
 });
 

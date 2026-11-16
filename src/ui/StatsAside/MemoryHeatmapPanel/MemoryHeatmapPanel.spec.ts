@@ -27,6 +27,7 @@ const model: MemoryHeatmapModel = {
       id: 'ub',
       views: [
         view({
+          coreId: 0,
           coreTypeId: 2,
           ownerName: 'AIV0',
           memoryName: 'UB',
@@ -36,6 +37,7 @@ const model: MemoryHeatmapModel = {
           freeBytes: 259584,
         }),
         view({
+          coreId: 1,
           coreTypeId: 3,
           ownerName: 'AIV1',
           memoryName: 'UB',
@@ -173,15 +175,16 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBeUndefined();
     const trigger = wrapper.get('[data-testid="heat-view-select"]');
     expect(trigger.classes()).toContain('pr-block-pill');
-    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB');
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB · core 0');
     await trigger.trigger('click');
     const item = document.querySelector(
       '[data-testid="heat-view-select-menu"] [data-value="1"]',
     ) as HTMLElement | null;
     expect(item).not.toBeNull();
+    expect(item!.textContent).toContain('AIV1 UB · core 1');
     item!.click();
     await wrapper.vm.$nextTick();
-    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV1 UB');
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV1 UB · core 1');
     expect(wrapper.findAll('.pr-heat__cell--with')).toHaveLength(10);
   });
 
@@ -193,7 +196,7 @@ describe('MemoryHeatmapPanel', () => {
 
   it('PR-HEAT-010: repeats the selected view name under the grid', () => {
     const wrapper = mountPanel({ selectedUnit: 'ub' });
-    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB');
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB · core 0');
   });
 
   it('PR-HEAT-005: blanks a selected unit the model has no source for', () => {
