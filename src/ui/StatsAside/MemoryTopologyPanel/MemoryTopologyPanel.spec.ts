@@ -1280,7 +1280,7 @@ describe('MemoryTopologyPanel wheel gestures (PR-MEMTOP-020)', () => {
     expect(fs.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
     await fsVp.trigger('wheel', { deltaY: 120, ctrlKey: true, clientX: 40, clientY: 40 });
     expect(fs.get('[data-testid="topology-zoom-percent"]').text()).toBe('100%');
-    // Fullscreen: plain wheel at fit may zoom (no aside column).
+    // Fullscreen: plain wheel zooms (wheelGestures; no aside column).
     await fs.get('[data-testid="topology-zoom-fit"]').trigger('click');
     await fsVp.trigger('wheel', { deltaY: -120, clientX: 40, clientY: 40 });
     expect(fs.get('[data-testid="topology-zoom-percent"]').text()).toBe('150%');
