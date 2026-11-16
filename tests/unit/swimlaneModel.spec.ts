@@ -259,8 +259,8 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       traceEvents: [
         { ph: 'X', name: 'MTE1', pid: 2, tid: 0, ts: 0, dur: 10 },
         { ph: 'X', name: 'CUBE', pid: 4, tid: 0, ts: 20, dur: 10 },
-        { ph: 's', id: 16045998021970671, pid: 2, tid: 0, ts: 5 },
-        { ph: 'f', id: 16045998021970671, pid: 4, tid: 0, ts: 25 },
+        { ph: 's', id: '16045998021970671', pid: 2, tid: 0, ts: 5 },
+        { ph: 'f', id: '16045998021970671', pid: 4, tid: 0, ts: 25 },
       ],
     });
     const mte = crossPid.processes.find((p) => p.id === 'p-2')!.threads[0]!;
