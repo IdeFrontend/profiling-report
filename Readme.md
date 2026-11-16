@@ -94,7 +94,7 @@ Fixtures are synced from the repo into `playground/public/data/` via `npm run sy
 - `data/ffn_dense.trace.json` → `/data/ffn_dense.trace.json`
 - `data/out.trace.json` → `/data/out.trace.json` (synced for tests; not in the playground switcher)
 
-Report fixtures under `data/` (`*.npu-rep`, `*.db`) are **Git LFS**. The Vercel install command runs [`scripts/checkout-lfs.sh`](scripts/checkout-lfs.sh) before `npm ci`, which pulls `data/**` so `build:demo` copies real archives. `sync:demo-fixtures` exits if a copied file is still an LFS pointer.
+Report fixtures under `data/` (`*.npu-rep`, `*.db`) are **Git LFS**. The Vercel install command runs [`scripts/checkout-lfs.sh`](scripts/checkout-lfs.sh) before `npm ci`. That checks out `data/**` with `git lfs pull` when `git-lfs` is installed, and otherwise downloads the pointer oids from the GitHub LFS API (the Vercel build image has no `git-lfs`). `sync:demo-fixtures` exits if a copied file is still an LFS pointer.
 
 ```bash
 npm run playground          # local SPA (syncs fixtures first)
