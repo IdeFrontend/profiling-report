@@ -633,7 +633,7 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
     };
     const tabs = at('.pr-heat__tabs');
     const legend = at('.pr-heat__legend');
-    const swatch = at('.pr-heat__swatch');
+    const gradient = at('.pr-heat__gradient');
     const viewBar = at('[data-testid="heat-view-bar"]');
     const grid = at('[data-testid="heat-grid"]');
     const name = at('[data-testid="heat-unit-name"]');
@@ -641,7 +641,7 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
     return {
       tabs,
       legend,
-      swatch,
+      gradient,
       viewBar,
       grid,
       name,
@@ -650,12 +650,12 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
     };
   });
   const stripRule = order.tabs!.bottom - 1;
-  expect(order.swatch!.top - stripRule).toBeGreaterThan(40);
+  expect(order.gradient!.top - stripRule).toBeGreaterThan(40);
   // View-bar band sits between legend and body — gap is no longer the old ~28px legend→grid.
   expect(order.viewBar).not.toBeNull();
   expect(order.viewBar!.top).toBeGreaterThanOrEqual(order.legend!.bottom - 1);
   expect(order.grid!.top).toBeGreaterThanOrEqual(order.viewBar!.bottom - 1);
-  expect(order.grid!.top - order.swatch!.bottom).toBeGreaterThan(30);
+  expect(order.grid!.top - order.gradient!.bottom).toBeGreaterThan(30);
   expect(order.name!.text).toBe('AIV0 UB');
   expect(order.name!.text).not.toContain('Core');
   expect(order.name!.top).toBeGreaterThan(order.grid!.bottom);
