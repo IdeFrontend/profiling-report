@@ -247,6 +247,8 @@ describe('swimTree + nested layout', () => {
       ],
     };
     const nested = nestCardTreeFromFlatCorePipes(flat);
+    // #197: Card header surfaces Core ids already present in lane names (no invention).
+    expect(nested.processes[0]!.name).toBe('Core0');
     expect(nested.processes[0]!.threads.map((t) => t.name)).toEqual(['通信', '计算', '储存HBM']);
     const compute = nested.processes[0]!.threads[1]!;
     expect(compute.children!.map((c) => c.name)).toEqual(['Core0.Cube', 'Core0.Vec0']);
@@ -255,6 +257,32 @@ describe('swimTree + nested layout', () => {
     expect(cube.children!.map((c) => c.id)).toEqual(['t-1-1', 't-1-2']);
     expect(collectLeafEventsFromModel(nested).map((e) => e.id).sort()).toEqual(['e1', 'e2', 'e3']);
     expect(nested.metadata?.defaultCollapsedIds).toEqual(['1/Core0.Vec0']);
+  });
+
+  it('nestCardTreeFromFlatCorePipes lists multiple Core ids on the Card header (#197)', () => {
+    const flat: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 10,
+      processes: [
+        {
+          id: 'p',
+          name: 'Kernel',
+          threads: [
+            {
+              id: 't0',
+              name: 'Core0.Cube/SCALAR',
+              events: [{ id: 'e0', name: 'op', startTime: 0, duration: 1 }],
+            },
+            {
+              id: 't1',
+              name: 'Core1.Cube/SCALAR',
+              events: [{ id: 'e1', name: 'op', startTime: 0, duration: 1 }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(nestCardTreeFromFlatCorePipes(flat).processes[0]!.name).toBe('Core0, Core1');
   });
 
   it('nestCardTreeFromFlatCorePipes no-ops on AIV pipe-state names', () => {
