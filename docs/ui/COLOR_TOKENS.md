@@ -69,8 +69,8 @@ Sampled from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-to
 
 | Token | Hex | Role |
 |-------|-----|------|
-| `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | `已分配有数据` legend swatch + allocated-with-data grid cells; also the diagram's hover (35%) / selected (45%) unit tint |
-| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | `已分配无数据` legend swatch + allocated-without-data grid cells; the selected unit box's hairline stroke |
+| `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | `有访存` / `Accessed` legend swatch + accessed grid cells; also the diagram's hover (35%) / selected (45%) unit tint |
+| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | `无访存` / `Not accessed` legend swatch + not-accessed grid cells; the selected unit box's hairline stroke |
 | `HEAT_GRID_BOARD` | `#303F5E` | the board the grid's gaps cut into (the lattice between cells) |
 | `HEAT_GRID_FRAME` | `#6E798D` | the grid's `2px` outer border |
 | `HEAT_TAB_INDICATOR` | `#FFFFFF` | the active tab's short bar under its label — the heat blue is the *selection* tint on the diagram, not the tab's indicator |
