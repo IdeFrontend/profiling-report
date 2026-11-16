@@ -1,6 +1,26 @@
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+const LFS_POINTER_PREFIX = 'version https://git-lfs.github.com/spec/v1'
+
+/** Vercel publishes whatever this copies. A pointer is not a report. */
+function assertNotLfsPointer(path) {
+  const fd = openSync(path, 'r')
+  const buf = Buffer.alloc(LFS_POINTER_PREFIX.length)
+  let n = 0
+  try {
+    n = readSync(fd, buf, 0, buf.length, 0)
+  } finally {
+    closeSync(fd)
+  }
+  if (buf.toString('utf8', 0, n).startsWith(LFS_POINTER_PREFIX)) {
+    console.error(
+      `[sync:demo-fixtures] ${path} is a Git LFS pointer. Run scripts/checkout-lfs.sh before syncing demo fixtures.`,
+    )
+    process.exit(1)
+  }
+}
 
 function copyIfExists(from, to) {
   try {
@@ -31,7 +51,9 @@ const copies = [
 ]
 
 for (const [from, name] of copies) {
-  copyFileSync(join(root, from), join(destDir, name))
+  const src = join(root, from)
+  assertNotLfsPointer(src)
+  copyFileSync(src, join(destDir, name))
   console.log(`synced ${from} -> playground/public/data/${name}`)
 }
 

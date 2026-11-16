@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build:demo",
   "outputDirectory": "playground/dist",
-  "installCommand": "npm ci",
+  "installCommand": "bash scripts/checkout-lfs.sh && npm ci",
   "framework": null
 }
