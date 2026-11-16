@@ -165,7 +165,12 @@ export function chromeTraceToSwimlane(
       continue;
     }
 
-    if (e.ph !== 'X' || e.ts == null || e.dur == null) continue;
+    // Complete intervals: classic `ph:X`, plus emulate `ph:i` that carry a finite `dur`
+    // (RVECLP / RVECSU instruction slices — #207). Instant `ph:i` without `dur` stay dropped
+    // here (see #205 for min-tick markers).
+    const isInterval =
+      (e.ph === 'X' || e.ph === 'i') && e.ts != null && e.dur != null && Number.isFinite(e.dur);
+    if (!isInterval) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
     const k = key(e.pid, e.tid);
@@ -218,7 +223,7 @@ export function chromeTraceToSwimlane(
 
   if (!Number.isFinite(minTime) || eventSeq === 0) {
     throw new Error(
-      '[profiling-report] chromeTraceToSwimlane: no complete X events (ts+dur) in trace',
+      '[profiling-report] chromeTraceToSwimlane: no complete interval events (X or i with ts+dur) in trace',
     );
   }
 

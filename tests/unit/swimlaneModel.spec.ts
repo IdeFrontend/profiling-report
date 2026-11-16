@@ -101,8 +101,29 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(model.minTime).toBe(1000);
   });
 
-  it('PR-SWIM-005: rejects traces with no complete X events', () => {
-    expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete X events/);
+  it('PR-SWIM-005: rejects traces with no complete interval events', () => {
+    expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete interval events/);
+    // Instant `ph:i` without dur is not an interval (#207 / #205).
+    expect(() =>
+      chromeTraceToSwimlane({
+        traceEvents: [{ ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 10 }],
+      }),
+    ).toThrow(/no complete interval events/);
+  });
+
+  it('PR-SWIM-017: ph:i with finite dur becomes an interval bar (#207)', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'M', name: 'process_name', pid: 20, args: { name: 'AIV0_RVECLP' } },
+        { ph: 'M', name: 'thread_name', pid: 20, tid: 1, args: { name: 'SLOT00' } },
+        { ph: 'i', name: 'RV_VLOOPv2', pid: 20, tid: 1, ts: 12.5, dur: 0.006 },
+      ],
+    });
+    const ev = model.processes[0]!.threads[0]!.events[0]!;
+    expect(model.processes[0]!.name).toBe('AIV0_RVECLP');
+    expect(ev.name).toBe('RV_VLOOPv2');
+    expect(ev.startTime).toBe(12_500);
+    expect(ev.duration).toBe(6);
   });
 
   it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {
