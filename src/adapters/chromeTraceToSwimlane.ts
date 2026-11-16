@@ -170,6 +170,7 @@ export function chromeTraceToSwimlane(
     const instantI =
       e.ph === 'i' && e.ts != null && (e.dur == null || e.dur === 0 || !Number.isFinite(e.dur));
     if (!(instantI || (e.ph === 'X' && e.ts != null && e.dur != null))) continue;
+    if (e.ts == null) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
     const k = key(e.pid, e.tid);
