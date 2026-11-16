@@ -105,6 +105,24 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete X events/);
   });
 
+  it('PR-SWIM-018: instant ph:i becomes a duration-0 event (#205)', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'M', name: 'thread_name', pid: 1, tid: 'ICACHE_READ', args: { name: 'ICACHE_READ' } },
+        { ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 'ICACHE_READ', ts: 12.5 },
+        { ph: 'X', name: 'ICACHE REFILL', pid: 1, tid: 'ICACHE_READ', ts: 20, dur: 0 },
+      ],
+    });
+    const events = model.processes[0]!.threads[0]!.events;
+    expect(events).toHaveLength(2);
+    expect(events[0]).toEqual(
+      expect.objectContaining({ name: 'ICACHE_HIT', startTime: 12_500, duration: 0 }),
+    );
+    expect(events[1]).toEqual(
+      expect.objectContaining({ name: 'ICACHE REFILL', startTime: 20_000, duration: 0 }),
+    );
+  });
+
   it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {
     const model = chromeTraceToSwimlane({
       traceEvents: [

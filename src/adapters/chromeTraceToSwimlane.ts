@@ -165,7 +165,11 @@ export function chromeTraceToSwimlane(
       continue;
     }
 
-    if (e.ph !== 'X' || e.ts == null || e.dur == null) continue;
+    // Complete X intervals, or instant emulate markers (`ph:i` with no/zero dur — #205).
+    // `ph:i` with a positive `dur` is handled separately (#207).
+    const instantI =
+      e.ph === 'i' && e.ts != null && (e.dur == null || e.dur === 0 || !Number.isFinite(e.dur));
+    if (!(instantI || (e.ph === 'X' && e.ts != null && e.dur != null))) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
     const k = key(e.pid, e.tid);
@@ -186,7 +190,8 @@ export function chromeTraceToSwimlane(
     }
 
     const startTime = e.ts * toNs;
-    const duration = e.dur * toNs;
+    // Model duration stays 0 for instant markers; layout already paints ≥2 device px (#205).
+    const duration = instantI ? 0 : e.dur! * toNs;
     minTime = Math.min(minTime, startTime);
     maxTime = Math.max(maxTime, startTime + duration);
 

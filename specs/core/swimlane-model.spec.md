@@ -47,7 +47,7 @@ interface SwimEvent    {
 
 ## Behavior
 
-**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — DATA-35: do not invent Card/Core nesting from AIV pipe names.
+**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete X events (`ph: 'X'`, with `ts` and `dur`) by process ID and thread ID. Instant emulate markers (`ph: 'i'` with missing or zero `dur`, e.g. ICACHE_HIT — #205) become events with **duration 0**; the layout already paints a ≥2 device-px tick. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — DATA-35: do not invent Card/Core nesting from AIV pipe names.
 
 **Async dependencies.** `ph: 's'` / `ph: 'f'` events are not intervals. They pair by process and trace `id`: each id's starts and finishes are ordered by timestamp and zipped (`start.ts <= finish.ts`); leftover unpaired endpoints are dropped. File order does not matter — a finish that appears before its start still pairs. Recycled ids after a flow closes, and the same id used in two processes, each keep their own edge. Unpaired starts, extra finishes, or `start.ts > finish.ts` are dropped. After X events are sorted per thread, each pair finds the **innermost** X event on the start thread whose `[startTime, startTime+duration]` contains `start.ts` (enclosing-parent chain from the last start ≤ ts), and the innermost X event on the finish thread that contains `finish.ts`. Those two events are linked: parent `successors` ← child `{ tid: SwimThread.id, index }`, child `predecessors` ← parent. The two X intervals may overlap (`pred.end > succ.start`) — that is valid; dependency curves still run pred-right → succ-left. Same-event pairs (both endpoints resolve to one slice) are dropped — no self-loop. Duplicate refs are not stored. Events with no edges omit `dependencies`. s/f timestamps use the same ns conversion as X events.
 
@@ -79,6 +79,7 @@ interface SwimEvent    {
 1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals, each carrying `taskCount` = merged task count; a single-event union also keeps the leaf `name`, source `laneName`, and `sourceEvent`; a multi-event union keeps `sourceEvents` = the merged leaves); an expanded folder omits `summaryEvents`.
 1. **PR-SWIM-015**: Producer `nestCardTree: true` is recorded in `metadata`; absent → no nest flag (adaptRep does not invent Card nesting).
 1. **PR-SWIM-016**: `findEventInModel` indexes leaf `events` and collapsed-folder `summaryEvents` once per model identity, then looks up by id in O(1).
+1. **PR-SWIM-018**: Instant `ph:i` (no/zero `dur`) becomes a duration-0 event (#205); layout min-tick paint applies.
 
 ## Edge Cases
 
@@ -94,6 +95,7 @@ interface SwimEvent    {
 DATA-35 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-11-16** — #205 / PR-SWIM-018: instant `ph:i` (ICACHE hit/miss) kept as duration-0 events for min-tick paint.
 - **2026-09-22** — `findEventInModel` is a one-walk-per-model index (`PR-SWIM-016`).
 - **2026-09-13** — Multi-event summary bars carry `sourceEvents` for multi-select-on-expand (`PR-SWIM-014`).
 - **2026-09-08** — Ordering: converter and multi-row layout share `startTime` asc / longest-`duration` first; `rebuildLayout` trusts that order (no defensive re-sort) and throws if a leaf is out of order. Document `sample.lite.rep` as a demo-only exclusivity exception.
