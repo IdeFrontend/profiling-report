@@ -416,6 +416,7 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expectReused([f1, f2, s1, s2]);
     expectReused([f1, s1, f2, s2]);
 
+    // Distinct global ids for two independent same-pid-scoped pairs.
     const twoPid = chromeTraceToSwimlane({
       traceEvents: [
         { ph: 'X', name: 'A1', pid: 1, tid: 1, ts: 0, dur: 10 },
@@ -424,8 +425,8 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
         { ph: 'X', name: 'B2', pid: 2, tid: 2, ts: 60, dur: 10 },
         { ph: 's', id: 1, pid: 1, tid: 1, ts: 5 },
         { ph: 'f', id: 1, pid: 1, tid: 2, ts: 25 },
-        { ph: 's', id: 1, pid: 2, tid: 1, ts: 45 },
-        { ph: 'f', id: 1, pid: 2, tid: 2, ts: 65 },
+        { ph: 's', id: 2, pid: 2, tid: 1, ts: 45 },
+        { ph: 'f', id: 2, pid: 2, tid: 2, ts: 65 },
       ],
     });
     const a1 = twoPid.processes.find((p) => p.id === 'p-1')!.threads.find((t) => t.id === 't-1-1')!;
@@ -436,6 +437,20 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(a2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
     expect(b1.events[0]!.dependencies?.successors).toEqual([{ tid: 't-2-2', index: 0 }]);
     expect(b2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-2-1', index: 0 }]);
+
+    // #204: one global id spans two processes (emulate pipe dependency).
+    const crossPid = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'MTE1', pid: 2, tid: 0, ts: 0, dur: 10 },
+        { ph: 'X', name: 'CUBE', pid: 4, tid: 0, ts: 20, dur: 10 },
+        { ph: 's', id: 16045998021970671, pid: 2, tid: 0, ts: 5 },
+        { ph: 'f', id: 16045998021970671, pid: 4, tid: 0, ts: 25 },
+      ],
+    });
+    const mte = crossPid.processes.find((p) => p.id === 'p-2')!.threads[0]!;
+    const cube = crossPid.processes.find((p) => p.id === 'p-4')!.threads[0]!;
+    expect(mte.events[0]!.dependencies?.successors).toEqual([{ tid: 't-4-0', index: 0 }]);
+    expect(cube.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-2-0', index: 0 }]);
   });
 
   it('PR-SWIM-012: flow in a gap under an enclosing slice binds the enclosing event', () => {

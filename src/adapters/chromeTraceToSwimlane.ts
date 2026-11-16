@@ -158,7 +158,9 @@ export function chromeTraceToSwimlane(
         tid: String(e.tid ?? 0),
       };
       const bucket = e.ph === 's' ? flowStarts : flowFinishes;
-      const id = key(e.pid, e.id);
+      // Global flow `id` (#204): emulate pipe-dependency s/f share one id across pids.
+      // Producers must not recycle the same id for unrelated concurrent flows in two processes.
+      const id = String(e.id);
       const q = bucket.get(id);
       if (q) q.push(endpoint);
       else bucket.set(id, [endpoint]);
