@@ -675,6 +675,9 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(l0a.rows).toBe(2);
     expect(l0a.blocks).toHaveLength(8);
     expect(l0a.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0, 1]);
+    // #200: (8+8)=16 and (8+0)=8 → intensities 1 and 0.5 against view max 16.
+    expect(l0a.blocks[0].intensity).toBe(1);
+    expect(l0a.blocks[1].intensity).toBe(0.5);
     expect(l0a.totalBytes).toBe(256);
     expect(l0a.usedBytes).toBe(64);
     expect(l0a.freeBytes).toBe(192);

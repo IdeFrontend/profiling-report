@@ -2616,6 +2616,7 @@ describe('StatsAside', () => {
     const blocks = Array.from({ length: 4 }, (_, index) => ({
       index,
       state: index < 2 ? ('withData' as const) : ('withoutData' as const),
+      intensity: index < 2 ? 1 : 0,
     }));
     const heatmapReport = report({
       profile: 'emulate',

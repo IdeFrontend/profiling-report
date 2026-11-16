@@ -91,7 +91,7 @@ function heatViewKey(memoryType: number, coreTypeId: number, coreId: number): st
  * One view per Layout row (buffer instance). UB on AIV0 and AIV1 stay separate — the panel
  * selects among `unit.views` (DATA-50). Capacity: Total = OutsideDeclared ? span : DeclaredSize;
  * Used = N × CellSize (N = Cells rows for the view key); Free = Total − Used when Total is
- * known (DATA-51). `withData` painting still requires Read+Write > 0 inside the lattice.
+ * known (DATA-51). Cell `intensity` is `(Read+Write) / viewMax` (#200); `withData` when intensity > 0.
  */
 function unitsFromLayoutAndCells(
   layoutText: string,
@@ -135,8 +135,10 @@ function unitsFromLayoutAndCells(
 
   /** Cells rows per view key — Used = N × CellSize (DATA-51); keyed on K only. */
   const cellCountByView = new Map<string, number>();
-  /** memoryType|coreTypeId|coreId|row|col → withData (coords + Read+Write > 0). */
-  const hit = new Set<string>();
+  /** memoryType|coreTypeId|coreId|row|col → Read+Write traffic count (#200). */
+  const traffic = new Map<string, number>();
+  /** Per-view max traffic for intensity normalization. */
+  const trafficMaxByView = new Map<string, number>();
   for (const row of cellRows) {
     const memoryType = parseNonNegInt(row.MemoryType);
     const coreTypeId = parseNonNegInt(row.CoreTypeId);
@@ -149,8 +151,11 @@ function unitsFromLayoutAndCells(
     if (cellRow == null || cellCol == null) continue;
     const reads = parseNonNegInt(row.ReadAddresses) ?? 0;
     const writes = parseNonNegInt(row.WriteAddresses) ?? 0;
-    if (reads + writes <= 0) continue;
-    hit.add(`${viewKey}|${cellRow}|${cellCol}`);
+    const value = reads + writes;
+    if (value <= 0) continue;
+    const cellKey = `${viewKey}|${cellRow}|${cellCol}`;
+    traffic.set(cellKey, (traffic.get(cellKey) ?? 0) + value);
+    trafficMaxByView.set(viewKey, Math.max(trafficMaxByView.get(viewKey) ?? 0, traffic.get(cellKey)!));
   }
 
   const viewsByUnit = new Map<MemoryHeatmapUnitId, MemoryHeatmapView[]>();
@@ -160,12 +165,18 @@ function unitsFromLayoutAndCells(
     const blockCount = columns * rows;
     const span = columns * rows * cellSize;
     const viewKey = heatViewKey(memoryType, coreTypeId, coreId);
+    const viewMax = trafficMaxByView.get(viewKey) ?? 0;
     const blocks: MemoryHeatmapBlock[] = [];
     for (let index = 0; index < blockCount; index += 1) {
       const cellRow = Math.floor(index / columns);
       const cellCol = index % columns;
-      const withData = hit.has(`${viewKey}|${cellRow}|${cellCol}`);
-      blocks.push({ index, state: withData ? 'withData' : 'withoutData' });
+      const value = traffic.get(`${viewKey}|${cellRow}|${cellCol}`) ?? 0;
+      const intensity = viewMax > 0 ? value / viewMax : 0;
+      blocks.push({
+        index,
+        state: intensity > 0 ? 'withData' : 'withoutData',
+        intensity,
+      });
     }
     const usedBytes = (cellCountByView.get(viewKey) ?? 0) * cellSize;
     const totalBytes = outsideDeclared ? span : declaredSize;
