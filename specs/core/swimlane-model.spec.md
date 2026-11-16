@@ -57,7 +57,7 @@ interface SwimEvent    {
 
 **`minTime` as display origin.** `minTime` is the earliest painted event timestamp and the shared UI display origin (PyPTO / Perfetto Timecode default): viewport/zoom-to-fit span `[minTime, maxTime]`, and axis / cursor / tooltip / detail start·end labels subtract `minTime` so the left edge and earliest event read as `0`. Model timestamps stay absolute producer ns; only the formatting layer subtracts. `minTime` also drives thread utilization spans and WebGL `timeBase` (float32 precision).
 
-**Error on empty.** If the trace contains no complete X events, `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
+**Error on empty.** If the trace contains no paintable events (no complete X and no qualifying instant `ph:i` per PR-SWIM-018), `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
 
 **Nested helpers.** Layout / selection walk `children` recursively (`filterCollapsedTree`, `collectLeafEvents`, visible folder/leaf rows).
 
@@ -67,7 +67,7 @@ interface SwimEvent    {
 1. **PR-SWIM-002**: Default CTEF µs timestamps convert to ns for internal representation.
 1. **PR-SWIM-003**: displayTimeUnit metadata preserved (display-only, timestamps unchanged).
 1. **PR-SWIM-004**: CTEF array format and process_name metadata handled correctly.
-1. **PR-SWIM-005**: Rejects traces with no complete X events (throws).
+1. **PR-SWIM-005**: Rejects traces with no paintable events — no complete X and no qualifying instant `ph:i` (throws).
 1. **PR-SWIM-006**: s/f pairs link EventRefs across threads.
 1. **PR-SWIM-007**: Unmatched, inverted, or miss timestamps yield no edge.
 1. **PR-SWIM-008**: Index is post-sort; duplicate edges unique; omit empty deps.

@@ -110,6 +110,8 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       traceEvents: [
         { ph: 'M', name: 'thread_name', pid: 1, tid: 'ICACHE_READ', args: { name: 'ICACHE_READ' } },
         { ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 'ICACHE_READ', ts: 12.5 },
+        // Positive dur on ph:i is out of scope here (#207).
+        { ph: 'i', name: 'ICACHE_MISS', pid: 1, tid: 'ICACHE_READ', ts: 15, dur: 3 },
         { ph: 'X', name: 'ICACHE REFILL', pid: 1, tid: 'ICACHE_READ', ts: 20, dur: 0 },
       ],
     });
