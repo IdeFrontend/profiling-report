@@ -93,9 +93,9 @@ describe('MemoryHeatmapPanel', () => {
     expect(cells[20].attributes('data-state')).toBe('withoutData');
   });
 
-  it('PR-HEAT-004: shows Total/Used/Free; omits when Total is unknown', () => {
+  it('PR-HEAT-004: shows Total/Used/Free with spaced shared units (#201); omits when Total is unknown', () => {
     expect(mountPanel().find('[data-testid="heat-metric"]').text()).toBe(
-      'Total: 256KB / Used: 2560B / Free: 259584B',
+      'Total: 256 KB / Used: 2.5 KB / Free: 253.5 KB',
     );
     const noCap: MemoryHeatmapModel = {
       units: [{ id: 'l1', views: [view({ memoryName: 'L1', blocks: blocks(8, 1), usedBytes: 32 })] }],
