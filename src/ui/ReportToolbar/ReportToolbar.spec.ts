@@ -707,7 +707,9 @@ describe('ReportToolbar', () => {
       attachTo: document.body,
     });
     expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="timeline-trace-icon"]').exists()).toBe(true);
+    expect(
+      wrapper.find('[data-testid="toggle-timeline-trace"] .pr-icon--pipeline-view').exists(),
+    ).toBe(true);
     // 1130: bars+eye trigger sits immediately before measure.
     const actionIds = wrapper
       .findAll('[data-toolbar-clip]')

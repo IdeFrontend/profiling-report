@@ -922,10 +922,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           @click="toggleTimelineTraceMenu"
           @keydown="onTimelineTraceTriggerKeydown"
         >
-          <PrIcon
-            name="pipeline-view"
-            data-testid="timeline-trace-icon"
-          />
+          <PrIcon name="pipeline-view" />
         </button>
         <ul
           v-if="timelineTraceOpen"
