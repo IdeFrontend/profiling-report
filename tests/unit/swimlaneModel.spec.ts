@@ -101,7 +101,7 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(model.minTime).toBe(1000);
   });
 
-  it('PR-SWIM-005: rejects traces with no complete X events', () => {
+  it('PR-SWIM-005: rejects traces with no paintable events', () => {
     expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete X events/);
   });
 
