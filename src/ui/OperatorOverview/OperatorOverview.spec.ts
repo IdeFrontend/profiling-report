@@ -101,6 +101,16 @@ describe('OperatorOverview', () => {
     expect(paths[2].attributes('d')).toBe('M9.1 9 H12.3');
   });
 
+  it('PR-OVW-007b: 执行优化 is disabled when the highlighted row has no op name', async () => {
+    const noNameRows: ReportOperatorRow[] = [{ opType: 'vector', taskDurationUs: 1 }];
+    const wrapper = mount(OperatorOverview, { props: { rows: noNameRows, locale: 'zh-CN' } });
+    const button = wrapper.findAll('button').find((b) => b.text() === '执行优化');
+    expect(button).toBeDefined();
+    expect(button!.attributes('disabled')).toBeDefined();
+    await button!.trigger('click');
+    expect(wrapper.emitted('optimize')).toBeUndefined();
+  });
+
   it('PR-OVW-008: banner shows underutilization copy', () => {
     const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
     const banner = wrapper.get('[data-testid="operator-overview-banner"]');
@@ -174,6 +184,23 @@ describe('OperatorOverview', () => {
     expect(opNames()).toEqual(['gather_2d_custom', 'demo_linear_tiled', 'missing_duration']);
     expect(wrapper.findAll('thead th')[0].attributes('aria-sort')).toBeUndefined();
     expect(wrapper.findAll('thead th')[1].attributes('aria-sort')).toBeUndefined();
+  });
+
+  it('PR-OVW-012b: mixed number/text dimensions sort as one total order', async () => {
+    const mixedRows: ReportOperatorRow[] = [
+      { opName: 'two', opType: 'vector', blockDim: 2 },
+      { opName: 'ten', opType: 'vector', blockDim: 10 },
+      { opName: 'one_z', opType: 'vector', blockDim: '1z' },
+    ];
+    const wrapper = mount(OperatorOverview, { props: { rows: mixedRows } });
+    const blockHeader = () => wrapper.findAll('thead th')[5];
+    const opNames = () => wrapper.findAll('tbody tr').map((tr) => tr.findAll('td')[1].text());
+
+    await blockHeader().find('button').trigger('click');
+    expect(opNames()).toEqual(['one_z', 'two', 'ten']);
+
+    await blockHeader().find('button').trigger('click');
+    expect(opNames()).toEqual(['ten', 'two', 'one_z']);
   });
 
   it('PR-OVW-013: filter popover multi-selects distinct values', async () => {

@@ -20,9 +20,9 @@ Clicking a filter button opens a popover under the header with a checkbox list o
 
 The table is single-select. The first row is highlighted on mount. Clicking, Enter, or Space on another row moves the one highlight. Filtering keeps the selection while the selected row stays visible and clears it otherwise; it never auto-selects a visible row. A new `rows` array resets the filters, sort, open popover, and selection, then highlights the first row of the new pack. Task Duration renders with two decimals; 序号 and the dimension columns render values as produced. The table carries `role="grid"`, its rows `role="row"`, headers `role="columnheader"`, and body cells `role="gridcell"` so `aria-selected` on a row is valid.
 
-Below the table sits the 低利用率 dock: a donut icon, a bold 低利用率 label, the muted 预计本地加速比（示例） line carrying the demo value, the 选中算子的优化建议 link, and a right-aligned 执行优化 button with a leading open-corner rounded document glyph with two inner lines and a lower-left sparkle. The optimization link is disabled until a suggestions surface ships and never navigates. The 执行优化 button renders enabled and emits `optimize` with `{ opName }` of the highlighted row. The dock and the banner render only when at least one row is present. The bottom banner carries the fixed underutilization copy.
+Below the table sits the 低利用率 dock: a donut icon, a bold 低利用率 label, the muted 预计本地加速比（示例） line carrying the demo value, the 选中算子的优化建议 link, and a right-aligned 执行优化 button with a leading open-corner rounded document glyph with two inner lines and a lower-left sparkle. The optimization link is disabled until a suggestions surface ships and never navigates. The 执行优化 button is enabled only while the highlighted row carries a non-blank Op Name; clicking it emits `optimize` with `{ opName }` of that row. The dock and the banner render only when at least one row is present. The bottom banner carries the fixed underutilization copy.
 
-The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls when rows overflow. Column widths are inline percentages that total 100 with the 序号 column included, so the rendered table never overflows its scroller horizontally. Header rows are 36px and data rows 32px at 12px; numeric cells are right-aligned and text cells left-aligned. The selected row uses a blue-grey fill with white text declared on its cells, which beats the default cell color; hover uses a lighter tint and there is no zebra striping.
+The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls when rows overflow. Column widths are inline percentages that total 100 with the 序号 column included, so the rendered table never overflows its scroller horizontally. Header rows are 30px and data rows 32px at 12px; numeric cells are right-aligned and text cells left-aligned. The selected row uses a blue-grey fill with white text declared on its cells, which beats the default cell color; hover uses a lighter tint and there is no zebra striping.
 
 ## Acceptance Criteria
 
@@ -32,7 +32,7 @@ The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls w
 4. **PR-OVW-004** — First row selected by default.
 5. **PR-OVW-005** — Row click moves single highlight.
 6. **PR-OVW-006** — Dock shows 低利用率 summary.
-7. **PR-OVW-007** — 执行优化 button renders enabled.
+7. **PR-OVW-007** — 执行优化 button is enabled only when the highlighted row has an Op Name and emits `optimize` on click.
 8. **PR-OVW-008** — Banner shows underutilization copy.
 9. **PR-OVW-009** — Task Duration renders two decimals; dimensions render as-is.
 10. **PR-OVW-010** — Table exposes grid, row, columnheader, gridcell roles.

@@ -1017,16 +1017,12 @@ describe('PR-VM: report view-models (interim)', () => {
         ['Op Name,Op Type,Task Duration(us)', 'NA,NA,0.5', ', ,0.6'].join('\n'),
       ),
     });
-    const [naRow, blankRow] = absentIdentity.reportModel.operatorRows ?? [];
-    expect(naRow.opName).toBeUndefined();
-    expect(naRow.opType).toBeUndefined();
-    expect(naRow.taskDurationUs).toBe(0.5);
-    expect(blankRow.opName).toBeUndefined();
-    expect(blankRow.opType).toBeUndefined();
-    expect(blankRow.taskDurationUs).toBe(0.6);
+    // No CSV row yields an identity, so the identity-less CSV rows are not used. With no
+    // Summary.jsonl to fall back to, the CSV duration is dropped too: no table row exists.
+    expect(absentIdentity.reportModel.operatorRows).toBeUndefined();
     expect(absentIdentity.reportModel.summary.opName).toBeUndefined();
     expect(absentIdentity.reportModel.summary.opType).toBeUndefined();
-    expect(absentIdentity.reportModel.summary.taskDurationUs).toBe(0.5);
+    expect(absentIdentity.reportModel.summary.taskDurationUs).toBeUndefined();
 
     const single = adaptPayloads({
       'Summary.jsonl': encoder.encode(
@@ -1066,6 +1062,34 @@ describe('PR-VM: report view-models (interim)', () => {
         demangledName: 'void gather_2d_custom<float>(float*)',
         taskDurationUs: 1,
         blockDim: 4,
+      },
+    ]);
+  });
+
+  it('PR-VM-028b: an NA-only OpBasicInfo row falls back to the OpInfoSummary identity', () => {
+    const encoder = new TextEncoder();
+    const adapted = adaptPayloads({
+      'OpBasicInfo.csv': encoder.encode('Op Name,Op Type,Task Duration(us)\nNA,NA,0.5\n'),
+      'Summary.jsonl': encoder.encode(
+        JSON.stringify({
+          category: 'OpInfoSummary',
+          'Op Name': 'gather_2d_custom',
+          'Op Type': 'vector',
+          'Task Duration(us)': 0.73,
+          'Block Dim': 40,
+          'Mix Block Dim': 4,
+        }) + '\n',
+      ),
+    });
+    expect(adapted.reportModel.summary.opName).toBe('gather_2d_custom');
+    expect(adapted.reportModel.summary.taskDurationUs).toBe(0.73);
+    expect(adapted.reportModel.operatorRows).toEqual([
+      {
+        opName: 'gather_2d_custom',
+        opType: 'vector',
+        taskDurationUs: 0.73,
+        blockDim: 40,
+        mixBlockDim: 4,
       },
     ]);
   });

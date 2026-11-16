@@ -505,7 +505,7 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
     ratedFreq: parseNumber(row['Rated Freq']),
     pid: optionalText(row['Pid']) ?? optionalText(row['PID']),
     blockDim: optionalDim(row['Block Dim']),
-    mixBlockDim: optionalDim(row['Mix Block Dim']),
+    mixBlockDim: optionalMixBlockDim(row['Mix Block Dim']),
   };
 }
 
@@ -592,7 +592,7 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
       ratedFreq: num(obj['Rated Freq']),
       pid: text(obj['Pid']),
       blockDim: num(obj['Block Dim']) ?? text(obj['Block Dim']),
-      mixBlockDim: num(obj['Mix Block Dim']) ?? text(obj['Mix Block Dim']),
+      mixBlockDim: optionalMixBlockDim(text(obj['Mix Block Dim'])),
       // Derived compute / bandwidth / utilization (absent when the producer did not emit them).
       aicFlops: num(obj['aic_flops']),
       aivFlops: num(obj['aiv_flops']),
@@ -997,7 +997,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   // drop jsonl metrics when both embeds exist).
   const fromCsv = summaryFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
   const fromJsonl = summaryFromSummaryJsonl(summaryJsonl);
-  const hasCsvIdentity = Object.keys(fromCsv).length > 0;
+  const hasCsvIdentity = fromCsv.opName != null || fromCsv.opType != null;
   // Card total prefers OpBasicInfo. 计算时间 is the remainder of that total so the
   // three bar segments sum to the number on the card. No total → no breakdown.
   const taskDurationUs =
@@ -1038,7 +1038,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     );
   const csvOperatorRows = operatorRowsFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
   const operatorRows =
-    csvOperatorRows.length > 0
+    csvOperatorRows.some((row) => row.opName != null || row.opType != null)
       ? csvOperatorRows
       : summary.opName || summary.opType || summary.taskDurationUs != null
         ? [
@@ -1048,6 +1048,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
               demangledName: signatureFromName(summary.opName),
               taskDurationUs: summary.taskDurationUs,
               blockDim: summary.blockDim,
+              mixBlockDim: summary.mixBlockDim,
             },
           ]
         : [];

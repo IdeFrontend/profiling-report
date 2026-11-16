@@ -495,7 +495,9 @@ const sourceTabEnabled = computed(
     report.value.sourceCorrelation.mock !== true,
 );
 /** 概览 lists operator rows; chrome-trace / emulate models carry none. */
-const overviewTabEnabled = computed(() => (report.value?.operatorRows?.length ?? 0) > 0);
+const overviewTabEnabled = computed(
+  () => loadError.value == null && (report.value?.operatorRows?.length ?? 0) > 0,
+);
 const activeTab = ref<'overview' | 'timeline' | 'source'>('timeline');
 const showOverviewTab = computed(() => activeTab.value === 'overview');
 /** Caret the Source tab applies after a Parameter frame click. */
@@ -1256,7 +1258,7 @@ function onRootKeydown(e: KeyboardEvent) {
   // Overlay covers the timeline (including the ~200ms leave fade while the model is still held).
   // WASD must not pan/zoom the hidden view.
   if (htmlExportOpen.value || topologyFullscreen.value || fullscreenTopology.value != null) return;
-  if (!showTimeline.value || showOverviewTab.value) return;
+  if (!showTimelineSurface.value) return;
   const target = e.target as HTMLElement | null;
   // Ignore shortcuts while typing — search, dependency depth, and editable controls own them.
   if (
@@ -2143,7 +2145,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
          From closed, mount only once coverage is non-empty (marqueeLive alone is not enough). -->
     <Transition name="pr-dock">
       <footer
-        v-if="(showTimelineSurface && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints && !showSource)"
+        v-if="(showTimelineSurface && (selected || multiSelected.length || (marqueeLive && livePreviewCount >= 2) || (marqueeLive && !marqueeFromClosed))) || (hintsDockOpen && hasPerformanceHints && !showSource && !showOverviewTab)"
         class="pr-dock"
         :class="{ 'pr-dock--live': marqueeLive }"
         data-testid="dock"
