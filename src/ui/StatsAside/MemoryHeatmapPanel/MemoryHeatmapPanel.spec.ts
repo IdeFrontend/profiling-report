@@ -4,10 +4,16 @@ import MemoryHeatmapPanel from './MemoryHeatmapPanel.vue';
 import type { MemoryHeatmapModel, MemoryHeatmapView } from '../../../domain/types';
 
 function blocks(count: number, withData: number) {
-  return Array.from({ length: count }, (_, index) => ({
-    index,
-    state: index < withData ? ('withData' as const) : ('withoutData' as const),
-  }));
+  return Array.from({ length: count }, (_, index) => {
+    const hot = index < withData;
+    // Spread intensities across hot cells so the gradient path is covered (#200).
+    const intensity = hot ? (withData <= 1 ? 1 : (index + 1) / withData) : 0;
+    return {
+      index,
+      state: hot ? ('withData' as const) : ('withoutData' as const),
+      intensity,
+    };
+  });
 }
 
 function view(partial: Partial<MemoryHeatmapView> & Pick<MemoryHeatmapView, 'blocks'>): MemoryHeatmapView {
@@ -78,21 +84,23 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: names both used states beside their swatches (#199)', () => {
-    const wrapper = mountPanel();
-    const zhLabels = wrapper.findAll('.pr-heat__legend-label').map((n) => n.text());
-    expect(zhLabels).toEqual(['已用', '空闲']);
-    const en = mountPanel({ locale: 'en' });
-    const enLabels = en.findAll('.pr-heat__legend-label').map((n) => n.text());
-    expect(enLabels).toEqual(['Used', 'Free']);
+  it('PR-HEAT-002: legend is a Low→High gradient (#200)', () => {
+    const wrapper = mountPanel({ locale: 'en' });
+    const legend = wrapper.get('[data-testid="heat-legend"]');
+    expect(legend.text()).toContain('Low');
+    expect(legend.text()).toContain('High');
+    expect(legend.find('.pr-heat__gradient').exists()).toBe(true);
   });
 
-  it('PR-HEAT-003: paints one cell per block from the active view', () => {
+  it('PR-HEAT-003: paints one cell per block with continuous intensity (#200)', () => {
     const wrapper = mountPanel();
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells).toHaveLength(416);
     expect(cells[0].attributes('data-state')).toBe('withData');
+    expect(Number(cells[0].attributes('data-intensity'))).toBeGreaterThan(0);
+    expect(cells[0].attributes('style')).toMatch(/background:/);
     expect(cells[20].attributes('data-state')).toBe('withoutData');
+    expect(cells[20].attributes('data-intensity')).toBe('0');
   });
 
   it('PR-HEAT-004: shows Total/Used/Free with spaced shared units (#201); omits when Total is unknown', () => {

@@ -32,6 +32,16 @@ function formatHeatBytes(n: number, unit: HeatByteUnit): string {
   return `${text} ${unit}`;
 }
 
+/** Legend / cell ends: `#AFC6FE` (low) → `#3D64AD` (high) — COLOR_TOKENS (#200). */
+const HEAT_LOW = [0xaf, 0xc6, 0xfe] as const;
+const HEAT_HIGH = [0x3d, 0x64, 0xad] as const;
+
+function heatFill(intensity: number): string {
+  const t = Math.min(1, Math.max(0, intensity));
+  const rgb = HEAT_LOW.map((c, i) => Math.round(c + (HEAT_HIGH[i]! - c) * t));
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+}
+
 /** Heat tab set, in order (`L1 | UB | L0A | L0B | L0C`) — no L2Cache ([UI-60]). */
 const TABS: MemoryHeatmapUnitId[] = ['l1', 'ub', 'l0a', 'l0b', 'l0c'];
 
@@ -229,17 +239,10 @@ function onViewSelect(id: string) {
       </button>
     </div>
 
-    <div class="pr-heat__legend">
-      <span
-        class="pr-heat__swatch pr-heat__swatch--with"
-        aria-hidden="true"
-      />
-      <span class="pr-heat__legend-label">{{ t('memoryHeatWithData', locale) }}</span>
-      <span
-        class="pr-heat__swatch pr-heat__swatch--without"
-        aria-hidden="true"
-      />
-      <span class="pr-heat__legend-label">{{ t('memoryHeatWithoutData', locale) }}</span>
+    <div class="pr-heat__legend" data-testid="heat-legend">
+      <span class="pr-heat__legend-label">{{ t('memoryHeatLow', locale) }}</span>
+      <span class="pr-heat__gradient" aria-hidden="true" />
+      <span class="pr-heat__legend-label">{{ t('memoryHeatHigh', locale) }}</span>
     </div>
 
     <!--
@@ -294,6 +297,8 @@ function onViewSelect(id: string) {
               class="pr-heat__cell"
               :class="{ 'pr-heat__cell--with': block.state === 'withData' }"
               :data-state="block.state"
+              :data-intensity="String(block.intensity)"
+              :style="{ background: heatFill(block.intensity) }"
             />
           </div>
         </div>
@@ -394,22 +399,11 @@ function onViewSelect(id: string) {
   color: #b3b3b3;
 }
 
-.pr-heat__legend-label + .pr-heat__swatch {
-  margin-left: 12px;
-}
-
-.pr-heat__swatch {
-  width: 8px;
+.pr-heat__gradient {
+  width: 72px;
   height: 8px;
   border-radius: 1px;
-}
-
-.pr-heat__swatch--with {
-  background: #3d64ad;
-}
-
-.pr-heat__swatch--without {
-  background: #afc6fe;
+  background: linear-gradient(to right, #afc6fe, #3d64ad);
 }
 
 .pr-heat__view-bar {
@@ -474,11 +468,7 @@ function onViewSelect(id: string) {
   width: var(--pr-heat-cell);
   height: var(--pr-heat-cell);
   border-radius: 1px;
-  background: #afc6fe;
-}
-
-.pr-heat__cell--with {
-  background: #3d64ad;
+  /* Fill comes from inline `heatFill(intensity)` (#200). */
 }
 
 .pr-heat__title {
