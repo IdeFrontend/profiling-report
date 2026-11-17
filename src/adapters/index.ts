@@ -33,10 +33,13 @@ export {
   memoryUtilDisplayValue,
   memoryUtilToOverviewPercent,
   unitUtilDisplayValue,
+  queueUtilDisplayValue,
   memoryUtilCounterThreadsFromTrace,
   unitUtilCounterThreadsFromTrace,
+  queueUtilCounterThreadsFromTrace,
   mergeMemoryUtilCounterTracks,
   mergeUnitUtilCounterTracks,
+  mergeQueueUtilCounterTracks,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';

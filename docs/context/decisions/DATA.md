@@ -427,8 +427,8 @@ Format and statuses: [README.md](README.md).
   2. **Memory pipes (#208):** populated processes whose `process_name` matches `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION`; counter name `memory_utilization`; one leaf per pipe id. Skip metadata-only (empty) util processes.
   3. **Points:** `t = ts × 1e3` (µs→ns); `v` from `args["Utilization (%)"]` — values in `[0, 1]` scale ×100, values in `(1, 100]` stay as percent, else drop. Optional absolute `abs` from finite `args["Using Bytes (KB)"]` (KB; tooltip only — Y domain stays util %). Same-`ts` multi-`C` → **keep last** (whole sample, including `abs`). Per-track `yMax` = max sample (auto-Y; [UI-61](./UI.md)).
   4. **Unit pipes (#209):** populated `<AIC|AIV0|AIV1>_UNIT_UTILIZATION` with `ph:C` `unit_utilization`; `args["Utilization (%)"]` as shipped (already 0..100 — **no** fraction×100); Card **Unit utilization**.
-  5. **Later slice:** queue pipes (#206) reuse the same CounterTrack carrier / paint path; arg keys are queue depths (`Exec/Issue Queue Utilization`).
-- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-015 / PR-ASIM-016, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
+  5. **Queue pipes (#206):** populated `<AIC|AIV0|AIV1>_PUSHQ_<EXEC|ISSUE>_QUEUE_UTILIZATION`; depth args `Exec Queue Utilization` / `Issue Queue Utilization` (not percents); Card **Queue utilization**; per-track auto-Y ([UI-61](./UI.md)).
+- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-015…017, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
 - **Source:** Product answers 2026-11-17 (placement B; retarget #233; keep last @ same ts; counter tracks not #181 overview mirror).
 
 ---

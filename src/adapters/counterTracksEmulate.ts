@@ -1,6 +1,6 @@
 /**
  * Emulate Trace ph:C util pipes → swim CounterTracks (Chrome CounterTrack-like).
- * #208 memory util; #209 unit util; #206 queue util (later).
+ * #208 memory util; #209 unit util; #206 queue util.
  */
 
 import type { SwimCounterPoint, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
@@ -11,6 +11,10 @@ const MEMORY_UTIL_PIPE_RE =
 
 /** #209: `<AIC|AIV0|AIV1>_UNIT_UTILIZATION`. */
 const UNIT_UTIL_PIPE_RE = /^((?:AIC|AIV0|AIV1)_UNIT_UTILIZATION)\b/i;
+
+/** #206: `<AIC|AIV0|AIV1>_PUSHQ_<EXEC|ISSUE>_QUEUE_UTILIZATION`. */
+const QUEUE_UTIL_PIPE_RE =
+  /^((?:AIC|AIV0|AIV1)_PUSHQ_(?:EXEC|ISSUE)_QUEUE_UTILIZATION)\b/i;
 
 const US_TO_NS = 1e3;
 
@@ -46,6 +50,22 @@ export const memoryUtilToOverviewPercent = memoryUtilDisplayValue;
 export function unitUtilDisplayValue(raw: number): number | null {
   if (!Number.isFinite(raw) || raw < 0) return null;
   return raw;
+}
+
+/** Queue util depths (not percents) — finite ≥0; Y auto-scales per track. */
+export function queueUtilDisplayValue(raw: number): number | null {
+  if (!Number.isFinite(raw) || raw < 0) return null;
+  return raw;
+}
+
+function readQueueUtilArg(args: Record<string, unknown> | undefined): number | null {
+  if (!args) return null;
+  const raw = Number(
+    args['Exec Queue Utilization'] ??
+      args['Issue Queue Utilization'] ??
+      args['Utilization (%)'],
+  );
+  return queueUtilDisplayValue(raw);
 }
 
 function collapseSameTsLast(points: CounterPoint[]): CounterPoint[] {
@@ -189,6 +209,14 @@ export function unitUtilCounterThreadsFromTrace(traceJson: unknown): SwimThread[
   });
 }
 
+/** #206 PUSHQ exec/issue queue util pipes → CounterTrack leaves (depth Y). */
+export function queueUtilCounterThreadsFromTrace(traceJson: unknown): SwimThread[] {
+  return counterThreadsFromPipes(traceJson, {
+    pipeRe: QUEUE_UTIL_PIPE_RE,
+    readValue: readQueueUtilArg,
+  });
+}
+
 /** Append a Memory utilization process with counter leaf lanes (#208). */
 export function mergeMemoryUtilCounterTracks(
   model: SwimlaneModel,
@@ -212,5 +240,18 @@ export function mergeUnitUtilCounterTracks(
     'p-counter-unit-util',
     'Unit utilization',
     unitUtilCounterThreadsFromTrace(traceJson),
+  );
+}
+
+/** Append a Queue utilization process with counter leaf lanes (#206). */
+export function mergeQueueUtilCounterTracks(
+  model: SwimlaneModel,
+  traceJson: unknown,
+): SwimlaneModel {
+  return appendCounterProcess(
+    model,
+    'p-counter-queue-util',
+    'Queue utilization',
+    queueUtilCounterThreadsFromTrace(traceJson),
   );
 }

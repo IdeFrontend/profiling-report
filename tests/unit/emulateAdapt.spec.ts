@@ -19,6 +19,8 @@ import {
   memoryUtilDisplayValue,
   unitUtilCounterThreadsFromTrace,
   unitUtilDisplayValue,
+  queueUtilCounterThreadsFromTrace,
+  queueUtilDisplayValue,
 } from '../../src/adapters/counterTracksEmulate';
 import { buildCannbotPayload } from '../../src/domain/cannbot';
 import {
@@ -361,6 +363,88 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(adapted.swimlaneModel?.processes.some((p) => p.id === 'p-counter-memory-util')).toBe(
       false,
     );
+  });
+
+  it('PR-ASIM-017: queue-util ph:C pipes → swim CounterTracks with depth Y (#206)', () => {
+    expect(queueUtilDisplayValue(10)).toBe(10);
+    expect(queueUtilDisplayValue(0)).toBe(0);
+    expect(queueUtilDisplayValue(-1)).toBeNull();
+
+    const trace = {
+      traceEvents: [
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 30,
+          args: { name: 'AIV0_PUSHQ_ISSUE_QUEUE_UTILIZATION (issue_queue_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 31,
+          args: { name: 'AIV0_PUSHQ_EXEC_QUEUE_UTILIZATION (exec_queue_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 32,
+          args: { name: 'AIV1_PUSHQ_ISSUE_QUEUE_UTILIZATION (issue_queue_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 1,
+          args: { name: 'AIV0_SCALAR (scalar_instr)' },
+        },
+        {
+          ph: 'C',
+          name: 'issue_queue_utilization',
+          pid: 30,
+          tid: 0,
+          ts: 1.0,
+          args: { 'Issue Queue Utilization': 3 },
+        },
+        {
+          ph: 'C',
+          name: 'issue_queue_utilization',
+          pid: 30,
+          tid: 0,
+          ts: 2.0,
+          args: { 'Issue Queue Utilization': 10 },
+        },
+        {
+          ph: 'C',
+          name: 'exec_queue_utilization',
+          pid: 31,
+          tid: 0,
+          ts: 1.5,
+          args: { 'Exec Queue Utilization': 2 },
+        },
+        // Empty AIV1 shell — no track.
+        { ph: 'X', name: 'work', pid: 1, tid: 1, ts: 0, dur: 20 },
+      ],
+    };
+
+    const threads = queueUtilCounterThreadsFromTrace(trace);
+    expect(threads.map((t) => t.name)).toEqual([
+      'AIV0_PUSHQ_ISSUE_QUEUE_UTILIZATION',
+      'AIV0_PUSHQ_EXEC_QUEUE_UTILIZATION',
+    ]);
+    expect(threads[0]!.counter?.yMax).toBe(10);
+    expect(threads[1]!.counter?.yMax).toBe(2);
+
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(JSON.stringify(trace)),
+    });
+    const queueProc = adapted.swimlaneModel?.processes.find(
+      (p) => p.id === 'p-counter-queue-util',
+    );
+    expect(queueProc?.name).toBe('Queue utilization');
+    expect(queueProc?.threads.map((t) => t.name)).toEqual([
+      'AIV0_PUSHQ_ISSUE_QUEUE_UTILIZATION',
+      'AIV0_PUSHQ_EXEC_QUEUE_UTILIZATION',
+    ]);
   });
 
   it('PR-ASIM-005: emulate leaves summary empty (no KernelInfo → cards; DATA-47)', () => {

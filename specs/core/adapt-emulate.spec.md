@@ -28,6 +28,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 - **#208 memory** — `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION` / `ph:C` `memory_utilization` → **Memory utilization**; `Utilization (%)` with 0..1×100 mapping; optional finite `Using Bytes (KB)` → point `abs`; series `colorHex` `#E7434A` via `mergeMemoryUtilCounterTracks`.
 - **#209 unit** — `<AIC|AIV0|AIV1>_UNIT_UTILIZATION` / `ph:C` `unit_utilization` → **Unit utilization**; `Utilization (%)` as shipped (no fraction scaling) via `mergeUnitUtilCounterTracks`.
+- **#206 queue** — `<AIC|AIV0|AIV1>_PUSHQ_<EXEC|ISSUE>_QUEUE_UTILIZATION` → **Queue utilization**; depth args `Exec/Issue Queue Utilization` (auto-Y) via `mergeQueueUtilCounterTracks`.
 
 **Omit gap panels.** Do not populate `roofline` or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards. Do not invent overview series from PipeUtilization ratios or Trace util pipes.
 
@@ -56,6 +57,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 15. **PR-ASIM-014** — Without ELF Source* / AsmMetrics (IPC-only / gelu-shaped) → omit `sourceCorrelation` and `'sourceTab'`.
 16. **PR-ASIM-015** — Trace `ph:C` on `AIV0_UB_UTILIZATION` (etc.) → one swim CounterTrack leaf per populated pipe under **Memory utilization**; fraction util scaled to percent; optional `Using Bytes (KB)` → `abs`; same-`ts` keeps last (incl. abs); `colorHex` `#E7434A`; metadata-only util pids omitted; `overviewSeries` stays `[]`; no memory-util counters → no counter process (#208 / DATA-57).
 17. **PR-ASIM-016** — Trace `ph:C` on `AIV0_UNIT_UTILIZATION` (etc.) → one CounterTrack leaf under **Unit utilization**; `Utilization (%)` used as-is (no ×100); empty unit shells omitted (#209 / DATA-57).
+18. **PR-ASIM-017** — Trace `ph:C` on `AIV0_PUSHQ_ISSUE/EXEC_QUEUE_UTILIZATION` → CounterTrack leaves under **Queue utilization**; depth values drive per-track `yMax`; empty queue shells omitted (#206 / DATA-57 / UI-61).
 
 ## Edge Cases
 
@@ -74,6 +76,7 @@ DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (
 Emulate Source follow-ons (stalls / IPC / richer metrics / tick→ns / SASS label): interim [DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e), [UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a).
 
 ## Changelog
+- **2026-11-20** — PR-ASIM-017: queue-util CT counters → swim CounterTracks with depth auto-Y (#206 / DATA-57).
 - **2026-11-20** — PR-ASIM-016: unit-util CT counters → swim CounterTracks (#209 / DATA-57).
 - **2026-11-18** — PR-ASIM-015: memory-util CT counters → swim CounterTracks; optional `Using Bytes (KB)` → `abs`; `colorHex` `#E7434A` (#208 / DATA-57 / UI-61).
 - **2026-11-17** — Emulate Source | SASS via ELF CSVs (DATA-53): PR-ASIM-013 / PR-ASIM-014.

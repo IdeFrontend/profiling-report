@@ -19,6 +19,7 @@ import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
 import {
   mergeMemoryUtilCounterTracks,
+  mergeQueueUtilCounterTracks,
   mergeUnitUtilCounterTracks,
 } from './counterTracksEmulate';
 import { parseCsv } from './parseCsv';
@@ -40,10 +41,13 @@ export {
   memoryUtilDisplayValue,
   memoryUtilToOverviewPercent,
   unitUtilDisplayValue,
+  queueUtilDisplayValue,
   mergeMemoryUtilCounterTracks,
   mergeUnitUtilCounterTracks,
+  mergeQueueUtilCounterTracks,
   memoryUtilCounterThreadsFromTrace,
   unitUtilCounterThreadsFromTrace,
+  queueUtilCounterThreadsFromTrace,
 } from './counterTracksEmulate';
 
 /** Producer `manifest.json` only ([PROC-8]). */
@@ -347,7 +351,7 @@ export function adaptEmulate(
     }
   }
 
-  // #208/#209 / DATA-57: append Memory/Unit utilization CounterTracks from Trace ph:C pipes.
+  // #208/#209/#206 / DATA-57: append Memory/Unit/Queue utilization CounterTracks from Trace ph:C pipes.
   // Catalog path still reads PipeTrace/native for counters (does not mirror into overview).
   if (swimlaneModel) {
     if (counterTraceJson == null) {
@@ -363,8 +367,11 @@ export function adaptEmulate(
       }
     }
     if (counterTraceJson != null) {
-      swimlaneModel = mergeUnitUtilCounterTracks(
-        mergeMemoryUtilCounterTracks(swimlaneModel, counterTraceJson),
+      swimlaneModel = mergeQueueUtilCounterTracks(
+        mergeUnitUtilCounterTracks(
+          mergeMemoryUtilCounterTracks(swimlaneModel, counterTraceJson),
+          counterTraceJson,
+        ),
         counterTraceJson,
       );
     }
