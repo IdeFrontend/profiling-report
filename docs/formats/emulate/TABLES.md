@@ -47,10 +47,6 @@ Row counts are data rows (header excluded). Object names match the manifest; lin
 | [`UnitUtilization`](UnitUtilization.csv.md) | table | 736 | Unit util time series |
 | [`PredicateRegValues`](PredicateRegValues.csv.md) | table | 640 | Predicate registers |
 | [`VectorUtilizations`](VectorUtilizations.csv.md) | table | 480 | Producer upstream for Roofline analyzer (viewer uses `Roofline*.csv`) |
-| [`RooflinePoints`](RooflinePoints.csv.md) | table | (flag-gated) | Emulate roofline measured points ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)) |
-| [`RooflineComputePeaks`](RooflineComputePeaks.csv.md) | table | (flag-gated) | Emulate roofline compute ceilings |
-| [`RooflineBandwidthPeaks`](RooflineBandwidthPeaks.csv.md) | table | (flag-gated) | Emulate roofline bandwidth ceilings |
-| [`RooflineMetadata`](RooflineMetadata.csv.md) | table | (flag-gated) | Emulate roofline snapshot metadata |
 | [`VfPMUViewPerSubcore`](VfPMUViewPerSubcore.csv.md) | view | 430 | PMU by subcore |
 | [`SprWriteEvents`](SprWriteEvents.csv.md) | table | 350 | SPR writes |
 | [`SIMDSamplingStats`](SIMDSamplingStats.csv.md) | table | 256 | SIMD stall samples |
@@ -144,6 +140,7 @@ Four performance-hint tables are packed **despite** manifest `row_count` 0 / `fi
 | [`TraceBubbles`](TraceBubbles.csv.md) / [`TraceBubbleSummary`](TraceBubbleSummary.csv.md) | `--bubble` |
 | [`VfSimtIPC`](VfSimtIPC.csv.md)* / [`VfSimtInvocations`](VfSimtInvocations.csv.md) | SIMT IPC path |
 | Call* | Call stacks (ELF) |
+| [`RooflinePoints`](RooflinePoints.csv.md) / [`RooflineComputePeaks`](RooflineComputePeaks.csv.md) / [`RooflineBandwidthPeaks`](RooflineBandwidthPeaks.csv.md) / [`RooflineMetadata`](RooflineMetadata.csv.md) | `--roofline`; absent from gelu ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)) |
 | [`MemoryUtilizationStates`](MemoryUtilizationStates.csv.md) | `--memory-utilization` |
 | [`DCacheHitMissEvents`](DCacheHitMissEvents.csv.md) | quantitative indices |
 | [`QueueFullEvents`](QueueFullEvents.csv.md) / [`QueueFullStalls`](QueueFullStalls.csv.md) | not triggered on gelu |

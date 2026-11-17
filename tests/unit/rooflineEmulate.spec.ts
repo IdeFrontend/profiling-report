@@ -19,6 +19,16 @@ describe('rooflineEmulate (DATA-57a)', () => {
         'AnalysisName,AnalysisPassed\narch_diagram,1\nroofline,0\nroofline,1\n',
       ),
     ).toBe(true);
+    expect(
+      emulateRooflineAnalysisPassed(
+        'AnalysisName,AnalysisPassed\narch_diagram,1\nroofline,1\nroofline,0\n',
+      ),
+    ).toBe(false);
+    expect(
+      emulateRooflineAnalysisPassed(
+        'AnalysisName,AnalysisPassed\nroofline,1\narch_diagram,0\n',
+      ),
+    ).toBe(true);
     expect(emulateRooflineAnalysisPassed(undefined)).toBe(false);
   });
 
