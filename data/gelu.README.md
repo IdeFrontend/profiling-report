@@ -4,7 +4,7 @@ Sole committed emulate fixture and playground sample. Real producer pack from np
 
 | Item | Value |
 |------|--------|
-| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~7.8 MiB, **not** Git LFS — intentional demo fixture) |
+| Packed | [`gelu.npu-rep`](gelu.npu-rep) (~7.8 MiB, Git LFS; the Vercel install runs [`scripts/checkout-lfs.sh`](../scripts/checkout-lfs.sh) to pull it) |
 | SHA-256 | `01a84953919380d4d20a04b7a178c6465ae79eb0f51a91837b1a5eace7da509d` |
 | Exported | `2026-09-21T12:05:51.821657+00:00` |
 | Contract DB objects | 124 (101 tables + 23 views), 161314 rows total |
