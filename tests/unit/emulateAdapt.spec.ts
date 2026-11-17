@@ -17,6 +17,8 @@ import {
   memoryUtilToOverviewPercent,
   memoryUtilCounterThreadsFromTrace,
   memoryUtilDisplayValue,
+  unitUtilCounterThreadsFromTrace,
+  unitUtilDisplayValue,
 } from '../../src/adapters/counterTracksEmulate';
 import { buildCannbotPayload } from '../../src/domain/cannbot';
 import {
@@ -290,6 +292,75 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       { t: 10_000, v: 3, abs: 0.04 },
     ]);
     expect(counterProc?.threads[0]?.counter?.colorHex).toBe('#E7434A');
+  });
+
+  it('PR-ASIM-016: unit-util ph:C pipes → swim CounterTracks (#209)', () => {
+    expect(unitUtilDisplayValue(50)).toBe(50);
+    expect(unitUtilDisplayValue(0.5)).toBe(0.5); // already-percent domain; no ×100
+    expect(unitUtilDisplayValue(-1)).toBeNull();
+
+    const trace = {
+      traceEvents: [
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 10,
+          args: { name: 'AIV0_UNIT_UTILIZATION (unit_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 11,
+          args: { name: 'AIV1_UNIT_UTILIZATION (unit_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 1,
+          args: { name: 'AIV0_SCALAR (scalar_instr)' },
+        },
+        {
+          ph: 'C',
+          name: 'unit_utilization',
+          pid: 10,
+          tid: 0,
+          ts: 1.0,
+          args: { 'Utilization (%)': 40 },
+        },
+        {
+          ph: 'C',
+          name: 'unit_utilization',
+          pid: 10,
+          tid: 0,
+          ts: 2.0,
+          args: { 'Utilization (%)': 80 },
+        },
+        // Empty AIV1_UNIT shell — no track.
+        { ph: 'X', name: 'work', pid: 1, tid: 1, ts: 0, dur: 20 },
+      ],
+    };
+
+    const threads = unitUtilCounterThreadsFromTrace(trace);
+    expect(threads).toHaveLength(1);
+    expect(threads[0]!.name).toBe('AIV0_UNIT_UTILIZATION');
+    expect(threads[0]!.counter?.points).toEqual([
+      { t: 1_000, v: 40 },
+      { t: 2_000, v: 80 },
+    ]);
+    expect(threads[0]!.counter?.yMax).toBe(80);
+
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(JSON.stringify(trace)),
+    });
+    const unitProc = adapted.swimlaneModel?.processes.find(
+      (p) => p.id === 'p-counter-unit-util',
+    );
+    expect(unitProc?.name).toBe('Unit utilization');
+    expect(unitProc?.threads.map((t) => t.name)).toEqual(['AIV0_UNIT_UTILIZATION']);
+    expect(adapted.swimlaneModel?.processes.some((p) => p.id === 'p-counter-memory-util')).toBe(
+      false,
+    );
   });
 
   it('PR-ASIM-005: emulate leaves summary empty (no KernelInfo → cards; DATA-47)', () => {

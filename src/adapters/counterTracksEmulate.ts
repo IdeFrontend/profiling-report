@@ -1,6 +1,6 @@
 /**
  * Emulate Trace ph:C util pipes → swim CounterTracks (Chrome CounterTrack-like).
- * #208 memory util; #209/#206 add more pipe matchers later.
+ * #208 memory util; #209 unit util; #206 queue util (later).
  */
 
 import type { SwimCounterPoint, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
@@ -8,6 +8,9 @@ import type { SwimCounterPoint, SwimlaneModel, SwimProcess, SwimThread } from '.
 /** Oleg / #208: optional pipes `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION`. */
 const MEMORY_UTIL_PIPE_RE =
   /^((?:AIC|AIV0|AIV1)_(?:UB|L0A|L0B|L0C|L1)_UTILIZATION)\b/i;
+
+/** #209: `<AIC|AIV0|AIV1>_UNIT_UTILIZATION`. */
+const UNIT_UTIL_PIPE_RE = /^((?:AIC|AIV0|AIV1)_UNIT_UTILIZATION)\b/i;
 
 const US_TO_NS = 1e3;
 
@@ -26,8 +29,8 @@ function readTraceEvents(traceJson: unknown): unknown[] {
 }
 
 /**
- * Map `Utilization (%)` for display. Emulate memory counters often emit 0..1
- * fractions (rms_norm_quant); values already in (1, 100] stay as percent.
+ * Map `Utilization (%)` for memory util display. Emulate memory counters often
+ * emit 0..1 fractions (rms_norm_quant); values already in (1, 100] stay as percent.
  */
 export function memoryUtilDisplayValue(raw: number): number | null {
   if (!Number.isFinite(raw) || raw < 0) return null;
@@ -38,6 +41,12 @@ export function memoryUtilDisplayValue(raw: number): number | null {
 
 /** @deprecated Prefer memoryUtilDisplayValue — kept for call-site renames during #208 retarget. */
 export const memoryUtilToOverviewPercent = memoryUtilDisplayValue;
+
+/** Unit util CT already ships 0..100 under `Utilization (%)` — no fraction scaling. */
+export function unitUtilDisplayValue(raw: number): number | null {
+  if (!Number.isFinite(raw) || raw < 0) return null;
+  return raw;
+}
 
 function collapseSameTsLast(points: CounterPoint[]): CounterPoint[] {
   if (points.length === 0) return points;
@@ -58,16 +67,10 @@ function yMaxForPoints(points: readonly CounterPoint[]): number {
   for (const p of points) {
     if (p.v > max) max = p.v;
   }
-  // Expand slightly so a full-scale sample is not clipped to the top stroke.
   return max > 0 ? max : 1;
 }
 
-/**
- * Build counter leaf threads from populated memory-util pipes in a Chrome Trace.
- * Empty processes (metadata only) are skipped. ts µs → point `t` ns.
- */
-export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThread[] {
-  const events = readTraceEvents(traceJson);
+function processNamesByPid(events: unknown[]): Map<string, string> {
   const processName = new Map<string, string>();
   for (const raw of events) {
     if (!raw || typeof raw !== 'object') continue;
@@ -82,7 +85,19 @@ export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThrea
     if (typeof label !== 'string' || label.length === 0) continue;
     processName.set(String(e.pid ?? 0), label);
   }
+  return processName;
+}
 
+type PipeCounterOpts = {
+  pipeRe: RegExp;
+  /** When set, only accept this `ph:C` name (empty name still accepted). */
+  counterName?: string;
+  readValue: (args: Record<string, unknown> | undefined) => number | null;
+};
+
+function counterThreadsFromPipes(traceJson: unknown, opts: PipeCounterOpts): SwimThread[] {
+  const events = readTraceEvents(traceJson);
+  const processName = processNamesByPid(events);
   const byId = new Map<string, CounterPoint[]>();
   const order: string[] = [];
   for (const raw of events) {
@@ -97,12 +112,17 @@ export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThrea
     if (e.ph !== 'C') continue;
     const pname = processName.get(String(e.pid ?? 0));
     if (!pname) continue;
-    const m = MEMORY_UTIL_PIPE_RE.exec(pname);
+    const m = opts.pipeRe.exec(pname);
     if (!m) continue;
-    if (typeof e.name === 'string' && e.name.length > 0 && e.name !== 'memory_utilization') {
+    if (
+      opts.counterName != null &&
+      typeof e.name === 'string' &&
+      e.name.length > 0 &&
+      e.name !== opts.counterName
+    ) {
       continue;
     }
-    const v = memoryUtilDisplayValue(Number(e.args?.['Utilization (%)']));
+    const v = opts.readValue(e.args);
     if (v == null) continue;
     const ts = Number(e.ts);
     if (!Number.isFinite(ts)) continue;
@@ -137,17 +157,60 @@ export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThrea
   return threads;
 }
 
+function appendCounterProcess(
+  model: SwimlaneModel,
+  id: string,
+  name: string,
+  threads: SwimThread[],
+): SwimlaneModel {
+  if (threads.length === 0) return model;
+  const proc: SwimProcess = { id, name, threads };
+  return { ...model, processes: [...model.processes, proc] };
+}
+
+/**
+ * Build counter leaf threads from populated memory-util pipes in a Chrome Trace.
+ * Empty processes (metadata only) are skipped. ts µs → point `t` ns.
+ */
+export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThread[] {
+  return counterThreadsFromPipes(traceJson, {
+    pipeRe: MEMORY_UTIL_PIPE_RE,
+    counterName: 'memory_utilization',
+    readValue: (args) => memoryUtilDisplayValue(Number(args?.['Utilization (%)'])),
+  });
+}
+
+/** #209 unit util pipes → CounterTrack leaves. */
+export function unitUtilCounterThreadsFromTrace(traceJson: unknown): SwimThread[] {
+  return counterThreadsFromPipes(traceJson, {
+    pipeRe: UNIT_UTIL_PIPE_RE,
+    counterName: 'unit_utilization',
+    readValue: (args) => unitUtilDisplayValue(Number(args?.['Utilization (%)'])),
+  });
+}
+
 /** Append a Memory utilization process with counter leaf lanes (#208). */
 export function mergeMemoryUtilCounterTracks(
   model: SwimlaneModel,
   traceJson: unknown,
 ): SwimlaneModel {
-  const threads = memoryUtilCounterThreadsFromTrace(traceJson);
-  if (threads.length === 0) return model;
-  const proc: SwimProcess = {
-    id: 'p-counter-memory-util',
-    name: 'Memory utilization',
-    threads,
-  };
-  return { ...model, processes: [...model.processes, proc] };
+  return appendCounterProcess(
+    model,
+    'p-counter-memory-util',
+    'Memory utilization',
+    memoryUtilCounterThreadsFromTrace(traceJson),
+  );
+}
+
+/** Append a Unit utilization process with counter leaf lanes (#209). */
+export function mergeUnitUtilCounterTracks(
+  model: SwimlaneModel,
+  traceJson: unknown,
+): SwimlaneModel {
+  return appendCounterProcess(
+    model,
+    'p-counter-unit-util',
+    'Unit utilization',
+    unitUtilCounterThreadsFromTrace(traceJson),
+  );
 }
