@@ -2625,7 +2625,7 @@ describe('ProfilingReport scaffold', () => {
     deferred.unmount();
   });
 
-  it('PR-ROOT-031: cannbotSessions reaches the aside; stop / reference / view / optimize / open-cannwork forward to the host', async () => {
+  it('PR-ROOT-031: session actions, optimize and open-cannwork forward to the host with reference and view hidden', async () => {
     const reportModel = {
       summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
       pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const }],
@@ -2647,13 +2647,10 @@ describe('ProfilingReport scaffold', () => {
     });
 
     // sessions prop flows through to the aside's per-scope button state.
-    expect(wrapper.find('[data-testid="cannbot-summary-reference"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="cannbot-compute-reference"]').exists()).toBe(true);
-
-    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
-    expect(wrapper.emitted('cannbot-reference')).toEqual([['summary']]);
-    await wrapper.get('[data-testid="cannbot-summary-view"]').trigger('click');
-    expect(wrapper.emitted('cannbot-view')).toEqual([['summary']]);
+    expect(wrapper.find('[data-testid="cannbot-summary-reference"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="cannbot-summary-view"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
+    expect(wrapper.emitted('cannbot-request')?.[0]?.[0]).toMatchObject({ scope: 'summary' });
     await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
     expect(wrapper.emitted('open-cannbot-stop')).toEqual([['compute']]);
     await wrapper.get('[data-testid="perform-optimization-trigger"]').trigger('click');
@@ -2664,7 +2661,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-032: each new cannbot action has its own 1s cooldown — first click fires, repeats inside the window are swallowed', async () => {
+  it('PR-ROOT-032: stop, optimize and open-cannwork each have an independent 1s cooldown', async () => {
     vi.useFakeTimers();
     const reportModel = {
       summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
@@ -2679,7 +2676,7 @@ describe('ProfilingReport scaffold', () => {
         title: 'cannwork',
         swimlaneModel: { processes: [], minTime: 0, maxTime: 1000 },
         reportModel: markRaw(reportModel),
-        cannbotSessions: { summary: { sessionId: 's-1', status: 'completed' } },
+        cannbotSessions: { compute: { sessionId: 'c-1', status: 'running' } },
       },
     });
 
@@ -2694,10 +2691,10 @@ describe('ProfilingReport scaffold', () => {
     // different action's first click.
     await wrapper.get('[data-testid="open-cannwork-trigger"]').trigger('click');
     expect(wrapper.emitted('open-cannwork')).toHaveLength(1);
-    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
-    expect(wrapper.emitted('cannbot-reference')).toEqual([['summary']]);
-    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
-    expect(wrapper.emitted('cannbot-reference')).toHaveLength(1);
+    await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
+    expect(wrapper.emitted('open-cannbot-stop')).toEqual([['compute']]);
+    await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
+    expect(wrapper.emitted('open-cannbot-stop')).toHaveLength(1);
 
     vi.advanceTimersByTime(1000);
     await wrapper.get('[data-testid="open-cannwork-trigger"]').trigger('click');

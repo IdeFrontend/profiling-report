@@ -2520,10 +2520,7 @@ describe('StatsAside', () => {
     expect(titleBtn.find('.pr-stack-section__title').exists()).toBe(true);
     expect(titleBtn.find('svg').exists()).toBe(true);
     const actions = head.get('.pr-pipe-head__actions');
-    expect(actions.findAll('button').map((b) => b.attributes('data-testid'))).toEqual([
-      'cannbot-memory',
-      'cannbot-memory-reference',
-    ]);
+    expect(actions.findAll('button').map((b) => b.attributes('data-testid'))).toEqual(['cannbot-memory']);
     // The bar's 全屏 is the aside's only fullscreen control (MemoryTopologyPanel PR-MEMTOP-014);
     // it sits inside the panel, after the zoom controls, and only when the aside asks for it.
     const bar = withTopo.get('[data-testid="topology-controls"]');
@@ -2914,7 +2911,7 @@ describe('StatsAside', () => {
     expect(rooflineActions.parentElement!.classList.contains('pr-pipe-head__actions')).toBe(true);
     const rooflineSection = wrapper.get('[data-testid="stats-roofline"]');
     expect(rooflineSection.element.contains(rooflineActions)).toBe(true);
-    expect(wrapper.find('[data-testid="cannbot-roofline-reference"]').exists()).toBe(true);
+    expect(rooflineActions.querySelectorAll('button')).toHaveLength(1);
 
     const empty = mount(StatsAside, { props: { report: report({}) } });
     expect(empty.find('[data-testid="cannbot-summary"]').exists()).toBe(true);
@@ -2969,31 +2966,29 @@ describe('StatsAside', () => {
     expect(csvOnly.emitted('open-cannbot')).toEqual([['compute'], ['memory']]);
   });
 
-  it('PR-STATS-044d: cannbotSessions drives each scope independently — settled shows 引用/查看, running shows 停止+引用, untouched scopes stay idle with 引用常驻', () => {
+  it('PR-STATS-044d: each scope shows analysis or stop without reference and view', () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: cannbotEntryReport(),
+        capabilities: ['roofline'],
         cannbotSessions: {
           summary: { sessionId: 's-1', status: 'completed' },
           compute: { sessionId: 'c-1', status: 'running' },
+          roofline: { sessionId: 'r-1', status: 'completed' },
         },
       },
     });
 
-    // settled: three buttons.
-    expect(wrapper.find('[data-testid="cannbot-summary-reference"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="cannbot-summary-view"]').exists()).toBe(true);
-    // running: stop button with the 正在分析 label + 常驻 引用, no 查看.
+    expect(wrapper.findAll('.pr-cannbot-actions button').map((button) => button.attributes('data-testid')).sort())
+      .toEqual(['cannbot-compute', 'cannbot-memory', 'cannbot-roofline', 'cannbot-summary']);
     const stopBtn = wrapper.get('[data-testid="cannbot-compute"]');
     expect(stopBtn.text()).toContain(t('cannbotAnalyzing'));
-    expect(wrapper.find('[data-testid="cannbot-compute-reference"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="cannbot-compute-view"]').exists()).toBe(false);
-    // no session record: idle 分析 button + 常驻 引用.
-    expect(wrapper.find('[data-testid="cannbot-memory-reference"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="cannbot-summary"]').attributes('aria-label')).toBe(t('cannbotAsk'));
     expect(wrapper.get('[data-testid="cannbot-memory"]').attributes('aria-label')).toBe(t('cannbotAsk'));
+    expect(wrapper.get('[data-testid="cannbot-roofline"]').attributes('aria-label')).toBe(t('cannbotAsk'));
   });
 
-  it('PR-STATS-044d: settled scope emits cannbot-reference / cannbot-view; running scope emits open-cannbot-stop', async () => {
+  it('PR-STATS-044d: settled scopes can restart analysis and running scopes can stop', async () => {
     const wrapper = mount(StatsAside, {
       props: {
         report: cannbotEntryReport(),
@@ -3003,15 +2998,13 @@ describe('StatsAside', () => {
         },
       },
     });
-
-    await wrapper.get('[data-testid="cannbot-summary-reference"]').trigger('click');
-    await wrapper.get('[data-testid="cannbot-summary-view"]').trigger('click');
-    expect(wrapper.emitted('cannbot-reference')).toEqual([['summary']]);
-    expect(wrapper.emitted('cannbot-view')).toEqual([['summary']]);
 
     await wrapper.get('[data-testid="cannbot-compute"]').trigger('click');
     expect(wrapper.emitted('open-cannbot-stop')).toEqual([['compute']]);
     expect(wrapper.emitted('open-cannbot')).toBeUndefined();
+
+    await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
+    expect(wrapper.emitted('open-cannbot')).toEqual([['summary']]);
   });
 
   it('PR-STATS-045: 执行优化 pill sits in the title row left of close, icon + label, and emits perform-optimization', async () => {
@@ -3207,7 +3200,7 @@ describe('StatsAside', () => {
         .findAll('[data-testid^="cannbot-"]')
         .map((w) => w.attributes('data-testid')!);
 
-    // Both sections present: two independent groups, each with the always-on 引用 button.
+    // Both sections present: each renders its own analysis button.
     expect(
       anchors(
         report({
@@ -3220,12 +3213,7 @@ describe('StatsAside', () => {
           memoryTopology: topologyFromArchDiagramMetrics(archCsv),
         }),
       ),
-    ).toEqual([
-      'cannbot-compute',
-      'cannbot-compute-reference',
-      'cannbot-memory',
-      'cannbot-memory-reference',
-    ]);
+    ).toEqual(['cannbot-compute', 'cannbot-memory']);
 
     // Compute-only emulate pack: the compute group still rides in the PIPE head.
     expect(
@@ -3238,12 +3226,12 @@ describe('StatsAside', () => {
           computeTables: [computeTable],
         }),
       ),
-    ).toEqual(['cannbot-compute', 'cannbot-compute-reference']);
+    ).toEqual(['cannbot-compute']);
 
     // CSV-only emulate pack (no PIPE / topology): the memory list keeps its group.
     expect(
       anchors(report({ profile: 'emulate', memoryTables: [memoryTable] })),
-    ).toEqual(['cannbot-memory', 'cannbot-memory-reference']);
+    ).toEqual(['cannbot-memory']);
 
     // DATA-47: emulate drives no summary chrome, so there is no summary anchor to host one.
     expect(

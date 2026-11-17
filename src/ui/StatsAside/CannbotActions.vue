@@ -10,13 +10,9 @@ import CannworkReportIcon from '../CannworkReportIcon.vue';
 /**
  * One scope's CANNWork action buttons, driven purely by the host-pushed session
  * state (scope state machine, design doc §7.2):
- * - idle    — no session yet (or host never pushed sessions): 分析 | 引用.
- * - running — session status `running`: 正在分析 | 引用, stop click emits stop.
- * - settled — session finished (completed / stopped / error / unknown): 分析 | 引用 | 查看.
- *
- * 引用 is always visible (right of the analyse / analysing button): it opens the
- * add-reference flow in the host; the CANNWork add-reference api is not ready
- * yet, so the host currently logs a placeholder.
+ * - idle    — no session yet (or host never pushed sessions): 分析.
+ * - running — session status `running`: 正在分析, stop click emits stop.
+ * - settled — session finished (completed / stopped / error / unknown): 分析.
  *
  * `data-testid="cannbot-{scope}"` always lands on the button existing tests click
  * (the idle 分析 button, the running stop button, or the settled 分析 button);
@@ -39,6 +35,9 @@ const emit = defineEmits<{
 const session = computed(() => props.sessions?.[props.scope]);
 const isRunning = computed(() => session.value?.status === 'running');
 const isSettled = computed(() => !!session.value && session.value.status !== 'running');
+
+// 屏蔽原因：1130cannwork业务无法提供对应api，需要1209再开放联调
+const showReferenceAndView = false;
 </script>
 
 <template>
@@ -70,6 +69,7 @@ const isSettled = computed(() => !!session.value && session.value.status !== 'ru
       <CannworkAnalyseIcon />
     </button>
     <button
+      v-if="showReferenceAndView"
       type="button"
       class="pr-cannbot-actions__btn"
       :data-testid="`cannbot-${scope}-reference`"
@@ -80,7 +80,7 @@ const isSettled = computed(() => !!session.value && session.value.status !== 'ru
       <CannworkReferenceIcon />
     </button>
     <button
-      v-if="isSettled"
+      v-if="showReferenceAndView && isSettled"
       type="button"
       class="pr-cannbot-actions__btn"
       :data-testid="`cannbot-${scope}-view`"
@@ -119,13 +119,13 @@ const isSettled = computed(() => !!session.value && session.value.status !== 'ru
   opacity: 1;
 }
 
-/* 引用常驻：任意状态都有 ≥2 个按钮，相邻按钮间发丝分隔，整行读作一个 pill。 */
+/* Join adjacent buttons when the reference and view actions are enabled. */
 .pr-cannbot-actions__btn + .pr-cannbot-actions__btn {
   border-left: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 0 0 0 0;
 }
 
-.pr-cannbot-actions__btn:last-child {
+.pr-cannbot-actions__btn + .pr-cannbot-actions__btn:last-child {
   border-radius: 0 4px 4px 0;
 }
 

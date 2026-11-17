@@ -39,11 +39,11 @@ type CannbotSessions = Partial<Record<CannbotScope, { sessionId: string; status:
 
 **Three-state derivation (the scope state machine).** For each scope the UI derives exactly one button state from `sessions[scope]`:
 
-- no key (never started, or the host never pushed sessions — browser / playground / exported HTML) → **idle**: 分析 | 引用;
-- `status === 'running'` → **running**: 正在分析 (stop) | 引用 — clicking 正在分析 asks the host to stop the session;
-- a key with any **non-`running`** status (`completed` / `stopped` / `error` / **`unknown`**) → **settled**: 分析 | 引用 | 查看.
+- no key (never started, or the host never pushed sessions) → **idle**, which shows 分析.
+- `status === 'running'` → **running**, which shows 正在分析. Clicking it asks the host to stop the session.
+- a key with any **non-`running`** status (`completed` / `stopped` / `error` / **`unknown`**) → **settled**, which shows 分析.
 
-引用 is **always on** in every state (idle / running / settled): it is the one button that never disappears, so the row always reads as one pill and the user can attach a reference before or during an analysis. The CANNWork add-reference api is not available yet, so the host's handler is a placeholder.
+The stats aside hides 引用 and 查看 for 1130 pending CANNWork API integration in 1209.
 
 `unknown` counts as settled on purpose: an unreadable status still proves a session existed, and a settled row stays clickable. States are **per-scope independent** — one scope running never changes another scope's buttons. The component layer renders this contract in [`CannbotActions`](../../src/ui/StatsAside/CannbotActions.vue) (see [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md) PR-STATS-044); this spec owns the derivation rule itself.
 
@@ -61,8 +61,8 @@ type CannbotSessions = Partial<Record<CannbotScope, { sessionId: string; status:
 | report null / undefined | `op_name` `''`; `data` is `{}` |
 | csvTexts has no file matching the scope's tables | `csvTexts` key omitted |
 | Optional section absent | That key omitted; always-present keys stay |
-| `sessions` missing / scope key missing | That scope idle (分析 \| 引用) |
-| `status: 'unknown'` | Settled (引用 / 查看 render) |
+| `sessions` missing / scope key missing | That scope is idle and shows 分析 |
+| `status: 'unknown'` | That scope is settled and shows 分析 |
 
 ## Dependencies
 
