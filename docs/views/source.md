@@ -84,7 +84,7 @@ SourceLineMetrics ──(FileId, LineNum)──► source file metric rows
 
 **Address space:** launch-relative report PCs only (do not convert via `object_entry_pc` for UI joins).
 
-**Deferred:** `SIMDStallsJson` tooltip, `IPCAsmMetrics`, richer metrics, function/BB decorations, call stacks, tick→ns, host full-file packing.
+**Deferred (interim):** [`DATA-53a`](../context/decisions/interim/DATA.md#data-53a) stalls tooltip; [`DATA-53b`](../context/decisions/interim/DATA.md#data-53b) `IPCAsmMetrics`; [`DATA-53c`](../context/decisions/interim/DATA.md#data-53c) richer metrics / function-BB / call stacks / charts; [`DATA-53d`](../context/decisions/interim/DATA.md#data-53d) full-file host resolver; [`DATA-53e`](../context/decisions/interim/DATA.md#data-53e) tick→ns; [`UI-53a`](../context/decisions/interim/UI.md#ui-53a) SASS chrome label.
 
 **Switch:** `adaptSourceCorrelation` → `adaptEmulateSourceCorrelation` when `hasEmulateSourcePack` (after compute-pack check).
 
@@ -108,7 +108,7 @@ SourceLineMetrics ──(FileId, LineNum)──► source file metric rows
 
 ## Open
 
-DATA-52 (pack `.asc` rule / single JSON), DATA-54 (`Line: 0`), DATA-55 (extra compute metric columns), UI-56–59 (chrome modes / dock / heat tint).
+DATA-52 (pack `.asc` rule / single JSON), DATA-54 (`Line: 0`), DATA-55 (extra compute metric columns), UI-56–59 (chrome modes / dock / heat tint). Emulate Source follow-ons ride interim [DATA-53a](../context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../context/decisions/interim/DATA.md#data-53e) / [UI-53a](../context/decisions/interim/UI.md#ui-53a).
 
 ## Specs / code
 

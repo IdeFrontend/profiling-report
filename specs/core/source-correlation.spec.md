@@ -44,7 +44,8 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 - MVP metrics from `AsmMetrics` / `SourceLineMetrics`: ExecutionCount, TickCount, RelTime, WarpOccupancy, VectorUtilization (producer 0–100 stored as 0–1 for percent display). NULL → unavailable; numeric 0 stays 0.
 - Maps from `SourceInstructions` ⟕ `DebugInfo` ⟕ `SourceFiles` ⟕ `SourceLines`; `LineNum > 0` only. Unmapped clears correlation.
 - `SourceFiles` / `SourceLines` optional — assembly-only (`files: []`) or missing-embed placeholder (shared UX with compute).
-- Do **not** light from `IPCAsmMetrics` or hint CSVs alone.
+- Do **not** light from `IPCAsmMetrics` or hint CSVs alone ([DATA-53b](../../docs/context/decisions/interim/DATA.md#data-53b)).
+- Deferred emulate slices: stalls ([DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)), richer metrics / BB / stacks ([DATA-53c](../../docs/context/decisions/interim/DATA.md#data-53c)), full-file resolve ([DATA-53d](../../docs/context/decisions/interim/DATA.md#data-53d)), tick→ns ([DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e)), SASS label ([UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a)).
 
 **Real path — single JSON.** `SourceCorrelation.json` (and aliases) remain reserved; schema is still Product-TBD, so those embeds currently return `null` ([DATA-52](../../docs/context/questions/DATA.md)).
 

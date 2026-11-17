@@ -64,6 +64,8 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a); a dedicated `ArchDiagramModel` / biprof chrome rides this question.
 
+Emulate Source follow-ons (stalls / IPC / richer metrics / tick→ns / SASS label): interim [DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e), [UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a).
+
 ## Changelog
 - **2026-11-17** — Emulate Source | SASS via ELF CSVs (DATA-53): PR-ASIM-013 / PR-ASIM-014.
 - **2026-11-02** — Heat SSOT is Layout+Cells (DATA-50/51); no UbRw fallback.
