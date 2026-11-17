@@ -18,6 +18,8 @@ Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws per-series theoretical ro
 
 Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 
+Emulate packs may pass many dtype×bandwidth series ([DATA-57a](../../../../docs/context/decisions/interim/DATA.md#data-57a)), including `aic-tf32-hf32` and dashed secondary bandwidth roofs; legend scrolls horizontally when dense.
+
 ## Acceptance Criteria
 
 1. **PR-ROOF-001** — Renders chart with at least one measured point, a roof path, and a **filled rounded-square** knee per series. Sketch rule (`report-stats-duration-source`): **circles** for measured points off the roofs; **filled rounded squares** (`8×8`, `rx=2`, legend-matched, series-color fill) for ridge knees on the lines. Hollow measured points fill `#262626`.

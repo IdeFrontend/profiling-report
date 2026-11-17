@@ -90,3 +90,15 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 **Answer so far:** Spec lists stall reasons matching `summary.db` (`IBuf empty`, `Nop cycles`, `Scoreboard not ready`, … — § / PC Sampling). Warp occupancy via hibit SIMT API (doc §11.7). gather_2d pack today only ships stall counters in `summary.db`. Interim: `samplingStall` = sum of those columns (+ tooltip breakdown); other columns stay `0` / omitted until embeds exist.
 
 **Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [compute/FORMAT](../../formats/compute/FORMAT.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md).
+
+### DATA-57 — Emulate Roofline* → RooflinePanel
+
+**Status:** `interim`
+
+**Interim:** [`DATA-57a`](../decisions/interim/DATA.md#data-57a).
+
+**Question:** How should the viewer map npu-simulator Roofline embeds (`RooflineMetadata` / `RooflinePoints` / `RooflineComputePeaks` / `RooflineBandwidthPeaks`, optional `roofline.json`) into `reportModel.roofline` — axis units (GOP/s vs TOps/s), which dtype×bandwidth roofs to draw, AIC `tf32_hf32` legend id, point coloring, and CSV vs JSON precedence?
+
+**Answer so far (2026-11-17):** Prefer packed `Roofline*.csv` gated by `AnalysisState` `roofline` passed; convert Y/peaks GOPS → TOps/s (`/1000`); draw the producer HTML all-on roof set (per-unit compute×bandwidth cross-product); new series id `aic-tf32-hf32`; point color by execution-mode heuristic; `roofline.json` fallback only. See DATA-57a.
+
+**Specs when answered:** [roofline](../../views/roofline.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [view-models](../../../specs/core/view-models.spec.md), [RooflinePanel.spec.md](../../../src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md).

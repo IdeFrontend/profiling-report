@@ -77,6 +77,10 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 - [`RegionNames`](#regionnames)
 - [`Regions`](#regions)
 - [`RegisterUsageStalls`](#registerusagestalls)
+- [`RooflineBandwidthPeaks`](#rooflinebandwidthpeaks)
+- [`RooflineComputePeaks`](#rooflinecomputepeaks)
+- [`RooflineMetadata`](#rooflinemetadata)
+- [`RooflinePoints`](#rooflinepoints)
 - [`SIMDSamplingStats`](#simdsamplingstats)
 - [`SIMDStallReasonTypes`](#simdstallreasontypes)
 - [`SIMDStallsByAddr`](#simdstallsbyaddr)
@@ -1023,6 +1027,46 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 |--------|------|-------------|
 | `RegionNameId` | `INTEGER` | Identifier for `RegionName`. *inferred* |
 | `RegionName` | `VARCHAR(20)` | Human-readable name / label. *inferred* |
+
+### `RooflineBandwidthPeaks` {#rooflinebandwidthpeaks}
+
+| | |
+|--|--|
+| Kind | table |
+| CSV file | `RooflineBandwidthPeaks.csv` |
+| Role | Full-chip bandwidth ceilings per `(Unit, MemoryLevel)` for emulate Roofline ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). |
+
+See [RooflineBandwidthPeaks.csv.md](RooflineBandwidthPeaks.csv.md).
+
+### `RooflineComputePeaks` {#rooflinecomputepeaks}
+
+| | |
+|--|--|
+| Kind | table |
+| CSV file | `RooflineComputePeaks.csv` |
+| Role | Full-chip compute ceilings per `(Unit, DataType)` for emulate Roofline ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). |
+
+See [RooflineComputePeaks.csv.md](RooflineComputePeaks.csv.md).
+
+### `RooflineMetadata` {#rooflinemetadata}
+
+| | |
+|--|--|
+| Kind | table |
+| CSV file | `RooflineMetadata.csv` |
+| Role | One-row Roofline snapshot metadata (architecture, frequencies, active cores). |
+
+See [RooflineMetadata.csv.md](RooflineMetadata.csv.md).
+
+### `RooflinePoints` {#rooflinepoints}
+
+| | |
+|--|--|
+| Kind | table |
+| CSV file | `RooflinePoints.csv` |
+| Role | Measured function/mode/memory-level Roofline points ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). |
+
+See [RooflinePoints.csv.md](RooflinePoints.csv.md).
 
 ### `Regions` {#regions}
 

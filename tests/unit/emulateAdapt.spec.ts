@@ -555,6 +555,104 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(kernel.sourceLineId).toBeUndefined();
     expect(kernel.typeName).toBe('shared_bank_conflicts');
   });
+
+  it('PR-ASIM-013: Roofline*.csv → roofline + capability; AnalysisState gate; JSON fallback (DATA-57a)', () => {
+    const analysisOk = 'AnalysisName,AnalysisPassed\nroofline,1\n';
+    const analysisFail = 'AnalysisName,AnalysisPassed\nroofline,0\n';
+    const points = [
+      'FunctionPC,FunctionSize,FunctionName,ExecutionMode,Unit,MemoryLevel,ExecutionCount,DurationTicks,FpOperations,IntegerOperations,TotalOperations,ProcessedBytes,ArithmeticIntensity,ThroughputGBs,PerformanceGFlops',
+      '6344,504,OnlineSoftmax.vector.thread,SIMD,AIV,SIMD-UB,2,1844,82944,0,82944,132096,0.627906976744186,110.0811161860468,69.12070086100613',
+      '0,2604,flash_attn_lite,CUBE,AIC,CUBE-L0,1,6968,8388608,0,8388608,229376,36.57142857142857,50.58525076689868,1849.9748851894374',
+    ].join('\n');
+    const compute = [
+      'Unit,DataType,PeakGFlops',
+      'AIV,fp16,54000.0',
+      'AIV,bf16,27000.0',
+      'AIV,fp32,13500.0',
+      'AIC,fp16_bf16,432000.0',
+      'AIC,tf32_hf32,216000.0',
+      'AIC,fp32,26000.0',
+      'AIC,int8_fp8,864000.0',
+    ].join('\n');
+    const bandwidth = [
+      'Unit,MemoryLevel,PeakGBs',
+      'AIV,SIMD-UB,50353.92',
+      'AIV,SIMT-UB,12588.8',
+      'AIV,SIMT-OUT,1638.4',
+      'AIC,CUBE-L0,50353.92',
+      'AIC,CUBE-OUT,1638.4',
+    ].join('\n');
+
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(minimalTraceUs()),
+      'AnalysisState.csv': enc.encode(analysisOk),
+      'RooflinePoints.csv': enc.encode(points),
+      'RooflineComputePeaks.csv': enc.encode(compute),
+      'RooflineBandwidthPeaks.csv': enc.encode(bandwidth),
+    });
+    expect(adapted.capabilities).toContain('roofline');
+    const roof = adapted.reportModel.roofline!;
+    expect(roof.points).toHaveLength(2);
+    const simd = roof.points.find((p) => p.id.includes('SIMD-UB'))!;
+    expect(simd.intensity).toBeCloseTo(0.627906976744186, 10);
+    expect(simd.performance).toBeCloseTo(69.12070086100613 / 1000, 12);
+    expect(simd.seriesId).toBe('aiv-fp16');
+    const cube = roof.points.find((p) => p.id.includes('CUBE-L0'))!;
+    expect(cube.performance).toBeCloseTo(1849.9748851894374 / 1000, 12);
+    expect(cube.seriesId).toBe('aic-int16-fp16');
+    // 3 AIV dtypes × 3 bw + 4 AIC × 2 bw = 17
+    expect(roof.series).toHaveLength(17);
+    expect(roof.series.some((s) => s.id.startsWith('aic-tf32-hf32'))).toBe(true);
+    const aivFp16Simd = roof.series.find((s) => s.id === 'aiv-fp16-simd')!;
+    expect(aivFp16Simd.peakComputeTops).toBeCloseTo(54, 10);
+    expect(aivFp16Simd.slopeStyle).toBe('solid');
+    const aivFp16Simt = roof.series.find((s) => s.id === 'aiv-fp16-simt')!;
+    expect(aivFp16Simt.slopeStyle).toBe('dashed');
+
+    const failed = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'AnalysisState.csv': enc.encode(analysisFail),
+      'RooflinePoints.csv': enc.encode(points),
+      'RooflineComputePeaks.csv': enc.encode(compute),
+      'RooflineBandwidthPeaks.csv': enc.encode(bandwidth),
+    });
+    expect(failed.reportModel.roofline).toBeUndefined();
+    expect(failed.capabilities).not.toContain('roofline');
+
+    const jsonOnly = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'roofline.json': enc.encode(
+        JSON.stringify({
+          architecture: {
+            AIV: {
+              vector_fp16: {
+                peakFlops: 54000,
+                peakBandwidthSIMD: 50353.92,
+                peakBandwidthSIMT: 12588.8,
+                peakBandwidthSIMT_OUT: 1638.4,
+              },
+            },
+            AIC: {},
+          },
+          kernels: {
+            'gather - SIMT': {
+              pc: 584,
+              unit: 'AIV',
+              label: 'SIMT',
+              arithmetic_intensity: 1.375,
+              performance: 0.6171273831564973,
+            },
+          },
+        }),
+      ),
+    });
+    expect(jsonOnly.capabilities).toContain('roofline');
+    expect(jsonOnly.reportModel.roofline!.points[0]!.performance).toBeCloseTo(
+      0.6171273831564973 / 1000,
+      12,
+    );
+  });
 });
 
 describe('npu-rep / loadReportSource profile routing', () => {

@@ -291,3 +291,19 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 
 **Status:** ~~`interim`~~ **superseded** by [DATA-51](../DATA.md) (2026-11-02).
 **Question:** [DATA-51](../DATA.md) (resolved)
+
+<a id="data-57a"></a>
+
+### DATA-57a — Emulate Roofline* → RooflinePanel
+
+**Status:** `interim` — engineering stamp pending Product
+**Question:** [DATA-57](../../questions/DATA.md)
+**Interim:**
+1. **CSV SSOT.** Prefer `RooflinePoints.csv` + `RooflineComputePeaks.csv` + `RooflineBandwidthPeaks.csv` (+ optional `RooflineMetadata.csv`). Gate on latest `AnalysisState` row `AnalysisName = roofline` with `AnalysisPassed = 1`. Missing/failed analysis → omit (DATA-30). `roofline.json` is fallback only when the four CSVs are absent; when both exist, CSVs win.
+2. **Units.** Producer `PerformanceGFlops` / `PeakGFlops` are BiProf GOPS (debug HTML GOP/s). Convert to panel TOps/s via `/1000`. Intensity stays Ops/Byte. Bandwidth `PeakGBs` (GiB/s) feeds the existing roof `min(p_peak, b_peak × I / 1000)`.
+3. **Roofs match HTML.** Within each `Unit`, cross-product every compute peak × every bandwidth peak for that unit (David V100 ≈ 3×3 AIV + 4×2 AIC). Memory-level order / debug labels: `SIMD-UB`→SIMD, `SIMT-UB`→SIMT, `CUBE-L0`→L0, `SIMT-OUT`→SIMT-OUT, `CUBE-OUT`→CUBE-OUT. Primary catalog bw (`SIMD-UB`) solid; others dashed (HTML `Md` index). Do **not** scale by active core counts. HTML dtype sidebar toggles are **out** of v1 (start all-on).
+4. **Series ids.** Map dtypes onto the compute legend family; bandwidth variants get id suffixes (`aiv-fp16-simd`, …). AIC `tf32_hf32` → new **`aic-tf32-hf32`** (+ bw suffix). Same dtype shares color; legend label includes bw when multiple roofs share a dtype.
+5. **Points.** Emit all `RooflinePoints` rows. Color/`seriesId` by execution-mode heuristic: SIMD→`aiv-fp16`, SIMT→`aiv-bp16`, CUBE→`aic-int16-fp16` (display only — not a dtype claim). Label `{shortFunctionName} - {debugLabel}`.
+6. **Capability.** `adaptEmulate` sets `reportModel.roofline` and pushes `'roofline'` when points exist. Do not re-derive from ExecutedInstructions / VectorUtilizations (DATA-45).
+**Implement / test as:** `rooflineFromEmulatePayloads` in [`rooflineEmulate.ts`](../../../../src/adapters/rooflineEmulate.ts); PR-ASIM-013; [roofline](../../../views/roofline.md)
+**Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)

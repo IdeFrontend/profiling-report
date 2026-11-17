@@ -26,6 +26,7 @@ import {
 } from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
 import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
+import { rooflineFromEmulatePayloads } from './rooflineEmulate';
 import { buildTimelineTraceBundle } from './timelineTraces';
 
 export {
@@ -56,6 +57,15 @@ const HINT_TYPES_NAMES = ['HintTypes.csv', 'hinttypes.csv'];
 const INSTRUCTION_HINTS_NAMES = ['InstructionHints.csv', 'instructionhints.csv'];
 const KERNEL_HINTS_NAMES = ['KernelHints.csv', 'kernelhints.csv'];
 const SOURCE_LINE_HINTS_NAMES = ['SourceLineHints.csv', 'sourcelinehints.csv'];
+const ANALYSIS_STATE_NAMES = ['AnalysisState.csv', 'analysisstate.csv'];
+const ROOFLINE_POINTS_NAMES = ['RooflinePoints.csv', 'rooflinepoints.csv'];
+const ROOFLINE_COMPUTE_PEAKS_NAMES = ['RooflineComputePeaks.csv', 'rooflinecomputepeaks.csv'];
+const ROOFLINE_BANDWIDTH_PEAKS_NAMES = [
+  'RooflineBandwidthPeaks.csv',
+  'rooflinebandwidthpeaks.csv',
+];
+const ROOFLINE_METADATA_NAMES = ['RooflineMetadata.csv', 'rooflinemetadata.csv'];
+const ROOFLINE_JSON_NAMES = ['roofline.json', 'Roofline.json'];
 
 /** Hub object names that identify an npu_emulate CSV export catalog. */
 const EXPORT_CATALOG_HUBS = new Set(['ExecutedInstructions', 'KernelInfo', 'AnalysisState']);
@@ -382,6 +392,12 @@ export function adaptEmulate(
     ...PIPE_HIST_NAMES,
     ...KERNEL_INFO_NAMES,
     ...ARCH_DIAGRAM_NAMES,
+    ...ANALYSIS_STATE_NAMES,
+    ...ROOFLINE_POINTS_NAMES,
+    ...ROOFLINE_COMPUTE_PEAKS_NAMES,
+    ...ROOFLINE_BANDWIDTH_PEAKS_NAMES,
+    ...ROOFLINE_METADATA_NAMES,
+    ...ROOFLINE_JSON_NAMES,
   ]) {
     const p = payloadByName(payloads, [name]);
     if (p) csvTexts[name] = decodeUtf8(p);
@@ -406,6 +422,9 @@ export function adaptEmulate(
 
   const sourceCorrelation = adaptSourceCorrelation(payloads);
 
+  // DATA-57a: Roofline*.csv (AnalysisState-gated) → shared RooflinePanel VM.
+  const roofline = rooflineFromEmulatePayloads(payloads);
+
   const reportModel: ReportViewModel = {
     ...emptyReportViewModel(),
     profile: 'emulate',
@@ -418,6 +437,7 @@ export function adaptEmulate(
     ...(memoryTopology ? { memoryTopology } : {}),
     ...(memoryHeatmap ? { memoryHeatmap } : {}),
     ...(performanceHints.length > 0 ? { performanceHints } : {}),
+    ...(roofline ? { roofline } : {}),
   };
 
   const capabilities: ReportCapability[] = [];
@@ -425,6 +445,7 @@ export function adaptEmulate(
   if (memoryTopology) capabilities.push('archDiagram');
   if (memoryHeatmap) capabilities.push('memoryHeatmap');
   if (performanceHints.length > 0) capabilities.push('performanceHints');
+  if (roofline && roofline.points.length > 0) capabilities.push('roofline');
   // UI-37: 源码 only when a real Source pack adapted (no mock fallback).
   if (reportModel.sourceCorrelation) capabilities.push('sourceTab');
 
