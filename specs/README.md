@@ -22,6 +22,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [view-models](./core/view-models.spec.md) | `PR-VM-*` | MVP | `src/adapters/adaptRep.ts` | `tests/unit/viewModels.spec.ts` |
 | [timeline-traces](./core/timeline-traces.spec.md) | `PR-TLTRACE-*` | M | `src/adapters/timelineTraces.ts` | `tests/unit/timelineTraces.spec.ts` |
 | [source-correlation](./core/source-correlation.spec.md) | `PR-SRC-*` | M | `src/adapters/sourceCorrelation/` | `tests/unit/sourceCorrelation.spec.ts` |
+| [source-provenance](./core/source-provenance.spec.md) | `PR-FRESH-*` | M | host lookup + `objdump.txt` compare ([DATA-57](../docs/context/decisions/DATA.md#data-57)) | (slice pending) |
 | [swimlane-model](./core/swimlane-model.spec.md) | `PR-SWIM-*` | MVP | `src/domain/types.ts` | `tests/unit/swimlaneModel.spec.ts` |
 | [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/domain/formatTime.ts` | `tests/unit/formatTime.spec.ts` |
 | [view-state](./core/view-state.spec.md) | `PR-VIEW-*` | MVP | `src/domain/viewState.ts` | `tests/unit/viewState.spec.ts` |

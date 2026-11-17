@@ -477,3 +477,12 @@ Format and statuses: [README.md](README.md).
 - **Specs:** [roofline](../../views/roofline.md)
 - **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-17.png`.
 
+---
+
+## DATA-57
+
+- **Resolved:** 2026-11-17
+- **Question:** Should product `.npu-rep` leaves carry per-source-file content identity (e.g. `sources.json` digests / embedded sources) so hosts can detect workspace drift?
+- **Decision:** **No** new fingerprint embed. Neither **npu-compute** nor **emulate** can provide full source files or SHA for this purpose. Freshness **MUST** compare interleaved source text in [`objdump.txt`](../../formats/compute/objdump.txt.md) against **matched local file** content; on mismatch the Source UI **MUST** show a warning (tab stays available). Workspace file lookup **MUST** reuse Kirill Aleshin’s implementation / existing `resolveSourceFile` path — **MUST NOT** duplicate a parallel resolver. Optional pack `.asc`/`.cpp`/`.h` embeds remain for left-pane fill only ([DATA-52](../questions/DATA.md)), not as a SHA catalog.
+- **Specs:** [SOURCE_PROVENANCE](../../formats/SOURCE_PROVENANCE.md), [source](../../views/source.md), [objdump.txt](../../formats/compute/objdump.txt.md), [source-provenance](../../../specs/core/source-provenance.spec.md), [MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md) § `resolveSourceFile`
+- **Source:** Product (chat, 2026-11-17). Withdraws the interim `sources.json` fingerprint draft (never product-final).

@@ -29,8 +29,9 @@ _Z16gather_2d_customIfjEvPT_PT0_S1_jj():
       44:				02004880	MOV		X0, PARA_BASE
 ```
 
-Reader keeps rows with a PC + mnemonic (e.g. `0` / `4` / `44` above); file headers and bare source-path annotations are skipped.
+Reader keeps rows with a PC + mnemonic (e.g. `0` / `4` / `44` above); file headers and bare source-path annotations are skipped for the SASS listing. Freshness ([DATA-57](../../context/decisions/DATA.md#data-57)) **MAY** also consume path:line markers and interleaved source text — see [SOURCE_PROVENANCE](../SOURCE_PROVENANCE.md).
 
 ## Related
 
 - PC joins: [symbolizer.json](symbolizer.json.md), [summary.db](summary.db.md)
+- Freshness vs local: [SOURCE_PROVENANCE](../SOURCE_PROVENANCE.md)
