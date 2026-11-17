@@ -6,10 +6,10 @@ Hub for profiling-report **on-disk inputs** (shared **`.npu-rep` container**, pa
 | Doc | Role |
 |-----|------|
 | **This file** (`README.md`) | Container binary + profile index + detection |
-| [compute/FORMAT.md](compute/FORMAT.md) | Compute OP embed schemas (npu-compute), UI subset |
+| [compute/FORMAT.md](compute/FORMAT.md) | Compute profile — flat `filename.md` section inventory |
 | [compute/SCHEMA.md](compute/SCHEMA.md) | Compute field catalog (producer PDF, 2026-10-23) |
 | [compute/METRICS_AND_TRACE.md](compute/METRICS_AND_TRACE.md) | Compute embed column detail (UI fills: [../views/](../views/)) |
-| [emulate/FORMAT.md](emulate/FORMAT.md) | Emulate contract + leaf pack (npu_emulate) |
+| [emulate/FORMAT.md](emulate/FORMAT.md) | Emulate profile — flat `filename.md` section inventory |
 | [emulate/SCHEMA.md](emulate/SCHEMA.md) | Emulate contract field catalog (all columns + types) |
 | [emulate/TABLES.md](emulate/TABLES.md) | Emulate pack / Phase 1 table inventory |
 | [FORMATS_COMPARISON.md](FORMATS_COMPARISON.md) | Semantic comparison across stacks |
@@ -212,4 +212,5 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | --- | --- |
 | Head `origin` `2` / `3` not opened by the parser | [PROC-9](../context/decisions/PROC.md) — enum is assigned; `parseNpuRep160` still accepts only `1` |
 | KernelInfo summary chrome | **out** — [DATA-47](../context/decisions/DATA.md) |
-| Hardware-only open items | [compute/FORMAT.md](compute/FORMAT.md) § Open / TBD |
+| Hardware-only open items | See per-section files under [compute/FORMAT.md](compute/FORMAT.md) |
+| Source \| SASS embeds | [`objdump.txt.md`](compute/objdump.txt.md), [`symbolizer.json.md`](compute/symbolizer.json.md), [`summary.db.md`](compute/summary.db.md) — index [compute/FORMAT.md](compute/FORMAT.md) |

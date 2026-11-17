@@ -26,15 +26,15 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 
 | Embedded file | Feeds (MVP) | Feeds (Phase 2+) |
 |---------------|-------------|------------------|
-| `OpBasicInfo.csv` | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
-| `PipeUtilization.csv` | PIPE occupancy bars; lane utilization % on gutter (pipe-ratio legacy default); **时钟周期** gutter mode | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
-| `ArithmeticUtilization.csv` | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
-| `Memory.csv` | Optional summary I/O bandwidth tiles (DATA-8) | Memory topology diagram + field drill-down |
-| `MemoryL0.csv` | — | L0 path details on memory diagram |
-| `MemoryUB.csv` | — | UB path details |
-| `L2Cache.csv` | — | Cache tab / L2 hit-rate panels |
-| `ResourceConflictRatio.csv` | — | Stall/conflict insights in details |
-| `trace.json` | Swimlane lanes and event intervals | Dependency overlays if args provide them; markers |
+| [`OpBasicInfo.csv`](OpBasicInfo.csv.md) | Report summary: op name, type, task duration, block dim, device, frequencies | Hardware/op header, OP算子 tab |
+| [`PipeUtilization.csv`](PipeUtilization.csv.md) | PIPE occupancy bars; lane utilization % on gutter (pipe-ratio legacy default); **时钟周期** gutter mode | Searchable pipe field list (`source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg`) |
+| [`ArithmeticUtilization.csv`](ArithmeticUtilization.csv.md) | Compute / TFLOPS-style summary inputs; Cube vs Vector split | Roofline point inputs (Vec_FP32, Vec_MISC, …) |
+| [`Memory.csv`](Memory.csv.md) | Optional summary I/O bandwidth tiles (DATA-8) | Memory topology diagram + field drill-down |
+| [`MemoryL0.csv`](MemoryL0.csv.md) | — | L0 path details on memory diagram |
+| [`MemoryUB.csv`](MemoryUB.csv.md) | — | UB path details |
+| [`L2Cache.csv`](L2Cache.csv.md) | — | Cache tab / L2 hit-rate panels |
+| [`ResourceConflictRatio.csv`](ResourceConflictRatio.csv.md) | — | Stall/conflict insights in details |
+| [`trace.json`](trace.json.md) | Swimlane lanes and event intervals | Dependency overlays if args provide them; markers |
 
 Sketches: [`docs/ui/`](../../ui/).
 
@@ -87,7 +87,7 @@ Per-Card dropdown on swimlane Card strips — **exactly two** selectable items w
 
 | Mode | Quantity (label) | Primary embed | Notes |
 |------|----------|---------------|-------|
-| 利用率 (`utilization`) | Event coverage % over model time span | `trace.json` | label `NN%`; bar = coverage |
+| 利用率 (`utilization`) | Event coverage % over model time span | [`trace.json`](trace.json.md) | label `NN%`; bar = coverage |
 | 时钟周期 (`clockCycle`) | Absolute pipe **clock cycles** | `PipeUtilization.csv` mapped `*_total_cycles` | Bare cycle labels; **same barWidth as utilization**; folder labels **sum distinct keys**; hide mode when no mappable cycle data |
 
 Default: **利用率** when available, else **时钟周期**. Aside PIPE **ratio** bars stay [DATA-28](../../context/decisions/DATA.md); aside in-bar absolute times stay [DATA-33f](../../context/decisions/interim/DATA.md) (`*_time(us)` — **not** the gutter clockCycle label). Decisions: [DATA-38](../../context/decisions/DATA.md), [UI-46](../../context/decisions/UI.md).
@@ -111,10 +111,10 @@ Used for summary “computing power” tiles and later **roofline** category poi
 
 | File | Highlights |
 |------|------------|
-| `Memory.csv` | L1/GM/UB BW, MTE instruction counts, path datas (KB) and BW usage % |
-| `MemoryL0.csv` | L0A/L0B/L0C BW |
-| `MemoryUB.csv` | UB vector/scalar R/W BW |
-| `L2Cache.csv` | Write/read hits, miss-allocate, hit rates (%) |
+| [`Memory.csv`](Memory.csv.md) | L1/GM/UB BW, MTE instruction counts, path datas (KB) and BW usage % |
+| [`MemoryL0.csv`](MemoryL0.csv.md) | L0A/L0B/L0C BW |
+| [`MemoryUB.csv`](MemoryUB.csv.md) | UB vector/scalar R/W BW |
+| [`L2Cache.csv`](L2Cache.csv.md) | Write/read hits, miss-allocate, hit rates (%) |
 
 Phase 2 memory diagram (`source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg`): **static SVG** topology with **data-driven edge labels** from these fields ([UI-38](../../context/decisions/UI.md)). Edge geometry/thickness stays in the SVG asset. Detail lists can mirror CSV headers 1:1.
 

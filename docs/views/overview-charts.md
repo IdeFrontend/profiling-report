@@ -33,7 +33,7 @@ No `OverviewSeries` → **hide** the chart region entirely ([DATA-32](../context
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `overviewSeries` | `Sampling.json` `ph:"C"` | One series per counter `name`; µs→ns ([DATA-39](../context/decisions/DATA.md)) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `overviewSeries` | [`Sampling.json`](../formats/compute/Sampling.json.md) `ph:"C"` | One series per counter `name`; µs→ns ([DATA-39](../context/decisions/DATA.md)) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
 <a id="vm-derivation"></a>
 
@@ -41,7 +41,7 @@ No `OverviewSeries` → **hide** the chart region entirely ([DATA-32](../context
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| `overviewSeries[]` | `Sampling.json` / `sampling.json` | group by counter `name` (no FK) | CTEF `ph:"C"` only; `args.value` must be finite number |
+| `overviewSeries[]` | [`Sampling.json`](../formats/compute/Sampling.json.md) / [`sampling.json`](../formats/compute/Sampling.json.md) | group by counter `name` (no FK) | CTEF `ph:"C"` only; `args.value` must be finite number |
 | `overviewSeries[].id` / `label` | same | `name` | Both = counter `name` |
 | `overviewSeries[].points[{t,v}]` | same | — | `t = ts × 1000` (µs→ns); `v = args.value`; sort by `t` |
 
@@ -56,7 +56,7 @@ Docx placeholder samples (`{"category":"Cube",1:1,2:2}` / Vector) are illustrati
 - Collapsible **统计分析** section **above** the Kernel swimlane (under the time axis), with synchronized area charts over time (one track per `OverviewSeries`).
 - Shared time axis with the swimlane viewport; gutter column width matches lane gutter.
 - **Geometry (v930):** track height **16px**; **8px** margin between tracks; bright stroke + darker fill (see [`OverviewCharts/visual/`](../../src/ui/TimelineView/OverviewCharts/visual/)).
-- **Producer ([DATA-39](../context/decisions/DATA.md)):** product `Sampling.json` `ph:"C"` counters → `OverviewSeries` (**one track per counter `name` present**; hide if empty — [DATA-32](../context/decisions/DATA.md)).
+- **Producer ([DATA-39](../context/decisions/DATA.md)):** product [`Sampling.json`](../formats/compute/Sampling.json.md) `ph:"C"` counters → `OverviewSeries` (**one track per counter `name` present**; hide if empty — [DATA-32](../context/decisions/DATA.md)).
 
 ## Emulate fill
 
