@@ -66,7 +66,8 @@ describe('materializeLfsPointers', () => {
     const bytes = new Uint8Array([104, 101, 108, 108, 111]);
     const oid = createHash('sha256').update(bytes).digest('hex');
     const { root, file, pointer } = fixture(oid, bytes.length);
-    stubFetch(oid, new Uint8Array([1, 2, 3]));
+    // Same length as the pointer, so deleting the sha256 compare would write this body.
+    stubFetch(oid, new Uint8Array(bytes.length).fill(1));
 
     await expect(materializeLfsPointers(root, 'acme/widgets')).rejects.toThrow(/oid mismatch/);
     expect(readFileSync(file, 'utf8')).toBe(pointer);
