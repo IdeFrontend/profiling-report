@@ -673,7 +673,7 @@ describe('SourceView', () => {
     expect(reveals.filter((line) => line === 46).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('PR-SOURCE-013: SASS pane is table-only with sketch column order', () => {
+  it('PR-SOURCE-013: SASS pane is table-only with model metric columns', () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     const asm = wrapper.find('[data-testid="asm-table-pane"]');
     expect(asm.exists()).toBe(true);

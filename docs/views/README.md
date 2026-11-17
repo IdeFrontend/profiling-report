@@ -35,7 +35,7 @@ flowchart LR
 | `roofline` | [roofline.md](roofline.md) | M2 | `gap` | **hide** | RooflinePanel visual |
 | `memory-topology` | [memory-topology.md](memory-topology.md) | M2 / M4 | `adapt-mapper` | compute **in** (`memoryDiagram`); emulate Architecture Diagram **in** on same chrome (`archDiagram`); Memory Utilization Heatmap **in** as its own carrier (`memoryHeatmap`, §11.2.3.2) | `memory-topology.svg` (`v930-chrome`); heat panel → `v930-sim/memory-topology-fullscreen` |
 | `performance-hints` | [performance-hints.md](performance-hints.md) | M4 | `adapt-mapper` | **in** | `v930-sim` 性能提示 report panel |
-| `source` | [source.md](source.md) | M | `adapt-mapper` (compute); emulate **gap** | **hide** until ELF / Source* map ([DATA-53](../context/questions/DATA.md)) | `v930-source/source-correlation.jpeg` |
+| `source` | [source.md](source.md) | M / P2 | `adapt-mapper` | compute **in**; emulate **in** when ELF gate passes ([DATA-53](../context/decisions/DATA.md)); gelu-without-ELF **hide** | `v930-source/source-correlation.jpeg` |
 
 ### Stubs (second pass)
 

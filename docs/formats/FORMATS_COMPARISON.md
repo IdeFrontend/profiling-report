@@ -34,7 +34,7 @@ They differ in **grain** (instruction vs task vs pipe-busy), **where aggregates 
 | **Arithmetic / roofline** | Compute + Roofline | `ArithmeticUtilization.csv` + Memory | ArchDiagramMetrics + Functions + VectorUtilizations + SourceInstructions (ELF often required) | Side panels if metrics fed in |
 | **Memory paths** | Heatmap HBM/L2/L1/L0/UB | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv` | `MemoryHeatmapLayout`+`Cells` lattice + capacity ([DATA-50](../context/decisions/DATA.md)); ArchDiagram bandwidth metrics | Not core swimlane |
 | **L2 cache** | Cache view | `L2Cache.csv` | Via analysis / heatmap paths as available | Optional counters |
-| **Source ↔ instruction** | First-class Source heatmap | Not in sample hardware embeds | Source Assembly / AsmMetrics when ELF packed (Phase 2) | Not swimlane core |
+| **Source ↔ instruction** | First-class Source heatmap | Not in sample hardware embeds | Source Assembly / AsmMetrics when ELF packed ([DATA-53](../context/decisions/DATA.md); P2) | Not swimlane core |
 | **Deps / sync** | SET_FLAG / WAIT_FLAG | If in trace args ([DATA-36](../context/questions/DATA.md)) | `PipeDependency` / critical path when analyzers run | Flow events / topo / deps.json |
 | **Conflicts / stalls** | UB conflicts; wait cycles | `ResourceConflictRatio.csv` | UB bank / SIMD stall tables when populated | Event args / PMU |
 | **Host / NPU inventory** | May appear in chrome | `HardwareInfo.jsonl` when present | Usually absent | Not typical |

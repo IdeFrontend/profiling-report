@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Right-pane SASS listing: plain metrics table (no Sudu).
- * Sketch columns: # · Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy.
+ * Columns from model: # · Address · Assembly · metricsColumns (compute stall set / emulate MVP).
  */
 import { nextTick, ref } from 'vue';
 import type { SourceFileModel } from '../../domain/types';

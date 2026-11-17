@@ -3,11 +3,16 @@ import {
   adaptComputeSourceCorrelation,
   hasComputeSourcePack,
 } from './adaptComputeSourceCorrelation';
+import {
+  adaptEmulateSourceCorrelation,
+  hasEmulateSourcePack,
+} from './adaptEmulateSourceCorrelation';
 
 /**
  * Known embed basenames for a future single-file Source ↔ instruction pack.
  * Compute packs instead use `objdump.txt` + `symbolizer.json` + `summary.db`
- * (see `adaptComputeSourceCorrelation`).
+ * (see `adaptComputeSourceCorrelation`). Emulate uses ELF CSVs
+ * (`adaptEmulateSourceCorrelation`, DATA-53).
  */
 export const SOURCE_CORRELATION_EMBED_NAMES = [
   'SourceCorrelation.json',
@@ -38,13 +43,18 @@ function payloadByName(
  *
  * Paths:
  * 1. Compute multi-file pack (`objdump.txt` + symbolizer / summary.db) → real model
- * 2. Single-file `SourceCorrelation.json` — schema still Product-TBD → null
+ * 2. Emulate ELF pack (`SourceInstructions` / `AsmMetrics`) → real model (DATA-53)
+ * 3. Single-file `SourceCorrelation.json` — schema still Product-TBD → null
  */
 export function adaptSourceCorrelation(
   payloads: Record<string, Uint8Array>,
 ): SourceCorrelationModel | null {
   if (hasComputeSourcePack(payloads)) {
     return adaptComputeSourceCorrelation(payloads);
+  }
+
+  if (hasEmulateSourcePack(payloads)) {
+    return adaptEmulateSourceCorrelation(payloads);
   }
 
   const raw = payloadByName(payloads, SOURCE_CORRELATION_EMBED_NAMES);

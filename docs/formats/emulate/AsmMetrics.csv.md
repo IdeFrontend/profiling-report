@@ -11,7 +11,7 @@
 | Kind | view |
 | Gelu rows | 0 |
 | CSV file | `AsmMetrics.csv` |
-| Role | Contract DB object from npu_emulate export. *inferred* |
+| Role | Per-PC aggregate metrics for Source \| SASS ([DATA-53](../../context/decisions/DATA.md); [source](../../views/source.md)). *inferred* |
 
 | Column | Type | Description |
 |--------|------|-------------|
