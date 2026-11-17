@@ -193,8 +193,9 @@ function bwSuffix(level: MemoryLevel): string {
 function shortFunctionName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return 'fn';
-  const afterDot = trimmed.split('.').pop();
-  if (afterDot && afterDot.length > 0 && afterDot.length < trimmed.length) return afterDot;
+  // Keep the full symbol when it fits; only truncate long mangled names.
+  // Do not strip after the last `.` — that turns `OnlineSoftmax.vector.thread`
+  // into `thread` (DATA-57a hover label).
   if (trimmed.length <= 48) return trimmed;
   return `${trimmed.slice(0, 45)}…`;
 }

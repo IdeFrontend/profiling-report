@@ -598,6 +598,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(simd.intensity).toBeCloseTo(0.627906976744186, 10);
     expect(simd.performance).toBeCloseTo(69.12070086100613 / 1000, 12);
     expect(simd.seriesId).toBe('aiv-fp16');
+    expect(simd.label).toBe('OnlineSoftmax.vector.thread - SIMD');
     const cube = roof.points.find((p) => p.id.includes('CUBE-L0'))!;
     expect(cube.performance).toBeCloseTo(1849.9748851894374 / 1000, 12);
     expect(cube.seriesId).toBe('aic-int16-fp16');
@@ -610,51 +611,63 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     const aivFp16Simt = roof.series.find((s) => s.id === 'aiv-fp16-simt')!;
     expect(aivFp16Simt.slopeStyle).toBe('dashed');
 
+    const jsonKernels = JSON.stringify({
+      architecture: {
+        AIV: {
+          vector_fp16: {
+            peakFlops: 54000,
+            peakBandwidthSIMD: 50353.92,
+            peakBandwidthSIMT: 12588.8,
+            peakBandwidthSIMT_OUT: 1638.4,
+          },
+        },
+        AIC: {},
+      },
+      kernels: {
+        'gather - SIMT': {
+          pc: 584,
+          unit: 'AIV',
+          label: 'SIMT',
+          arithmetic_intensity: 1.375,
+          // Deliberately different from CSV Softmax Y so precedence is observable.
+          performance: 999.0,
+        },
+      },
+    });
+
     const failed = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
       'AnalysisState.csv': enc.encode(analysisFail),
       'RooflinePoints.csv': enc.encode(points),
       'RooflineComputePeaks.csv': enc.encode(compute),
       'RooflineBandwidthPeaks.csv': enc.encode(bandwidth),
+      'roofline.json': enc.encode(jsonKernels),
     });
     expect(failed.reportModel.roofline).toBeUndefined();
     expect(failed.capabilities).not.toContain('roofline');
 
+    const csvWins = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'AnalysisState.csv': enc.encode(analysisOk),
+      'RooflinePoints.csv': enc.encode(points),
+      'RooflineComputePeaks.csv': enc.encode(compute),
+      'RooflineBandwidthPeaks.csv': enc.encode(bandwidth),
+      'roofline.json': enc.encode(jsonKernels),
+    });
+    expect(csvWins.capabilities).toContain('roofline');
+    expect(csvWins.reportModel.roofline!.points).toHaveLength(2);
+    expect(
+      csvWins.reportModel.roofline!.points.find((p) => p.id.includes('SIMD-UB'))!.performance,
+    ).toBeCloseTo(69.12070086100613 / 1000, 12);
+
     const jsonOnly = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
-      'roofline.json': enc.encode(
-        JSON.stringify({
-          architecture: {
-            AIV: {
-              vector_fp16: {
-                peakFlops: 54000,
-                peakBandwidthSIMD: 50353.92,
-                peakBandwidthSIMT: 12588.8,
-                peakBandwidthSIMT_OUT: 1638.4,
-              },
-            },
-            AIC: {},
-          },
-          kernels: {
-            'gather - SIMT': {
-              pc: 584,
-              unit: 'AIV',
-              label: 'SIMT',
-              arithmetic_intensity: 1.375,
-              performance: 0.6171273831564973,
-            },
-          },
-        }),
-      ),
+      'roofline.json': enc.encode(jsonKernels),
     });
     expect(jsonOnly.capabilities).toContain('roofline');
-    expect(jsonOnly.reportModel.roofline!.points[0]!.performance).toBeCloseTo(
-      0.6171273831564973 / 1000,
-      12,
-    );
+    expect(jsonOnly.reportModel.roofline!.points[0]!.performance).toBeCloseTo(999 / 1000, 12);
   });
 });
-
 describe('npu-rep / loadReportSource profile routing', () => {
   it('PR-NPU-012: manifest.json leaf classified as emulate; compute CSVs not required', () => {
     const adapted = loadReportSource(packEmulateLeaf());
