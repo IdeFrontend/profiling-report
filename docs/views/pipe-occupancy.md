@@ -35,7 +35,7 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `pipeOccupancy` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | Mean non-`NA` `aic_*` / `aiv_*` ratios; `*_time(us)` absolute ([DATA-33b](../context/decisions/interim/DATA.md), DATA-33f) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `pipeOccupancy` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) `PipeUtilization` | Mean non-`NA` `aic_*` / `aiv_*` ratios; `*_time(us)` absolute ([DATA-33b](../context/decisions/interim/DATA.md), DATA-33f) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
 **Rule (product table):** for `OpType == MIX`, show **Cube \| Vector** segmented control and the active side’s bars (plus ICache rates when present). Non-MIX ops show only the relevant Cube or Vector set; omit or placeholder `NA` values. Use the column tables below — not a single combined bar list.
 
@@ -47,7 +47,7 @@ Empty `pipeOccupancy` (missing util embeds or all-NA) → **hide** panel ([DATA-
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| `pipeOccupancy[]` (All) | [`summary.jsonl`](../formats/compute/summary.jsonl.md) category [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | category id (no row FK) | `pipeOccupancyFromRows` on category columns |
+| `pipeOccupancy[]` (All) | [`summary.jsonl`](../formats/compute/summary.jsonl.md) category `PipeUtilization` | category id (no row FK) | `pipeOccupancyFromRows` on category columns |
 | `pipeOccupancy[]` (block) | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | `block_id` = selected id | Same column map on that row |
 | `pipeOccupancy[].ratio` | same | — | Mean non-`NA` of side-prefixed ratio cols (`PIPE_COLUMNS` in `adaptRep.ts`); Cube `aic_*` and Vector `aiv_*` never blended |
 | `pipeOccupancy[].absoluteValue` | same | — | Mean matching `*_time(us)` when present (DATA-33f); omit if absent |
@@ -92,14 +92,14 @@ Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/com
 
 | Tab | Source CSV |
 | --- | --- |
-| [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) (compute; omitted when hist is present — [UI-55](../context/decisions/UI.md)) |
+| `PipeUtilization` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) (compute; omitted when hist is present — [UI-55](../context/decisions/UI.md)) |
 | `Pipe Utilization` | [`PipeUtilizationHist.csv`](../formats/emulate/PipeUtilizationHist.csv.md) — preferred when present; sparse `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys from Utilization ([UI-55](../context/decisions/UI.md)) |
 | [`ArithmeticUtilization.csv`](../formats/compute/ArithmeticUtilization.csv.md) | [`ArithmeticUtilization.csv`](../formats/compute/ArithmeticUtilization.csv.md) |
 | [`ResourceConflictRatio.csv`](../formats/compute/ResourceConflictRatio.csv.md) | [`ResourceConflictRatio.csv`](../formats/compute/ResourceConflictRatio.csv.md) |
 
 Render a searchable key–value (or table) list of all columns for the **selected block** ([DATA-19](../context/decisions/DATA.md)):
 
-- Compute [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md): AIC group cycles / `*_time(us)` / `*_ratio` / …; AIV group same; display `NA` when absent.
+- Compute `PipeUtilization` ([`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md)): AIC group cycles / `*_time(us)` / `*_ratio` / …; AIV group same; display `NA` when absent.
 - Emulate hist ([UI-55](../context/decisions/UI.md)): one synthetic row of projected ratio keys (e.g. `aic_scalar_ratio`, `aiv0_vec_ratio`, `aiv1_mte3_ratio`); headers in first-seen order, duplicate keys last-wins for values; 0..1; no times/cycles. ICache may appear on PIPE bars but is not projected (no `*_ratio` stem).
 - Hide a tab when its CSV is missing from the report.
 

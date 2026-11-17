@@ -166,7 +166,9 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 
 **Reference leaf (committed):** [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) — playground + unit smoke. Roadmap: [milestone-4](../../process/roadmap/milestone-4.md). Per-surface detail: [`../../views/`](../../views/).
 
-### Not used for Sept 30 visualization (packed or not)
+### Not used for Sept 30 visualization (packed or not) {#not-used-sept-30}
+
+<a id="4.2"></a>
 
 | Embed / table | Product surface | Status |
 |---------------|-----------------|--------|
