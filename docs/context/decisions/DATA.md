@@ -386,6 +386,18 @@ Format and statuses: [README.md](README.md).
 - **Specs:** [memory-topology](../../views/memory-topology.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-025, [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
 - **Source:** Producer answers `ui-answers-memory-heatmap.md` (2026-11-02) + format “Deriving the rest”. Supersedes [`DATA-51a`](interim/DATA.md#data-51a).
 
+## DATA-56
+
+- **Resolved:** 2026-11-12
+- **Question:** Which CTEF embeds feed 流水视图显示, and how does the viewer switch among them?
+- **Decision:**
+  1. Catalog (µs CTEF): `Communication.json` → **communication 通信**; `SimtWarpOccpy.json` / `SimtWarpOccupy.json` / `simt_warp_occupancy.json` → **warp occupy**; `PipeTrace.json` → **pipe trace**.
+  2. Menu is **single-select** (times are inconsistent across traces). Show the toolbar control only when ≥2 catalog files are present; omit unmatched options (including design **stat** until a matched embed exists).
+  3. Default selection prefers **pipeTrace** when present.
+  4. Classic `trace.json` (ns) remains the legacy fallback when the catalog is empty — not a menu row.
+- **Specs:** [timeline-traces](../../../specs/core/timeline-traces.spec.md), [timeline](../../views/timeline.md), [ReportToolbar](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [ProfilingReport](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
+- **Source:** `npu-compute性能优化` §11.14 多流水显示; design `1130/流水显示筛选`.
+
 ---
 
 ## DATA-37 (was: Q11)
