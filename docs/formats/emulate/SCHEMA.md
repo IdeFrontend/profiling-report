@@ -16,6 +16,7 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 ## Contents
 
 - [Tables (101)](#tables)
+- [Flag-gated (absent from gelu)](#flag-gated)
 - [Views (23)](#views)
 - [Naming / type notes](#naming--type-notes)
 
@@ -77,10 +78,6 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 - [`RegionNames`](#regionnames)
 - [`Regions`](#regions)
 - [`RegisterUsageStalls`](#registerusagestalls)
-- [`RooflineBandwidthPeaks`](#rooflinebandwidthpeaks)
-- [`RooflineComputePeaks`](#rooflinecomputepeaks)
-- [`RooflineMetadata`](#rooflinemetadata)
-- [`RooflinePoints`](#rooflinepoints)
 - [`SIMDSamplingStats`](#simdsamplingstats)
 - [`SIMDStallReasonTypes`](#simdstallreasontypes)
 - [`SIMDStallsByAddr`](#simdstallsbyaddr)
@@ -126,6 +123,15 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 - [`VfSimtIPCDynamic`](#vfsimtipcdynamic)
 - [`VfSimtIPCInside`](#vfsimtipcinside)
 - [`VfSimtInvocations`](#vfsimtinvocations)
+
+## Flag-gated (absent from gelu) {#flag-gated}
+
+Not in the gelu `manifest.json` 101-table catalog. Produced under `--roofline`; packed on [`data/simt_gather_1d_roofline.npu-rep`](../../../data/simt_gather_1d_roofline.npu-rep) ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a); [TABLES.md §4](TABLES.md)).
+
+- [`RooflineBandwidthPeaks`](#rooflinebandwidthpeaks)
+- [`RooflineComputePeaks`](#rooflinecomputepeaks)
+- [`RooflineMetadata`](#rooflinemetadata)
+- [`RooflinePoints`](#rooflinepoints)
 
 ### `AnalysisState` {#analysisstate}
 
@@ -1033,6 +1039,7 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 | | |
 |--|--|
 | Kind | table |
+| Gelu rows | absent (`--roofline`) |
 | CSV file | `RooflineBandwidthPeaks.csv` |
 | Role | Full-chip bandwidth ceilings per `(Unit, MemoryLevel)` for emulate Roofline ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). |
 
@@ -1043,6 +1050,7 @@ See [RooflineBandwidthPeaks.csv.md](RooflineBandwidthPeaks.csv.md).
 | | |
 |--|--|
 | Kind | table |
+| Gelu rows | absent (`--roofline`) |
 | CSV file | `RooflineComputePeaks.csv` |
 | Role | Full-chip compute ceilings per `(Unit, DataType)` for emulate Roofline ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). |
 
@@ -1053,6 +1061,7 @@ See [RooflineComputePeaks.csv.md](RooflineComputePeaks.csv.md).
 | | |
 |--|--|
 | Kind | table |
+| Gelu rows | absent (`--roofline`) |
 | CSV file | `RooflineMetadata.csv` |
 | Role | One-row Roofline snapshot metadata (architecture, frequencies, active cores). |
 
@@ -1063,6 +1072,7 @@ See [RooflineMetadata.csv.md](RooflineMetadata.csv.md).
 | | |
 |--|--|
 | Kind | table |
+| Gelu rows | absent (`--roofline`) |
 | CSV file | `RooflinePoints.csv` |
 | Role | Measured function/mode/memory-level Roofline points ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). |
 
