@@ -1,5 +1,8 @@
 # Emulate contract schema
 
+**Flat section files:** one `Name.csv.md` (or `manifest.json.md` / `PipeTrace.json.md`) per object under this folder — prefer those for SSOT links from views. This file remains the generated full catalog.
+
+
 **Profile:** `emulate` (npu_emulate contract SQLite / CSV export).
 
 Normative **object names**, **column names**, and **SQL types** come from `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (exported `2026-09-21T12:05:51.821657+00:00`, `total_objects=124`, tables=101, views=23, rows=161314).

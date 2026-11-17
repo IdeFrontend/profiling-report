@@ -60,7 +60,7 @@ Docx §11.2.8.1 field table is **empty**. Layout from mockup:
 |----------|-----------------|-------------|------------|
 | Summary name / timing | CTEF `ph:X` selected event | selection id ↔ event `id` | `name`, `startTime` / `duration` (ns) from swimlane model |
 | subtype / tag | event `cat` / `args` | — | when present on CTEF args |
-| Parameters (`Code`, `Detail`, `Pc_addr`, `Process_bytes`) | _(undefined)_ | — | **Gap:** not in sample `trace.json`; need richer event payload or side table |
+| Parameters (`Code`, `Detail`, `Pc_addr`, `Process_bytes`) | _(undefined)_ | — | **Gap:** not in sample [`trace.json`](../formats/compute/trace.json.md); need richer event payload or side table |
 | Relevant graph | event `args.dependencies` (+ async `ph:s`/`f`) | successor event ids | P2 mini-graph; optional edge badges TBD |
 
 **Interaction:** activated by clicking a timeline block (mockup callout: 点击之后出现底部【详情】页面).

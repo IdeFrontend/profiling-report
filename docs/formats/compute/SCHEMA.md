@@ -1,5 +1,8 @@
 # Compute data schema
 
+**Flat section files:** prefer [`FORMAT.md`](FORMAT.md) inventory (`OpBasicInfo.csv.md`, `summary.db.md`, …). This page keeps the producer PDF field catalog.
+
+
 **Profile:** `compute` (npu-compute).
 
 Producer field catalog from the product PDF *npu-compute性能优化* (性能优化 / performance optimization), export **qLDqqw**, 2026-10-23, §11.1.3.8–§11.10. Identifiers the PDF wraps at `_` are rejoined. UI fill and sample cross-checks stay in [FORMAT.md](FORMAT.md) and [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md). Container detection: [formats README](../README.md).

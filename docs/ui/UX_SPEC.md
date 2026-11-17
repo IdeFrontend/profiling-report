@@ -140,6 +140,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Steps** | Load Source | SASS surface (`v930-source/source-correlation`); return to **时间线** restores view state |
 | **Success** | Source opens with the real correlation model; packs without embeds hide 源码; **详情** / **缓存** are not in the chrome ([UI-37](../context/decisions/UI.md)) |
 | **Sketches** | [`v930-source/source-correlation`](./source/v930-source/source-correlation.jpeg); tab chrome in `source/v930/entry.jpeg` |
+| **Data** | [source view packet](../views/source.md) · [compute FORMAT](../formats/compute/FORMAT.md) |
 
 ---
 

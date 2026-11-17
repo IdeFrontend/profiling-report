@@ -34,7 +34,7 @@ Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [§ p
 Fixed memory-path chrome with data-driven edge labels (BW / hit rate / util):
 
 - **Compute (M2):** selected-block Memory* / PipeUtilization fill under capability `memoryDiagram` (Asc 内存负载分析 / 内存拓扑).
-- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from `ArchDiagramMetrics` under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. The **Memory Utilization Heatmap** (§11.2.3.2) rides the same fullscreen overlay as its own surface, from `MemoryHeatmapLayout` + `MemoryHeatmapCells` — [§ Memory Utilization Heatmap](#heatmap).
+- **Emulate (M4 Sept 30):** biprof **Architecture Diagram** (§11.2.3.1) from [`ArchDiagramMetrics.csv`](../formats/emulate/ArchDiagramMetrics.csv.md) under capability **`archDiagram`**, painted on the **same** chrome and `memoryTopology` carrier. UI title stays **内存负载分析** / Memory load analysis (`memoryAnalysis`); fullscreen **内存拓扑**. The **Memory Utilization Heatmap** (§11.2.3.2) rides the same fullscreen overlay as its own surface, from [`MemoryHeatmapLayout.csv`](../formats/emulate/MemoryHeatmapLayout.csv.md) + [`MemoryHeatmapCells.csv`](../formats/emulate/MemoryHeatmapCells.csv.md) — [§ Memory Utilization Heatmap](#heatmap).
 
 ## View-model
 
@@ -52,9 +52,9 @@ No drawable labels / L2 plate → hide diagram ([DATA-30](../context/decisions/D
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `memoryTopology` | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv`, `PipeUtilization.csv` | Edge / plate map below; `buildMemoryTopology` | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
+| `memoryTopology` | [`Memory.csv`](../formats/compute/Memory.csv.md), [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md), [`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md), [`L2Cache.csv`](../formats/compute/L2Cache.csv.md), [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | Edge / plate map below; `buildMemoryTopology` | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
 
-The panel renders the official chrome [`memory-topology.svg`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) (**448×423** simplified Figma export: AIC row above a combined **AIV × 2** row; static labels/arrows intact, sample values stripped) and overlays **real values** on that chrome's value slots — the `summary.jsonl` category mean under `All`, that block's CSV row when a `block_id` is picked ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)).
+The panel renders the official chrome [`memory-topology.svg`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) (**448×423** simplified Figma export: AIC row above a combined **AIV × 2** row; static labels/arrows intact, sample values stripped) and overlays **real values** on that chrome's value slots — the [`summary.jsonl`](../formats/compute/summary.jsonl.md) category mean under `All`, that block's CSV row when a `block_id` is picked ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)).
 
 <a id="vm-derivation"></a>
 
@@ -62,11 +62,11 @@ The panel renders the official chrome [`memory-topology.svg`](../../src/ui/Stats
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| topology (All) | `summary.jsonl` categories via `FILE_CATEGORY` | category name ↔ Memory / MemoryL0 / MemoryUB / L2Cache / PipeUtilization | `buildMemoryTopologyFromCategories` |
-| topology (block) | `Memory.csv`, `MemoryL0.csv`, `MemoryUB.csv`, `L2Cache.csv`, `PipeUtilization.csv` | `block_id` = selected id on each CSV | `buildMemoryTopology(tables, blockId)` |
+| topology (All) | [`summary.jsonl`](../formats/compute/summary.jsonl.md) categories via `FILE_CATEGORY` | category name ↔ Memory / MemoryL0 / MemoryUB / L2Cache / PipeUtilization | `buildMemoryTopologyFromCategories` |
+| topology (block) | [`Memory.csv`](../formats/compute/Memory.csv.md), [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md), [`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md), [`L2Cache.csv`](../formats/compute/L2Cache.csv.md), [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | `block_id` = selected id on each CSV | `buildMemoryTopology(tables, blockId)` |
 | `edges[].label` | per [EDGE_MAP](#edge-field-source) | _(column pick, not FK)_ | First present non-`NA` source column, except GM↔L2 Main Read/Write = **sum** aic+aiv; format `{n} GB/s` / KB / `%` |
-| `nodes[l2].peakPct` | `L2Cache` hit-rate cols | _(same as `l2-hit` edge)_ | DATA-21 column order |
-| `plates` (in-box utils) | `PipeUtilization` | _(none)_ | `aiv_scalar_ratio` / `aiv_vec_ratio` / `aic_cube_ratio` → `{ratio×100}%` on nodes `aiv_scalar` / `vec` / `cube` (UI-49) |
+| `nodes[l2].peakPct` | [`L2Cache.csv`](../formats/compute/L2Cache.csv.md) hit-rate cols | _(same as `l2-hit` edge)_ | DATA-21 column order |
+| `plates` (in-box utils) | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | _(none)_ | `aiv_scalar_ratio` / `aiv_vec_ratio` / `aic_cube_ratio` → `{ratio×100}%` on nodes `aiv_scalar` / `vec` / `cube` (UI-49) |
 | show / hide | — | — | `hasDrawableTopology`: plated label or L2 peak required (PR-VM-018) |
 
 Code: `memoryTopology.ts` (`EDGE_MAP`, `PLATE_MAP`, `buildMemoryTopology*`).
@@ -79,27 +79,27 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 | Display edge | Field | Source | Notes |
 | --- | --- | --- | --- |
-| GM → L2 | `aic_main_mem_read_bw(GB/s)` + `aiv_main_mem_read_bw(GB/s)` | `Memory.csv` | **DATA-40 (resolved):** the producer's **"Main Read"** — both sides **summed**, the same quantity the 带宽利用率 读 card shows (DATA-8). Read = leaving GM (`out.rep` 16.89, aiv-only there). A side that is `NA` contributes nothing; both `NA` → no label |
-| GM ← L2 | `aic_main_mem_write_bw(GB/s)` + `aiv_main_mem_write_bw(GB/s)` | `Memory.csv` | **DATA-40 (resolved):** **"Main Write"**, likewise summed. Write = arriving at GM (≡ `aiv_ub_to_gm_bw`). The producer's row 32 lists the AIC **read** column by slip; the card's `aicore_gm_write_bw` side is the write column |
-| L2 → L1 | `aiv_gm_to_ub_bw(GB/s)` | `Memory.csv` | **DATA-43 (resolved):** the plate is the producer's DATA-39 row `24` `GM -> UB` field, painted on the chrome's own AIC-row corridor slot ("display it according to svg spec"). `aic_l1_read_bw` therefore feeds **no** plate; it stays a Memory.csv 详情 column. `out.rep` NA |
-| L2 ← L1 | `aic_l1_write_bw(GB/s)` | `Memory.csv` | Adapter edge exists; **diagram slot blank** pending UI-48 (export routes this corridor onto FixP) |
-| L1 → L0A | `aic_l0a_read_bw(GB/s)` | `MemoryL0.csv` | Keep master L1→L0A (operand buffer); `out.rep` NA |
-| L1 → L0B | `aic_l0b_read_bw(GB/s)` | `MemoryL0.csv` | Same |
-| L0A → Cube | `aic_l0a_write_bw(GB/s)` | `MemoryL0.csv` | Same |
-| L0B → Cube | `aic_l0b_write_bw(GB/s)` | `MemoryL0.csv` | Same |
-| L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | `MemoryL0.csv` | |
-| Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | `MemoryL0.csv` | |
-| L0C → L1 | `L0C_to_L1_datas(KB)` | `Memory.csv` | **DATA-24:** Product-confirmed field. No 理论值 (Peak %) field exists — the producer's DATA-39 row `23` is `NA` ([DATA-41](../context/questions/DATA.md)) |
-| L0C → L2 | `L0C_to_GM_datas(KB)` | `Memory.csv` | **DATA-25:** Product-confirmed field. No 理论值 (Peak %) field exists ([DATA-41](../context/questions/DATA.md)) |
-| UB → L2 | `aiv_ub_to_gm_bw(GB/s)` | `Memory.csv` | **DATA-22:** Product answer; `MemoryUB.csv` `aiv_ub_read_bw_gm` is not the collected field |
-| L2 → UB | `aiv_gm_to_ub_bw(GB/s)` | `Memory.csv` | **DATA-23:** Product answer; `MemoryUB.csv` `aiv_ub_write_bw_gm` is not the collected field |
-| Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | `MemoryUB.csv` | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
-| UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | `MemoryUB.csv` | |
-| L2Cache Hit Rate | total `*_hit_rate(%)` | `L2Cache.csv` / `summary.jsonl` `L2Cache` | **DATA-21:** use the **total** hit rate; fall back to first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, then read rates |
-| **L2 Peak(%)** | same hit-rate columns as above | `L2Cache.csv` | **DATA-20 (resolved):** L2 box only = hit rate, its 100% reference is the hit rate itself (not a peak-relative percent) |
-| **Scalar util (in-box)** | `aiv_scalar_ratio` | `PipeUtilization.csv` / `summary.jsonl` `PipeUtilization` | **UI-49 (resolved):** printed `{ratio × 100}%` (DATA-28 own-busy-time ratio, not a peak-relative percent) in the AIV0 **and** AIV1 `Scalar` boxes — one field, one value, both rows |
-| **Vec util (in-box)** | `aiv_vec_ratio` | `PipeUtilization.csv` / `summary.jsonl` `PipeUtilization` | **UI-49 (resolved):** `{ratio × 100}%` in the AIV0 **and** AIV1 `Vec` boxes |
-| **Cube util (in-box)** | `aic_cube_ratio` | `PipeUtilization.csv` / `summary.jsonl` `PipeUtilization` | **UI-49 (resolved):** `{ratio × 100}%` in the AIC `Cube` box |
+| GM → L2 | `aic_main_mem_read_bw(GB/s)` + `aiv_main_mem_read_bw(GB/s)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | **DATA-40 (resolved):** the producer's **"Main Read"** — both sides **summed**, the same quantity the 带宽利用率 读 card shows (DATA-8). Read = leaving GM (`out.rep` 16.89, aiv-only there). A side that is `NA` contributes nothing; both `NA` → no label |
+| GM ← L2 | `aic_main_mem_write_bw(GB/s)` + `aiv_main_mem_write_bw(GB/s)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | **DATA-40 (resolved):** **"Main Write"**, likewise summed. Write = arriving at GM (≡ `aiv_ub_to_gm_bw`). The producer's row 32 lists the AIC **read** column by slip; the card's `aicore_gm_write_bw` side is the write column |
+| L2 → L1 | `aiv_gm_to_ub_bw(GB/s)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | **DATA-43 (resolved):** the plate is the producer's DATA-39 row `24` `GM -> UB` field, painted on the chrome's own AIC-row corridor slot ("display it according to svg spec"). `aic_l1_read_bw` therefore feeds **no** plate; it stays a [`Memory.csv`](../formats/compute/Memory.csv.md) 详情 column. `out.rep` NA |
+| L2 ← L1 | `aic_l1_write_bw(GB/s)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | Adapter edge exists; **diagram slot blank** pending UI-48 (export routes this corridor onto FixP) |
+| L1 → L0A | `aic_l0a_read_bw(GB/s)` | [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md) | Keep master L1→L0A (operand buffer); `out.rep` NA |
+| L1 → L0B | `aic_l0b_read_bw(GB/s)` | [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md) | Same |
+| L0A → Cube | `aic_l0a_write_bw(GB/s)` | [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md) | Same |
+| L0B → Cube | `aic_l0b_write_bw(GB/s)` | [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md) | Same |
+| L0C → Cube | `aic_l0c_read_bw_cube(GB/s)` | [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md) | |
+| Cube → L0C | `aic_l0c_write_bw_cube(GB/s)` | [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md) | |
+| L0C → L1 | `L0C_to_L1_datas(KB)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | **DATA-24:** Product-confirmed field. No 理论值 (Peak %) field exists — the producer's DATA-39 row `23` is `NA` ([DATA-41](../context/questions/DATA.md)) |
+| L0C → L2 | `L0C_to_GM_datas(KB)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | **DATA-25:** Product-confirmed field. No 理论值 (Peak %) field exists ([DATA-41](../context/questions/DATA.md)) |
+| UB → L2 | `aiv_ub_to_gm_bw(GB/s)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | **DATA-22:** Product answer; [`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md) `aiv_ub_read_bw_gm` is not the collected field |
+| L2 → UB | `aiv_gm_to_ub_bw(GB/s)` | [`Memory.csv`](../formats/compute/Memory.csv.md) | **DATA-23:** Product answer; [`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md) `aiv_ub_write_bw_gm` is not the collected field |
+| Vec → UB | `aiv_ub_write_bw_vector(GB/s)` | [`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md) | `ub_read_*` = leaving UB (`out.rep` add 2:1) |
+| UB → Vec | `aiv_ub_read_bw_vector(GB/s)` | [`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md) | |
+| L2Cache Hit Rate | total `*_hit_rate(%)` | [`L2Cache.csv`](../formats/compute/L2Cache.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) [`L2Cache.csv`](../formats/compute/L2Cache.csv.md) | **DATA-21:** use the **total** hit rate; fall back to first non-`NA` of `aic_total_hit_rate(%)`, `aiv_total_hit_rate(%)`, then read rates |
+| **L2 Peak(%)** | same hit-rate columns as above | [`L2Cache.csv`](../formats/compute/L2Cache.csv.md) | **DATA-20 (resolved):** L2 box only = hit rate, its 100% reference is the hit rate itself (not a peak-relative percent) |
+| **Scalar util (in-box)** | `aiv_scalar_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | **UI-49 (resolved):** printed `{ratio × 100}%` (DATA-28 own-busy-time ratio, not a peak-relative percent) in the AIV0 **and** AIV1 `Scalar` boxes — one field, one value, both rows |
+| **Vec util (in-box)** | `aiv_vec_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | **UI-49 (resolved):** `{ratio × 100}%` in the AIV0 **and** AIV1 `Vec` boxes |
+| **Cube util (in-box)** | `aic_cube_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | **UI-49 (resolved):** `{ratio × 100}%` in the AIC `Cube` box |
 | AIC `Scalar`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP` (in-box) | — | — | **UI-49 (resolved):** the producer's DATA-39 table marks all six rows **`NA`**, but its `SIMD VF` rows name the `Vec` position the `Vec` rows paint — so the remaining **four** positions have no field and nothing is drawn |
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
@@ -126,8 +126,8 @@ Memory detail controls ([`v930/memory-load-detail`](../ui/source/v930/memory-loa
 
 | Control | Behavior |
 | --- | --- |
-| Tabs | `Memory L1` (`Memory.csv`), `L2Cache` (`L2Cache.csv`), `Memory L0` (`MemoryL0.csv`), `Memory UB` (`MemoryUB.csv`) — hide tab if CSV absent. On the CSV field-list rendering, also `PipeUtilization` when present — the only source of the chrome's MTE utilizations (UI-38); when memory summary categories exist the surface lists those categories instead |
-| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); `All` shows the `summary.jsonl` category list, a picked id scopes the field list to that block's row |
+| Tabs | `Memory L1` ([`Memory.csv`](../formats/compute/Memory.csv.md)), [`L2Cache.csv`](../formats/compute/L2Cache.csv.md), `Memory L0` ([`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md)), `Memory UB` ([`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md)) — hide tab if CSV absent. On the CSV field-list rendering, also [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) when present — the only source of the chrome's MTE utilizations (UI-38); when memory summary categories exist the surface lists those categories instead |
+| Block switcher | One selector for every widget ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); `All` shows the [`summary.jsonl`](../formats/compute/summary.jsonl.md) category list, a picked id scopes the field list to that block's row |
 | 查看全部 | Emit open-full-CSV intent; host/playground opens complete CSV in a new tab ([DATA-33d](../context/decisions/interim/DATA.md)) |
 
 Searchable key–value / table of columns for the active tab + block. Show `NA` when present.
@@ -136,8 +136,8 @@ Searchable key–value / table of columns for the active tab + block. Show `NA` 
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `memoryTopology` (same carrier) | `ArchDiagramMetrics.csv` | Parameter→slot + **gaps** below ([DATA-48a](../context/decisions/interim/DATA.md)); SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_L2_PEAK_PARAM` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES`; gelu HTML `*_gbs` ids = evidence toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
-| `memoryHeatmap` (own carrier) | `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv` (+ optional `CoreTypes.csv`) | biprof §11.2.3.2 lattice + Total/Used/Free ([DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md)); no UbRw fallback | `adapt-mapper` |
+| `memoryTopology` (same carrier) | [`ArchDiagramMetrics.csv`](../formats/emulate/ArchDiagramMetrics.csv.md) | Parameter→slot + **gaps** below ([DATA-48a](../context/decisions/interim/DATA.md)); SSOT `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_L2_PEAK_PARAM` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES`; gelu HTML `*_gbs` ids = evidence toward [DATA-48](../context/questions/DATA.md) (open) | `adapt-mapper` |
+| `memoryHeatmap` (own carrier) | [`MemoryHeatmapLayout.csv`](../formats/emulate/MemoryHeatmapLayout.csv.md) + [`MemoryHeatmapCells.csv`](../formats/emulate/MemoryHeatmapCells.csv.md) (+ optional [`CoreTypes.csv`](../formats/emulate/CoreTypes.csv.md)) | biprof §11.2.3.2 lattice + Total/Used/Free ([DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md)); no UbRw fallback | `adapt-mapper` |
 
 <a id="parameter-slot-map"></a>
 
@@ -147,7 +147,7 @@ Single embed, EAV rows — **no FK join**. Map `ArchDiagramParameterName` → sl
 
 | VM field / slot | Source embed(s) | Join key(s) | Derivation |
 |-----------------|-----------------|-------------|------------|
-| `edges[gm-l2-read].label` | `ArchDiagramMetrics.csv` | base `hbm_to_l2_syn` + mode suffix | operator/request: `{n} GB/s`; requests: integer |
+| `edges[gm-l2-read].label` | [`ArchDiagramMetrics.csv`](../formats/emulate/ArchDiagramMetrics.csv.md) | base `hbm_to_l2_syn` + mode suffix | operator/request: `{n} GB/s`; requests: integer |
 | `edges[gm-l2-write].label` | same | `l2_to_hbm_syn` | same |
 | `edges[l2-l1-read].label` | same | `aic_out_to_l1` | same |
 | `edges[l1-l0a]` / `[l1-l0b]` | same | `aic_l1_to_l0a` / `aic_l1_to_l0b` | same |
@@ -190,7 +190,7 @@ SSOT table (corridor bases; append `_gbs` / `_ratio` / `_cnt` by mode):
 
 Code SSOT: `ARCH_DIAGRAM_EDGE_MAP` / `ARCH_DIAGRAM_UNPLATED_HTML_BASES` / `ARCH_DIAGRAM_L2_PEAK_PARAM` in `emulateMemoryTopology.ts`; locked by `PR-ASIM-008` / `PR-ASIM-008b`.
 
-Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). `MemoryRWAccesses.csv` is **not** a topology source: its rows carry no unit attribution here — the per-access tables feed the heat surface instead ([§ Memory Utilization Heatmap](#heatmap)).
+Set capability **`archDiagram`** when `hasDrawableTopology` (do **not** advertise emulate as `memoryDiagram`). [`MemoryRWAccesses.csv`](../formats/emulate/MemoryRWAccesses.csv.md) is **not** a topology source: its rows carry no unit attribution here — the per-access tables feed the heat surface instead ([§ Memory Utilization Heatmap](#heatmap)).
 
 <a id="heatmap"></a>
 
@@ -216,7 +216,7 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 
 | Unit | Source | Status |
 |------|--------|--------|
-| L1 / UB / L0A / L0B / L0C | `MemoryHeatmapLayout` + `MemoryHeatmapCells` (+ `CoreTypes` for owner labels) | **in** — one view per Layout row ([DATA-50](../context/decisions/DATA.md)) |
+| L1 / UB / L0A / L0B / L0C | [`MemoryHeatmapLayout.csv`](../formats/emulate/MemoryHeatmapLayout.csv.md) + [`MemoryHeatmapCells.csv`](../formats/emulate/MemoryHeatmapCells.csv.md) (+ [`CoreTypes.csv`](../formats/emulate/CoreTypes.csv.md) for owner labels) | **in** — one view per Layout row ([DATA-50](../context/decisions/DATA.md)) |
 | L2Cache | — | **no heat tab** ([UI-60](../context/decisions/UI.md); topology chrome / hit-rate plate only) |
 | UbRw / UtilizationStates | — | **not** heat sources |
 
