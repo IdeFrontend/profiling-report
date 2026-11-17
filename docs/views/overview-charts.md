@@ -6,8 +6,8 @@
 | **Panel / component** | `OverviewCharts` → `src/ui/TimelineView/OverviewCharts/` |
 | **Capability** | _(none)_ |
 | **Phase** | M |
-| **Unification** | `gap` (emulate) |
-| **Sept 30 (emulate)** | **hide** |
+| **Unification** | `same-path` (compute Sampling only; emulate Trace util → swim CounterTracks — [DATA-56](../context/decisions/DATA.md)) |
+| **Sept 30 (emulate)** | **hide** (no `Sampling.json`; util pipes are swim CounterTracks) |
 
 ## Sketches
 
@@ -33,7 +33,7 @@ No `OverviewSeries` → **hide** the chart region entirely ([DATA-32](../context
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `overviewSeries` | [`Sampling.json`](../formats/compute/Sampling.json.md) `ph:"C"` | One series per counter `name`; µs→ns ([DATA-39](../context/decisions/DATA.md)) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `overviewSeries` | `Sampling.json` `ph:"C"` | One series per counter `name`; µs→ns ([DATA-39](../context/decisions/DATA.md)) | [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
 <a id="vm-derivation"></a>
 
@@ -41,7 +41,7 @@ No `OverviewSeries` → **hide** the chart region entirely ([DATA-32](../context
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| `overviewSeries[]` | [`Sampling.json`](../formats/compute/Sampling.json.md) / [`sampling.json`](../formats/compute/Sampling.json.md) | group by counter `name` (no FK) | CTEF `ph:"C"` only; `args.value` must be finite number |
+| `overviewSeries[]` | `Sampling.json` / `sampling.json` | group by counter `name` (no FK) | CTEF `ph:"C"` only; `args.value` must be finite number |
 | `overviewSeries[].id` / `label` | same | `name` | Both = counter `name` |
 | `overviewSeries[].points[{t,v}]` | same | — | `t = ts × 1000` (µs→ns); `v = args.value`; sort by `t` |
 
@@ -56,23 +56,23 @@ Docx placeholder samples (`{"category":"Cube",1:1,2:2}` / Vector) are illustrati
 - Collapsible **统计分析** section **above** the Kernel swimlane (under the time axis), with synchronized area charts over time (one track per `OverviewSeries`).
 - Shared time axis with the swimlane viewport; gutter column width matches lane gutter.
 - **Geometry (v930):** track height **16px**; **8px** margin between tracks; bright stroke + darker fill (see [`OverviewCharts/visual/`](../../src/ui/TimelineView/OverviewCharts/visual/)).
-- **Producer ([DATA-39](../context/decisions/DATA.md)):** product [`Sampling.json`](../formats/compute/Sampling.json.md) `ph:"C"` counters → `OverviewSeries` (**one track per counter `name` present**; hide if empty — [DATA-32](../context/decisions/DATA.md)).
+- **Producer ([DATA-39](../context/decisions/DATA.md)):** product `Sampling.json` `ph:"C"` counters → `OverviewSeries` (**one track per counter `name` present**; hide if empty — [DATA-32](../context/decisions/DATA.md)).
 
 ## Emulate fill
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `overviewSeries` | — | Unless counters packed as Sampling-like CTEF | `gap` → hide |
+| `overviewSeries` | — | Emulate packs have no `Sampling.json`. Trace util `ph:C` pipes map to **swim CounterTracks** ([DATA-56](../context/decisions/DATA.md) / [#208](https://github.com/IdeFrontend/profiling-report/issues/208)), not overview. Adapter leaves `overviewSeries: []` → hide ([DATA-32](../context/decisions/DATA.md)). | **hide** |
 
 ## Adapter
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `overviewSeriesFromSampling` in `adaptPayloads` | |
-| emulate | `adaptEmulate` | Omits overview unless future counter pack |
+| emulate | _(none)_ | No Trace→overview; util pipes → `mergeMemoryUtilCounterTracks` on the swimlane |
 
 ## Related
 
 - Spec: [OverviewCharts](../../src/ui/TimelineView/OverviewCharts/) (co-located)
-- Decisions: [DATA-32](../context/decisions/DATA.md), [DATA-39](../context/decisions/DATA.md)
+- Decisions: [DATA-32](../context/decisions/DATA.md), [DATA-39](../context/decisions/DATA.md), [DATA-56](../context/decisions/DATA.md), [UI-61](../context/decisions/UI.md)
 - Product docx §: 11.2.7

@@ -62,7 +62,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 ## Dependencies
 
-[UI-37](../../docs/context/decisions/UI.md), [compute FORMAT](../../docs/formats/compute/FORMAT.md), [source view](../../docs/views/source.md), [view-models](./view-models.spec.md), [DATA-52](../../docs/context/questions/DATA.md)–[DATA-55](../../docs/context/questions/DATA.md).
+[UI-37](../../docs/context/decisions/UI.md), [VIEW_DATA_REQUIREMENTS §15](../../docs/formats/VIEW_DATA_REQUIREMENTS.md), [view-models](./view-models.spec.md), [DATA-52](../../docs/context/questions/DATA.md)–[DATA-55](../../docs/context/questions/DATA.md).
 
 ## Changelog
 

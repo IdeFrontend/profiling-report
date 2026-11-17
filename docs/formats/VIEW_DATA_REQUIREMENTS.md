@@ -15,9 +15,8 @@ Extracted surfaces (sketches + VM + compute/emulate fill):
 | `roofline` | [../views/roofline.md](../views/roofline.md) |
 | `memory-topology` | [../views/memory-topology.md](../views/memory-topology.md) |
 | `performance-hints` | [../views/performance-hints.md](../views/performance-hints.md) |
-| `source` | [../views/source.md](../views/source.md) — on-disk embeds [compute/FORMAT.md](compute/FORMAT.md) |
 
-**Still on this page until a second extract pass** (same hide policy [DATA-30](../context/decisions/DATA.md)): time axis, lane gutter, swimlane canvas, measure mode — see historical sections below or [views README stubs](../views/README.md). (Hardware, CSV tabs, event/Relevant details, and Source are in view packets.)
+**Still on this page until a second extract pass** (same hide policy [DATA-30](../context/decisions/DATA.md)): time axis, lane gutter, swimlane canvas, measure mode, secondary tabs — see historical sections below or [views README stubs](../views/README.md). (Hardware, CSV tabs, and event/Relevant details are in view packets.)
 
 Formats hub: [`README.md`](README.md). Adapters: [`ADAPTERS.md`](ADAPTERS.md). Product § indexes: [`../views/product-sections.md`](../views/product-sections.md); catalog: [`../views/README.md`](../views/README.md).
 
@@ -62,11 +61,9 @@ See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 
 ### 15. Secondary tabs — Source (UI-37)
 
-**Moved** to [../views/source.md](../views/source.md). On-disk embeds: [`objdump.txt.md`](compute/objdump.txt.md), [`symbolizer.json.md`](compute/symbolizer.json.md), [`summary.db.md`](compute/summary.db.md) — index [compute/FORMAT.md](compute/FORMAT.md).
-
 | Input | Requirement |
 |-------|-------------|
-| Compute multi-file ([`objdump.txt`](compute/objdump.txt.md) + [`symbolizer.json`](compute/symbolizer.json.md) / [`summary.db`](compute/summary.db.md) + source [`.asc`](compute/symbolizer.json.md#source-text)) | → `reportModel.sourceCorrelation` with `mock: false` ([DATA-52](../context/questions/DATA.md) partial) |
+| Compute multi-file (`objdump.txt` + `symbolizer.json` / `summary.db` + source `.asc`) | → `reportModel.sourceCorrelation` with `mock: false` ([DATA-52](../context/questions/DATA.md) partial) |
 | `SourceCorrelation.json` (or Product-named embed) | Reserved; schema still TBD → ignored until Product locks it |
 | Missing embeds on report packs | Omit `sourceCorrelation` and `'sourceTab'`; 源码 control is absent ([UI-37](../context/decisions/UI.md)) |
 | Chrome Trace–only | Omit `sourceCorrelation` and `'sourceTab'` |

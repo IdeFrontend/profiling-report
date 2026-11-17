@@ -22,16 +22,15 @@ Design reference (docx): [HDesign mock](https://octo-g.hdesign.huawei.com/develo
 | 11.2.5.1 | Compute-load CSV details | [pipe-occupancy § Details](pipe-occupancy.md#compute-load-details) | Tabs / CSV field list (same packet) |
 | 11.2.6 | Memory load analysis | [memory-topology](memory-topology.md) | Edge / plate map in **Compute fill** |
 | 11.2.6.1 | Memory CSV details | [memory-topology § Details](memory-topology.md#memory-load-details) | Tabs / block / 查看全部 (same packet) |
-| 11.2.7 | Statistical analysis | [overview-charts](overview-charts.md) | [`Sampling.json`](../formats/compute/Sampling.json.md) + viz geometry in **Compute fill** |
+| 11.2.7 | Statistical analysis | [overview-charts](overview-charts.md) | Sampling.json + viz geometry in **Compute fill** |
 | 11.2.8 | Kernel block timeline | [timeline](timeline.md#structure) | Structure + sample CTEF binding in **Compute fill** |
 | 11.2.8.1 | Event / Relevant details | [event-details](event-details.md) | Mockup regions + CTEF gaps in **Compute fill** |
-| 11.4 | Source \| SASS (源码) | [source](source.md) | Multi-file embeds + adapter in [compute FORMAT](../formats/compute/FORMAT.md); open [DATA-52](../context/questions/DATA.md)–[DATA-55](../context/questions/DATA.md) |
 
 <a id="emulate-profile"></a>
 
 ## Emulate profile (MHTML §11.2.3) → view packet
 
-Same host file (`.npu-rep`); leaf via [`manifest.json`](../formats/emulate/manifest.json.md) ([PROC-8](../context/decisions/PROC.md)). Schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md).
+Same host file (`.npu-rep`); leaf via `manifest.json` ([PROC-8](../context/decisions/PROC.md)). Schemas: [emulate/FORMAT.md](../formats/emulate/FORMAT.md).
 
 | § | Feature | View packet | Sept 30 |
 | --- | --- | --- | --- |

@@ -205,3 +205,20 @@ Format and statuses: [README.md](README.md).
 - **Decision:** **Drop L2Cache from the heat surface.** The heat tab strip and topology heat hit targets are **five** units only: `L1 | UB | L0A | L0B | L0C`. L2 Cache remains on the topology chrome (GM↔L2 edges, hit-rate plate, `node-l2`) but is **not** a heat tab and **not** a `selectableUnits` hit target. Adapter omits any Layout row whose `MemoryName` would have mapped to L2.
 - **Specs:** [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) (`PR-HEAT-001`), [MemoryTopologyPanel.spec.md](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (`PR-MEMTOP-021`), [memory-topology § heatmap](../../views/memory-topology.md#heatmap), [INTERACTIONS](../../ui/INTERACTIONS.md), [UX_SPEC](../../ui/UX_SPEC.md), [DATA-50](./DATA.md)
 - **Source:** Product request in chat (2026-11-02): remove the always-empty L2 heat tab.
+
+---
+
+## UI-61
+
+- **Resolved:** 2026-11-17
+- **Was:** Product chat lock for Trace util CounterTracks ([#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206))
+- **Question:** How should swim CounterTrack lanes look and behave relative to Chrome CounterTrack / OverviewCharts / #181?
+- **Decision:**
+  1. **Placement:** Chrome-like **inline CounterTrack lanes** in the swim hierarchy (under a util Card such as **Memory utilization**), not the 统计分析 OverviewCharts block.
+  2. **Shape:** step-after area + stroke; hold the last sample across gaps until the next point.
+  3. **Y scale:** **per-track auto** from that track’s samples (`yMax`); not the shared overview 0–100 domain (queue depths need this).
+  4. **Labels:** gutter label = **pipe id** stripped from `process_name` (e.g. `AIV0_UB_UTILIZATION`).
+  5. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.
+  6. **Not #181:** these are counter tracks, not variable-height instruction bars.
+- **Specs:** [timeline](../../views/timeline.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [DATA-56](./DATA.md), [OverviewCharts.spec.md](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md) (Sampling-only)
+- **Source:** Product answers 2026-11-17 (1B placement, auto-Y, pipe-id labels, full path first, counter tracks not #181).

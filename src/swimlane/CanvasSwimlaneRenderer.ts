@@ -54,6 +54,7 @@ import {
   type SwimlaneLayout,
 } from './layout';
 import { EVENT_LABEL_FONT_CSS_PX, centeredTextBaseline, fitEventLabel } from './textAtlas';
+import { paintCounterLanes } from './counterLanePaint';
 
 function drawEventLabel(
   ctx: CanvasRenderingContext2D,
@@ -436,6 +437,16 @@ export class SwimlaneOverlayPainter {
     ctx.clearRect(0, 0, this.width, this.height);
 
     const dpr = this.dpr;
+    // CounterTracks always paint on the overlay (WebGL path has no interval mesh for them).
+    paintCounterLanes(
+      ctx,
+      this.layout.lanes,
+      this.view,
+      this.width,
+      this.height,
+      dpr,
+      this.collapse,
+    );
     if (!this.drawEventLabels) {
       this.paintLiftedLeaves(ctx);
       paintCollapseSummaries(
@@ -739,6 +750,16 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       ctx.globalAlpha = 1;
     }
 
+    paintCounterLanes(
+      ctx,
+      this.layout.lanes,
+      this.view,
+      this.width,
+      this.height,
+      dpr,
+      this.collapse,
+    );
+
     const span = Math.max(1, this.view.endTime - this.view.startTime);
     const labelsFit = eventLabelsCanFit(this.layout.maxLeafDuration, span, this.width);
     const q = this.searchQuery;
@@ -762,6 +783,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
+      if (lane.counter) continue;
       if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
       const laneEvts = this.layout.eventsByLane[i] ?? [];
       const [lo, hi] = laneEventRange(

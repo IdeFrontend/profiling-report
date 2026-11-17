@@ -41,11 +41,19 @@ export interface SwimEvent {
 /** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */
 export type LaneCategoryKey = 'comm' | 'compute' | 'hbm';
 
+/** Chrome-like CounterTrack samples on a swim leaf (emulate Trace ph:C util pipes). */
+export interface SwimCounterSeries {
+  /** Canonical ns timestamps; values in the track's Y domain. */
+  points: { t: number; v: number }[];
+  /** Per-track auto Y max (Chrome CounterTrack); must be > 0. */
+  yMax: number;
+}
+
 export interface SwimThread {
   id: string;
   name: string;
   utilization?: number;
-  /** Leaves hold intervals; folders use []. */
+  /** Leaves hold intervals; folders use []. Counter leaves keep []. */
   events: SwimEvent[];
   /** Non-empty ⇒ folder (lane-style gutter row); omit/empty ⇒ leaf. */
   children?: SwimThread[];
@@ -56,6 +64,11 @@ export interface SwimThread {
    * leaf intervals. Expanded folders omit it. Viewer-built, never on producer models.
    */
   summaryEvents?: SwimEvent[];
+  /**
+   * CounterTrack leaf (mutually exclusive with non-empty `events`): step-after area
+   * chart in the lane band. Emulate Trace util pipes (#208/#209/#206).
+   */
+  counter?: SwimCounterSeries;
 }
 
 export interface SwimProcess {
@@ -531,19 +544,6 @@ export interface ReportOperator {
   label: string;
 }
 
-/**
- * §11.14 multi-timeline catalog kinds (流水视图显示). `stat` is omitted until a
- * matched embed exists (DATA-56).
- */
-export type TimelineTraceKind = 'communication' | 'warpOccupy' | 'pipeTrace';
-
-/** A selectable CTEF timeline embed present in the leaf pack. */
-export interface TimelineTraceOption {
-  id: TimelineTraceKind;
-  /** Actual basename found in the pack (preserves producer casing). */
-  embedName: string;
-}
-
 export interface AdaptedReport {
   /** `null` when the source has no timeline (metrics-only pack, no `trace.json`). */
   swimlaneModel: SwimlaneModel | null;
@@ -555,15 +555,6 @@ export interface AdaptedReport {
   operatorReports?: Record<string, AdaptedReport>;
   /** Currently selected operator id (multi-op only; defaults to the first). */
   selectedOperatorId?: string;
-  /**
-   * Present §11.14 catalog timeline embeds (Communication / PipeTrace / SimtWarp).
-   * Omit when empty. Toolbar shows the radio selector only when length > 1.
-   */
-  timelineTraces?: TimelineTraceOption[];
-  /** Active catalog timeline id (when `timelineTraces` is set). */
-  selectedTimelineTraceId?: TimelineTraceKind;
-  /** Pre-adapted swimlane per timeline id (when `timelineTraces` is set). */
-  timelineTraceModels?: Record<string, SwimlaneModel>;
 }
 
 export interface SelectedEvent {

@@ -32,8 +32,8 @@ Overlay opened from 报告统计 → **更多**: host / device / AI Core / HBM s
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `hardwareDetails` | [`HardwareInfo.jsonl`](../formats/compute/HardwareInfo.jsonl.md) (preferred) | Category sections below; one object per line, `category` discriminator | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
-| fallback | [`OpBasicInfo.csv`](../formats/compute/OpBasicInfo.csv.md) | Non-empty columns when jsonl absent ([DATA-34a](../context/decisions/interim/DATA.md)) | Same |
+| `hardwareDetails` | `HardwareInfo.jsonl` (preferred) | Category sections below; one object per line, `category` discriminator | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [compute/FORMAT](../formats/compute/FORMAT.md) |
+| fallback | `OpBasicInfo.csv` | Non-empty columns when jsonl absent ([DATA-34a](../context/decisions/interim/DATA.md)) | Same |
 
 Some sample packs omit jsonl; OpBasicInfo fallback still applies ([DATA-34a](../context/decisions/interim/DATA.md)).
 
@@ -43,8 +43,8 @@ Some sample packs omit jsonl; OpBasicInfo fallback still applies ([DATA-34a](../
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| `hardwareDetails.sections[]` (preferred) | [`HardwareInfo.jsonl`](../formats/compute/HardwareInfo.jsonl.md) | _(none)_ — one section per JSONL line | `id` = slug(`category`); `fields` = all keys except `category` |
-| `hardwareDetails.sections[]` (fallback) | [`OpBasicInfo.csv`](../formats/compute/OpBasicInfo.csv.md) | _(none)_ — row 0 | Single section `opBasicInfo` from non-empty headers |
+| `hardwareDetails.sections[]` (preferred) | `HardwareInfo.jsonl` | _(none)_ — one section per JSONL line | `id` = slug(`category`); `fields` = all keys except `category` |
+| `hardwareDetails.sections[]` (fallback) | `OpBasicInfo.csv` | _(none)_ — row 0 | Single section `opBasicInfo` from non-empty headers |
 | capability `hardwareDetails` | — | — | Set when model present |
 
 Code: `hardwareDetailsFromPayloads` / `hardwareSectionsFromJsonl` in `adaptRep.ts`.
@@ -73,7 +73,7 @@ Code: `hardwareDetailsFromPayloads` / `hardwareSectionsFromJsonl` in `adaptRep.t
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | `adaptPayloads` | Prefers [`HardwareInfo.jsonl`](../formats/compute/HardwareInfo.jsonl.md); OpBasicInfo fallback (DATA-34a) |
+| compute | `adaptPayloads` | Prefers `HardwareInfo.jsonl`; OpBasicInfo fallback (DATA-34a) |
 | emulate | `adaptEmulate` | Does not map hardware overlay |
 
 ## Related

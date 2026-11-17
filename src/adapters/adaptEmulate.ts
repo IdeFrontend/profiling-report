@@ -17,6 +17,7 @@ import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
 import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
+import { mergeMemoryUtilCounterTracks } from './counterTracksEmulate';
 import { parseCsv } from './parseCsv';
 import {
   csvTableFromPipeUtilizationHist,
@@ -25,13 +26,18 @@ import {
 } from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
 import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
-import { buildTimelineTraceBundle } from './timelineTraces';
 
 export {
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+export {
+  memoryUtilDisplayValue,
+  memoryUtilToOverviewPercent,
+  mergeMemoryUtilCounterTracks,
+  memoryUtilCounterThreadsFromTrace,
+} from './counterTracksEmulate';
 
 /** Producer `manifest.json` only ([PROC-8]). */
 const MANIFEST_NAMES = ['manifest.json', 'Manifest.json'];
@@ -308,30 +314,27 @@ export function adaptEmulate(
     },
   );
 
-  // Trace optional: §11.14 catalog (PipeTrace / Communication / SimtWarp) when
-  // present; else PipeTrace.json or native core_*_tracing_report_*.json merge.
+  // Trace optional: PipeTrace.json or native core_*_tracing_report_*.json.
   // Absent → null swimlane; corrupt → throw. Values are µs (DATA-46); override
   // misleading displayTimeUnit:"ns" on native emulate traces.
   let swimlaneModel: SwimlaneModel | null = null;
-  const catalog = buildTimelineTraceBundle(payloads, pipeOccupancy);
-  if (catalog) {
-    swimlaneModel = catalog.swimlaneModel;
-  } else {
-    const trace = findEmulateTracePayload(payloads);
-    if (trace) {
-      let traceJson: unknown;
-      try {
-        traceJson = JSON.parse(decodeUtf8(trace.bytes));
-      } catch {
-        throw new Error(
-          `[profiling-report] adaptEmulate: ${trace.name} is not valid JSON`,
-        );
-      }
-      swimlaneModel = withPipeLaneUtilizations(
-        chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' }),
-        pipeOccupancy,
+  const trace = findEmulateTracePayload(payloads);
+  if (trace) {
+    let traceJson: unknown;
+    try {
+      traceJson = JSON.parse(decodeUtf8(trace.bytes));
+    } catch {
+      throw new Error(
+        `[profiling-report] adaptEmulate: ${trace.name} is not valid JSON`,
       );
     }
+    swimlaneModel = mergeMemoryUtilCounterTracks(
+      withPipeLaneUtilizations(
+        chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' }),
+        pipeOccupancy,
+      ),
+      traceJson,
+    );
   }
 
   // UI-55: prefer projected hist (aic_/aiv0_/aiv1_ *_ratio); omit raw PipesUtilization when hist exists.
@@ -405,12 +408,5 @@ export function adaptEmulate(
     swimlaneModel,
     reportModel,
     capabilities,
-    ...(catalog
-      ? {
-          timelineTraces: catalog.timelineTraces,
-          selectedTimelineTraceId: catalog.selectedTimelineTraceId,
-          timelineTraceModels: catalog.timelineTraceModels,
-        }
-      : {}),
   };
 }

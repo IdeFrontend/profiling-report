@@ -11,7 +11,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Open `.npu-rep` in panel | H / M | Host opens; library renders ([PROC-2](../context/decisions/PROC.md)). Hardware or emulate profile ([PROC-6](../context/decisions/PROC.md), [PROC-7](../context/decisions/PROC.md)) |
 | Open Chrome Trace `.json` in panel | H / M | Same library; aside hidden without CSVs ([PROC-3](../context/decisions/PROC.md)) |
 | Detect emulate leaf (`manifest.json`) | M | Library-internal ([PROC-8](../context/decisions/PROC.md)); no second host extension |
-| Emulate Sept 30 (M4): Timeline + PIPE + Memory load analysis + Memory utilization heatmap + CANNBot (compute/memory); **性能提示** **in**; summary cards/meta **out** | M | [milestone-4](../process/roadmap/milestone-4.md); [performance-hints](../views/performance-hints.md); [DATA-47](../context/decisions/DATA.md); ArchDiagramMetrics → `archDiagram` + Layout/Cells → `memoryHeatmap` ([memory-topology](../views/memory-topology.md), [DATA-50](../context/decisions/DATA.md)); roofline / overview **out** — [emulate/FORMAT](../formats/emulate/FORMAT.md) |
+| Emulate Sept 30 (M4): Timeline + PIPE + Memory load analysis + Memory utilization heatmap + CANNBot (compute/memory); **性能提示** **in**; summary cards/meta **out** | M | [milestone-4](../process/roadmap/milestone-4.md); [performance-hints](../views/performance-hints.md); [DATA-47](../context/decisions/DATA.md); ArchDiagramMetrics → `archDiagram` + Layout/Cells → `memoryHeatmap` ([memory-topology](../views/memory-topology.md), [DATA-50](../context/decisions/DATA.md)); Trace mem util → swim CounterTracks ([DATA-56](../context/decisions/DATA.md) / [#208](https://github.com/IdeFrontend/profiling-report/issues/208)); roofline / overview **out** — [emulate/FORMAT](../formats/emulate/FORMAT.md) |
 | Simulator Phase 2: dedicated arch chrome / VF IPC / call stacks / … | P2 | MHTML §11.2.3; [DATA-48](../context/questions/DATA.md); capabilities `vfIpc`, `callStacks`, … |
 | Timeline secondary tab | M | Primary view |
 | OP算子 / 源码 tabs | M | **时间线** always; **源码** only when the pack has a real Source model ([UI-37](../context/decisions/UI.md)). **详情** / **缓存** are not in the chrome. OP算子 = brand / multi-op selector. Real embeds / heat tint still open ([DATA-52](../context/questions/DATA.md), [DATA-53](../context/questions/DATA.md), [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md)). |
@@ -33,7 +33,6 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Show/hide dependency links | P2 | |
 | Task display unit (auto s/ms/µs/ns or CPU clocks) | M | Two-tier auto ([UI-40](../context/decisions/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Optional **CPU clocks** when OpBasicInfo freq present — **derived** `ns × freq` ([UI-45](../context/decisions/UI.md)); tooltip + detail only. |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
-| 流水视图显示 (multi-timeline radio selector) | M | Switch among present §11.14 CTEF embeds (`Communication` / `PipeTrace` / SimtWarp); hide when &lt; 2; omit unmatched `stat` ([DATA-56](../context/decisions/DATA.md)). Sketch: [`1130/pipeline-display-filter`](./source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg) |
 | Settings | P2 | |
 
 ## Swimlane

@@ -14,7 +14,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Dispatch.** Invoked when `loadReportSource` detects emulate `manifest.json` ([PROC-8](../../docs/context/decisions/PROC.md)).
 
-**Swimlane.** Prefer the §11.14 catalog when present ([DATA-56](../../docs/context/decisions/DATA.md) / [timeline-traces](./timeline-traces.spec.md)). Else when `PipeTrace.json` **or** one or more native `*_tracing_report_*.json` embeds are present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). Multiple native core reports are **merged** with remapped pids ([PR-ASIM-007](#acceptance-criteria)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
+**Swimlane.** When `PipeTrace.json` **or** one or more native `*_tracing_report_*.json` embeds are present, build `SwimlaneModel` via `chromeTraceToSwimlane` with `sourceTimeUnit: 'us'` ([DATA-46](../../docs/context/decisions/interim/DATA.md#data-46)). Multiple native core reports are **merged** with remapped pids ([PR-ASIM-007](#acceptance-criteria)). When absent, `swimlaneModel` is **null** (open still succeeds). Corrupt Trace JSON → throw.
 
 **Summary chrome.** Emulate does **not** populate `reportModel.summary` from KernelInfo (or any embed). Set `reportModel.profile: 'emulate'`. Aside omits summary cards and the pid / opType / Blocks / 更多 meta row ([DATA-47](../../docs/context/decisions/DATA.md)). KernelInfo may still be packed in `csvTexts` when present.
 
@@ -24,7 +24,9 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Memory Utilization Heatmap (biprof §11.2.3.2).** Fill `memoryHeatmap` from `MemoryHeatmapLayout` + `MemoryHeatmapCells` (+ optional `CoreTypes`) via `memoryHeatmapFromTexts` and advertise **`memoryHeatmap`** ([PR-VM-025](./view-models.spec.md), [DATA-50](../../docs/context/decisions/DATA.md) / [DATA-51](../../docs/context/decisions/DATA.md)). No UbRw fallback. Omit when no view is drawable.
 
-**Omit gap panels.** Do not populate `overviewSeries`, `roofline`, or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards.
+**Swim CounterTracks (#208 / [DATA-56](../../docs/context/decisions/DATA.md)).** When the Trace carries populated memory-utilization counter pipes (`<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION` with `ph:C` `memory_utilization`), append a **Memory utilization** process of CounterTrack leaves via `mergeMemoryUtilCounterTracks` ([UI-61](../../docs/context/decisions/UI.md)). `args["Utilization (%)"]` → point `v` (0..1 fractions ×100; values in (1, 100] stay as percent); same-`ts` multi-`C` keeps **last**; empty util processes are skipped. Do **not** mirror Trace util pipes into `reportModel.overviewSeries` — 统计分析 stays Sampling-only ([DATA-32](../../docs/context/decisions/DATA.md) / [DATA-39](../../docs/context/decisions/DATA.md)).
+
+**Omit gap panels.** Do not populate `roofline` or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards. Do not invent overview series from PipeUtilization ratios or Trace util pipes.
 
 **Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`; **`memoryHeatmap`** when a heat unit is drawable. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载). Do not set `roofline` until a dedicated mapper exists.
 
@@ -45,6 +47,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 11. **PR-ASIM-010** — No hint embeds (or unresolvable `HintMsgId`s) → `performanceHints` field omitted and capability absent ([DATA-30](../../docs/context/decisions/DATA.md)).
 12. **PR-ASIM-011** — RFC-4180 quoted `HintMessages` text with embedded commas survives `parseCsv` and the join resolves msg id 1 to the full text.
 13. **PR-ASIM-012** — `SourceLineHints` without `SourceLines` → raw `sourceLineId`, no invented line numbers; `KernelHints` rows have no pc/sourceLineId; `PC` kept as exact decimal string.
+14. **PR-ASIM-013** — Trace `ph:C` on `AIV0_UB_UTILIZATION` (etc.) → one swim CounterTrack leaf per populated pipe under **Memory utilization**; fraction util scaled to percent; same-`ts` keeps last; metadata-only util pids omitted; `overviewSeries` stays `[]`; no memory-util counters → no counter process (#208 / DATA-56).
 
 ## Edge Cases
 
@@ -61,6 +64,8 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a); a dedicated `ArchDiagramModel` / biprof chrome rides this question.
 
 ## Changelog
+- **2026-11-17** — PR-ASIM-013 retarget: memory-util CT counters → swim CounterTracks; no Trace→overview (#208 / DATA-56 / UI-61).
+- **2026-11-16** — PR-ASIM-013: emulate memory-util CT counters → overviewSeries (#208) — superseded 2026-11-17.
 - **2026-11-02** — Heat SSOT is Layout+Cells (DATA-50/51); no UbRw fallback.
 - **2026-10-01** — Memory Utilization Heatmap fills the separate `memoryHeatmap` carrier + capability (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)); former UbRw path superseded 2026-11-02.
 - **2026-09-24** — DATA-48a ratio merge spelled as unweighted average; EAV headers case-insensitive (PR-ASIM-008b).

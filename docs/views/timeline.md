@@ -58,7 +58,7 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `SwimlaneModel` | §11.14 catalog when present ([`Communication.json`](../formats/compute/Communication.json.md) / [`PipeTrace.json`](../formats/compute/PipeTrace.json.md) / SimtWarp*, µs); else classic [`trace.json`](../formats/compute/trace.json.md) (ns) | CTEF `ph:X` events; multi-file → 流水视图显示 radios ([DATA-56](../context/decisions/DATA.md)) | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `SwimlaneModel` | Prefer `trace.json` (ns); else `PipeTrace.json` (µs→ns ×1000) | CTEF `ph:X` events | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
 <a id="structure"></a>
 
@@ -89,7 +89,7 @@ Code: `swimlaneFromPayloads` → `chromeTraceToSwimlane` → `withPipeLaneUtiliz
 
 ### Sample data binding (local)
 
-Docx field table is **empty**. Behavior from mockups + sample [`trace.json`](../formats/compute/trace.json.md):
+Docx field table is **empty**. Behavior from mockups + sample `trace.json`:
 
 | Need | Sample source |
 | --- | --- |
@@ -103,7 +103,7 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `SwimlaneModel` | §11.14 catalog when present (`Communication.json` / [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md) / SimtWarp*, µs, one model per file); else [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md) or `*_tracing_report_*.json` (not critical_path) | Producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)). No catalog → no 流水视图显示 selector | `same-path` |
+| `SwimlaneModel` | Prefer `PipeTrace.json` (µs); else `*_tracing_report_*.json` (not critical_path) | Producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)); mem util CounterTracks ([DATA-56](../context/decisions/DATA.md)) | `same-path` + CounterTracks |
 
 <a id="emulate-vm-derivation"></a>
 
@@ -111,18 +111,19 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| `SwimlaneModel` | §11.14 catalog when present; else [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md) or native tracing JSON | _(same CTEF path)_ | Catalog replaces the native merge (µs, one model per file). Else `sourceTimeUnit: 'us'; multi-file native traces → `mergeNativeChromeTraces` (remap pids). Classic `trace.json` is not a menu row |
+| `SwimlaneModel` | `PipeTrace.json` or native tracing JSON | _(same CTEF path)_ | `sourceTimeUnit: 'us'`; multi-file traces → `mergeNativeChromeTraces` (remap pids) |
 | events / lanes | same as compute CTEF | — | `chromeTraceToSwimlane` |
+| CounterTrack leaves | same Trace `ph:C` on mem util pipes | pipe id from `process_name` | `mergeMemoryUtilCounterTracks` — step-after area, per-track auto Y, pipe-id label ([UI-61](../context/decisions/UI.md) / [DATA-56](../context/decisions/DATA.md)); unit/queue pipes later (#209/#206) |
 | null swimlane | — | — | No trace embed → metrics-only report (no hard error) |
 
-Code: `adaptEmulate` + `findEmulateTracePayload`.
+Code: `adaptEmulate` + `findEmulateTracePayload` + `counterTracksEmulate`.
 
 ## Adapter
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
-| compute | `adaptCompute` / `adaptPayloads` | §11.14 catalog when present; else classic [`trace.json`](../formats/compute/trace.json.md) (ns) — [DATA-56](../context/decisions/DATA.md) |
-| emulate | `adaptEmulate` | Requires [`manifest.json`](../formats/emulate/manifest.json.md); catalog or [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md)/native merge; absent → null swimlane |
+| compute | `adaptCompute` / `adaptPayloads` | Prefers `trace.json` (ns); else `PipeTrace.json` (µs) — `swimlaneFromPayloads` |
+| emulate | `adaptEmulate` | Requires `manifest.json`; PipeTrace optional (absent → null swimlane) |
 | CTEF-only | `adaptChromeTrace` | Empty report model ([PROC-3](../context/decisions/PROC.md)) |
 
 ## Related
@@ -131,4 +132,4 @@ Code: `adaptEmulate` + `findEmulateTracePayload`.
 - FEATURE_MATRIX: Timeline / open `.npu-rep`
 - Specs: [ProfilingReport.spec.md](../../src/ui/ProfilingReport/ProfilingReport.spec.md), [SwimlaneCanvas.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneCanvas/SwimlaneCanvas.spec.md)
 - Product docx §: 11.2.2 (entry / OP), 11.2.8 (structure + binding)
-- Decisions: [DATA-46](../context/decisions/interim/DATA.md#data-46), [PROC-3](../context/decisions/PROC.md), [PROC-8](../context/decisions/PROC.md)
+- Decisions: [DATA-46](../context/decisions/interim/DATA.md#data-46), [DATA-56](../context/decisions/DATA.md), [UI-61](../context/decisions/UI.md), [PROC-3](../context/decisions/PROC.md), [PROC-8](../context/decisions/PROC.md)

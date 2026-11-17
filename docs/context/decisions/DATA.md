@@ -229,10 +229,10 @@ Format and statuses: [README.md](README.md).
 
 ## DATA-32 (was: Q5)
 
-- **Resolved:** 2026-07-31 (wording refreshed 2026-09-09)
+- **Resolved:** 2026-07-31 (wording refreshed 2026-09-09; amended 2026-11-17)
 - **Question:** Overview charts data source?
-- **Decision:** **Hide** overview charts when `overviewSeries` is empty. When Sampling.json has usable `ph:C` counters, [DATA-39](./DATA.md) fills the series; otherwise the adapter returns `[]` and the block stays hidden.
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [DATA-39](./DATA.md)
+- **Decision:** **Hide** overview charts when `overviewSeries` is empty. When Sampling.json has usable `ph:C` counters, [DATA-39](./DATA.md) fills the series; otherwise the adapter returns `[]` and the block stays hidden. Emulate Trace util pipes do **not** fill overview — they are swim CounterTracks ([DATA-56](./DATA.md)).
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [DATA-39](./DATA.md), [DATA-56](./DATA.md)
 
 ---
 
@@ -386,18 +386,6 @@ Format and statuses: [README.md](README.md).
 - **Specs:** [memory-topology](../../views/memory-topology.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-025, [MemoryHeatmapPanel.spec.md](../../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md)
 - **Source:** Producer answers `ui-answers-memory-heatmap.md` (2026-11-02) + format “Deriving the rest”. Supersedes [`DATA-51a`](interim/DATA.md#data-51a).
 
-## DATA-56
-
-- **Resolved:** 2026-11-12
-- **Question:** Which CTEF embeds feed 流水视图显示, and how does the viewer switch among them?
-- **Decision:**
-  1. Catalog (µs CTEF): `Communication.json` → **communication 通信**; `SimtWarpOccpy.json` / `SimtWarpOccupy.json` / `simt_warp_occupancy.json` → **warp occupy**; `PipeTrace.json` → **pipe trace**.
-  2. Menu is **single-select** (times are inconsistent across traces). Show the toolbar control only when ≥2 catalog files are present; omit unmatched options (including design **stat** until a matched embed exists).
-  3. Default selection prefers **pipeTrace** when present.
-  4. Classic `trace.json` (ns) remains the legacy fallback when the catalog is empty — not a menu row.
-- **Specs:** [timeline-traces](../../../specs/core/timeline-traces.spec.md), [timeline](../../views/timeline.md), [ReportToolbar](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [ProfilingReport](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
-- **Source:** `npu-compute性能优化` §11.14 多流水显示; design `1130/流水显示筛选`.
-
 ---
 
 ## DATA-37 (was: Q11)
@@ -476,4 +464,19 @@ Format and statuses: [README.md](README.md).
 - **Decision:** **Omit** tabs; single multi-series chart — [DATA-37](./DATA.md#data-37-was-q11).
 - **Specs:** [roofline](../../views/roofline.md)
 - **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-17.png`.
+
+---
+
+## DATA-56
+
+- **Resolved:** 2026-11-17
+- **Was:** Product chat lock for [#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206) (no prior open-question row)
+- **Question:** How should emulate Trace `ph:C` util pipes (memory / unit / queue) map into the viewer — OverviewCharts vs swim CounterTracks, and which sample rules apply?
+- **Decision:**
+  1. **Surface:** Trace util pipes become **swim CounterTrack leaves** (`SwimThread.counter`), not `reportModel.overviewSeries`. Compute 统计分析 stays **`Sampling.json` only** ([DATA-39](./DATA.md) / [DATA-32](./DATA.md)). Do not mirror Trace counters into overview.
+  2. **Memory pipes (#208):** populated processes whose `process_name` matches `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION`; counter name `memory_utilization`; one leaf per pipe id. Skip metadata-only (empty) util processes.
+  3. **Points:** `t = ts × 1e3` (µs→ns); `v` from `args["Utilization (%)"]` — values in `[0, 1]` scale ×100, values in `(1, 100]` stay as percent, else drop. Same-`ts` multi-`C` → **keep last**. Per-track `yMax` = max sample (auto-Y; [UI-61](./UI.md)).
+  4. **Later slices:** unit pipes (#209) and queue pipes (#206) reuse the same CounterTrack carrier / paint path; only the pipe matcher and arg key differ.
+- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-013, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
+- **Source:** Product answers 2026-11-17 (placement B; retarget #233; keep last @ same ts; counter tracks not #181 overview mirror).
 

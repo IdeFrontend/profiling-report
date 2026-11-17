@@ -1,183 +1,167 @@
-# Emulate profile — data sections
+# Emulate profile format
 
-**Profile:** `emulate` (npu_emulate).
+**Profile:** `emulate` (npu_emulate / Ascend cycle-accurate OP simulation).
 
-Flat list of leaf embeds / contract CSVs (one markdown file per pack section). File name is `{section}.md` — strip `.md` to get the exact basename (`HintMessages.csv` ← `HintMessages.csv.md`).
+Shared container: [formats README](../README.md). Column/type SSOT: [SCHEMA.md](SCHEMA.md). Pack / Phase 1 inventory: [TABLES.md](TABLES.md). **Embed → lit view (Sept 30):** [§4.1](#41-embeds-used-by-report-visualization-sept-30--m4). Compute profile: [../compute/FORMAT.md](../compute/FORMAT.md). Adaptation: [../ADAPTERS.md](../ADAPTERS.md).
 
-Detection: leaf embeds [`manifest.json`](manifest.json.md) ([PROC-8](../../context/decisions/PROC.md)). Container: [formats README](../README.md). Compute: [../compute/FORMAT.md](../compute/FORMAT.md).
-Full column catalog generator notes: [SCHEMA.md](SCHEMA.md). Pack status / Phase 1: [TABLES.md](TABLES.md). Adapter: [../ADAPTERS.md](../ADAPTERS.md). Views: [../../views/](../../views/).
+Decisions: [PROC-6](../../context/decisions/PROC.md) … [PROC-8](../../context/decisions/PROC.md), [DATA-45](../../context/decisions/interim/DATA.md#data-45), [DATA-46](../../context/decisions/interim/DATA.md#data-46).
 
-**Time base:** simulation ticks → pack [`PipeTrace.json`](PipeTrace.json.md) in **µs** ([DATA-46](../../context/decisions/interim/DATA.md#data-46)).
+---
 
-## Sections
+## 1. Role
 
-| Section |
-|---------|
-| [`ActiveInstrTypes.csv`](ActiveInstrTypes.csv.md) |
-| [`aicore_utilization.json`](aicore_utilization.json.md) |
-| [`AiCoreOccupancy.csv`](AiCoreOccupancy.csv.md) |
-| [`AnalysisState.csv`](AnalysisState.csv.md) |
-| [`ArchDiagramMetrics.csv`](ArchDiagramMetrics.csv.md) |
-| [`AsmMetrics.csv`](AsmMetrics.csv.md) |
-| [`BasicBlockCountDiagram.csv`](BasicBlockCountDiagram.csv.md) |
-| [`BasicBlocks.csv`](BasicBlocks.csv.md) |
-| [`BasicBlocksRelations.csv`](BasicBlocksRelations.csv.md) |
-| [`BrifEvents.csv`](BrifEvents.csv.md) |
-| [`CallFunctions.csv`](CallFunctions.csv.md) |
-| [`CallGraph.csv`](CallGraph.csv.md) |
-| [`CallGraphMetrics.csv`](CallGraphMetrics.csv.md) |
-| [`CallStackIDs.csv`](CallStackIDs.csv.md) |
-| [`CallStacks.csv`](CallStacks.csv.md) |
-| [`CCUAllTickEvents.csv`](CCUAllTickEvents.csv.md) |
-| [`CollectedSamples.csv`](CollectedSamples.csv.md) |
-| [`CoreTypes.csv`](CoreTypes.csv.md) |
-| [`CriticalPath.csv`](CriticalPath.csv.md) |
-| [`DCacheBiuRequests.csv`](DCacheBiuRequests.csv.md) |
-| [`DCacheHitMissEvents.csv`](DCacheHitMissEvents.csv.md) |
-| [`DebugInfo.csv`](DebugInfo.csv.md) |
-| [`DispatchTime.csv`](DispatchTime.csv.md) |
-| [`DmaMovLoad2dParams.csv`](DmaMovLoad2dParams.csv.md) |
-| [`DmaMovLoad3dParams.csv`](DmaMovLoad3dParams.csv.md) |
-| [`DmaMovMultiParams.csv`](DmaMovMultiParams.csv.md) |
-| [`DmaMovNdDmaParams.csv`](DmaMovNdDmaParams.csv.md) |
-| [`DmaMovProcessedBytes.csv`](DmaMovProcessedBytes.csv.md) |
-| [`DmaMovSimpleParams.csv`](DmaMovSimpleParams.csv.md) |
-| [`ExecQueueUtilization.csv`](ExecQueueUtilization.csv.md) |
-| [`ExecutedInstructions.csv`](ExecutedInstructions.csv.md) |
-| [`ExecutionMasks.csv`](ExecutionMasks.csv.md) |
-| [`FixpParams.csv`](FixpParams.csv.md) |
-| [`Functions.csv`](Functions.csv.md) |
-| [`HintMessages.csv`](HintMessages.csv.md) |
-| [`HintTypes.csv`](HintTypes.csv.md) |
-| [`ICacheEvents.csv`](ICacheEvents.csv.md) |
-| [`ICacheRefillEvents.csv`](ICacheRefillEvents.csv.md) |
-| [`ICacheStartingPCs.csv`](ICacheStartingPCs.csv.md) |
-| [`InstrFetchStalls.csv`](InstrFetchStalls.csv.md) |
-| [`InstrNameHistClocks.csv`](InstrNameHistClocks.csv.md) |
-| [`InstrNameHistCount.csv`](InstrNameHistCount.csv.md) |
-| [`InstrQueueTypes.csv`](InstrQueueTypes.csv.md) |
-| [`InstrTypeHistClocks.csv`](InstrTypeHistClocks.csv.md) |
-| [`InstrTypeHistCount.csv`](InstrTypeHistCount.csv.md) |
-| [`InstrTypes.csv`](InstrTypes.csv.md) |
-| [`InstructionHints.csv`](InstructionHints.csv.md) |
-| [`InstructionHintsView.csv`](InstructionHintsView.csv.md) |
-| [`IPCAsmMetrics.csv`](IPCAsmMetrics.csv.md) |
-| [`IssueQueueUtilization.csv`](IssueQueueUtilization.csv.md) |
-| [`JumpsDescription.csv`](JumpsDescription.csv.md) |
-| [`KernelHints.csv`](KernelHints.csv.md) |
-| [`KernelHintsView.csv`](KernelHintsView.csv.md) |
-| [`KernelInfo.csv`](KernelInfo.csv.md) |
-| [`LiveRegisters.csv`](LiveRegisters.csv.md) |
-| [`manifest.json`](manifest.json.md) |
-| [`MemoryHeatmapCells.csv`](MemoryHeatmapCells.csv.md) |
-| [`MemoryHeatmapLayout.csv`](MemoryHeatmapLayout.csv.md) |
-| [`MemoryRWAccesses.csv`](MemoryRWAccesses.csv.md) |
-| [`MemoryUtilizationStates.csv`](MemoryUtilizationStates.csv.md) |
-| [`MmadParams.csv`](MmadParams.csv.md) |
-| [`PipeDependency.csv`](PipeDependency.csv.md) |
-| [`PipeSamples.csv`](PipeSamples.csv.md) |
-| [`PipesUtilization.csv`](PipesUtilization.csv.md) |
-| [`PipeTrace.json`](PipeTrace.json.md) |
-| [`PipeUtilizationHist.csv`](PipeUtilizationHist.csv.md) |
-| [`PMUScalarCounters.csv`](PMUScalarCounters.csv.md) |
-| [`PredicateRegValues.csv`](PredicateRegValues.csv.md) |
-| [`QueueFullEvents.csv`](QueueFullEvents.csv.md) |
-| [`QueueFullStalls.csv`](QueueFullStalls.csv.md) |
-| [`RegionNames.csv`](RegionNames.csv.md) |
-| [`Regions.csv`](Regions.csv.md) |
-| [`RegisterUsageStalls.csv`](RegisterUsageStalls.csv.md) |
-| [`SamplingStats.csv`](SamplingStats.csv.md) |
-| [`ScalarIpcDynamic.csv`](ScalarIpcDynamic.csv.md) |
-| [`Sections.csv`](Sections.csv.md) |
-| [`SharedPatterns.csv`](SharedPatterns.csv.md) |
-| [`SIMDSamplingStats.csv`](SIMDSamplingStats.csv.md) |
-| [`SIMDStallReasonTypes.csv`](SIMDStallReasonTypes.csv.md) |
-| [`SIMDStallsByAddr.csv`](SIMDStallsByAddr.csv.md) |
-| [`SIMDStallsByLine.csv`](SIMDStallsByLine.csv.md) |
-| [`SIMTExecutionMasks.csv`](SIMTExecutionMasks.csv.md) |
-| [`SIMTGmAccessMetrics.csv`](SIMTGmAccessMetrics.csv.md) |
-| [`SIMTGMPatterns.csv`](SIMTGMPatterns.csv.md) |
-| [`SIMTLdStProcessedBytes.csv`](SIMTLdStProcessedBytes.csv.md) |
-| [`SIMTRegisterRead.csv`](SIMTRegisterRead.csv.md) |
-| [`SIMTSharedPatterns.csv`](SIMTSharedPatterns.csv.md) |
-| [`SIMTWarpOccupancy.csv`](SIMTWarpOccupancy.csv.md) |
-| [`SIMTWarpUtilization.csv`](SIMTWarpUtilization.csv.md) |
-| [`SourceFiles.csv`](SourceFiles.csv.md) |
-| [`SourceInstructions.csv`](SourceInstructions.csv.md) |
-| [`SourceLineHints.csv`](SourceLineHints.csv.md) |
-| [`SourceLineHintsView.csv`](SourceLineHintsView.csv.md) |
-| [`SourceLineMetrics.csv`](SourceLineMetrics.csv.md) |
-| [`SourceLines.csv`](SourceLines.csv.md) |
-| [`SprInfoPerInstr.csv`](SprInfoPerInstr.csv.md) |
-| [`SprWriteEvents.csv`](SprWriteEvents.csv.md) |
-| [`SubQueueTypes.csv`](SubQueueTypes.csv.md) |
-| [`SyncStalls.csv`](SyncStalls.csv.md) |
-| [`TraceBubbles.csv`](TraceBubbles.csv.md) |
-| [`TraceBubbleSummary.csv`](TraceBubbleSummary.csv.md) |
-| [`UBBankConflicts.csv`](UBBankConflicts.csv.md) |
-| [`UbBankConflictsCross.csv`](UbBankConflictsCross.csv.md) |
-| [`UbRwAccesses.csv`](UbRwAccesses.csv.md) |
-| [`UbRwStatistics.csv`](UbRwStatistics.csv.md) |
-| [`UnitsUsageMetrics.csv`](UnitsUsageMetrics.csv.md) |
-| [`UnitUtilization.csv`](UnitUtilization.csv.md) |
-| [`VectorConfigState.csv`](VectorConfigState.csv.md) |
-| [`VectorUtilizations.csv`](VectorUtilizations.csv.md) |
-| [`VfIPC.csv`](VfIPC.csv.md) |
-| [`VfIPCDynamic.csv`](VfIPCDynamic.csv.md) |
-| [`VfIPCDynamicView.csv`](VfIPCDynamicView.csv.md) |
-| [`VfIPCInside.csv`](VfIPCInside.csv.md) |
-| [`VFMemoryRWAccesses.csv`](VFMemoryRWAccesses.csv.md) |
-| [`VfPMUDeltasViewPerVf.csv`](VfPMUDeltasViewPerVf.csv.md) |
-| [`VfPMUMetrics.csv`](VfPMUMetrics.csv.md) |
-| [`VfPMUSummary.csv`](VfPMUSummary.csv.md) |
-| [`VfPMUSynthTypes.csv`](VfPMUSynthTypes.csv.md) |
-| [`VfPMUSynthValuesPerSubcore.csv`](VfPMUSynthValuesPerSubcore.csv.md) |
-| [`VfPMUSynthValuesPerVf.csv`](VfPMUSynthValuesPerVf.csv.md) |
-| [`VfPMUSynthViewPerSubcore.csv`](VfPMUSynthViewPerSubcore.csv.md) |
-| [`VfPMUSynthViewPerVf.csv`](VfPMUSynthViewPerVf.csv.md) |
-| [`VfPMUValues.csv`](VfPMUValues.csv.md) |
-| [`VfPMUViewPerSubcore.csv`](VfPMUViewPerSubcore.csv.md) |
-| [`VfSimtInvocations.csv`](VfSimtInvocations.csv.md) |
-| [`VfSimtIPC.csv`](VfSimtIPC.csv.md) |
-| [`VfSimtIPCDynamic.csv`](VfSimtIPCDynamic.csv.md) |
-| [`VfSimtIPCDynamicView.csv`](VfSimtIPCDynamicView.csv.md) |
-| [`VfSimtIPCInside.csv`](VfSimtIPCInside.csv.md) |
+npu_emulate builds a **contract SQLite database** (or CSV export of that DB) from a simulated kernel run, then generates HTML/JSON/SVG reports. Product delivery into Asc Toolkit is still **`.npu-rep`** ([PROC-6](../../context/decisions/PROC.md)) — a leaf archive whose embeds are **simulator-native**, not hardware OpBasicInfo / PipeUtilization schemas ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
-## Viewer packer (Sept 30)
+| Concern | Compute profile | Emulate profile |
+|---------|------------------|-------------------|
+| Grain | OP / block aggregates + pipe-busy timeline | Instruction / **tick** events |
+| Hub identity | `OpBasicInfo.csv` | `KernelInfo` + `ExecutedInstructions` |
+| Timeline | `PipeTrace.json` / `trace.json` | Emulate Chrome Trace → packed as `PipeTrace.json` (µs) |
+| Detection | (no marker) | `manifest.json` ([PROC-8](../../context/decisions/PROC.md)) |
 
-<a id="viewer-packer-sept-30"></a>
-<a id="41-embeds-used-by-report-visualization-sept-30--m4"></a>
+---
 
-### Embeds used by report visualization (Sept 30 / M4)
+## 2. Data model (contract DB)
+
+Sources of tables (from npu_emulate docs):
+
+| Layer | Origin | Examples |
+|-------|--------|----------|
+| Contract input | Simulator / mock DB | `KernelInfo`, `ExecutedInstructions`, `DispatchTime`, `MemoryRWAccesses`, `BrifEvents`, `PMUScalarCounters`, … |
+| Bridge / dictionary | Startup + optional ELF | `InstrTypes`, `CoreTypes`, `SourceFiles`, `Functions`, aggregation views |
+| Analysis output | Analyzers (often flag-gated) | `ArchDiagramMetrics`, `PipesUtilization`, `VfIPC*`, `TraceBubbles`, `VfPMU*` |
+| Hints | hints.sql | `HintTypes`, hint views |
+
+**Field catalog:** every contract object and column (name, SQL type, description) is listed in **[SCHEMA.md](SCHEMA.md)**, generated from `manifest.json` inside [`data/gelu.npu-rep`](../../../data/gelu.npu-rep). That embed is the SSOT for schema shape; this section only describes layers and packing rules.
+
+**Hub table:** `ExecutedInstructions` — almost every report joins on `ExecInstrId` (cores, tick ranges, instr names/types). See [SCHEMA § ExecutedInstructions](SCHEMA.md#executedinstructions).
+
+**Time base:** simulation uses integer **ticks**. When packing `PipeTrace.json` for this viewer, the producer **MUST** convert ticks → **µs** ([DATA-46](../../context/decisions/interim/DATA.md#data-46)).
+
+**Flag-gated depth:** many analysis tables stay empty unless analyzers run (`--bubble`, `--vec-ipc`, `--simd-perf`, `--object-file`, …). Packers MUST only claim capabilities for populated embeds.
+
+---
+
+## 3. Native emulate report outputs (reference)
+
+npu_emulate `report` already emits (among others):
+
+- Per-core Chrome Trace JSON (`core_*_tracing_report_*.json`)
+- `aicore_utilization.json`
+- Arch diagram SVGs, HTML charts, bubble JSON, …
+
+Profiling-report does **not** re-implement those HTML generators. It consumes a **packed leaf** (§4) and maps into shared view-models.
+
+---
+
+## 4. Leaf pack (inside `.npu-rep`)
+
+Two shapes appear in the wild:
+
+| Shape | Example | Marker | Typical embeds |
+|-------|---------|--------|----------------|
+| **CSV export pack** (producer dump) | [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) — sole committed sample | `manifest.json` (export catalog — **is** the emulate marker per [PROC-8](../../context/decisions/PROC.md)) | All populated contract CSVs + timeline (`core_*_tracing_report_*.json` or normative `PipeTrace.json`) + optional `aicore_utilization.json` |
+| **Thin viewer leaf** | unit-test fixtures (in-memory) | `manifest.json` thin `{ profile, schemaVersion }` | Manifest + `PipeTrace.json` + KernelInfo + PIPE CSVs (± more contract CSVs) |
+
+gelu (2026-09-21) packs **every** `row_count > 0` object, including KernelInfo / PIPE / ArchDiagramMetrics, plus performance-hint CSVs whose manifest `row_count` is 0 (`HintMessages`, `InstructionHints`, `KernelHints`, `SourceLineHints`) — see [TABLES.md](TABLES.md) §1–3.
+
+### 4.1 Embeds used by report visualization (Sept 30 / M4)
 
 Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds → **hide** that surface ([DATA-30](../../context/decisions/DATA.md)); the leaf still opens. Do **not** invent compute-shaped names ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
 
 | Embed (basename in `.npu-rep`) | View / surface | Adapter fill | Notes |
 |--------------------------------|----------------|--------------|-------|
-| [`manifest.json`](manifest.json.md) | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog |
-| [`PipeTrace.json`](PipeTrace.json.md) | [Timeline](../../views/timeline.md) | `SwimlaneModel` (`sourceTimeUnit: us`) | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/interim/DATA.md#data-46)). When `PipeTrace.json` is absent, **all** native `core_*_tracing_report_*.json` (non–critical-path) are **merged** into one swimlane with remapped pids, ordered by numeric core index ([PR-ASIM-007](../../../specs/core/adapt-emulate.spec.md)). Absent both → null swimlane |
-| [`KernelInfo.csv`](KernelInfo.csv.md) | _(not 报告统计 chrome)_ | optional `csvTexts` only | **Out** of summary cards / meta ([DATA-47](../../context/decisions/DATA.md)). May remain packed for catalog / export |
-| [`PipeUtilizationHist.csv`](PipeUtilizationHist.csv.md) (preferred) and/or [`PipesUtilization.csv`](PipesUtilization.csv.md) | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
-| [`ArchDiagramMetrics.csv`](ArchDiagramMetrics.csv.md) | [memory-topology](../../views/memory-topology.md) (Architecture Diagram fill) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
-| [`MemoryHeatmapLayout.csv`](MemoryHeatmapLayout.csv.md) + [`MemoryHeatmapCells.csv`](MemoryHeatmapCells.csv.md) (+ [`CoreTypes.csv`](CoreTypes.csv.md)) | [memory-topology § Memory Utilization Heatmap](../../views/memory-topology.md) | `memoryHeatmap` + capability `memoryHeatmap` | One view per Layout row; capacity per [DATA-51](../../context/decisions/DATA.md). No UbRw heat path ([DATA-50](../../context/decisions/DATA.md)). |
-| [`HintMessages.csv`](HintMessages.csv.md) + [`HintTypes.csv`](HintTypes.csv.md) + [`InstructionHints.csv`](InstructionHints.csv.md) + [`KernelHints.csv`](KernelHints.csv.md) + [`SourceLineHints.csv`](SourceLineHints.csv.md) | [Performance hints](../../views/performance-hints.md) | `performanceHints` + capability `performanceHints` | Joined rows (53 on gelu, [PR-ASIM-009](../../../specs/core/adapt-emulate.spec.md)); RFC-4180 quoted `HintMsgText` decoded; `SourceLineId` shown raw when `SourceLines` is not packed ([PR-ASIM-012](../../../specs/core/adapt-emulate.spec.md)). Absent / no joined rows → omit |
+| `manifest.json` | Emulate detection | `isEmulateLeaf` / `adaptEmulate` | Required marker ([PROC-8](../../context/decisions/PROC.md)). Thin `{ profile, schemaVersion }` **or** export catalog |
+| `PipeTrace.json` / `core_*_tracing_report_*.json` | [Timeline](../../views/timeline.md) (+ CounterTracks) | `SwimlaneModel` (`sourceTimeUnit: us`) + mem util CounterTracks | **µs** `ts`/`dur` ([DATA-46](../../context/decisions/interim/DATA.md#data-46)). When `PipeTrace.json` is absent, **all** native `core_*_tracing_report_*.json` (non–critical-path) are **merged** into one swimlane with remapped pids, ordered by numeric core index ([PR-ASIM-007](../../../specs/core/adapt-emulate.spec.md)). Absent both → null swimlane. Populated `*_UB/L0*/L1_UTILIZATION` `ph:C` pipes → swim CounterTracks ([DATA-56](../../context/decisions/DATA.md) / [#208](https://github.com/IdeFrontend/profiling-report/issues/208)), not overview |
+| `KernelInfo.csv` | _(not 报告统计 chrome)_ | optional `csvTexts` only | **Out** of summary cards / meta ([DATA-47](../../context/decisions/DATA.md)). May remain packed for catalog / export |
+| `PipeUtilizationHist.csv` (preferred) and/or `PipesUtilization.csv` | [PIPE occupancy](../../views/pipe-occupancy.md) + 计算 详情 | `pipeOccupancy` + `computeTables` | Keep emulate basenames. Absent / all-NA → hide PIPE |
+| `ArchDiagramMetrics.csv` | [memory-topology](../../views/memory-topology.md) (Architecture Diagram fill) | `memoryTopology` + capability `archDiagram` | Interim plated chrome ([DATA-48a](../../context/decisions/interim/DATA.md)). Absent / undrawable → omit `archDiagram` |
+| `MemoryHeatmapLayout.csv` + `MemoryHeatmapCells.csv` (+ `CoreTypes.csv`) | [memory-topology § Memory Utilization Heatmap](../../views/memory-topology.md) | `memoryHeatmap` + capability `memoryHeatmap` | One view per Layout row; capacity per [DATA-51](../../context/decisions/DATA.md). No UbRw heat path ([DATA-50](../../context/decisions/DATA.md)). |
+| `HintMessages.csv` + `HintTypes.csv` + `InstructionHints.csv` + `KernelHints.csv` + `SourceLineHints.csv` | [Performance hints](../../views/performance-hints.md) | `performanceHints` + capability `performanceHints` | Joined rows (53 on gelu, [PR-ASIM-009](../../../specs/core/adapt-emulate.spec.md)); RFC-4180 quoted `HintMsgText` decoded; `SourceLineId` shown raw when `SourceLines` is not packed ([PR-ASIM-012](../../../specs/core/adapt-emulate.spec.md)). Absent / no joined rows → omit |
 
 **Also lit when the above mount:** StatsAside CANNBot scopes (**compute / memory** only — summary scope omitted with meta, [DATA-47](../../context/decisions/DATA.md)) from the same adapted fields — no extra embeds.
 
 **Reference leaf (committed):** [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) — playground + unit smoke. Roadmap: [milestone-4](../../process/roadmap/milestone-4.md). Per-surface detail: [`../../views/`](../../views/).
 
-### Not used for Sept 30 visualization (packed or not) {#not-used-sept-30}
-
-<a id="4.2"></a>
+### 4.2 Not used for Sept 30 visualization (packed or not)
 
 | Embed / table | Product surface | Status |
 |---------------|-----------------|--------|
-| [`MemoryRWAccesses.csv`](MemoryRWAccesses.csv.md) | Memory Utilization Heatmap | **not used** — lattice SSOT is Layout+Cells ([DATA-50](../../context/decisions/DATA.md)); heat tabs are L1/UB/L0A/L0B/L0C only ([UI-60](../../context/decisions/UI.md)) |
+| `MemoryRWAccesses.csv` | Memory Utilization Heatmap | **not used** — lattice SSOT is Layout+Cells ([DATA-50](../../context/decisions/DATA.md)); heat tabs are L1/UB/L0A/L0B/L0C only ([UI-60](../../context/decisions/UI.md)) |
 | compute `Memory*.csv` / `memoryDiagram` | Asc 内存负载 | n/a on emulate |
-| [`AiCoreOccupancy.csv`](AiCoreOccupancy.csv.md) / [`aicore_utilization.json`](aicore_utilization.json.md) | AICore occupancy overlay | out-of-scope |
-| `VfIPC*.csv` / [`VfSimtIPC.csv`](VfSimtIPC.csv.md) | SIMD/SIMT VF IPC | out-of-scope |
+| `AiCoreOccupancy.csv` / `aicore_utilization.json` | AICore occupancy overlay | out-of-scope |
+| `VfIPC*.csv` / `VfSimtIPC.csv` | SIMD/SIMT VF IPC | out-of-scope |
 | Call* / CallGraph* | Call stacks | out-of-scope |
 | Roofline inputs (`Functions`, `ExecutedInstructions`, `VectorUtilizations`, …) | Roofline | **hide** (gap) |
-| `Sampling.json` | Overview charts | **hide** (gap) |
+| Trace `ph:C` util pipes (unit / queue — #209 / #206) | Swim CounterTracks | **planned** — same carrier as mem util ([DATA-56](../../context/decisions/DATA.md)); mem util already lit in §4.1 |
 
 Optional: other contract CSVs may be packed unused for later phases. **Not required:** sqlite3 blob (container type `5` reserved).
+
+### 4.3 `manifest.json` (emulate marker)
+
+**Thin marker** (viewer leaf; unit tests — not a committed pack):
+
+```json
+{
+  "profile": "emulate",
+  "schemaVersion": 1,
+  "producer": "npu_emulate",
+  "tickToUs": null
+}
+```
+
+| Field | Required | Meaning |
+|-------|----------|---------|
+| `profile` | yes (thin) | Must be `"emulate"` |
+| `schemaVersion` | yes (thin) | Integer; start at `1` |
+| `producer` | no | e.g. `npu_emulate` |
+| `tickToUs` | no | Scale factor used when converting ticks → µs for PipeTrace; informational |
+
+**Export catalog** (producer dump / gelu): object with `objects[]` where some entry `name` is `ExecutedInstructions`, `KernelInfo`, or `AnalysisState`. Thin `profile` fields are not required for this shape.
+
+Additional fields allowed; unknown keys ignored by the viewer.
+---
+
+## 5. Product UI mapping (MHTML §11.2.3)
+
+Product maps Biprof features → Asc Toolkit using **simulator CSV names** (not hardware embeds):
+
+| § | Feature | Primary sources |
+|---|---------|-----------------|
+| 11.2.3.1 | Architecture Diagram | `ArchDiagramMetrics` (interim plated chrome; [DATA-48a](../../context/decisions/interim/DATA.md)) |
+| 11.2.3.2 | Memory Utilization Heatmap | `MemoryHeatmapLayout` + `MemoryHeatmapCells` ([DATA-50](../../context/decisions/DATA.md) / [DATA-51](../../context/decisions/DATA.md)); tabs L1/UB/L0A/L0B/L0C only ([UI-60](../../context/decisions/UI.md)) |
+| 11.2.3.3 | AICore Utilization | `AiCoreOccupancy` (+ `aicore_utilization.json`) |
+| 11.2.3.4 | Sub Core / pipeline util | `PipesUtilization` |
+| 11.2.3.5 | Roofline | ArchDiagramMetrics, Functions, ExecutedInstructions, VectorUtilizations, SourceInstructions |
+| 11.2.3.6 | Pipeline utilizations | `PipesUtilization` |
+| 11.2.3.7 | SIMD/SIMT VF IPC | `VfIPC`, `VfSimtIPC` |
+| 11.2.3.8 | Call Stacks | CallGraph*, CallStacks*, CallFunctions (ELF) |
+
+Display ↔ field detail: [views catalog](../../views/README.md) (per-packet fills); product § indexes: [product-sections.md](../../views/product-sections.md). Hide rules (adapted VM): [VIEW_DATA_REQUIREMENTS.md](../VIEW_DATA_REQUIREMENTS.md).
+
+---
+
+## 6. Viewer behavior (summary)
+
+1. Parse `.npu-rep` leaf payloads ([INPUT_FORMATS](../README.md)).
+2. If emulate `manifest.json` (thin profile or export catalog) → **emulate** adapter.
+3. Sept 30 (M4): build `SwimlaneModel` from `PipeTrace.json` when present (else null swimlane); **no** summary cards / meta from KernelInfo ([DATA-47](../../context/decisions/DATA.md)); PIPE from PipesUtilization/hist; Architecture Diagram from ArchDiagramMetrics into interim plated chrome (`memoryTopology` carrier, capability `archDiagram`, [DATA-48a](../../context/decisions/interim/DATA.md)); Memory Utilization Heatmap from `MemoryHeatmapLayout` + `MemoryHeatmapCells` (`memoryHeatmap` carrier, capability `memoryHeatmap`, [DATA-50](../../context/decisions/DATA.md) / [DATA-51](../../context/decisions/DATA.md)); hide the remaining overview/roofline gaps ([DATA-30](../../context/decisions/DATA.md)).
+4. Later: set more capabilities when embeds present; never invent hardware CSVs ([DATA-45](../../context/decisions/interim/DATA.md#data-45)).
+
+---
+
+## 7. Reference sample (gelu)
+
+Sole committed emulate fixture: [`data/gelu.npu-rep`](../../../data/gelu.npu-rep) (playground `?fixture=gelu`, unit smoke). Detected as emulate via export-catalog `manifest.json`; timeline from `core_0_tracing_report_0.json` (or normative `PipeTrace.json`). Table set: [TABLES.md](TABLES.md). Notes: [`data/gelu.README.md`](../../../data/gelu.README.md).
+
+---
+
+## 8. Open
+
+| Item | Id |
+|------|-----|
+| Head `origin` `2` simulator / `3` sanitizer | [PROC-9](../../context/decisions/PROC.md) — parser still accepts only `1` |
+| ArchDiagramMetrics → Architecture Diagram slots | [DATA-48](../../context/questions/DATA.md) (interim [DATA-48a](../../context/decisions/interim/DATA.md)) |
+| Dedicated ArchDiagramModel / biprof chrome | [DATA-48](../../context/questions/DATA.md) |
+| Exact `tickToUs` default when freq unknown | producer docs |
+| Synthesizing PipeTrace from ExecutedInstructions / DispatchTime | Future — not required to open |

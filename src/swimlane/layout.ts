@@ -87,6 +87,8 @@ export interface FlatLane {
   color: string;
   /** Nested folder row: reserves height, no events painted. */
   folder?: boolean;
+  /** CounterTrack leaf: step-after chart; no interval events. */
+  counter?: boolean;
   depth: number;
   /** Sub-rows for a leaf with overlapping events; 1 for folders and spacer leaves. */
   rowCount: number;
@@ -958,6 +960,21 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
         laneEvents.push(item);
       }
       eventsByLane.push(laneEvents);
+      y += LANE_HEIGHT;
+      continue;
+    }
+    if (thread.counter) {
+      const lane: FlatLane = {
+        thread,
+        y,
+        color,
+        depth: row.depth,
+        rowCount: 1,
+        counter: true,
+      };
+      lanes.push(lane);
+      lanesByTid.set(thread.id, lane);
+      eventsByLane.push([]);
       y += LANE_HEIGHT;
       continue;
     }

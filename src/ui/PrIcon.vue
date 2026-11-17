@@ -19,7 +19,6 @@ export type PrIconName =
   | 'close'
   | 'keyboard'
   | 'list'
-  | 'pipeline-view'
   | 'link'
   | 'chevron-down'
   | 'chevron-up'
@@ -99,12 +98,6 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--list {
   -webkit-mask-image: url('./icons/list.png');
   mask-image: url('./icons/list.png');
-}
-
-/* 1130 流水视图显示 — product SVG glyph (bars + focus reticle). */
-.pr-icon--pipeline-view {
-  -webkit-mask-image: url('./icons/pipeline-view.svg');
-  mask-image: url('./icons/pipeline-view.svg');
 }
 
 .pr-icon--link {

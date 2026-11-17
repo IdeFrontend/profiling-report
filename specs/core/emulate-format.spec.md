@@ -16,7 +16,7 @@ Contract for an **emulate** payload profile leaf inside product `.npu-rep` (npu_
 
 **No compute remap.** The leaf MUST NOT be required to contain compute-shaped `OpBasicInfo.csv` / `PipeUtilization.csv` / `Memory.csv` for valid open ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 
-**Post–Sept 30 embeds.** Optional CSVs listed under [emulate FORMAT — Not used for Sept 30](../../docs/formats/emulate/FORMAT.md#not-used-sept-30) may be packed; capabilities are set only when data is present and mappers exist.
+**Post–Sept 30 embeds.** Optional CSVs listed in FORMAT §4.2 may be packed; capabilities are set only when data is present and mappers exist.
 
 ## Acceptance Criteria
 

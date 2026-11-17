@@ -4,7 +4,7 @@
 |----------------|
 | PR-OV-*        |
 
-Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside** the swim scroll body (below the time axis / pinned strips). Source: product `Sampling.json` `ph:C` ([DATA-39](../../../../docs/context/decisions/DATA.md)) — one track per counter name present. Hidden when `overviewSeries` is empty ([DATA-32](../../../../docs/context/decisions/DATA.md)).
+Renders `ReportViewModel.overviewSeries` as the **统计分析** block **inside** the swim scroll body (below the time axis / pinned strips). Source: compute `Sampling.json` `ph:C` ([DATA-39](../../../../docs/context/decisions/DATA.md)) — one track per counter name. Emulate Trace util pipes are **not** overview series; they are swim CounterTracks ([DATA-56](../../../../docs/context/decisions/DATA.md) / [UI-61](../../../../docs/context/decisions/UI.md)). Hidden when `overviewSeries` is empty ([DATA-32](../../../../docs/context/decisions/DATA.md)).
 
 ## Layout (v930/entry + PyPTO pin)
 

@@ -1,11 +1,8 @@
 # Compute data schema
 
-**Flat section files:** prefer [`FORMAT.md`](FORMAT.md) inventory (`OpBasicInfo.csv.md`, `summary.db.md`, …). This page keeps the producer PDF field catalog.
-
-
 **Profile:** `compute` (npu-compute).
 
-Producer field catalog from the product PDF *npu-compute性能优化* (性能优化 / performance optimization), export **qLDqqw**, 2026-10-23, §11.1.3.8–§11.10. Identifiers the PDF wraps at `_` are rejoined. UI fill lives in [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md) and per-section files under [FORMAT.md](FORMAT.md); sample notes sit on those section pages. Container detection: [formats README](../README.md).
+Producer field catalog from the product PDF *npu-compute性能优化* (性能优化 / performance optimization), export **qLDqqw**, 2026-10-23, §11.1.3.8–§11.10. Identifiers the PDF wraps at `_` are rejoined. UI fill and sample cross-checks stay in [FORMAT.md](FORMAT.md) and [METRICS_AND_TRACE.md](METRICS_AND_TRACE.md). Container detection: [formats README](../README.md).
 
 `ai*` in a column name is the PDF's shorthand for the pair `aic_*` and `aiv_*` (Cube and Vector). Units are in the column suffix: `(us)` microseconds, `(GB/s)` gigabytes per second, `(KB)` kilobytes, `(%)` percent. Ratio columns with no suffix are a share of total cycles (0–1). Missing metric cells in samples are the literal `NA`.
 
@@ -50,7 +47,7 @@ The viewer parser's numbering for current packs is different at the end: `6` pro
 
 | Column | Meaning |
 | --- | --- |
-| `block_id` | The PDF uses the same sentence as `Block Dim`: task split count, the core count configured for the task. ArithmeticUtilization's display name there is the typo "blcok id". On a metric row the viewer and the sample treat it as the block index within the kernel grid ([FORMAT.md](FORMAT.md) section inventory / metric CSVs), not as a copy of `Block Dim`. |
+| `block_id` | The PDF uses the same sentence as `Block Dim`: task split count, the core count configured for the task. ArithmeticUtilization's display name there is the typo "blcok id". On a metric row the viewer and the sample treat it as the block index within the kernel grid ([FORMAT.md](FORMAT.md) §3), not as a copy of `Block Dim`. |
 | `sub_block_id` | ArithmeticUtilization: Vector or Cube core id on the block. Other files: each block's name and index. |
 | `aic_time(us)` | Time on each AI Cube core after the task is placed there. |
 | `aic_total_cycles` | Cycles on each AI Cube core. |
@@ -74,7 +71,7 @@ Tables below list only the columns that are not in that set.
 | `aiv_vec_sfu_ratio` | Vector SFU instruction cycles / total cycles. |
 | `aiv_vec_simt_vf_ratio` | Vector SIMT VF instruction cycles / total cycles. |
 
-Classic `out.rep` uses dtype-specific names (`aic_cube_fp16_ratio`, `aiv_vec_fp32_ratio`, …) instead of the `fp` / `int` / `vf` / `sfu` / `simt_vf` names in this table. Those sample names stay in [`ArithmeticUtilization.csv.md`](ArithmeticUtilization.csv.md).
+Classic `out.rep` uses dtype-specific names (`aic_cube_fp16_ratio`, `aiv_vec_fp32_ratio`, …) instead of the `fp` / `int` / `vf` / `sfu` / `simt_vf` names in this table. Those sample names stay in [FORMAT.md](FORMAT.md) §3.8.
 
 ### `L2Cache.csv`
 
@@ -95,7 +92,7 @@ Classic `out.rep` uses dtype-specific names (`aic_cube_fp16_ratio`, `aiv_vec_fp3
 | `ai*_write_far_victim` | Write victims in far cache. |
 | `ai*_write_hit_rate(%)` | Write-cache hit rate. |
 
-Hint H05 cites `ai*_total_hit_rate(%)`. That name is not in this PDF table. The classic sample does have `aic_total_hit_rate(%)` / `aiv_total_hit_rate(%)` ([`L2Cache.csv.md`](L2Cache.csv.md)).
+Hint H05 cites `ai*_total_hit_rate(%)`. That name is not in this PDF table. The classic sample does have `aic_total_hit_rate(%)` / `aiv_total_hit_rate(%)` ([FORMAT.md](FORMAT.md) §3.7).
 
 ### `Memory.csv`
 

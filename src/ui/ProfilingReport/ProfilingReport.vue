@@ -48,8 +48,6 @@ import {
   type SwimlaneModel,
   type SwimlaneViewState,
   type SwimThread,
-  type TimelineTraceKind,
-  type TimelineTraceOption,
   type TimeScaleUnit,
   type TimeDisplayMode,
   type ViewFullCsvPayload,
@@ -356,18 +354,8 @@ const operators = ref<ReportOperator[]>([]);
 /** Shallow: avoid deep-proxying every swim event in every operator pack. */
 const operatorReports = shallowRef<Record<string, AdaptedReport>>({});
 const selectedOperatorId = ref<string | null>(null);
-/** §11.14 multi-timeline catalog for the active leaf (empty when only one / none). */
-const timelineTraces = ref<TimelineTraceOption[]>([]);
-const timelineTraceModels = shallowRef<Record<string, SwimlaneModel>>({});
-const selectedTimelineTraceId = ref<TimelineTraceKind | null>(null);
 /** Per-Card gutter metric selection (session-only; reset on report swap). */
 const gutterMetricByCard = ref<Record<string, GutterMetric>>({});
-
-function applyTimelineTraceFields(adapted: AdaptedReport) {
-  timelineTraces.value = adapted.timelineTraces ?? [];
-  timelineTraceModels.value = adapted.timelineTraceModels ?? {};
-  selectedTimelineTraceId.value = adapted.selectedTimelineTraceId ?? null;
-}
 
 /** Raw swim model for all consumers — unwrap host deep-reactive props so deps/gutter/collapse skip Proxies. */
 const swim = computed(() => toRaw(props.swimlaneModel ?? internalSwim.value));
@@ -967,7 +955,6 @@ function applyAdapted(adapted: AdaptedReport) {
   operators.value = adapted.operators ?? [];
   operatorReports.value = adapted.operatorReports ?? {};
   selectedOperatorId.value = adapted.selectedOperatorId ?? null;
-  applyTimelineTraceFields(adapted);
   internalSwim.value = adapted.swimlaneModel;
   internalReport.value = adapted.reportModel;
   internalCapabilities.value = adapted.capabilities ?? null;
@@ -1001,9 +988,6 @@ function failLoad(cause: unknown) {
   operators.value = [];
   operatorReports.value = {};
   selectedOperatorId.value = null;
-  timelineTraces.value = [];
-  timelineTraceModels.value = {};
-  selectedTimelineTraceId.value = null;
   internalSwim.value = null;
   internalReport.value = null;
   internalCapabilities.value = null;
@@ -1058,7 +1042,6 @@ function onOperatorChange(id: string) {
   const rep = operatorReports.value[id];
   if (!rep || id === selectedOperatorId.value) return;
   selectedOperatorId.value = id;
-  applyTimelineTraceFields(rep);
   internalSwim.value = rep.swimlaneModel;
   internalReport.value = rep.reportModel;
   internalCapabilities.value = rep.capabilities ?? null;
@@ -1069,17 +1052,6 @@ function onOperatorChange(id: string) {
   });
   const resolveGen = ++sourceResolveGen;
   void fillMissingSourceFiles(rep.reportModel, resolveGen);
-}
-
-/** Swap among §11.14 catalog CTEF embeds without re-parsing the leaf. */
-function onTimelineTraceChange(id: TimelineTraceKind) {
-  const model = timelineTraceModels.value[id];
-  if (!model || id === selectedTimelineTraceId.value) return;
-  selectedTimelineTraceId.value = id;
-  internalSwim.value = model;
-  resetViewFromModel(model, viewState.value.asideVisible, {
-    preservePanelWidths: true,
-  });
 }
 
 /** Parse before first paint when `source` is already available (avoids empty→loaded height jump). */
@@ -1097,9 +1069,6 @@ watch(
     operators.value = [];
     operatorReports.value = {};
     selectedOperatorId.value = null;
-    timelineTraces.value = [];
-    timelineTraceModels.value = {};
-    selectedTimelineTraceId.value = null;
     internalSwim.value = null;
     internalReport.value = null;
     internalCapabilities.value = null;
@@ -1924,15 +1893,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :measure-mode="viewState.measureMode"
       :operators="operators"
       :selected-operator-id="selectedOperatorId"
-      :timeline-traces="timelineTraces"
-      :selected-timeline-trace-id="selectedTimelineTraceId"
       :user-guide-url="userGuideUrl"
       :active-tab="activeTab"
       :source-tab-enabled="sourceTabEnabled"
       :html-export-available="htmlExportAvailable"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
-      @update:selected-timeline-trace-id="onTimelineTraceChange"
       @update:aside-visible="onAside"
       @update:time-display-mode="onTimeDisplayMode"
       @update:dependency-mode="onDependencyMode"
@@ -1979,15 +1945,12 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :measure-mode="viewState.measureMode"
           :operators="operators"
           :selected-operator-id="selectedOperatorId"
-          :timeline-traces="timelineTraces"
-          :selected-timeline-trace-id="selectedTimelineTraceId"
           :user-guide-url="userGuideUrl"
           :active-tab="activeTab"
           :source-tab-enabled="sourceTabEnabled"
           :html-export-available="htmlExportAvailable"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
-          @update:selected-timeline-trace-id="onTimelineTraceChange"
           @update:aside-visible="onAside"
           @update:time-display-mode="onTimeDisplayMode"
           @update:dependency-depth="onDependencyDepth"

@@ -31,7 +31,6 @@ import {
 import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
 import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
 import { rooflineFromRows } from './roofline';
-import { buildTimelineTraceBundle } from './timelineTraces';
 
 export { rooflineFromRows } from './roofline';
 
@@ -1096,13 +1095,19 @@ function hardwareSectionsFromJsonl(text: string): HardwareSection[] {
   }
   return sections;
 }
-function swimlaneFromClassicTraceJson(
+function swimlaneFromPayloads(
   payloads: Record<string, Uint8Array>,
   pipes: PipeOccupancyItem[],
 ): SwimlaneModel | null {
-  // Classic `.rep` `trace.json` stores genuine nanoseconds (Ascend producer convention).
-  // Used only when no §11.14 catalog embed is present (DATA-56).
-  const bytes = payloadByName(payloads, ['trace.json']);
+  // Two timeline sources, two units:
+  //  - `trace.json` (classic `.rep`) stores genuine nanoseconds (Ascend producer convention).
+  //  - `PipeTrace.json` (product `npu-rep`) stores microseconds despite its
+  //    `displayTimeUnit: "ns"` label — verified: every ts/dur × the 1650 MHz rated
+  //    frequency is an exact integer cycle count.
+  const traceJson = payloadByName(payloads, ['trace.json']);
+  const pipeTraceJson = payloadByName(payloads, ['PipeTrace.json', 'pipetrace.json']);
+  const isPipeTrace = traceJson == null && pipeTraceJson != null;
+  const bytes = traceJson ?? pipeTraceJson;
   if (!bytes) {
     // Metrics-only pack: no timeline source. Return null so the caller renders
     // the aside without a swimlane instead of hard-erroring (VIEW_DATA_REQUIREMENTS).
@@ -1113,10 +1118,13 @@ function swimlaneFromClassicTraceJson(
     trace = JSON.parse(decodeUtf8(bytes)) as unknown;
   } catch (cause) {
     const embedName =
-      Object.keys(payloads).find((k) => k.toLowerCase() === 'trace.json') ?? 'trace.json';
+      (isPipeTrace
+        ? Object.keys(payloads).find((k) => k.toLowerCase() === 'pipetrace.json')
+        : Object.keys(payloads).find((k) => k.toLowerCase() === 'trace.json')) ??
+      (isPipeTrace ? 'PipeTrace.json' : 'trace.json');
     throw new Error(`[profiling-report] adaptRep: ${embedName} is not valid JSON`, { cause });
   }
-  const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: 'ns' });
+  const model = chromeTraceToSwimlane(trace, { sourceTimeUnit: isPipeTrace ? 'us' : 'ns' });
   // Util on flat names first (`laneColorKey` uses Core.*/PIPE suffix); nest keeps leaf util.
   // Nesting is producer opt-in (`nestCardTree` in trace.json) — never invent for arbitrary .rep.
   const withUtil = withPipeLaneUtilizations(model, pipes);
@@ -1152,10 +1160,7 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
     'CoreTypes.csv': coreTypes ? decodeUtf8(coreTypes) : undefined,
   });
   if (memoryHeatmap) reportModel.memoryHeatmap = memoryHeatmap;
-  // §11.14 catalog (Communication / PipeTrace / SimtWarp) wins over classic trace.json.
-  const catalog = buildTimelineTraceBundle(payloads, reportModel.pipeOccupancy);
-  const swimlaneModel =
-    catalog?.swimlaneModel ?? swimlaneFromClassicTraceJson(payloads, reportModel.pipeOccupancy);
+  const swimlaneModel = swimlaneFromPayloads(payloads, reportModel.pipeOccupancy);
   const capabilities: ReportCapability[] = [];
   // npu-compute §11.8: derive when points exist (host may still pass capabilities to override).
   if ((reportModel.roofline?.points.length ?? 0) > 0) capabilities.push('roofline');
@@ -1171,12 +1176,5 @@ export function adaptPayloads(payloads: Record<string, Uint8Array>): AdaptedRepo
     swimlaneModel,
     reportModel,
     capabilities,
-    ...(catalog
-      ? {
-          timelineTraces: catalog.timelineTraces,
-          selectedTimelineTraceId: catalog.selectedTimelineTraceId,
-          timelineTraceModels: catalog.timelineTraceModels,
-        }
-      : {}),
   };
 }

@@ -56,10 +56,10 @@ No usable points → hide panel ([DATA-30](../context/decisions/DATA.md)). Adapt
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| points + series | Prefer [`HardwareInfo.jsonl`](../formats/compute/HardwareInfo.jsonl.md) category `Roofline`. Overlay only a positive `p_peak` and a positive `b_peak` (non-positive `b_peak` keeps 1600 GB/s); missing / ≤0 `p_peak` keeps the formula or example roof. Measured points from `w`/`t`/`q` still emit. Hover label is the legend name, plus the producer key when several points share a series | Else GM from [`ArithmeticUtilization.csv`](../formats/compute/ArithmeticUtilization.csv.md) + [`Memory.csv`](../formats/compute/Memory.csv.md) | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
+| points + series | Prefer `HardwareInfo.jsonl` category `Roofline`. Overlay only a positive `p_peak` and a positive `b_peak` (non-positive `b_peak` keeps 1600 GB/s); missing / ≤0 `p_peak` keeps the formula or example roof. Measured points from `w`/`t`/`q` still emit. Hover label is the legend name, plus the producer key when several points share a series | Else GM from ArithmeticUtilization + Memory | [METRICS](../formats/compute/METRICS_AND_TRACE.md), [view-models](../../specs/core/view-models.spec.md) |
 | roofs when JSON absent | §11.8.1 from AI Core counts + that side's frequency (a shared core clock fills a side with no own clock), else product example ceilings | — | |
-| mix labels | [`ArithmeticUtilization.csv`](../formats/compute/ArithmeticUtilization.csv.md) dtype ratios | Normalize non-zero to % | |
-| block scope | **All** = [`summary.jsonl`](../formats/compute/summary.jsonl.md) categories; block = CSV rows for GM + mix only. Chip-level `series` roofs and non-`gm` HardwareInfo measured points stay from the All model | [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md) | |
+| mix labels | `ArithmeticUtilization` dtype ratios | Normalize non-zero to % | |
+| block scope | **All** = `summary.jsonl` categories; block = CSV rows for GM + mix only. Chip-level `series` roofs and non-`gm` HardwareInfo measured points stay from the All model | [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md) | |
 
 Code: `rooflineFromRows` / `buildRooflineViewModel` in `src/adapters/roofline.ts`.
 
@@ -76,7 +76,7 @@ At the top of the raised card (**no** duplicate in-card **Roofline** title — t
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `roofline` | [`ArchDiagramMetrics.csv`](../formats/emulate/ArchDiagramMetrics.csv.md) + [`ExecutedInstructions.csv`](../formats/emulate/ExecutedInstructions.csv.md) + [`VectorUtilizations.csv`](../formats/emulate/VectorUtilizations.csv.md) ± ELF | New mapper required | `gap` → hide Sept 30 |
+| `roofline` | ArchDiagramMetrics + ExecutedInstructions + VectorUtilizations ± ELF | New mapper required | `gap` → hide Sept 30 |
 
 ## Related
 
