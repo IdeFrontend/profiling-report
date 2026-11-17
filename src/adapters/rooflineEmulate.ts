@@ -417,7 +417,9 @@ function fromRooflineJson(text: string): RooflineViewModel | undefined {
 
 /**
  * Build emulate `RooflineViewModel` from leaf payloads.
- * Returns undefined when analysis failed/absent or no usable points (DATA-30 / DATA-57a).
+ * When AnalysisState is packed, a failed latest `roofline` row omits the chart.
+ * When AnalysisState is absent, still adapt from CSVs or `roofline.json`.
+ * Returns undefined when gated-fail or no usable points (DATA-30 / DATA-57a).
  */
 export function rooflineFromEmulatePayloads(
   payloads: Record<string, Uint8Array>,

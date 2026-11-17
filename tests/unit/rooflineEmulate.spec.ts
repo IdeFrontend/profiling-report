@@ -19,11 +19,13 @@ describe('rooflineEmulate (DATA-57a)', () => {
         'AnalysisName,AnalysisPassed\narch_diagram,1\nroofline,0\nroofline,1\n',
       ),
     ).toBe(true);
+    // Latest roofline wins: pass then fail → omit (not any-pass).
     expect(
       emulateRooflineAnalysisPassed(
         'AnalysisName,AnalysisPassed\narch_diagram,1\nroofline,1\nroofline,0\n',
       ),
     ).toBe(false);
+    // A later non-roofline row does not clear a prior pass.
     expect(
       emulateRooflineAnalysisPassed(
         'AnalysisName,AnalysisPassed\nroofline,1\narch_diagram,0\n',

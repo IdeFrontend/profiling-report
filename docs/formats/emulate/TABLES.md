@@ -140,7 +140,7 @@ Four performance-hint tables are packed **despite** manifest `row_count` 0 / `fi
 | [`TraceBubbles`](TraceBubbles.csv.md) / [`TraceBubbleSummary`](TraceBubbleSummary.csv.md) | `--bubble` |
 | [`VfSimtIPC`](VfSimtIPC.csv.md)* / [`VfSimtInvocations`](VfSimtInvocations.csv.md) | SIMT IPC path |
 | Call* | Call stacks (ELF) |
-| [`RooflinePoints`](RooflinePoints.csv.md) / [`RooflineComputePeaks`](RooflineComputePeaks.csv.md) / [`RooflineBandwidthPeaks`](RooflineBandwidthPeaks.csv.md) / [`RooflineMetadata`](RooflineMetadata.csv.md) | `--roofline`; absent from gelu ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)) |
+| [`RooflinePoints`](RooflinePoints.csv.md) / [`RooflineComputePeaks`](RooflineComputePeaks.csv.md) / [`RooflineBandwidthPeaks`](RooflineBandwidthPeaks.csv.md) / [`RooflineMetadata`](RooflineMetadata.csv.md) | `--roofline`; absent from gelu (`PR-ASIM-009`); packed on [`data/simt_gather_1d_roofline.npu-rep`](../../../data/simt_gather_1d_roofline.npu-rep) ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)) |
 | [`MemoryUtilizationStates`](MemoryUtilizationStates.csv.md) | `--memory-utilization` |
 | [`DCacheHitMissEvents`](DCacheHitMissEvents.csv.md) | quantitative indices |
 | [`QueueFullEvents`](QueueFullEvents.csv.md) / [`QueueFullStalls`](QueueFullStalls.csv.md) | not triggered on gelu |
