@@ -4,7 +4,7 @@
 |--|--|
 | **Profile** | `emulate` |
 | **Role** | Emulate detection marker ([PROC-8](../../context/decisions/PROC.md)) |
-| **Catalog** | [FORMAT.md](FORMAT.md) §4.3 |
+| **Catalog** | [FORMAT.md](FORMAT.md) · [TABLES.md](TABLES.md) |
 
 Thin `{ "profile": "emulate", "schemaVersion": … }` **or** export catalog with hub objects (`database`, `exported_at`, `objects[]`, …).
 

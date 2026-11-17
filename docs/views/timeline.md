@@ -103,7 +103,7 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `SwimlaneModel` | Prefer [`PipeTrace.json`](../formats/compute/PipeTrace.json.md) (µs); else `*_tracing_report_*.json` (not critical_path) | Producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)) | `same-path` |
+| `SwimlaneModel` | Prefer [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md) (µs); else `*_tracing_report_*.json` (not critical_path) | Producer converts ticks → µs ([DATA-46](../context/decisions/interim/DATA.md#data-46)) | `same-path` |
 
 <a id="emulate-vm-derivation"></a>
 
@@ -111,7 +111,7 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
-| `SwimlaneModel` | [`PipeTrace.json`](../formats/compute/PipeTrace.json.md) or native tracing JSON | _(same CTEF path)_ | `sourceTimeUnit: 'us'`; multi-file traces → `mergeNativeChromeTraces` (remap pids) |
+| `SwimlaneModel` | [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md) or native tracing JSON | _(same CTEF path)_ | `sourceTimeUnit: 'us'`; multi-file traces → `mergeNativeChromeTraces` (remap pids) |
 | events / lanes | same as compute CTEF | — | `chromeTraceToSwimlane` |
 | null swimlane | — | — | No trace embed → metrics-only report (no hard error) |
 
@@ -122,7 +122,7 @@ Code: `adaptEmulate` + `findEmulateTracePayload`.
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `adaptCompute` / `adaptPayloads` | Prefers [`trace.json`](../formats/compute/trace.json.md) (ns); else [`PipeTrace.json`](../formats/compute/PipeTrace.json.md) (µs) — `swimlaneFromPayloads` |
-| emulate | `adaptEmulate` | Requires [`manifest.json`](../formats/emulate/manifest.json.md); PipeTrace optional (absent → null swimlane) |
+| emulate | `adaptEmulate` | Requires [`manifest.json`](../formats/emulate/manifest.json.md); [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md) optional (absent → null swimlane) |
 | CTEF-only | `adaptChromeTrace` | Empty report model ([PROC-3](../context/decisions/PROC.md)) |
 
 ## Related

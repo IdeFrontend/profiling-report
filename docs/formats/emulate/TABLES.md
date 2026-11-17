@@ -91,7 +91,7 @@ Row counts are CSV data rows. `HintMessages`, `InstructionHints`, `KernelHints`,
 
 ## 2. Phase 1 + product UI (MHTML §11.2.3) + tracing — pack status on gelu
 
-**Viewer packer SSOT (which embeds light which UI):** [FORMAT.md §4.1](FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).
+**Viewer packer SSOT (which embeds light which UI):** [FORMAT.md Viewer packer](FORMAT.md#viewer-packer-sept-30).
 
 | Table / view | Kind | DB rows | In gelu pack? | Used for |
 |---|---|---:|---|---|
@@ -100,7 +100,7 @@ Row counts are CSV data rows. `HintMessages`, `InstructionHints`, `KernelHints`,
 | [`ArchDiagramMetrics`](ArchDiagramMetrics.csv.md) | table | 240 | yes | Architecture Diagram |
 | [`MemoryRWAccesses`](MemoryRWAccesses.csv.md) | table | 34832 | yes | Packed; not used for heat ([DATA-50](../../context/decisions/DATA.md)) |
 | [`UbRwAccesses`](UbRwAccesses.csv.md) | table | 34832 | **yes** | Packed; not used for heat (Layout+Cells SSOT) |
-| `MemoryHeatmapLayout` / `MemoryHeatmapCells` | csv | — | **yes** (gelu) | Memory Utilization Heatmap lattice + capacity ([FORMAT §4.1](FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4); [DATA-50](../../context/decisions/DATA.md) / [DATA-51](../../context/decisions/DATA.md)) |
+| [`MemoryHeatmapLayout.csv`](MemoryHeatmapLayout.csv.md) / [`MemoryHeatmapCells.csv`](MemoryHeatmapCells.csv.md) | csv | — | **yes** (gelu) | Memory Utilization Heatmap lattice + capacity ([FORMAT Viewer packer](FORMAT.md#viewer-packer-sept-30); [DATA-50](../../context/decisions/DATA.md) / [DATA-51](../../context/decisions/DATA.md)) |
 | [`AiCoreOccupancy`](AiCoreOccupancy.csv.md) | view | 3 | **yes** | AICore utilization overlay (out of scope) |
 | [`PipesUtilization`](PipesUtilization.csv.md) | table | 24 | **yes** | PIPE occupancy / CSV tab |
 | [`PipeUtilizationHist`](PipeUtilizationHist.csv.md) | view | 24 | **yes** | Util hist |

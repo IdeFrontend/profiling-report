@@ -32,4 +32,4 @@ Use read/write (or total) hit rate on the GM↔L2 link in the memory diagram (pe
 | `ai*_write_far_victim` | Write victims in far cache. |
 | `ai*_write_hit_rate(%)` | Write-cache hit rate. |
 
-Hint H05 cites `ai*_total_hit_rate(%)`. That name is not in this PDF table. The classic sample does have `aic_total_hit_rate(%)` / `aiv_total_hit_rate(%)` ([FORMAT.md](FORMAT.md) §3.7).
+Hint H05 cites `ai*_total_hit_rate(%)`. That name is not in this PDF table. The classic sample does have `aic_total_hit_rate(%)` / `aiv_total_hit_rate(%)` (see UI / sample notes above).

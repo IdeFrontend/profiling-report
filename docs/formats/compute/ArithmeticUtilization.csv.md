@@ -24,4 +24,4 @@ Producer columns: [SCHEMA.md](SCHEMA.md). The PDF names `aic_cube_fp_ratio` / `a
 | `aiv_vec_sfu_ratio` | Vector SFU instruction cycles / total cycles. |
 | `aiv_vec_simt_vf_ratio` | Vector SIMT VF instruction cycles / total cycles. |
 
-Classic `out.rep` uses dtype-specific names (`aic_cube_fp16_ratio`, `aiv_vec_fp32_ratio`, …) instead of the `fp` / `int` / `vf` / `sfu` / `simt_vf` names in this table. Those sample names stay in [FORMAT.md](FORMAT.md) §3.8.
+Classic `out.rep` uses dtype-specific names (`aic_cube_fp16_ratio`, `aiv_vec_fp32_ratio`, …) instead of the `fp` / `int` / `vf` / `sfu` / `simt_vf` names in this table. Those sample names are listed above under UI / sample notes.

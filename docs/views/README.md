@@ -74,4 +74,4 @@ Source files under [`../ui/source/v930/`](../ui/source/v930/). Full design hiera
 
 Do **not** fork hide rules by raw CSV name. Do **not** invent compute-shaped embeds from emulate tables ([DATA-45](../context/decisions/interim/DATA.md#data-45)). Do **not** defer field/slot tables to the product § index — own them in Compute/Emulate fill.
 
-**Emulate packer checklist (embed → Sept 30 view):** [emulate/FORMAT §4.1](../formats/emulate/FORMAT.md#41-embeds-used-by-report-visualization-sept-30--m4).
+**Emulate packer checklist (embed → Sept 30 view):** [emulate/FORMAT Viewer packer](../formats/emulate/FORMAT.md#viewer-packer-sept-30).
