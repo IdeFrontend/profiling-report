@@ -30,7 +30,7 @@ Dual-pane **Source | SASS** correlation: Ascend C (or C++) text with per-line me
 | `navigateBy` | Metric ids for Navigate By | From columns |
 | `mock` | Must be `false` on real packs | — |
 
-**Freshness ([DATA-57](../context/decisions/DATA.md#data-57)):** compare interleaved source text in [`objdump.txt`](../formats/compute/objdump.txt.md) to matched local file content (host lookup / `resolveSourceFile` — Kirill Aleshin; do not duplicate). On mismatch → **warning** only; does **not** hide the tab. No `sources.json` / SHA catalog. Normative: [SOURCE_PROVENANCE](../formats/SOURCE_PROVENANCE.md).
+**Freshness ([DATA-57](../context/decisions/DATA.md#data-57)):** compare interleaved source text in [`objdump.txt`](../formats/compute/objdump.txt.md) to matched local file content (host lookup / `resolveSourceFile` — Kirill Aleshin; do not duplicate). On mismatch → **warning** only; does **not** hide the tab. Normative: [SOURCE_PROVENANCE](../formats/SOURCE_PROVENANCE.md).
 
 ## Hide rule
 
@@ -74,6 +74,5 @@ DATA-52 (pack [`.asc`](../formats/compute/symbolizer.json.md#source-text) rule /
 ## Specs / code
 
 - [source-correlation.spec.md](../../specs/core/source-correlation.spec.md) (`PR-SRC-*`)
-- [source-provenance.spec.md](../../specs/core/source-provenance.spec.md) (`PR-FRESH-*`)
 - [SourceView.spec.md](../../src/ui/SourceView/SourceView.spec.md) (`PR-SOURCE-*`)
 - Adapters under `src/adapters/sourceCorrelation/`
