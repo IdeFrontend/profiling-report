@@ -22,29 +22,3 @@
 | `ThreadDimZ` | `INTEGER` | Thread / launch dimension field. *inferred* |
 | `RegisterNum` | `INTEGER` | Register / SPR / predicate field. *inferred* |
 | `CodeSizeBytes` | `INTEGER` | Size in bytes (or related unit). *inferred* |
-
-## Views (23) {#views}
-
-- [`ActiveInstrTypes`](#activeinstrtypes)
-- [`AiCoreOccupancy`](#aicoreoccupancy)
-- [`AsmMetrics`](#asmmetrics)
-- [`BasicBlockCountDiagram`](#basicblockcountdiagram)
-- [`IPCAsmMetrics`](#ipcasmmetrics)
-- [`InstrNameHistClocks`](#instrnamehistclocks)
-- [`InstrNameHistCount`](#instrnamehistcount)
-- [`InstrTypeHistClocks`](#instrtypehistclocks)
-- [`InstrTypeHistCount`](#instrtypehistcount)
-- [`InstructionHintsView`](#instructionhintsview)
-- [`KernelHintsView`](#kernelhintsview)
-- [`PipeUtilizationHist`](#pipeutilizationhist)
-- [`SIMTGMPatterns`](#simtgmpatterns)
-- [`SIMTSharedPatterns`](#simtsharedpatterns)
-- [`SharedPatterns`](#sharedpatterns)
-- [`SourceLineHintsView`](#sourcelinehintsview)
-- [`SourceLineMetrics`](#sourcelinemetrics)
-- [`VfIPCDynamicView`](#vfipcdynamicview)
-- [`VfPMUDeltasViewPerVf`](#vfpmudeltasviewpervf)
-- [`VfPMUSynthViewPerSubcore`](#vfpmusynthviewpersubcore)
-- [`VfPMUSynthViewPerVf`](#vfpmusynthviewpervf)
-- [`VfPMUViewPerSubcore`](#vfpmuviewpersubcore)
-- [`VfSimtIPCDynamicView`](#vfsimtipcdynamicview)
