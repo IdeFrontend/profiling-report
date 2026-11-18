@@ -871,8 +871,14 @@ function syncCardNameTitle(e: PointerEvent) {
 let cardNameResizeObserver: ResizeObserver | null = null;
 const observedCardNames = new WeakSet<HTMLElement>();
 
-function bindCardNameEl(el: Element | null) {
-  if (!(el instanceof HTMLElement) || observedCardNames.has(el)) return;
+function bindCardNameEl(el: Element | { $el?: unknown } | null) {
+  const node =
+    el instanceof HTMLElement
+      ? el
+      : el && typeof el === 'object' && '$el' in el && el.$el instanceof HTMLElement
+        ? el.$el
+        : null;
+  if (!node || observedCardNames.has(node)) return;
   if (!cardNameResizeObserver) {
     cardNameResizeObserver = new ResizeObserver((entries) => {
       for (const { target } of entries) {
@@ -880,8 +886,8 @@ function bindCardNameEl(el: Element | null) {
       }
     });
   }
-  observedCardNames.add(el);
-  cardNameResizeObserver.observe(el);
+  observedCardNames.add(node);
+  cardNameResizeObserver.observe(node);
 }
 
 defineExpose({
