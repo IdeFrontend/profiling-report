@@ -180,11 +180,14 @@ Format and statuses: [README.md](README.md).
 
 ## UI-54
 
-- **Resolved:** 2026-09-23
-- **Question:** Emulate `PipeUtilizationHist` supplies three values per pipe (AIC / AIV0 / AIV1). Does the PIPE Cube|Vector toggle mean AIC|AIV, and should the UI show three cores?
-- **Decision:** Cube|Vector stays the **compute** MIX control (`aic_*` vs `aiv_*`). For **emulate**, show a **Cube | Vector 0 | Vector 1** segmented control (same chrome; labels match compute naming), one bar list per active core. Map hist/`CoreTypes` `CoreName` → `pipeOccupancy.side` (`aic` / `aiv0` / `aiv1`); **never** average AIV0 with AIV1 into a single Vector series. Unresolved cores (integer FK without `CoreTypes`, bare `AIV`/`vector`, unknown labels) are **dropped** — no cube/vector default.
-- **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-038`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
-- **Source:** Product choice in chat (2026-09-23): 3-way toggle, not grouped bars; labels amended same day to Cube | Vector 0 | Vector 1.
+- **Resolved:** 2026-09-23 (amended 2026-11-16 for [#196](https://github.com/IdeFrontend/profiling-report/issues/196))
+- **Question:** Emulate `PipeUtilizationHist` supplies three values per pipe (AIC / AIV0 / AIV1). Does the PIPE Cube|Vector toggle mean AIC|AIV, and should the UI show three cores? Follow-up: when only one vector (or only AIC) is present, how does the user see which core the bars belong to?
+- **Decision:** Cube|Vector stays the **compute** MIX control (`aic_*` vs `aiv_*`). For **emulate**, map hist/`CoreTypes` `CoreName` → `pipeOccupancy.side` (`aic` / `aiv0` / `aiv1`); **never** average AIV0 with AIV1 into a single Vector series. Unresolved cores (integer FK without `CoreTypes`, bare `AIV`/`vector`, unknown labels) are **dropped** — no cube/vector default. Control chrome from present sides:
+  - **Both** `aiv0` and `aiv1` → **Cube | Vector 0 | Vector 1** (omit missing AIC).
+  - **AIC + exactly one AIV** → compute-style **Cube | Vector** (Vector button keeps that `aiv*` side id).
+  - **Single** emulate side → no chooser; **plain text label** **Cube** / **Vector 0** / **Vector 1** (not toggle/chip chrome).
+- **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (`PR-STATS-003`, `PR-STATS-038`, `PR-STATS-038b`), [pipe-occupancy](../../views/pipe-occupancy.md), [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md)
+- **Source:** Product choice in chat (2026-09-23): 3-way toggle, not grouped bars; labels amended same day to Cube | Vector 0 | Vector 1. Amended 2026-11-16 (Product in chat / #196): Cube\|Vector fallback when AIC + one AIV; plain side label when only one emulate core (not a filled chip).
 
 ---
 

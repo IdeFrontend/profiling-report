@@ -716,18 +716,50 @@ const pipeSideOptions = computed((): PipeSide[] => {
 });
 
 /** Emulate-shaped occupancy: any of aic|aiv0|aiv1 present (UI-54). */
-const hasEmulatePipeCores = computed(() => {
-  const n = pipeSideOptions.value.filter((s) => EMULATE_PIPE_SIDES.includes(s)).length;
-  return n >= 1;
+const emulatePipeSidesPresent = computed(() =>
+  pipeSideOptions.value.filter((s) => EMULATE_PIPE_SIDES.includes(s)),
+);
+
+const hasEmulatePipeCores = computed(() => emulatePipeSidesPresent.value.length >= 1);
+
+const hasEmulateAiv0 = computed(() => pipeSideOptions.value.includes('aiv0'));
+const hasEmulateAiv1 = computed(() => pipeSideOptions.value.includes('aiv1'));
+const hasEmulateAic = computed(() => pipeSideOptions.value.includes('aic'));
+
+/**
+ * Both vector cores present → Cube|Vector 0|Vector 1 (UI-54 / #196).
+ * AIC may be absent; only present sides are offered.
+ */
+const showEmulateThreeWayToggle = computed(
+  () => hasEmulateAiv0.value && hasEmulateAiv1.value,
+);
+
+/**
+ * AIC + exactly one AIV → compute-style Cube|Vector labels (#196).
+ * The single AIV side keeps its `aiv0`/`aiv1` id for filtering; the button reads "Vector".
+ */
+const showEmulateCubeVectorToggle = computed(() => {
+  const aivCount = Number(hasEmulateAiv0.value) + Number(hasEmulateAiv1.value);
+  return hasEmulateAic.value && aivCount === 1;
 });
 
-/** Multi-core emulate: ≥2 sides → Cube|Vector 0|Vector 1 toggle. */
-const showEmulatePipeToggle = computed(() => {
-  const n = pipeSideOptions.value.filter((s) => EMULATE_PIPE_SIDES.includes(s)).length;
-  return n >= 2;
+/** Single emulate core → plain label Cube / Vector 0 / Vector 1 (#196; not a control). */
+const pipeSideLabel = computed((): PipeSide | null => {
+  if (!hasEmulatePipeCores.value) return null;
+  if (showEmulateThreeWayToggle.value || showEmulateCubeVectorToggle.value) return null;
+  return emulatePipeSidesPresent.value.length === 1 ? emulatePipeSidesPresent.value[0]! : null;
 });
 
-const showPipeSideToggle = computed(() => isMix.value || showEmulatePipeToggle.value);
+const showPipeSideToggle = computed(
+  () => isMix.value || showEmulateThreeWayToggle.value || showEmulateCubeVectorToggle.value,
+);
+
+function pipeSideButtonLabel(side: PipeSide): string {
+  if (showEmulateCubeVectorToggle.value && (side === 'aiv0' || side === 'aiv1')) {
+    return 'Vector';
+  }
+  return PIPE_SIDE_LABEL[side];
+}
 
 watch(
   () =>
@@ -1340,9 +1372,19 @@ const detailTestId = computed(() => {
                 :data-testid="`pipe-side-${side}`"
                 @click="pipeSide = side"
               >
-                {{ PIPE_SIDE_LABEL[side] }}
+                {{ pipeSideButtonLabel(side) }}
               </button>
             </div>
+            <span
+              v-else-if="pipeSideLabel"
+              class="pr-pipe-side-label"
+              data-testid="pipe-side-label"
+              role="status"
+              :aria-label="t('pipeSide', locale)"
+              :data-side="pipeSideLabel"
+            >
+              <span :data-testid="`pipe-side-${pipeSideLabel}`">{{ PIPE_SIDE_LABEL[pipeSideLabel] }}</span>
+            </span>
             <div class="pr-pipe-chart">
               <div
                 class="pr-pipe-scale"
@@ -2364,6 +2406,13 @@ const detailTestId = computed(() => {
 .pr-pipe-toggle__btn--active {
   background: #343434;
   color: #ffffff;
+}
+
+.pr-pipe-side-label {
+  display: block;
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #b8b8b8;
 }
 
 .pr-pipe-chart {
