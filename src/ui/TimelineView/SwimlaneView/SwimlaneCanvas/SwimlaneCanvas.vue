@@ -217,21 +217,19 @@ function clearCounterHover(): void {
 }
 
 /**
- * Tip a CounterTrack lane under the pointer when no interval event owns hover.
- * Samples step-after hold via `stepPointAt` (same semantics as paint).
+ * Tip a CounterTrack lane under the pointer.
+ * Counter lanes win over interval `eventUnder` (magnet/hit bleed must not suppress
+ * the util tip). Samples step-after hold via `stepPointAt` (same semantics as paint).
  */
 function emitCounterHover(
   localX: number,
   localY: number,
   clientX: number,
   clientY: number,
-  eventUnder: SwimEvent | null,
+  _eventUnder: SwimEvent | null,
 ): void {
-  if (eventUnder) {
-    clearCounterHover();
-    return;
-  }
   const view = paintView();
+  // paintView().scrollY already subtracts contentTopPad — same space as lane paint/hit.
   const hit = laneAtContentY(backend.getLayout(), localY + view.scrollY);
   if (!hit?.lane.counter) {
     clearCounterHover();

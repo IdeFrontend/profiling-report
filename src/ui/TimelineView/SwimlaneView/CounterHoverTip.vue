@@ -6,7 +6,7 @@ const props = withDefaults(
   defineProps<{
     utilization: number;
     usingKb?: number | null;
-    stylePos: { left: string; top: string };
+    stylePos: { left: string; top: string; position?: string; zIndex?: number | string };
     locale?: string;
   }>(),
   { usingKb: null, locale: undefined },
@@ -46,10 +46,15 @@ function formatNum(n: number): string {
   </div>
 </template>
 
-<style scoped>
+<!--
+  Unscoped: Teleport → body (same pattern as OverviewCharts value tip). Scoped
+  selectors can fail to paint position/color on the teleported node in prod, so
+  the tip mounts invisibly while canvas counter-hover still fires.
+-->
+<style>
 .pr-counter-hover-tip.pr-tooltip {
   position: fixed;
-  z-index: 20;
+  z-index: 1000;
   pointer-events: none;
   box-sizing: border-box;
   padding: 8px 10px;
@@ -57,6 +62,7 @@ function formatNum(n: number): string {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  color: #e6e6e6;
   font-size: 12px;
   line-height: 1.45;
   min-width: 120px;

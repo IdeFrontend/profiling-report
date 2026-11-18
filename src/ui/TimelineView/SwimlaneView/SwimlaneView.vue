@@ -418,15 +418,23 @@ function onCounterHover(payload: CounterHoverPayload | null): void {
 }
 
 function onCanvasHover(ev: SwimEvent | null, x: number, y: number): void {
-  // Interval EventTooltip owns the pointer — drop the counter tip.
-  if (ev) counterHover.value = null;
+  // Do not clear counter tip here — `counter-hover` is emitted in the same move after
+  // `hover`. Clearing on a non-null interval event raced the counter payload when hit
+  // bleed briefly reported an event on a CounterTrack row. CounterHoverTip visibility
+  // is owned solely by `onCounterHover` / leave clears.
   emit('hover', ev, x, y);
 }
 
 const counterTipStyle = computed(() => {
   const p = counterHover.value;
-  if (!p) return { left: '0px', top: '0px' };
-  return { left: `${p.clientX + 12}px`, top: `${p.clientY + 12}px` };
+  if (!p) return { position: 'fixed', left: '0px', top: '0px' };
+  // Inline position/z-index so Teleport→body still paints if CSS is late/absent.
+  return {
+    position: 'fixed',
+    zIndex: 1000,
+    left: `${p.clientX + 12}px`,
+    top: `${p.clientY + 12}px`,
+  };
 });
 
 /** Card header Y from the same row walk as the canvas, shifted by rest + in-flight folds. */
