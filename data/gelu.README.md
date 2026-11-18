@@ -5,7 +5,7 @@ Sole committed emulate fixture and playground sample. Real producer pack from np
 | Item | Value |
 |------|--------|
 | Packed | [`gelu.npu-rep`](gelu.npu-rep) (~7.8 MiB, Git LFS; the Vercel install runs [`scripts/checkout-lfs.sh`](../scripts/checkout-lfs.sh) to pull it) |
-| SHA-256 | `abbab1a91f40ddf545d2f7074f4cb042647539bef5a0660a4ad0d4f2286144ca` |
+| SHA-256 | `09ede0838c53cd75a3fa0c5dbf8619354b2396114c4f65b4b7d01f3e588ee732` |
 | Exported | `2026-09-21T12:05:51.821657+00:00` |
 | Contract DB objects | 124 (101 tables + 23 views), 161314 rows total |
 | Leaf embeds | `manifest.json` + **55** CSVs + `core_0_tracing_report_0.json` + `aicore_utilization.json` |
@@ -43,4 +43,4 @@ Performance-hint CSVs in the pack: `HintMessages.csv`, `HintTypes.csv`, `Instruc
 
 Heat CSVs added 2026-10-29 for playground / unit smoke of the Layout+Cells path: `MemoryHeatmapLayout.csv`, `MemoryHeatmapCells.csv`.
 
-Mem util CounterTrack pipes injected 2026-11-18 into `core_0_tracing_report_0.json` (populated `*_UB/L0*/L1_UTILIZATION` + `memory_utilization` `ph:C`, with `Using Bytes (KB)`) for playground / #208 smoke.
+Mem util CounterTrack pipes injected 2026-11-18 into `core_0_tracing_report_0.json` (populated `*_UB/L0*/L1_UTILIZATION` + `memory_utilization` `ph:C`; util % + `Using Bytes (KB)` sized to gelu heat DeclaredSize; bursty fill/plateau/drain over the busy 1.8–6.4 µs window) for playground / #208 smoke.

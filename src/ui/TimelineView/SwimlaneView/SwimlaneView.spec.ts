@@ -3077,6 +3077,10 @@ describe('SwimlaneView', () => {
 
       const tip = document.querySelector('[data-testid="counter-hover-tooltip"]') as HTMLElement | null;
       expect(tip).not.toBeNull();
+      // Pipe name header (EventTooltip event-name parity).
+      expect(tip!.querySelector('[data-testid="counter-hover-name"]')!.textContent).toBe(
+        'AIV0_UB_UTILIZATION',
+      );
       // OverviewCharts tip layout: label left, value right (default locale zh-CN).
       const utilRow = tip!.querySelector('[data-testid="counter-hover-util"]') as HTMLElement;
       const usingRow = tip!.querySelector('[data-testid="counter-hover-using"]') as HTMLElement;
@@ -3121,12 +3125,14 @@ describe('SwimlaneView', () => {
     it('PR-SWIMVIEW-048: Using KB display caps at 2 decimal places', () => {
       const tip = mount(CounterHoverTip, {
         props: {
+          name: 'AIV0_UB_UTILIZATION',
           utilization: 12.3456,
           usingKb: 12.345678,
           stylePos: { position: 'fixed', left: '0px', top: '0px' },
           locale: 'en',
         },
       });
+      expect(tip.get('[data-testid="counter-hover-name"]').text()).toBe('AIV0_UB_UTILIZATION');
       expect(tip.get('[data-testid="counter-hover-util"]').text()).toMatch(/Utilization\s*12\.35%/);
       expect(tip.get('[data-testid="counter-hover-using"]').text()).toMatch(/Using\s*12\.35 KB/);
       tip.unmount();

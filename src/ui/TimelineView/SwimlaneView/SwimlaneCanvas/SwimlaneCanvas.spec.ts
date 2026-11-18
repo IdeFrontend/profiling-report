@@ -5958,6 +5958,7 @@ describe('SwimlaneCanvas', () => {
       dotClientY: number;
     } | null;
     expect(tip).toMatchObject({
+      name: 'AIV0_UB_UTILIZATION',
       utilization: 2,
       usingKb: 0.05,
       color: '#E7434A',
@@ -5969,10 +5970,11 @@ describe('SwimlaneCanvas', () => {
     // After second sample (t=10000 → x=200): keep-last abs 0.04.
     await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1 });
     const tip2 = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      name: string;
       utilization: number;
       usingKb?: number;
     } | null;
-    expect(tip2).toMatchObject({ utilization: 3, usingKb: 0.04 });
+    expect(tip2).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 3, usingKb: 0.04 });
 
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
     expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
@@ -6032,7 +6034,7 @@ describe('SwimlaneCanvas', () => {
       utilization: number;
       usingKb?: number;
     } | null;
-    expect(tip).toMatchObject({ utilization: 2, usingKb: 0.05 });
+    expect(tip).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 2, usingKb: 0.05 });
     wrapper.unmount();
   });
 });

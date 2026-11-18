@@ -142,6 +142,8 @@ const freezeBackingStore = computed(
 
 /** CounterTrack lane hover tip payload (memory util % + optional Using KB). */
 export type CounterHoverPayload = {
+  /** Pipe / lane name — tip header (EventTooltip uses event name the same way). */
+  name: string;
   utilization: number;
   usingKb?: number;
   clientX: number;
@@ -259,10 +261,12 @@ function emitCounterHover(
   const clamped = Math.min(yMax, Math.max(0, pt.v));
   const localDotY = plotTop + plotH * (1 - clamped / yMax);
   const color = series.colorHex ?? hit.lane.color;
-  const key = `${hit.lane.thread.id}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}|${localDotY}`;
+  const name = hit.lane.thread.name || hit.lane.name;
+  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}|${localDotY}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
+    name,
     utilization: pt.v,
     clientX,
     clientY,
