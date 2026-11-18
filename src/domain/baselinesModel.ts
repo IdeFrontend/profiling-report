@@ -16,14 +16,14 @@ export interface Baseline {
   name: string;
   /**
    * Host-meaningful identity (absolute path / URI). The library never opens
-   * it; browser hosts fabricate a display pseudo-path (see
-   * `src/host/baselinesHost.ts`).
+   * it; browser hosts fabricate a display pseudo-path in their own host
+   * glue.
    */
   path: string;
   /**
    * The baseline's operator names, in pack order (MSTT: the pack's operators;
-   * bundled web hosts: demo values via `withDemoBaselineOperators`). The aside
-   * Operator dropdown lists them; absent = no operator dropdown.
+   * bundled web hosts fill demo values on the host side). The aside Operator
+   * dropdown lists them; absent = no operator dropdown.
    */
   operators?: string[];
   /**

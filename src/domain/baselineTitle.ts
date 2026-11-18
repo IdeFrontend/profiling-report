@@ -10,7 +10,7 @@ import type { Baseline } from './baselinesModel';
  * appended when one is known.
  */
 
-/** OPPROF run ids the MSTT tree titles runs with: `OPPROF_YYYYMMDDHHMMSS_<16 uppercase>`. */
+/** OPPROF run ids the MSTT tree titles runs with: `OPPROF_YYYYMMDDHHMMSS_<8+ uppercase letters>`. */
 const OPPROF_RUN_ID_RE = /^OPPROF_\d{14}_[A-Z]{8,}$/;
 /** The library's own `newBaselineId()` shapes: uuid v4 (secure context) or `b-<ts36>-<rand>`. */
 const GENERATED_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -82,7 +82,9 @@ function opprofStampText(name: string | undefined): string {
 /**
  * Local epoch of an OPPROF run id, when those digits are a real local time.
  * A spring-forward gap is a real calendar time but not a local instant, so
- * this returns undefined; the title prints the digits instead of a rolled clock.
+ * this returns undefined. The TITLE does not call this helper: it derives
+ * its stamp from `opprofStampText` (the digits themselves), never from a
+ * round-tripped epoch.
  */
 export function stampFromOpprofName(name: string | undefined): number | undefined {
   const p = opprofClock(name);
