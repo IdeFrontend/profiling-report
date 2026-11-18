@@ -69,7 +69,7 @@ No real Source pack adapted → omit `sourceCorrelation` and `'sourceTab'` ([DAT
 
 ## Open
 
-DATA-52 (pack [`.asc`](../formats/compute/symbolizer.json.md#source-text) rule / single JSON), DATA-53 (emulate), DATA-54 (`Line: 0`), DATA-55 (extra metric columns). Freshness: [DATA-57](../context/decisions/DATA.md#data-57).
+DATA-52 (pack [`.asc`](../formats/compute/symbolizer.json.md#source-text) rule / single JSON), DATA-53 (emulate), DATA-54 (`Line: 0`), DATA-55 (extra metric columns). Runtime freshness compare + warning UI (rule already in [DATA-57](../context/decisions/DATA.md#data-57) / [SOURCE_PROVENANCE](../formats/SOURCE_PROVENANCE.md)).
 
 ## Specs / code
 

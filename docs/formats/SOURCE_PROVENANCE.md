@@ -45,9 +45,9 @@ The instruction parser keeps PC + mnemonic rows; freshness logic **MAY** also pa
 
 ## 3. Compare flow
 
-1. **Match** report source paths (symbolizer `FileName` / objdump path annotations) to workspace files via the **existing host lookup** (Kirill / `resolveSourceFile`) — no second resolver.
+1. **Match** report source paths (symbolizer `FileName` / objdump path annotations) to workspace files via the **existing host lookup** (Kirill / `resolveSourceFile`) — no second resolver. Freshness **MUST** obtain **local** bytes for the matched path even when a pack `.asc`/`.cpp`/`.h` already fills the left pane (today’s hook may skip when an embed is present — the implementation slice **MUST** reuse the same host path-matching, not invent a parallel resolver).
 2. **Extract** checkable snippets from `objdump.txt` (path + 1-based line + interleaved text when present).
-3. **Compare** each snippet to the corresponding line(s) of the matched local file (byte-oriented line text after the host’s normal open).
+3. **Compare** each snippet to the corresponding line(s) of the matched local file (byte-oriented line text after the host’s normal open). Do **not** treat pack-embed text as the freshness baseline.
 4. **Aggregate** per file (and optionally per report): `match` | `mismatch` | `unknown`.
 5. **UI:** on any `mismatch`, show a **warning** that local sources differ from the report’s objdump view. Source correlation / SASS panes stay available.
 
