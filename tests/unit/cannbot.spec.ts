@@ -102,7 +102,11 @@ describe('PR-CANNBOT: payload assembly', () => {
     expect(memoryPayload.data.bandwidthCards).toBe(report.bandwidthCards);
     expect(memoryPayload.data.csvTexts).toEqual({ 'Memory.csv': 'memory csv text' });
 
-    for (const payload of [summaryPayload, computePayload, memoryPayload]) {
+    const rooflinePayload = buildCannbotPayload('roofline', report);
+    expect(Object.keys(rooflinePayload.data).sort()).toEqual(['roofline']);
+    expect(rooflinePayload.data.roofline).toBe(report.roofline);
+
+    for (const payload of [summaryPayload, computePayload, memoryPayload, rooflinePayload]) {
       expect(Object.values(payload.data).every((v) => v !== undefined)).toBe(true);
     }
 
@@ -123,5 +127,6 @@ describe('PR-CANNBOT: payload assembly', () => {
       'pipeOccupancy',
     ]);
     expect(Object.keys(buildCannbotPayload('memory', bare).data).sort()).toEqual(['memoryTables']);
+    expect(buildCannbotPayload('roofline', bare).data).toEqual({});
   });
 });

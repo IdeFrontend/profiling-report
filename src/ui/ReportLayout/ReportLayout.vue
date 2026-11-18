@@ -17,6 +17,7 @@ const props = withDefaults(
   }>(),
   {
     asideWidth: ASIDE_WIDTH_DEFAULT,
+    locale: undefined,
   },
 );
 

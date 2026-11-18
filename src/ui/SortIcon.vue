@@ -16,7 +16,12 @@ defineProps<{
     fill="currentColor"
   >
     <path d="M5 1 L9 6 L1 6 Z" />
-    <rect x="1" y="7" width="8" height="1" />
+    <rect
+      x="1"
+      y="7"
+      width="8"
+      height="1"
+    />
     <path d="M5 13 L1 8 L9 8 Z" />
   </svg>
 

@@ -9,6 +9,7 @@ import type {
   TimelineTraceKind,
   TimelineTraceOption,
 } from '../../domain/types';
+import CannworkAnalyseIcon from '../CannworkAnalyseIcon.vue';
 import Chevron from '../Chevron.vue';
 import {
   MAX_DEPENDENCY_DEPTH,
@@ -66,6 +67,13 @@ const props = withDefaults(
     activeTab: 'timeline',
     sourceTabEnabled: false,
     htmlExportAvailable: false,
+    clockFreqMHz: undefined,
+    locale: undefined,
+    title: undefined,
+    operators: undefined,
+    selectedOperatorId: undefined,
+    timelineTraces: undefined,
+    selectedTimelineTraceId: undefined,
   },
 );
 
@@ -84,6 +92,7 @@ const emit = defineEmits<{
   'update:zoomPercent': [value: number];
   'open-user-guide': [url: string];
   'export-html': [];
+  'open-cannwork': [];
 }>();
 
 const TIMELINE_TRACE_LABEL_KEY: Record<TimelineTraceKind, MessageKey> = {
@@ -578,6 +587,16 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       ref="toolbarRef"
       class="pr-toolbar"
     >
+      <button
+        type="button"
+        class="pr-toolbar__cannwork"
+        data-testid="open-cannwork-trigger"
+        :aria-label="t('openCannwork', locale)"
+        :title="t('openCannwork', locale)"
+        @click="emit('open-cannwork')"
+      >
+        <CannworkAnalyseIcon />
+      </button>
       <ToolbarSearch
         :model-value="searchQuery"
         :locale="locale"
@@ -1369,6 +1388,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 
 /* Search + zoom stay fully visible; rightmost icon actions are what get clipped. */
 .pr-toolbar__search,
+.pr-toolbar__cannwork,
 .pr-toolbar__zoom-pill,
 .pr-toolbar__icon-btn,
 .pr-toolbar__display-wrap,
@@ -1387,6 +1407,34 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   padding: 0 4px;
   border-radius: 4px;
   background: #363636;
+}
+
+/* 打开CANNWork entry left of the search box — same icon-button pattern as zoom. */
+.pr-toolbar__cannwork {
+  margin: 0;
+  padding: 4px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  border-radius: 4px;
+}
+
+.pr-toolbar__cannwork:focus {
+  outline: none;
+}
+
+.pr-toolbar__cannwork:focus-visible {
+  outline: 2px solid var(--pr-playhead, #3078f0);
+  outline-offset: 1px;
+}
+
+.pr-toolbar__cannwork:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .pr-toolbar__zoom-btn {

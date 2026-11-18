@@ -127,6 +127,9 @@ const props = withDefaults(
     collapsedIds: () => [],
     contentTopPad: 0,
     multiSelectedIds: () => [],
+    measureRange: undefined,
+    preferRenderer: undefined,
+    resolveMagnetize: undefined,
   },
 );
 

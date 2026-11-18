@@ -100,6 +100,14 @@ const props = withDefaults(
     pinnedOverviewIds: () => [],
     showOverviewCharts: true,
     multiSelectedIds: () => [],
+    pinnedLaneIds: undefined,
+    pinSourceModel: undefined,
+    measureRange: undefined,
+    preferRenderer: undefined,
+    gutterWidth: undefined,
+    gutterMetricByCard: undefined,
+    gutterMetricOptionsByCard: undefined,
+    locale: undefined,
   },
 );
 
