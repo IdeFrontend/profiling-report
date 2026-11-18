@@ -215,5 +215,16 @@ describe('baselineDisplayTitle', () => {
     expect(
       baselineDisplayTitle(b({ name: '', path: '', pickedAt: undefined, id: 'x-1' })),
     ).toBe('');
+    // A GENERATED name with a generated filename (uuid in both, no stamp) must
+    // not fall back to the uuid either.
+    expect(
+      baselineDisplayTitle(
+        b({
+          name: '6f0a2b3c-9d4e-4f5a-8b6c-1d2e3f4a5b6c',
+          path: '/data/6f0a2b3c-9d4e-4f5a-8b6c-1d2e3f4a5b6c',
+          pickedAt: undefined,
+        }),
+      ),
+    ).toBe('');
   });
 });

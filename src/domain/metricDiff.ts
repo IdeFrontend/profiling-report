@@ -59,14 +59,16 @@ export function metricDiff(current: number | undefined, baseline: number | undef
 }
 
 /** measured ÷ peak × 100 (percentage points), unclamped; null when either input
- *  is unusable (missing, non-finite, a non-positive peak, a negative measured). */
+ *  is unusable (missing, non-finite, a non-positive peak). NEGATIVE measured
+ *  values pass through: the producer's `1 − σ/μ` balance is a real number the
+ *  card displays (the bar clamps to 0, the tooltip keeps the value), so the
+ *  comparison must diff it too — clamping is the view's job, not this model's. */
 export function utilizationPercent(measured: number | undefined, peak: number | undefined): number | null {
   if (
     measured == null
     || peak == null
     || !Number.isFinite(measured)
     || !Number.isFinite(peak)
-    || measured < 0
     || peak <= 0
   ) {
     return null;

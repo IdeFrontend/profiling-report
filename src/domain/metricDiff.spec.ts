@@ -44,8 +44,11 @@ describe('utilizationPercent', () => {
     expect(utilizationPercent(12, Number.POSITIVE_INFINITY)).toBeNull();
   });
 
-  it('nulls a negative measured value', () => {
-    expect(utilizationPercent(-0.42, 1)).toBeNull();
+  it('passes negative measured values through (the card displays a negative balance)', () => {
+    // The producer's `1 − σ/μ` balance is a real displayed number: the bar
+    // clamps to 0, the tooltip keeps the value — the diff must see it too.
+    expect(utilizationPercent(-0.42, 1)).toBe(-42);
+    expect(utilizationPercent(-0.035, 1)).toBeCloseTo(-3.5);
   });
 });
 
