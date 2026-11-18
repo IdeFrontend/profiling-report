@@ -137,10 +137,10 @@ void main() {
   float cov = min(hCoverage, rrShape);
   // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
   // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage
-  // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars)
-  // alpha carries cov for premultiplied source-over so the exact fill color lands without
-  // adding onto the lane background beneath it.
-  outColor = vec4(uColor.xyz * cov, mix(1.0, cov, uSrcOver));
+  // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars
+  // and duration-0 ticks) alpha is uColor.a * cov. uColor.a is the dim (search / collapse);
+  // using cov alone would replace the lane with a darkened color instead of fading the tick.
+  outColor = vec4(uColor.xyz * cov, mix(1.0, uColor.a * cov, uSrcOver));
 }
 `;
 

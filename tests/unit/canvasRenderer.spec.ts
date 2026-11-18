@@ -1407,11 +1407,17 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     expect(webglSrc).toMatch(/partitionIntervalTickIndices/);
     expect(webglSrc).toMatch(/tickChunks/);
-    // Tick draw path flips to source-over (summary-bar blend), then restores additive.
-    expect(webglSrc).toMatch(/drawTickChunks/);
-    expect(webglSrc).toMatch(
-      /drawTickChunks[\s\S]*?ONE_MINUS_SRC_ALPHA[\s\S]*?uSrcOver[\s\S]*?1/,
-    );
+    // Tick draw path flips to source-over, then restores additive before the function ends.
+    // A later keep-bright block also sets source-over, so the match has to close on this function.
+    const tickDraw = webglSrc.match(
+      /const drawTickChunks = \([\s\S]*?\n        \};/,
+    )?.[0];
+    expect(tickDraw).toBeTruthy();
+    expect(tickDraw).toMatch(/ONE_MINUS_SRC_ALPHA[\s\S]*uSrcOver[\s\S]*1/);
+    expect(tickDraw).toMatch(/blendFuncSeparate\(gl\.ONE, gl\.ONE, gl\.ONE, gl\.ONE\)[\s\S]*uSrcOver[\s\S]*0/);
+
+    const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
+    expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
