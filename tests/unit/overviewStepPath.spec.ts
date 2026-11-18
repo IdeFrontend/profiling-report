@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { stepAfterVertices, stepValueAt } from '../../src/ui/TimelineView/OverviewCharts/stepPath';
+import {
+  stepAfterVertices,
+  stepPointAt,
+  stepValueAt,
+} from '../../src/ui/TimelineView/OverviewCharts/stepPath';
 
 describe('stepAfterVertices', () => {
   it('PR-OV-004: holds prior value until next sample then jumps', () => {
@@ -52,5 +56,18 @@ describe('stepValueAt', () => {
     expect(stepValueAt(pts, 100)).toBe(50);
     expect(stepValueAt(pts, 150)).toBe(50);
     expect(stepValueAt(pts, -1)).toBeNull();
+  });
+});
+
+describe('stepPointAt', () => {
+  it('holds full sample including optional abs', () => {
+    const pts = [
+      { t: 0, v: 2, abs: 0.05 },
+      { t: 100, v: 3, abs: 0.04 },
+    ];
+    expect(stepPointAt(pts, 50)).toEqual({ t: 0, v: 2, abs: 0.05 });
+    expect(stepPointAt(pts, 100)).toEqual({ t: 100, v: 3, abs: 0.04 });
+    expect(stepPointAt(pts, 150)).toEqual({ t: 100, v: 3, abs: 0.04 });
+    expect(stepPointAt(pts, -1)).toBeNull();
   });
 });

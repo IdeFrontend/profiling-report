@@ -64,17 +64,17 @@ Docx placeholder samples (`{"category":"Cube",1:1,2:2}` / Vector) are illustrati
 
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `overviewSeries` | — | Unless counters packed as Sampling-like CTEF | `gap` → hide |
+| `overviewSeries` | — | Trace util pipes are **not** overview series — they are swim CounterTracks ([DATA-57](../context/decisions/DATA.md) / [UI-61](../context/decisions/UI.md)) | `gap` → hide |
 
 ## Adapter
 
 | Profile | Entry | Notes |
 |---------|-------|-------|
 | compute | `overviewSeriesFromSampling` in `adaptPayloads` | |
-| emulate | `adaptEmulate` | Omits overview unless future counter pack |
+| emulate | `adaptEmulate` | Omits overview; Trace util → swim CounterTracks ([DATA-57](../context/decisions/DATA.md)) |
 
 ## Related
 
 - Spec: [OverviewCharts](../../src/ui/TimelineView/OverviewCharts/) (co-located)
-- Decisions: [DATA-32](../context/decisions/DATA.md), [DATA-39](../context/decisions/DATA.md), [DATA-56](../context/decisions/DATA.md) (pipeTrace-only with 流水视图显示)
+- Decisions: [DATA-32](../context/decisions/DATA.md), [DATA-39](../context/decisions/DATA.md), [DATA-56](../context/decisions/DATA.md) (pipeTrace-only with 流水视图显示), [DATA-57](../context/decisions/DATA.md), [UI-61](../context/decisions/UI.md)
 - Product docx §: 11.2.7
