@@ -1119,7 +1119,10 @@ defineExpose({
               class="pr-card-strip__chevron"
               :expanded="strip.expanded"
             />
-            <span class="pr-card-strip__name">{{ strip.name }}</span>
+            <span
+              class="pr-card-strip__name"
+              :title="strip.name"
+            >{{ strip.name }}</span>
             <CardMetricSelect
               v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
               :model-value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]!"

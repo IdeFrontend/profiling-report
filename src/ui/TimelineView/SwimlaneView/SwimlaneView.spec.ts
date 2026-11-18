@@ -115,6 +115,46 @@ describe('SwimlaneView', () => {
     expect(wrapper.emitted('toggle-group')).toEqual([['card0']]);
   });
 
+  it('PR-SWIMVIEW-047: card strip name exposes full title for truncated hover', async () => {
+    const longName = 'AIC_SCALAR_LDST (very_long_card_header_name_for_ellipsis)';
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: longName,
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: longName,
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+
+    const name = wrapper.get('.pr-card-strip__name');
+    expect(name.text()).toBe(longName);
+    expect(name.attributes('title')).toBe(longName);
+  });
+
   it('PR-SWIMVIEW-003: body hosts gutter-resize-handle under card strips', async () => {
     const view = createViewState({
       minTime: 0,
