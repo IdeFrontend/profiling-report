@@ -79,10 +79,10 @@ describe('MemoryHeatmapPanel', () => {
   it('PR-HEAT-002: names both used states beside their swatches (#199)', () => {
     const wrapper = mountPanel();
     const zhLabels = wrapper.findAll('.pr-heat__legend-label').map((n) => n.text());
-    expect(zhLabels).toEqual(['已用', '未用']);
+    expect(zhLabels).toEqual(['已用', '空闲']);
     const en = mountPanel({ locale: 'en' });
     const enLabels = en.findAll('.pr-heat__legend-label').map((n) => n.text());
-    expect(enLabels).toEqual(['Used', 'Unused']);
+    expect(enLabels).toEqual(['Used', 'Free']);
   });
 
   it('PR-HEAT-003: paints one cell per block from the active view', () => {

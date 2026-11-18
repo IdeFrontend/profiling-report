@@ -204,7 +204,7 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 | Capability | **`memoryHeatmap`** when Layout+Cells yield ≥1 view; independent of `memoryDiagram` / `archDiagram` |
 | Tabs | Five, **always**: `L1 | UB | L0A | L0B | L0C` ([UI-60](../context/decisions/UI.md) — no L2Cache heat tab). Multi-core UB: view selector inside the tab |
 | Grid | Layout `Width` × `Height`; `withData` iff `Read+Write > 0`. **Two states** (biprof legend). Badge when `OutsideDeclared` |
-| Legend | `已用` / `Used` `#3D64AD` · `未用` / `Unused` `#AFC6FE`, centred **above** the grid |
+| Legend | `已用` / `Used` `#3D64AD` · `空闲` / `Free` `#AFC6FE`, centred **above** the grid |
 | Footer | selected view name (`AIV0 UB` / `AIC L1`) under the grid |
 | Metric | `Total / Used / Free` per [DATA-51](../context/decisions/DATA.md); omit when Total unknown. No instruction-count substitute in that slot |
 | Selection | one `selectedMemoryUnit` for both surfaces: the diagram's selected unit (PR-MEMTOP-021/022) and the panel's active tab |
