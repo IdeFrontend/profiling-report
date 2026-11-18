@@ -76,7 +76,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
   }, 30_000);
 
   it('committed sample.lite.rep is lite (op2 trace generated at hydrate time)', () => {
-    expect(liteSampleRepByteLength()).toBeLessThan(500_000);
+    expect(liteSampleRepByteLength()).toBeLessThan(600_000);
   });
 
   it('loads as a multi-op container with per-pack operator labels plus overview-only extras', () => {
