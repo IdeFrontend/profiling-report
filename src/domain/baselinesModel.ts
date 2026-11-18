@@ -23,7 +23,10 @@ export interface Baseline {
   /**
    * The baseline's operator names, in pack order (MSTT: the pack's operators;
    * bundled web hosts fill demo values on the host side). The aside Operator
-   * dropdown lists them; absent = no operator dropdown.
+   * dropdown lists them; absent = no operator dropdown. Plain strings by
+   * design: this model carries DISPLAY names, not the repo's `ReportOperator
+   * { id, label }` shape — a viewer that needs ids maps names onto its own
+   * operator records.
    */
   operators?: string[];
   /**
