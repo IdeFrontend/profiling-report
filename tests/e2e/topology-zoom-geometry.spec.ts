@@ -612,7 +612,7 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   await expect(heat.locator('.pr-heat__legend')).toHaveCSS('justify-content', 'center');
 
   // Shipped block order: legend → reserved view-bar (PR-HEAT-012) → body (grid → `{owner} {MemoryName}`
-  // → DATA-51 capacity). gelu CoreTypes resolve UB's first view as `core 0 · AIV0 UB`.
+  // → DATA-51 capacity). gelu CoreTypes resolve UB's first view as `Core 0 · AIV0 UB`.
   const order = await heat.evaluate((panel) => {
     const at = (sel: string) => {
       const el = panel.querySelector(sel);
@@ -645,7 +645,7 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(order.viewBar!.top).toBeGreaterThanOrEqual(order.legend!.bottom - 1);
   expect(order.grid!.top).toBeGreaterThanOrEqual(order.viewBar!.bottom - 1);
   expect(order.grid!.top - order.swatch!.bottom).toBeGreaterThan(30);
-  expect(order.name!.text).toBe('core 0 · AIV0 UB');
+  expect(order.name!.text).toBe('Core 0 · AIV0 UB');
   expect(order.name!.top).toBeGreaterThan(order.grid!.bottom);
   // Spec Visual: 31px under the grid; CI can land ±1px on getBoundingClientRect.
   expect(Math.abs(order.name!.top - order.grid!.bottom - 31)).toBeLessThanOrEqual(SLOP);
