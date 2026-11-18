@@ -6,11 +6,17 @@
  * in exactly one place:
  *
  *   delta = baseline − current
- *   delta > 0  → the current value DECREASED vs baseline → green down arrow
- *   delta < 0  → the current value INCREASED vs baseline → red up arrow
+ *   delta > 0  → the current value DECREASED vs baseline → tone 'decrease'
+ *   delta < 0  → the current value INCREASED vs baseline → tone 'increase'
  *
- * A diff renders only when BOTH values exist and the difference is non-zero;
- * the displayed magnitude is unsigned (the mockup prints no +/−).
+ * `tone` is the DIRECTION of change only. Improvement-vs-regression colouring
+ * is metric-valence-dependent (duration is lower-is-better; utilization,
+ * TFLOPs and GB/s are higher-is-better) and is the CONSUMER's mapping — this
+ * module deliberately does not paint arrows.
+ *
+ * A diff renders only when BOTH values exist and the difference is non-zero
+ * at the display precision (2 decimals); the displayed magnitude is unsigned
+ * (the mockup prints no +/−).
  */
 
 export type DiffTone = 'increase' | 'decrease';
@@ -34,7 +40,11 @@ export function metricDiff(current: number | undefined, baseline: number | undef
     return null;
   }
   const delta = baseline - current;
-  if (delta === 0) return null;
+  // Suppress on the DISPLAYED value: the label prints 2 decimals, so a delta
+  // that trims to '0' (1e-4 noise, float dust like 0.29 * 100) is invisible
+  // and must not light an arrow. Exact `=== 0` alone would miss both — this
+  // is the rule the consumer used to re-apply downstream.
+  if (delta === 0 || trimDiffMagnitude(Math.abs(delta)) === '0') return null;
   return {
     tone: delta > 0 ? 'decrease' : 'increase',
     delta,
@@ -42,13 +52,18 @@ export function metricDiff(current: number | undefined, baseline: number | undef
   };
 }
 
-/** measured ÷ peak × 100 (percentage points), unclamped; null when peak is unusable. */
+/** measured ÷ peak × 100 (percentage points). Null when the peak is unusable or
+ *  the measured fraction is not a usable 0..∞ ratio (negative or non-finite —
+ *  producer fixtures carry `parallelBalance: -0.42`). Above-peak values stay
+ *  unclamped (fixtures carry `parallelUtilization: 1.5`): the card renders
+ *  what the producer reported. */
 export function utilizationPercent(measured: number | undefined, peak: number | undefined): number | null {
   if (
     measured == null
     || peak == null
     || !Number.isFinite(measured)
     || !Number.isFinite(peak)
+    || measured < 0
     || peak <= 0
   ) {
     return null;

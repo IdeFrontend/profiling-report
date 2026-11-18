@@ -19,9 +19,11 @@ describe('metricDiff', () => {
     expect(metricDiff(0, 0)).toBeNull();
   });
 
-  it('never produces -0', () => {
-    const diff = metricDiff(-0, 0);
-    expect(diff).toBeNull();
+  it('suppresses sub-display deltas whose label would read 0', () => {
+    // 1e-4 trims to '0' at the display precision, so no arrow may light.
+    expect(metricDiff(0.0002, 0.0001)).toBeNull();
+    // Float dust: 0.29 * 100 is not exactly 29.
+    expect(metricDiff(29, 0.29 * 100)).toBeNull();
   });
 });
 
@@ -31,11 +33,18 @@ describe('utilizationPercent', () => {
     expect(utilizationPercent(0.5, 1)).toBe(50);
   });
 
-  it('nulls when the peak is unusable', () => {
+  it('nulls when the peak or the measured fraction is unusable', () => {
     expect(utilizationPercent(12, 0)).toBeNull();
     expect(utilizationPercent(12, -1)).toBeNull();
     expect(utilizationPercent(12, undefined)).toBeNull();
     expect(utilizationPercent(undefined, 100)).toBeNull();
+    // Both Number.isFinite guards, not just the peak's.
+    expect(utilizationPercent(Number.NaN, 100)).toBeNull();
+    expect(utilizationPercent(12, Number.POSITIVE_INFINITY)).toBeNull();
+    // Producer fixtures carry negative fractions — never render them.
+    expect(utilizationPercent(-0.42, 1)).toBeNull();
+    // Above-peak values stay unclamped: the card renders what was reported.
+    expect(utilizationPercent(1.5, 1)).toBe(150);
   });
 });
 
@@ -93,10 +102,29 @@ describe('summaryDiffs', () => {
     expect(diffs.bandwidthWrite).toBeNull();
   });
 
-  it('a zero magnitude suppresses the badge', () => {
-    const diffs = summaryDiffs(current, { ...current });
+  it('a zero magnitude suppresses every one of the seven diffs', () => {
+    // Distinct-but-equal copies: a shallow spread would alias `compute` and
+    // `bandwidth`, letting four keys pass through the same two objects.
+    const equal = {
+      taskDurationUs: 1000,
+      parallelUtilization: 0.9,
+      parallelBalance: 0.82,
+      compute: {
+        aic: { measuredTflops: 50, peakTflops: 100 },
+        aiv: { measuredTflops: 30, peakTflops: 100 },
+      },
+      bandwidth: {
+        read: { measuredGBs: 1200, peakGBs: 1600 },
+        write: { measuredGBs: 800, peakGBs: 1600 },
+      },
+    };
+    const diffs = summaryDiffs(current, equal);
     expect(diffs.taskDurationUs).toBeNull();
     expect(diffs.parallelUtilization).toBeNull();
+    expect(diffs.parallelBalance).toBeNull();
     expect(diffs.computeAic).toBeNull();
+    expect(diffs.computeAiv).toBeNull();
+    expect(diffs.bandwidthRead).toBeNull();
+    expect(diffs.bandwidthWrite).toBeNull();
   });
 });
