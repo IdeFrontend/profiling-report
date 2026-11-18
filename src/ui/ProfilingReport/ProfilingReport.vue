@@ -2040,6 +2040,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           v-if="showOverviewTab"
           :rows="report?.operatorRows ?? []"
           :locale="locale"
+          :selected-operator-id="selectedOperatorId ?? undefined"
+          @update:selected-operator-id="onOperatorChange"
+          @open-timeline="onActiveTab('timeline')"
           @optimize="emit('optimize', $event)"
         />
         <SourceView

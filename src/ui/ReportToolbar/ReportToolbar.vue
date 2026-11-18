@@ -562,6 +562,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       <span
         v-else
         class="pr-tabs__brand"
+        :title="title || t('tabOp', locale)"
       >{{ title || t('tabOp', locale) }}</span>
       <button
         v-if="overviewTabEnabled"

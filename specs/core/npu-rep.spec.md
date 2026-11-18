@@ -24,7 +24,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 
 **Nested operators.** A `type` marking a nested archive (`6` in the 164-byte layout, `1` in the 160-byte layout — or a payload re-starting with the `npu-rep` magic) marks a nested per-operator archive (`.npu.rep`). An outer container packs N nested archives; each leaf archive packs `trace.json` + metric CSVs. A container with no nested archives is treated as a flat single-operator leaf pack.
 
-**Loading.** `loadReportSource` detects the `npu-rep` magic, then routes by `fileInfoLength` (`160` → `parseNpuRep160`, otherwise `parseNpuRep`). It returns a multi-operator `AdaptedReport` when nested archives exist (default-selecting the first operator), or a single-operator report for a flat leaf. Operator **id** is the unique FileInfo name (`op1.npu.rep`); **label** is the archive stem (`op1`). Duplicate stems throw (same posture as duplicate embed names).
+**Loading.** `loadReportSource` detects the `npu-rep` magic, then routes by `fileInfoLength` (`160` → `parseNpuRep160`, otherwise `parseNpuRep`). It returns a multi-operator `AdaptedReport` when nested archives exist (default-selecting the first operator), or a single-operator report for a flat leaf. Operator **id** is the unique FileInfo name (`op1.npu.rep`); **label** is the short display name of the pack's first operator row (`add_custom`), falling back to the archive stem (`op1`) when the pack has no rows or no `opName`. Duplicate stems throw (same posture as duplicate embed names).
 
 **Profiles.** After payloads are available for a leaf, if `manifest.json` marks emulate (thin `profile: "emulate"` or export-catalog hub), adapt via the **emulate** path ([emulate-format](./emulate-format.spec.md), [adapt-emulate](./adapt-emulate.spec.md)); otherwise use the **compute** path (`adaptPayloads`). Head `origin` is `1` compute, `2` simulator, `3` sanitizer ([PROC-9](../../docs/context/decisions/PROC.md)). `parseNpuRep160` accepts only `1`. Emulate leaves MAY omit compute metric CSVs ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 
@@ -33,7 +33,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 1. **PR-NPU-001** — Parses npu-rep head + 164-byte file table (2 nested archives).
 2. **PR-NPU-002** — Nested archives parse into leaf payloads (trace.json + CSVs).
 3. **PR-NPU-003** — Rejects bad magic / version / length mismatch.
-4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator; ids are FileInfo names.
+4. **PR-NPU-004** — loadReportSource loads multi-op npu-rep; defaults to first operator; ids are FileInfo names; labels are the short first-row operator names.
 5. **PR-NPU-005** — Duplicate operator stems (`op1.npu.rep` + `op1.rep`) throw.
 6. **PR-NPU-006** — `sample.lite.rep` operators have distinct traces, CSVs, connections (op1: every event 3–8 neighbors; op2: 1–4), Cube pipe occupancy, Card → 计算 → Core → pipe nesting (via producer `nestCardTree` opt-in), and producer Parameter args (`Code`, `Detail`, `Pc_addr`, `Process_bytes`). Committed artifact is **lite** (op2 omits `trace.json`); playground/tests hydrate op2 via `generateSampleOp2Trace` before `loadReportSource`.
 7. **PR-NPU-007** — `parseNpuRep160` parses the product 160-byte head + file table from `data/result.npu-rep` (6 entries; `jsonl` type 3, CSVs type 4); rejects bad magic / version / origin / length; round-trips `packNpuRep160`.
@@ -43,6 +43,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 11. **PR-NPU-011** — The product report derives compute / bandwidth / utilization and summary categories: `coreCount` resolves from spaced `HardwareInfo.jsonl` keys (`ai vector count`); bandwidth cards prefer `summary.jsonl` (Memory category, peak from `OpInfoSummary.aicore_gm_bw_theoretical(GB/s)`); `parallelUtilization` / `parallelBalance` come from `OpInfoSummary`; and the detail surface is populated from `summary.jsonl` metric categories (excluding `OpInfoSummary`).
 12. **PR-NPU-012** — A leaf whose payloads include emulate `manifest.json` (thin profile or export catalog) is classified as emulate and MUST NOT require compute `OpBasicInfo.csv` / `PipeUtilization.csv` to load ([PROC-8](../../docs/context/decisions/PROC.md), [DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 13. **PR-NPU-013** — `sample.lite.rep` embeds four Ascend C source files (at least 5× the original 32-line pack) and a shared disassembly of at least 40 instructions, Roofline circles, a UB heat grid, and op1 Code frames that open those files at the mapped line. Each operator's `summary.db` `pc_sampling` rows give those instructions non-zero Sampling Stall, Instructions Executed, and Warp Occupancy; mapped source lines roll those up (stall and instructions summed, occupancy averaged).
+14. **PR-NPU-014** — Selector labels that collide across packs gain a ` (stem)` suffix from the archive name; labels used by a single pack stay plain.
 
 ## Edge Cases
 
@@ -53,6 +54,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 [rep-format](./rep-format.spec.md), [load-report-source](./load-report-source.spec.md), [view-models](./view-models.spec.md).
 
 ## Changelog
+- **2026-11-18** — PR-NPU-014: colliding selector labels gain a ` (stem)` suffix; single-pack labels stay plain.
 - **2026-10-26** — Head `origin` is `1` compute, `2` simulator, `3` sanitizer ([PROC-9](../../docs/context/decisions/PROC.md)). `parseNpuRep160` still accepts only `1`.
 - **2026-10-24** — PR-NPU-013: sample `summary.db` fills Source / SASS Sampling Stall, Instructions Executed, and Warp Occupancy. Producer packs that omit the extra columns stay at 0 for those two.
 - **2026-10-24** — PR-NPU-013: sample kernels are Ascend C (`__aicore__`, `DataCopy` / `Mmad` / `Fixpipe`) at ≥5× the original line count, with a ≥40-instruction objdump. Code frames still open those lines.
@@ -63,6 +65,7 @@ Two FileInfo layouts share this head and are disambiguated by `fileInfoLength`:
 - **2026-09-04** — PR-NPU-011: full NPU-Compute support — case-insensitive embed names (`PipeTrace.json`/`trace.json`, `Summary.jsonl`/`summary.jsonl`), spaced `HardwareInfo.jsonl` keys, `OpInfoSummary` compute/BW/utilization fields, summary-first detail categories, and the spec's resolved Product answers (compute power, bandwidth peak/score, parallel utilization, duration `{blockDim} Blocks / {coreCount} 核`).
 - **2026-09-03** — PR-NPU-007/008: product 160-byte layout (`parseNpuRep160` + routing by `fileInfoLength`); 164-byte layout re-labeled as the interim sample format.
 - **2026-08-26** — PR-NPU-006: rename to `sample.lite.rep`; op2 trace generated at hydrate time; generator in `playground/`.
+- **2026-11-18** — PR-NPU-004: selector label is the short name of the pack's first operator row (stem fallback).
 - **2026-08-25** — PR-NPU-006: `nestCardTree` opt-in nesting; trim sample.rep to ~30 MB; align neighbor AC to 3–8.
 - **2026-08-25** — PR-NPU-006: nest Core.*/PIPE lanes; fixture operators stay distinct.
 - **2026-08-25** — PR-NPU-006: nest `CoreN.*/PIPE` sample lanes into Card → 计算 → Core → pipe; fixture operators stay distinct (traces + CSVs + connections).

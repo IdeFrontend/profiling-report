@@ -17,6 +17,7 @@ const rows: ReportOperatorRow[] = [
     blockDim: 40,
     gridSize: 85.25,
     blockSize: 32,
+    sourceOperatorId: 'op1.npu.rep',
   },
   {
     opName: 'demo_linear_tiled',
@@ -25,6 +26,7 @@ const rows: ReportOperatorRow[] = [
     blockDim: 32,
     gridSize: 90.01,
     blockSize: 32,
+    sourceOperatorId: 'op2.npu.rep',
   },
 ];
 
@@ -521,5 +523,53 @@ describe('OperatorOverview', () => {
     const enText = en.get('[data-testid="operator-overview-dock"]').text();
     expect(enText).toContain('Estimated local speedup (sample)');
     expect(enText).toContain('88.69%');
+  });
+
+  it('PR-OVW-029: row click emits update:selectedOperatorId with the row pack id', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows } });
+    await wrapper.findAll('tbody tr')[1].trigger('click');
+    expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2.npu.rep']]);
+
+    // Same pack already selected: no redundant emit.
+    const same = mount(OperatorOverview, {
+      props: { rows, selectedOperatorId: 'op2.npu.rep' },
+    });
+    await same.findAll('tbody tr')[1].trigger('click');
+    expect(same.emitted('update:selectedOperatorId')).toBeUndefined();
+  });
+
+  it('PR-OVW-030: OpName is a link-styled button that emits openTimeline', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows } });
+    const buttons = wrapper.findAll('button.pr-operator-overview__op-name');
+    expect(buttons).toHaveLength(rows.length);
+    expect(buttons[0].text()).toBe('gather_2d_custom');
+    expect(buttons[1].text()).toBe('demo_linear_tiled');
+
+    await buttons[1].trigger('click');
+    // Row handler must not double-run behind the button.
+    expect(wrapper.emitted('openTimeline')).toHaveLength(1);
+    expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2.npu.rep']]);
+    expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
+  });
+
+  it('PR-OVW-031: selectedOperatorId highlights the first row of that pack', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows, selectedOperatorId: 'op1.npu.rep' } });
+    expect(wrapper.findAll('tbody tr')[0].attributes('aria-selected')).toBe('true');
+
+    await wrapper.setProps({ selectedOperatorId: 'op2.npu.rep' });
+    const bodyRows = wrapper.findAll('tbody tr');
+    expect(bodyRows[0].attributes('aria-selected')).toBe('false');
+    expect(bodyRows[1].attributes('aria-selected')).toBe('true');
+
+    // Unknown pack leaves the highlight untouched.
+    await wrapper.setProps({ selectedOperatorId: 'missing.npu.rep' });
+    expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
+  });
+
+  it('PR-OVW-032: mount with selectedOperatorId highlights that pack, not the first row', () => {
+    const wrapper = mount(OperatorOverview, { props: { rows, selectedOperatorId: 'op2.npu.rep' } });
+    const selected = wrapper.findAll('tbody tr[aria-selected="true"]');
+    expect(selected).toHaveLength(1);
+    expect(selected[0].text()).toContain('demo_linear_tiled');
   });
 });
