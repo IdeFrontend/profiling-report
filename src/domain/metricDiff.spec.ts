@@ -57,6 +57,10 @@ describe('utilizationPercent', () => {
     expect(utilizationPercent(-0.42, 1)).toBe(-42);
     expect(utilizationPercent(-0.035, 1)).toBeCloseTo(-3.5);
   });
+
+  it('nulls a ratio that overflows to Infinity', () => {
+    expect(utilizationPercent(1e308, 5e-324)).toBeNull();
+  });
 });
 
 describe('summaryDiffs', () => {

@@ -231,6 +231,10 @@ describe('baselineDisplayTitle', () => {
     );
   });
 
+  it('trims a whitespace-only name as empty (generated)', () => {
+    expect(baselineDisplayTitle({ id: 'x', name: '   ', path: '/d/a.rep' })).toBe('a.rep');
+  });
+
   it('shows the stamp alone when the filename is itself an OPPROF run id', () => {
     expect(
       baselineDisplayTitle(

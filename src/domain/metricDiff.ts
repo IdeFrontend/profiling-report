@@ -32,28 +32,24 @@ export interface MetricDiff {
 /** Display precision of the magnitude — `trimDiffMagnitude` rounds to it. */
 export const DIFF_DISPLAY_DECIMALS = 2;
 
-/** Null for missing/non-finite inputs or a difference that displays as zero (nothing to show). */
+/** Null for missing inputs or a difference that displays as zero (nothing to show). */
 export function metricDiff(current: number | undefined, baseline: number | undefined): MetricDiff | null {
-  if (
-    current == null
-    || baseline == null
-    || !Number.isFinite(current)
-    || !Number.isFinite(baseline)
-  ) {
+  if (current == null || baseline == null) {
     return null;
   }
   const delta = baseline - current;
-  // The inputs pass `Number.isFinite` individually, but their difference can
-  // still overflow (±1e308): an infinite delta must not carry a tone that
-  // `trimDiffMagnitude` would print as "Infinity".
+  // One guard covers every non-finite case: a non-finite input always yields
+  // a non-finite or NaN delta (so no separate input checks), and a finite
+  // pair can still overflow (±1e308). An infinite delta must not carry a
+  // tone that `trimDiffMagnitude` would print as "Infinity".
   if (!Number.isFinite(delta)) return null;
   // Suppress on the DISPLAYED value, not the raw float: the label rounds to
   // `DIFF_DISPLAY_DECIMALS` later, so a delta that prints "0" (1e-4, or a
   // float artefact like 0.29 * 100 = 28.999999999999996) must not carry a
-  // tone. This guard works in the METRIC'S OWN unit — the aside's duration
-  // card divides µs by 1000 before formatting, so a sub-display µs delta can
-  // still print "0" there; the view's own `trimDiffMagnitude === '0'`
-  // re-check remains the render-time guard for that conversion.
+  // tone. This guard works in the METRIC'S OWN unit — a view rendering in
+  // another unit (the aside divides µs by 1000 to ms) must keep its own
+  // render-time `trimDiffMagnitude === '0'` re-check; the sidebar branch
+  // already carries it (PR body merge notes).
   if (Number(Math.abs(delta).toFixed(DIFF_DISPLAY_DECIMALS)) === 0) return null;
   return {
     tone: delta > 0 ? 'decrease' : 'increase',
@@ -77,7 +73,9 @@ export function utilizationPercent(measured: number | undefined, peak: number | 
   ) {
     return null;
   }
-  return (measured / peak) * 100;
+  // The inputs are finite but their ratio can still overflow (1e308 / 5e-324).
+  const pct = (measured / peak) * 100;
+  return Number.isFinite(pct) ? pct : null;
 }
 
 export interface SideThroughput {
