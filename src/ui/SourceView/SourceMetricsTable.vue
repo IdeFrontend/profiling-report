@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import type { SourceFileModel, SourceStallBreakdown } from '../../domain/types';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type {
+  SourceFileModel,
+  SourceLineMetrics,
+  SourceStallBreakdown,
+} from '../../domain/types';
 import { t } from '../../i18n';
 import { highlightParts } from '../searchHighlight';
 import { SOURCE_TAB_MONO_FAMILY } from './sourceFonts';
@@ -10,6 +14,12 @@ import {
   SOURCE_COL_WIDTH_MIN,
   startSourceColBoundaryResize,
 } from './sourceColumnResize';
+
+/** Above this, mount only the viewport window (large emulate asm / sparse source). */
+const VIRTUALIZE_AFTER = 300;
+const ROW_OVERSCAN = 10;
+/** jsdom / unmeasured scroll body. */
+const FALLBACK_VIEWPORT_ROWS = 40;
 
 const props = withDefaults(
   defineProps<{
@@ -205,15 +215,64 @@ function onResizePointerUp() {
   endResizeSession();
 }
 
-onBeforeUnmount(() => {
-  endResizeSession();
-});
-
 const headEl = ref<HTMLElement | null>(null);
 const scrollEl = ref<HTMLElement | null>(null);
+const scrollTop = ref(0);
+const viewportHeight = ref(0);
+let bodyRo: ResizeObserver | null = null;
+
+const rowH = computed(() => props.rowHeightCss || 20);
+const allRows = computed(() => props.file.lines);
+const virtualize = computed(() => allRows.value.length > VIRTUALIZE_AFTER);
+
+const windowStart = computed(() => {
+  const n = allRows.value.length;
+  if (n === 0 || !virtualize.value) return 0;
+  const raw = Math.floor(scrollTop.value / rowH.value) - ROW_OVERSCAN;
+  return Math.max(0, Math.min(raw, n - 1));
+});
+
+const windowRows = computed(() => {
+  const rows = allRows.value;
+  if (rows.length === 0) return [] as SourceLineMetrics[];
+  if (!virtualize.value) return rows;
+  const measured =
+    viewportHeight.value > 0 ? Math.ceil(viewportHeight.value / rowH.value) : 0;
+  const vp = Math.max(FALLBACK_VIEWPORT_ROWS, measured);
+  const start = windowStart.value;
+  const count = Math.min(rows.length - start, vp + ROW_OVERSCAN * 2);
+  return rows.slice(start, start + count);
+});
+
+const topPadPx = computed(() =>
+  virtualize.value ? windowStart.value * rowH.value : 0,
+);
+const bottomPadPx = computed(() => {
+  if (!virtualize.value) return 0;
+  const shown = windowRows.value.length;
+  return Math.max(0, (allRows.value.length - windowStart.value - shown) * rowH.value);
+});
+
+/** Precompute bar column maxima once per file (avoid O(n) per cell). */
+const barMaxByCol = computed(() => {
+  const maxes: Record<string, number> = {};
+  for (const col of columns.value) {
+    if (col.kind !== 'bar') continue;
+    let max = 1;
+    for (const row of allRows.value) {
+      const n = row.values[col.id];
+      if (typeof n === 'number' && n > max) max = n;
+    }
+    maxes[col.id] = max;
+  }
+  return maxes;
+});
 
 function onBodyScroll() {
-  const left = scrollEl.value?.scrollLeft ?? 0;
+  const el = scrollEl.value;
+  if (!el) return;
+  scrollTop.value = el.scrollTop;
+  const left = el.scrollLeft;
   if (headEl.value && headEl.value.scrollLeft !== left) headEl.value.scrollLeft = left;
   emit('scroll-left', left);
 }
@@ -224,7 +283,55 @@ function setScrollLeft(left: number) {
   if (headEl.value) headEl.value.scrollLeft = left;
 }
 
-defineExpose({ setScrollLeft });
+/** Bring a 1-based line into view (works with the virtual window). */
+function scrollToLine(line: number) {
+  const el = scrollEl.value;
+  if (!el) return;
+  const rows = allRows.value;
+  // Dense 1..n listings (asm + sparse-padded source) hit O(1); else scan.
+  const idx =
+    line >= 1 && line <= rows.length && rows[line - 1]?.line === line
+      ? line - 1
+      : rows.findIndex((r) => r.line === line);
+  if (idx < 0) return;
+  const h = rowH.value;
+  const top = idx * h;
+  const view = el.clientHeight || viewportHeight.value || h * FALLBACK_VIEWPORT_ROWS;
+  const next = Math.max(0, top - Math.floor(view / 3));
+  if (Math.abs(el.scrollTop - next) >= 0.5) el.scrollTop = next;
+  scrollTop.value = el.scrollTop;
+  void nextTick(() => {
+    el.querySelector<HTMLElement>(`tr[data-line="${line}"]`)?.scrollIntoView({
+      block: 'nearest',
+    });
+  });
+}
+
+onMounted(() => {
+  const el = scrollEl.value;
+  if (!el || typeof ResizeObserver === 'undefined') return;
+  bodyRo = new ResizeObserver(() => {
+    viewportHeight.value = el.clientHeight;
+  });
+  bodyRo.observe(el);
+  viewportHeight.value = el.clientHeight;
+});
+
+watch(
+  () => props.file.id,
+  () => {
+    scrollTop.value = 0;
+    if (scrollEl.value) scrollEl.value.scrollTop = 0;
+  },
+);
+
+onBeforeUnmount(() => {
+  bodyRo?.disconnect();
+  bodyRo = null;
+  endResizeSession();
+});
+
+defineExpose({ setScrollLeft, scrollToLine });
 
 function isTextCol(col: { id: string; kind: string }): boolean {
   return col.kind === 'text' || col.id === 'address' || col.id === 'assembly';
@@ -232,17 +339,15 @@ function isTextCol(col: { id: string; kind: string }): boolean {
 
 const colSpan = computed(() => columns.value.length + (props.showLineNumbers ? 1 : 0));
 
-function isZeroMetric(line: number): boolean {
+function isZeroMetric(row: SourceLineMetrics): boolean {
   const colId = props.dimZeroFor;
   if (!colId) return false;
-  const row = props.file.lines.find((l) => l.line === line);
-  const v = row?.values[colId];
+  const v = row.values[colId];
   return v == null || v === '' || v === 0;
 }
 
-function cellText(line: number, colId: string): string {
-  const row = props.file.lines.find((l) => l.line === line);
-  const v = row?.values[colId];
+function cellText(row: SourceLineMetrics, colId: string): string {
+  const v = row.values[colId];
   if (v == null) return '';
   if (typeof v === 'number') {
     const col = props.file.metricsColumns.find((c) => c.id === colId);
@@ -255,32 +360,24 @@ function cellText(line: number, colId: string): string {
 }
 
 /** Assembly search chips (same tokens as Compute Load CSV field list). */
-function assemblyHighlightParts(line: number) {
-  const text = cellText(line, 'assembly');
+function assemblyHighlightParts(row: SourceLineMetrics) {
+  const text = cellText(row, 'assembly');
   const q = props.searchQuery?.trim() ?? '';
-  if (!q || !matchSet.value.has(line)) return [{ text, match: false as const }];
+  if (!q || !matchSet.value.has(row.line)) return [{ text, match: false as const }];
   return highlightParts(text, q);
 }
 
-function barWidth(line: number, colId: string): number {
-  const row = props.file.lines.find((l) => l.line === line);
-  const v = row?.values[colId];
+function barWidth(row: SourceLineMetrics, colId: string): number {
+  const v = row.values[colId];
   if (typeof v !== 'number' || v <= 0) return 0;
   const col = props.file.metricsColumns.find((c) => c.id === colId);
   if (col?.kind === 'bar' && v <= 1) return Math.min(100, v * 100);
-  const max = Math.max(
-    1,
-    ...props.file.lines.map((l) => {
-      const n = l.values[colId];
-      return typeof n === 'number' ? n : 0;
-    }),
-  );
+  const max = barMaxByCol.value[colId] ?? 1;
   return Math.min(100, (v / max) * 100);
 }
 
-function onStallEnter(e: MouseEvent, line: number) {
-  const row = props.file.lines.find((l) => l.line === line);
-  if (!row?.stallBreakdown?.length) return;
+function onStallEnter(e: MouseEvent, row: SourceLineMetrics) {
+  if (!row.stallBreakdown?.length) return;
   const total = row.stallBreakdown.reduce((s, r) => s + r.value, 0);
   const el = e.currentTarget instanceof HTMLElement ? e.currentTarget : null;
   const box = el?.getBoundingClientRect();
@@ -399,14 +496,22 @@ const styleVars = computed(() => {
         </colgroup>
         <tbody>
           <tr
-            v-for="row in file.lines"
+            v-if="topPadPx > 0"
+            class="pr-src-metrics__virt-pad"
+            aria-hidden="true"
+            :style="{ height: `${topPadPx}px` }"
+          >
+            <td :colspan="colSpan" />
+          </tr>
+          <tr
+            v-for="row in windowRows"
             :key="row.line"
             :data-line="row.line"
             :class="{
               'pr-src-metrics__row--current': currentLine === row.line,
               'pr-src-metrics__row--correlated': correlatedSet.has(row.line),
               'pr-src-metrics__row--match': matchSet.has(row.line),
-              'pr-src-metrics__row--dim': isZeroMetric(row.line),
+              'pr-src-metrics__row--dim': isZeroMetric(row),
             }"
             :style="{ height: `${rowHeightCss || 20}px` }"
             @click="emit('row-click', row.line)"
@@ -429,7 +534,7 @@ const styleVars = computed(() => {
                 'pr-src-metrics__asm': col.id === 'assembly',
                 'pr-src-metrics__bar-cell': col.kind === 'bar',
               }"
-              @mouseenter="col.id === 'samplingStall' ? onStallEnter($event, row.line) : undefined"
+              @mouseenter="col.id === 'samplingStall' ? onStallEnter($event, row) : undefined"
               @mouseleave="col.id === 'samplingStall' ? onStallLeave() : undefined"
             >
               <template v-if="col.kind === 'bar'">
@@ -437,23 +542,31 @@ const styleVars = computed(() => {
                 <span class="pr-src-metrics__bar-track">
                   <span
                     class="pr-src-metrics__bar-fill"
-                    :style="{ width: `${barWidth(row.line, col.id)}%` }"
+                    :style="{ width: `${barWidth(row, col.id)}%` }"
                   />
-                  <span class="pr-src-metrics__bar-label">{{ cellText(row.line, col.id) }}</span>
+                  <span class="pr-src-metrics__bar-label">{{ cellText(row, col.id) }}</span>
                 </span>
               </template>
               <template v-else-if="col.id === 'assembly' && searchQuery.trim()">
                 <span
-                  v-for="(part, i) in assemblyHighlightParts(row.line)"
+                  v-for="(part, i) in assemblyHighlightParts(row)"
                   :key="i"
                   :class="{ 'pr-field-match': part.match }"
                   :data-testid="part.match ? 'source-asm-match' : undefined"
                 >{{ part.text }}</span>
               </template>
               <template v-else>
-                {{ cellText(row.line, col.id) }}
+                {{ cellText(row, col.id) }}
               </template>
             </td>
+          </tr>
+          <tr
+            v-if="bottomPadPx > 0"
+            class="pr-src-metrics__virt-pad"
+            aria-hidden="true"
+            :style="{ height: `${bottomPadPx}px` }"
+          >
+            <td :colspan="colSpan" />
           </tr>
           <!-- Scroll extent only: match Sudu’s trailing blank lines as empty space (no ~ / hover). -->
           <tr

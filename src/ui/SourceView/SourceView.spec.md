@@ -57,6 +57,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 25. **PR-SOURCE-025** — Link views off keeps the other pane’s Navigate By. A metric missing from the other dropdown is not applied there.
 26. **PR-SOURCE-026** — **focus** selects that file and line. Line 1 is valid and does not invent an asm mapping. A mapped line highlights the asm rows when Link views is on.
 27. **PR-SOURCE-027** — Changing the Source file keeps the full shared SASS listing, including instructions mapped to other files. Link views on highlights the selected file's instructions. An empty assembly shows `asm-empty`.
+28. **PR-SOURCE-028** — Large metrics listings (>300 rows) virtualize the tbody (viewport window + pads).
 
 ## Design sketches
 
@@ -64,6 +65,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-11-18** — Virtualize large Source/SASS metrics tables; O(1) cell lookups (`PR-SOURCE-028`).
 - **2026-11-17** — SASS metric columns come from the model (emulate MVP / compute stall set); assembly-only when `files` empty (DATA-53).
 - **2026-10-27** — `clearLine` pins Sudu `EditorBackground` and hides the current-line band with that same `#1e1f22` plane (Sudu dark `editBg`), so an unmapped asm clear no longer leaves a `#1a1a1a` strip (`PR-SOURCE-006`).
 - **2026-10-24** — Navigation tooltips are the full sentence for that button (next / previous row with data, highest, next higher, next lower, lowest) in the corresponding metric column.

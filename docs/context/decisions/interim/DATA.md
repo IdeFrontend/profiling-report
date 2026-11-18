@@ -264,7 +264,7 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 
 **Status:** `interim`
 **Question:** [DATA-53](../DATA.md) (resolved; deferred display fidelity)
-**Interim:** Reconstruct editor text sparsely from `SourceLines` via `DebugInfo` only. Missing text → compute-style `MISSING_SOURCE_EMBED_PREFIX` placeholder. The library does **not** auto-read absolute `SourceFilePath`s from the host filesystem. Optional host `resolveMissingSourceFiles` / `resolveSourceFile` may fill placeholders later (same hook as compute). No new rule requiring full `.asc` bundles in the leaf.
+**Interim:** Reconstruct editor text sparsely from `SourceLines` via `DebugInfo` only. Missing text → compute-style `MISSING_SOURCE_EMBED_PREFIX` placeholder. Gaps between mapped `DebugInfoLineNum`s are empty lines so caret / correlation line numbers stay correct — the document therefore looks **fragmented**, not a solid full file (producer `SourceLines` is not a complete snapshot). High max line numbers (e.g. SDK headers) still pad through that line. The library does **not** auto-read absolute `SourceFilePath`s from the host filesystem. Optional host `resolveMissingSourceFiles` / `resolveSourceFile` may fill placeholders later (same hook as compute). No new rule requiring full `.asc` bundles in the leaf.
 **Implement / test as:** `adaptEmulateSourceCorrelation` + PR-SRC-014; [resolveSourceFile.ts](../../../../src/adapters/sourceCorrelation/resolveSourceFile.ts)
 **Superseded when:** Product locks a full-text pack / host resolver contract (related: [DATA-52](../../questions/DATA.md))
 
