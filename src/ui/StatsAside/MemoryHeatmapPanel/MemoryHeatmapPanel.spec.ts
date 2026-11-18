@@ -175,16 +175,16 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBeUndefined();
     const trigger = wrapper.get('[data-testid="heat-view-select"]');
     expect(trigger.classes()).toContain('pr-block-pill');
-    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB · core 0');
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('core 0 · AIV0 UB');
     await trigger.trigger('click');
     const item = document.querySelector(
       '[data-testid="heat-view-select-menu"] [data-value="1"]',
     ) as HTMLElement | null;
     expect(item).not.toBeNull();
-    expect(item!.textContent).toContain('AIV1 UB · core 1');
+    expect(item!.textContent).toContain('core 1 · AIV1 UB');
     item!.click();
     await wrapper.vm.$nextTick();
-    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV1 UB · core 1');
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('core 1 · AIV1 UB');
     expect(wrapper.findAll('.pr-heat__cell--with')).toHaveLength(10);
   });
 
@@ -196,7 +196,7 @@ describe('MemoryHeatmapPanel', () => {
 
   it('PR-HEAT-010: repeats the selected view name under the grid', () => {
     const wrapper = mountPanel({ selectedUnit: 'ub' });
-    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB · core 0');
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('core 0 · AIV0 UB');
   });
 
   it('PR-HEAT-005: blanks a selected unit the model has no source for', () => {

@@ -109,10 +109,10 @@ function unitLabel(id: MemoryHeatmapUnitId): string {
   return t(UNIT_LABEL_KEY[id], props.locale);
 }
 
-/** View label: owner + buffer + core id from the pack (#198) — never invent a missing core. */
+/** View label: core id from the pack, then owner + buffer (#198) — never invent a missing core. */
 function viewOptionLabel(view: MemoryHeatmapView): string {
   const base = view.ownerName ? `${view.ownerName} ${view.memoryName}` : view.memoryName;
-  return `${base} · core ${view.coreId}`;
+  return `core ${view.coreId} · ${base}`;
 }
 
 /** Under-grid title: same as the view option label when known, else the diagram's tab words. */
