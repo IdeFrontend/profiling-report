@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { adaptRep, chromeTraceToSwimlane, parseRep } from '../../src/index';
 import { nestParents } from '../../src/adapters/chromeTraceToSwimlane';
+import { withDerivedUtilizations } from '../../src/domain/utilization';
 import { loadOutRepBytes } from '../helpers/fixtures';
 
 describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
@@ -103,27 +104,39 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
 
   it('PR-SWIM-005: rejects traces with no complete interval events', () => {
     expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete interval events/);
-    // Instant `ph:i` without dur is not an interval (#207 / #205).
+    // Instant `ph:i` without dur / with zero dur is not an interval (#207 / #205).
     expect(() =>
       chromeTraceToSwimlane({
         traceEvents: [{ ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 10 }],
       }),
     ).toThrow(/no complete interval events/);
+    expect(() =>
+      chromeTraceToSwimlane({
+        traceEvents: [{ ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 10, dur: 0 }],
+      }),
+    ).toThrow(/no complete interval events/);
   });
 
-  it('PR-SWIM-017: ph:i with finite dur becomes an interval bar (#207)', () => {
+  it('PR-SWIM-017: ph:i with positive finite dur becomes an interval bar (#207)', () => {
     const model = chromeTraceToSwimlane({
       traceEvents: [
         { ph: 'M', name: 'process_name', pid: 20, args: { name: 'AIV0_RVECLP' } },
         { ph: 'M', name: 'thread_name', pid: 20, tid: 1, args: { name: 'SLOT00' } },
         { ph: 'i', name: 'RV_VLOOPv2', pid: 20, tid: 1, ts: 12.5, dur: 0.006 },
+        // Zero-dur `ph:i` on the same thread stays excluded (owned by #205).
+        { ph: 'i', name: 'ICACHE_HIT', pid: 20, tid: 1, ts: 20, dur: 0 },
       ],
     });
-    const ev = model.processes[0]!.threads[0]!.events[0]!;
+    const thread = model.processes[0]!.threads[0]!;
     expect(model.processes[0]!.name).toBe('AIV0_RVECLP');
+    expect(thread.events).toHaveLength(1);
+    const ev = thread.events[0]!;
     expect(ev.name).toBe('RV_VLOOPv2');
     expect(ev.startTime).toBe(12_500);
     expect(ev.duration).toBe(6);
+    // Real i-with-dur slices are busy time — derived util must not hide them.
+    const derived = withDerivedUtilizations(model);
+    expect(derived.processes[0]!.threads[0]!.utilization).toBe(1);
   });
 
   it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {
