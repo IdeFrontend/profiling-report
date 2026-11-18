@@ -220,5 +220,7 @@ Format and statuses: [README.md](README.md).
   4. **Labels:** gutter label = **pipe id** stripped from `process_name` (e.g. `AIV0_UB_UTILIZATION`).
   5. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.
   6. **Not #181:** these are counter tracks, not variable-height instruction bars.
+  7. **Memory CT color:** stroke/fill base `#E7434A` (same hue as gutter low-util red); fill alpha **0.45** (OverviewCharts / CounterTrack paint parity). Unit/queue colors are separate slices.
+  8. **Hover tip:** when the pointer is on a memory CounterTrack lane with **no** interval event under it, show a raised tip (`--pr-surface-raised`) with **Utilization N%** (`v`) and **Using X KB** when `abs` is present; sample via step-after hold. Clear when leaving the lane or when an interval `EventTooltip` wins.
 - **Specs:** [timeline](../../views/timeline.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [DATA-56](./DATA.md), [OverviewCharts.spec.md](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md) (Sampling-only)
 - **Source:** Product answers 2026-11-17 (1B placement, auto-Y, pipe-id labels, full path first, counter tracks not #181).

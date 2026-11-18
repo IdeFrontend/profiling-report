@@ -41,12 +41,17 @@ export interface SwimEvent {
 /** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */
 export type LaneCategoryKey = 'comm' | 'compute' | 'hbm';
 
+/** One CounterTrack sample: `v` is the Y-domain value; optional `abs` is producer absolute (KB). */
+export type SwimCounterPoint = { t: number; v: number; abs?: number };
+
 /** Chrome-like CounterTrack samples on a swim leaf (emulate Trace ph:C util pipes). */
 export interface SwimCounterSeries {
-  /** Canonical ns timestamps; values in the track's Y domain. */
-  points: { t: number; v: number }[];
+  /** Canonical ns timestamps; `v` in the track's Y domain (util %). */
+  points: SwimCounterPoint[];
   /** Per-track auto Y max (Chrome CounterTrack); must be > 0. */
   yMax: number;
+  /** Optional stroke/fill override (e.g. memory util `#E7434A`); else `colorForThread`. */
+  colorHex?: string;
 }
 
 export interface SwimThread {

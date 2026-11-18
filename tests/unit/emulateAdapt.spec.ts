@@ -269,10 +269,11 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(threads).toHaveLength(1);
     expect(threads[0]!.name).toBe('AIV0_UB_UTILIZATION');
     expect(threads[0]!.counter?.points).toEqual([
-      { t: 5_000, v: 2 },
-      { t: 10_000, v: 3 },
+      { t: 5_000, v: 2, abs: 0.05 },
+      { t: 10_000, v: 3, abs: 0.04 },
     ]);
     expect(threads[0]!.counter?.yMax).toBe(3);
+    expect(threads[0]!.counter?.colorHex).toBe('#E7434A');
 
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
@@ -285,9 +286,10 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(counterProc?.name).toBe('Memory utilization');
     expect(counterProc?.threads.map((t) => t.name)).toEqual(['AIV0_UB_UTILIZATION']);
     expect(counterProc?.threads[0]?.counter?.points).toEqual([
-      { t: 5_000, v: 2 },
-      { t: 10_000, v: 3 },
+      { t: 5_000, v: 2, abs: 0.05 },
+      { t: 10_000, v: 3, abs: 0.04 },
     ]);
+    expect(counterProc?.threads[0]?.counter?.colorHex).toBe('#E7434A');
   });
 
   it('PR-ASIM-005: emulate leaves summary empty (no KernelInfo → cards; DATA-47)', () => {

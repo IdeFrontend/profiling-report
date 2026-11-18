@@ -967,7 +967,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       const lane: FlatLane = {
         thread,
         y,
-        color,
+        color: thread.counter.colorHex ?? color,
         depth: row.depth,
         rowCount: 1,
         counter: true,

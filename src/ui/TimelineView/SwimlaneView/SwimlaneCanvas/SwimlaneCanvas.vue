@@ -37,6 +37,7 @@ import {
   type HoverGap,
   type MarqueeRect,
 } from '../../../../swimlane/layout';
+import { stepPointAt } from '../../OverviewCharts/stepPath';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -138,6 +139,14 @@ const freezeBackingStore = computed(
   () => props.freezeBackingStore === true || asideTrackAnimating?.value === true,
 );
 
+/** CounterTrack lane hover tip payload (memory util % + optional Using KB). */
+export type CounterHoverPayload = {
+  utilization: number;
+  usingKb?: number;
+  clientX: number;
+  clientY: number;
+};
+
 const emit = defineEmits<{
   select: [event: SwimEvent | null];
   /** Marquee commit — every leaf event intersecting the rect. */
@@ -151,6 +160,11 @@ const emit = defineEmits<{
   hover: [event: SwimEvent | null, clientX: number, clientY: number];
   /** Lane under pointer Y — gutter header highlight (not pin). */
   'lane-hover': [laneId: string | null];
+  /**
+   * CounterTrack value tip — step-after util % (+ abs KB when present). Null when
+   * leaving the lane or when an interval event tip wins.
+   */
+  'counter-hover': [payload: CounterHoverPayload | null];
   cursor: [payload: { time: number; xRatio: number; snapped?: boolean } | null];
   pan: [deltaTime: number];
   zoom: [factor: number, anchorTime: number];
@@ -191,6 +205,58 @@ function emitLaneHover(localY: number | null): void {
   emit('lane-hover', id);
   // Row tint lives on the GL background pass — paint only when the lane actually changes.
   schedulePaint();
+}
+
+/** Last counter-hover signature — skip identical emit spam on every pixel move. */
+let lastCounterHoverKey = '';
+
+function clearCounterHover(): void {
+  if (lastCounterHoverKey === '') return;
+  lastCounterHoverKey = '';
+  emit('counter-hover', null);
+}
+
+/**
+ * Tip a CounterTrack lane under the pointer when no interval event owns hover.
+ * Samples step-after hold via `stepPointAt` (same semantics as paint).
+ */
+function emitCounterHover(
+  localX: number,
+  localY: number,
+  clientX: number,
+  clientY: number,
+  eventUnder: SwimEvent | null,
+): void {
+  if (eventUnder) {
+    clearCounterHover();
+    return;
+  }
+  const view = paintView();
+  const hit = laneAtContentY(backend.getLayout(), localY + view.scrollY);
+  if (!hit?.lane.counter) {
+    clearCounterHover();
+    return;
+  }
+  const series = hit.lane.thread.counter;
+  if (!series || series.points.length === 0) {
+    clearCounterHover();
+    return;
+  }
+  const pt = stepPointAt(series.points, timeAtX(localX));
+  if (!pt) {
+    clearCounterHover();
+    return;
+  }
+  const key = `${hit.lane.thread.id}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}`;
+  if (key === lastCounterHoverKey) return;
+  lastCounterHoverKey = key;
+  const payload: CounterHoverPayload = {
+    utilization: pt.v,
+    clientX,
+    clientY,
+  };
+  if (pt.abs != null) payload.usingKb = pt.abs;
+  emit('counter-hover', payload);
 }
 
 watch(
@@ -2848,6 +2914,7 @@ function onPointerMove(e: PointerEvent): void {
   if (marqueePressActive && !marqueePending) {
     lastPointerClientY = e.clientY;
     emit('hover', null, e.clientX, e.clientY);
+    clearCounterHover();
     return;
   }
 
@@ -2866,6 +2933,7 @@ function onPointerMove(e: PointerEvent): void {
     if (e.isTrusted && e.buttons === 0) {
       dragging = false;
       emit('hover', null, e.clientX, e.clientY);
+      clearCounterHover();
       emitLaneHover(y);
       return;
     }
@@ -2873,6 +2941,7 @@ function onPointerMove(e: PointerEvent): void {
     if (measureGestureActive || measureCreatePending || measurePressActive) {
       hoverGap.value = null;
       emit('hover', null, e.clientX, e.clientY);
+      clearCounterHover();
       emitLaneHover(null);
       return;
     }
@@ -2882,6 +2951,7 @@ function onPointerMove(e: PointerEvent): void {
     emit('pan', -(dx / w) * span);
     hoverGap.value = null;
     emit('hover', null, e.clientX, e.clientY);
+    clearCounterHover();
     emitLaneHover(y);
     return;
   }
@@ -2918,7 +2988,11 @@ function onPointerMove(e: PointerEvent): void {
       }
     }
     // Keep normal event hover (tooltip); only the gap overlay stays suppressed.
-    emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
+    {
+      const ev = eventAtPointer(x, y, mag.eventId);
+      emit('hover', ev, e.clientX, e.clientY);
+      emitCounterHover(x, y, e.clientX, e.clientY, ev);
+    }
     emitLaneHover(y);
     return;
   }
@@ -2926,7 +3000,11 @@ function onPointerMove(e: PointerEvent): void {
   // Default-mode hover gap measure: free middle between adjacent events on the lane.
   updateHoverGap(x, y, w);
 
-  emit('hover', eventAtPointer(x, y, mag.eventId), e.clientX, e.clientY);
+  {
+    const ev = eventAtPointer(x, y, mag.eventId);
+    emit('hover', ev, e.clientX, e.clientY);
+    emitCounterHover(x, y, e.clientX, e.clientY, ev);
+  }
   emitLaneHover(y);
 }
 
@@ -3100,6 +3178,7 @@ function onPointerLeave(e: PointerEvent): void {
     snapExactEdgeMarks.value = [];
     emit('cursor', null);
     emit('hover', null, 0, 0);
+    clearCounterHover();
     return;
   }
   // Keep measure drag alive under pointer capture; clear anchor only on pointerup / cancel.
@@ -3109,6 +3188,7 @@ function onPointerLeave(e: PointerEvent): void {
     snapExactEdgeMarks.value = [];
     emit('cursor', null);
     emit('hover', null, 0, 0);
+    clearCounterHover();
     emitLaneHover(null);
     return;
   }
@@ -3116,6 +3196,7 @@ function onPointerLeave(e: PointerEvent): void {
   if (isMeasureBorderEl(e.relatedTarget)) {
     schedulePaint();
     emit('hover', null, 0, 0);
+    clearCounterHover();
     emitLaneHover(null);
     return;
   }
@@ -3137,6 +3218,7 @@ function onPointerLeave(e: PointerEvent): void {
   schedulePaint();
   emit('cursor', null);
   emit('hover', null, 0, 0);
+  clearCounterHover();
   emitLaneHover(null);
 }
 

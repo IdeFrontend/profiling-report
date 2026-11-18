@@ -3,7 +3,7 @@
  * #208 memory util; #209/#206 add more pipe matchers later.
  */
 
-import type { SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
+import type { SwimCounterPoint, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
 
 /** Oleg / #208: optional pipes `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION`. */
 const MEMORY_UTIL_PIPE_RE =
@@ -11,7 +11,10 @@ const MEMORY_UTIL_PIPE_RE =
 
 const US_TO_NS = 1e3;
 
-export type CounterPoint = { t: number; v: number };
+/** Memory util CounterTrack stroke/fill (gutter low-util red hue; UI-61). */
+export const MEMORY_UTIL_COUNTER_COLOR = '#E7434A';
+
+export type CounterPoint = SwimCounterPoint;
 
 function readTraceEvents(traceJson: unknown): unknown[] {
   if (Array.isArray(traceJson)) return traceJson;
@@ -103,6 +106,9 @@ export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThrea
     if (v == null) continue;
     const ts = Number(e.ts);
     if (!Number.isFinite(ts)) continue;
+    const usingRaw = Number(e.args?.['Using Bytes (KB)']);
+    const point: CounterPoint = { t: ts * US_TO_NS, v };
+    if (Number.isFinite(usingRaw)) point.abs = usingRaw;
     const id = m[1]!;
     let points = byId.get(id);
     if (!points) {
@@ -110,7 +116,7 @@ export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThrea
       byId.set(id, points);
       order.push(id);
     }
-    points.push({ t: ts * US_TO_NS, v });
+    points.push(point);
   }
 
   const threads: SwimThread[] = [];
@@ -121,7 +127,11 @@ export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThrea
       id: `counter-${id}`,
       name: id,
       events: [],
-      counter: { points, yMax: yMaxForPoints(points) },
+      counter: {
+        points,
+        yMax: yMaxForPoints(points),
+        colorHex: MEMORY_UTIL_COUNTER_COLOR,
+      },
     });
   }
   return threads;

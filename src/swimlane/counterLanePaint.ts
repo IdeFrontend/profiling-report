@@ -6,6 +6,7 @@ import type { SwimlaneViewWindow } from '../domain/types';
 import { stepAfterVertices } from '../ui/TimelineView/OverviewCharts/stepPath';
 import { LANE_HEIGHT, LANE_PAD_Y, collapseShiftY, type FlatLane, type CollapseTransform } from './layout';
 
+/** OverviewCharts / UI-61 parity — memory util CT uses `#E7434A` at this alpha. */
 const FILL_ALPHA = 0.45;
 
 /**

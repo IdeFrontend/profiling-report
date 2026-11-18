@@ -45,6 +45,8 @@ import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import CardMetricSelect from './CardMetricSelect.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import type { CounterHoverPayload } from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import CounterHoverTip from './CounterHoverTip.vue';
 import { animateProgress, prefersReducedMotion } from '../animateViewWindow';
 import { gutterMetricLabel, t } from '../../../i18n';
 
@@ -407,6 +409,25 @@ function onLaneHover(id: string | null): void {
   hoveredLaneId.value = id;
   emit('hover-lane', id);
 }
+
+/** CounterTrack step-after tip (memory util % + Using KB). Cleared when interval tip wins. */
+const counterHover = ref<CounterHoverPayload | null>(null);
+
+function onCounterHover(payload: CounterHoverPayload | null): void {
+  counterHover.value = payload;
+}
+
+function onCanvasHover(ev: SwimEvent | null, x: number, y: number): void {
+  // Interval EventTooltip owns the pointer — drop the counter tip.
+  if (ev) counterHover.value = null;
+  emit('hover', ev, x, y);
+}
+
+const counterTipStyle = computed(() => {
+  const p = counterHover.value;
+  if (!p) return { left: '0px', top: '0px' };
+  return { left: `${p.clientX + 12}px`, top: `${p.clientY + 12}px` };
+});
 
 /** Card header Y from the same row walk as the canvas, shifted by rest + in-flight folds. */
 const cardHeaders = computed(() => {
@@ -979,7 +1000,8 @@ defineExpose({
           @multi-select="emit('multi-select', $event)"
           @multi-select-preview="onMultiSelectPreview"
           @multi-select-span="emit('multi-select-span', $event)"
-          @hover="(ev, x, y) => emit('hover', ev, x, y)"
+          @hover="onCanvasHover"
+          @counter-hover="onCounterHover"
           @lane-hover="onLaneHover"
           @cursor="onCursor"
           @set-playhead="emit('set-playhead', $event)"
@@ -1076,7 +1098,8 @@ defineExpose({
         @multi-select="emit('multi-select', $event)"
         @multi-select-preview="onMultiSelectPreview"
         @multi-select-span="emit('multi-select-span', $event)"
-        @hover="(ev, x, y) => emit('hover', ev, x, y)"
+        @hover="onCanvasHover"
+        @counter-hover="onCounterHover"
         @lane-hover="onLaneHover"
         @cursor="onCursor"
         @set-playhead="emit('set-playhead', $event)"
@@ -1170,6 +1193,15 @@ defineExpose({
         :style="{ left: `${cursorXRatio * 100}%` }"
       />
     </div>
+    <Teleport to="body">
+      <CounterHoverTip
+        v-if="counterHover"
+        :utilization="counterHover.utilization"
+        :using-kb="counterHover.usingKb"
+        :style-pos="counterTipStyle"
+        :locale="locale"
+      />
+    </Teleport>
   </div>
 </template>
 

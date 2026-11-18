@@ -61,6 +61,14 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 | `cube-lane` | `#3860A8` | Blue cube/instruction bands on timeline |
 | `aten` / `mixed` | striped blue/green | Aten-style labels — prefer `cube-lane` + `scalar` stripe in renderer |
 
+## Swim CounterTracks (emulate Trace util)
+
+| Token / constant | Hex | Role |
+|------------------|-----|------|
+| `MEMORY_UTIL_COUNTER_COLOR` | `#E7434A` | Memory util CounterTrack stroke + fill base ([UI-61](../context/decisions/UI.md) / [#208](https://github.com/IdeFrontend/profiling-report/issues/208)); same hue as gutter low-util `rgba(231,67,74,…)` |
+
+Fill uses the same colour at **alpha 0.45** (`counterLanePaint` `FILL_ALPHA`, OverviewCharts parity). Set via `SwimCounterSeries.colorHex` on the memory-util adapter path — unit/queue CounterTracks keep `colorForThread` until their slices.
+
 <a id="heatmap"></a>
 
 ## Heatmap (memory utilization)
