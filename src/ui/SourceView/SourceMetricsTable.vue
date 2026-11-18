@@ -21,6 +21,8 @@ const ROW_OVERSCAN = 10;
 /** jsdom / unmeasured scroll body. */
 const FALLBACK_VIEWPORT_ROWS = 40;
 
+const EMPTY_METRIC_VALUES: Record<string, null> = Object.freeze({});
+
 const props = withDefaults(
   defineProps<{
     file: SourceFileModel;
@@ -222,26 +224,60 @@ const viewportHeight = ref(0);
 let bodyRo: ResizeObserver | null = null;
 
 const rowH = computed(() => props.rowHeightCss || 20);
-const allRows = computed(() => props.file.lines);
-const virtualize = computed(() => allRows.value.length > VIRTUALIZE_AFTER);
+
+/** Dense asm uses `lines.length`; sparse emulate source uses `lineCount`. */
+const lineExtent = computed(() => {
+  const n = props.file.lineCount;
+  if (typeof n === 'number' && n > 0) return n;
+  return props.file.lines.length;
+});
+
+const sparseMetrics = computed(() => {
+  const n = props.file.lineCount;
+  return typeof n === 'number' && n > 0 && n !== props.file.lines.length;
+});
+
+const metricsByLine = computed(() => {
+  const m = new Map<number, SourceLineMetrics>();
+  for (const row of props.file.lines) m.set(row.line, row);
+  return m;
+});
+
+const virtualize = computed(() => lineExtent.value > VIRTUALIZE_AFTER);
+
+function placeholderRow(line: number): SourceLineMetrics {
+  return { line, values: EMPTY_METRIC_VALUES };
+}
+
+function rowForLine(line: number): SourceLineMetrics {
+  if (!sparseMetrics.value) {
+    const dense = props.file.lines[line - 1];
+    if (dense && dense.line === line) return dense;
+  }
+  return metricsByLine.value.get(line) ?? placeholderRow(line);
+}
 
 const windowStart = computed(() => {
-  const n = allRows.value.length;
+  const n = lineExtent.value;
   if (n === 0 || !virtualize.value) return 0;
   const raw = Math.floor(scrollTop.value / rowH.value) - ROW_OVERSCAN;
   return Math.max(0, Math.min(raw, n - 1));
 });
 
 const windowRows = computed(() => {
-  const rows = allRows.value;
-  if (rows.length === 0) return [] as SourceLineMetrics[];
-  if (!virtualize.value) return rows;
+  const n = lineExtent.value;
+  if (n === 0) return [] as SourceLineMetrics[];
+  if (!virtualize.value && !sparseMetrics.value) return props.file.lines;
   const measured =
     viewportHeight.value > 0 ? Math.ceil(viewportHeight.value / rowH.value) : 0;
   const vp = Math.max(FALLBACK_VIEWPORT_ROWS, measured);
   const start = windowStart.value;
-  const count = Math.min(rows.length - start, vp + ROW_OVERSCAN * 2);
-  return rows.slice(start, start + count);
+  const count = Math.min(n - start, virtualize.value ? vp + ROW_OVERSCAN * 2 : n);
+  const out: SourceLineMetrics[] = [];
+  for (let i = 0; i < count; i++) {
+    out.push(rowForLine(start + i + 1));
+  }
+  return out;
 });
 
 const topPadPx = computed(() =>
@@ -250,7 +286,7 @@ const topPadPx = computed(() =>
 const bottomPadPx = computed(() => {
   if (!virtualize.value) return 0;
   const shown = windowRows.value.length;
-  return Math.max(0, (allRows.value.length - windowStart.value - shown) * rowH.value);
+  return Math.max(0, (lineExtent.value - windowStart.value - shown) * rowH.value);
 });
 
 /** Precompute bar column maxima once per file (avoid O(n) per cell). */
@@ -259,7 +295,7 @@ const barMaxByCol = computed(() => {
   for (const col of columns.value) {
     if (col.kind !== 'bar') continue;
     let max = 1;
-    for (const row of allRows.value) {
+    for (const row of props.file.lines) {
       const n = row.values[col.id];
       if (typeof n === 'number' && n > max) max = n;
     }
@@ -287,15 +323,9 @@ function setScrollLeft(left: number) {
 function scrollToLine(line: number) {
   const el = scrollEl.value;
   if (!el) return;
-  const rows = allRows.value;
-  // Dense 1..n listings (asm + sparse-padded source) hit O(1); else scan.
-  const idx =
-    line >= 1 && line <= rows.length && rows[line - 1]?.line === line
-      ? line - 1
-      : rows.findIndex((r) => r.line === line);
-  if (idx < 0) return;
+  if (line < 1 || line > lineExtent.value) return;
   const h = rowH.value;
-  const top = idx * h;
+  const top = (line - 1) * h;
   const view = el.clientHeight || viewportHeight.value || h * FALLBACK_VIEWPORT_ROWS;
   const next = Math.max(0, top - Math.floor(view / 3));
   if (Math.abs(el.scrollTop - next) >= 0.5) el.scrollTop = next;
@@ -322,6 +352,15 @@ watch(
   () => {
     scrollTop.value = 0;
     if (scrollEl.value) scrollEl.value.scrollTop = 0;
+  },
+);
+
+/** Keep the virtual window on the caret when Navigate By / correlation jumps. */
+watch(
+  () => props.currentLine,
+  (line) => {
+    if (line == null || !virtualize.value) return;
+    scrollToLine(line);
   },
 );
 

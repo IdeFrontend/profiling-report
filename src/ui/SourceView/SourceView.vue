@@ -167,13 +167,22 @@ watch(
 
 watch(() => focusKey(props.focus), () => applyFocus(), { immediate: true });
 
-/** Assembly line numbers mapped to `fileId`, in listing order. */
-function mappedAsmLines(fileId: string): number[] {
-  const lines: number[] = [];
-  for (const row of props.model.assembly.lines) {
-    if (props.model.asmToSource[row.line]?.fileId === fileId) lines.push(row.line);
+/** fileId → asm lines in listing order (built once per model, not per click). */
+const asmLinesByFile = computed(() => {
+  const map = new Map<string, number[]>();
+  for (const [asmKey, hit] of Object.entries(props.model.asmToSource)) {
+    const asmLine = Number(asmKey);
+    if (!Number.isFinite(asmLine)) continue;
+    const list = map.get(hit.fileId);
+    if (list) list.push(asmLine);
+    else map.set(hit.fileId, [asmLine]);
   }
-  return lines;
+  for (const list of map.values()) list.sort((a, b) => a - b);
+  return map;
+});
+
+function mappedAsmLines(fileId: string): number[] {
+  return asmLinesByFile.value.get(fileId) ?? [];
 }
 
 /** File picker only — asm→source correlation may change `selectedFileId` without reset. */
@@ -282,21 +291,21 @@ function onSourceLine(line: number) {
     syncOrigin.value = null;
     return;
   }
+  const file = sourceFile.value;
+  const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
+  // Falite-scale: one source line can map to thousands of PCs — Set for O(1).
+  const mappedSet = mapped.length > 0 ? new Set(mapped) : null;
   // Late caret echo for the same mapped group: keep asm sibling, do not steal pane.
   if (sourceLine.value === line && asmLine.value != null && linkViews.value) {
-    const file = sourceFile.value;
-    const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
-    if (mapped.includes(asmLine.value)) return;
+    if (mappedSet?.has(asmLine.value)) return;
   }
   selectedPane.value = 'source';
   sourceLine.value = line;
   if (!linkViews.value) return;
-  const file = sourceFile.value;
-  const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
-  if (mapped.length > 0) {
+  if (mappedSet && mapped.length > 0) {
     syncOrigin.value = 'source';
     // Keep the asm caret if it already belongs to this source line.
-    const stay = asmLine.value != null && mapped.includes(asmLine.value);
+    const stay = asmLine.value != null && mappedSet.has(asmLine.value);
     const target = stay ? asmLine.value! : mapped[0]!;
     asmLine.value = target;
     asmPane.value?.setLine(target);

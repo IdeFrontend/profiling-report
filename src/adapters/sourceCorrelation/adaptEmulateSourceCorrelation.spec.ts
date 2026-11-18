@@ -144,7 +144,8 @@ describe('adaptEmulateSourceCorrelation', () => {
     };
     const model = adaptEmulateSourceCorrelation(payloads)!;
     expect(model.files[0]!.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
-    expect(model.files[0]!.lines[1]!.values.executionCount).toBe(3);
+    expect(model.files[0]!.lineCount).toBe(2);
+    expect(model.files[0]!.lines.find((l) => l.line === 2)?.values.executionCount).toBe(3);
     expect(model.sourceToAsm['7:2']).toEqual([1]);
   });
 

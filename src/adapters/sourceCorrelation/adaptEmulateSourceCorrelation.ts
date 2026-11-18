@@ -353,21 +353,30 @@ export function adaptEmulateSourceCorrelation(
     sourceMetricsByFileLine.set(`${fileId}:${lineNum}`, metricsFromRow(row));
   }
 
-  // Grow each file to max(mapped line, metric line, text line)
+  // Sparse metrics + padded text: Sudu needs correct 1-based line numbers, but
+  // allocating a dense metrics row per empty gap OOM/lags falite-scale packs.
   const files: SourceFileModel[] = [];
   for (const [fileId, meta] of filesById) {
     const texts = textByFileLine.get(fileId) ?? new Map();
+    const interesting = new Set<number>();
     let maxLine = 0;
-    for (const line of texts.keys()) maxLine = Math.max(maxLine, line);
+    for (const line of texts.keys()) {
+      interesting.add(line);
+      maxLine = Math.max(maxLine, line);
+    }
     for (const key of Object.keys(sourceToAsm)) {
       if (!key.startsWith(`${fileId}:`)) continue;
       const line = Number(key.slice(fileId.length + 1));
-      if (Number.isFinite(line)) maxLine = Math.max(maxLine, line);
+      if (!Number.isFinite(line) || line <= 0) continue;
+      interesting.add(line);
+      maxLine = Math.max(maxLine, line);
     }
     for (const key of sourceMetricsByFileLine.keys()) {
       if (!key.startsWith(`${fileId}:`)) continue;
       const line = Number(key.slice(fileId.length + 1));
-      if (Number.isFinite(line)) maxLine = Math.max(maxLine, line);
+      if (!Number.isFinite(line) || line <= 0) continue;
+      interesting.add(line);
+      maxLine = Math.max(maxLine, line);
     }
     if (maxLine < 1) maxLine = 1;
 
@@ -385,11 +394,12 @@ export function adaptEmulateSourceCorrelation(
       ? `${lineArr.join('\n')}\n`
       : missingSourceEmbedText(path, maxLine);
 
-    const lines: SourceLineMetrics[] = Array.from({ length: maxLine }, (_, i) => {
-      const line = i + 1;
-      const m = sourceMetricsByFileLine.get(`${fileId}:${line}`) ?? emptyMetrics();
-      return { line, values: metricValues(m) };
-    });
+    const lines: SourceLineMetrics[] = [...interesting]
+      .sort((a, b) => a - b)
+      .map((line) => {
+        const m = sourceMetricsByFileLine.get(`${fileId}:${line}`) ?? emptyMetrics();
+        return { line, values: metricValues(m) };
+      });
 
     files.push({
       id: fileId,
@@ -398,6 +408,7 @@ export function adaptEmulateSourceCorrelation(
       text,
       metricsColumns: SOURCE_COLUMNS,
       lines,
+      lineCount: maxLine,
     });
   }
 

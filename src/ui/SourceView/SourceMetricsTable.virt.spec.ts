@@ -43,4 +43,33 @@ describe('SourceMetricsTable virtualization', () => {
     expect(wrapper.find('.pr-src-metrics__virt-pad').exists()).toBe(true);
     wrapper.unmount();
   });
+
+  it('PR-SOURCE-028b: sparse lineCount virtualizes extent without dense metrics rows', () => {
+    const file: SourceFileModel = {
+      id: '7',
+      path: '/sdk/huge.h',
+      text: `${Array.from({ length: 8000 }, () => '').join('\n')}\n`,
+      metricsColumns: [
+        { id: 'executionCount', label: 'Instructions Executed', kind: 'number' },
+      ],
+      lines: [
+        { line: 3, values: { executionCount: 10 } },
+        { line: 7900, values: { executionCount: 2 } },
+      ],
+      lineCount: 8000,
+    };
+    const wrapper = mount(SourceMetricsTable, {
+      props: {
+        file,
+        currentLine: null,
+        rowHeightCss: 18,
+        showHeader: false,
+        showLineNumbers: false,
+      },
+      attachTo: document.body,
+    });
+    expect(wrapper.findAll('tr[data-line]').length).toBeLessThan(200);
+    expect(wrapper.find('.pr-src-metrics__virt-pad').exists()).toBe(true);
+    wrapper.unmount();
+  });
 });
