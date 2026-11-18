@@ -331,7 +331,7 @@ export type MemoryHeatmapUnitId = 'l1' | 'ub' | 'l0a' | 'l0b' | 'l0c';
 /** Traffic coverage of one heat-grid block — the §11.2.3.2 two-state legend (#199). */
 export type MemoryHeatmapBlockState = 'withData' | 'withoutData';
 
-/** One block of a unit's heat grid (`有访存` / `无访存` — Accessed / Not accessed). */
+/** One block of a unit's heat grid (`已用` / `未用` — Used / Unused). */
 export interface MemoryHeatmapBlock {
   /** Row-major position in the unit's grid; stable identity for the grid cells. */
   index: number;

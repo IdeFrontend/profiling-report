@@ -23,26 +23,26 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 ## Behavior
 
 1. **Five tabs, always** (PR-HEAT-001): `L1 | UB | L0A | L0B | L0C` ([UI-60](../../../../docs/context/decisions/UI.md) — no L2Cache), in that order, `role="tablist"` / `role="tab"` with `aria-selected` and a **roving tabindex** (only the selected tab is in the tab order; Arrow / Home / End move the selection — PR-HEAT-009). A unit the model has no source for is **not** omitted — the tab stays and its body blanks (behavior 5), because the strip is a fixed five.
-2. **Legend** (PR-HEAT-002): the two states the grid can paint — zh-CN `有访存` / `无访存`, EN `Accessed` / `Not accessed` (#199; traffic coverage, not allocation) — each with its swatch. The blues are normative — see Visual.
+2. **Legend** (PR-HEAT-002): the two states the grid can paint — zh-CN `已用` / `未用`, EN `Used` / `Unused` (#199; traffic coverage, not allocation) — each with its swatch. The blues are normative — see Visual.
 3. **Body** (PR-HEAT-003): the **block grid** — one cell per active `view.blocks` entry, row-major, `view.columns` × `view.rows` (Layout `Width`×`Height`) square cells, sized to fit the leftover body (PR-HEAT-011) — then the selected view's name (behavior 5) and the capacity caption **under** it. A cell is `withData` (dark blue) or `withoutData` (light blue) — the same two states as the legend, never a third, and never a divider band. Column and row counts bind from the active view (not restated in CSS). The frame repeats the view's **name** under its grid (Visual), so the body carries it there — never a second copy *above* the lattice. The five tabs share **one** `role="tabpanel"` body, named by the active tab.
 4. **Metric** (PR-HEAT-004 / PR-HEAT-004b): centred **below** the grid (under the unit name). Paint `Total: {n} / Used: {n} / Free: {n}` from the active view's capacity fields ([DATA-51](../../../../docs/context/decisions/DATA.md)). Omit when Total is unknown — never a placeholder, never `已用指令条数`.
 5. **Unit name** (PR-HEAT-010): the selected view (`{ownerName} {memoryName}` when known, else the diagram's tab words), centred between the grid and the metric at `19px` `#e7e7e7`, `31px` under the grid. Absent with the blank body (behavior 6) — no name without a grid.
 6. **Blank state** (PR-HEAT-005): a tab whose unit is absent from `model.units` shows the empty line and no grid; it does **not** show an all-empty grid, which would read as "measured, nothing allocated" rather than "no source".
 7. **Selection is the host's** (PR-HEAT-006): the active tab is `selectedUnit`; a click emits **select-unit** and changes nothing else. Re-clicking the active tab emits again — the host treats it as a no-op (PR-MEMTOP-023).
 8. **Omit itself** (PR-HEAT-007): with no `model`, or a model with no units, the panel renders nothing at all (no tab strip, no legend). The host also gates the mount on the capability, so this is the second guard, not the first.
-9. **Grid a11y** (PR-HEAT-008): the grid is one `role="img"` with a label summarising `{used} / {total}` accessed blocks (#199), i.e. the cells are not read out one by one — 416 anonymous cells are noise, and the counts are what the picture says.
+9. **Grid a11y** (PR-HEAT-008): the grid is one `role="img"` with a label summarising `{used} / {total}` used blocks (#199), i.e. the cells are not read out one by one — 416 anonymous cells are noise, and the counts are what the picture says.
 10. **Short column fit** (PR-HEAT-011): the tab strip, legend, view-bar band, unit name and metric keep their frame sizes; the body is the size container and the grid picks a square cell = `min(width-fit, height-fit)` (height budget minus the title/metric footer) so the Layout lattice never overflows and **never opens a scrollbar**. Spare height falls below the metric. The body clips (`overflow: hidden`).
 
 ## Acceptance Criteria
 
 1. **PR-HEAT-001** — Renders the five tabs in order (`L1`, `UB`, `L0A`, `L0B`, `L0C`) as `role="tab"` buttons inside a `role="tablist"`, all five present even when `model.units` carries fewer (a unit with no source keeps its tab). No `L2Cache` tab ([UI-60](../../../../docs/context/decisions/UI.md)).
-2. **PR-HEAT-002** — Renders the two-state legend with `有访存` / `Accessed` on `#3d64ad` and `无访存` / `Not accessed` on `#afc6fe` (#199), `8px` swatches, the pair centred in the column.
+2. **PR-HEAT-002** — Renders the two-state legend with `已用` / `Used` on `#3d64ad` and `未用` / `Unused` on `#afc6fe` (#199), `8px` swatches, the pair centred in the column.
 3. **PR-HEAT-003** — Renders one grid cell per active `view.blocks` entry in carrier order with `data-state="withData" | "withoutData"`, `#3d64ad` / `#afc6fe` respectively, `view.columns` per row, and no third state. The grid is one `2px` `#6e798d` frame around a `#303f5e` board with a `2px` inset and `2px` gaps — no per-cell divider band.
 4. **PR-HEAT-004 / PR-HEAT-004b** — With `totalBytes`/`usedBytes`/`freeBytes` on the active view, shows `Total: {n} / Used: {n} / Free: {n}` and binds `--pr-heat-cols` / `--pr-heat-rows` from that view. Omits the caption when Total is unknown. No instruction-count metric.
 5. **PR-HEAT-005** — A selected unit absent from the model shows the empty line and **no** grid.
 6. **PR-HEAT-006** — The tab named by `selectedUnit` is the only `aria-selected="true"` tab; a click on any tab emits `select-unit` with that unit and does not change the rendered selection by itself.
 7. **PR-HEAT-007** — Renders nothing when `model` is null/undefined or has no units.
-8. **PR-HEAT-008** — The grid is a single `role="img"` whose accessible name reports `{used} / {total}` accessed blocks (#199), and its cells are not individually exposed.
+8. **PR-HEAT-008** — The grid is a single `role="img"` whose accessible name reports `{used} / {total}` used blocks (#199), and its cells are not individually exposed.
 9. **PR-HEAT-009** — The strip is a complete `tablist`: exactly one tab has `tabindex="0"` (the selected one, the rest `-1`; with no selected unit the **first** tab carries it, so the strip is never unreachable by keyboard), `ArrowRight` / `ArrowLeft` move the selection to the next / previous unit and **wrap** at both ends, `Home` / `End` jump to the first / last unit, any other key is left to the platform, and the click handler is unchanged — the tab click and the arrow keys both emit **select-unit** and the panel never moves the selection itself. The five tabs share one `role="tabpanel"` body, `aria-labelledby` the selected tab. The labels fill the column to the pixel, so the tabs never shrink or wrap: each keeps its own width and the strip scrolls horizontally instead (invisible while they fit).
 10. **PR-HEAT-010** — With a drawable unit, the body's text content is exactly two lines in this order: the view title (`{ownerName} {memoryName}` when CoreTypes resolve — e.g. `AIV0 UB`; else the diagram's tab words such as `AIV × 2 UB`), `19px` `#e7e7e7`, centred, then the metric; the name is absent (with the grid) for a blank unit, and no unit name is rendered **above** the grid.
 11. **PR-HEAT-011** — The body is the size container (`container-type: size`); the grid picks `--pr-heat-cell: min(width-fit, height-fit)` with a footer budget for title + metric. Height-fit subtracts the same **8px** frame (padding+border) as width-fit so the `#6e798d` stroke is not clipped. The body has `overflow: hidden` (no scrollbar). Tabs, legend, the always-reserved view-bar band, and the `OutsideDeclared` badge stay outside the body so they cannot clip the lattice. The grid binds both `--pr-heat-cols` and `--pr-heat-rows`, and its frame is `5px`-rounded.
@@ -66,8 +66,8 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | View-bar | always reserved (`min-height` = Source pill `28px`); multi-view UB mounts `SourcePillSelect` |
 | Unit name under the grid | active view (`{owner} {MemoryName}`), `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid |
 | Metric caption | `#b3b3b3`, `12px`/`15px` line-height, centred `13px` under the unit name — `Total: {n} / Used: {n} / Free: {n}` ([DATA-51](../../../../docs/context/decisions/DATA.md)); omitted when Total unknown |
-| `有访存` / `Accessed` | `#3d64ad` |
-| `无访存` / `Not accessed` | `#afc6fe` |
+| `已用` / `Used` | `#3d64ad` |
+| `未用` / `Unused` | `#afc6fe` |
 | Grid frame | `2px` `#6e798d` border around the board, `5px` radius (sketch ~20px at 4×), one `2px` gap of inset inside it; cells clip to the radius |
 | Grid board (the lattice the gaps cut) | `#303f5e` |
 | Grid cell | `aspect-ratio: 1`, `2px` gap, `1px` radius |
@@ -91,6 +91,7 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 
 ## Changelog
 
+- **2026-11-18** — #199: legend copy is `Used` / `Unused`, `已用` / `未用` (not allocation / 访存 “accessed”).
 - **2026-11-16** — #199: legend copy is traffic-oriented (`Accessed` / `Not accessed`, `有访存` / `无访存`), not allocation.
 - **2026-11-02** — PR-HEAT-010 AC example prefers `{ownerName} {memoryName}` (`AIV0 UB`); diagram-words remain the no-owner fallback.
 - **2026-11-02** — Align co-located spec with Layout+Cells only: `views[]`, capacity caption, Layout-driven cols/rows; drop UbRw / `已用指令条数` requirements; rewrite § Visual / Known deltas for view-bar + DATA-51 caption.
