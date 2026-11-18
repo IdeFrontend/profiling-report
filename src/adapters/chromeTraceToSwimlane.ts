@@ -169,7 +169,14 @@ export function chromeTraceToSwimlane(
     // Non-finite ts is dropped. Positive finite `dur` on `ph:i` is left to #207 (PR-SWIM-017).
     const instantI =
       e.ph === 'i' && e.ts != null && Number.isFinite(e.ts) && (e.dur == null || e.dur === 0);
-    if (!(instantI || (e.ph === 'X' && e.ts != null && e.dur != null))) continue;
+    // Non-finite X dur/ts would poison maxTime/minTime and steal an s/f edge.
+    const xInterval =
+      e.ph === 'X' &&
+      e.ts != null &&
+      Number.isFinite(e.ts) &&
+      e.dur != null &&
+      Number.isFinite(e.dur);
+    if (!(instantI || xInterval)) continue;
     if (e.ts == null) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
@@ -335,9 +342,11 @@ export function nestParents(events: SwimEvent[]): Int32Array {
 
 /**
  * Innermost positive-duration event whose inclusive range contains `timestamp`.
- * A duration-0 event matches only when no enclosing interval does.
- * Events must be sorted startTime asc, longest duration first on ties. Walks the
- * enclosing-parent chain from the last start ≤ ts so a gap does not scan the whole prefix.
+ * A duration-0 event matches only when no positive-duration event contains it.
+ * Events must be sorted startTime asc, longest duration first on ties.
+ * A tick that starts exactly at `timestamp` is skipped before the parent walk:
+ * `nestParents` treats an interval that ends there as a sibling, so the chain
+ * would otherwise miss that interval.
  */
 function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Array): number {
   let lo = 0;
@@ -347,15 +356,21 @@ function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Arr
     if (events[mid]!.startTime <= timestamp) lo = mid + 1;
     else hi = mid;
   }
+  let start = lo - 1;
   let tick = -1;
-  for (let i = lo - 1; i >= 0; i = parent[i]!) {
+  while (
+    start >= 0 &&
+    events[start]!.duration === 0 &&
+    events[start]!.startTime === timestamp
+  ) {
+    if (tick < 0) tick = start;
+    start--;
+  }
+  for (let i = start; i >= 0; i = parent[i]!) {
     const event = events[i]!;
-    if (timestamp > event.startTime + event.duration) continue;
-    if (event.duration === 0) {
-      if (tick < 0) tick = i;
-      continue;
-    }
-    return i;
+    // `>` is not the negation of `<=` when duration is NaN (both are false).
+    if (!(event.duration > 0)) continue;
+    if (timestamp <= event.startTime + event.duration) return i;
   }
   return tick;
 }

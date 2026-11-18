@@ -192,6 +192,48 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     const other = bare.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
     expect(tickThread.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
     expect(other.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+
+    // A tick on an interval's inclusive end is a nest sibling. The edge stays
+    // on that interval, and on the inner one when an outer slice also contains it.
+    function flowAtEnd(events: object[]) {
+      const traced = chromeTraceToSwimlane({
+        traceEvents: [
+          ...events,
+          { ph: 'X', name: 'dst', pid: 1, tid: 2, ts: 200, dur: 10 },
+          { ph: 's', id: 'end', pid: 1, tid: 1, ts: 50 },
+          { ph: 'f', id: 'end', pid: 1, tid: 2, ts: 205 },
+        ],
+      });
+      const srcThread = traced.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+      return srcThread.events.find((e) => e.dependencies?.successors?.length)?.name;
+    }
+    expect(
+      flowAtEnd([
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 50 },
+        { ph: 'i', name: 'tick', pid: 1, tid: 1, ts: 50 },
+      ]),
+    ).toBe('op');
+    expect(
+      flowAtEnd([
+        { ph: 'X', name: 'outer', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'X', name: 'inner', pid: 1, tid: 1, ts: 10, dur: 40 },
+        { ph: 'i', name: 'tick', pid: 1, tid: 1, ts: 50 },
+      ]),
+    ).toBe('inner');
+
+    const nanDur = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'X', name: 'bad', pid: 1, tid: 1, ts: 50, dur: Number.NaN },
+        { ph: 'X', name: 'dst', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 's', id: 'nan', pid: 1, tid: 1, ts: 50 },
+        { ph: 'f', id: 'nan', pid: 1, tid: 2, ts: 205 },
+      ],
+    });
+    const nanSrc = nanDur.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    expect(nanSrc.events.map((e) => e.name)).toEqual(['op']);
+    expect(nanSrc.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(Number.isFinite(nanDur.maxTime)).toBe(true);
   });
 
   it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {
