@@ -43,6 +43,10 @@ export function metricDiff(current: number | undefined, baseline: number | undef
     return null;
   }
   const delta = baseline - current;
+  // The inputs pass `Number.isFinite` individually, but their difference can
+  // still overflow (±1e308): an infinite delta must not carry a tone that
+  // `trimDiffMagnitude` would print as "Infinity".
+  if (!Number.isFinite(delta)) return null;
   // Suppress on the DISPLAYED value, not the raw float: the label rounds to
   // `DIFF_DISPLAY_DECIMALS` later, so a delta that prints "0" (1e-4, or a
   // float artefact like 0.29 * 100 = 28.999999999999996) must not carry a

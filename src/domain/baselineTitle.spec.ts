@@ -41,8 +41,43 @@ describe('formatBaselineStamp', () => {
     expect(formatBaselineStamp(new Date(2026, 10, 8, 14, 25).getTime())).toBe('2026-11-08 14:25');
   });
 
-  it('returns empty for a broken value', () => {
+  it('renders LOCAL time even when the host zone differs from UTC', () => {
+    // The plain assertion above is vacuous under CI's TZ=UTC: a UTC-swapped
+    // implementation would also pass. Pin the local-time behaviour in a
+    // TZ=America/New_York child, where local 14:25 = UTC 19:25.
+    const source = readFileSync(
+      fileURLToPath(new NodeUrl('./baselineTitle.ts', import.meta.url)),
+      'utf8',
+    );
+    const js = ts.transpileModule(source, {
+      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+      fileName: 'baselineTitle.ts',
+    }).outputText;
+    const dir = mkdtempSync(path.join(tmpdir(), 'opprof-'));
+    try {
+      const file = path.join(dir, 'baselineTitle.mjs');
+      writeFileSync(file, js);
+      const href = pathToFileURL(file).href;
+      const script = `
+        import { formatBaselineStamp } from ${JSON.stringify(href)};
+        const stamp = formatBaselineStamp(Date.UTC(2026, 10, 8, 19, 25));
+        if (stamp !== '2026-11-08 14:25') throw new Error('stamp ' + stamp);
+      `;
+      const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+        env: { ...process.env, TZ: 'America/New_York' },
+        encoding: 'utf8',
+      });
+      expect(res.status, res.stderr || res.stdout).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns empty for a broken or sentinel value', () => {
     expect(formatBaselineStamp(Number.NaN)).toBe('');
+    expect(formatBaselineStamp(0)).toBe('');
+    expect(formatBaselineStamp(-1)).toBe('');
+    expect(formatBaselineStamp(Number.POSITIVE_INFINITY)).toBe('');
   });
 });
 

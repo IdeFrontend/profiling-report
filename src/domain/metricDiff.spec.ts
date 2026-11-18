@@ -15,8 +15,13 @@ describe('metricDiff', () => {
     expect(metricDiff(5, undefined)).toBeNull();
     expect(metricDiff(Number.NaN, 5)).toBeNull();
     expect(metricDiff(5, Number.POSITIVE_INFINITY)).toBeNull();
+    expect(metricDiff(Number.POSITIVE_INFINITY, 5)).toBeNull();
     expect(metricDiff(5, 5)).toBeNull();
     expect(metricDiff(0, 0)).toBeNull();
+  });
+
+  it('nulls an overflowing delta (finite inputs, infinite difference)', () => {
+    expect(metricDiff(-1e308, 1e308)).toBeNull();
   });
 
   it('suppresses a delta that displays as zero (rounding and float artefacts)', () => {
@@ -42,6 +47,8 @@ describe('utilizationPercent', () => {
     expect(utilizationPercent(undefined, 100)).toBeNull();
     expect(utilizationPercent(Number.NaN, 100)).toBeNull();
     expect(utilizationPercent(12, Number.POSITIVE_INFINITY)).toBeNull();
+    expect(utilizationPercent(Number.POSITIVE_INFINITY, 100)).toBeNull();
+    expect(utilizationPercent(Number.NEGATIVE_INFINITY, 100)).toBeNull();
   });
 
   it('passes negative measured values through (the card displays a negative balance)', () => {

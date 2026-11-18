@@ -27,10 +27,12 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-/** "YYYY-MM-DD HH:mm" — the locale-neutral numeric stamp both locales read the same way. */
+/** "YYYY-MM-DD HH:mm" — the locale-neutral numeric stamp both locales read the same way.
+ *  Empty for anything that is not a REAL positive instant: NaN, Infinity, 0 (the
+ *  unknown-mtime sentinel) and negative values. */
 export function formatBaselineStamp(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '';
   const d = new Date(ms);
-  if (Number.isNaN(d.getTime())) return '';
   return (
     `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ` +
     `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
