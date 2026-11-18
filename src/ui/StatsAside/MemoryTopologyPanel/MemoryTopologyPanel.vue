@@ -241,10 +241,10 @@ const props = withDefaults(
     /** Bar's **全屏** control: the stacked aside asks for it, the root overlay is already full. */
     showFullscreen?: boolean;
     /**
-     * Root topology 全屏 only (PR-MEMTOP-020): plain vertical wheel zooms while the diagram still
-     * fits (fullscreen has no aside column to scroll). Ctrl/Cmd+wheel and trackpad pinch zoom on
-     * **both** hosts; the stacked aside leaves this off so unmodified vertical wheel keeps scrolling
-     * the report.
+     * Root topology 全屏 only (PR-MEMTOP-020): plain vertical wheel zooms at any scale (fullscreen
+     * has no aside column to scroll — #185). Ctrl/Cmd+wheel and trackpad pinch zoom on **both**
+     * hosts; the stacked aside leaves this off so unmodified vertical wheel keeps scrolling the
+     * report.
      */
     wheelGestures?: boolean;
     /**
@@ -658,7 +658,8 @@ function setZoom(target: number, anchor?: ZoomAnchor | null) {
  * trackpad-pinch ticks apply a **continuous** scale immediately (fingers stay in sync). Mouse-wheel
  * notches step the same **1.5× ladder** as the bar +/− controls and tween with `animateProgress`
  * (PR-MEMTOP-019). Two-finger / Shift horizontal pans when past the fit. Plain vertical wheel zooms
- * at fit **only** when `wheelGestures` (fullscreen).
+ * whenever `wheelGestures` is on (fullscreen — #185); otherwise unmodified vertical wheel bubbles
+ * so the aside column can scroll.
  */
 function onViewportWheel(e: WheelEvent) {
   const el = viewport.value;
@@ -675,9 +676,9 @@ function onViewportWheel(e: WheelEvent) {
     return;
   }
 
-  // Pinch / Ctrl/Cmd+wheel always zooms. Plain vertical at fit zooms only in fullscreen
-  // (`wheelGestures`); otherwise let the event bubble so the aside column can scroll.
-  const wantZoom = pinchOrMod || (props.wheelGestures && !pannable.value);
+  // Pinch / Ctrl/Cmd+wheel always zooms. Plain vertical zooms in fullscreen (`wheelGestures`)
+  // even past the fit (#185); otherwise let the event bubble so the aside column can scroll.
+  const wantZoom = pinchOrMod || props.wheelGestures;
   if (!wantZoom) return;
 
   e.preventDefault();
