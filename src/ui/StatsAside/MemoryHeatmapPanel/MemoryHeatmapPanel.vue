@@ -16,11 +16,20 @@ import SourcePillSelect from '../../SourceView/SourcePillSelect.vue';
  * @see docs/views/memory-topology.md § Memory Utilization Heatmap
  */
 
-/** Frame capacity line uses KB/MB when the byte count is an exact binary multiple (0 → `0KB`). */
-function formatHeatBytes(n: number): string {
-  if (n >= 1024 * 1024 && n % (1024 * 1024) === 0) return `${n / (1024 * 1024)}MB`;
-  if (n % 1024 === 0) return `${n / 1024}KB`;
-  return `${n}B`;
+/** Shared capacity unit for Total/Used/Free (#201) — pick from Total so the three values match. */
+type HeatByteUnit = 'B' | 'KB' | 'MB';
+
+function capacityUnit(totalBytes: number): HeatByteUnit {
+  if (totalBytes >= 1024 * 1024) return 'MB';
+  if (totalBytes >= 1024) return 'KB';
+  return 'B';
+}
+
+/** Frame capacity line: space before unit (`256 KB`); same unit for Total/Used/Free (#201). */
+function formatHeatBytes(n: number, unit: HeatByteUnit): string {
+  const raw = unit === 'MB' ? n / (1024 * 1024) : unit === 'KB' ? n / 1024 : n;
+  const text = Number.isInteger(raw) ? String(raw) : String(Math.round(raw * 100) / 100);
+  return `${text} ${unit}`;
 }
 
 /** Heat tab set, in order (`L1 | UB | L0A | L0B | L0C`) — no L2Cache ([UI-60]). */
@@ -126,10 +135,11 @@ const metricLabel = computed(() => {
   const view = activeView.value;
   if (!view) return '';
   if (view.totalBytes != null && view.usedBytes != null && view.freeBytes != null) {
+    const unit = capacityUnit(view.totalBytes);
     return t('memoryHeatCapacity', props.locale)
-      .replace('{total}', formatHeatBytes(view.totalBytes))
-      .replace('{used}', formatHeatBytes(view.usedBytes))
-      .replace('{free}', formatHeatBytes(view.freeBytes));
+      .replace('{total}', formatHeatBytes(view.totalBytes, unit))
+      .replace('{used}', formatHeatBytes(view.usedBytes, unit))
+      .replace('{free}', formatHeatBytes(view.freeBytes, unit));
   }
   return '';
 });

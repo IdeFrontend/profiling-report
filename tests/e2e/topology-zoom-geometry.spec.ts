@@ -537,15 +537,20 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
     const parts = metricText.match(/^Total: (.+) \/ Used: (.+) \/ Free: (.+)$/);
     expect(parts).not.toBeNull();
     const parseHeatBytes = (s: string): number => {
-      if (s.endsWith('MB')) return Number(s.slice(0, -2)) * 1024 * 1024;
-      if (s.endsWith('KB')) return Number(s.slice(0, -2)) * 1024;
-      if (s.endsWith('B')) return Number(s.slice(0, -1));
+      const t = s.trim();
+      const mb = t.match(/^([\d.]+)\s+MB$/);
+      if (mb) return Number(mb[1]) * 1024 * 1024;
+      const kb = t.match(/^([\d.]+)\s+KB$/);
+      if (kb) return Number(kb[1]) * 1024;
+      const b = t.match(/^([\d.]+)\s+B$/);
+      if (b) return Number(b[1]);
       return NaN;
     };
     const total = parseHeatBytes(parts![1]);
     const used = parseHeatBytes(parts![2]);
     const free = parseHeatBytes(parts![3]);
-    expect(free).toBe(total - used);
+    // Total/Used/Free share one KB/MB unit but round independently (#201) — allow sub-KB drift.
+    expect(Math.abs(free - (total - used))).toBeLessThanOrEqual(1024);
   }
 
   // Two columns, heat on the right, both with a box of their own. Carrier locks the sketch's
