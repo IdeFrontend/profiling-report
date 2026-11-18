@@ -79,7 +79,7 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
     expect(liteSampleRepByteLength()).toBeLessThan(500_000);
   });
 
-  it('loads as a multi-op container with op1/op2 plus overview-only extras', () => {
+  it('loads as a multi-op container with per-pack operator labels plus overview-only extras', () => {
     expect(adapted.operators?.map((o) => o.id)).toEqual([
       'op1.npu.rep',
       'op2.npu.rep',
@@ -89,12 +89,12 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
       'op6.npu.rep',
     ]);
     expect(adapted.operators?.map((o) => o.label)).toEqual([
-      'op1',
-      'op2',
-      'op3',
-      'op4',
-      'op5',
-      'op6',
+      'add_custom',
+      'matmul_mock',
+      'demo_linear_tiled',
+      'demo_bias_gelu',
+      'demo_layer_norm',
+      'demo_softmax',
     ]);
     expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
   });
