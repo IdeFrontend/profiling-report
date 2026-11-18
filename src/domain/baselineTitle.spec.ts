@@ -1,4 +1,9 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import {
   baselineDisplayTitle,
@@ -60,21 +65,33 @@ describe('stampFromOpprofName', () => {
 
   it('keeps the embedded clock in Europe/London, where 01:30 does not exist', () => {
     // UTC Date prints 01:30 either way. The gap only shows up in a DST zone.
-    // import.meta.url is an http URL under vitest, so the child imports the file path.
-    const script = `
-      import { baselineDisplayTitle, stampFromOpprofName } from './src/domain/baselineTitle.ts';
-      const name = 'OPPROF_20260329013000_QKWFPLXZVTRNBGMA';
-      const ms = stampFromOpprofName(name);
-      const title = baselineDisplayTitle({ id: 'x', name, path: '/data/out.rep' });
-      if (ms != null) throw new Error('rolled epoch ' + ms);
-      if (title !== 'out.rep 2026-03-29 01:30') throw new Error('title ' + title);
-    `;
-    const res = spawnSync(
-      process.execPath,
-      ['--experimental-strip-types', '--input-type=module', '-e', script],
-      { cwd: process.cwd(), env: { ...process.env, TZ: 'Europe/London' }, encoding: 'utf8' },
-    );
-    expect(res.status, res.stderr || res.stdout).toBe(0);
+    // CI runs Node 20, which rejects --experimental-strip-types, so emit plain JS.
+    const source = readFileSync(path.join(process.cwd(), 'src/domain/baselineTitle.ts'), 'utf8');
+    const js = ts.transpileModule(source, {
+      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+      fileName: 'baselineTitle.ts',
+    }).outputText;
+    const dir = mkdtempSync(path.join(tmpdir(), 'opprof-'));
+    try {
+      const file = path.join(dir, 'baselineTitle.mjs');
+      writeFileSync(file, js);
+      const href = pathToFileURL(file).href;
+      const script = `
+        import { baselineDisplayTitle, stampFromOpprofName } from ${JSON.stringify(href)};
+        const name = 'OPPROF_20260329013000_QKWFPLXZVTRNBGMA';
+        const ms = stampFromOpprofName(name);
+        const title = baselineDisplayTitle({ id: 'x', name, path: '/data/out.rep' });
+        if (ms != null) throw new Error('rolled epoch ' + ms);
+        if (title !== 'out.rep 2026-03-29 01:30') throw new Error('title ' + title);
+      `;
+      const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+        env: { ...process.env, TZ: 'Europe/London' },
+        encoding: 'utf8',
+      });
+      expect(res.status, res.stderr || res.stdout).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
