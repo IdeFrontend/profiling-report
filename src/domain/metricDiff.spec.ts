@@ -22,6 +22,9 @@ describe('metricDiff', () => {
   it('suppresses a delta that displays as zero (rounding and float artefacts)', () => {
     // The label rounds to 2 decimals: a 1e-4 delta would print "0"…
     expect(metricDiff(0.0001, 0.0002)).toBeNull();
+    // …a real subtraction artefact that still rounds to zero — this case
+    // FAILS if the guard reverts to `delta === 0` (1e-13 ≠ 0 exactly)…
+    expect(metricDiff(1e-13, 0)).toBeNull();
     // …and float arithmetic can split mathematically equal values
     // (0.29 * 100 = 28.999999999999996).
     expect(summaryDiffs(

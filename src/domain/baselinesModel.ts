@@ -33,7 +33,9 @@ export interface Baseline {
    * Pick timestamp in epoch ms (a host mtime or the pick moment). Drives the
    * derived display title (`baselineDisplayTitle`): filename + this stamp
    * replace a generated boilerplate id. Optional — an OPPROF name's embedded
-   * stamp is parsed as the fallback.
+   * stamp is parsed as the fallback. `0` and NaN mean UNKNOWN (the common
+   * zero-mtime sentinel) and fall back the same way — a real epoch of 0 is
+   * not a valid pick instant.
    */
   pickedAt?: number;
 }

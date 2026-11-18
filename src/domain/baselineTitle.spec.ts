@@ -98,9 +98,10 @@ describe('stampFromOpprofName', () => {
   });
 
   it('resolves the ambiguous autumn overlap to its first (BST) occurrence in Europe/London', () => {
-    // 2026-10-25 01:30 exists twice (BST, then GMT). `new Date` picks the
-    // first occurrence in every engine — pin that instant, because the aside
-    // consumes it.
+    // 2026-10-25 01:30 exists twice (BST, then GMT). The instant an engine
+    // picks for an ambiguous local time is implementation-defined by
+    // ECMA-262 (V8: the first, BST, occurrence) — the epoch is therefore NOT
+    // pinned here; the TITLE must print the digits either way.
     const source = readFileSync(
       fileURLToPath(new NodeUrl('./baselineTitle.ts', import.meta.url)),
       'utf8',
@@ -118,8 +119,7 @@ describe('stampFromOpprofName', () => {
         import { baselineDisplayTitle, stampFromOpprofName } from ${JSON.stringify(href)};
         const name = 'OPPROF_20261025013000_QKWFPLXZVTRNBGMA';
         const ms = stampFromOpprofName(name);
-        const expected = new Date(2026, 9, 25, 1, 30).getTime();
-        if (ms !== expected) throw new Error('epoch ' + ms + ' != ' + expected);
+        if (ms == null) throw new Error('no epoch for a real calendar time');
         const title = baselineDisplayTitle({ id: 'x', name, path: '/data/out.rep' });
         if (title !== 'out.rep 2026-10-25 01:30') throw new Error('title ' + title);
       `;
@@ -160,6 +160,12 @@ describe('baselineDisplayTitle', () => {
     const entry = b({ pickedAt: new Date(2026, 10, 10, 9, 5).getTime() });
     const later = new Date(2026, 10, 11, 8, 0).getTime();
     expect(baselineDisplayTitle(entry, later)).toBe('out.rep 2026-11-11 08:00');
+  });
+
+  it('an unknown explicit pickedAt (0 / NaN) is not a pick — the entry stamp wins', () => {
+    const entry = b({ pickedAt: new Date(2026, 10, 10, 9, 5).getTime() });
+    expect(baselineDisplayTitle(entry, 0)).toBe('out.rep 2026-11-10 09:05');
+    expect(baselineDisplayTitle(entry, Number.NaN)).toBe('out.rep 2026-11-10 09:05');
   });
 
   it('a broken or sentinel pickedAt falls back to the embedded OPPROF stamp', () => {

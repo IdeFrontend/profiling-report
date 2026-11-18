@@ -44,9 +44,11 @@ export function metricDiff(current: number | undefined, baseline: number | undef
   }
   const delta = baseline - current;
   // Suppress on the DISPLAYED value, not the raw float: the label rounds to
-  // `DIFF_DISPLAY_DECIMALS` later, so a delta that prints "0" (1e-4, or a
-  // float artefact like 0.29 * 100 = 28.999999999999996) must not carry a
-  // tone — the aside used to re-check `trimDiffMagnitude === '0'` for this.
+  // `DIFF_DISPLAY_DECIMALS` later, so a delta that prints "0" (a 1e-4 delta,
+  // or a float artefact like 0.29 * 100 = 28.999999999999996) must not carry
+  // a tone. This suppresses sub-decimals IN THE METRIC'S OWN UNIT — a viewer
+  // that renders in another unit (the aside divides duration by 1000 to ms)
+  // rounds its own label; display-unit rounding stays the formatter's job.
   if (Number(Math.abs(delta).toFixed(DIFF_DISPLAY_DECIMALS)) === 0) return null;
   return {
     tone: delta > 0 ? 'down' : 'up',
