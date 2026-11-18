@@ -261,7 +261,7 @@ function emitCounterHover(
   const clamped = Math.min(yMax, Math.max(0, pt.v));
   const localDotY = plotTop + plotH * (1 - clamped / yMax);
   const color = series.colorHex ?? hit.lane.color;
-  const name = hit.lane.thread.name || hit.lane.name;
+  const name = hit.lane.thread.name;
   const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}|${localDotY}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
