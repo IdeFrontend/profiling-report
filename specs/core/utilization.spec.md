@@ -24,14 +24,16 @@ withDerivedUtilizations(model: SwimlaneModel): SwimlaneModel
 
 1. **PR-UTIL-001**: Merges overlapping intervals instead of double-counting.
 1. **PR-UTIL-002**: Clamps utilization to visible window boundaries.
+1. **PR-UTIL-003**: Zero-duration events contribute no coverage.
 
 ## Edge Cases
 
-No events in window → 0. Events entirely outside → 0. Single event covering entire window → 1.0.
+No events in window → 0. Events entirely outside → 0. Single event covering entire window → 1.0. Zero-duration events (`end <= start`, e.g. instant `ph:i` ticks — #205) contribute no coverage.
 
 ## Dependencies
 
 [swimlane-model](./swimlane-model.spec.md).
 
 ## Changelog
+- **2026-11-18** — #205 / PR-UTIL-003: document that duration-0 ticks add no util coverage.
 - **2026-08-05** — Initial spec. Core behaviors established.

@@ -18,7 +18,7 @@ Inspects the head magic (first 8 bytes):
 2. **`cann-rep`** — classic engineering / sample fixture container. Parses via `parseRep` / `adaptRep` → full `AdaptedReport`.
 3. **Otherwise** — assumes standalone JSON, parses as CTEF, converts via `chromeTraceToSwimlane` → `AdaptedReport` with an empty `ReportViewModel` (empty summary, empty pipeOccupancy, empty overviewSeries). This triggers the aside panel auto-hide in ProfilingReport per PROC-3.
 
-Throws on empty input. Throws with descriptive message on corrupted binary or unparseable JSON. Valid JSON that is not CTEF (no complete X events) fails in `chromeTraceToSwimlane` and propagates the error.
+Throws on empty input. Throws with descriptive message on corrupted binary or unparseable JSON. Valid JSON that is not CTEF (no paintable events — complete X or instant `ph:i`) fails in `chromeTraceToSwimlane` and propagates the error.
 
 ## Acceptance Criteria
 

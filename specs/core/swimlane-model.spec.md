@@ -83,7 +83,7 @@ interface SwimEvent    {
 
 ## Edge Cases
 
-- Only B/E events (no X) → throws. Single event → one process/thread/event, minTime = maxTime (handled upstream by bounds clamp).
+- Only B/E events (no X / no instant `ph:i`) → throws. Positive-dur `ph:i` alone still throws here (#207). Instant-only `ph:i` is paintable. Single event → one process/thread/event, minTime = maxTime (handled upstream by bounds clamp).
 - s/f with no matching X interval, missing id/ts, or finish before start → ignored. Nested overlapping X (call stack): innermost containing interval, not the enclosing parent — including equal-`startTime` parent/child (Chrome may write the shorter child first; the converter reorders longest-duration first before nesting). Touching slices that only share an endpoint are siblings (not nested). Flow in idle time between nested slices binds the enclosing slice. Both endpoints in the same X event → no edge. Distinct overlapping X slices (long parent, shorter worker) stay linked; `pred.end` may exceed `succ.start`. Recycled `id` after a flow closes → one edge per s/f pair, not last-wins. Finish written before its start in the file still pairs when `s.ts <= f.ts`.
 
 ## Dependencies

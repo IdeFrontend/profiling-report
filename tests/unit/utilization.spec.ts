@@ -30,4 +30,16 @@ describe('PR-UTIL: thread utilization', () => {
     };
     expect(computeThreadUtilization(thread, 0, 100)).toBe(0.5);
   });
+
+  it('PR-UTIL-003: zero-duration ticks contribute no coverage', () => {
+    const thread: SwimThread = {
+      id: 't',
+      name: 'ICACHE_READ',
+      events: [
+        { id: 'hit', name: 'ICACHE_HIT', startTime: 10, duration: 0 },
+        { id: 'bar', name: 'work', startTime: 20, duration: 40 },
+      ],
+    };
+    expect(computeThreadUtilization(thread, 0, 100)).toBe(0.4);
+  });
 });

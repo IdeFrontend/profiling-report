@@ -102,7 +102,13 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
   });
 
   it('PR-SWIM-005: rejects traces with no paintable events', () => {
-    expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete X events/);
+    expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no paintable events/);
+    // Positive-dur ph:i alone is not paintable here (#207 owns that path).
+    expect(() =>
+      chromeTraceToSwimlane({
+        traceEvents: [{ ph: 'i', name: 'RV_VLOOPv2', pid: 1, tid: 1, ts: 10, dur: 3 }],
+      }),
+    ).toThrow(/no paintable events/);
   });
 
   it('PR-SWIM-018: instant ph:i becomes a duration-0 event (#205)', () => {
@@ -110,19 +116,31 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       traceEvents: [
         { ph: 'M', name: 'thread_name', pid: 1, tid: 'ICACHE_READ', args: { name: 'ICACHE_READ' } },
         { ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 'ICACHE_READ', ts: 12.5 },
+        { ph: 'i', name: 'ICACHE_MISS', pid: 1, tid: 'ICACHE_READ', ts: 14, dur: 0 },
         // Positive dur on ph:i is out of scope here (#207).
-        { ph: 'i', name: 'ICACHE_MISS', pid: 1, tid: 'ICACHE_READ', ts: 15, dur: 3 },
+        { ph: 'i', name: 'SKIP_POS_DUR', pid: 1, tid: 'ICACHE_READ', ts: 15, dur: 3 },
         { ph: 'X', name: 'ICACHE REFILL', pid: 1, tid: 'ICACHE_READ', ts: 20, dur: 0 },
       ],
     });
     const events = model.processes[0]!.threads[0]!.events;
-    expect(events).toHaveLength(2);
+    expect(events).toHaveLength(3);
     expect(events[0]).toEqual(
       expect.objectContaining({ name: 'ICACHE_HIT', startTime: 12_500, duration: 0 }),
     );
     expect(events[1]).toEqual(
+      expect.objectContaining({ name: 'ICACHE_MISS', startTime: 14_000, duration: 0 }),
+    );
+    expect(events[2]).toEqual(
       expect.objectContaining({ name: 'ICACHE REFILL', startTime: 20_000, duration: 0 }),
     );
+
+    // Instant-only traces are paintable (no complete X required).
+    const ticksOnly = chromeTraceToSwimlane({
+      traceEvents: [{ ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 1 }],
+    });
+    expect(ticksOnly.processes[0]!.threads[0]!.events).toEqual([
+      expect.objectContaining({ name: 'ICACHE_HIT', startTime: 1000, duration: 0 }),
+    ]);
   });
 
   it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {

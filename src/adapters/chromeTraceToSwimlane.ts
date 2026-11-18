@@ -166,9 +166,8 @@ export function chromeTraceToSwimlane(
     }
 
     // Complete X intervals, or instant emulate markers (`ph:i` with no/zero dur — #205).
-    // `ph:i` with a positive `dur` is handled separately (#207).
-    const instantI =
-      e.ph === 'i' && e.ts != null && (e.dur == null || e.dur === 0 || !Number.isFinite(e.dur));
+    // Positive finite `dur` on `ph:i` is left to #207 (PR-SWIM-017).
+    const instantI = e.ph === 'i' && e.ts != null && (e.dur == null || e.dur === 0);
     if (!(instantI || (e.ph === 'X' && e.ts != null && e.dur != null))) continue;
     if (e.ts == null) continue;
     const pid = String(e.pid ?? 0);
@@ -224,7 +223,7 @@ export function chromeTraceToSwimlane(
 
   if (!Number.isFinite(minTime) || eventSeq === 0) {
     throw new Error(
-      '[profiling-report] chromeTraceToSwimlane: no complete X events (ts+dur) in trace',
+      '[profiling-report] chromeTraceToSwimlane: no paintable events (complete X or instant ph:i) in trace',
     );
   }
 
