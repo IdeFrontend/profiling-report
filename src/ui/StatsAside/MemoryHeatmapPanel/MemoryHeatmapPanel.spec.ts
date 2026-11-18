@@ -76,10 +76,13 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: names both allocation states beside their swatches', () => {
+  it('PR-HEAT-002: names both used states beside their swatches (#199)', () => {
     const wrapper = mountPanel();
-    expect(wrapper.text()).toContain('已分配有数据');
-    expect(wrapper.text()).toContain('已分配无数据');
+    const zhLabels = wrapper.findAll('.pr-heat__legend-label').map((n) => n.text());
+    expect(zhLabels).toEqual(['已用', '空闲']);
+    const en = mountPanel({ locale: 'en' });
+    const enLabels = en.findAll('.pr-heat__legend-label').map((n) => n.text());
+    expect(enLabels).toEqual(['Used', 'Free']);
   });
 
   it('PR-HEAT-003: paints one cell per block from the active view', () => {
@@ -132,7 +135,7 @@ describe('MemoryHeatmapPanel', () => {
   it('PR-HEAT-008: exposes the grid as one image, not per-cell roles', () => {
     const grid = mountPanel().find('[data-testid="heat-grid"]');
     expect(grid.attributes('role')).toBe('img');
-    expect(grid.attributes('aria-label')).toBe('20 / 416 个块已分配有数据');
+    expect(grid.attributes('aria-label')).toBe('20 / 416 个块已用');
     expect(grid.findAll('[role="img"]')).toHaveLength(0);
   });
 

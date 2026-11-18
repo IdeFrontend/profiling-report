@@ -328,10 +328,10 @@ export interface MemoryTopologyModel {
  */
 export type MemoryHeatmapUnitId = 'l1' | 'ub' | 'l0a' | 'l0b' | 'l0c';
 
-/** Allocation state of one heat-grid block — the §11.2.3.2 two-state legend. */
+/** Traffic coverage of one heat-grid block — the §11.2.3.2 two-state legend (#199). */
 export type MemoryHeatmapBlockState = 'withData' | 'withoutData';
 
-/** One block of a unit's heat grid (`已分配有数据` / `已分配无数据`). */
+/** One block of a unit's heat grid (`已用` / `空闲` — Used / Free). */
 export interface MemoryHeatmapBlock {
   /** Row-major position in the unit's grid; stable identity for the grid cells. */
   index: number;
