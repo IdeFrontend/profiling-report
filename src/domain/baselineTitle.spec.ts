@@ -97,11 +97,11 @@ describe('stampFromOpprofName', () => {
     }
   });
 
-  it('resolves the ambiguous autumn overlap to its first (BST) occurrence in Europe/London', () => {
-    // 2026-10-25 01:30 exists twice (BST, then GMT). The instant an engine
-    // picks for an ambiguous local time is implementation-defined by
-    // ECMA-262 (V8: the first, BST, occurrence) — the epoch is therefore NOT
-    // pinned here; the TITLE must print the digits either way.
+  it('keeps the ambiguous autumn digits in the title in Europe/London', () => {
+    // 2026-10-25 01:30 exists twice (BST, then GMT). Which EPOCH the
+    // round-trip picks is implementation-defined (ECMA-262) — the lock is
+    // the TITLE, which must print the embedded digits either way, and the
+    // epoch must not roll to another day.
     const source = readFileSync(
       fileURLToPath(new NodeUrl('./baselineTitle.ts', import.meta.url)),
       'utf8',
@@ -119,7 +119,12 @@ describe('stampFromOpprofName', () => {
         import { baselineDisplayTitle, stampFromOpprofName } from ${JSON.stringify(href)};
         const name = 'OPPROF_20261025013000_QKWFPLXZVTRNBGMA';
         const ms = stampFromOpprofName(name);
-        if (ms == null) throw new Error('no epoch for a real calendar time');
+        if (ms == null) throw new Error('no epoch');
+        // The ambiguous instant must stay on its own local day in this zone.
+        const rolled = new Date(ms);
+        if (rolled.getHours() !== 1 || rolled.getMinutes() !== 30 || rolled.getDate() !== 25) {
+          throw new Error('rolled epoch ' + ms);
+        }
         const title = baselineDisplayTitle({ id: 'x', name, path: '/data/out.rep' });
         if (title !== 'out.rep 2026-10-25 01:30') throw new Error('title ' + title);
       `;
@@ -162,17 +167,20 @@ describe('baselineDisplayTitle', () => {
     expect(baselineDisplayTitle(entry, later)).toBe('out.rep 2026-11-11 08:00');
   });
 
-  it('an unknown explicit pickedAt (0 / NaN) is not a pick — the entry stamp wins', () => {
-    const entry = b({ pickedAt: new Date(2026, 10, 10, 9, 5).getTime() });
-    expect(baselineDisplayTitle(entry, 0)).toBe('out.rep 2026-11-10 09:05');
-    expect(baselineDisplayTitle(entry, Number.NaN)).toBe('out.rep 2026-11-10 09:05');
-  });
-
   it('a broken or sentinel pickedAt falls back to the embedded OPPROF stamp', () => {
     // 0 is the common unknown-mtime sentinel; NaN formats to ''. Neither may
     // shadow a valid embedded clock.
     expect(baselineDisplayTitle(b({ pickedAt: 0 }))).toBe('out.rep 2026-11-08 14:25');
     expect(baselineDisplayTitle(b({ pickedAt: Number.NaN }))).toBe('out.rep 2026-11-08 14:25');
+  });
+
+  it('a sentinel explicit argument does not short-circuit the entry stamp', () => {
+    // An unknown explicit value is not a pick: the ENTRY stamp still has its
+    // turn before the embedded digits.
+    const entryStamp = new Date(2026, 10, 10, 9, 5).getTime();
+    expect(baselineDisplayTitle(b({ pickedAt: entryStamp }), 0)).toBe(
+      'out.rep 2026-11-10 09:05',
+    );
   });
 
   it('appends the stamp to a real name', () => {

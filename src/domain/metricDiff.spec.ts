@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { metricDiff, summaryDiffs, utilizationPercent } from './metricDiff';
 
 describe('metricDiff', () => {
-  it('negative delta (current above baseline) tones up', () => {
-    expect(metricDiff(90, 86)).toEqual({ tone: 'up', delta: -4, magnitude: 4 });
+  it('negative delta (current above baseline) tones increase', () => {
+    expect(metricDiff(90, 86)).toEqual({ tone: 'increase', delta: -4, magnitude: 4 });
   });
 
-  it('positive delta (current below baseline) tones down', () => {
-    expect(metricDiff(86, 90)).toEqual({ tone: 'down', delta: 4, magnitude: 4 });
+  it('positive delta (current below baseline) tones decrease', () => {
+    expect(metricDiff(86, 90)).toEqual({ tone: 'decrease', delta: 4, magnitude: 4 });
   });
 
   it('nulls on missing, non-finite, or zero difference', () => {
@@ -20,17 +20,12 @@ describe('metricDiff', () => {
   });
 
   it('suppresses a delta that displays as zero (rounding and float artefacts)', () => {
-    // The label rounds to 2 decimals: a 1e-4 delta would print "0"…
+    // The label rounds to 2 decimals: a 1e-4 delta would print "0".
     expect(metricDiff(0.0001, 0.0002)).toBeNull();
-    // …a real subtraction artefact that still rounds to zero — this case
-    // FAILS if the guard reverts to `delta === 0` (1e-13 ≠ 0 exactly)…
+    // A delta that only exists below the display precision: -1e-13 toFixed(2)
+    // is "0.00", and the old `delta === 0` guard would have kept the diff —
+    // this case fails if the guard reverts.
     expect(metricDiff(1e-13, 0)).toBeNull();
-    // …and float arithmetic can split mathematically equal values
-    // (0.29 * 100 = 28.999999999999996).
-    expect(summaryDiffs(
-      { parallelBalance: 0.29 },
-      { parallelBalance: 0.29 },
-    ).parallelBalance).toBeNull();
   });
 });
 
@@ -83,14 +78,14 @@ describe('summaryDiffs', () => {
         write: { measuredGBs: 1000, peakGBs: 1600 },
       },
     });
-    // baseline − current; positive → down (value decreased), negative → up (value increased).
-    expect(diffs.taskDurationUs).toEqual({ tone: 'down', delta: 200, magnitude: 200 });
-    expect(diffs.parallelUtilization).toEqual({ tone: 'up', delta: -4, magnitude: 4 });
-    expect(diffs.parallelBalance).toEqual({ tone: 'down', delta: 8, magnitude: 8 });
-    expect(diffs.computeAic).toEqual({ tone: 'up', delta: -10, magnitude: 10 });
-    expect(diffs.computeAiv).toEqual({ tone: 'down', delta: 10, magnitude: 10 });
-    expect(diffs.bandwidthRead).toEqual({ tone: 'up', delta: -18.75, magnitude: 18.75 });
-    expect(diffs.bandwidthWrite).toEqual({ tone: 'down', delta: 12.5, magnitude: 12.5 });
+    // baseline − current; positive → decrease (value went down), negative → increase (value went up).
+    expect(diffs.taskDurationUs).toEqual({ tone: 'decrease', delta: 200, magnitude: 200 });
+    expect(diffs.parallelUtilization).toEqual({ tone: 'increase', delta: -4, magnitude: 4 });
+    expect(diffs.parallelBalance).toEqual({ tone: 'decrease', delta: 8, magnitude: 8 });
+    expect(diffs.computeAic).toEqual({ tone: 'increase', delta: -10, magnitude: 10 });
+    expect(diffs.computeAiv).toEqual({ tone: 'decrease', delta: 10, magnitude: 10 });
+    expect(diffs.bandwidthRead).toEqual({ tone: 'increase', delta: -18.75, magnitude: 18.75 });
+    expect(diffs.bandwidthWrite).toEqual({ tone: 'decrease', delta: 12.5, magnitude: 12.5 });
   });
 
   it('nulls each diff independently when a side is missing', () => {

@@ -6,8 +6,8 @@
  * in exactly one place:
  *
  *   delta = baseline − current
- *   delta > 0  → the current value went DOWN vs baseline → tone 'down'
- *   delta < 0  → the current value went UP vs baseline → tone 'up'
+ *   delta > 0  → the current value DECREASED vs baseline → tone 'decrease'
+ *   delta < 0  → the current value INCREASED vs baseline → tone 'increase'
  *
  * `tone` is the DIRECTION of the current value only — it carries no valence:
  * most diffed metrics are higher-is-better, but `taskDurationUs` is
@@ -18,10 +18,10 @@
  * non-zero; the displayed magnitude is unsigned (the mockup prints no +/−).
  */
 
-export type DiffTone = 'up' | 'down';
+export type DiffTone = 'increase' | 'decrease';
 
 export interface MetricDiff {
-  /** Direction of the current value vs baseline ('up'/'down'); no valence. */
+  /** Direction of the current value vs baseline ('increase'/'decrease'); no valence. */
   tone: DiffTone;
   /** Signed delta = baseline − current (kept for callers that need the sign). */
   delta: number;
@@ -44,14 +44,15 @@ export function metricDiff(current: number | undefined, baseline: number | undef
   }
   const delta = baseline - current;
   // Suppress on the DISPLAYED value, not the raw float: the label rounds to
-  // `DIFF_DISPLAY_DECIMALS` later, so a delta that prints "0" (a 1e-4 delta,
-  // or a float artefact like 0.29 * 100 = 28.999999999999996) must not carry
-  // a tone. This suppresses sub-decimals IN THE METRIC'S OWN UNIT — a viewer
-  // that renders in another unit (the aside divides duration by 1000 to ms)
-  // rounds its own label; display-unit rounding stays the formatter's job.
+  // `DIFF_DISPLAY_DECIMALS` later, so a delta that prints "0" (1e-4, or a
+  // float artefact like 0.29 * 100 = 28.999999999999996) must not carry a
+  // tone. This guard works in the METRIC'S OWN unit — the aside's duration
+  // card divides µs by 1000 before formatting, so a sub-display µs delta can
+  // still print "0" there; the view's own `trimDiffMagnitude === '0'`
+  // re-check remains the render-time guard for that conversion.
   if (Number(Math.abs(delta).toFixed(DIFF_DISPLAY_DECIMALS)) === 0) return null;
   return {
-    tone: delta > 0 ? 'down' : 'up',
+    tone: delta > 0 ? 'decrease' : 'increase',
     delta,
     magnitude: Math.abs(delta),
   };
