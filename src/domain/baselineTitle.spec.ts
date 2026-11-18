@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -63,10 +63,11 @@ describe('stampFromOpprofName', () => {
     expect(stampFromOpprofName('OPPROF_20260229010101_QKWFPLXZVTRNBGMA')).toBeUndefined();
   });
 
-  it('keeps the embedded clock in Europe/London, where 01:30 does not exist', () => {
+  it('keeps the embedded clock in Europe/London, where 01:30 does not exist', async () => {
     // UTC Date prints 01:30 either way. The gap only shows up in a DST zone.
     // CI runs Node 20, which rejects --experimental-strip-types, so emit plain JS.
-    const source = readFileSync(path.join(process.cwd(), 'src/domain/baselineTitle.ts'), 'utf8');
+    // `?raw` resolves the source next to the spec, independent of process.cwd().
+    const source = (await import('./baselineTitle.ts?raw')).default as string;
     const js = ts.transpileModule(source, {
       compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
       fileName: 'baselineTitle.ts',
@@ -78,11 +79,21 @@ describe('stampFromOpprofName', () => {
       const href = pathToFileURL(file).href;
       const script = `
         import { baselineDisplayTitle, stampFromOpprofName } from ${JSON.stringify(href)};
-        const name = 'OPPROF_20260329013000_QKWFPLXZVTRNBGMA';
-        const ms = stampFromOpprofName(name);
-        const title = baselineDisplayTitle({ id: 'x', name, path: '/data/out.rep' });
+        const gapName = 'OPPROF_20260329013000_QKWFPLXZVTRNBGMA';
+        const ms = stampFromOpprofName(gapName);
+        const title = baselineDisplayTitle({ id: 'x', name: gapName, path: '/data/out.rep' });
         if (ms != null) throw new Error('rolled epoch ' + ms);
         if (title !== 'out.rep 2026-03-29 01:30') throw new Error('title ' + title);
+        // The autumn overlap: 2026-10-25 01:30 exists twice in Europe/London
+        // (once in BST, once in GMT). new Date(...) silently picks the FIRST
+        // occurrence — 00:30 UTC — and so does the module; pin that.
+        const overlapName = 'OPPROF_20261025013000_QKWFPLXZVTRNBGMA';
+        const overlapMs = stampFromOpprofName(overlapName);
+        if (overlapMs !== Date.UTC(2026, 9, 25, 0, 30, 0)) {
+          throw new Error('overlap epoch ' + overlapMs);
+        }
+        const overlapTitle = baselineDisplayTitle({ id: 'x', name: overlapName, path: '/data/out.rep' });
+        if (overlapTitle !== 'out.rep 2026-10-25 01:30') throw new Error('overlap title ' + overlapTitle);
       `;
       const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
         env: { ...process.env, TZ: 'Europe/London' },
@@ -117,6 +128,21 @@ describe('baselineDisplayTitle', () => {
     expect(baselineDisplayTitle(b({ pickedAt }))).toBe('out.rep 2026-11-10 09:05');
   });
 
+  it('the explicit pickedAt argument wins over the entry field', () => {
+    const earlier = new Date(2026, 10, 10, 9, 5).getTime();
+    const later = new Date(2026, 10, 11, 18, 30).getTime();
+    expect(baselineDisplayTitle(b({ pickedAt: earlier }), later)).toBe(
+      'out.rep 2026-11-11 18:30',
+    );
+  });
+
+  it('a broken or sentinel pickedAt falls back to the embedded digits', () => {
+    // 0 is the common unknown-mtime sentinel; NaN a broken one. Neither may
+    // blank the stamp (or print 1970) when the name carries a real OPPROF clock.
+    expect(baselineDisplayTitle(b({ pickedAt: 0 }))).toBe('out.rep 2026-11-08 14:25');
+    expect(baselineDisplayTitle(b({ pickedAt: Number.NaN }))).toBe('out.rep 2026-11-08 14:25');
+  });
+
   it('appends the stamp to a real name', () => {
     const pickedAt = new Date(2026, 10, 16, 17, 2).getTime();
     expect(baselineDisplayTitle(b({ name: 'baseline-a.npu-rep', pickedAt }))).toBe(
@@ -141,12 +167,12 @@ describe('baselineDisplayTitle', () => {
     ).toBe('2026-05-05 17:26');
   });
 
-  it('falls back to the old chain when nothing derivable', () => {
+  it('falls back to name, then filename — the generated id never surfaces', () => {
     expect(baselineDisplayTitle(b({ name: '', path: '/data/out.rep', pickedAt: undefined }))).toBe(
       'out.rep',
     );
     expect(
       baselineDisplayTitle(b({ name: '', path: '', pickedAt: undefined, id: 'x-1' })),
-    ).toBe('x-1');
+    ).toBe('');
   });
 });
