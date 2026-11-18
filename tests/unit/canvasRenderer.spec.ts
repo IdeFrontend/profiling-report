@@ -1410,7 +1410,7 @@ describe('PR-RENDER: lane chrome color', () => {
     // Tick draw path flips to source-over, then restores additive before the function ends.
     // A later keep-bright block also sets source-over, so the match has to close on this function.
     const tickDraw = webglSrc.match(
-      /const drawTickChunks = \([\s\S]*?\n        \};/,
+      /const drawTickChunks = \([\s\S]*?\n {8}\};/,
     )?.[0];
     expect(tickDraw).toBeTruthy();
     expect(tickDraw).toMatch(/ONE_MINUS_SRC_ALPHA[\s\S]*uSrcOver[\s\S]*1/);
