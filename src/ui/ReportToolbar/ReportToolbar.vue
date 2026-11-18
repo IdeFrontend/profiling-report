@@ -72,6 +72,8 @@ const props = withDefaults(
     title: undefined,
     operators: undefined,
     selectedOperatorId: undefined,
+    timelineTraces: undefined,
+    selectedTimelineTraceId: undefined,
   },
 );
 

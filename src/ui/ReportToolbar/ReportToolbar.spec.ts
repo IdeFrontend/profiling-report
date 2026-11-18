@@ -786,7 +786,7 @@ describe('ReportToolbar', () => {
     wrapper.unmount();
   });
 
-  it('PR-TOOLBAR-029: 打开CANNWork renders left of the search field on the timeline tab and emits open-cannwork; Source tab omits it', async () => {
+  it('PR-TOOLBAR-030: 打开CANNWork renders left of the search field on the timeline tab and emits open-cannwork; Source tab omits it', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     const cannwork = wrapper.get('[data-testid="open-cannwork-trigger"]');
     expect(cannwork.attributes('aria-label')).toBe(t('openCannwork'));

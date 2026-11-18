@@ -2625,7 +2625,7 @@ describe('ProfilingReport scaffold', () => {
     deferred.unmount();
   });
 
-  it('PR-ROOT-031: session actions, optimize and open-cannwork forward to the host with reference and view hidden', async () => {
+  it('PR-ROOT-032: session actions, optimize and open-cannwork forward to the host with reference and view hidden', async () => {
     const reportModel = {
       summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },
       pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const }],
@@ -2661,7 +2661,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-032: stop, optimize and open-cannwork each have an independent 1s cooldown', async () => {
+  it('PR-ROOT-033: stop, optimize and open-cannwork each have an independent 1s cooldown', async () => {
     vi.useFakeTimers();
     const reportModel = {
       summary: { opName: 'matmul_v3', opType: 'mix', pid: '3073000', blockDim: 8, taskDurationUs: 4600 },

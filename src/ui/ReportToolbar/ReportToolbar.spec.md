@@ -211,7 +211,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 28. **PR-TOOLBAR-027** — When `htmlExportAvailable` is true, `export-html` renders immediately before `open-user-guide` and emits `export-html` on click. When false (default), the control is absent. User-guide remains last among `data-toolbar-clip` actions.
 29. **PR-TOOLBAR-028** — Toolbar icon / zoom buttons tip via shared `.pr-icon-tip` (`aria-label` → CSS `::after`), not native `title` (same ~1s delay / light OS chrome as AC-20.2). Tip opens **below** the control so `.pr-chrome` / `.pr-root` overflow does not clip it. Trailing `data-toolbar-clip` tips (and `.pr-icon-tip--end`) right-align so the chrome's `overflow-x: clip` does not crop them.
 30. **PR-TOOLBAR-029** — Timeline-trace selector hidden when fewer than two traces; shown with the `pipeline-view` (bars + focus reticle) glyph immediately before measure when two or more; emits `update:selectedTimelineTraceId` on select; re-select does not emit; ArrowDown/Enter/Escape match the OP menu; leaving Timeline drops the menu listeners.
-30. **PR-TOOLBAR-029** — 打开CANNWork renders on the timeline tab immediately left of the search field (`open-cannwork-trigger`, `cannwork-analyse` glyph, localized `openCannwork` name) and emits **open-cannwork** on click; the Source tab chrome omits it (R7).
+31. **PR-TOOLBAR-030** — 打开CANNWork renders on the timeline tab immediately left of the search field (`open-cannwork-trigger`, `cannwork-analyse` glyph, localized `openCannwork` name) and emits **open-cannwork** on click; the Source tab chrome omits it (R7).
 
 ## Edge Cases
 
@@ -239,7 +239,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 ## Changelog
 - **2026-11-16** — 流水视图显示 uses the product `pipeline-view` glyph (bars + focus reticle) and sits immediately before measure (not a Source-tab `list` icon after measure).
 - **2026-11-12** — Design crop for 流水视图显示 radio selector from 1130 mockup (`timeline-trace-selector.png`).
-- **2026-10-30** — 打开CANNWork trigger (CANNWork 优化 R7, `PR-TOOLBAR-029`): pure-icon button immediately left of the search field on the timeline tab, emitting `open-cannwork`; absent on the Source tab like the rest of the timeline strip.
+- **2026-10-30** — 打开CANNWork trigger (CANNWork 优化 R7, `PR-TOOLBAR-030`): pure-icon button immediately left of the search field on the timeline tab, emitting `open-cannwork`; absent on the Source tab like the rest of the timeline strip.
 - **2026-10-21** — **详情** / **缓存** removed from the tab strip ([UI-37](../../../docs/context/decisions/UI.md)). **源码** stays disabled; **时间线** stays the only active tab (`PR-TOOLBAR-026`).
 - **2026-10-12** — User-guide default URL is the Profiling Report section of the plugin README (`https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`). English hosts override `userGuideUrl`.
 - **2026-10-06** — ProfilingReport `allowHtmlExport` defaults false; toolbar control still opt-in via `htmlExportAvailable`.
