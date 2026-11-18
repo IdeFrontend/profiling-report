@@ -51,11 +51,37 @@ describe('stampFromOpprofName', () => {
     expect(stampFromOpprofName('out.rep')).toBeUndefined();
     expect(stampFromOpprofName(undefined)).toBeUndefined();
   });
+
+  it('returns undefined for an impossible calendar', () => {
+    expect(stampFromOpprofName('OPPROF_20260231010101_QKWFPLXZVTRNBGMA')).toBeUndefined();
+    expect(stampFromOpprofName('OPPROF_20260229010101_QKWFPLXZVTRNBGMA')).toBeUndefined();
+  });
+
+  it('does not return a rolled epoch when that local time does not exist', () => {
+    const ms = stampFromOpprofName('OPPROF_20260329013000_QKWFPLXZVTRNBGMA');
+    if (ms == null) return;
+    const d = new Date(ms);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const printed = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    expect(printed).toBe('2026-03-29 01:30');
+  });
 });
 
 describe('baselineDisplayTitle', () => {
   it('replaces a generated id with filename + the parsed OPPROF stamp', () => {
     expect(baselineDisplayTitle(b({}))).toBe('out.rep 2026-11-08 14:25');
+  });
+
+  it('prints the embedded OPPROF digits and does not roll an impossible day', () => {
+    expect(
+      baselineDisplayTitle(b({ name: 'OPPROF_20260329013000_QKWFPLXZVTRNBGMA' })),
+    ).toBe('out.rep 2026-03-29 01:30');
+    expect(
+      baselineDisplayTitle(b({ name: 'OPPROF_20240229010101_QKWFPLXZVTRNBGMA' })),
+    ).toBe('out.rep 2024-02-29 01:01');
+    expect(
+      baselineDisplayTitle(b({ name: 'OPPROF_20260231010101_QKWFPLXZVTRNBGMA' })),
+    ).toBe('out.rep');
   });
 
   it('uses the entry pickedAt over the parsed stamp', () => {
