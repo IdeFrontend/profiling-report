@@ -30,6 +30,10 @@ export {
   adaptEmulate,
   isEmulateLeaf,
   readEmulateManifest,
+  memoryUtilDisplayValue,
+  memoryUtilToOverviewPercent,
+  memoryUtilCounterThreadsFromTrace,
+  mergeMemoryUtilCounterTracks,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';

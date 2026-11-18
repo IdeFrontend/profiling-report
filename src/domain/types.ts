@@ -41,11 +41,24 @@ export interface SwimEvent {
 /** Stable card-category key for i18n (通信 / 计算 / 储存HBM). */
 export type LaneCategoryKey = 'comm' | 'compute' | 'hbm';
 
+/** One CounterTrack sample: `v` is the Y-domain value; optional `abs` is producer absolute (KB). */
+export type SwimCounterPoint = { t: number; v: number; abs?: number };
+
+/** Chrome-like CounterTrack samples on a swim leaf (emulate Trace ph:C util pipes). */
+export interface SwimCounterSeries {
+  /** Canonical ns timestamps; `v` in the track's Y domain (util %). */
+  points: SwimCounterPoint[];
+  /** Per-track auto Y max (Chrome CounterTrack); must be > 0. */
+  yMax: number;
+  /** Optional stroke/fill override (e.g. memory util `#E7434A`); else `colorForThread`. */
+  colorHex?: string;
+}
+
 export interface SwimThread {
   id: string;
   name: string;
   utilization?: number;
-  /** Leaves hold intervals; folders use []. */
+  /** Leaves hold intervals; folders use []. Counter leaves keep []. */
   events: SwimEvent[];
   /** Non-empty ⇒ folder (lane-style gutter row); omit/empty ⇒ leaf. */
   children?: SwimThread[];
@@ -56,6 +69,11 @@ export interface SwimThread {
    * leaf intervals. Expanded folders omit it. Viewer-built, never on producer models.
    */
   summaryEvents?: SwimEvent[];
+  /**
+   * CounterTrack leaf (mutually exclusive with non-empty `events`): step-after area
+   * chart in the lane band. Emulate Trace util pipes (#208/#209/#206).
+   */
+  counter?: SwimCounterSeries;
 }
 
 export interface SwimProcess {

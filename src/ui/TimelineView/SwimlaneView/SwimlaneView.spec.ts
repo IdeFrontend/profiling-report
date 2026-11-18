@@ -1,9 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
+import { LANE_HEIGHT } from '../../../swimlane/layout';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import CounterHoverTip from './CounterHoverTip.vue';
 import SwimlaneView from './SwimlaneView.vue';
 
 describe('SwimlaneView', () => {
@@ -2965,5 +2967,169 @@ describe('SwimlaneView', () => {
       /wasDragging[\s\S]*?applyScrollbarScrollY\(liveScrollY\.value,\s*true\)/,
     );
     wrapper.unmount();
+  });
+
+  describe('PR-SWIMVIEW-048 CounterHoverTip host', () => {
+    const roHandles: { fire: () => void }[] = [];
+    beforeEach(() => {
+      roHandles.length = 0;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          private el: Element | null = null;
+          constructor(private cb: ResizeObserverCallback) {
+            roHandles.push(this);
+          }
+          observe(el: Element) {
+            this.el = el;
+            this.fire();
+          }
+          fire() {
+            if (!this.el) return;
+            const wrap = this.el.closest('[data-testid="swimlane"]') as HTMLElement | null;
+            const w = wrap?.clientWidth ?? 0;
+            const h = wrap?.clientHeight ?? 0;
+            if (w <= 0 || h <= 0) return;
+            this.cb(
+              [
+                {
+                  target: this.el,
+                  devicePixelContentBoxSize: [{ inlineSize: w, blockSize: h }],
+                  contentBoxSize: [{ inlineSize: w, blockSize: h }],
+                  borderBoxSize: [],
+                  contentRect: this.el.getBoundingClientRect(),
+                } as unknown as ResizeObserverEntry,
+              ],
+              this as unknown as ResizeObserver,
+            );
+          }
+          disconnect() {}
+          unobserve() {}
+        },
+      );
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('PR-SWIMVIEW-048: CounterTrack hover mounts teleported tip with util % + Using KB', async () => {
+      const model = {
+        minTime: 0,
+        maxTime: 20_000,
+        processes: [
+          {
+            id: 'p-counter-memory-util',
+            name: 'Memory utilization',
+            threads: [
+              {
+                id: 'counter-AIV0_UB_UTILIZATION',
+                name: 'AIV0_UB_UTILIZATION',
+                events: [],
+                counter: {
+                  points: [
+                    { t: 5_000, v: 2, abs: 0.05 },
+                    { t: 10_000, v: 3, abs: 0.04 },
+                  ],
+                  yMax: 3,
+                  colorHex: '#E7434A',
+                },
+              },
+            ],
+          },
+        ],
+      };
+      const view = createViewState(model);
+      const wrapper = mount(SwimlaneView, {
+        props: {
+          groups: [],
+          collapsedIds: [],
+          model,
+          view: { ...view, startTime: 0, endTime: 20_000, scrollY: 0 },
+          selectedEventId: null,
+          hoveredEventId: null,
+          searchQuery: '',
+          preferRenderer: 'canvas',
+        },
+        attachTo: document.body,
+      });
+      await nextTick();
+      for (const w of wrapper.findAll('[data-testid="swimlane"]')) {
+        const el = w.element as HTMLElement;
+        Object.defineProperty(el, 'clientWidth', { value: 400, configurable: true });
+        Object.defineProperty(el, 'clientHeight', { value: 200, configurable: true });
+        Object.defineProperty(el, 'getBoundingClientRect', {
+          value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+        });
+      }
+      for (const ro of roHandles) ro.fire();
+      await nextTick();
+
+      const canvas = wrapper.findAll('[data-testid="swimlane-canvas"]').at(-1)!;
+      Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+      });
+
+      // Header 40px + mid of counter lane.
+      const y = 40 + LANE_HEIGHT / 2;
+      await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+      await nextTick();
+
+      const tip = document.querySelector('[data-testid="counter-hover-tooltip"]') as HTMLElement | null;
+      expect(tip).not.toBeNull();
+      // OverviewCharts tip layout: label left, value right (default locale zh-CN).
+      const utilRow = tip!.querySelector('[data-testid="counter-hover-util"]') as HTMLElement;
+      const usingRow = tip!.querySelector('[data-testid="counter-hover-using"]') as HTMLElement;
+      expect(utilRow.textContent).toMatch(/利用率/);
+      expect(utilRow.textContent).toMatch(/2%/);
+      expect(usingRow.textContent).toMatch(/占用/);
+      expect(usingRow.textContent).toMatch(/0\.05 KB/);
+      // Inline fixed positioning so Teleport→body stays visible without waiting on CSS.
+      expect(tip!.style.position).toBe('fixed');
+      expect(tip!.style.left).toBe('162px');
+      expect(tip!.style.top).toBe(`${y + 12}px`);
+
+      // Value-dot circle on the step-after hold (OverviewCharts parity).
+      const dot = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
+      expect(dot).not.toBeNull();
+      expect(dot!.style.left).toBe('150px');
+      expect(dot!.style.background.toLowerCase()).toMatch(/#e7434a|231,\s*67,\s*74/);
+
+      // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
+      Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: y + 30, configurable: true });
+      await canvas.trigger('pointermove', { clientX: 380, clientY: y, pointerId: 1 });
+      await nextTick();
+      const clipped = document.querySelector(
+        '[data-testid="counter-hover-tooltip"]',
+      ) as HTMLElement | null;
+      expect(clipped).not.toBeNull();
+      const left = Number.parseFloat(clipped!.style.left);
+      const top = Number.parseFloat(clipped!.style.top);
+      expect(left).toBeLessThan(380);
+      expect(top).toBeLessThan(y);
+      expect(left).toBeGreaterThanOrEqual(4);
+      expect(top).toBeGreaterThanOrEqual(4);
+
+      await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
+      await nextTick();
+      expect(document.querySelector('[data-testid="counter-hover-tooltip"]')).toBeNull();
+      expect(document.querySelector('[data-testid="counter-hover-dot"]')).toBeNull();
+      wrapper.unmount();
+    });
+
+    it('PR-SWIMVIEW-048: Using KB display caps at 2 decimal places', () => {
+      const tip = mount(CounterHoverTip, {
+        props: {
+          utilization: 12.3456,
+          usingKb: 12.345678,
+          stylePos: { position: 'fixed', left: '0px', top: '0px' },
+          locale: 'en',
+        },
+      });
+      expect(tip.get('[data-testid="counter-hover-util"]').text()).toMatch(/Utilization\s*12\.35%/);
+      expect(tip.get('[data-testid="counter-hover-using"]').text()).toMatch(/Using\s*12\.35 KB/);
+      tip.unmount();
+    });
   });
 });

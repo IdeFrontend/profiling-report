@@ -22,6 +22,8 @@ interface SwimThread   {
   utilization?: number;
   children?: SwimThread[]; // folder when non-empty; leaf when absent/empty
   summaryEvents?: SwimEvent[]; // collapsed folder only: gray summary bars (viewer-built)
+  /** CounterTrack leaf: step-after samples; mutually exclusive with non-empty events. */
+  counter?: { points: { t: number; v: number; abs?: number }[]; yMax: number; colorHex?: string };
 }
 interface EventRef     { tid: string; index: number } // SwimThread.id + post-sort index into thread.events
 interface EventDependencies { predecessors: EventRef[]; successors: EventRef[] }
@@ -31,7 +33,7 @@ interface SwimEvent    {
 }
 ```
 
-**Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). Only `SwimProcess` (Card) uses group-header chrome.
+**Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). A leaf with `counter` is a **CounterTrack** lane: `events` stay `[]`; layout marks `FlatLane.counter` and the Canvas overlay paints a step-after area ([UI-61](../../docs/context/decisions/UI.md) / [DATA-57](../../docs/context/decisions/DATA.md)). Points are `{ t, v, abs? }` (`abs` = optional Using KB); optional `colorHex` overrides lane paint color. Only `SwimProcess` (Card) uses group-header chrome.
 
 **`skipCardHeaders`:** when `true`, `rebuildLayout` / `contentHeightFromModel` skip Card header rows. Used only for the viewer-built pinned sticky-strip model — never on adapter/producer models.
 

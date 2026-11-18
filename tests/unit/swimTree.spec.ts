@@ -135,6 +135,34 @@ describe('swimTree + nested layout', () => {
     expect(countLeafThreads(nestedModel().processes[0]!.threads)).toBe(4);
   });
 
+  it('rebuildLayout uses SwimCounterSeries.colorHex for counter lanes', () => {
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-ct',
+          name: 'Memory utilization',
+          threads: [
+            {
+              id: 'counter-AIV0_UB_UTILIZATION',
+              name: 'AIV0_UB_UTILIZATION',
+              events: [],
+              counter: {
+                points: [{ t: 0, v: 2, abs: 0.05 }],
+                yMax: 2,
+                colorHex: '#E7434A',
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const lane = layout.lanes.find((l) => l.counter);
+    expect(lane?.color).toBe('#E7434A');
+    expect(lane?.thread.counter?.points[0]?.abs).toBe(0.05);
+  });
+
   it('rebuildLayout carries no bands; folders still lay out as lanes', () => {
     const layout = rebuildLayout(nestedModel());
     expect('bands' in layout).toBe(false);
