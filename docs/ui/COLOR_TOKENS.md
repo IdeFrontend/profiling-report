@@ -86,7 +86,7 @@ Sampled from [`v930-sim/memory-topology-fullscreen`](./source/930-legacy/v930-si
 | Token | Hex | Role |
 |-------|-----|------|
 | `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | Heat gradient **high** end (`intensity = 1`) + diagram hover (35%) / selected (45%) unit tint |
-| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | Heat gradient **low** end (`intensity = 0`) + selected unit box hairline stroke |>>>>>>> be4b4cf3 (feat: continuous heatmap intensity with Low/High legend)
+| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | Heat gradient **low** end (`intensity = 0`) + selected unit box hairline stroke |
 | `HEAT_GRID_BOARD` | `#303F5E` | the board the grid's gaps cut into (the lattice between cells) |
 | `HEAT_GRID_FRAME` | `#6E798D` | the grid's `2px` outer border |
 | `HEAT_TAB_INDICATOR` | `#FFFFFF` | the active tab's short bar under its label — the heat blue is the *selection* tint on the diagram, not the tab's indicator |
