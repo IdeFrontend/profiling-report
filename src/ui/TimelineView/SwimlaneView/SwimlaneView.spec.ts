@@ -164,6 +164,15 @@ describe('SwimlaneView', () => {
     Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
     await name.trigger('pointerenter');
     expect(name.attributes('title')).toBe(longName);
+
+    // Layout drift while parked (e.g. metric select mounts): move re-syncs.
+    Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
+    await name.trigger('pointermove');
+    expect(name.attributes('title')).toBeUndefined();
+
+    Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
+    await name.trigger('pointermove');
+    expect(name.attributes('title')).toBe(longName);
   });
 
   it('PR-SWIMVIEW-003: body hosts gutter-resize-handle under card strips', async () => {

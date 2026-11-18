@@ -854,8 +854,12 @@ function onCardStripActivate(cardId: string, e: Event) {
   emit('toggle-group', cardId);
 }
 
-/** Native `title` only while the name is ellipsized — full labels stay quiet. */
-function onCardNameEnter(e: PointerEvent) {
+/**
+ * Native `title` only while the name is ellipsized — full labels stay quiet.
+ * Re-check on enter and move so gutter resize / metric-select mount while the
+ * pointer stays parked still flips the tip (PR-SWIMVIEW-047).
+ */
+function syncCardNameTitle(e: PointerEvent) {
   const el = e.currentTarget;
   if (!(el instanceof HTMLElement)) return;
   if (el.scrollWidth > el.clientWidth) el.title = el.textContent ?? '';
@@ -1129,7 +1133,8 @@ defineExpose({
             />
             <span
               class="pr-card-strip__name"
-              @pointerenter="onCardNameEnter"
+              @pointerenter="syncCardNameTitle"
+              @pointermove="syncCardNameTitle"
             >{{ strip.name }}</span>
             <CardMetricSelect
               v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
