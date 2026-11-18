@@ -13,6 +13,10 @@ import type { AdaptedReport } from './types';
 /** A saved comparison report — host-owned list, the library only renders and selects. */
 export interface Baseline {
   id: string;
+  /** Display name. The derived title (`baselineDisplayTitle`) replaces a
+   *  generated boilerplate name with filename + stamp; a baseline with no
+   *  derivable name, path or stamp gets an EMPTY title — "unnamed" — and the
+   *  host owns the localized placeholder. */
   name: string;
   /**
    * Host-meaningful identity (absolute path / URI). The library never opens
