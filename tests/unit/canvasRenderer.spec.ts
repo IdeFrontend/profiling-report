@@ -4,6 +4,7 @@ import {
   contentHeightFromLayout,
   contentHeightFromModel,
   encodeIntervalPair,
+  nextFloat32Up,
   EVENT_MARGIN,
   eventEmphasis,
   isKeepBright,
@@ -1372,7 +1373,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(overlay).toMatch(/createChunksFromIndices/);
     expect(overlay).not.toMatch(/createChunksFromPairs/);
     expect(webglSrc).toMatch(
-      /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!\)/,
+      /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!, isolatedGaps\)/,
     );
   });
 
@@ -1420,6 +1421,44 @@ describe('PR-RENDER: lane chrome color', () => {
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
     expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
+  });
+
+  it('PR-RENDER-065: duration-0 ticks do not gap-extend into continuous time coverage (#205)', async () => {
+    // Sub-ns ICACHE spacing (~0.606ns). A ≥1ns encode pair overlaps neighbors into one slab.
+    const spacing = 0.606;
+    const starts = Array.from({ length: 40 }, (_, i) => 4300 + i * spacing);
+    const pairs = starts.map((t) => encodeIntervalPair(t, 0, 0));
+    for (const [a, b] of pairs) {
+      expect(b).toBeGreaterThan(a);
+      // Next-float32 only — nowhere near 1ns, so neighbors stay disjoint in time.
+      expect(b - a).toBeLessThan(spacing);
+      expect(b).toBe(nextFloat32Up(a));
+    }
+    // Encoded union must not cover the whole cluster (would paint as one gray bar).
+    let covered = 0;
+    let cursor = -Infinity;
+    for (const [a, b] of pairs) {
+      if (b <= cursor) continue;
+      covered += b - Math.max(a, cursor);
+      cursor = b;
+    }
+    const span = starts[starts.length - 1]! - starts[0]!;
+    expect(covered).toBeLessThan(span * 0.05);
+
+    // Positive-duration collapse path is unchanged (≥1ns nudge when float32 merges ends).
+    const base = 1_000_000_000;
+    const [, posEnd] = encodeIntervalPair(base + 100, 1, base);
+    const [posStart] = encodeIntervalPair(base + 100, 1, base);
+    expect(posEnd - posStart).toBeGreaterThanOrEqual(1);
+
+    // Tick meshes pass isolatedGaps=true so extension never reads neighbor gaps.
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(
+      /createChunksFromIndices\(gl, pairs, tickIdx,\s*true\)/,
+    );
+    expect(webglSrc).toMatch(/isolatedGaps \? EDGE_GAP : eventGapPrev/);
+    expect(webglSrc).toMatch(/isolatedGaps \? EDGE_GAP : eventGapNext/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {

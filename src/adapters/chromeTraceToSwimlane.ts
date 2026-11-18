@@ -198,7 +198,7 @@ export function chromeTraceToSwimlane(
     }
 
     const startTime = e.ts * toNs;
-    // Model duration stays 0 for instant markers; layout already paints ≥2 device px (#205).
+    // Model duration stays 0 for instant markers; WebGL paints a min-px tick (#205).
     const duration = instantI ? 0 : e.dur! * toNs;
     minTime = Math.min(minTime, startTime);
     maxTime = Math.max(maxTime, startTime + duration);

@@ -1674,6 +1674,21 @@ export function measureRangeExactEdgeMarks(
   );
 }
 
+/** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */
+export function nextFloat32Up(x: number): number {
+  const f = Math.fround(x);
+  if (!Number.isFinite(f)) return f;
+  // ±0: step to the smallest positive float32.
+  if (f === 0) return Math.fround(Math.pow(2, -149));
+  const buf = new ArrayBuffer(4);
+  const view = new DataView(buf);
+  view.setFloat32(0, f, true);
+  let bits = view.getUint32(0, true);
+  bits = f > 0 ? bits + 1 : bits - 1;
+  view.setUint32(0, bits, true);
+  return view.getFloat32(0, true);
+}
+
 /** Encode [start,end] relative to base for float32 VBOs; keep end > start after fround. */
 export function encodeIntervalPair(
   start: number,
@@ -1683,9 +1698,16 @@ export function encodeIntervalPair(
   const f0 = Math.fround(start - base);
   let f1 = Math.fround(start + duration - base);
   if (!(f1 > f0)) {
-    // Float32 collapsed a short/large-magnitude interval — nudge end by ≥1ns (rel).
-    f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));
-    if (!(f1 > f0)) f1 = f0 + 1;
+    if (duration === 0) {
+      // Instant tick: next float32 only. A ≥1ns nudge overlaps sub-ns ICACHE ph:i
+      // (~0.6ns apart) into a continuous time slab that paints as one gray bar (#205).
+      f1 = nextFloat32Up(f0);
+      if (!(f1 > f0)) f1 = f0 + Number.EPSILON;
+    } else {
+      // Float32 collapsed a short/large-magnitude interval — nudge end by ≥1ns (rel).
+      f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));
+      if (!(f1 > f0)) f1 = f0 + 1;
+    }
   }
   return [f0, f1];
 }

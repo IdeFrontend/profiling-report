@@ -133,8 +133,10 @@ interface SubRowMesh {
 
 /**
  * Encode a sub-row's events into one gap-correct `pairs` buffer and index lists for
- * positive-duration intervals vs duration-0 ticks. Gaps stay global so extension still
- * sees neighbors across the split.
+ * positive-duration intervals vs duration-0 ticks. Interval chunks keep global gaps so
+ * thin-event extension sees real neighbors; tick chunks are built with isolated gaps
+ * (see `createChunksFromIndices(..., { isolatedGaps: true })`) so they never gap-extend
+ * into a continuous strip (#205).
  */
 export function partitionIntervalTickIndices(
   events: readonly { event: { startTime: number; duration: number } }[],
@@ -300,6 +302,10 @@ export function setVbSquareWithGaps(
  * the global index (`eventGapPrev` / `eventGapNext`) — no per-chunk copy or gap array is made,
  * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
  * (pos, uv, data) enables branchless extension in the vertex shader.
+ *
+ * `isolatedGaps`: duration-0 ticks pass `EDGE_GAP` on both sides so each mark extends to the
+ * fixed min tick width only — never toward a neighbor (which would fill empty gaps / merge
+ * dense ph:i into a continuous strip — #205).
  */
 function createChunk(
   gl: WebGL2RenderingContext,
@@ -307,6 +313,7 @@ function createChunk(
   off: number,
   pairCount: number,
   indexAt: (i: number) => number = (i) => off + i,
+  isolatedGaps = false,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
   const vb = new Float32Array(numSquares * 24);
@@ -317,8 +324,8 @@ function createChunk(
       i * 24,
       pairs[gi * 2]!,
       pairs[gi * 2 + 1]!,
-      eventGapPrev(pairs, gi),
-      eventGapNext(pairs, gi),
+      isolatedGaps ? EDGE_GAP : eventGapPrev(pairs, gi),
+      isolatedGaps ? EDGE_GAP : eventGapNext(pairs, gi),
       vb,
     );
     const n = i * 4;
@@ -396,17 +403,21 @@ function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): Mes
   return chunks;
 }
 
-/** Sparse subsequence of `pairs`; gaps still use each event's **global** lane index. */
+/**
+ * Sparse subsequence of `pairs`.
+ * @param isolatedGaps duration-0 ticks: ignore neighbor gaps (see `createChunk`).
+ */
 function createChunksFromIndices(
   gl: WebGL2RenderingContext,
   pairs: number[],
   indices: number[],
+  isolatedGaps = false,
 ): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const total = indices.length;
   for (let off = 0; off < total; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, total - off);
-    chunks.push(createChunk(gl, pairs, off, count, (i) => indices[off + i]!));
+    chunks.push(createChunk(gl, pairs, off, count, (i) => indices[off + i]!, isolatedGaps));
   }
   return chunks;
 }
@@ -1151,7 +1162,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
               : intervalIdx.length * 2 === pairs.length
                 ? createChunksFromPairs(gl, pairs)
                 : createChunksFromIndices(gl, pairs, intervalIdx),
-          tickChunks: tickIdx.length === 0 ? null : createChunksFromIndices(gl, pairs, tickIdx),
+          tickChunks:
+            tickIdx.length === 0
+              ? null
+              : createChunksFromIndices(gl, pairs, tickIdx, true),
           emphasisLayers: null,
           brightChunks: null,
           liftChunks: null,
@@ -1259,7 +1273,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
                           ? createChunksFromPairs(gl, pairs)
                           : createChunksFromIndices(gl, pairs, intervalIdx),
                     tickChunks:
-                      tickIdx.length === 0 ? null : createChunksFromIndices(gl, pairs, tickIdx),
+                      tickIdx.length === 0
+                        ? null
+                        : createChunksFromIndices(gl, pairs, tickIdx, true),
                   };
                 });
       }
