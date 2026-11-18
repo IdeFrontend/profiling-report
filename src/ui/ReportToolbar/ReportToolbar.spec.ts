@@ -54,7 +54,7 @@ describe('ReportToolbar', () => {
     expect(wrapper.find('[data-testid="zoom-pill"]').exists()).toBe(false);
   });
 
-  it('PR-TOOLBAR-029: 概览 is gated by overviewTabEnabled (default hidden)', async () => {
+  it('PR-TOOLBAR-031: 概览 is gated by overviewTabEnabled (default hidden)', async () => {
     const wrapper = mount(ReportToolbar, { props: defaultProps });
     expect(wrapper.find('[data-testid="tab-overview"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="tab-timeline"]').exists()).toBe(true);
