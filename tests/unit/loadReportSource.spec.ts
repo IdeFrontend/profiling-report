@@ -51,7 +51,10 @@ describe('PR-JSON: standalone Chrome Trace', () => {
   it('PR-NPU-004: loadReportSource loads multi-op npu-rep (default first operator)', () => {
     const adapted = loadReportSource(loadNpuRepBytes());
     expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);
-    expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
+    expect(adapted.operators?.map((o) => o.label)).toEqual([
+      'add_custom (op1)',
+      'add_custom (op2)',
+    ]);
     expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
@@ -84,6 +87,11 @@ describe('PR-JSON: standalone Chrome Trace', () => {
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
+    // Leaf pack: no nested operator id to attribute rows to.
+    expect(adapted.reportModel.operatorRows?.length).toBeGreaterThan(0);
+    expect(adapted.reportModel.operatorRows?.every((row) => row.sourceOperatorId === undefined)).toBe(
+      true,
+    );
   });
 
   it('PR-NPU-009: metrics-only 160-byte sample adapts with a null swimlane (no hard error)', () => {
@@ -192,9 +200,42 @@ describe('PR-JSON: standalone Chrome Trace', () => {
 
     const adapted = loadReportSource(outer);
     expect(adapted.operators?.map((o) => o.id)).toEqual(['op1.npu.rep', 'op2.npu.rep']);
-    expect(adapted.operators?.map((o) => o.label)).toEqual(['op1', 'op2']);
+    expect(adapted.operators?.map((o) => o.label)).toEqual([
+      'add_custom (op1)',
+      'add_custom (op2)',
+    ]);
     expect(adapted.selectedOperatorId).toBe('op1.npu.rep');
     expect(adapted.reportModel.summary.opName).toBe('add_custom');
     expect(adapted.operatorReports?.['op2.npu.rep']?.reportModel.summary.opName).toBe('add_custom');
+    const operatorIds = adapted.operators!.map((o) => o.id);
+    const rows = adapted.reportModel.operatorRows!;
+    expect(rows.length).toBe(operatorIds.length);
+    expect(rows.every((row) => operatorIds.includes(row.sourceOperatorId!))).toBe(true);
+  });
+
+  it('PR-NPU-014: distinct pack labels stay plain (no stem suffix)', () => {
+    const payloads = parseRep(loadOutRepBytes()).payloads;
+    const toEntries = (opName?: string) =>
+      Object.entries(payloads).map(([name, data]) => ({
+        name,
+        type: name.endsWith('.csv') ? NPU160_TYPE_CSV : NPU160_TYPE_JSON,
+        data:
+          name === 'OpBasicInfo.csv' && opName
+            ? new TextEncoder().encode(`Op Name,Op Type,Task Duration(us)\n${opName},Add,1\n`)
+            : data,
+      }));
+    const outer = packNpuRep160([
+      { name: 'op1.npu.rep', type: NPU160_TYPE_NESTED, data: packNpuRep160(toEntries()) },
+      {
+        name: 'op2.npu.rep',
+        type: NPU160_TYPE_NESTED,
+        data: packNpuRep160(toEntries('beta_op')),
+      },
+    ]);
+
+    expect(loadReportSource(outer).operators?.map((o) => o.label)).toEqual([
+      'add_custom',
+      'beta_op',
+    ]);
   });
 });

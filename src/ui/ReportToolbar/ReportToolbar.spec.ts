@@ -527,6 +527,13 @@ describe('ReportToolbar', () => {
     });
     expect(single.find('[data-testid="op-selector"]').exists()).toBe(false);
     expect(single.find('.pr-tabs__brand').exists()).toBe(true);
+    expect(single.find('.pr-tabs__brand').attributes('title')).toBe(single.find('.pr-tabs__brand').text());
+
+    const longTitle = 'Long Report Name That The 200px Brand Box Clips Mid Word';
+    const clipped = mount(ReportToolbar, {
+      props: { ...defaultProps, title: longTitle, operators: [{ id: 'op1', label: 'op1' }] },
+    });
+    expect(clipped.find('.pr-tabs__brand').attributes('title')).toBe(longTitle);
 
     const none = mount(ReportToolbar, { props: defaultProps });
     expect(none.find('[data-testid="op-selector"]').exists()).toBe(false);

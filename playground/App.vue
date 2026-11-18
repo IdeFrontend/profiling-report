@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue';
-import { ProfilingReport } from '../src/index';
+import { emptyReportViewModel, ProfilingReport } from '../src/index';
 import {
   generateStressSwimlane,
   stressPresetFromQuery,
   stressSwimlaneStats,
   type StressSwimlanePreset,
 } from '../src/domain/generateStressSwimlane';
-import type { SwimlaneModel } from '../src/domain/types';
+import type { ReportViewModel, SwimlaneModel } from '../src/domain/types';
 import { depsTraceFixture } from './depsFixture';
 import { hydrateSampleRep } from './hydrateSampleRep';
 
@@ -31,6 +31,20 @@ type PreferRenderer = 'auto' | 'webgl' | 'canvas';
 const status = ref('loading');
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
 const stressModel = shallowRef<SwimlaneModel | null>(null);
+const stressReport = computed<ReportViewModel | null>(() => {
+  const m = stressModel.value;
+  const processes = m?.processes.filter((p) => p.name) ?? [];
+  if (processes.length === 0) return null;
+  const spanUs = ((m?.maxTime ?? 0) - (m?.minTime ?? 0)) / 1000;
+  const taskDurationUs = Number.isFinite(spanUs) && spanUs > 0 ? Math.round(spanUs) : undefined;
+  const operatorRows = processes.map((p) => ({
+    opName: p.name,
+    opType: 'stress',
+    ...(taskDurationUs === undefined ? {} : { taskDurationUs }),
+    gridSize: p.threads.length,
+  }));
+  return { ...emptyReportViewModel(), operatorRows };
+});
 const error = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const openedName = ref<string | null>(null);
@@ -390,6 +404,7 @@ onMounted(async () => {
         :key="`stress-${loadToken}-${preferRenderer}`"
         :title="title"
         :swimlane-model="stressModel"
+        :report-model="stressReport ?? undefined"
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         :locale="locale"

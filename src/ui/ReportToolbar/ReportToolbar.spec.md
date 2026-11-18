@@ -34,7 +34,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **Measure icon geometry (`visual/measure-active.png`).** Two vertical bars with a horizontal double-headed Δt arrow between them, supplied as the HDesign asset `icons/measure.svg`. The hand-drawn approximation this replaced is gone, and with it the constraints that policed it (open stroke chevrons, ~1px tip gap) — the asset is now the reference, not a set of rules for redrawing one.
 
-**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** label (e.g. `op1` / `op2`); menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
+**OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** display name — the short OpName of that pack's first row, falling back to the archive stem (e.g. `add_custom` / `matmul_mock`), and appending ` (stem)` when two packs shorten to the same name; menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
 **Timeline-trace selector (流水视图显示).** A **bars + focus-reticle** icon button (`pipeline-view` / `icons/pipeline-view.svg`, matching [`1130/pipeline-display-filter`](../../../docs/ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg)) sits **immediately before measure** (`data-testid="timeline-trace-selector"`) and opens a radio menu of present §11.14 catalog embeds ([`visual/timeline-trace-selector.png`](./visual/timeline-trace-selector.png)). Shown only when `timelineTraces.length > 1`. Selecting a row emits `update:selectedTimelineTraceId` and closes (re-selecting the active id does not emit). Keyboard matches the OP menu: ArrowDown/Enter/Space open and focus the checked row; ArrowUp/Down move; Enter/Space select and return focus to the trigger; Escape closes, restores focus, and does not reach handlers outside the menu. Leaving the Timeline tab closes the menu and drops those document listeners. Dismiss also via outside pointerdown or a second press of the trigger. Unmatched kinds (e.g. `stat`) are omitted from the list.
 
@@ -68,7 +68,7 @@ Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930
 | Token | Value |
 |-------|--------|
 | Trigger | Transparent — **no** pill fill, **no** border, **no** vertical divider |
-| Trigger label | Selected operator label (e.g. `op1`) — white, 18px / weight 700 / line-height 26px / letter-spacing 0 |
+| Trigger label | Selected operator display name (short OpName of the pack's first row, archive-stem fallback; e.g. `add_custom`) — white, 18px / weight 700 / line-height 26px / letter-spacing 0 |
 | Chevron | Thin stroke `10×10`, color `#c8c8c8`; down when closed, rotated 180° when open |
 | Gap label↔chevron | `4px` |
 | Menu bg | `#363636` (`--pr-surface-raised`) |
@@ -195,7 +195,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 12. **PR-TOOLBAR-010** — Display-control popover closes via X, toggling the layers button, a pointerdown outside the wrap (trigger + panel), or Escape.
 13. **PR-TOOLBAR-011** — 显示控制 carries the dependency depth field; emits normalized on change.
 14. **PR-TOOLBAR-013** — OP selector renders for multiple operators; trigger shows selected operator label; menu lists operators; selecting emits `update:selectedOperatorId`; Escape/Enter/Arrow supported; re-select does not emit; open state clears when selector unmounts.
-15. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown).
+15. **PR-TOOLBAR-014** — OP selector hidden for zero or one operator (brand shown). The brand exposes its full name in a native `title` tooltip because the text may be clipped by `max-width: 200px` + `text-overflow: ellipsis`.
 16. **PR-TOOLBAR-015** — OP selector is text+chevron (transparent, no pill/divider); trigger type is 18px / 700 / 26px lh.
 17. **PR-TOOLBAR-016** — Design icons render as `PrIcon` masked spans tinted by `currentColor`, so one asset serves both rest and active states; `16×16`.
 18. **PR-TOOLBAR-017** — The 任务连接层级 help control is a `<button type="button">` with a CSS hover/focus bubble (`data-testid="connection-level-help"`), not a native `title`. The tip has `role="tooltip"` and is linked from the button via `aria-describedby`; the button's `aria-label` is the short `helpConnectionLevel` name (distinct from the tip's `connectionLevelHelp` text) so AT does not announce the explanation twice.
@@ -238,6 +238,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [pipeline-display-filter](../../../docs/ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg) — full-frame 流水显示筛选 mockup
 
 ## Changelog
+- **2026-11-18** — Brand carries a native `title` with the full report name so clipped text stays readable (`PR-TOOLBAR-014`). The selector label is the pack's first-row short `OpBasicInfo` opName, with ` (stem)` appended when two packs shorten to the same name.
 - **2026-11-16** — 流水视图显示 uses the product `pipeline-view` glyph (bars + focus reticle) and sits immediately before measure (not a Source-tab `list` icon after measure).
 - **2026-11-13** — **概览** is gated by `overviewTabEnabled` (default false / hidden); **时间线** stays rendered (`PR-TOOLBAR-031`, `PR-TOOLBAR-026`).
 - **2026-11-12** — Design crop for 流水视图显示 radio selector from 1130 mockup (`timeline-trace-selector.png`).

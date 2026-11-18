@@ -11,14 +11,21 @@ const props = withDefaults(
     /** One row per `OpBasicInfo.csv` row across the operator pack. */
     rows?: ReportOperatorRow[];
     locale?: string;
+    /** Currently selected pack id; absent in host-managed mode. */
+    selectedOperatorId?: string;
   }>(),
   {
     rows: () => [],
     locale: undefined,
+    selectedOperatorId: undefined,
   },
 );
 
-const emit = defineEmits<{ optimize: [{ opName: string }] }>();
+const emit = defineEmits<{
+  optimize: [{ opName: string }];
+  'update:selectedOperatorId': [id: string];
+  openTimeline: [];
+}>();
 
 /** Sample dock metric: the report does not compute a speedup yet. */
 const DEMO_SPEEDUP = '88.69%';
@@ -271,8 +278,28 @@ function ariaSort(col: Column): 'ascending' | 'descending' | 'none' {
 }
 
 function selectRow(row: ReportOperatorRow | null) {
-  if (row != null) selectedRow.value = toRaw(row);
+  if (row == null) return;
+  selectedRow.value = toRaw(row);
+  const id = row.sourceOperatorId;
+  if (id != null && id !== props.selectedOperatorId) emit('update:selectedOperatorId', id);
 }
+
+/** Name cell opens the timeline for the row; select first so the host sees one row. */
+function openOperatorTimeline(row: ReportOperatorRow) {
+  selectRow(row);
+  emit('openTimeline');
+}
+
+/** Repoint the highlighted row when the host changes packs. */
+watch(
+  () => props.selectedOperatorId,
+  (id) => {
+    if (id == null) return;
+    const match = props.rows.find((row) => row.sourceOperatorId === id);
+    if (match != null) selectedRow.value = toRaw(match);
+  },
+  { immediate: true },
+);
 
 /** The action is only meaningful when the highlighted row carries an op name. */
 const optimizeEnabled = computed(() => !!selectedRow.value?.opName);
@@ -425,7 +452,13 @@ function duration(value: number | undefined): string {
               {{ index + 1 }}
             </td>
             <td role="gridcell">
-              {{ cell(shortOperatorName(row.opName)) }}
+              <button
+                type="button"
+                class="pr-operator-overview__op-name"
+                @click.stop="openOperatorTimeline(row)"
+              >
+                {{ cell(shortOperatorName(row.opName)) }}
+              </button>
             </td>
             <td role="gridcell">
               {{ cell(row.opType) }}
@@ -767,6 +800,26 @@ function duration(value: number | undefined): string {
 /* Cell-level color wins over `.row td`; a `<tr>` declaration would lose. */
 .pr-operator-overview__row--selected td {
   color: #ffffff;
+}
+
+/* Name cell button: the row click selects, this opens the timeline. */
+.pr-operator-overview__op-name {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pr-operator-overview__op-name:hover,
+.pr-operator-overview__op-name:focus-visible {
+  color: var(--pr-color-duration-compute);
+}
+
+.pr-operator-overview__op-name:focus-visible {
+  outline: 1px solid var(--pr-playhead);
+  outline-offset: 2px;
 }
 
 .pr-operator-overview__dock {
