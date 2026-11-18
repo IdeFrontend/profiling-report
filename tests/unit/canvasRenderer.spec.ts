@@ -33,7 +33,11 @@ import {
 import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
-import { compositeLabelBackdrop, WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
+import {
+  compositeLabelBackdrop,
+  partitionIntervalTickIndices,
+  WebGlSwimlaneRenderer,
+} from '../../src/swimlane/WebGlSwimlaneRenderer';
 import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
@@ -1369,6 +1373,44 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(overlay).not.toMatch(/createChunksFromPairs/);
     expect(webglSrc).toMatch(
       /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!\)/,
+    );
+  });
+
+  it('PR-RENDER-064: duration-0 ticks partition separately and paint source-over (#205)', async () => {
+    // Dense ICACHE ph:i (duration 0) share a sub-row; min-width paint overlaps in screen space.
+    // Additive blending would saturate those columns to white — ticks must leave the interval mesh.
+    const { pairs, intervalIdx, tickIdx } = partitionIntervalTickIndices(
+      [
+        { event: { startTime: 10, duration: 5 } },
+        { event: { startTime: 12.5, duration: 0 } },
+        { event: { startTime: 14, duration: 0 } },
+        { event: { startTime: 20, duration: 3 } },
+      ],
+      0,
+    );
+    expect(pairs).toHaveLength(8);
+    expect(intervalIdx).toEqual([0, 3]);
+    expect(tickIdx).toEqual([1, 2]);
+    // All-ticks lane (ICACHE_READ): nothing stays on the additive interval mesh.
+    const ticksOnly = partitionIntervalTickIndices(
+      [
+        { event: { startTime: 0.52, duration: 0 } },
+        { event: { startTime: 0.520606, duration: 0 } },
+        { event: { startTime: 1.2, duration: 0 } },
+      ],
+      0,
+    );
+    expect(ticksOnly.intervalIdx).toEqual([]);
+    expect(ticksOnly.tickIdx).toEqual([0, 1, 2]);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/partitionIntervalTickIndices/);
+    expect(webglSrc).toMatch(/tickChunks/);
+    // Tick draw path flips to source-over (summary-bar blend), then restores additive.
+    expect(webglSrc).toMatch(/drawTickChunks/);
+    expect(webglSrc).toMatch(
+      /drawTickChunks[\s\S]*?ONE_MINUS_SRC_ALPHA[\s\S]*?uSrcOver[\s\S]*?1/,
     );
   });
 
