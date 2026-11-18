@@ -117,6 +117,29 @@ describe('SwimlaneView', () => {
 
   it('PR-SWIMVIEW-047: card strip name title only while truncated', async () => {
     const longName = 'AIC_SCALAR_LDST (very_long_card_header_name_for_ellipsis)';
+    const roHandles: { el: Element | null; fire: () => void }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        el: Element | null = null;
+        constructor(private cb: ResizeObserverCallback) {
+          roHandles.push(this);
+        }
+        observe(el: Element) {
+          this.el = el;
+        }
+        fire() {
+          if (!this.el) return;
+          this.cb(
+            [{ target: this.el } as unknown as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
     const view = createViewState({
       minTime: 0,
       maxTime: 1000,
@@ -154,7 +177,7 @@ describe('SwimlaneView', () => {
     expect(name.text()).toBe(longName);
     expect(name.attributes('title')).toBeUndefined();
 
-    // jsdom measures 0×0; shadow the widths the truncation check reads.
+    // happy-dom measures 0×0; shadow the widths the truncation check reads.
     const el = name.element as HTMLElement;
     Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
     Object.defineProperty(el, 'clientWidth', { value: 100, configurable: true });
@@ -165,7 +188,7 @@ describe('SwimlaneView', () => {
     await name.trigger('pointerenter');
     expect(name.attributes('title')).toBe(longName);
 
-    // Layout drift while parked (e.g. metric select mounts): move re-syncs.
+    // Layout drift while parked: pointermove re-syncs.
     Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
     await name.trigger('pointermove');
     expect(name.attributes('title')).toBeUndefined();
@@ -173,6 +196,19 @@ describe('SwimlaneView', () => {
     Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
     await name.trigger('pointermove');
     expect(name.attributes('title')).toBe(longName);
+
+    // Name-box resize with no pointer motion (metric-select mount / gutter drag).
+    Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
+    const nameRO = roHandles.find((h) => h.el === el);
+    expect(nameRO).toBeTruthy();
+    nameRO!.fire();
+    expect(name.attributes('title')).toBeUndefined();
+
+    Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
+    nameRO!.fire();
+    expect(name.attributes('title')).toBe(longName);
+
+    vi.unstubAllGlobals();
   });
 
   it('PR-SWIMVIEW-003: body hosts gutter-resize-handle under card strips', async () => {

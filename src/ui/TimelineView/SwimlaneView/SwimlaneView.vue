@@ -482,6 +482,8 @@ onUnmounted(() => {
   scrollbarDrag = null;
   bodyResizeObserver?.disconnect();
   bodyResizeObserver = null;
+  cardNameResizeObserver?.disconnect();
+  cardNameResizeObserver = null;
 });
 
 watch(
@@ -854,16 +856,32 @@ function onCardStripActivate(cardId: string, e: Event) {
   emit('toggle-group', cardId);
 }
 
-/**
- * Native `title` only while the name is ellipsized — full labels stay quiet.
- * Re-check on enter and move so gutter resize / metric-select mount while the
- * pointer stays parked still flips the tip (PR-SWIMVIEW-047).
- */
-function syncCardNameTitle(e: PointerEvent) {
-  const el = e.currentTarget;
-  if (!(el instanceof HTMLElement)) return;
+/** Native `title` only while the name is ellipsized — full labels stay quiet. */
+function syncCardNameTitleEl(el: HTMLElement) {
   if (el.scrollWidth > el.clientWidth) el.title = el.textContent ?? '';
   else el.removeAttribute('title');
+}
+
+function syncCardNameTitle(e: PointerEvent) {
+  const el = e.currentTarget;
+  if (el instanceof HTMLElement) syncCardNameTitleEl(el);
+}
+
+/** Reflow (gutter resize / metric-select mount) without pointer motion still flips the tip. */
+let cardNameResizeObserver: ResizeObserver | null = null;
+const observedCardNames = new WeakSet<HTMLElement>();
+
+function bindCardNameEl(el: Element | null) {
+  if (!(el instanceof HTMLElement) || observedCardNames.has(el)) return;
+  if (!cardNameResizeObserver) {
+    cardNameResizeObserver = new ResizeObserver((entries) => {
+      for (const { target } of entries) {
+        if (target instanceof HTMLElement) syncCardNameTitleEl(target);
+      }
+    });
+  }
+  observedCardNames.add(el);
+  cardNameResizeObserver.observe(el);
 }
 
 defineExpose({
@@ -1132,6 +1150,7 @@ defineExpose({
               :expanded="strip.expanded"
             />
             <span
+              :ref="bindCardNameEl"
               class="pr-card-strip__name"
               @pointerenter="syncCardNameTitle"
               @pointermove="syncCardNameTitle"
