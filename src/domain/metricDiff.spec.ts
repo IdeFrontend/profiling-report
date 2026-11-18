@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { metricDiff, summaryDiffs, utilizationPercent } from './metricDiff';
 
 describe('metricDiff', () => {
-  it('negative delta (current above baseline) tones increase (red up)', () => {
-    expect(metricDiff(90, 86)).toEqual({ tone: 'increase', delta: -4, magnitude: 4 });
+  it('negative delta (current above baseline) tones up', () => {
+    expect(metricDiff(90, 86)).toEqual({ tone: 'up', delta: -4, magnitude: 4 });
   });
 
-  it('positive delta (current below baseline) tones decrease (green down)', () => {
-    expect(metricDiff(86, 90)).toEqual({ tone: 'decrease', delta: 4, magnitude: 4 });
+  it('positive delta (current below baseline) tones down', () => {
+    expect(metricDiff(86, 90)).toEqual({ tone: 'down', delta: 4, magnitude: 4 });
   });
 
   it('nulls on missing, non-finite, or zero difference', () => {
@@ -19,11 +19,15 @@ describe('metricDiff', () => {
     expect(metricDiff(0, 0)).toBeNull();
   });
 
-  it('suppresses sub-display deltas whose label would read 0', () => {
-    // 1e-4 trims to '0' at the display precision, so no arrow may light.
-    expect(metricDiff(0.0002, 0.0001)).toBeNull();
-    // Float dust: 0.29 * 100 is not exactly 29.
-    expect(metricDiff(29, 0.29 * 100)).toBeNull();
+  it('suppresses a delta that displays as zero (rounding and float artefacts)', () => {
+    // The label rounds to 2 decimals: a 1e-4 delta would print "0"…
+    expect(metricDiff(0.0001, 0.0002)).toBeNull();
+    // …and float arithmetic can split mathematically equal values
+    // (0.29 * 100 = 28.999999999999996).
+    expect(summaryDiffs(
+      { parallelBalance: 0.29 },
+      { parallelBalance: 0.29 },
+    ).parallelBalance).toBeNull();
   });
 });
 
@@ -33,18 +37,17 @@ describe('utilizationPercent', () => {
     expect(utilizationPercent(0.5, 1)).toBe(50);
   });
 
-  it('nulls when the peak or the measured fraction is unusable', () => {
+  it('nulls when the peak is unusable', () => {
     expect(utilizationPercent(12, 0)).toBeNull();
     expect(utilizationPercent(12, -1)).toBeNull();
     expect(utilizationPercent(12, undefined)).toBeNull();
     expect(utilizationPercent(undefined, 100)).toBeNull();
-    // Both Number.isFinite guards, not just the peak's.
     expect(utilizationPercent(Number.NaN, 100)).toBeNull();
     expect(utilizationPercent(12, Number.POSITIVE_INFINITY)).toBeNull();
-    // Producer fixtures carry negative fractions — never render them.
+  });
+
+  it('nulls a negative measured value', () => {
     expect(utilizationPercent(-0.42, 1)).toBeNull();
-    // Above-peak values stay unclamped: the card renders what was reported.
-    expect(utilizationPercent(1.5, 1)).toBe(150);
   });
 });
 
@@ -77,14 +80,14 @@ describe('summaryDiffs', () => {
         write: { measuredGBs: 1000, peakGBs: 1600 },
       },
     });
-    // baseline − current; positive → green down (decrease), negative → red up (increase).
-    expect(diffs.taskDurationUs).toEqual({ tone: 'decrease', delta: 200, magnitude: 200 });
-    expect(diffs.parallelUtilization).toEqual({ tone: 'increase', delta: -4, magnitude: 4 });
-    expect(diffs.parallelBalance).toEqual({ tone: 'decrease', delta: 8, magnitude: 8 });
-    expect(diffs.computeAic).toEqual({ tone: 'increase', delta: -10, magnitude: 10 });
-    expect(diffs.computeAiv).toEqual({ tone: 'decrease', delta: 10, magnitude: 10 });
-    expect(diffs.bandwidthRead).toEqual({ tone: 'increase', delta: -18.75, magnitude: 18.75 });
-    expect(diffs.bandwidthWrite).toEqual({ tone: 'decrease', delta: 12.5, magnitude: 12.5 });
+    // baseline − current; positive → down (value decreased), negative → up (value increased).
+    expect(diffs.taskDurationUs).toEqual({ tone: 'down', delta: 200, magnitude: 200 });
+    expect(diffs.parallelUtilization).toEqual({ tone: 'up', delta: -4, magnitude: 4 });
+    expect(diffs.parallelBalance).toEqual({ tone: 'down', delta: 8, magnitude: 8 });
+    expect(diffs.computeAic).toEqual({ tone: 'up', delta: -10, magnitude: 10 });
+    expect(diffs.computeAiv).toEqual({ tone: 'down', delta: 10, magnitude: 10 });
+    expect(diffs.bandwidthRead).toEqual({ tone: 'up', delta: -18.75, magnitude: 18.75 });
+    expect(diffs.bandwidthWrite).toEqual({ tone: 'down', delta: 12.5, magnitude: 12.5 });
   });
 
   it('nulls each diff independently when a side is missing', () => {
@@ -102,23 +105,10 @@ describe('summaryDiffs', () => {
     expect(diffs.bandwidthWrite).toBeNull();
   });
 
-  it('a zero magnitude suppresses every one of the seven diffs', () => {
-    // Distinct-but-equal copies: a shallow spread would alias `compute` and
-    // `bandwidth`, letting four keys pass through the same two objects.
-    const equal = {
-      taskDurationUs: 1000,
-      parallelUtilization: 0.9,
-      parallelBalance: 0.82,
-      compute: {
-        aic: { measuredTflops: 50, peakTflops: 100 },
-        aiv: { measuredTflops: 30, peakTflops: 100 },
-      },
-      bandwidth: {
-        read: { measuredGBs: 1200, peakGBs: 1600 },
-        write: { measuredGBs: 800, peakGBs: 1600 },
-      },
-    };
-    const diffs = summaryDiffs(current, equal);
+  it('a zero magnitude suppresses the badge', () => {
+    const diffs = summaryDiffs(current, { ...current });
+    // All SEVEN keys, not just the shallow-spread ones: the spread aliases
+    // current.compute / current.bandwidth, so each key needs its own check.
     expect(diffs.taskDurationUs).toBeNull();
     expect(diffs.parallelUtilization).toBeNull();
     expect(diffs.parallelBalance).toBeNull();

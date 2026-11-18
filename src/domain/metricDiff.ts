@@ -6,22 +6,22 @@
  * in exactly one place:
  *
  *   delta = baseline − current
- *   delta > 0  → the current value DECREASED vs baseline → tone 'decrease'
- *   delta < 0  → the current value INCREASED vs baseline → tone 'increase'
+ *   delta > 0  → the current value went DOWN vs baseline → tone 'down'
+ *   delta < 0  → the current value went UP vs baseline → tone 'up'
  *
- * `tone` is the DIRECTION of change only. Improvement-vs-regression colouring
- * is metric-valence-dependent (duration is lower-is-better; utilization,
- * TFLOPs and GB/s are higher-is-better) and is the CONSUMER's mapping — this
- * module deliberately does not paint arrows.
+ * `tone` is the DIRECTION of the current value only — it carries no valence:
+ * most diffed metrics are higher-is-better, but `taskDurationUs` is
+ * lower-is-better, so improvement/regression (red/green) is the consumer's
+ * decision per metric, never this module's.
  *
- * A diff renders only when BOTH values exist and the difference is non-zero
- * at the display precision (2 decimals); the displayed magnitude is unsigned
- * (the mockup prints no +/−).
+ * A diff renders only when BOTH values exist and the displayed difference is
+ * non-zero; the displayed magnitude is unsigned (the mockup prints no +/−).
  */
 
-export type DiffTone = 'increase' | 'decrease';
+export type DiffTone = 'up' | 'down';
 
 export interface MetricDiff {
+  /** Direction of the current value vs baseline ('up'/'down'); no valence. */
   tone: DiffTone;
   /** Signed delta = baseline − current (kept for callers that need the sign). */
   delta: number;
@@ -29,7 +29,10 @@ export interface MetricDiff {
   magnitude: number;
 }
 
-/** Null for missing/non-finite inputs or a zero difference (nothing to show). */
+/** Display precision of the magnitude — `trimDiffMagnitude` rounds to it. */
+export const DIFF_DISPLAY_DECIMALS = 2;
+
+/** Null for missing/non-finite inputs or a difference that displays as zero (nothing to show). */
 export function metricDiff(current: number | undefined, baseline: number | undefined): MetricDiff | null {
   if (
     current == null
@@ -40,23 +43,20 @@ export function metricDiff(current: number | undefined, baseline: number | undef
     return null;
   }
   const delta = baseline - current;
-  // Suppress on the DISPLAYED value: the label prints 2 decimals, so a delta
-  // that trims to '0' (1e-4 noise, float dust like 0.29 * 100) is invisible
-  // and must not light an arrow. Exact `=== 0` alone would miss both — this
-  // is the rule the consumer used to re-apply downstream.
-  if (delta === 0 || trimDiffMagnitude(Math.abs(delta)) === '0') return null;
+  // Suppress on the DISPLAYED value, not the raw float: the label rounds to
+  // `DIFF_DISPLAY_DECIMALS` later, so a delta that prints "0" (1e-4, or a
+  // float artefact like 0.29 * 100 = 28.999999999999996) must not carry a
+  // tone — the aside used to re-check `trimDiffMagnitude === '0'` for this.
+  if (Number(Math.abs(delta).toFixed(DIFF_DISPLAY_DECIMALS)) === 0) return null;
   return {
-    tone: delta > 0 ? 'decrease' : 'increase',
+    tone: delta > 0 ? 'down' : 'up',
     delta,
     magnitude: Math.abs(delta),
   };
 }
 
-/** measured ÷ peak × 100 (percentage points). Null when the peak is unusable or
- *  the measured fraction is not a usable 0..∞ ratio (negative or non-finite —
- *  producer fixtures carry `parallelBalance: -0.42`). Above-peak values stay
- *  unclamped (fixtures carry `parallelUtilization: 1.5`): the card renders
- *  what the producer reported. */
+/** measured ÷ peak × 100 (percentage points), unclamped; null when either input
+ *  is unusable (missing, non-finite, a non-positive peak, a negative measured). */
 export function utilizationPercent(measured: number | undefined, peak: number | undefined): number | null {
   if (
     measured == null
@@ -147,7 +147,7 @@ export function summaryDiffs(current: SummaryMetricValues, baseline: SummaryMetr
   };
 }
 
-/** 2 decimals max, trailing zeros trimmed: 5.00 → '5', 2.40 → '2.4'. */
+/** `DIFF_DISPLAY_DECIMALS` decimals max, trailing zeros trimmed: 5.00 → '5', 2.40 → '2.4'. */
 export function trimDiffMagnitude(n: number): string {
-  return String(Number(n.toFixed(2)));
+  return String(Number(n.toFixed(DIFF_DISPLAY_DECIMALS)));
 }
