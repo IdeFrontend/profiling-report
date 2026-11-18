@@ -4,6 +4,8 @@ import { t } from '../../../i18n';
 
 const props = withDefaults(
   defineProps<{
+    /** Pipe / lane name — tip header (parity with EventTooltip event name). */
+    name: string;
     utilization: number;
     usingKb?: number | null;
     stylePos: CSSProperties;
@@ -48,6 +50,12 @@ function formatKb(n: number): string {
     :style="stylePos"
   >
     <div
+      class="pr-counter-hover-tip__title"
+      data-testid="counter-hover-name"
+    >
+      {{ name }}
+    </div>
+    <div
       class="pr-counter-hover-tip__row"
       data-testid="counter-hover-util"
     >
@@ -89,6 +97,14 @@ function formatKb(n: number): string {
   flex-direction: column;
   gap: 4px;
   animation: pr-counter-tip-in 120ms ease;
+}
+
+.pr-counter-hover-tip__title {
+  font-weight: 600;
+  color: #e8e8e8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pr-counter-hover-tip__row {

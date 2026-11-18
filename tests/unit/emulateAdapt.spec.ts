@@ -589,6 +589,11 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
+    // #208 / DATA-57: gelu Trace packs populated mem util pipes → CounterTrack card.
+    const memUtil = adapted.swimlaneModel!.processes.find((p) => p.id === 'p-counter-memory-util');
+    expect(memUtil?.name).toBe('Memory utilization');
+    expect(memUtil?.threads.length).toBeGreaterThanOrEqual(1);
+    expect(memUtil?.threads.every((t) => (t.counter?.points.length ?? 0) > 0)).toBe(true);
     expect(adapted.reportModel.profile).toBe('emulate');
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);

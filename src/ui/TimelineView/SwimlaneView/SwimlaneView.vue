@@ -1260,6 +1260,7 @@ defineExpose({
     <Teleport to="body">
       <CounterHoverTip
         v-if="counterHover"
+        :name="counterHover.name"
         :utilization="counterHover.utilization"
         :using-kb="counterHover.usingKb"
         :style-pos="counterTipStyle"

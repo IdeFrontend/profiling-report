@@ -15,7 +15,8 @@ export const FIXED_TIP_PAD_PX = 4;
 
 /** CounterHoverTip chrome estimate: min-width 120 + pad; two 12px/1.45 lines. */
 export const COUNTER_HOVER_TIP_EST_W = 180;
-export const COUNTER_HOVER_TIP_EST_H = 56;
+/** Header + util row + optional Using row (+ padding). */
+export const COUNTER_HOVER_TIP_EST_H = 72;
 
 export type PlaceFixedTipInput = {
   x: number;
