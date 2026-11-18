@@ -224,9 +224,9 @@ const messages = {
     gutterMetricClockCycle: '时钟周期',
     gutterMetricUtilization: '利用率',
     gutterMetricFor: '{name} 的泳道指标',
-    // Memory util CounterTrack hover tip (#208 / UI-61).
-    counterTipUtilization: '利用率 {n}%',
-    counterTipUsing: '占用 {n} KB',
+    // Memory util CounterTrack hover tip (#208 / UI-61) — label left / value right.
+    counterTipUtilization: '利用率',
+    counterTipUsing: '占用',
     // Marquee multi-select dock (v930/task-marquee). The sketch keeps the table
     // headers in English in the zh-CN UI, same as Parameter / Relevent above.
     itemsSelected: '{n} items selected.',
@@ -474,9 +474,9 @@ const messages = {
     gutterMetricClockCycle: 'Clock Cycle',
     gutterMetricUtilization: 'Utilization',
     gutterMetricFor: 'Gutter metric for {name}',
-    // Memory util CounterTrack hover tip (#208 / UI-61).
-    counterTipUtilization: 'Utilization {n}%',
-    counterTipUsing: 'Using {n} KB',
+    // Memory util CounterTrack hover tip (#208 / UI-61) — label left / value right.
+    counterTipUtilization: 'Utilization',
+    counterTipUsing: 'Using',
     ctxResetZoom: 'Reset zoom',
     ctxShowInEventView: 'Show in event view',
     ctxPinRow: 'Pin row',

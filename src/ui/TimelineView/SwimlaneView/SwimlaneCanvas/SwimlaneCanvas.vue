@@ -26,6 +26,7 @@ import {
   findLaidOutEvent,
   IDLE_COLLAPSE,
   LANE_HEIGHT,
+  LANE_PAD_Y,
   laneAtContentY,
   laneIdAtPoint,
   leafLaneIdAtPoint,
@@ -145,6 +146,11 @@ export type CounterHoverPayload = {
   usingKb?: number;
   clientX: number;
   clientY: number;
+  /** Value-dot fixed position (OverviewCharts parity) — cursor x, step-after value y. */
+  dotClientX: number;
+  dotClientY: number;
+  /** Stroke/fill color for the value-dot. */
+  color: string;
 };
 
 const emit = defineEmits<{
@@ -245,13 +251,25 @@ function emitCounterHover(
     clearCounterHover();
     return;
   }
-  const key = `${hit.lane.thread.id}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}`;
+  // hitLayout.y is already collapse-shifted — same CSS space as paintCounterLanes.
+  const yCss = hit.lane.y - view.scrollY;
+  const plotTop = yCss + LANE_PAD_Y;
+  const plotH = Math.max(1, LANE_HEIGHT - LANE_PAD_Y * 2);
+  const yMax = series.yMax > 0 ? series.yMax : 1;
+  const clamped = Math.min(yMax, Math.max(0, pt.v));
+  const localDotY = plotTop + plotH * (1 - clamped / yMax);
+  const color = series.colorHex ?? hit.lane.color;
+  const key = `${hit.lane.thread.id}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}|${localDotY}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
     utilization: pt.v,
     clientX,
     clientY,
+    // Follow pointer x (step-after hold); Y sits on the painted value.
+    dotClientX: clientX,
+    dotClientY: clientY - localY + localDotY,
+    color,
   };
   if (pt.abs != null) payload.usingKb = pt.abs;
   emit('counter-hover', payload);

@@ -5,6 +5,7 @@ import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
 import { LANE_HEIGHT } from '../../../swimlane/layout';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import CounterHoverTip from './CounterHoverTip.vue';
 import SwimlaneView from './SwimlaneView.vue';
 
 describe('SwimlaneView', () => {
@@ -2980,12 +2981,23 @@ describe('SwimlaneView', () => {
 
       const tip = document.querySelector('[data-testid="counter-hover-tooltip"]') as HTMLElement | null;
       expect(tip).not.toBeNull();
-      expect(tip!.textContent).toMatch(/2/);
-      expect(tip!.textContent).toMatch(/0\.05/);
+      // OverviewCharts tip layout: label left, value right (default locale zh-CN).
+      const utilRow = tip!.querySelector('[data-testid="counter-hover-util"]') as HTMLElement;
+      const usingRow = tip!.querySelector('[data-testid="counter-hover-using"]') as HTMLElement;
+      expect(utilRow.textContent).toMatch(/利用率/);
+      expect(utilRow.textContent).toMatch(/2%/);
+      expect(usingRow.textContent).toMatch(/占用/);
+      expect(usingRow.textContent).toMatch(/0\.05 KB/);
       // Inline fixed positioning so Teleport→body stays visible without waiting on CSS.
       expect(tip!.style.position).toBe('fixed');
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
+
+      // Value-dot circle on the step-after hold (OverviewCharts parity).
+      const dot = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
+      expect(dot).not.toBeNull();
+      expect(dot!.style.left).toBe('150px');
+      expect(dot!.style.background.toLowerCase()).toMatch(/#e7434a|231,\s*67,\s*74/);
 
       // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
       Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
@@ -3006,7 +3018,22 @@ describe('SwimlaneView', () => {
       await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
       await nextTick();
       expect(document.querySelector('[data-testid="counter-hover-tooltip"]')).toBeNull();
+      expect(document.querySelector('[data-testid="counter-hover-dot"]')).toBeNull();
       wrapper.unmount();
+    });
+
+    it('PR-SWIMVIEW-047: Using KB display caps at 2 decimal places', () => {
+      const tip = mount(CounterHoverTip, {
+        props: {
+          utilization: 12.3456,
+          usingKb: 12.345678,
+          stylePos: { position: 'fixed', left: '0px', top: '0px' },
+          locale: 'en',
+        },
+      });
+      expect(tip.get('[data-testid="counter-hover-util"]').text()).toMatch(/Utilization\s*12\.35%/);
+      expect(tip.get('[data-testid="counter-hover-using"]').text()).toMatch(/Using\s*12\.35 KB/);
+      tip.unmount();
     });
   });
 });

@@ -5953,8 +5953,18 @@ describe('SwimlaneCanvas', () => {
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       utilization: number;
       usingKb?: number;
+      color: string;
+      dotClientX: number;
+      dotClientY: number;
     } | null;
-    expect(tip).toMatchObject({ utilization: 2, usingKb: 0.05 });
+    expect(tip).toMatchObject({
+      utilization: 2,
+      usingKb: 0.05,
+      color: '#E7434A',
+      dotClientX: 150,
+    });
+    expect(tip!.dotClientY).toBeGreaterThan(40);
+    expect(tip!.dotClientY).toBeLessThan(40 + LANE_HEIGHT);
 
     // After second sample (t=10000 → x=200): keep-last abs 0.04.
     await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1 });

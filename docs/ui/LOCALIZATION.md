@@ -50,7 +50,7 @@ Card-header metric dropdown options use `gutterMetricLabel(metric, locale)` (`sr
 
 Aria label for the control: `gutterMetricFor` (`{name} 的泳道指标` / `Gutter metric for {name}`).
 
-CounterTrack hover tip (#208 / UI-61): `counterTipUtilization` (`利用率 {n}%` / `Utilization {n}%`), `counterTipUsing` (`占用 {n} KB` / `Using {n} KB`).
+CounterTrack hover tip (#208 / UI-61): row labels `counterTipUtilization` (`利用率` / `Utilization`) and `counterTipUsing` (`占用` / `Using`); values render as `{n}%` / `{n} KB` on the right (OverviewCharts tip parity).
 
 ## MSTT host handoff
 

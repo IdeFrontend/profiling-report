@@ -12,21 +12,32 @@ const props = withDefaults(
   { usingKb: null, locale: undefined },
 );
 
-const utilText = computed(() => {
+const utilLabel = computed(() => t('counterTipUtilization', props.locale));
+const usingLabel = computed(() => t('counterTipUsing', props.locale));
+
+const utilValue = computed(() => {
   const n = Number.isFinite(props.utilization) ? props.utilization : 0;
-  return t('counterTipUtilization', props.locale).replace('{n}', formatNum(n));
+  return `${formatUtil(n)}%`;
 });
 
-const usingText = computed(() => {
+const usingValue = computed(() => {
   if (props.usingKb == null || !Number.isFinite(props.usingKb)) return null;
-  return t('counterTipUsing', props.locale).replace('{n}', formatNum(props.usingKb));
+  return `${formatKb(props.usingKb)} KB`;
 });
 
-function formatNum(n: number): string {
-  // Keep producer precision for small KB fractions (e.g. 0.04) without trailing noise.
+/** Utilization % — short; integers stay bare. */
+function formatUtil(n: number): string {
   if (Number.isInteger(n)) return String(n);
-  const s = n.toPrecision(6);
-  return String(Number(s));
+  return String(Number(n.toFixed(2)));
+}
+
+/**
+ * Using KB — fewer display digits than producer floats (was toPrecision(6)).
+ * Cap at 2 decimal places; strip trailing zeros.
+ */
+function formatKb(n: number): string {
+  if (Number.isInteger(n)) return String(n);
+  return String(Number(n.toFixed(2)));
 }
 </script>
 
@@ -36,12 +47,20 @@ function formatNum(n: number): string {
     data-testid="counter-hover-tooltip"
     :style="stylePos"
   >
-    <div data-testid="counter-hover-util">{{ utilText }}</div>
     <div
-      v-if="usingText"
+      class="pr-counter-hover-tip__row"
+      data-testid="counter-hover-util"
+    >
+      <span class="pr-counter-hover-tip__name">{{ utilLabel }}</span>
+      <span class="pr-counter-hover-tip__value">{{ utilValue }}</span>
+    </div>
+    <div
+      v-if="usingValue"
+      class="pr-counter-hover-tip__row"
       data-testid="counter-hover-using"
     >
-      {{ usingText }}
+      <span class="pr-counter-hover-tip__name">{{ usingLabel }}</span>
+      <span class="pr-counter-hover-tip__value">{{ usingValue }}</span>
     </div>
   </div>
 </template>
@@ -62,11 +81,34 @@ function formatNum(n: number): string {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
-  color: #e6e6e6;
+  color: #b3b3b3;
   font-size: 12px;
   line-height: 1.45;
-  min-width: 120px;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   animation: pr-counter-tip-in 120ms ease;
+}
+
+.pr-counter-hover-tip__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.pr-counter-hover-tip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-counter-hover-tip__value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #e8e8e8;
 }
 
 @keyframes pr-counter-tip-in {
@@ -82,5 +124,19 @@ function formatNum(n: number): string {
   .pr-counter-hover-tip.pr-tooltip {
     animation: none;
   }
+}
+
+/* Teleported value-dot — OverviewCharts parity (fixed so parent overflow cannot crop it). */
+.pr-counter-hover-dot {
+  position: fixed;
+  z-index: 999;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
 }
 </style>

@@ -1224,6 +1224,16 @@ defineExpose({
         :style-pos="counterTipStyle"
         :locale="locale"
       />
+      <div
+        v-if="counterHover"
+        class="pr-counter-hover-dot"
+        data-testid="counter-hover-dot"
+        :style="{
+          left: `${counterHover.dotClientX}px`,
+          top: `${counterHover.dotClientY}px`,
+          background: counterHover.color,
+        }"
+      />
     </Teleport>
   </div>
 </template>
