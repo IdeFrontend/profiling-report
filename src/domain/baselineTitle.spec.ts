@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import {
   baselineDisplayTitle,
@@ -57,13 +58,23 @@ describe('stampFromOpprofName', () => {
     expect(stampFromOpprofName('OPPROF_20260229010101_QKWFPLXZVTRNBGMA')).toBeUndefined();
   });
 
-  it('does not return a rolled epoch when that local time does not exist', () => {
-    const ms = stampFromOpprofName('OPPROF_20260329013000_QKWFPLXZVTRNBGMA');
-    if (ms == null) return;
-    const d = new Date(ms);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const printed = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    expect(printed).toBe('2026-03-29 01:30');
+  it('keeps the embedded clock in Europe/London, where 01:30 does not exist', () => {
+    // UTC Date prints 01:30 either way. The gap only shows up in a DST zone.
+    // import.meta.url is an http URL under vitest, so the child imports the file path.
+    const script = `
+      import { baselineDisplayTitle, stampFromOpprofName } from './src/domain/baselineTitle.ts';
+      const name = 'OPPROF_20260329013000_QKWFPLXZVTRNBGMA';
+      const ms = stampFromOpprofName(name);
+      const title = baselineDisplayTitle({ id: 'x', name, path: '/data/out.rep' });
+      if (ms != null) throw new Error('rolled epoch ' + ms);
+      if (title !== 'out.rep 2026-03-29 01:30') throw new Error('title ' + title);
+    `;
+    const res = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', '--input-type=module', '-e', script],
+      { cwd: process.cwd(), env: { ...process.env, TZ: 'Europe/London' }, encoding: 'utf8' },
+    );
+    expect(res.status, res.stderr || res.stdout).toBe(0);
   });
 });
 
