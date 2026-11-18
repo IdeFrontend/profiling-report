@@ -33,6 +33,9 @@ function pad2(n: number): string {
 export function formatBaselineStamp(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return '';
   const d = new Date(ms);
+  // ms ≤ 8.64e15 is the Date range; a finite value beyond it (9e15) is an
+  // Invalid Date whose getters print "NaN-NaN-NaN NaN:NaN".
+  if (Number.isNaN(d.getTime())) return '';
   return (
     `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ` +
     `${pad2(d.getHours())}:${pad2(d.getMinutes())}`

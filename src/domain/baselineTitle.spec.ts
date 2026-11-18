@@ -78,6 +78,7 @@ describe('formatBaselineStamp', () => {
     expect(formatBaselineStamp(0)).toBe('');
     expect(formatBaselineStamp(-1)).toBe('');
     expect(formatBaselineStamp(Number.POSITIVE_INFINITY)).toBe('');
+    expect(formatBaselineStamp(9e15)).toBe('');
   });
 });
 
