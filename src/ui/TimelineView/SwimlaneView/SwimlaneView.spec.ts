@@ -115,6 +115,102 @@ describe('SwimlaneView', () => {
     expect(wrapper.emitted('toggle-group')).toEqual([['card0']]);
   });
 
+  it('PR-SWIMVIEW-047: card strip name title only while truncated', async () => {
+    const longName = 'AIC_SCALAR_LDST (very_long_card_header_name_for_ellipsis)';
+    const roHandles: { el: Element | null; fire: () => void }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        el: Element | null = null;
+        constructor(private cb: ResizeObserverCallback) {
+          roHandles.push(this);
+        }
+        observe(el: Element) {
+          this.el = el;
+        }
+        fire() {
+          if (!this.el) return;
+          this.cb(
+            [{ target: this.el } as unknown as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
+    const view = createViewState({
+      minTime: 0,
+      maxTime: 1000,
+      processes: [],
+    });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'card0',
+            name: longName,
+            lanes: [{ id: 'l1', name: 'Lane', color: '#f00', utilization: 0.5 }],
+          },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: longName,
+              threads: [{ id: 'l1', name: 'Lane', events: [] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+
+    const name = wrapper.get('.pr-card-strip__name');
+    expect(name.text()).toBe(longName);
+    expect(name.attributes('title')).toBeUndefined();
+
+    // happy-dom measures 0×0; shadow the widths the truncation check reads.
+    const el = name.element as HTMLElement;
+    Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
+    Object.defineProperty(el, 'clientWidth', { value: 100, configurable: true });
+    await name.trigger('pointerenter');
+    expect(name.attributes('title')).toBeUndefined();
+
+    Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
+    await name.trigger('pointerenter');
+    expect(name.attributes('title')).toBe(longName);
+
+    // Layout drift while parked: pointermove re-syncs.
+    Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
+    await name.trigger('pointermove');
+    expect(name.attributes('title')).toBeUndefined();
+
+    Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
+    await name.trigger('pointermove');
+    expect(name.attributes('title')).toBe(longName);
+
+    // Name-box resize with no pointer motion (metric-select mount / gutter drag).
+    Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
+    const nameRO = roHandles.find((h) => h.el === el);
+    expect(nameRO).toBeTruthy();
+    nameRO!.fire();
+    expect(name.attributes('title')).toBeUndefined();
+
+    Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
+    nameRO!.fire();
+    expect(name.attributes('title')).toBe(longName);
+
+    vi.unstubAllGlobals();
+  });
+
   it('PR-SWIMVIEW-003: body hosts gutter-resize-handle under card strips', async () => {
     const view = createViewState({
       minTime: 0,

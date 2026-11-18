@@ -482,6 +482,8 @@ onUnmounted(() => {
   scrollbarDrag = null;
   bodyResizeObserver?.disconnect();
   bodyResizeObserver = null;
+  cardNameResizeObserver?.disconnect();
+  cardNameResizeObserver = null;
 });
 
 watch(
@@ -854,6 +856,40 @@ function onCardStripActivate(cardId: string, e: Event) {
   emit('toggle-group', cardId);
 }
 
+/** Native `title` only while the name is ellipsized — full labels stay quiet. */
+function syncCardNameTitleEl(el: HTMLElement) {
+  if (el.scrollWidth > el.clientWidth) el.title = el.textContent ?? '';
+  else el.removeAttribute('title');
+}
+
+function syncCardNameTitle(e: PointerEvent) {
+  const el = e.currentTarget;
+  if (el instanceof HTMLElement) syncCardNameTitleEl(el);
+}
+
+/** Reflow (gutter resize / metric-select mount) without pointer motion still flips the tip. */
+let cardNameResizeObserver: ResizeObserver | null = null;
+const observedCardNames = new WeakSet<HTMLElement>();
+
+function bindCardNameEl(el: Element | { $el?: unknown } | null) {
+  const node =
+    el instanceof HTMLElement
+      ? el
+      : el && typeof el === 'object' && '$el' in el && el.$el instanceof HTMLElement
+        ? el.$el
+        : null;
+  if (!node || observedCardNames.has(node)) return;
+  if (!cardNameResizeObserver) {
+    cardNameResizeObserver = new ResizeObserver((entries) => {
+      for (const { target } of entries) {
+        if (target instanceof HTMLElement) syncCardNameTitleEl(target);
+      }
+    });
+  }
+  observedCardNames.add(node);
+  cardNameResizeObserver.observe(node);
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
@@ -1119,7 +1155,12 @@ defineExpose({
               class="pr-card-strip__chevron"
               :expanded="strip.expanded"
             />
-            <span class="pr-card-strip__name">{{ strip.name }}</span>
+            <span
+              :ref="bindCardNameEl"
+              class="pr-card-strip__name"
+              @pointerenter="syncCardNameTitle"
+              @pointermove="syncCardNameTitle"
+            >{{ strip.name }}</span>
             <CardMetricSelect
               v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"
               :model-value="selectedMetricForCard(strip.id) ?? metricOptionsForCard(strip.id)[0]!"
