@@ -18,7 +18,7 @@ Crops: [`visual/metric-dropdown-closed.png`](./visual/metric-dropdown-closed.png
 
 ## Behavior
 
-**Card strips.** Each Card header is a full-width opaque strip spanning gutter + swimlane, painted above the gutter resize handle so the seam does not cut through Card rows. Fill/hover bind to `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` (`#2a2a2a` / `#323232`) via `--pr-card-header-fill` / `--pr-card-header-hover`. Header **Y** comes from `layoutHeaders(model)` shifted by `collapseTransformFromModel` (rest + in-flight folds; same visual Y as the canvas). The full strip is interactive (`pointer-events: auto`): click toggles expand/collapse (`toggle-group`); `pointerenter` clears the swim cursor (and axis timestamp via `cursor` emit). Wheel events are forwarded to `SwimlaneCanvas` so scroll/zoom still work over header chrome. Chevron + name sit in the left (gutter) column via shared `Chevron.vue`; the name ellipsizes when the gutter column is tight (alongside the metric select) and exposes the full string via native `title` on hover, same recovery path as gutter lane labels. The LaneGutter Card row is a non-interactive height spacer only. Scroll repositions every strip by baking the scroll offset into its `top` (the container never transforms, so off-screen strips are only clipped, not culled — a keyboard-focused `role="button"` header scrolled out of view keeps its focus).
+**Card strips.** Each Card header is a full-width opaque strip spanning gutter + swimlane, painted above the gutter resize handle so the seam does not cut through Card rows. Fill/hover bind to `LANE_GROUP_HEADER_FILL` / `LANE_GROUP_HEADER_HOVER` (`#2a2a2a` / `#323232`) via `--pr-card-header-fill` / `--pr-card-header-hover`. Header **Y** comes from `layoutHeaders(model)` shifted by `collapseTransformFromModel` (rest + in-flight folds; same visual Y as the canvas). The full strip is interactive (`pointer-events: auto`): click toggles expand/collapse (`toggle-group`); `pointerenter` clears the swim cursor (and axis timestamp via `cursor` emit). Wheel events are forwarded to `SwimlaneCanvas` so scroll/zoom still work over header chrome. Chevron + name sit in the left (gutter) column via shared `Chevron.vue`; the name ellipsizes when the gutter column is tight (alongside the metric select) and exposes the full string via native `title` **only while truncated** (`scrollWidth > clientWidth`) — a fully visible label stays quiet. The LaneGutter Card row is a non-interactive height spacer only. Scroll repositions every strip by baking the scroll offset into its `top` (the container never transforms, so off-screen strips are only clipped, not culled — a keyboard-focused `role="button"` header scrolled out of view keeps its focus).
 
 **Card metric selector.** When a Card is **expanded** and **gutterMetricOptionsByCard** lists at least one mode for that Card, show a compact select on the **right side of the gutter column** within the Card strip (`data-testid="card-metric-select"`). Labels (i18n): **时钟周期** (Clock Cycle), **利用率** (Utilization). Changing the value emits **update:gutter-metric** and must **not** toggle collapse (`stopPropagation` on the control). When collapsed or no modes available, hide the select. Each Card keeps independent selection state.
 
@@ -102,7 +102,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 44. **PR-SWIMVIEW-044** — Overflow end mid-drag settles canvas scroll (clears overlayScrollActive).
 45. **PR-SWIMVIEW-045** — Hovering the visible scrollbar cancels auto-hide until pointer leave.
 46. **PR-SWIMVIEW-046** — Scrollbar appearing under a parked pointer cancels auto-hide; moving away without leave resumes hide.
-47. **PR-SWIMVIEW-047** — Card strip name carries full `title` for truncated hover recovery.
+47. **PR-SWIMVIEW-047** — Card strip name `title` only while truncated.
 
 
 ## Visual
@@ -129,7 +129,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
-- **2026-11-18** — Card strip name exposes full `title` when ellipsized (`PR-SWIMVIEW-047`).
+- **2026-11-18** — Card strip name exposes full `title` only while truncated (`PR-SWIMVIEW-047`).
 - **2026-10-22** — Parked-pointer hover sync clears on leave-move; hide-timeout re-check (`PR-SWIMVIEW-046`); wider overlay (12px), ~2s hide delay, pause on hover (`PR-SWIMVIEW-038`/`039`/`045`).
 - **2026-10-21** — Clear scrollbar visibility when overflow ends; forward wheel; settle mid-drag on overflow end (`PR-SWIMVIEW-042`…`044`).
 - **2026-10-20** — Auto-hide overlay scrollbar; above cards; thumb drag; ignore no-op settle (`PR-SWIMVIEW-037`…`041`).

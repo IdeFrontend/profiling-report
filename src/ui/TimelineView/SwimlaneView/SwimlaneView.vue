@@ -854,6 +854,14 @@ function onCardStripActivate(cardId: string, e: Event) {
   emit('toggle-group', cardId);
 }
 
+/** Native `title` only while the name is ellipsized — full labels stay quiet. */
+function onCardNameEnter(e: PointerEvent) {
+  const el = e.currentTarget;
+  if (!(el instanceof HTMLElement)) return;
+  if (el.scrollWidth > el.clientWidth) el.title = el.textContent ?? '';
+  else el.removeAttribute('title');
+}
+
 defineExpose({
   get gutterRoot() {
     return gutterRef.value?.root ?? null;
@@ -1121,7 +1129,7 @@ defineExpose({
             />
             <span
               class="pr-card-strip__name"
-              :title="strip.name"
+              @pointerenter="onCardNameEnter"
             >{{ strip.name }}</span>
             <CardMetricSelect
               v-if="strip.expanded && metricOptionsForCard(strip.id).length > 0"

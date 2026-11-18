@@ -115,7 +115,7 @@ describe('SwimlaneView', () => {
     expect(wrapper.emitted('toggle-group')).toEqual([['card0']]);
   });
 
-  it('PR-SWIMVIEW-047: card strip name exposes full title for truncated hover', async () => {
+  it('PR-SWIMVIEW-047: card strip name title only while truncated', async () => {
     const longName = 'AIC_SCALAR_LDST (very_long_card_header_name_for_ellipsis)';
     const view = createViewState({
       minTime: 0,
@@ -152,6 +152,17 @@ describe('SwimlaneView', () => {
 
     const name = wrapper.get('.pr-card-strip__name');
     expect(name.text()).toBe(longName);
+    expect(name.attributes('title')).toBeUndefined();
+
+    // jsdom measures 0×0; shadow the widths the truncation check reads.
+    const el = name.element as HTMLElement;
+    Object.defineProperty(el, 'scrollWidth', { value: 100, configurable: true });
+    Object.defineProperty(el, 'clientWidth', { value: 100, configurable: true });
+    await name.trigger('pointerenter');
+    expect(name.attributes('title')).toBeUndefined();
+
+    Object.defineProperty(el, 'scrollWidth', { value: 200, configurable: true });
+    await name.trigger('pointerenter');
     expect(name.attributes('title')).toBe(longName);
   });
 
