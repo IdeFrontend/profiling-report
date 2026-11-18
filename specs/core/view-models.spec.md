@@ -87,7 +87,7 @@ adaptRep(parsed: ParsedRep): AdaptedReport  // { swimlaneModel, reportModel, cap
 - Missing OpBasicInfo.csv → summary defaults to empty/0.
 - All NA ratios for a family → occupancy item omitted.
 - Missing optional CSV embed → that table omitted (no empty stub).
-- Chrome Trace with no X events → throws (chromeTraceToSwimlane behavior).
+- Chrome Trace with no complete interval events (`X` with `ts`+`dur`, or `i` with `ts` and positive `dur`) → throws (`chromeTraceToSwimlane`).
 - Missing Memory.csv or all-NA main-mem BW → `bandwidthCards` omitted.
 - Missing HardwareInfo and empty OpBasicInfo → no `hardwareDetails` field.
 
@@ -100,6 +100,7 @@ DATA-8, DATA-19, DATA-25, DATA-28, DATA-29, DATA-33, DATA-33d, DATA-33f, DATA-39
 DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
+- **2026-11-18** — Empty Chrome Trace throws when there is no complete interval (`X` with `ts`+`dur`, or `i` with positive `dur`), matching PR-SWIM-017.
 - **2026-11-02** — PR-VM-025: Layout+Cells only (DATA-50/51); no UbRw fallback; Used = N×CellSize; Free unclamped.
 - **2026-10-29** — PR-VM-025: prefer `MemoryHeatmapLayout` + `MemoryHeatmapCells` (producer lattice + capacity); UbRw fallback later dropped.
 - **2026-10-01** — PR-VM-025: initial `memoryHeatmap` carrier + capability (historical UbRw path; superseded 2026-11-02). Own carrier beside `memoryTopology` ([DATA-49](../../docs/context/decisions/DATA.md)).
