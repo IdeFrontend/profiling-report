@@ -141,6 +141,57 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(ticksOnly.processes[0]!.threads[0]!.events).toEqual([
       expect.objectContaining({ name: 'ICACHE_HIT', startTime: 1000, duration: 0 }),
     ]);
+
+    // Non-finite ts/dur must not paint, and must not poison minTime for a valid X.
+    const kept = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'i', name: 'bad-dur', pid: 1, tid: 1, ts: 1, dur: Number.NaN },
+        { ph: 'i', name: 'bad-ts', pid: 1, tid: 1, ts: Number.NaN },
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 10, dur: 5 },
+      ],
+    });
+    expect(kept.processes[0]!.threads[0]!.events.map((e) => e.name)).toEqual(['op']);
+    expect(kept.minTime).toBe(10_000);
+  });
+
+  it('PR-SWIM-018: s/f at a duration-0 timestamp stays on the enclosing interval', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 50 },
+        { ph: 'X', name: 'refill', pid: 1, tid: 1, ts: 80, dur: 0 },
+        { ph: 'X', name: 'other', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 'X', name: 'other2', pid: 1, tid: 2, ts: 220, dur: 10 },
+        { ph: 's', id: 'hit', pid: 1, tid: 1, ts: 50 },
+        { ph: 'f', id: 'hit', pid: 1, tid: 2, ts: 205 },
+        { ph: 's', id: 'refill', pid: 1, tid: 1, ts: 80 },
+        { ph: 'f', id: 'refill', pid: 1, tid: 2, ts: 225 },
+      ],
+    });
+    const src = model.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    const dst = model.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+    expect(src.events.map((e) => e.name)).toEqual(['op', 'ICACHE_HIT', 'refill']);
+    expect(src.events[0]!.dependencies?.successors).toEqual([
+      { tid: 't-1-2', index: 0 },
+      { tid: 't-1-2', index: 1 },
+    ]);
+    expect(src.events[1]!.dependencies).toBeUndefined();
+    expect(src.events[2]!.dependencies).toBeUndefined();
+    expect(dst.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+    expect(dst.events[1]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+
+    const bare = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'i', name: 'tick', pid: 1, tid: 1, ts: 50 },
+        { ph: 'X', name: 'other', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 's', id: 'f', pid: 1, tid: 1, ts: 50 },
+        { ph: 'f', id: 'f', pid: 1, tid: 2, ts: 205 },
+      ],
+    });
+    const tickThread = bare.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    const other = bare.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+    expect(tickThread.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(other.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
   });
 
   it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {

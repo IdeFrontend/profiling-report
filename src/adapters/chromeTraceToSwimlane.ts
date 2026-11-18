@@ -165,9 +165,10 @@ export function chromeTraceToSwimlane(
       continue;
     }
 
-    // Complete X intervals, or instant emulate markers (`ph:i` with no/zero dur — #205).
-    // Positive finite `dur` on `ph:i` is left to #207 (PR-SWIM-017).
-    const instantI = e.ph === 'i' && e.ts != null && (e.dur == null || e.dur === 0);
+    // Complete X intervals, or instant emulate markers (`ph:i` with finite ts and no/zero dur — #205).
+    // Non-finite ts is dropped. Positive finite `dur` on `ph:i` is left to #207 (PR-SWIM-017).
+    const instantI =
+      e.ph === 'i' && e.ts != null && Number.isFinite(e.ts) && (e.dur == null || e.dur === 0);
     if (!(instantI || (e.ph === 'X' && e.ts != null && e.dur != null))) continue;
     if (e.ts == null) continue;
     const pid = String(e.pid ?? 0);
@@ -333,7 +334,8 @@ export function nestParents(events: SwimEvent[]): Int32Array {
 }
 
 /**
- * Innermost event whose inclusive `[startTime, startTime+duration]` contains `timestamp`.
+ * Innermost positive-duration event whose inclusive range contains `timestamp`.
+ * A duration-0 event matches only when no enclosing interval does.
  * Events must be sorted startTime asc, longest duration first on ties. Walks the
  * enclosing-parent chain from the last start ≤ ts so a gap does not scan the whole prefix.
  */
@@ -345,11 +347,17 @@ function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Arr
     if (events[mid]!.startTime <= timestamp) lo = mid + 1;
     else hi = mid;
   }
+  let tick = -1;
   for (let i = lo - 1; i >= 0; i = parent[i]!) {
     const event = events[i]!;
-    if (timestamp <= event.startTime + event.duration) return i;
+    if (timestamp > event.startTime + event.duration) continue;
+    if (event.duration === 0) {
+      if (tick < 0) tick = i;
+      continue;
+    }
+    return i;
   }
-  return -1;
+  return tick;
 }
 
 function ensureDeps(event: SwimEvent): EventDependencies {
