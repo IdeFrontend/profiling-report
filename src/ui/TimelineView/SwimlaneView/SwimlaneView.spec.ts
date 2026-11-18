@@ -2987,6 +2987,22 @@ describe('SwimlaneView', () => {
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
 
+      // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
+      Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: y + 30, configurable: true });
+      await canvas.trigger('pointermove', { clientX: 380, clientY: y, pointerId: 1 });
+      await nextTick();
+      const clipped = document.querySelector(
+        '[data-testid="counter-hover-tooltip"]',
+      ) as HTMLElement | null;
+      expect(clipped).not.toBeNull();
+      const left = Number.parseFloat(clipped!.style.left);
+      const top = Number.parseFloat(clipped!.style.top);
+      expect(left).toBeLessThan(380);
+      expect(top).toBeLessThan(y);
+      expect(left).toBeGreaterThanOrEqual(4);
+      expect(top).toBeGreaterThanOrEqual(4);
+
       await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
       await nextTick();
       expect(document.querySelector('[data-testid="counter-hover-tooltip"]')).toBeNull();

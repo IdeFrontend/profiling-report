@@ -34,6 +34,11 @@ import {
   GUTTER_WIDTH_MIN,
   startHorizontalResize,
 } from '../../panelResize';
+import {
+  COUNTER_HOVER_TIP_EST_H,
+  COUNTER_HOVER_TIP_EST_W,
+  placeFixedTip,
+} from '../../placeFixedTip';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
@@ -428,12 +433,22 @@ function onCanvasHover(ev: SwimEvent | null, x: number, y: number): void {
 const counterTipStyle = computed(() => {
   const p = counterHover.value;
   if (!p) return { position: 'fixed' as const, left: '0px', top: '0px' };
-  // Inline position/z-index so Teleport→body still paints if CSS is late/absent.
+  // Flip / clamp inside the iframe viewport so a bottom-lane tip is not cropped
+  // (memory util CounterTrack sits near the panel edge). Inline fixed chrome so
+  // Teleport→body still paints if CSS is late/absent.
+  const { left, top } = placeFixedTip({
+    x: p.clientX,
+    y: p.clientY,
+    tipW: COUNTER_HOVER_TIP_EST_W,
+    tipH: COUNTER_HOVER_TIP_EST_H,
+    viewportW: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    viewportH: typeof window !== 'undefined' ? window.innerHeight : 768,
+  });
   return {
     position: 'fixed' as const,
     zIndex: 1000,
-    left: `${p.clientX + 12}px`,
-    top: `${p.clientY + 12}px`,
+    left: `${left}px`,
+    top: `${top}px`,
   };
 });
 
