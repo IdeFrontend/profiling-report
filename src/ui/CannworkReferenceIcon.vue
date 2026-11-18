@@ -1,6 +1,12 @@
+<script setup lang="ts">
+import { useId } from 'vue';
+
+const gradientId = `cannwork-reference-${useId()}`;
+</script>
+
 <template>
   <!-- "Reference" mark (cannwork-reference.svg): blue gradient body, white quote
-       glyph, sparkle. Prefixed gradient ids — several instances share a page. -->
+       glyph, sparkle. Each instance owns its gradient ids. -->
   <svg
     viewBox="0 0 20 20"
     xmlns="http://www.w3.org/2000/svg"
@@ -9,7 +15,7 @@
   >
     <defs>
       <linearGradient
-        id="cannwork-reference-body"
+        :id="`${gradientId}-body`"
         x1="2.4258"
         y1="0.8462"
         x2="6.0919"
@@ -26,7 +32,7 @@
         />
       </linearGradient>
       <linearGradient
-        id="cannwork-reference-edge"
+        :id="`${gradientId}-edge`"
         x1="8.8416"
         y1="3.2475"
         x2="8.8416"
@@ -43,7 +49,7 @@
         />
       </linearGradient>
       <linearGradient
-        id="cannwork-reference-spark"
+        :id="`${gradientId}-spark`"
         x1="15.573"
         y1="-1.001"
         x2="15.573"
@@ -71,7 +77,7 @@
       width="12.8317"
       height="11.4059"
       rx="2.8515"
-      fill="url(#cannwork-reference-body)"
+      :fill="`url(#${gradientId}-body)`"
     />
     <rect
       x="2.604"
@@ -80,7 +86,7 @@
       height="11.0495"
       rx="2.6733"
       fill="none"
-      stroke="url(#cannwork-reference-edge)"
+      :stroke="`url(#${gradientId}-edge)`"
       stroke-width="0.3564"
     />
     <path
@@ -90,7 +96,7 @@
     />
     <path
       d="M15.0418 0.367527C15.2259 -0.106933 15.8999 -0.0993931 16.0734 0.379069L16.8815 2.6078C16.9356 2.757 17.0514 2.87563 17.1993 2.9333L19.605 3.87155C20.0757 4.05513 20.0717 4.72261 19.5988 4.90053L17.2043 5.80145C17.0535 5.8582 16.9351 5.97813 16.8802 6.12967L16.0735 8.35933C15.9002 8.83828 15.2256 8.84581 15.0416 8.37086L14.1692 6.1182C14.1131 5.97342 13.9986 5.85902 13.8537 5.80314L11.5097 4.89893C11.0426 4.71872 11.0385 4.05921 11.5035 3.8733L13.8587 2.93149C14.0006 2.87477 14.1125 2.76169 14.1678 2.61927L15.0418 0.367527Z"
-      fill="url(#cannwork-reference-spark)"
+      :fill="`url(#${gradientId}-spark)`"
       fill-rule="evenodd"
     />
     <path

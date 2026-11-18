@@ -37,7 +37,9 @@ const isRunning = computed(() => session.value?.status === 'running');
 const isSettled = computed(() => !!session.value && session.value.status !== 'running');
 
 // 屏蔽原因：1130cannwork业务无法提供对应api，需要1209再开放联调
-const showReferenceAndView = false;
+// Enable after 1209 API integration passes; restore reference/view click and host-forwarding tests.
+// Tracking: https://github.com/IdeFrontend/profiling-report/pull/236#issuecomment-6972781842
+const REFERENCE_AND_VIEW_ENABLED = false;
 </script>
 
 <template>
@@ -69,7 +71,7 @@ const showReferenceAndView = false;
       <CannworkAnalyseIcon />
     </button>
     <button
-      v-if="showReferenceAndView"
+      v-if="REFERENCE_AND_VIEW_ENABLED"
       type="button"
       class="pr-cannbot-actions__btn"
       :data-testid="`cannbot-${scope}-reference`"
@@ -80,7 +82,7 @@ const showReferenceAndView = false;
       <CannworkReferenceIcon />
     </button>
     <button
-      v-if="showReferenceAndView && isSettled"
+      v-if="REFERENCE_AND_VIEW_ENABLED && isSettled"
       type="button"
       class="pr-cannbot-actions__btn"
       :data-testid="`cannbot-${scope}-view`"

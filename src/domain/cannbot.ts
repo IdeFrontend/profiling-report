@@ -21,8 +21,8 @@ export interface CannbotSessionState {
 /**
  * Latest session per scope for the open report, pushed by the host. A missing
  * key means the scope never started a session (idle button state). Any status
- * other than `running` counts as settled — the "analyse | reference | view"
- * button row.
+ * other than `running` counts as settled. Action availability follows the
+ * current release's CANNWork API support.
  */
 export type CannbotSessions = Partial<Record<CannbotScope, Pick<CannbotSessionState, 'sessionId' | 'status'>>>;
 

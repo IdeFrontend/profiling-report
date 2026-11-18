@@ -1,10 +1,52 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { defineComponent, h, nextTick, ref } from 'vue';
 import CannbotActions from './CannbotActions.vue';
+import CannworkAnalyseIcon from '../CannworkAnalyseIcon.vue';
+import CannworkReferenceIcon from '../CannworkReferenceIcon.vue';
+import CannworkReportIcon from '../CannworkReportIcon.vue';
 import type { CannbotSessions } from '../../domain/cannbot';
 import { t } from '../../i18n';
 
 describe('CannbotActions', () => {
+  it('PR-STATS-048: repeated icons keep local gradient references after a sibling unmounts', async () => {
+    const showFirst = ref(true);
+    const icons = [CannworkAnalyseIcon, CannworkReferenceIcon, CannworkReportIcon];
+    const wrapper = mount(defineComponent({
+      setup: () => () => h('div', [
+        showFirst.value ? h('div', { key: 'first' }, icons.map((icon) => h(icon))) : null,
+        h('div', { key: 'second' }, icons.map((icon) => h(icon))),
+      ]),
+    }), { attachTo: document.body });
+
+    function checkGradients(count: number) {
+      const ids = wrapper.findAll('linearGradient').map((gradient) => gradient.attributes('id'));
+      expect(ids).toHaveLength(count);
+      expect(new Set(ids).size).toBe(count);
+      for (const svg of wrapper.findAll('svg')) {
+        const localGradients = svg.findAll('linearGradient').map((gradient) => gradient.element);
+        for (const shape of svg.findAll('[fill], [stroke]')) {
+          for (const attribute of ['fill', 'stroke']) {
+            const reference = shape.attributes(attribute)?.match(/^url\(#(.+)\)$/);
+            if (reference) {
+              expect(localGradients).toContain(document.getElementById(reference[1]!));
+            }
+          }
+        }
+      }
+      return ids;
+    }
+
+    try {
+      const initialIds = checkGradients(18);
+      showFirst.value = false;
+      await nextTick();
+      expect(checkGradients(9)).toEqual(initialIds.slice(9));
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   const settled: CannbotSessions = {
     summary: { sessionId: 's-1', status: 'completed' },
   };

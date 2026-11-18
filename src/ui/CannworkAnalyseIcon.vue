@@ -1,7 +1,12 @@
+<script setup lang="ts">
+import { useId } from 'vue';
+
+const gradientId = `cannwork-analyse-${useId()}`;
+</script>
+
 <template>
   <!-- Multi-colour "CANNWork analyse" mark (cannwork-analyse.svg): purple gradient
-       agent body, white sensor bars, sparkle. Gradient ids carry a component prefix:
-       several instances render on one page and bare ids would cross-reference. -->
+       agent body, white sensor bars, sparkle. Each instance owns its gradient ids. -->
   <svg
     viewBox="0 0 20 20"
     xmlns="http://www.w3.org/2000/svg"
@@ -10,7 +15,7 @@
   >
     <defs>
       <linearGradient
-        id="cannwork-analyse-body"
+        :id="`${gradientId}-body`"
         x1="4.1337"
         y1="6.2698"
         x2="7.1725"
@@ -24,7 +29,7 @@
         />
       </linearGradient>
       <linearGradient
-        id="cannwork-analyse-edge"
+        :id="`${gradientId}-edge`"
         x1="6.4713"
         y1="8.6075"
         x2="13.4838"
@@ -41,7 +46,7 @@
         />
       </linearGradient>
       <linearGradient
-        id="cannwork-analyse-spark"
+        :id="`${gradientId}-spark`"
         x1="15.6281"
         y1="-0.6368"
         x2="15.6281"
@@ -69,7 +74,7 @@
       width="11.5702"
       height="11.5702"
       rx="2.6446"
-      fill="url(#cannwork-analyse-body)"
+      :fill="`url(#${gradientId}-body)`"
     />
     <rect
       x="2.4876"
@@ -78,7 +83,7 @@
       height="11.2397"
       rx="2.4793"
       fill="none"
-      stroke="url(#cannwork-analyse-edge)"
+      :stroke="`url(#${gradientId}-edge)`"
       stroke-width="0.3306"
     />
     <rect
@@ -99,7 +104,7 @@
     />
     <path
       d="M15.097 0.731755C15.2811 0.257294 15.9551 0.264834 16.1285 0.743296L16.9367 2.97203C16.9908 3.12123 17.1066 3.23986 17.2545 3.29752L19.6602 4.23578C20.1309 4.41936 20.1269 5.08684 19.654 5.26475L17.2595 6.16568C17.1087 6.22243 16.9902 6.34236 16.9354 6.4939L16.1287 8.72356C15.9554 9.2025 15.2807 9.21004 15.0968 8.73509L14.2244 6.48243C14.1683 6.33765 14.0537 6.22324 13.9089 6.16737L11.5649 5.26315C11.0978 5.08295 11.0937 4.42344 11.5586 4.23753L13.9139 3.29572C14.0558 3.239 14.1677 3.12592 14.223 2.9835L15.097 0.731755Z"
-      fill="url(#cannwork-analyse-spark)"
+      :fill="`url(#${gradientId}-spark)`"
       fill-rule="evenodd"
     />
     <path
