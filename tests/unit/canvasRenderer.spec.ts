@@ -1413,8 +1413,10 @@ describe('PR-RENDER: lane chrome color', () => {
       /const drawTickChunks = \([\s\S]*?\n {8}\};/,
     )?.[0];
     expect(tickDraw).toBeTruthy();
-    expect(tickDraw).toMatch(/ONE_MINUS_SRC_ALPHA[\s\S]*uSrcOver[\s\S]*1/);
-    expect(tickDraw).toMatch(/blendFuncSeparate\(gl\.ONE, gl\.ONE, gl\.ONE, gl\.ONE\)[\s\S]*uSrcOver[\s\S]*0/);
+    // Argument `1` / `0`, not the `1` inside `uniform1f` on the restore line.
+    expect(tickDraw).toMatch(
+      /blendFuncSeparate\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA, gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)[\s\S]*uniform1f\(swim\.uSrcOver, 1\)[\s\S]*blendFuncSeparate\(gl\.ONE, gl\.ONE, gl\.ONE, gl\.ONE\)[\s\S]*uniform1f\(swim\.uSrcOver, 0\)/,
+    );
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
     expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
