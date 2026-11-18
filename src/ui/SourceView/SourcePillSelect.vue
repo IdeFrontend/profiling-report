@@ -111,18 +111,22 @@ function onKeydown(e: KeyboardEvent) {
   }
   if (e.key === 'ArrowDown') {
     activeIndex.value = (activeIndex.value + 1) % n;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'ArrowUp') {
     activeIndex.value = (activeIndex.value - 1 + n) % n;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'Home') {
     activeIndex.value = 0;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'End') {
     activeIndex.value = n - 1;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'Enter' || e.key === ' ') {
@@ -135,6 +139,15 @@ function onScrollOrResize() {
   if (open.value) placeMenu();
 }
 
+/** Keep the highlighted row visible when the menu is taller than max-height. */
+function scrollActiveIntoView() {
+  void nextTick(() => {
+    document.getElementById(`${buttonId}-opt-${activeIndex.value}`)?.scrollIntoView({
+      block: 'nearest',
+    });
+  });
+}
+
 watch(open, async (v) => {
   if (!v) return;
   syncActiveFromValue();
@@ -142,6 +155,7 @@ watch(open, async (v) => {
   placeMenu();
   await nextTick();
   clampMenuToViewport();
+  scrollActiveIntoView();
 });
 
 watch(
@@ -277,6 +291,9 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 400;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  /* ~8–9 options; heat multicore / Source file lists can be long. */
+  max-height: min(240px, calc(100vh - 16px));
+  overflow-y: auto;
 }
 
 .pr-source-select__option {

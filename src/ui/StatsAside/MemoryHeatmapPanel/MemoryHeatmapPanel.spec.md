@@ -46,7 +46,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 9. **PR-HEAT-009** — The strip is a complete `tablist`: exactly one tab has `tabindex="0"` (the selected one, the rest `-1`; with no selected unit the **first** tab carries it, so the strip is never unreachable by keyboard), `ArrowRight` / `ArrowLeft` move the selection to the next / previous unit and **wrap** at both ends, `Home` / `End` jump to the first / last unit, any other key is left to the platform, and the click handler is unchanged — the tab click and the arrow keys both emit **select-unit** and the panel never moves the selection itself. The five tabs share one `role="tabpanel"` body, `aria-labelledby` the selected tab. The labels fill the column to the pixel, so the tabs never shrink or wrap: each keeps its own width and the strip scrolls horizontally instead (invisible while they fit).
 10. **PR-HEAT-010** — With a drawable unit, the body's text content is exactly two lines in this order: the view title (`Core {coreId} · {ownerName} {memoryName}` when CoreTypes resolve — e.g. `Core 0 · AIV0 UB`; else the diagram's tab words such as `AIV × 2 UB`), `19px` `#e7e7e7`, centred, then the metric; the name is absent (with the grid) for a blank unit, and no unit name is rendered **above** the grid.
 11. **PR-HEAT-011** — The body is the size container (`container-type: size`); the grid picks `--pr-heat-cell: min(width-fit, height-fit)` with a footer budget for title + metric. Height-fit subtracts the same **8px** frame (padding+border) as width-fit so the `#6e798d` stroke is not clipped. The body has `overflow: hidden` (no scrollbar). Tabs, legend, the always-reserved view-bar band, and the `OutsideDeclared` badge stay outside the body so they cannot clip the lattice. The grid binds both `--pr-heat-cols` and `--pr-heat-rows`, and its frame is `5px`-rounded.
-12. **PR-HEAT-012** — When the active unit has more than one view (multi-core UB), a `SourcePillSelect` in the reserved view-bar band switches the lattice / name / capacity among those views; option labels include `Core {coreId} ·` (#198). Single-view tabs keep the empty band (same lattice height) and mount no select.
+12. **PR-HEAT-012** — When the active unit has more than one view (multi-core UB), a `SourcePillSelect` in the reserved view-bar band switches the lattice / name / capacity among those views; option labels include `Core {coreId} ·` (#198). The shared pill menu scrolls when many cores are listed. Single-view tabs keep the empty band (same lattice height) and mount no select.
 
 ## Visual
 
@@ -91,6 +91,7 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 
 ## Changelog
 
+- **2026-11-18** — Heat view `SourcePillSelect` menu scrolls when many cores are listed (`max-height` / `overflow-y: auto`).
 - **2026-11-18** — #199: legend copy is `Used` / `Free`, `已用` / `空闲` (same words as the capacity line; not allocation / 访存 “accessed”).
 - **2026-11-16** — #201: capacity caption uses a shared unit from Total and a space before the unit (`256 KB`), so Total/Used/Free never mix `B`/`KB`.
 - **2026-11-16** — #199: legend copy is traffic-oriented (`Accessed` / `Not accessed`, `有访存` / `无访存`), not allocation.
