@@ -427,10 +427,10 @@ function onCanvasHover(ev: SwimEvent | null, x: number, y: number): void {
 
 const counterTipStyle = computed(() => {
   const p = counterHover.value;
-  if (!p) return { position: 'fixed', left: '0px', top: '0px' };
+  if (!p) return { position: 'fixed' as const, left: '0px', top: '0px' };
   // Inline position/z-index so Teleport→body still paints if CSS is late/absent.
   return {
-    position: 'fixed',
+    position: 'fixed' as const,
     zIndex: 1000,
     left: `${p.clientX + 12}px`,
     top: `${p.clientY + 12}px`,

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type CSSProperties } from 'vue';
 import { t } from '../../../i18n';
 
 const props = withDefaults(
   defineProps<{
     utilization: number;
     usingKb?: number | null;
-    stylePos: { left: string; top: string; position?: string; zIndex?: number | string };
+    stylePos: CSSProperties;
     locale?: string;
   }>(),
   { usingKb: null, locale: undefined },
