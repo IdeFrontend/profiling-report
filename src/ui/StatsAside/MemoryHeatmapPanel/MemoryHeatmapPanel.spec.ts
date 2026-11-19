@@ -528,7 +528,15 @@ describe('MemoryHeatmapPanel', () => {
     const brush = wrapper.get('[data-testid="heat-legend-brush"]');
     expect(brush.attributes('style')).toMatch(/left:\s*45%/);
     expect(brush.attributes('style')).toMatch(/width:\s*10%/);
-    expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('45 – 55');
+    expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
+    expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('45 – 55');
+    // Mid brush: both end ticks fully visible.
+    expect(wrapper.get('[data-testid="heat-legend-tick-min"]').attributes('style')).toMatch(
+      /opacity:\s*1/,
+    );
+    expect(wrapper.get('[data-testid="heat-legend-tick-max"]').attributes('style')).toMatch(
+      /opacity:\s*1/,
+    );
 
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells[0]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 50
@@ -543,7 +551,14 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
       /left:\s*0%/,
     );
-    expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('0 – 10');
+    expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 10');
+    // Window on the left edge hides `0`; max stays visible.
+    expect(wrapper.get('[data-testid="heat-legend-tick-min"]').attributes('style')).toMatch(
+      /opacity:\s*0/,
+    );
+    expect(wrapper.get('[data-testid="heat-legend-tick-max"]').attributes('style')).toMatch(
+      /opacity:\s*1/,
+    );
 
     await gradient.trigger('pointerleave');
     expect(wrapper.find('[data-testid="heat-legend-brush"]').exists()).toBe(false);
