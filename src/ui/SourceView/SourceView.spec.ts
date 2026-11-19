@@ -270,7 +270,7 @@ describe('SourceView', () => {
     ed.setTheme.mockClear();
     // Mock asm line 99 is unmapped (no asmToSource entry).
     const unmapped =
-      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+      model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line ?? null;
     expect(unmapped).not.toBeNull();
     await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
     await flushPromises();
@@ -316,7 +316,7 @@ describe('SourceView', () => {
     await asmTable.find('tr[data-line="2"]').trigger('click');
     await flushPromises();
     const unmapped =
-      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+      model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line ?? null;
     expect(unmapped).not.toBeNull();
     await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
     await flushPromises();
@@ -652,10 +652,11 @@ describe('SourceView', () => {
 
   it('PR-SOURCE-014d: asm click before boot still clears the echo gate', async () => {
     const model = mockSourceCorrelation();
-    const line1Asm = model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line;
+    const line1Asm = model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line;
     expect(line1Asm).toBeDefined();
-    model.asmToSource[line1Asm!] = { fileId: 'sharpen.cpp', line: 1 };
-    model.sourceToAsm['sharpen.cpp:1'] = [line1Asm!];
+    model.asmToSource.set(line1Asm!, { fileId: 'sharpen.cpp', line: 1 });
+    model.files[0]!.sourceToAsm ??= new Map();
+    model.files[0]!.sourceToAsm.set(1, [line1Asm!]);
     const wrapper = mount(SourceView, { props: { model } });
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     await asmTable.find(`tr[data-line="${line1Asm}"]`).trigger('click');
@@ -804,7 +805,7 @@ describe('SourceView', () => {
     await sourceTable.find('tr[data-line="46"]').trigger('click');
     await flushPromises();
     const unmapped =
-      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+      model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line ?? null;
     expect(unmapped).not.toBeNull();
     await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
     await flushPromises();
@@ -1275,13 +1276,20 @@ describe('SourceView', () => {
         { line: 2, values: { instructionsExecuted: 4, samplingStall: 1, warpOccupancy: 0.2 } },
       ],
     };
-    const sourceToAsm = { ...base.sourceToAsm };
-    const moved = sourceToAsm['sharpen.cpp:128']!;
-    delete sourceToAsm['sharpen.cpp:128'];
-    sourceToAsm['other.cpp:2'] = moved;
-    const asmToSource = { ...base.asmToSource };
-    for (const line of moved) asmToSource[line] = { fileId: 'other.cpp', line: 2 };
-    const model = { ...base, files: [sharpen, other], sourceToAsm, asmToSource };
+    const sharpenMap = new Map(sharpen.sourceToAsm);
+    const moved = sharpenMap.get(128)!;
+    sharpenMap.delete(128);
+    const otherMap = new Map<number, number[]>([[2, moved]]);
+    const asmToSource = new Map(base.asmToSource);
+    for (const line of moved) asmToSource.set(line, { fileId: 'other.cpp', line: 2 });
+    const model = {
+      ...base,
+      files: [
+        { ...sharpen, sourceToAsm: sharpenMap },
+        { ...other, sourceToAsm: otherMap },
+      ],
+      asmToSource,
+    };
 
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     await flushPromises();

@@ -476,6 +476,11 @@ export interface SourceFileModel {
    * is sparse (emulate source pads `text` to this length for Sudu carets).
    */
   lineCount?: number;
+  /**
+   * Source line (1-based) → assembly line numbers. On source files only;
+   * omitted / empty on the assembly buffer.
+   */
+  sourceToAsm?: Map<number, number[]>;
 }
 
 /**
@@ -485,9 +490,8 @@ export interface SourceFileModel {
 export interface SourceCorrelationModel {
   files: SourceFileModel[];
   assembly: SourceFileModel;
-  /** `${fileId}:${line}` → assembly line numbers (1-based). */
-  sourceToAsm: Record<string, number[]>;
-  asmToSource: Record<number, { fileId: string; line: number }>;
+  /** Assembly line (1-based) → source file + line. */
+  asmToSource: Map<number, { fileId: string; line: number }>;
   navigateBy: string[];
   mock: boolean;
 }

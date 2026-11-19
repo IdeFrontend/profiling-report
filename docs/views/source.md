@@ -26,7 +26,7 @@ Dual-pane **Source | SASS** correlation: source text with per-line metrics besid
 | `reportModel.sourceCorrelation` | Dual-pane model | **Required to show** (`mock: false`) |
 | `files[]` | Source buffers (`id`, `path`, `text`, per-line metrics) | Optional — may be empty (assembly-only) or placeholder text |
 | `assembly` | SASS listing + metrics | **Required** |
-| `sourceToAsm` / `asmToSource` | Bidirectional maps | May be empty when unmapped |
+| `sourceToAsm` (per file) / `asmToSource` | Bidirectional maps (`Map`) | May be empty when unmapped |
 | `navigateBy` | Metric ids for Navigate By | From columns |
 | `mock` | Must be `false` on real packs | — |
 
@@ -43,7 +43,7 @@ No real Source pack adapted → omit `sourceCorrelation` and `'sourceTab'` ([DAT
 | `assembly.lines` | [`objdump.txt`](../formats/compute/objdump.txt.md) | PC address | Parse insn rows; address + text columns |
 | `assembly` / source stall metrics | [`summary.db`](../formats/compute/summary.db.md) ([`pc_sampling`](../formats/compute/summary.db.md#pc_sampling) or [`PcSampling`](../formats/compute/summary.db.md#PcSampling)) | PC ↔ [`objdump.txt`](../formats/compute/objdump.txt.md) PC | Sampling Stall = sum of stall counters; optional instr / occupancy columns |
 | `files[].path` / `id` | [`symbolizer.json`](../formats/compute/symbolizer.json.md) | `Symbol.FileName` basename | One file per distinct basename; `id` = basename |
-| `sourceToAsm` / `asmToSource` | [`symbolizer.json`](../formats/compute/symbolizer.json.md) + [`objdump.txt`](../formats/compute/objdump.txt.md) | PC + `Line > 0` | Unmapped when `Line <= 0` ([DATA-54](../context/questions/DATA.md)) |
+| `sourceToAsm` (per file) / `asmToSource` | [`symbolizer.json`](../formats/compute/symbolizer.json.md) + [`objdump.txt`](../formats/compute/objdump.txt.md) | PC + `Line > 0` | Unmapped when `Line <= 0` ([DATA-54](../context/questions/DATA.md)) |
 | `files[].text` | [`.asc` / `.cpp` / `.h`](../formats/compute/symbolizer.json.md#source-text) pack embed | basename match to `FileName` | Else missing-embed placeholder; host may `resolveSourceFile` |
 
 **Switch:** `adaptSourceCorrelation` → `adaptComputeSourceCorrelation` when `hasComputeSourcePack`. Called from `adaptPayloads` and `adaptEmulate`.
@@ -78,7 +78,7 @@ SourceLineMetrics ──(FileId, LineNum)──► source file metric rows
 | `files[]` | [`SourceFiles.csv`](../formats/emulate/SourceFiles.csv.md) | `SourceFileId` | One file per id; `id` = string id; `path` = `SourceFilePath`. Absent → `files: []` (assembly-only) |
 | `files[].text` | [`DebugInfo.csv`](../formats/emulate/DebugInfo.csv.md) + [`SourceLines.csv`](../formats/emulate/SourceLines.csv.md) | `DebugInfoId` / `SourceLineId` | Sparse reconstruct at `DebugInfoLineNum`; gaps empty. Null `SourceLineId` or missing text → missing-embed placeholder (same prefix as compute). Not a full editor document; no host auto-read of absolute producer paths |
 | `files[].lines` metrics | [`SourceLineMetrics.csv`](../formats/emulate/SourceLineMetrics.csv.md) | `(FileId, LineNum)` | Same MVP column ids as asm |
-| `sourceToAsm` / `asmToSource` | SourceInstructions ⟕ DebugInfo ⟕ SourceFiles | `LineNum > 0` + file present | 1:N source→asm; first valid map wins for asm→source. Unmapped clears selection (never invent line 1) |
+| `sourceToAsm` (per file) / `asmToSource` | SourceInstructions ⟕ DebugInfo ⟕ SourceFiles | `LineNum > 0` + file present | 1:N source→asm; first valid map wins for asm→source. Unmapped clears selection (never invent line 1) |
 | `navigateBy` | — | — | `executionCount`, `tickCount`, `relTime`, `warpOccupancy`, `vectorUtilization` |
 | `mock` | — | — | Always `false` when gate passes |
 

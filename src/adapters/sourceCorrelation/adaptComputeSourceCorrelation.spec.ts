@@ -76,13 +76,14 @@ describe('adaptComputeSourceCorrelation', () => {
   it('PR-SRC-006: symbolizer Line>0 fills maps; Line 0 stays unmapped', () => {
     const model = adaptSourceCorrelation(loadGatherPayloads())!;
     // Updated gather_2d sample: 12 sites with Line in {27,36–39}; 4 remain Line:0.
-    expect(Object.keys(model.sourceToAsm).length).toBeGreaterThan(0);
-    expect(model.sourceToAsm['gather_2d.asc:39']?.length).toBeGreaterThan(0);
+    const gatherMaps = model.files.find((f) => f.id === 'gather_2d.asc')?.sourceToAsm;
+    expect(gatherMaps?.size).toBeGreaterThan(0);
+    expect(gatherMaps?.get(39)?.length).toBeGreaterThan(0);
     const hotAsm = model.assembly.lines.findIndex((l) =>
       l.values.address?.toString().endsWith('00000268'),
     );
     expect(hotAsm).toBeGreaterThanOrEqual(0);
-    expect(model.asmToSource[hotAsm + 1]).toEqual({ fileId: 'gather_2d.asc', line: 39 });
+    expect(model.asmToSource.get(hotAsm + 1)).toEqual({ fileId: 'gather_2d.asc', line: 39 });
   });
 
   it('PR-SRC-009: each symbolizer basename is its own source file', () => {
@@ -106,11 +107,11 @@ describe('adaptComputeSourceCorrelation', () => {
     expect(model).not.toBeNull();
     expect(model!.files.map((f) => f.id)).toEqual(['a.cpp', 'b.cpp']);
     expect(model!.files[0]!.text).toContain('line2');
-    expect(model!.sourceToAsm['a.cpp:2']).toEqual([1]);
-    expect(model!.sourceToAsm['b.cpp:3']).toEqual([2]);
-    expect(model!.sourceToAsm['a.cpp:0']).toBeUndefined();
-    expect(model!.asmToSource[1]).toEqual({ fileId: 'a.cpp', line: 2 });
-    expect(model!.asmToSource[3]).toBeUndefined();
+    expect(model!.files[0]!.sourceToAsm?.get(2)).toEqual([1]);
+    expect(model!.files[1]!.sourceToAsm?.get(3)).toEqual([2]);
+    expect(model!.files[0]!.sourceToAsm?.get(0)).toBeUndefined();
+    expect(model!.asmToSource.get(1)).toEqual({ fileId: 'a.cpp', line: 2 });
+    expect(model!.asmToSource.get(3)).toBeUndefined();
   });
 
   it('rolls stall and instructions up by sum and averages warp occupancy, including 0', async () => {
@@ -144,7 +145,7 @@ describe('adaptComputeSourceCorrelation', () => {
     // Line <= 0 stays unmapped: its counters stay on the asm row and off the source file.
     expect(model!.files[0]!.lines[0]!.values.samplingStall).toBe(0);
     expect(model!.files[0]!.lines[0]!.values.instructionsExecuted).toBe(0);
-    expect(model!.asmToSource[3]).toBeUndefined();
+    expect(model!.asmToSource.get(3)).toBeUndefined();
     expect(model!.assembly.lines[2]!.values.samplingStall).toBe(99);
     expect(model!.assembly.lines[2]!.values.warpOccupancy).toBe(0.5);
     expect(model!.assembly.lines[0]!.values.warpOccupancy).toBe(0);
@@ -183,9 +184,8 @@ describe('adaptComputeSourceCorrelation', () => {
     expect(adapted.capabilities).toContain('sourceTab');
     expect(adapted.reportModel.sourceCorrelation?.mock).toBe(false);
     expect(adapted.reportModel.sourceCorrelation?.files[0]?.text).toContain('gather_2d_custom');
-    expect(Object.keys(adapted.reportModel.sourceCorrelation?.sourceToAsm ?? {}).length).toBeGreaterThan(
-      0,
-    );
+    const maps = adapted.reportModel.sourceCorrelation?.files[0]?.sourceToAsm;
+    expect(maps?.size).toBeGreaterThan(0);
   });
 
   it('PR-SRC-010: missing .asc embed keeps placeholder and mapped-line stall metrics', () => {

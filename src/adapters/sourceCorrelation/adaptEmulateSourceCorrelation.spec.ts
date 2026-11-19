@@ -91,10 +91,10 @@ describe('adaptEmulateSourceCorrelation', () => {
     expect(model!.files[0]!.path).toBe('/sdk/kernel.asc');
     expect(model!.files[0]!.text).toContain('void kernel() {');
     expect(model!.files[0]!.text).toContain('mul();');
-    expect(model!.sourceToAsm['7:3']).toEqual([1]);
-    expect(model!.sourceToAsm['7:5']).toEqual([2]);
-    expect(model!.asmToSource[1]).toEqual({ fileId: '7', line: 3 });
-    expect(model!.asmToSource[3]).toBeUndefined(); // unmapped NOP
+    expect(model!.files[0]!.sourceToAsm?.get(3)).toEqual([1]);
+    expect(model!.files[0]!.sourceToAsm?.get(5)).toEqual([2]);
+    expect(model!.asmToSource.get(1)).toEqual({ fileId: '7', line: 3 });
+    expect(model!.asmToSource.get(3)).toBeUndefined(); // unmapped NOP
     expect(model!.navigateBy).toEqual([
       'executionCount',
       'tickCount',
@@ -120,7 +120,7 @@ describe('adaptEmulateSourceCorrelation', () => {
     expect(model.assembly.lines).toHaveLength(1);
     expect(model.assembly.lines[0]!.values.assembly).toBe('MOV x0, x1');
     expect(model.assembly.lines[0]!.values.address).toBe('00000000 00000010');
-    expect(Object.keys(model.sourceToAsm)).toHaveLength(0);
+    expect(model.asmToSource.size).toBe(0);
   });
 
   it('PR-SRC-014: missing SourceLines uses missing-embed placeholder; keeps metrics', () => {
@@ -146,7 +146,7 @@ describe('adaptEmulateSourceCorrelation', () => {
     expect(model.files[0]!.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
     expect(model.files[0]!.lineCount).toBe(2);
     expect(model.files[0]!.lines.find((l) => l.line === 2)?.values.executionCount).toBe(3);
-    expect(model.sourceToAsm['7:2']).toEqual([1]);
+    expect(model.files[0]!.sourceToAsm?.get(2)).toEqual([1]);
   });
 
   it('PR-SRC-015: IPCAsmMetrics / hints alone do not light the gate', () => {

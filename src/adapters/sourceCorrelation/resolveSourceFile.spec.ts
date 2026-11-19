@@ -41,8 +41,7 @@ function modelWith(files: SourceFileModel[]): SourceCorrelationModel {
       metricsColumns: [],
       lines: [],
     },
-    sourceToAsm: {},
-    asmToSource: {},
+    asmToSource: new Map(),
     navigateBy: ['samplingStall'],
     mock: false,
   };
@@ -61,9 +60,13 @@ describe('resolveSourceFile helpers', () => {
 
   it('applyResolvedSourceText replaces text and preserves stall metrics', () => {
     const text = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n');
-    const next = applyResolvedSourceText(placeholderFile(), text);
+    const next = applyResolvedSourceText(
+      placeholderFile({ lineCount: 1728 }),
+      text,
+    );
     expect(next.text).toBe(text);
     expect(next.lines).toHaveLength(40);
+    expect(next.lineCount).toBeUndefined();
     expect(next.lines[38]!.values.samplingStall).toBe(12);
     expect(next.lines[38]!.stallBreakdown?.[0]?.metric).toBe('IBuf empty');
     expect(next.lines[0]!.values.samplingStall).toBe(0);

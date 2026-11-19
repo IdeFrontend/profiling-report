@@ -275,8 +275,8 @@ export function adaptEmulateSourceCorrelation(
     }
   }
 
-  const sourceToAsm: Record<string, number[]> = {};
-  const asmToSource: Record<number, { fileId: string; line: number }> = {};
+  const sourceToAsmByFile = new Map<string, Map<number, number[]>>();
+  const asmToSource = new Map<number, { fileId: string; line: number }>();
 
   const asmLines: SourceLineMetrics[] = insns.map((insn, i) => {
     const asmLine = i + 1;
@@ -307,10 +307,16 @@ export function adaptEmulateSourceCorrelation(
     }
 
     if (mapped) {
-      const key = `${mapped.fileId}:${mapped.lineNum}`;
-      (sourceToAsm[key] ??= []).push(asmLine);
-      if (!asmToSource[asmLine]) {
-        asmToSource[asmLine] = { fileId: mapped.fileId, line: mapped.lineNum };
+      let byLine = sourceToAsmByFile.get(mapped.fileId);
+      if (!byLine) {
+        byLine = new Map();
+        sourceToAsmByFile.set(mapped.fileId, byLine);
+      }
+      const list = byLine.get(mapped.lineNum);
+      if (list) list.push(asmLine);
+      else byLine.set(mapped.lineNum, [asmLine]);
+      if (!asmToSource.has(asmLine)) {
+        asmToSource.set(asmLine, { fileId: mapped.fileId, line: mapped.lineNum });
       }
     }
 
@@ -345,12 +351,17 @@ export function adaptEmulateSourceCorrelation(
     }
   }
 
-  const sourceMetricsByFileLine = new Map<string, MetricVals>();
+  const sourceMetricsByFile = new Map<string, Map<number, MetricVals>>();
   for (const row of sourceMetricRows) {
     const fileId = cell(row, 'FileId', 'SourceFileId');
     const lineNum = Number(cell(row, 'LineNum'));
     if (!fileId || !Number.isFinite(lineNum) || lineNum <= 0) continue;
-    sourceMetricsByFileLine.set(`${fileId}:${lineNum}`, metricsFromRow(row));
+    let byLine = sourceMetricsByFile.get(fileId);
+    if (!byLine) {
+      byLine = new Map();
+      sourceMetricsByFile.set(fileId, byLine);
+    }
+    byLine.set(lineNum, metricsFromRow(row));
   }
 
   // Sparse metrics + padded text: Sudu needs correct 1-based line numbers, but
@@ -358,23 +369,19 @@ export function adaptEmulateSourceCorrelation(
   const files: SourceFileModel[] = [];
   for (const [fileId, meta] of filesById) {
     const texts = textByFileLine.get(fileId) ?? new Map();
+    const fileSourceToAsm = sourceToAsmByFile.get(fileId) ?? new Map<number, number[]>();
+    const fileMetrics = sourceMetricsByFile.get(fileId) ?? new Map<number, MetricVals>();
     const interesting = new Set<number>();
     let maxLine = 0;
     for (const line of texts.keys()) {
       interesting.add(line);
       maxLine = Math.max(maxLine, line);
     }
-    for (const key of Object.keys(sourceToAsm)) {
-      if (!key.startsWith(`${fileId}:`)) continue;
-      const line = Number(key.slice(fileId.length + 1));
-      if (!Number.isFinite(line) || line <= 0) continue;
+    for (const line of fileSourceToAsm.keys()) {
       interesting.add(line);
       maxLine = Math.max(maxLine, line);
     }
-    for (const key of sourceMetricsByFileLine.keys()) {
-      if (!key.startsWith(`${fileId}:`)) continue;
-      const line = Number(key.slice(fileId.length + 1));
-      if (!Number.isFinite(line) || line <= 0) continue;
+    for (const line of fileMetrics.keys()) {
       interesting.add(line);
       maxLine = Math.max(maxLine, line);
     }
@@ -397,7 +404,7 @@ export function adaptEmulateSourceCorrelation(
     const lines: SourceLineMetrics[] = [...interesting]
       .sort((a, b) => a - b)
       .map((line) => {
-        const m = sourceMetricsByFileLine.get(`${fileId}:${line}`) ?? emptyMetrics();
+        const m = fileMetrics.get(line) ?? emptyMetrics();
         return { line, values: metricValues(m) };
       });
 
@@ -409,6 +416,7 @@ export function adaptEmulateSourceCorrelation(
       metricsColumns: SOURCE_COLUMNS,
       lines,
       lineCount: maxLine,
+      sourceToAsm: fileSourceToAsm,
     });
   }
 
@@ -437,7 +445,6 @@ export function adaptEmulateSourceCorrelation(
   return {
     files,
     assembly,
-    sourceToAsm,
     asmToSource,
     navigateBy: [...NAVIGATE_BY],
     mock: false,

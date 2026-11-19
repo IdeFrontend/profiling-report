@@ -72,7 +72,9 @@ export function applyResolvedSourceText(
       },
     };
   });
-  return { ...file, text, lines };
+  // Dense `lines` define the extent — drop sparse emulate `lineCount` so the
+  // metrics table does not keep the placeholder max line after host resolve.
+  return { ...file, text, lines, lineCount: undefined };
 }
 
 /**

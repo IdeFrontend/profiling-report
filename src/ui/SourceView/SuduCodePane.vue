@@ -135,6 +135,12 @@ let paintedSearchRanges: SearchRange[] = [];
 let editor: EditorView | null = null;
 let model: TextModel | null = null;
 let pool: SuduWorkerPool | null = null;
+/**
+ * Suppresses the *synchronous* editor→table→editor hop inside `setVScrollPos`
+ * (listener sees the same device pos we just wrote). Cleared before the
+ * browser's async `scroll` event, so it cannot absorb that echo — see
+ * `mirroredScrollTop` for the opposite direction.
+ */
 let pendingEcho = -1;
 let disposed = false;
 /** Selection requested before Sudu finished booting — applied in boot(). */
@@ -154,11 +160,12 @@ let ignoreCaret = false;
 /** Set when the caret listener actually emitted (boot must not emit again). */
 let caretEchoed = false;
 /**
- * Last metrics `scrollTop` we wrote from the editor→table mirror.
- * Compared in onTableScroll so our own write's async scroll event does not
- * re-enter `setVScrollPos` (pendingEcho is cleared before that event fires).
+ * Last metrics `scrollTop` we wrote from the editor→table mirror (table←editor).
+ * Compared in onTableScroll so our own write's *async* scroll event does not
+ * re-enter `setVScrollPos`. `null` = no mirror write yet (do not treat as 0).
+ * Opposite direction of `pendingEcho` — deleting either brings the loop back.
  */
-let mirroredScrollTop = Number.NaN;
+let mirroredScrollTop: number | null = null;
 /** True after `clearLine` hides the current-line band; cleared on first restore. */
 let themeOverridden = false;
 
@@ -422,7 +429,9 @@ function onTableScroll() {
   const scroll = tableScrollEl.value;
   if (!scroll) return;
   // Our own editor→table mirror write came back as a scroll event — do not re-enter Sudu.
-  if (Math.abs(scroll.scrollTop - mirroredScrollTop) < 1) return;
+  if (mirroredScrollTop != null && Math.abs(scroll.scrollTop - mirroredScrollTop) < 1) {
+    return;
+  }
   const devicePos = deviceScrollFromCss(scroll.scrollTop, geom.value.dpr);
   pendingEcho = devicePos;
   editor.setVScrollPos(devicePos);
@@ -634,12 +643,21 @@ function setLineOrQueue(line: number): 'queued' | 'unchanged' | 'moved' {
   return setLine(line);
 }
 
+/** Sync: metrics table also resets scrollTop on file.id — treat that as our write. */
+watch(
+  () => props.file.id,
+  () => {
+    mirroredScrollTop = 0;
+  },
+);
+
 watch(
   () => props.file,
   async (file) => {
     if (!editor || !pool || !model) return;
     // Before the await, so a currentLine watch cannot move the old document.
     ignoreCaret = true;
+    mirroredScrollTop = 0;
     const api = await loadSuduApi();
     if (disposed || !editor || !pool || !model) {
       ignoreCaret = false;
