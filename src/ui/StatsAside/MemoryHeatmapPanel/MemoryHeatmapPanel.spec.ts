@@ -390,9 +390,32 @@ describe('MemoryHeatmapPanel', () => {
     );
     // EventTooltip chrome on the teleported tip.
     expect((tip as HTMLElement).classList.contains('pr-tooltip')).toBe(true);
+    // Leaving a cell into the seam must not thrash — sticky until grid leave / other cell.
     await cell.trigger('pointerleave');
+    expect(cell.classes()).toContain('pr-heat__cell--hover');
+    expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).not.toBeNull();
+    await wrapper.get('[data-testid="heat-grid"]').trigger('pointerleave');
     expect(cell.classes()).not.toContain('pr-heat__cell--hover');
     expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-HEAT-013: tip sticks across cell seams; switches only on another cell', async () => {
+    const wrapper = mountPanel({ selectedUnit: 'ub', locale: 'en' }, { attachTo: document.body });
+    const cells = wrapper.findAll('.pr-heat__cell');
+    await cells[0]!.trigger('pointerenter', { clientX: 10, clientY: 10 });
+    expect(cells[0]!.classes()).toContain('pr-heat__cell--hover');
+    expect(
+      document.querySelector('[data-testid="heat-cell-tip-accesses-value"]')!.textContent,
+    ).toBe('300,090');
+    await cells[0]!.trigger('pointerleave');
+    expect(cells[0]!.classes()).toContain('pr-heat__cell--hover');
+    await cells[1]!.trigger('pointerenter', { clientX: 20, clientY: 10 });
+    expect(cells[0]!.classes()).not.toContain('pr-heat__cell--hover');
+    expect(cells[1]!.classes()).toContain('pr-heat__cell--hover');
+    expect(
+      document.querySelector('[data-testid="heat-cell-tip-accesses-value"]')!.textContent,
+    ).toBe('32');
     wrapper.unmount();
   });
 
