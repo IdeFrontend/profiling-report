@@ -48,8 +48,8 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_LABEL_COLOR,
-  TICK_DENSITY_BAND_SCALE,
-  partitionTickLodByRuns,
+  assignTickDensityDims,
+  binTicksByCssColumn,
   type CollapseAnimState,
   type CollapseTransform,
   type LaidOutEvent,
@@ -776,9 +776,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         this.layout.maxLeafDuration,
       );
 
-      // Per sub-row: mixed per-cluster density LOD + discrete full-height ticks (PR-RENDER-066).
+      // Per sub-row: full-height CSS-column density marks for duration-0 ticks (PR-RENDER-066).
       // Search keeps all ticks discrete so name emphasis stays meaningful.
-      const discreteTickTimes = new Set<number>();
       const densityRowIds = new Set<number>();
       if (!hasSearch) {
         const ticksByRow = new Map<number, number[]>();
@@ -790,14 +789,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
           ticksByRow.set(item.rowIndex, list);
         }
         for (const [rowIndex, times] of ticksByRow) {
-          const { densityMarks, discreteTimes } = partitionTickLodByRuns(
-            times,
-            this.view.startTime,
-            this.view.endTime,
-            widthCss,
+          const marks = assignTickDensityDims(
+            binTicksByCssColumn(times, this.view.startTime, this.view.endTime, widthCss),
           );
-          for (const t of discreteTimes) discreteTickTimes.add(t);
-          if (densityMarks.length === 0) continue;
+          if (marks.length === 0) continue;
           densityRowIds.add(rowIndex);
           const sample = laneEvts.find((e) => !e.summary && e.rowIndex === rowIndex)!;
           const metrics = eventBlockMetrics(
@@ -807,14 +802,12 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
           const bandY = metrics.y * dpr;
           const bandH = metrics.h * dpr;
           if (bandY + bandH < 0 || bandY > this.height) continue;
-          const densH = bandH * TICK_DENSITY_BAND_SCALE;
-          const densY = bandY + (bandH - densH) * 0.5;
           const laneA = collapseAlpha(sample.y, this.collapse);
           const fill = eventFill(sample.color, 'normal');
-          for (const m of densityMarks) {
+          for (const m of marks) {
             const x = ((m.t0 - this.view.startTime) / span) * this.width;
             const w = Math.max(1, ((m.t1 - m.t0) / span) * this.width);
-            const fr = eventPaintRect(x, densY, w, densH, dpr);
+            const fr = eventPaintRect(x, bandY, w, bandH, dpr);
             ctx.globalAlpha = m.dim * laneA;
             ctx.fillStyle = fill;
             roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
@@ -830,15 +823,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
           continue;
         }
-        // Density clusters already painted; only resolved discrete duration-0 ticks draw full-height.
-        if (
-          !item.summary &&
-          ev.duration === 0 &&
-          densityRowIds.has(item.rowIndex) &&
-          !discreteTickTimes.has(ev.startTime)
-        ) {
-          continue;
-        }
+        // Density marks already painted this row's duration-0 ticks.
+        if (!item.summary && ev.duration === 0 && densityRowIds.has(item.rowIndex)) continue;
 
         const x = ((ev.startTime - this.view.startTime) / span) * this.width;
         const w = Math.max(2, (ev.duration / span) * this.width);

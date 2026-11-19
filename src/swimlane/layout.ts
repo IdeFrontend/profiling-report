@@ -1,7 +1,7 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { buildFolderSummaryEvents, isFolderNode, walkVisibleRows } from '../domain/swimTree';
-import { extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -1674,7 +1674,7 @@ export function measureRangeExactEdgeMarks(
   );
 }
 
-/** Floor dim for a single-tick CSS column in density LOD (PR-RENDER-066). */
+/** Floor dim for multi-hit CSS columns in tick density paint (PR-RENDER-066). */
 export const TICK_DENSITY_MIN_DIM = 0.35;
 /** Count at which `tickDensityDim` saturates to 1. */
 export const TICK_DENSITY_CAP = 16;
@@ -1682,21 +1682,15 @@ export const TICK_DENSITY_CAP = 16;
 export const TICK_COUNT_SIM_SIGMA = 0.35;
 /** Odd-in-run multiplier when adjacent counts are identical (`sim = 1`). */
 export const TICK_ALTERNATE_FACTOR = 0.6;
-/** Density marks use this fraction of the sub-row band height. */
-export const TICK_DENSITY_BAND_SCALE = 0.6;
 
 /**
- * True when packing `tickCount` ticks at min CSS width would overdraw `widthCss`.
- * Used per contiguous column run (not lane-wide) for mixed density/discrete paint (PR-RENDER-066).
+ * Continuous count → source-over dim for a density column.
+ * Single-tick columns stay full bright (`1`); multi-hit columns use log into `[minDim, 1]`.
  */
-export function shouldUseTickDensityLod(tickCount: number, widthCss: number): boolean {
-  return tickCount > 0 && tickCount * extendTargetSizeCss > Math.max(1, widthCss);
-}
-
-/** Continuous count → source-over dim for a density column (count 1 → minDim, cap → 1). */
 export function tickDensityDim(count: number): number {
   const c = Math.max(0, count);
   if (c <= 0) return 0;
+  if (c <= 1) return 1;
   const t = Math.log(c) / Math.log(TICK_DENSITY_CAP);
   return TICK_DENSITY_MIN_DIM + (1 - TICK_DENSITY_MIN_DIM) * Math.min(1, Math.max(0, t));
 }
@@ -1753,7 +1747,8 @@ export interface TickDensityMark extends TickDensityBin {
 
 /**
  * Assign paint dims: `tickDensityDim(count)`, then similarity-weighted alternate on odd steps
- * of each contiguous occupied run (PR-RENDER-066).
+ * of contiguous runs that include a multi-hit column (PR-RENDER-066). Adjacent single-tick
+ * columns stay full bright so resolved ticks are not striped.
  */
 export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
   const out: TickDensityMark[] = [];
@@ -1765,7 +1760,7 @@ export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDens
     let dim = base;
     if (bin.col === prevCol + 1) {
       runStep += 1;
-      if (runStep % 2 === 1) {
+      if (runStep % 2 === 1 && (bin.count >= 2 || prevCount >= 2)) {
         const sim = tickCountSimilarity(bin.count, prevCount);
         dim = base * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim);
       }
@@ -1777,68 +1772,6 @@ export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDens
     prevCount = bin.count;
   }
   return out;
-}
-
-export interface TickLodPartition {
-  /** Semi-height density marks for overdrawn contiguous column runs. */
-  densityMarks: TickDensityMark[];
-  /** Timestamps that paint as full-height discrete ticks (resolved / sparse runs). */
-  discreteTimes: number[];
-}
-
-/**
- * Split visible ticks into per-cluster density marks vs discrete times (PR-RENDER-066).
- * A group is a contiguous run of occupied CSS columns; each run overdraws independently
- * (`runTicks * minTickCss > runWidthCss`) so one lane can mix semi-height LOD and full-height ticks.
- */
-export function partitionTickLodByRuns(
-  times: readonly number[],
-  viewStart: number,
-  viewEnd: number,
-  widthCss: number,
-): TickLodPartition {
-  const W = Math.max(1, Math.floor(widthCss));
-  const span = Math.max(Number.EPSILON, viewEnd - viewStart);
-  const bins = binTicksByCssColumn(times, viewStart, viewEnd, widthCss);
-  if (bins.length === 0) return { densityMarks: [], discreteTimes: [] };
-
-  const densityBins: TickDensityBin[] = [];
-  const discreteCols = new Set<number>();
-
-  let runStart = 0;
-  const flushRun = (endExclusive: number): void => {
-    const run = bins.slice(runStart, endExclusive);
-    if (run.length === 0) return;
-    let runTicks = 0;
-    for (const b of run) runTicks += b.count;
-    const runWidthCss = run[run.length - 1]!.col - run[0]!.col + 1;
-    if (shouldUseTickDensityLod(runTicks, runWidthCss)) {
-      for (const b of run) densityBins.push(b);
-    } else {
-      for (const b of run) discreteCols.add(b.col);
-    }
-  };
-
-  for (let i = 1; i < bins.length; i++) {
-    if (bins[i]!.col !== bins[i - 1]!.col + 1) {
-      flushRun(i);
-      runStart = i;
-    }
-  }
-  flushRun(bins.length);
-
-  const densityMarks = assignTickDensityDims(densityBins);
-  const discreteTimes: number[] = [];
-  if (discreteCols.size > 0) {
-    for (const t of times) {
-      if (!(t >= viewStart) || !(t < viewEnd)) continue;
-      let col = Math.floor(((t - viewStart) / span) * W);
-      if (col < 0) col = 0;
-      else if (col >= W) col = W - 1;
-      if (discreteCols.has(col)) discreteTimes.push(t);
-    }
-  }
-  return { densityMarks, discreteTimes };
 }
 
 /** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */

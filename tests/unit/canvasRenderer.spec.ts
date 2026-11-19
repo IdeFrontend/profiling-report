@@ -34,8 +34,6 @@ import {
   TICK_DENSITY_MIN_DIM,
   assignTickDensityDims,
   binTicksByCssColumn,
-  partitionTickLodByRuns,
-  shouldUseTickDensityLod,
   tickCountSimilarity,
   tickDensityDim,
 } from '../../src/swimlane/layout';
@@ -1470,11 +1468,10 @@ describe('PR-RENDER: lane chrome color', () => {
   });
 
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
-    expect(shouldUseTickDensityLod(10, 20)).toBe(false);
-    expect(shouldUseTickDensityLod(21, 20)).toBe(true);
-    expect(shouldUseTickDensityLod(5, 800)).toBe(false);
-
-    expect(tickDensityDim(1)).toBeCloseTo(TICK_DENSITY_MIN_DIM, 5);
+    // Singles stay full bright; multi-hit columns use the log curve into [minDim, 1].
+    expect(tickDensityDim(1)).toBe(1);
+    expect(tickDensityDim(2)).toBeGreaterThanOrEqual(TICK_DENSITY_MIN_DIM);
+    expect(tickDensityDim(2)).toBeLessThan(1);
     expect(tickDensityDim(16)).toBeCloseTo(1, 5);
     expect(tickDensityDim(8)).toBeGreaterThan(tickDensityDim(4));
     expect(tickDensityDim(32)).toBe(1);
@@ -1527,31 +1524,39 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(gapped[0]!.dim).toBeCloseTo(base9, 5);
     expect(gapped[1]!.dim).toBeCloseTo(base9, 5);
 
-    // Mixed per-group LOD: dense left cluster + sparse right singles in one window.
-    // W=5: dense times land in cols 0–1 (8 ticks > 2 px → density); 0.7/0.9 → cols 3/4 discrete.
+    // Adjacent singles stay full bright (no alternate striping).
+    const singles = assignTickDensityDims([
+      { col: 0, count: 1, t0: 0, t1: 1 },
+      { col: 1, count: 1, t0: 1, t1: 2 },
+      { col: 2, count: 1, t0: 2, t1: 3 },
+    ]);
+    expect(singles.map((m) => m.dim)).toEqual([1, 1, 1]);
+
+    // Unified path: dense + sparse bins all become full-height marks (no discrete partition).
     const denseLeft = Array.from({ length: 8 }, (_, i) => i * 0.05);
     const sparseRight = [0.7, 0.9];
-    const mixed = partitionTickLodByRuns([...denseLeft, ...sparseRight], 0, 1, 5);
-    expect(mixed.densityMarks.length).toBeGreaterThan(0);
-    expect(mixed.discreteTimes).toEqual(sparseRight);
-    // Zoom in the same window (W=20): dense run spans 8 cols with 8 ticks → discrete; sparse stay discrete.
-    const resolved = partitionTickLodByRuns([...denseLeft, ...sparseRight], 0, 1, 20);
-    expect(resolved.densityMarks).toHaveLength(0);
-    expect(resolved.discreteTimes).toHaveLength(denseLeft.length + sparseRight.length);
+    const marks = assignTickDensityDims(
+      binTicksByCssColumn([...denseLeft, ...sparseRight], 0, 1, 5),
+    );
+    expect(marks.length).toBeGreaterThan(0);
+    expect(marks.some((m) => m.count >= 2)).toBe(true);
+    expect(marks.filter((m) => m.count === 1).every((m) => m.dim === 1)).toBe(true);
 
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(webglSrc).toMatch(/rebuildTickLodMeshes/);
     expect(webglSrc).toMatch(/createDensityChunksFromMarks/);
-    expect(webglSrc).toMatch(/partitionTickLodByRuns/);
-    expect(webglSrc).toMatch(/tickDensityChunks/);
-    expect(webglSrc).toMatch(/TICK_DENSITY_BAND_SCALE/);
+    expect(webglSrc).toMatch(/assignTickDensityDims/);
     expect(webglSrc).toMatch(/aDim/);
+    expect(webglSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
+    expect(webglSrc).not.toMatch(/tickDensityChunks/);
+    expect(webglSrc).not.toMatch(/partitionTickLodByRuns/);
 
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(canvasSrc).toMatch(/partitionTickLodByRuns/);
-    expect(canvasSrc).toMatch(/densityMarks/);
+    expect(canvasSrc).toMatch(/assignTickDensityDims/);
+    expect(canvasSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
+    expect(canvasSrc).not.toMatch(/partitionTickLodByRuns/);
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
     expect(shaderSrc).toMatch(/in float aDim/);
