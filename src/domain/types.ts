@@ -361,8 +361,8 @@ export interface MemoryHeatmapBlock {
    */
   intensity: number;
   /**
-   * Per-cell access count (`ReadAddresses + WriteAddresses`) for the BiProf cell tip
-   * (`已用指令条数` / Instructions used). `0` when the cell has no Cells row / no traffic.
+   * Per-cell access count (`ReadAddresses + WriteAddresses`) for the SA cell tip
+   * (Accesses Count / 访问次数). `0` when the cell has no Cells row / no traffic (#194).
    */
   accessCount: number;
 }
@@ -380,6 +380,13 @@ export interface MemoryHeatmapView {
   memoryName: string;
   columns: number;
   rows: number;
+  /** Layout `CellSize` (bytes per lattice cell) — tip + capacity Used ([DATA-50]). */
+  cellSize: number;
+  /**
+   * Layout `BaseAddress` (bytes). Cell start = `baseAddress + index * cellSize`
+   * ([DATA-50]). `0` when the column is missing / empty.
+   */
+  baseAddress: number;
   /** Full lattice, row-major — missing Cells rows are `withoutData`. */
   blocks: MemoryHeatmapBlock[];
   /**

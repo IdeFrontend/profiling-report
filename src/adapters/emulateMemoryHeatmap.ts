@@ -75,6 +75,8 @@ type LayoutInstance = {
   columns: number;
   rows: number;
   cellSize: number;
+  /** Layout `BaseAddress` — `0` when missing (DATA-50 tip address). */
+  baseAddress: number;
   /** Absent when DeclaredSize is NULL/empty. */
   declaredSize?: number;
   outsideDeclared: boolean;
@@ -110,6 +112,7 @@ function unitsFromLayoutAndCells(
     const columns = parseNonNegInt(row.Width);
     const rows = parseNonNegInt(row.Height);
     const cellSize = parseNonNegInt(row.CellSize);
+    const baseAddress = parseNonNegInt(row.BaseAddress) ?? 0;
     const coreId = parseNonNegInt(row.CoreId) ?? 0;
     const coreTypeId = parseNonNegInt(row.CoreTypeId);
     const memoryType = parseNonNegInt(row.MemoryType);
@@ -126,6 +129,7 @@ function unitsFromLayoutAndCells(
       columns,
       rows,
       cellSize,
+      baseAddress,
       declaredSize,
       outsideDeclared: parseFlag(row.OutsideDeclared),
       memoryType,
@@ -160,8 +164,18 @@ function unitsFromLayoutAndCells(
 
   const viewsByUnit = new Map<MemoryHeatmapUnitId, MemoryHeatmapView[]>();
   for (const inst of instances) {
-    const { id, columns, rows, cellSize, declaredSize, outsideDeclared, memoryType, coreId, coreTypeId } =
-      inst;
+    const {
+      id,
+      columns,
+      rows,
+      cellSize,
+      baseAddress,
+      declaredSize,
+      outsideDeclared,
+      memoryType,
+      coreId,
+      coreTypeId,
+    } = inst;
     const blockCount = columns * rows;
     const span = columns * rows * cellSize;
     const viewKey = heatViewKey(memoryType, coreTypeId, coreId);
@@ -188,6 +202,8 @@ function unitsFromLayoutAndCells(
       memoryName: inst.memoryName,
       columns,
       rows,
+      cellSize,
+      baseAddress,
       blocks,
       usedBytes,
       ...(totalBytes != null

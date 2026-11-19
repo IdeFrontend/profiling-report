@@ -158,11 +158,11 @@ const messages = {
     memoryHeatUnitNameL0c: 'AIC L0C',
     memoryHeatWithData: '已用',
     memoryHeatWithoutData: '空闲',
-    memoryHeatLow: '低',
-    memoryHeatHigh: '高',
-    memoryHeatUsedInstr: '已用指令条数 {n}',
-    /** BiProf heat-cell tip row label (value is the comma-grouped access count). */
-    memoryHeatInstrLabel: '已用指令条数',
+    /** SA heat-cell tip rows (#194) — Accesses Count is Read+Write traffic, not instructions. */
+    memoryHeatStartAddress: '起始地址',
+    memoryHeatCellSize: '单元大小',
+    memoryHeatAccessesCount: '访问次数',
+    memoryHeatBytes: 'Bytes',
     memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
     memoryHeatView: '视图',
     memoryHeatOutsideDeclared: '网格超出声明容量',
@@ -410,11 +410,11 @@ const messages = {
     memoryHeatUnitNameL0c: 'AIC L0C',
     memoryHeatWithData: 'Used',
     memoryHeatWithoutData: 'Free',
-    memoryHeatLow: 'Low',
-    memoryHeatHigh: 'High',
-    memoryHeatUsedInstr: 'Instructions used {n}',
-    /** BiProf heat-cell tip row label (value is the comma-grouped access count). */
-    memoryHeatInstrLabel: 'Instructions used',
+    /** SA heat-cell tip rows (#194) — Accesses Count is Read+Write traffic, not instructions. */
+    memoryHeatStartAddress: 'Start Address',
+    memoryHeatCellSize: 'Cell Size',
+    memoryHeatAccessesCount: 'Accesses Count',
+    memoryHeatBytes: 'Bytes',
     memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
     memoryHeatView: 'View',
     memoryHeatOutsideDeclared: 'Grid extends past declared capacity',

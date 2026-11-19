@@ -21,13 +21,42 @@ import {
  * @see docs/views/memory-topology.md § Memory Utilization Heatmap
  */
 
-/** BiProf cell tip size estimate for flip/clamp (title + one label|value row). */
-const HEAT_CELL_TIP_EST_W = 180;
-const HEAT_CELL_TIP_EST_H = 56;
+/** SA tip size estimate for flip/clamp (three label|value rows). */
+const HEAT_CELL_TIP_EST_W = 220;
+const HEAT_CELL_TIP_EST_H = 88;
 
-/** Thousands grouped by hand — same as the BiProf sample (`300,090`), not host ICU. */
+/** Percent tick marks on the continuous legend strip (#200). */
+const LEGEND_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
+
+/**
+ * SA Memory Utilization fill: gray at 0, then green→yellow→red as pct rises.
+ * `pct = intensity * 100` where intensity is (Read+Write)/viewMax.
+ */
+function heatFill(intensity: number): string {
+  const pct = Math.min(1, Math.max(0, intensity)) * 100;
+  if (pct < 1e-4) return 'hsl(100, 0%, 75%)';
+  return `hsl(${100 - pct}, 100%, 40%)`;
+}
+
+/** Continuous legend strip stops matching `heatFill` at each 10% tick. */
+const LEGEND_GRADIENT = (() => {
+  const stops = LEGEND_TICKS.map((pct) => {
+    const color =
+      pct < 1e-4 ? 'hsl(100, 0%, 75%)' : `hsl(${100 - pct}, 100%, 40%)`;
+    return `${color} ${pct}%`;
+  });
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+})();
+
+/** Thousands grouped by hand — same as the BiProf/SA sample (`300,090`), not host ICU. */
 function formatAccessCount(n: number): string {
   return String(Math.max(0, Math.floor(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/** SA tip: `0x` + lowercase hex (no forced pad). */
+function formatStartAddress(baseAddress: number, index: number, cellSize: number): string {
+  const addr = Math.max(0, Math.floor(baseAddress + index * cellSize));
+  return `0x${addr.toString(16)}`;
 }
 
 /** Shared capacity unit for Total/Used/Free (#201) — pick from Total so the three values match. */
@@ -44,16 +73,6 @@ function formatHeatBytes(n: number, unit: HeatByteUnit): string {
   const raw = unit === 'MB' ? n / (1024 * 1024) : unit === 'KB' ? n / 1024 : n;
   const text = Number.isInteger(raw) ? String(raw) : String(Math.round(raw * 100) / 100);
   return `${text} ${unit}`;
-}
-
-/** Legend / cell ends: `#AFC6FE` (low) → `#3D64AD` (high) — COLOR_TOKENS (#200). */
-const HEAT_LOW = [0xaf, 0xc6, 0xfe] as const;
-const HEAT_HIGH = [0x3d, 0x64, 0xad] as const;
-
-function heatFill(intensity: number): string {
-  const t = Math.min(1, Math.max(0, intensity));
-  const rgb = HEAT_LOW.map((c, i) => Math.round(c + (HEAT_HIGH[i]! - c) * t));
-  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
 
 /** Heat tab set, in order (`L1 | UB | L0A | L0B | L0C`) — no L2Cache ([UI-60]). */
@@ -220,13 +239,17 @@ function onViewSelect(id: string) {
   if (Number.isFinite(value)) viewIndex.value = value;
 }
 
-/** BiProf heat-cell tip — title = memory name; row = 已用指令条数 + access count (#194). */
+/** SA heat-cell tip — Start Address, Cell Size, Accesses Count (#194). */
 const cellTip = ref<{
-  memoryName: string;
+  blockIndex: number;
+  startAddress: string;
+  cellSize: number;
   accessCount: number;
   clientX: number;
   clientY: number;
 } | null>(null);
+
+const hoveredBlockIndex = ref<number | null>(null);
 
 const cellTipStyle = computed<CSSProperties>(() => {
   const tip = cellTip.value;
@@ -251,8 +274,11 @@ const cellTipStyle = computed<CSSProperties>(() => {
 function onCellEnter(block: MemoryHeatmapBlock, e: MouseEvent) {
   const view = activeView.value;
   if (!view) return;
+  hoveredBlockIndex.value = block.index;
   cellTip.value = {
-    memoryName: view.memoryName,
+    blockIndex: block.index,
+    startAddress: formatStartAddress(view.baseAddress, block.index, view.cellSize),
+    cellSize: view.cellSize,
     accessCount: block.accessCount,
     clientX: e.clientX,
     clientY: e.clientY,
@@ -267,10 +293,12 @@ function onCellMove(e: MouseEvent) {
 
 function onCellLeave() {
   cellTip.value = null;
+  hoveredBlockIndex.value = null;
 }
 
 watch(activeView, () => {
   cellTip.value = null;
+  hoveredBlockIndex.value = null;
 });
 </script>
 
@@ -307,9 +335,22 @@ watch(activeView, () => {
     </div>
 
     <div class="pr-heat__legend" data-testid="heat-legend">
-      <span class="pr-heat__legend-label">{{ t('memoryHeatLow', locale) }}</span>
-      <span class="pr-heat__gradient" aria-hidden="true" />
-      <span class="pr-heat__legend-label">{{ t('memoryHeatHigh', locale) }}</span>
+      <div class="pr-heat__legend-scale">
+        <div
+          class="pr-heat__gradient"
+          data-testid="heat-legend-gradient"
+          aria-hidden="true"
+          :style="{ background: LEGEND_GRADIENT }"
+        />
+        <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
+          <span
+            v-for="pct in LEGEND_TICKS"
+            :key="pct"
+            class="pr-heat__legend-tick"
+            :data-pct="String(pct)"
+          >{{ pct }}%</span>
+        </div>
+      </div>
     </div>
 
     <!--
@@ -362,7 +403,10 @@ watch(activeView, () => {
               v-for="block in activeView.blocks"
               :key="block.index"
               class="pr-heat__cell"
-              :class="{ 'pr-heat__cell--with': block.state === 'withData' }"
+              :class="{
+                'pr-heat__cell--with': block.state === 'withData',
+                'pr-heat__cell--hover': hoveredBlockIndex === block.index,
+              }"
               :data-state="block.state"
               :data-intensity="String(block.intensity)"
               :data-access-count="String(block.accessCount)"
@@ -399,8 +443,8 @@ watch(activeView, () => {
     </div>
 
     <!--
-      BiProf cell tip (v930-sim/memory-topology-fullscreen): memory name title +
-      已用指令条数 | comma count. Teleport→body + placeFixedTip so the panel cannot crop it.
+      SA Memory Utilization cell tip (#194): Start Address, Cell Size, Accesses Count.
+      Teleport→body + placeFixedTip so the panel cannot crop it.
     -->
     <Teleport to="body">
       <div
@@ -410,19 +454,33 @@ watch(activeView, () => {
         :style="cellTipStyle"
       >
         <div
-          class="pr-heat-cell-tip__title"
-          data-testid="heat-cell-tip-title"
+          class="pr-heat-cell-tip__row"
+          data-testid="heat-cell-tip-address"
         >
-          {{ cellTip.memoryName }}
+          <span class="pr-heat-cell-tip__label">{{ t('memoryHeatStartAddress', locale) }}</span>
+          <span
+            class="pr-heat-cell-tip__value"
+            data-testid="heat-cell-tip-address-value"
+          >{{ cellTip.startAddress }}</span>
         </div>
         <div
           class="pr-heat-cell-tip__row"
-          data-testid="heat-cell-tip-row"
+          data-testid="heat-cell-tip-cell-size"
         >
-          <span class="pr-heat-cell-tip__label">{{ t('memoryHeatInstrLabel', locale) }}</span>
+          <span class="pr-heat-cell-tip__label">{{ t('memoryHeatCellSize', locale) }}</span>
           <span
             class="pr-heat-cell-tip__value"
-            data-testid="heat-cell-tip-value"
+            data-testid="heat-cell-tip-cell-size-value"
+          >{{ cellTip.cellSize }} {{ t('memoryHeatBytes', locale) }}</span>
+        </div>
+        <div
+          class="pr-heat-cell-tip__row"
+          data-testid="heat-cell-tip-accesses"
+        >
+          <span class="pr-heat-cell-tip__label">{{ t('memoryHeatAccessesCount', locale) }}</span>
+          <span
+            class="pr-heat-cell-tip__value"
+            data-testid="heat-cell-tip-accesses-value"
           >{{ formatAccessCount(cellTip.accessCount) }}</span>
         </div>
       </div>
@@ -491,20 +549,34 @@ watch(activeView, () => {
   flex: none;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   /* 12px bottom: view-bar band is always reserved below. */
   padding: 44px 0 12px;
 }
 
-.pr-heat__legend-label {
-  color: #b3b3b3;
+.pr-heat__legend-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(100%, 220px);
 }
 
 .pr-heat__gradient {
-  width: 72px;
+  width: 100%;
   height: 8px;
   border-radius: 1px;
-  background: linear-gradient(to right, #afc6fe, #3d64ad);
+}
+
+.pr-heat__legend-ticks {
+  display: flex;
+  justify-content: space-between;
+  color: #b3b3b3;
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-heat__legend-tick {
+  flex: none;
 }
 
 .pr-heat__view-bar {
@@ -566,11 +638,19 @@ watch(activeView, () => {
 }
 
 .pr-heat__cell {
+  position: relative;
   width: var(--pr-heat-cell);
   height: var(--pr-heat-cell);
   border-radius: 1px;
   /* Fill comes from inline `heatFill(intensity)` (#200). */
   cursor: default;
+  box-sizing: border-box;
+}
+
+.pr-heat__cell--hover {
+  /* Light ring reads on both gray (0%) and red (100%) fills. */
+  box-shadow: inset 0 0 0 1.5px #ffffff;
+  z-index: 1;
 }
 
 .pr-heat__title {
@@ -617,19 +697,11 @@ watch(activeView, () => {
   color: #b3b3b3;
   font-size: 12px;
   line-height: 1.45;
-  min-width: 140px;
+  min-width: 180px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   animation: pr-heat-cell-tip-in 120ms ease;
-}
-
-.pr-heat-cell-tip__title {
-  font-weight: 600;
-  color: #e8e8e8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pr-heat-cell-tip__row {
@@ -644,6 +716,8 @@ watch(activeView, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
+  color: #e8e8e8;
 }
 
 .pr-heat-cell-tip__value {

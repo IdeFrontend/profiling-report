@@ -2634,6 +2634,8 @@ describe('StatsAside', () => {
                 memoryName: 'UB',
                 columns: 4,
                 rows: 1,
+                cellSize: 32,
+                baseAddress: 0,
                 blocks,
                 totalBytes: 128,
                 usedBytes: 64,

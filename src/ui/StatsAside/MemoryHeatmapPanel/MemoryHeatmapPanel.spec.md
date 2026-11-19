@@ -23,8 +23,8 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 ## Behavior
 
 1. **Five tabs, always** (PR-HEAT-001): `L1 | UB | L0A | L0B | L0C` ([UI-60](../../../../docs/context/decisions/UI.md) — no L2Cache), in that order, `role="tablist"` / `role="tab"` with `aria-selected` and a **roving tabindex** (only the selected tab is in the tab order; Arrow / Home / End move the selection — PR-HEAT-009). A unit the model has no source for is **not** omitted — the tab stays and its body blanks (behavior 5), because the strip is a fixed five.
-2. **Legend** (PR-HEAT-002): a continuous Low→High gradient strip (`#AFC6FE` → `#3D64AD`) with localized end labels (`低`/`高`, EN `Low`/`High`) — #200. Not a binary allocation legend.
-3. **Body** (PR-HEAT-003): the **block grid** — one cell per active `view.blocks` entry, row-major, `view.columns` × `view.rows` (Layout `Width`×`Height`) square cells, sized to fit the leftover body (PR-HEAT-011) — then the selected view's name (behavior 5) and the capacity caption **under** it. Each cell paints `heatFill(intensity)` where `intensity ∈ [0,1]` is `(Read+Write)/viewMax` (#200); `state` remains `withData` when intensity > 0 for a11y. Never a divider band. Column and row counts bind from the active view (not restated in CSS). The frame repeats the view's **name** under its grid (Visual), so the body carries it there — never a second copy *above* the lattice. The five tabs share **one** `role="tabpanel"` body, named by the active tab. Hovering a cell opens the BiProf cell tip (PR-HEAT-013).
+2. **Legend** (PR-HEAT-002): a single continuous HSL gradient strip (gray→green→yellow→red) with percent tick labels `0%`…`100%` at 10% steps — #200. Not discrete swatches, not Low/High blues.
+3. **Body** (PR-HEAT-003): the **block grid** — one cell per active `view.blocks` entry, row-major, `view.columns` × `view.rows` (Layout `Width`×`Height`) square cells, sized to fit the leftover body (PR-HEAT-011) — then the selected view's name (behavior 5) and the capacity caption **under** it. Each cell paints SA `heatFill(intensity)` (`hsl(100−pct, …)`, `pct = intensity×100`) where `intensity ∈ [0,1]` is `(Read+Write)/viewMax` (#200); `state` remains `withData` when intensity > 0 for a11y. Never a divider band. Column and row counts bind from the active view (not restated in CSS). The frame repeats the view's **name** under its grid (Visual), so the body carries it there — never a second copy *above* the lattice. The five tabs share **one** `role="tabpanel"` body, named by the active tab. Hovering a cell highlights it and opens the SA cell tip (PR-HEAT-013).
 4. **Metric** (PR-HEAT-004 / PR-HEAT-004b): centred **below** the grid (under the unit name). Paint `Total: {n} / Used: {n} / Free: {n}` from the active view's capacity fields ([DATA-51](../../../../docs/context/decisions/DATA.md)). Byte counts share one unit chosen from Total (`B` / `KB` / `MB`) with a space before the unit (`256 KB`) so Total/Used/Free never mix units (#201). Omit when Total is unknown — never a placeholder, never `已用指令条数`.
 5. **Unit name** (PR-HEAT-010): the selected view uses the same label as the view selector (`{ownerName} {memoryName}` when known, otherwise `{memoryName}`). **Multi-core** packs prepend `Core {coreId} ·` (#198), including a view with no owner (`Core 0 · UB`), so switching cores changes the caption. Diagram tab words (`AIV × 2 UB`) are only the single-core, no-owner fallback. Centred between the grid and the metric at `19px` `#e7e7e7`, `31px` under the grid. Absent with the blank body (behavior 6) — no name without a grid. `coreId` comes from the pack (DATA-50); never invent one. Single-core packs (one distinct `coreId` across all views) omit the Core prefix.
 6. **Blank state** (PR-HEAT-005): a tab whose unit is absent from `model.units` shows the empty line and no grid; it does **not** show an all-empty grid, which would read as "measured, nothing allocated" rather than "no source".
@@ -36,8 +36,8 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 ## Acceptance Criteria
 
 1. **PR-HEAT-001** — Renders the five tabs in order (`L1`, `UB`, `L0A`, `L0B`, `L0C`) as `role="tab"` buttons inside a `role="tablist"`, all five present even when `model.units` carries fewer (a unit with no source keeps its tab). No `L2Cache` tab ([UI-60](../../../../docs/context/decisions/UI.md)).
-2. **PR-HEAT-002** — Renders a centred Low→High gradient legend (`#afc6fe` → `#3d64ad`, 8px tall) with localized end labels (#200).
-3. **PR-HEAT-003** — Renders one grid cell per active `view.blocks` entry in carrier order with `data-state` / `data-intensity` and continuous fill from intensity (#200). The grid is one `2px` `#6e798d` frame around a `#303f5e` board with a `2px` inset and `2px` gaps — no per-cell divider band.
+2. **PR-HEAT-002** — Renders a centred single HSL gradient legend strip (8px tall) with tick labels `0%`…`100%` (#200).
+3. **PR-HEAT-003** — Renders one grid cell per active `view.blocks` entry in carrier order with `data-state` / `data-intensity` and continuous HSL fill from intensity (#200). The grid is one `2px` `#6e798d` frame around a `#303f5e` board with a `2px` inset and `2px` gaps — no per-cell divider band.
 4. **PR-HEAT-004 / PR-HEAT-004b** — With `totalBytes`/`usedBytes`/`freeBytes` on the active view, shows `Total: {n} / Used: {n} / Free: {n}` (shared unit + space before unit, #201) and binds `--pr-heat-cols` / `--pr-heat-rows` from that view. Omits the caption when Total is unknown. No instruction-count metric.
 5. **PR-HEAT-005** — A selected unit absent from the model shows the empty line and **no** grid.
 6. **PR-HEAT-006** — The tab named by `selectedUnit` is the only `aria-selected="true"` tab; a click on any tab emits `select-unit` with that unit and does not change the rendered selection by itself.
@@ -48,7 +48,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 11. **PR-HEAT-011** — The body is the size container (`container-type: size`); the grid picks `--pr-heat-cell: min(width-fit, height-fit)` with a footer budget for title + metric. Height-fit subtracts the same **8px** frame (padding+border) as width-fit so the `#6e798d` stroke is not clipped. The body has `overflow: hidden` (no scrollbar). Tabs, legend, the always-reserved view-bar band, and the `OutsideDeclared` badge stay outside the body so they cannot clip the lattice. The grid binds both `--pr-heat-cols` and `--pr-heat-rows`, and its frame is `5px`-rounded.
 12. **PR-HEAT-012** — When the active unit has more than one view (multi-core UB), a `SourcePillSelect` in the reserved view-bar band switches the lattice / name / capacity among those views; option labels include `Core {coreId} ·` when the pack has more than one distinct `coreId` (#198). The shared pill menu scrolls when many cores are listed, with dark `.pr-root`-matched scrollbar chrome (teleported outside `.pr-root`). Single-view tabs keep the empty band (same lattice height) and mount no select.
 12. **PR-HEAT-012** — When the active unit has more than one view (multi-core UB), a `SourcePillSelect` in the reserved view-bar band switches the lattice / name / capacity among those views. Single-view tabs keep the empty band (same lattice height) and mount no select.
-13. **PR-HEAT-013** — Hovering a heat cell mounts a teleported BiProf-style tip (`placeFixedTip` flip/clamp): **title** = the active view's `memoryName` (e.g. `L1` / `UB`); **row** = `已用指令条数` / `Instructions used` (left) and the cell's `accessCount` (`Read+Write`) comma-grouped (right, e.g. `300,090`). EventTooltip chrome (`--pr-surface-raised`, 12px radius). Clears on leave / view change. Capacity caption stays under the grid — never put `已用指令条数` there ([DATA-51](../../../../docs/context/decisions/DATA.md)).
+13. **PR-HEAT-013** — Hovering a heat cell adds a light inset ring on that cell and mounts a teleported SA-style tip (`placeFixedTip` flip/clamp) with three rows: **Start Address** (`BaseAddress + index×CellSize` as `0x…` hex), **Cell Size** (`{n} Bytes`), **Accesses Count** / **访问次数** (comma-grouped `accessCount` = `Read+Write`). EventTooltip chrome (`--pr-surface-raised`, 12px radius). Clears on leave / view change. Capacity caption stays under the grid — never put access/instruction counts there ([DATA-51](../../../../docs/context/decisions/DATA.md)).
 
 ## Visual
 
@@ -63,14 +63,15 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | Active tab indicator | `#ffffff`, `2px` tall, the label + 4px wide (the frame's 15px bar under an 11.5px `L1`), `12px` under the label and `12px` above the strip's rule (sketch ~12.5px) |
 | Tab strip rule | `#333333` `1px` across the panel's content width |
 | Tab strip rhythm | label-to-label ink `26px` (the frame's `106px` at 4×), so the labels sit apart rather than as boxed chips |
-| Legend | centred in the column; swatch `8px` (the frame's `32px` at 4× — the frame's own 12px type size), `1px` radius, `8px` to its label, `20px` between the two pairs |
-| Legend offsets | swatch `47.5px` under the strip's rule; legend bottom pad `12px` into the view-bar band |
+| Legend | centred in the column; one continuous HSL strip `8px` tall + `0%`…`100%` tick labels under it |
+| Legend offsets | strip ~`47.5px` under the strip's rule; legend bottom pad `12px` into the view-bar band |
 | View-bar | always reserved (`min-height` = Source pill `28px`); multi-view UB mounts `SourcePillSelect` |
 | Unit name under the grid | active view (`{owner} {MemoryName}`), `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid |
 | Metric caption | `#b3b3b3`, `12px`/`15px` line-height, centred `13px` under the unit name — `Total: {n} / Used: {n} / Free: {n}` ([DATA-51](../../../../docs/context/decisions/DATA.md)); omitted when Total unknown |
-| High end (`intensity = 1`) | `#3d64ad` |
-| Low end (`intensity = 0`) | `#afc6fe` |
-| In between | linear RGB lerp (#200) |
+| High end (`intensity = 1`) | `hsl(0, 100%, 40%)` (red) |
+| Low end (`intensity = 0`) | `hsl(100, 0%, 75%)` (gray) |
+| In between | SA HSL ramp gray→green→yellow→red (`hsl(100−pct, …)`, #200) |
+| Hovered cell | inset white ring (`box-shadow`) while the tip is open |
 | Grid frame | `2px` `#6e798d` border around the board, `5px` radius (sketch ~20px at 4×), one `2px` gap of inset inside it; cells clip to the radius |
 | Grid board (the lattice the gaps cut) | `#303f5e` |
 | Grid cell | `aspect-ratio: 1`, `2px` gap, `1px` radius |
@@ -78,9 +79,9 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | Short column | lattice resizes to fit; no body scrollbar (PR-HEAT-011). Spare height falls **below** the metric |
 | Fullscreen ground | overlay `#1a1a1a`; diagram `.pr-topo` stays transparent. This panel and the fullscreen zoom pill both paint `#262626` |
 
-The two blues and the board/frame greys are the frame's own, sampled from `v930-sim/memory-topology-fullscreen` (`#3D64AD` legend/block ink, `#AFC6FE` empty-block ink, `#303F5E` board, `#6E798D` frame) and registered in [COLOR_TOKENS § Heatmap](../../../../docs/ui/COLOR_TOKENS.md). The diagram's selected/hover tints are the two blues ([MemoryTopologyPanel](../MemoryTopologyPanel/MemoryTopologyPanel.spec.md) PR-MEMTOP-022), so the two surfaces read as one selection.
+Board/frame greys stay from `v930-sim/memory-topology-fullscreen` (`#303F5E` board, `#6E798D` frame). Cell fill/legend follow the SA Memory Utilization HSL ramp (#200); the diagram's selected/hover tints keep the sketch blues (`#3D64AD` / `#AFC6FE`) so topology hit-boxes stay readable ([MemoryTopologyPanel](../MemoryTopologyPanel/MemoryTopologyPanel.spec.md) PR-MEMTOP-022) — [COLOR_TOKENS § Heatmap](../../../../docs/ui/COLOR_TOKENS.md).
 
-**Sketch deltas** (visual chrome vs Layout lattice): the biprof sketch shows a fixed ~16×32 lattice and a capacity tooltip under the name. The shipped panel keeps that chrome (colours, gaps, footer rhythm) but sizes the lattice from each Layout view's `Width`×`Height` ([DATA-50](../../../../docs/context/decisions/DATA.md)) and always paints the DATA-51 capacity caption when Total is known — never `已用指令条数`.
+**Sketch deltas** (visual chrome vs Layout lattice): the biprof sketch shows a fixed ~16×32 lattice and a capacity tooltip under the name. The shipped panel keeps that chrome (gaps, footer rhythm) but sizes the lattice from each Layout view's `Width`×`Height` ([DATA-50](../../../../docs/context/decisions/DATA.md)), paints SA continuous intensity + `%` legend (#200), and always paints the DATA-51 capacity caption when Total is known — never access/instruction counts in that slot.
 
 ## Design sketches
 
@@ -98,6 +99,8 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 - **2026-11-19** — #198: Core id prefix only when the pack has more than one distinct `coreId` (single-core stays `AIV0 UB` / `AIC L1`).
 - **2026-11-19** — Heat view `SourcePillSelect` menu scrollbar matches `.pr-root` (dark thumb, transparent track, no step buttons) — teleported menus were painting the host white track.
 - **2026-11-18** — Heat view `SourcePillSelect` menu scrolls when many cores are listed (`max-height` / `overflow-y: auto`).
+- **2026-11-19** — #200: SA HSL gray→green→yellow→red fill + single `%` tick legend strip (replaces blue Low/High).
+- **2026-11-19** — #194 / PR #225: SA cell tip — Start Address, Cell Size, Accesses Count; hover ring; EventTooltip chrome (`placeFixedTip`).
 - **2026-11-18** — #200: continuous intensity fill + Low/High gradient legend (overrides biprof / #199 two-state SSOT).
 - **2026-11-19** — #194 / PR #225 feedback: BiProf cell tip — memory name + `已用指令条数` / access count (`placeFixedTip`, EventTooltip chrome).
 - **2026-11-18** — #199: legend copy is `Used` / `Free`, `已用` / `空闲` (same words as the capacity line; not allocation / 访存 “accessed”).
