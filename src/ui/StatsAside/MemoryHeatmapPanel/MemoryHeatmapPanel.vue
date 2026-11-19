@@ -133,6 +133,8 @@ const emit = defineEmits<{
 }>();
 
 const tabsEl = ref<HTMLElement | null>(null);
+/** Painted legend strip — pointer % and occupancy width map to this, not the side pads. */
+const legendTrackEl = ref<HTMLElement | null>(null);
 /** Index into `activeUnit.views` — resets when the host changes tab. */
 const viewIndex = ref(0);
 
@@ -445,13 +447,17 @@ function cellMuted(block: MemoryHeatmapBlock): boolean {
 }
 
 function onLegendPointerMove(e: PointerEvent) {
-  const el = e.currentTarget as HTMLElement | null;
-  if (!el) return;
-  const rect = el.getBoundingClientRect();
+  const track = legendTrackEl.value;
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
   if (rect.width <= 0) return;
   legendTrackWidthPx.value = rect.width;
-  // Keep center on-strip; half-width overhang past 0 / 100 is intentional.
-  const centerPct = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+  // Side pads let center reach ±half-brush so the window can be 0–0 / max–max.
+  const rawPct = ((e.clientX - rect.left) / rect.width) * 100;
+  const centerPct = Math.min(
+    100 + LEGEND_BRUSH_HALF_PCT,
+    Math.max(-LEGEND_BRUSH_HALF_PCT, rawPct),
+  );
   legendBrush.value = {
     centerPct,
     loPct: centerPct - LEGEND_BRUSH_HALF_PCT,
@@ -512,9 +518,9 @@ watch(activeView, () => {
           {{ t('memoryHeatAccessCount', locale) }}
         </p>
         <!--
-          Hit band = 16px window + 3px pad above/below (22px); painted strip stays 8px.
-          Window may overhang past 0/max; range label coerces to 0…max.
-          0/max ticks fade as the window approaches either end.
+          Hit band = 16px window + 3px pad above/below (22px) and ±5% side pads
+          (half brush) so approaching from left/right can capture 0–0 / max–max.
+          Painted strip stays 8px; range label coerces to 0…max.
         -->
         <div
           class="pr-heat__legend-hit"
@@ -524,34 +530,40 @@ watch(activeView, () => {
           @pointerleave="clearLegendBrush"
         >
           <div
-            class="pr-heat__gradient"
-            :class="{ 'pr-heat__gradient--brushing': !!legendBrush }"
-            aria-hidden="true"
-            :style="{ background: LEGEND_GRADIENT }"
+            ref="legendTrackEl"
+            class="pr-heat__legend-track"
+            data-testid="heat-legend-track"
           >
             <div
-              class="pr-heat__legend-mute"
-              data-testid="heat-legend-mute"
-            />
+              class="pr-heat__gradient"
+              :class="{ 'pr-heat__gradient--brushing': !!legendBrush }"
+              aria-hidden="true"
+              :style="{ background: LEGEND_GRADIENT }"
+            >
+              <div
+                class="pr-heat__legend-mute"
+                data-testid="heat-legend-mute"
+              />
+              <div
+                v-for="(band, i) in legendOccupancyBands"
+                :key="i"
+                class="pr-heat__legend-occ"
+                data-testid="heat-legend-occ"
+                :style="legendOccStyle(band)"
+              />
+            </div>
             <div
-              v-for="(band, i) in legendOccupancyBands"
-              :key="i"
-              class="pr-heat__legend-occ"
-              data-testid="heat-legend-occ"
-              :style="legendOccStyle(band)"
-            />
-          </div>
-          <div
-            v-if="legendBrush"
-            class="pr-heat__legend-brush"
-            data-testid="heat-legend-brush"
-            aria-hidden="true"
-            :style="legendBrushStyle"
-          >
-            <span
-              class="pr-heat__legend-brush-range"
-              data-testid="heat-legend-brush-range"
-            >{{ legendBrushRangeLabel }}</span>
+              v-if="legendBrush"
+              class="pr-heat__legend-brush"
+              data-testid="heat-legend-brush"
+              aria-hidden="true"
+              :style="legendBrushStyle"
+            >
+              <span
+                class="pr-heat__legend-brush-range"
+                data-testid="heat-legend-brush-range"
+              >{{ legendBrushRangeLabel }}</span>
+            </div>
           </div>
         </div>
         <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
@@ -804,11 +816,21 @@ watch(activeView, () => {
 
 .pr-heat__legend-hit {
   position: relative;
-  /* 16px brush + 3px pad above/below; overhang past strip edges stays visible. */
+  /* 16px brush + 3px vertical pad; ±5% side pads (half brush) for 0/max capture. */
+  box-sizing: border-box;
   height: 22px;
-  width: 100%;
+  width: calc(100% + 2 * 5%);
+  margin-inline: -5%;
+  padding-inline: 5%;
   overflow: visible;
   cursor: default;
+}
+
+.pr-heat__legend-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 .pr-heat__gradient {
