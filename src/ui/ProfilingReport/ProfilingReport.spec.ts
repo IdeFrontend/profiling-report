@@ -129,7 +129,8 @@ function heatmapReport() {
   const blocks = Array.from({ length: 32 }, (_, index) => ({
     index,
     state: index < 3 ? ('withData' as const) : ('withoutData' as const),
-      intensity: index < 3 ? 1 : 0,
+    intensity: index < 3 ? 1 : 0,
+    accessCount: index < 3 ? 16 : 0,
   }));
   return {
     ...topologyReport(),

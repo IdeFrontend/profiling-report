@@ -176,6 +176,7 @@ function unitsFromLayoutAndCells(
         index,
         state: intensity > 0 ? 'withData' : 'withoutData',
         intensity,
+        accessCount: value,
       });
     }
     const usedBytes = (cellCountByView.get(viewKey) ?? 0) * cellSize;
