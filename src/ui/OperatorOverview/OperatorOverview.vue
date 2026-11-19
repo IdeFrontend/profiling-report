@@ -4,7 +4,7 @@ import type { ReportOperatorRow } from '../../domain/types';
 import { t, type MessageKey } from '../../i18n';
 import FilterIcon from '../FilterIcon.vue';
 import SortIcon from '../SortIcon.vue';
-import { shortOperatorName } from '../operatorName';
+import { shortOperatorName } from '../../domain/operatorName';
 
 const props = withDefaults(
   defineProps<{
@@ -87,6 +87,7 @@ const filterAnchor = ref({ left: 0, top: 0 });
 const sortKey = ref<SortableKey | null>(null);
 const sortDirection = ref<'asc' | 'desc' | null>(null);
 const popoverRef = ref<HTMLElement | null>(null);
+const tbodyRef = ref<HTMLElement | null>(null);
 const filterTrigger = ref<HTMLElement | null>(null);
 const filterPopoverId = useId();
 
@@ -192,9 +193,15 @@ const filteredRows = computed(() =>
 
 const hasMixBlockDim = computed(() => filteredRows.value.some((row) => row.mixBlockDim != null));
 
-const columns = computed(() =>
-  baseColumns.filter((col) => col.key !== 'mixBlockDim' || hasMixBlockDim.value),
-);
+/** Visible columns keep their proportions but always total exactly 100%. */
+const columns = computed(() => {
+  const visible = baseColumns.filter((col) => col.key !== 'mixBlockDim' || hasMixBlockDim.value);
+  const total = visible.reduce((sum, col) => sum + Number.parseFloat(col.width), 0);
+  const tenths = visible.map((col) => Math.round((Number.parseFloat(col.width) / total) * 1000));
+  const widest = tenths.indexOf(Math.max(...tenths));
+  tenths[widest] += 1000 - tenths.reduce((sum, value) => sum + value, 0);
+  return visible.map((col, index) => ({ ...col, width: `${tenths[index] / 10}%` }));
+});
 
 /** Compare two values with missing values last in both directions. */
 function compareValues(a: string | number | undefined, b: string | number | undefined): number {
@@ -300,6 +307,30 @@ watch(
   },
   { immediate: true },
 );
+
+/** Roving tabindex: the selected row is the tab stop, else the first visible row. */
+function isTabStop(row: ReportOperatorRow, index: number): boolean {
+  return isSelectedRow(row) || (selectedRow.value == null && index === 0);
+}
+
+/** Arrow/Home/End move the selection and keep DOM focus on the active row. */
+async function onRowKeydown(event: KeyboardEvent) {
+  if (openFilter.value != null) return;
+  const rows = visibleRows.value;
+  if (rows.length === 0) return;
+  const current = rows.findIndex((row) => isSelectedRow(row));
+  const base = current >= 0 ? current : 0;
+  let next: number;
+  if (event.key === 'ArrowDown') next = Math.min(rows.length - 1, base + 1);
+  else if (event.key === 'ArrowUp') next = Math.max(0, base - 1);
+  else if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = rows.length - 1;
+  else return;
+  event.preventDefault();
+  selectRow(rows[next]);
+  await nextTick();
+  tbodyRef.value?.querySelectorAll<HTMLElement>('tr.pr-operator-overview__row')[next]?.focus();
+}
 
 /** The action is only meaningful when the highlighted row carries an op name. */
 const optimizeEnabled = computed(() => !!selectedRow.value?.opName);
@@ -435,7 +466,10 @@ function duration(value: number | undefined): string {
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody
+          ref="tbodyRef"
+          @keydown="onRowKeydown"
+        >
           <tr
             v-for="(row, index) in visibleRows"
             :key="index"
@@ -443,7 +477,7 @@ function duration(value: number | undefined): string {
             :class="{ 'pr-operator-overview__row--selected': isSelectedRow(row) }"
             :aria-selected="isSelectedRow(row)"
             role="row"
-            tabindex="0"
+            :tabindex="isTabStop(row, index) ? 0 : -1"
             @click="selectRow(row)"
             @keydown.enter.prevent="selectRow(row)"
             @keydown.space.prevent="selectRow(row)"

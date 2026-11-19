@@ -78,7 +78,7 @@ import ContextMenu, { type ContextMenuAction, type ContextMenuContext } from '..
 import DetailPanel from '../DetailPanel/DetailPanel.vue';
 import EventTooltip from '../EventTooltip/EventTooltip.vue';
 import MultiSelectSummary from '../MultiSelectSummary/MultiSelectSummary.vue';
-import { shortOperatorName } from '../operatorName';
+import { shortOperatorName } from '../../domain/operatorName';
 import OperatorOverview from '../OperatorOverview/OperatorOverview.vue';
 import PerformanceHintsDock from '../PerformanceHintsDock/PerformanceHintsDock.vue';
 import {

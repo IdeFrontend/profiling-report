@@ -18,11 +18,11 @@ Clicking a sort header cycles none → asc → desc → none; none restores the 
 
 Clicking a filter button opens a popover under the header with a checkbox list of the distinct values present in the unfiltered rows, sorted, capped at 240px with overflow. The popover renders in a fixed-position teleport on `document.body`, so the table never gains scroll height and the list is never clipped; it closes on Escape, a click outside, a second funnel click, or a scroll outside the table. Scrolling the table or resizing the window repositions it under its funnel, clamped to the viewport. Escape is consumed by the popover and returns focus to the funnel, so the host never also handles that key. The list is multi-select; an empty selection means no filter. A 清除 row clears the column filter, and an active filter shows a count badge on the header. Filters and sorting compose. The 序号 cell keeps the visible-row index.
 
-The table is single-select. The first row is highlighted on mount. Clicking, Enter, or Space on another row moves the one highlight. Filtering keeps the selection while the selected row stays visible and clears it otherwise; it never auto-selects a visible row. A new `rows` array resets the filters, sort, open popover, and selection, then highlights the first row of the new pack. Task Duration renders with two decimals; 序号 and the dimension columns render values as produced. The table carries `role="grid"`, its rows `role="row"`, headers `role="columnheader"`, and body cells `role="gridcell"` so `aria-selected` on a row is valid. Clicking a row whose pack id differs from **selectedOperatorId** emits `update:selectedOperatorId` with that id; setting the prop highlights the first row of that pack and leaves the highlight untouched when no row matches. The OpName cell is a button that selects its row and emits `openTimeline`, with a pointer cursor and the link blue on hover and focus.
+The table is single-select. The first row is highlighted on mount. Clicking, Enter, or Space on another row moves the one highlight. Only the selected row is a tab stop (`tabindex="0"`); every other row is `-1`, and when no row is selected the first visible row is the tab stop. With focus on a row, ArrowUp/ArrowDown move the selection and DOM focus by one within the visible rows; Home/End jump to the first/last row. Arrow keys are ignored while the filter popover is open. Filtering keeps the selection while the selected row stays visible and clears it otherwise; it never auto-selects a visible row. A new `rows` array resets the filters, sort, open popover, and selection, then highlights the first row of the new pack. Task Duration renders with two decimals; 序号 and the dimension columns render values as produced. The table carries `role="grid"`, its rows `role="row"`, headers `role="columnheader"`, and body cells `role="gridcell"` so `aria-selected` on a row is valid. Clicking a row whose pack id differs from **selectedOperatorId** emits `update:selectedOperatorId` with that id; setting the prop highlights the first row of that pack and leaves the highlight untouched when no row matches. The OpName cell is a button that selects its row and emits `openTimeline`, with a pointer cursor and the link blue on hover and focus.
 
 Below the table sits the 低利用率 dock: a donut icon, a bold 低利用率 label, the muted 预计本地加速比（示例） line carrying the demo value, the 选中算子的优化建议 link, and a right-aligned 执行优化 button with a leading open-corner rounded document glyph with two inner lines and a lower-left sparkle. The optimization link is disabled until a suggestions surface ships and never navigates. The 执行优化 button is enabled only while the highlighted row carries a non-blank Op Name; clicking it emits `optimize` with `{ opName }` of that row. The dock and the banner render only when at least one row is present. The bottom banner carries the fixed underutilization copy.
 
-The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls when rows overflow. Column widths are inline percentages that total 100 with the 序号 column included, so the rendered table never overflows its scroller horizontally. Header rows are 30px and data rows 32px at 12px; numeric cells are right-aligned and text cells left-aligned. The selected row uses a blue-grey fill with white text declared on its cells, which beats the default cell color; hover uses a lighter tint and there is no zebra striping.
+The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls when rows overflow. Column widths are inline percentages normalized from their declared proportions so they total exactly 100 with the 序号 column included, with or without MixBlockDim, so the rendered table never overflows its scroller horizontally. Header rows are 30px and data rows 32px at 12px; numeric cells are right-aligned and text cells left-aligned. The selected row uses a blue-grey fill with white text declared on its cells, which beats the default cell color; hover uses a lighter tint and there is no zebra striping.
 
 ## Acceptance Criteria
 
@@ -47,7 +47,7 @@ The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls w
 19. **PR-OVW-019** — Popover escapes the table scroll container.
 20. **PR-OVW-020** — Non-reactive rows highlight and select correctly.
 21. **PR-OVW-021** — New rows reset filter, sort, popover, and selection.
-22. **PR-OVW-022** — Column widths total 100% with MixBlockDim.
+22. **PR-OVW-022** — Column widths total 100% with or without MixBlockDim.
 23. **PR-OVW-023** — Filter options keep raw values that shorten alike.
 24. **PR-OVW-024** — Escape closes only the popover and restores funnel focus.
 25. **PR-OVW-025** — Funnel controls the popover through `aria-controls`.
@@ -58,6 +58,7 @@ The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls w
 30. **PR-OVW-030** — OpName is a link-styled button that emits `openTimeline`.
 31. **PR-OVW-031** — `selectedOperatorId` highlights the first row of that pack.
 32. **PR-OVW-032** — Mounting with `selectedOperatorId` set highlights that pack's first row, not the first row of the flattened list.
+33. **PR-OVW-033** — Roving tabindex: exactly one row is a tab stop, ArrowUp/ArrowDown move selection and focus, and Home/End reach the first/last row.
 
 ## Changelog
 - **2026-11-12** — Spec introduced with the 概览 tab (1130 mock).
@@ -66,3 +67,5 @@ The table box hugs its rows (`flex: 0 1 auto`, `max-height: 100%`) and scrolls w
 - **2026-11-12** — Palette and metrics follow the 1130 mock measurements (flat page, 30px header, 32px rows).
 - **2026-11-13** — Review fixes: raw filter options, `{ opName }` optimize payload, 100% column widths, cell-level selected color, popover reposition/clamp, Escape isolation and focus, `aria-controls`, state reset on new rows, empty-pack guard (PR-OVW-020…027).
 - **2026-11-13** — Speedup string uses a `{value}` placeholder with a visible sample marker; suggestions link disabled until suggestions ship (PR-OVW-017/028).
+- **2026-11-19** — Roving tabindex with ArrowUp/ArrowDown/Home/End row navigation (PR-OVW-033).
+- **2026-11-19** — Column widths normalize to exactly 100% with or without MixBlockDim (PR-OVW-022).
