@@ -30,8 +30,11 @@ import {
 const HEAT_CELL_TIP_EST_W = 220;
 const HEAT_CELL_TIP_EST_H = 88;
 
-/** Percent tick marks on the continuous legend strip (#200). */
-const LEGEND_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
+/** Legend labels under the strip — only the ends + midpoint (readable; not every 10%). */
+const LEGEND_TICKS = [0, 50, 100] as const;
+
+/** Dense stops so the HSL ramp stays continuous even with sparse tick labels. */
+const LEGEND_STOPS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
 
 /**
  * SA Memory Utilization fill: gray at 0, then green→yellow→red as pct rises.
@@ -43,9 +46,9 @@ function heatFill(intensity: number): string {
   return `hsl(${100 - pct}, 100%, 40%)`;
 }
 
-/** Continuous legend strip stops matching `heatFill` at each 10% tick. */
+/** Continuous legend strip stops matching `heatFill` at each 10% stop. */
 const LEGEND_GRADIENT = (() => {
-  const stops = LEGEND_TICKS.map((pct) => {
+  const stops = LEGEND_STOPS.map((pct) => {
     const color =
       pct < 1e-4 ? 'hsl(100, 0%, 75%)' : `hsl(${100 - pct}, 100%, 40%)`;
     return `${color} ${pct}%`;
@@ -383,6 +386,12 @@ watch(activeView, () => {
 
     <div class="pr-heat__legend" data-testid="heat-legend">
       <div class="pr-heat__legend-scale">
+        <p
+          class="pr-heat__legend-title"
+          data-testid="heat-legend-title"
+        >
+          {{ t('memoryHeatAccessCount', locale) }}
+        </p>
         <div
           class="pr-heat__gradient"
           data-testid="heat-legend-gradient"
@@ -610,6 +619,15 @@ watch(activeView, () => {
   flex-direction: column;
   gap: 6px;
   width: min(100%, 220px);
+}
+
+.pr-heat__legend-title {
+  margin: 0;
+  color: #b3b3b3;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  text-align: center;
 }
 
 .pr-heat__gradient {

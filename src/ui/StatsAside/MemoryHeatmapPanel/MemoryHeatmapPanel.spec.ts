@@ -93,24 +93,13 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: legend is a single % tick HSL gradient strip (#200)', () => {
+  it('PR-HEAT-002: legend is Access Count + HSL strip with 0/50/100% ticks (#200)', () => {
     const wrapper = mountPanel({ locale: 'en' });
     const legend = wrapper.get('[data-testid="heat-legend"]');
+    expect(legend.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(legend.get('[data-testid="heat-legend-gradient"]').exists()).toBe(true);
     const ticks = legend.findAll('[data-testid="heat-legend-ticks"] .pr-heat__legend-tick');
-    expect(ticks.map((n) => n.text())).toEqual([
-      '0%',
-      '10%',
-      '20%',
-      '30%',
-      '40%',
-      '50%',
-      '60%',
-      '70%',
-      '80%',
-      '90%',
-      '100%',
-    ]);
+    expect(ticks.map((n) => n.text())).toEqual(['0%', '50%', '100%']);
     expect(legend.text()).not.toContain('Low');
     expect(legend.text()).not.toContain('High');
   });

@@ -193,6 +193,8 @@ const messages = {
     memoryHeatStartAddress: '起始地址',
     memoryHeatCellSize: '单元大小',
     memoryHeatAccessesCount: '访问次数',
+    /** Legend title above the heat gradient strip (#200). */
+    memoryHeatAccessCount: '访问次数',
     memoryHeatBytes: 'Bytes',
     memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
     memoryHeatView: '视图',
@@ -476,6 +478,8 @@ const messages = {
     memoryHeatStartAddress: 'Start Address',
     memoryHeatCellSize: 'Cell Size',
     memoryHeatAccessesCount: 'Accesses Count',
+    /** Legend title above the heat gradient strip (#200). */
+    memoryHeatAccessCount: 'Access Count',
     memoryHeatBytes: 'Bytes',
     memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
     memoryHeatView: 'View',
