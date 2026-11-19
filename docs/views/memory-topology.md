@@ -203,7 +203,7 @@ The fullscreen overlay's **right-hand panel** — its own surface beside the top
 | Carrier | `memoryHeatmap?: MemoryHeatmapModel` — `units: { id, views[] }`; each view is one Layout buffer instance with lattice + capacity ([DATA-50](../context/decisions/DATA.md) / [DATA-51](../context/decisions/DATA.md)) |
 | Capability | **`memoryHeatmap`** when Layout+Cells yield ≥1 view; independent of `memoryDiagram` / `archDiagram` |
 | Tabs | Five, **always**: `L1 | UB | L0A | L0B | L0C` ([UI-60](../context/decisions/UI.md) — no L2Cache heat tab). Multi-core UB: view selector inside the tab |
-| Grid | Layout `Width` × `Height`; `withData` iff `Read+Write > 0`; cell fill intensity `(Read+Write) / viewMax` (#200). Badge when `OutsideDeclared` |
+| Grid | Layout `Width` × `Height`; `withData` iff `Read+Write > 0`; cell fill intensity `(Read+Write) / viewMax` (#200); cell tip = memory name + `已用指令条数` / `accessCount` (BiProf / #194). Badge when `OutsideDeclared` |
 | Legend | Low→High gradient `#AFC6FE` → `#3D64AD` (continuous intensity #200), centred **above** the grid |
 | Footer | selected view name (`AIV0 UB` / `AIC L1`) under the grid |
 | Metric | `Total / Used / Free` per [DATA-51](../context/decisions/DATA.md); omit when Total unknown. No instruction-count substitute in that slot |

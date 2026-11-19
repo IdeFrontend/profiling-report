@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch, type CSSProperties } from 'vue';
 import { t, type MessageKey } from '../../../i18n';
 import type {
+  MemoryHeatmapBlock,
   MemoryHeatmapModel,
   MemoryHeatmapUnit,
   MemoryHeatmapUnitId,
   MemoryHeatmapView,
 } from '../../../domain/types';
 import SourcePillSelect from '../../SourceView/SourcePillSelect.vue';
+import {
+  FIXED_TIP_OFFSET_PX,
+  placeFixedTip,
+} from '../../placeFixedTip';
 
 /**
  * biprof §11.2.3.2 Memory Utilization Heatmap panel — the right column of the topology 全屏
@@ -15,6 +20,15 @@ import SourcePillSelect from '../../SourceView/SourcePillSelect.vue';
  * keeps the active view index locally (DATA-50).
  * @see docs/views/memory-topology.md § Memory Utilization Heatmap
  */
+
+/** BiProf cell tip size estimate for flip/clamp (title + one label|value row). */
+const HEAT_CELL_TIP_EST_W = 180;
+const HEAT_CELL_TIP_EST_H = 56;
+
+/** Thousands grouped by hand — same as the BiProf sample (`300,090`), not host ICU. */
+function formatAccessCount(n: number): string {
+  return String(Math.max(0, Math.floor(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 /** Shared capacity unit for Total/Used/Free (#201) — pick from Total so the three values match. */
 type HeatByteUnit = 'B' | 'KB' | 'MB';
@@ -205,6 +219,59 @@ function onViewSelect(id: string) {
   const value = Number(id);
   if (Number.isFinite(value)) viewIndex.value = value;
 }
+
+/** BiProf heat-cell tip — title = memory name; row = 已用指令条数 + access count (#194). */
+const cellTip = ref<{
+  memoryName: string;
+  accessCount: number;
+  clientX: number;
+  clientY: number;
+} | null>(null);
+
+const cellTipStyle = computed<CSSProperties>(() => {
+  const tip = cellTip.value;
+  if (!tip) return { position: 'fixed', left: '0px', top: '0px' };
+  const { left, top } = placeFixedTip({
+    x: tip.clientX,
+    y: tip.clientY,
+    tipW: HEAT_CELL_TIP_EST_W,
+    tipH: HEAT_CELL_TIP_EST_H,
+    viewportW: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    viewportH: typeof window !== 'undefined' ? window.innerHeight : 768,
+    offset: FIXED_TIP_OFFSET_PX,
+  });
+  return {
+    position: 'fixed',
+    zIndex: 1000,
+    left: `${left}px`,
+    top: `${top}px`,
+  };
+});
+
+function onCellEnter(block: MemoryHeatmapBlock, e: MouseEvent) {
+  const view = activeView.value;
+  if (!view) return;
+  cellTip.value = {
+    memoryName: view.memoryName,
+    accessCount: block.accessCount,
+    clientX: e.clientX,
+    clientY: e.clientY,
+  };
+}
+
+function onCellMove(e: MouseEvent) {
+  const tip = cellTip.value;
+  if (!tip) return;
+  cellTip.value = { ...tip, clientX: e.clientX, clientY: e.clientY };
+}
+
+function onCellLeave() {
+  cellTip.value = null;
+}
+
+watch(activeView, () => {
+  cellTip.value = null;
+});
 </script>
 
 <template>
@@ -298,7 +365,11 @@ function onViewSelect(id: string) {
               :class="{ 'pr-heat__cell--with': block.state === 'withData' }"
               :data-state="block.state"
               :data-intensity="String(block.intensity)"
+              :data-access-count="String(block.accessCount)"
               :style="{ background: heatFill(block.intensity) }"
+              @pointerenter="onCellEnter(block, $event)"
+              @pointermove="onCellMove($event)"
+              @pointerleave="onCellLeave"
             />
           </div>
         </div>
@@ -326,6 +397,36 @@ function onViewSelect(id: string) {
         {{ t('memoryHeatEmpty', locale) }}
       </p>
     </div>
+
+    <!--
+      BiProf cell tip (v930-sim/memory-topology-fullscreen): memory name title +
+      已用指令条数 | comma count. Teleport→body + placeFixedTip so the panel cannot crop it.
+    -->
+    <Teleport to="body">
+      <div
+        v-if="cellTip"
+        class="pr-tooltip pr-heat-cell-tip"
+        data-testid="heat-cell-tooltip"
+        :style="cellTipStyle"
+      >
+        <div
+          class="pr-heat-cell-tip__title"
+          data-testid="heat-cell-tip-title"
+        >
+          {{ cellTip.memoryName }}
+        </div>
+        <div
+          class="pr-heat-cell-tip__row"
+          data-testid="heat-cell-tip-row"
+        >
+          <span class="pr-heat-cell-tip__label">{{ t('memoryHeatInstrLabel', locale) }}</span>
+          <span
+            class="pr-heat-cell-tip__value"
+            data-testid="heat-cell-tip-value"
+          >{{ formatAccessCount(cellTip.accessCount) }}</span>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -469,6 +570,7 @@ function onViewSelect(id: string) {
   height: var(--pr-heat-cell);
   border-radius: 1px;
   /* Fill comes from inline `heatFill(intensity)` (#200). */
+  cursor: default;
 }
 
 .pr-heat__title {
@@ -494,5 +596,74 @@ function onViewSelect(id: string) {
   margin: auto;
   color: #b3b3b3;
   text-align: center;
+}
+</style>
+
+<!--
+  Unscoped: Teleport → body (CounterHoverTip / OverviewCharts pattern). Scoped
+  selectors can fail to paint position/color on the teleported node.
+-->
+<style>
+.pr-heat-cell-tip.pr-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  color: #b3b3b3;
+  font-size: 12px;
+  line-height: 1.45;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: pr-heat-cell-tip-in 120ms ease;
+}
+
+.pr-heat-cell-tip__title {
+  font-weight: 600;
+  color: #e8e8e8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-heat-cell-tip__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.pr-heat-cell-tip__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-heat-cell-tip__value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #e8e8e8;
+}
+
+@keyframes pr-heat-cell-tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-heat-cell-tip.pr-tooltip {
+    animation: none;
+  }
 }
 </style>

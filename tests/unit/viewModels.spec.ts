@@ -744,6 +744,10 @@ describe('PR-VM: report view-models (interim)', () => {
     // #200: (8+8)=16 and (8+0)=8 → intensities 1 and 0.5 against view max 16.
     expect(l0a.blocks[0].intensity).toBe(1);
     expect(l0a.blocks[1].intensity).toBe(0.5);
+    // BiProf tip value = Read+Write per cell (#194).
+    expect(l0a.blocks[0].accessCount).toBe(16);
+    expect(l0a.blocks[1].accessCount).toBe(8);
+    expect(l0a.blocks[2].accessCount).toBe(0);
     expect(l0a.totalBytes).toBe(256);
     expect(l0a.usedBytes).toBe(64);
     expect(l0a.freeBytes).toBe(192);

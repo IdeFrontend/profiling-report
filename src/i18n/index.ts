@@ -192,6 +192,8 @@ const messages = {
     memoryHeatLow: '低',
     memoryHeatHigh: '高',
     memoryHeatUsedInstr: '已用指令条数 {n}',
+    /** BiProf heat-cell tip row label (value is the comma-grouped access count). */
+    memoryHeatInstrLabel: '已用指令条数',
     memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
     memoryHeatView: '视图',
     memoryHeatOutsideDeclared: '网格超出声明容量',
@@ -473,6 +475,8 @@ const messages = {
     memoryHeatLow: 'Low',
     memoryHeatHigh: 'High',
     memoryHeatUsedInstr: 'Instructions used {n}',
+    /** BiProf heat-cell tip row label (value is the comma-grouped access count). */
+    memoryHeatInstrLabel: 'Instructions used',
     memoryHeatCapacity: 'Total: {total} / Used: {used} / Free: {free}',
     memoryHeatView: 'View',
     memoryHeatOutsideDeclared: 'Grid extends past declared capacity',

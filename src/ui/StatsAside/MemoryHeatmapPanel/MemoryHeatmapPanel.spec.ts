@@ -8,10 +8,13 @@ function blocks(count: number, withData: number) {
     const hot = index < withData;
     // Spread intensities across hot cells so the gradient path is covered (#200).
     const intensity = hot ? (withData <= 1 ? 1 : (index + 1) / withData) : 0;
+    // BiProf tip value — hot cells use a comma-worthy count so PR-HEAT-013 can lock grouping.
+    const accessCount = hot ? (index === 0 ? 300_090 : (index + 1) * 16) : 0;
     return {
       index,
       state: hot ? ('withData' as const) : ('withoutData' as const),
       intensity,
+      accessCount,
     };
   });
 }
@@ -70,9 +73,13 @@ const model: MemoryHeatmapModel = {
   ],
 };
 
-function mountPanel(overrides: Partial<InstanceType<typeof MemoryHeatmapPanel>['$props']> = {}) {
+function mountPanel(
+  overrides: Partial<InstanceType<typeof MemoryHeatmapPanel>['$props']> = {},
+  mountOpts: { attachTo?: HTMLElement } = {},
+) {
   return mount(MemoryHeatmapPanel, {
     props: { model, selectedUnit: 'ub', locale: 'zh-CN', ...overrides },
+    ...mountOpts,
   });
 }
 
@@ -319,5 +326,32 @@ describe('MemoryHeatmapPanel', () => {
     expect(mountPanel({ model: { units: [] } }).find('[data-testid="memory-heatmap-panel"]').exists()).toBe(
       false,
     );
+  });
+
+  it('PR-HEAT-013: BiProf cell tip shows memory name + 已用指令条数 with comma count', async () => {
+    const wrapper = mountPanel({ selectedUnit: 'ub', locale: 'zh-CN' }, { attachTo: document.body });
+    const cell = wrapper.findAll('.pr-heat__cell')[0]!;
+    expect(cell.attributes('data-access-count')).toBe('300090');
+    await cell.trigger('pointerenter', { clientX: 40, clientY: 60 });
+    const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
+    expect(tip).not.toBeNull();
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-title"]')!.textContent).toBe('UB');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-row"]')!.textContent).toContain('已用指令条数');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-value"]')!.textContent).toBe('300,090');
+    // EventTooltip chrome on the teleported tip.
+    expect((tip as HTMLElement).classList.contains('pr-tooltip')).toBe(true);
+    await cell.trigger('pointerleave');
+    expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-HEAT-013: EN tip label is Instructions used', async () => {
+    const wrapper = mountPanel({ selectedUnit: 'ub', locale: 'en' }, { attachTo: document.body });
+    await wrapper.findAll('.pr-heat__cell')[0]!.trigger('pointerenter', { clientX: 10, clientY: 10 });
+    const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-row"]')!.textContent).toContain(
+      'Instructions used',
+    );
+    wrapper.unmount();
   });
 });

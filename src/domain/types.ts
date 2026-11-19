@@ -387,6 +387,11 @@ export interface MemoryHeatmapBlock {
    * view max is 0 or the cell has no traffic (#200).
    */
   intensity: number;
+  /**
+   * Per-cell access count (`ReadAddresses + WriteAddresses`) for the BiProf cell tip
+   * (`已用指令条数` / Instructions used). `0` when the cell has no Cells row / no traffic.
+   */
+  accessCount: number;
 }
 
 /**
