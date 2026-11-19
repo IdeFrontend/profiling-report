@@ -408,19 +408,21 @@ describe('MemoryHeatmapPanel', () => {
     },
   };
 
-  it('PR-HEAT-013: SA cell tip shows Start Address, Cell Size, Accesses Count + overlay ring', async () => {
+  it('PR-HEAT-013: SA cell tip shows Start Address, Cell Size, Accesses Count + zoom overlay', async () => {
     const wrapper = mountPanel(
       { ...tipFixture, locale: 'zh-CN' },
       { attachTo: document.body },
     );
     const cell = wrapper.findAll('.pr-heat__cell')[0]!;
     expect(cell.attributes('data-access-count')).toBe('300090');
-    // No per-cell hover class — overlay owns the ring (no layout grow).
+    // No per-cell hover class — overlay owns the zoom tile (no layout grow).
     expect(cell.classes()).not.toContain('pr-heat__cell--hover');
 
     const { grid, cellCenter } = stubHeatGrid(wrapper);
     await grid.trigger('pointermove', cellCenter(0, 0));
-    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(true);
+    const hover = wrapper.get('[data-testid="heat-cell-hover"]');
+    // Zoom tile paints the cell fill (jsdom may drop calc(var(--pr-heat-cell)) sizing).
+    expect(hover.attributes('style')).toMatch(/background-color:\s*rgb\(/);
     const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
     expect(tip).not.toBeNull();
     // BaseAddress 0x100 + index 0 * 128 = 0x100

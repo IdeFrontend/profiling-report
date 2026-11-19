@@ -39,6 +39,8 @@ import { SELECTION_MUTED_FILL } from '../../../swimlane/layout';
 /** SA tip size estimate for flip/clamp (three label|value rows). */
 const HEAT_CELL_TIP_EST_W = 220;
 const HEAT_CELL_TIP_EST_H = 88;
+/** Hover zoom: expand overlay this many px past each side of the cell (centered). */
+const HEAT_HOVER_GROW_PX = 4;
 
 /** Fixed brush width on the Access Count legend (percent of strip). */
 const LEGEND_BRUSH_WIDTH_PCT = 10;
@@ -303,11 +305,17 @@ const hoverOverlayStyle = computed<CSSProperties>(() => {
   const index = hoveredBlockIndex.value;
   const view = activeView.value;
   if (index == null || !view) return { display: 'none' };
+  const block = view.blocks[index];
+  if (!block) return { display: 'none' };
   const col = index % view.columns;
   const row = Math.floor(index / view.columns);
+  const grow = HEAT_HOVER_GROW_PX;
   return {
-    left: `calc(${HEAT_GRID_PAD_PX}px + ${col} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px))`,
-    top: `calc(${HEAT_GRID_PAD_PX}px + ${row} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px))`,
+    left: `calc(${HEAT_GRID_PAD_PX}px + ${col} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px) - ${grow}px)`,
+    top: `calc(${HEAT_GRID_PAD_PX}px + ${row} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px) - ${grow}px)`,
+    width: `calc(var(--pr-heat-cell) + ${grow * 2}px)`,
+    height: `calc(var(--pr-heat-cell) + ${grow * 2}px)`,
+    backgroundColor: heatFill(block.intensity),
   };
 });
 
@@ -702,7 +710,7 @@ watch(activeView, () => {
                   : heatFill(block.intensity),
               }"
             />
-            <!-- Single overlay ring — no per-cell class / layout grow (swimlane-style). -->
+            <!-- Zoomed filled overlay — cells keep fixed size (no layout grow). -->
             <div
               v-if="
                 hoveredBlockIndex != null &&
@@ -1030,7 +1038,8 @@ watch(activeView, () => {
   border: 2px solid #6e798d;
   border-radius: 5px;
   background: #303f5e;
-  overflow: hidden;
+  /* Visible so the +4px hover zoom can paint into gaps / past pad. */
+  overflow: visible;
 }
 
 .pr-heat__cell {
@@ -1053,13 +1062,13 @@ watch(activeView, () => {
 .pr-heat__hover {
   position: absolute;
   z-index: 2;
-  width: var(--pr-heat-cell);
-  height: var(--pr-heat-cell);
   border-radius: 1px;
   box-sizing: border-box;
   pointer-events: none;
-  /* Light ring reads on both gray (0%) and red (100%) fills. */
-  box-shadow: inset 0 0 0 1.5px #ffffff;
+  /* Size + fill from hoverOverlayStyle; lift above neighbors. */
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .pr-heat__title {
