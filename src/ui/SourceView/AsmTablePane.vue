@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Right-pane SASS listing: plain metrics table (no Sudu).
- * Sketch columns: # · Address · Assembly · Instructions Executed · Sampling Stall · Warp Occupancy.
+ * Columns from model: # · Address · Assembly · metricsColumns (compute stall set / emulate MVP).
  */
 import { nextTick, ref } from 'vue';
 import type { SourceFileModel } from '../../domain/types';
@@ -25,17 +25,14 @@ const emit = defineEmits<{
   'update:currentLine': [line: number];
 }>();
 
-const rootEl = ref<HTMLElement | null>(null);
+const tableRef = ref<{ scrollToLine: (line: number) => void } | null>(null);
 
 function onRowClick(line: number) {
   emit('update:currentLine', line);
 }
 
 function setLine(line: number) {
-  void nextTick(() => {
-    const row = rootEl.value?.querySelector<HTMLElement>(`tr[data-line="${line}"]`);
-    row?.scrollIntoView({ block: 'nearest' });
-  });
+  void nextTick(() => tableRef.value?.scrollToLine(line));
 }
 
 defineExpose({ setLine });
@@ -43,11 +40,11 @@ defineExpose({ setLine });
 
 <template>
   <div
-    ref="rootEl"
     class="pr-asm-table-pane"
     data-testid="asm-table-pane"
   >
     <SourceMetricsTable
+      ref="tableRef"
       :file="file"
       :current-line="currentLine ?? null"
       :correlated-lines="correlatedLines"

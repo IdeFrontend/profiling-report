@@ -465,7 +465,22 @@ export interface SourceFileModel {
   language?: string;
   text: string;
   metricsColumns: SourceMetricsColumn[];
+  /**
+   * Per-line metrics. May be **sparse** (only rows with data / mappings) when
+   * `lineCount` is set — the metrics table virtualizes over `1..lineCount` and
+   * fills gaps. Dense asm listings omit `lineCount` and use `lines.length`.
+   */
   lines: SourceLineMetrics[];
+  /**
+   * Total 1-based line extent for the metrics table / editor sync when `lines`
+   * is sparse (emulate source pads `text` to this length for Sudu carets).
+   */
+  lineCount?: number;
+  /**
+   * Source line (1-based) → assembly line numbers. On source files only;
+   * omitted / empty on the assembly buffer.
+   */
+  sourceToAsm?: Map<number, number[]>;
 }
 
 /**
@@ -475,9 +490,8 @@ export interface SourceFileModel {
 export interface SourceCorrelationModel {
   files: SourceFileModel[];
   assembly: SourceFileModel;
-  /** `${fileId}:${line}` → assembly line numbers (1-based). */
-  sourceToAsm: Record<string, number[]>;
-  asmToSource: Record<number, { fileId: string; line: number }>;
+  /** Assembly line (1-based) → source file + line. */
+  asmToSource: Map<number, { fileId: string; line: number }>;
   navigateBy: string[];
   mock: boolean;
 }

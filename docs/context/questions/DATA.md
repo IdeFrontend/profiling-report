@@ -71,16 +71,6 @@ Open **DATA** questions (file/field/formula data mapping). Status enum, prefix t
 
 **Specs when answered:** [source-correlation](../../../specs/core/source-correlation.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [ADAPTERS](../../formats/ADAPTERS.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md).
 
-### DATA-53 — Emulate AsmMetrics / SourceFiles → Source tab
-
-**Status:** `open`
-
-**Question:** For emulate packs (e.g. gelu), which tables map into Source | SASS when an ELF / `--object-file` is present — `SourceFiles` / `SourceLines` / `AsmMetrics` / `IPCAsmMetrics` / Source Assembly HTML — and how do PC ↔ source line joins populate `sourceToAsm` / `asmToSource`? Confirm gelu-without-ELF stays mock-only.
-
-**Answer so far:** FORMATs_COMPARISON marks Source Assembly / AsmMetrics as Phase 2 / ELF-gated; gelu packs hint CSVs but empty SourceFiles without object file. Compute path above does **not** answer emulate.
-
-**Specs when answered:** [emulate/FORMAT](../../formats/emulate/FORMAT.md), [emulate/SCHEMA](../../formats/emulate/SCHEMA.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md).
-
 ### DATA-54 — symbolizer `Line: 0` / missing line mapping
 
 **Status:** `partial`

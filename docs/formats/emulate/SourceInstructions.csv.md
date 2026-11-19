@@ -11,7 +11,7 @@
 | Kind | table |
 | Gelu rows | 0 |
 | CSV file | `SourceInstructions.csv` |
-| Role | Static source/disassembly instructions (ELF gated). |
+| Role | Static disassembly listing for Source \| SASS (ELF gated; [DATA-53](../../context/decisions/DATA.md); [source](../../views/source.md)). |
 
 | Column | Type | Description |
 |--------|------|-------------|

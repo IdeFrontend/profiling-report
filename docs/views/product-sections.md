@@ -25,7 +25,7 @@ Design reference (docx): [HDesign mock](https://octo-g.hdesign.huawei.com/develo
 | 11.2.7 | Statistical analysis | [overview-charts](overview-charts.md) | [`Sampling.json`](../formats/compute/Sampling.json.md) + viz geometry in **Compute fill** |
 | 11.2.8 | Kernel block timeline | [timeline](timeline.md#structure) | Structure + sample CTEF binding in **Compute fill** |
 | 11.2.8.1 | Event / Relevant details | [event-details](event-details.md) | Mockup regions + CTEF gaps in **Compute fill** |
-| 11.4 | Source \| SASS (源码) | [source](source.md) | Multi-file embeds + adapter in [compute FORMAT](../formats/compute/FORMAT.md); open [DATA-52](../context/questions/DATA.md)–[DATA-55](../context/questions/DATA.md) |
+| 11.4 | Source \| SASS (源码) | [source](source.md) | Multi-file embeds + adapter in [compute FORMAT](../formats/compute/FORMAT.md); packing / Line:0 / extra metrics still open ([DATA-52](../context/questions/DATA.md), [DATA-54](../context/questions/DATA.md), [DATA-55](../context/questions/DATA.md)) |
 
 <a id="emulate-profile"></a>
 
@@ -43,6 +43,7 @@ Same host file (`.npu-rep`); leaf via [`manifest.json`](../formats/emulate/manif
 | 11.2.3.5 | Roofline | [roofline](roofline.md) | **hide** |
 | 11.2.3.2 | Memory Utilization Heatmap | [memory-topology](memory-topology.md) (capability `memoryHeatmap`) | **in** — fullscreen right panel; Layout+Cells fill L1/UB/L0A/L0B/L0C ([DATA-50](../context/decisions/DATA.md) / [UI-60](../context/decisions/UI.md)); no UbRw / L2 heat |
 | 11.2.3.3,7–8 | AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
+| — | Source \| SASS (源码) | [source](source.md) | **in** when ELF `SourceInstructions` / `AsmMetrics` gate passes ([DATA-53](../context/decisions/DATA.md)); gelu-without-ELF **hide** |
 
 ## Related
 

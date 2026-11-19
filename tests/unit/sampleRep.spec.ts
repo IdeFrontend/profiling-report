@@ -420,8 +420,8 @@ describe('PR-NPU-006: sample.rep distinct operators', () => {
       expect(cube.text).toContain('Mmad(');
       const mmad = lineOf(cube.text, 'Mmad(');
       const copy = lineOf(mte.text, 'DataCopy(l1Local');
-      expect(source.sourceToAsm[`cube_op.cpp:${mmad}`]?.length).toBeGreaterThan(0);
-      expect(source.sourceToAsm[`mte_copy.cpp:${copy}`]?.length).toBeGreaterThan(0);
+      expect(cube.sourceToAsm?.get(mmad)?.length).toBeGreaterThan(0);
+      expect(mte.sourceToAsm?.get(copy)?.length).toBeGreaterThan(0);
       expect(report.reportModel.roofline!.points.map((p) => p.id).sort()).toEqual([
         'aic_b16',
         'aic_b32',

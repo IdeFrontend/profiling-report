@@ -228,6 +228,56 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 **Superseded when:** Product stamps as final in [DATA.md](../DATA.md) (or withdraws)
 
 
+<a id="data-53a"></a>
+
+### DATA-53a — Emulate Source stall tooltip / SIMDStallsJson
+
+**Status:** `interim`
+**Question:** [DATA-53](../DATA.md) (resolved; deferred slice)
+**Interim:** Do **not** map `AsmMetrics.SIMDStallsJson` / `SourceLineMetrics.SIMDStallsJson` into Source | SASS in this slice. Keep the SourceView stall tooltip hard-wired to compute `samplingStall` + `stallBreakdown`. Emulate MVP does **not** invent a Sampling Stall column.
+**Implement / test as:** `adaptEmulateSourceCorrelation` omits stall columns; no `stallBreakdown` on emulate rows; PR-SRC-012…017
+**Superseded when:** Product defines emulate stall column id(s) and tooltip schema (genericize beyond `samplingStall`)
+
+<a id="data-53b"></a>
+
+### DATA-53b — IPCAsmMetrics not on Source tab
+
+**Status:** `interim`
+**Question:** [DATA-53](../DATA.md) (resolved; deferred slice)
+**Interim:** `IPCAsmMetrics.csv` does **not** light `'sourceTab'` and does **not** attach IPC columns to the static PC listing. Per-execution / `UNION ALL` fan-out is not 1:1 with `SourceInstructions` / `AsmMetrics` PCs.
+**Implement / test as:** `hasEmulateSourcePack` rejects IPC-only packs; PR-SRC-015 / PR-ASIM-014
+**Superseded when:** Product defines a PC-level IPC join (or a separate IPC surface)
+
+<a id="data-53c"></a>
+
+### DATA-53c — Emulate Source deferred surfaces
+
+**Status:** `interim`
+**Question:** [DATA-53](../DATA.md) (resolved; deferred slice)
+**Interim:** Out of the first emulate Source slice: richer metric columns (bank conflicts, DMA, cache, live regs, branch efficiency, …), function / basic-block decorations, call-stack dock, and summary charts (`InstrTypeHist*`, pipe util hist, AiCore occupancy, …). Performance hints stay on the existing hints dock, not inside SourceView.
+**Implement / test as:** MVP five columns only in `adaptEmulateSourceCorrelation`; SourceView dock remains absent (PR-SOURCE-010)
+**Superseded when:** Product prioritizes a follow-on Source chrome / metric slice
+
+<a id="data-53d"></a>
+
+### DATA-53d — Emulate source text: sparse fragments, no auto absolute paths
+
+**Status:** `interim`
+**Question:** [DATA-53](../DATA.md) (resolved; deferred display fidelity)
+**Interim:** Reconstruct editor text sparsely from `SourceLines` via `DebugInfo` only. Missing text → compute-style `MISSING_SOURCE_EMBED_PREFIX` placeholder. Gaps between mapped `DebugInfoLineNum`s are empty lines so caret / correlation line numbers stay correct — the document therefore looks **fragmented**, not a solid full file (producer `SourceLines` is not a complete snapshot). High max line numbers still pad **`text`** for Sudu, but metrics rows stay **sparse** (`lineCount` + only interesting lines) so the metrics table can virtualize without allocating tens of thousands of empty row objects. The library does **not** auto-read absolute `SourceFilePath`s from the host filesystem. Optional host `resolveMissingSourceFiles` / `resolveSourceFile` may fill placeholders later (same hook as compute). No new rule requiring full `.asc` bundles in the leaf.
+**Implement / test as:** `adaptEmulateSourceCorrelation` + PR-SRC-014; `SourceFileModel.lineCount`; [SourceMetricsTable](../../../../src/ui/SourceView/SourceMetricsTable.vue) virtual window; [resolveSourceFile.ts](../../../../src/adapters/sourceCorrelation/resolveSourceFile.ts)
+**Superseded when:** Product locks a full-text pack / host resolver contract (related: [DATA-52](../../questions/DATA.md))
+
+<a id="data-53e"></a>
+
+### DATA-53e — Emulate Instruction Ticks stay raw (no tick→ns)
+
+**Status:** `interim`
+**Question:** [DATA-53](../DATA.md) (resolved; deferred display)
+**Interim:** Show `TickCount` as raw ticks in MVP. Do **not** convert via `KernelInfo.frequency_ghz` (`nanoseconds = ticks / frequency_ghz`) yet.
+**Implement / test as:** `tickCount` number column; PR-SRC-012
+**Superseded when:** Product wants ns/µs display and confirms frequency source / missing-frequency behavior
+
 <a id="data-50a"></a>
 
 ### DATA-50a — Heat grid geometry + unit attribution

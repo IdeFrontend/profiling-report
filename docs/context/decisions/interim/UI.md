@@ -19,3 +19,13 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 **Interim:** ~~Bare absolute cycle counts (no `µs`).~~ Product-final: [UI-46](../UI.md) (with [DATA-38](../DATA.md)).
 **Implement / test as:** `formatClockCycleLabel`, LaneGutter thick/tip labels — [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) (`PR-GMET-008`)
 **Superseded when:** — already superseded by UI-46 / DATA-38 (2026-09-14)
+
+<a id="ui-53a"></a>
+
+### UI-53a — Emulate Source keeps shared SASS chrome label
+
+**Status:** `interim`
+**Question:** [DATA-53](../DATA.md) (resolved; presentation default) / related open [UI-56](../../questions/UI.md)
+**Interim:** Keep the dual-pane right-side label / language id **SASS** for emulate (shared with compute). Do not invent a separate “Assembly” / ISA chrome name in this slice. Metric columns come from `model.assembly.metricsColumns` (compute stall set vs emulate MVP) — Address / Assembly stay leading text columns ([PR-SOURCE-013](../../../../src/ui/SourceView/SourceView.spec.md)).
+**Implement / test as:** `SourceView` / `AsmTablePane`; assembly `language: 'sass'`; no `profile === 'emulate'` branching in the view
+**Superseded when:** Product renames the right pane or locks Left/Right View modes ([UI-56](../../questions/UI.md))
