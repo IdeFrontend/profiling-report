@@ -21,11 +21,8 @@ import {
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   MAX_QUADS_PER_MESH,
-  assignTickDensityDims,
-  binTicksByCssColumn,
   contentHeightFromLayout,
   encodeIntervalPair,
-  snapDensityMarkPaintTimes,
   eventBlockMetrics,
   eventEmphasis,
   isKeepBright,
@@ -48,7 +45,6 @@ import {
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
-  type TickDensityMark,
 } from './layout';
 import { eventFill, labelColorOn } from '../domain/laneColors';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint, glLinkTime, type DependencyLink } from './dependencyLinks';
@@ -73,8 +69,6 @@ interface MeshChunk {
   vbo: WebGLBuffer;
   ibo: WebGLBuffer;
   indexCount: number;
-  /** Per-vertex density dim (aDim); omitted for ordinary interval / discrete-tick meshes. */
-  dimVbo?: WebGLBuffer;
 }
 
 interface EmphasisLayer {
@@ -125,9 +119,8 @@ interface SubRowMesh {
   /** Positive-duration intervals — additive blend. */
   chunks: MeshChunk[];
   /**
-   * Duration-0 CSS-column density marks — additive (columns do not overlap) with per-quad `aDim`
-   * and viewport CSS-pixel paint snap (PR-RENDER-066). Search uses discrete tickChunks on
-   * emphasis layers (source-over) instead.
+   * Duration-0 ticks — discrete source-over mesh built once at setModel (no per-pan rebuild).
+   * Canvas keeps CSS-column density LOD (PR-RENDER-066); WebGL stays discrete for frame cost.
    */
   tickChunks: MeshChunk[] | null;
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
@@ -314,9 +307,6 @@ export function setVbSquareWithGaps(
  * `isolatedGaps`: duration-0 ticks pass `EDGE_GAP` on both sides so each mark extends to the
  * fixed min tick width only — never toward a neighbor (which would fill empty gaps / merge
  * dense ph:i into a continuous strip — #205).
- *
- * `dimAt`: optional per-quad density dim uploaded as `aDim` (PR-RENDER-066). Ordinary meshes
- * omit it; the draw path sets the generic attrib to 1.0 when the array is disabled.
  */
 function createChunk(
   gl: WebGL2RenderingContext,
@@ -325,7 +315,6 @@ function createChunk(
   pairCount: number,
   indexAt: (i: number) => number = (i) => off + i,
   isolatedGaps = false,
-  dimAt?: (i: number) => number,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
   const vb = new Float32Array(numSquares * 24);
@@ -365,30 +354,11 @@ function createChunk(
   gl.enableVertexAttribArray(2);
   gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 24, 16);
 
-  let dimVbo: WebGLBuffer | undefined;
-  if (dimAt) {
-    const dimArr = new Float32Array(numSquares * 4);
-    for (let i = 0; i < numSquares; i++) {
-      const d = dimAt(i);
-      const o = i * 4;
-      dimArr[o] = d;
-      dimArr[o + 1] = d;
-      dimArr[o + 2] = d;
-      dimArr[o + 3] = d;
-    }
-    dimVbo = gl.createBuffer() ?? undefined;
-    if (!dimVbo) throw new Error('buffer alloc failed');
-    gl.bindBuffer(gl.ARRAY_BUFFER, dimVbo);
-    gl.bufferData(gl.ARRAY_BUFFER, dimArr, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(3);
-    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
-  }
-
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
   gl.bindVertexArray(null);
 
-  return { vao, vbo, ibo, indexCount: numSquares * 6, dimVbo };
+  return { vao, vbo, ibo, indexCount: numSquares * 6 };
 }
 
 /** Edge fake-gap for the first/last event of a lane (model time units). A huge constant so an
@@ -450,45 +420,6 @@ function createChunksFromIndices(
   for (let off = 0; off < total; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, total - off);
     chunks.push(createChunk(gl, pairs, off, count, (i) => indices[off + i]!, isolatedGaps));
-  }
-  return chunks;
-}
-
-/**
- * Density-LOD column marks: one isolated quad per CSS column with per-quad `aDim`.
- * Paint times snap to the viewport CSS grid so coverage peaks at 1.0 (Canvas parity).
- */
-function createDensityChunksFromMarks(
-  gl: WebGL2RenderingContext,
-  marks: readonly TickDensityMark[],
-  timeBase: number,
-  viewStart: number,
-  viewEnd: number,
-  widthCss: number,
-): MeshChunk[] {
-  const pairs: number[] = [];
-  const dims: number[] = [];
-  for (const m of marks) {
-    const [t0, t1] = snapDensityMarkPaintTimes(m.t0, viewStart, viewEnd, widthCss);
-    const [a, b] = encodeIntervalPair(t0, t1 - t0, timeBase);
-    pairs.push(a, b);
-    dims.push(m.dim);
-  }
-  const chunks: MeshChunk[] = [];
-  const total = dims.length;
-  for (let off = 0; off < total; off += MAX_QUADS_PER_MESH) {
-    const count = Math.min(MAX_QUADS_PER_MESH, total - off);
-    chunks.push(
-      createChunk(
-        gl,
-        pairs,
-        off,
-        count,
-        (i) => off + i,
-        true,
-        (i) => dims[off + i]!,
-      ),
-    );
   }
   return chunks;
 }
@@ -631,7 +562,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   resize(devicePixelWidth: number, devicePixelHeight: number, dpr: number): void {
     const nextDpr = dpr > 0 ? dpr : 1;
     const dprChanged = nextDpr !== this.dpr;
-    const prevW = this.width;
     this.width = Math.max(1, Math.floor(devicePixelWidth));
     this.height = Math.max(1, Math.floor(devicePixelHeight));
     this.dpr = nextDpr;
@@ -649,8 +579,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       this.rebuildCurveInstances();
       this.atlas?.clear(gl);
     }
-    // Density LOD bins are CSS-px columns — rebuild when the track width or dpr changes.
-    if (dprChanged || this.width !== prevW) this.rebuildTickLodMeshes();
   }
 
   setModel(model: SwimlaneModel): void {
@@ -698,11 +626,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setView(view: SwimlaneViewWindow): void {
-    const changed =
-      view.startTime !== this.view.startTime || view.endTime !== this.view.endTime;
     this.view = { ...view };
-    // Density column bins depend on the visible time window (pan + zoom).
-    if (changed) this.rebuildTickLodMeshes();
   }
 
   /** Overlay owns hover lift; keep the arg so hover-only calls no-op on `selectedId`. */
@@ -957,17 +881,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         if (row.emphasisLayers) {
           for (const layer of row.emphasisLayers) {
             drawChunks(layer.chunks, layer.rgb, layer.dim);
-            // Search discrete ticks stay source-over (dense min-width marks).
             drawTickChunks(layer.tickChunks, layer.rgb, layer.dim);
           }
         } else {
           const mute = muteRest && !meshes.summary;
           const baseRgb = mute ? mutedRgb : meshes.color;
           drawChunks(row.chunks, baseRgb, 1);
-          // Density marks: additive (non-overlapping CSS columns) + durable brightness.
-          if (row.tickChunks && row.tickChunks.length > 0) {
-            drawChunks(row.tickChunks, baseRgb, 1);
-          }
+          drawTickChunks(row.tickChunks, baseRgb, 1);
           if (row.brightChunks || row.liftChunks) {
             // Src-over so keep-bright fills replace the muted bar (additive would double).
             gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -1236,7 +1156,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         // layout.events is startTime-ordered per lane; grouping preserves that within a sub-row.
         const events = byRow.get(`${idx}:${r}`) ?? [];
         allEvents.push(...events);
-        const { pairs, intervalIdx } = partitionIntervalTickIndices(events, this.timeBase);
+        const { pairs, intervalIdx, tickIdx } = partitionIntervalTickIndices(events, this.timeBase);
         rows.push({
           y: lane.y + r * LANE_HEIGHT,
           // Full-row pairs keep gapPrev/gapNext correct across the interval/tick split.
@@ -1246,8 +1166,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
               : intervalIdx.length * 2 === pairs.length
                 ? createChunksFromPairs(gl, pairs)
                 : createChunksFromIndices(gl, pairs, intervalIdx),
-          // Filled by `rebuildTickLodMeshes` (full-height CSS-column density marks).
-          tickChunks: null,
+          tickChunks:
+            tickIdx.length === 0
+              ? null
+              : createChunksFromIndices(gl, pairs, tickIdx, true),
           emphasisLayers: null,
           brightChunks: null,
           liftChunks: null,
@@ -1261,68 +1183,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         summary,
       };
     });
-    this.rebuildTickLodMeshes();
     this.rebuildEmphasisSplit();
-  }
-
-  /**
-   * Rebuild duration-0 tick meshes for the current view as full-height CSS-column density marks
-   * with continuous count→dim + similarity alternate (PR-RENDER-066). All density marks paint
-   * additive (non-overlapping columns) with viewport CSS-pixel snap. Search emphasis keeps its
-   * own discrete tickChunks and skips this path.
-   */
-  private rebuildTickLodMeshes(): void {
-    const gl = this.gl;
-    if (!gl || this.laneMeshes.length === 0) return;
-
-    const widthCss = this.width / Math.max(this.dpr, Number.EPSILON);
-    const viewStart = this.view.startTime;
-    const viewEnd = this.view.endTime;
-
-    const byRow = new Map<string, LaidOutEvent[]>();
-    for (const ev of this.layout.events) {
-      if (ev.event.duration !== 0 || ev.summary) continue;
-      const key = `${ev.laneIndex}:${ev.rowIndex}`;
-      const list = byRow.get(key) ?? [];
-      list.push(ev);
-      byRow.set(key, list);
-    }
-
-    for (let idx = 0; idx < this.laneMeshes.length; idx++) {
-      const meshes = this.laneMeshes[idx]!;
-      for (let r = 0; r < meshes.rows.length; r++) {
-        const row = meshes.rows[r]!;
-        if (row.tickChunks) {
-          for (const c of row.tickChunks) this.deleteChunk(c);
-          row.tickChunks = null;
-        }
-        // Search emphasis owns discrete tick draws; leave resting tick meshes empty while active.
-        if (row.emphasisLayers) continue;
-
-        const events = byRow.get(`${idx}:${r}`) ?? [];
-        if (events.length === 0) continue;
-
-        const visibleTimes: number[] = [];
-        for (const e of events) {
-          const t = e.event.startTime;
-          if (t >= viewStart && t < viewEnd) visibleTimes.push(t);
-        }
-        if (visibleTimes.length === 0) continue;
-
-        const marks = assignTickDensityDims(
-          binTicksByCssColumn(visibleTimes, viewStart, viewEnd, widthCss),
-        );
-        if (marks.length === 0) continue;
-        row.tickChunks = createDensityChunksFromMarks(
-          gl,
-          marks,
-          this.timeBase,
-          viewStart,
-          viewEnd,
-          widthCss,
-        );
-      }
-    }
   }
 
   /** Split lane meshes by Canvas-equivalent emphasis (search alpha × selection gray muting). */
@@ -1334,27 +1195,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const q = this.searchQuery;
     const sel = this.selectedId;
     const multi = this.multiIds;
-    if (!gl || (!q && !sel && multi.size === 0)) {
-      // Resting tick density LOD may have been cleared while search owned discrete ticks.
-      this.rebuildTickLodMeshes();
-      return;
-    }
+    if (!gl || (!q && !sel && multi.size === 0)) return;
     // Search dim is per-name; selection/multi without search mutes the existing
     // lane meshes and uploads only keep-bright intervals (O(selected), not O(events)).
     if (!q) {
       this.rebuildBrightOverlay();
-      this.rebuildTickLodMeshes();
       return;
-    }
-
-    // Search emphasis draws discrete ticks; drop resting density tick meshes.
-    for (const lane of this.laneMeshes) {
-      for (const row of lane.rows) {
-        if (row.tickChunks) {
-          for (const c of row.tickChunks) this.deleteChunk(c);
-          row.tickChunks = null;
-        }
-      }
     }
 
     const hasSearch = q.length > 0;
@@ -1642,6 +1488,5 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.deleteVertexArray(chunk.vao);
     gl.deleteBuffer(chunk.vbo);
     gl.deleteBuffer(chunk.ibo);
-    if (chunk.dimVbo) gl.deleteBuffer(chunk.dimVbo);
   }
 }

@@ -1577,7 +1577,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(marks.some((m) => m.count >= 2)).toBe(true);
     expect(marks.some((m) => m.count === 1 && m.dim === 1)).toBe(true);
 
-    // Paint snap: fractional world left → integer CSS column; neighbors stay distinct.
+    // Paint snap helper stays available for Canvas/WebGL experiments (layout only).
     expect(snapDensityMarkPaintTimes(0.3, 0, 1, 10)).toEqual([0.3, 0.4]);
     const snapped = snapDensityMarkPaintTimes(0.35, 0.03, 1.03, 10);
     expect(snapped[0]).toBeCloseTo(0.33, 10);
@@ -1587,18 +1587,14 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(s1a).toBeCloseTo(s0b, 10);
     expect(s0a).not.toBeCloseTo(s0b, 10);
 
+    // WebGL: discrete setModel tickChunks (no per-pan density VBO rebuild).
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toMatch(/rebuildTickLodMeshes/);
-    expect(webglSrc).toMatch(/createDensityChunksFromMarks/);
-    expect(webglSrc).toMatch(/assignTickDensityDims/);
-    expect(webglSrc).toMatch(/snapDensityMarkPaintTimes/);
-    expect(webglSrc).not.toMatch(/tickSrcOverChunks/);
-    expect(webglSrc).toMatch(/aDim/);
-    // Density marks draw via additive drawChunks; source-over drawTickChunks is search-only.
-    expect(webglSrc).toMatch(
-      /Density marks: additive[\s\S]*drawChunks\(row\.tickChunks/,
-    );
+    expect(webglSrc).toMatch(/createChunksFromIndices\(gl, pairs, tickIdx,\s*true\)/);
+    expect(webglSrc).toMatch(/drawTickChunks\(row\.tickChunks/);
+    expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
+    expect(webglSrc).not.toMatch(/createDensityChunksFromMarks/);
+    expect(webglSrc).not.toMatch(/assignTickDensityDims/);
     expect(webglSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(webglSrc).not.toMatch(/tickDensityChunks/);
     expect(webglSrc).not.toMatch(/partitionTickLodByRuns/);
@@ -1608,10 +1604,6 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(canvasSrc).toMatch(/assignTickDensityDims/);
     expect(canvasSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(canvasSrc).not.toMatch(/partitionTickLodByRuns/);
-
-    const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
-    expect(shaderSrc).toMatch(/in float aDim/);
-    expect(shaderSrc).toMatch(/in float vDim/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {
