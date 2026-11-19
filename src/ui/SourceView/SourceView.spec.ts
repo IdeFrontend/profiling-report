@@ -130,6 +130,7 @@ async function latestSuduEditor() {
     revealLine: ReturnType<typeof vi.fn>;
     focus: ReturnType<typeof vi.fn>;
     setTheme: ReturnType<typeof vi.fn>;
+    setVScrollPos: ReturnType<typeof vi.fn>;
     highlightRanges: ReturnType<typeof vi.fn>;
     selectNextRange: ReturnType<typeof vi.fn>;
     selectPrevRange: ReturnType<typeof vi.fn>;
@@ -690,6 +691,39 @@ describe('SourceView', () => {
     const row1 = asm.find('tr[data-line="1"]');
     expect(row1.find('[data-col="address"]').text()).toMatch(/00007f7b/);
     expect(row1.find('[data-col="assembly"]').text().length).toBeGreaterThan(0);
+  });
+
+  it('PR-SOURCE-014f: editor pointer gesture does not revealLine or push table scroll into Sudu', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const ed = await latestSuduEditor();
+    ed.revealLine.mockClear();
+    ed.setVScrollPos.mockClear();
+
+    await wrapper.find('[data-testid="sudu-editor-host"]').trigger('pointerdown');
+    // Parent currentLine update while the button is still down (caret echo path).
+    await wrapper.findComponent({ name: 'SuduCodePane' }).vm.$emit('update:currentLine', 46);
+    await wrapper.vm.$nextTick();
+    expect(ed.revealLine).not.toHaveBeenCalled();
+
+    const scroll = wrapper.find('[data-testid="source-metrics-scroll"]');
+    expect(scroll.exists()).toBe(true);
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: 240,
+      writable: true,
+      configurable: true,
+    });
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event('pointerup'));
+    await wrapper.vm.$nextTick();
+    const sudu = wrapper.findComponent({ name: 'SuduCodePane' });
+    (sudu.vm as { setLine: (n: number) => void }).setLine(61);
+    expect(ed.revealLine).toHaveBeenCalledWith(61);
+    wrapper.unmount();
   });
 
   it('PR-SOURCE-014: Sudu caret echo after asm click does not snap asm to mapped[0]', async () => {

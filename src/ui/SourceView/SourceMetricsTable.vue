@@ -355,14 +355,10 @@ watch(
   },
 );
 
-/** Keep the virtual window on the caret when Navigate By / correlation jumps. */
-watch(
-  () => props.currentLine,
-  (line) => {
-    if (line == null || !virtualize.value) return;
-    scrollToLine(line);
-  },
-);
+// Do not watch currentLine → scrollToLine. Editor clicks update currentLine while
+// the pointer is still down; scrolling the metrics body would drive Sudu via
+// setVScrollPos and steal the drag into a selection/reveal loop. Programmatic
+// jumps call scrollToLine through AsmTablePane.setLine / Sudu reveal + vscroll sync.
 
 onBeforeUnmount(() => {
   bodyRo?.disconnect();
