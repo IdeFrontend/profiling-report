@@ -228,7 +228,7 @@ Ticks and playhead aligned to `SwimlaneViewState` time window. Canonical times a
 
 ### `OverviewCharts` (M)
 
-Renders `OverviewSeries` as the **统计分析** block **above** the swimlane (below the time axis); **hidden** when empty ([DATA-32](../context/decisions/DATA.md) / [DATA-39](../context/decisions/DATA.md)).
+Renders `OverviewSeries` as the **统计分析** block **above** the swimlane (below the time axis); **hidden** when empty ([DATA-32](../context/decisions/DATA.md) / [DATA-39](../context/decisions/DATA.md)), and when 流水视图显示 is on communication / warpOccupy ([DATA-56](../context/decisions/DATA.md)).
 
 **Geometry / style (v930/entry):** track height **16px**; **8px** gap between tracks; gutter labels share Timeline gutter width; area fill (~0.45 opacity) + bright stroke polyline per [COLOR_TOKENS](../ui/COLOR_TOKENS.md).
 

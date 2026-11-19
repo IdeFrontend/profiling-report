@@ -1631,6 +1631,81 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
+  it('PR-ROOT-034: 统计分析 shows only for pipeTrace; hide for other catalog traces', async () => {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const swimPipe = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'pipe-lane',
+              events: [{ id: 'ep', name: 'pipe-op', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 10,
+    };
+    const swimComm = {
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 't',
+              name: 'comm-lane',
+              events: [{ id: 'ec', name: 'comm-op', startTime: 0, duration: 50 }],
+            },
+          ],
+        },
+      ],
+      minTime: 0,
+      maxTime: 50,
+    };
+    const overviewSeries = [
+      { id: 'Cube', label: 'Cube', points: [{ t: 0, v: 1 }, { t: 10, v: 2 }] },
+    ];
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swimPipe,
+      reportModel: { ...emptyReportViewModel(), overviewSeries },
+      capabilities: [],
+      timelineTraces: [
+        { id: 'communication', embedName: 'Communication.json' },
+        { id: 'pipeTrace', embedName: 'PipeTrace.json' },
+      ],
+      selectedTimelineTraceId: 'pipeTrace',
+      timelineTraceModels: {
+        communication: swimComm,
+        pipeTrace: swimPipe,
+      },
+    });
+
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: { source: new ArrayBuffer(8) },
+      });
+      await flushPromises();
+      expect(wrapper.findComponent(TimelineView).props('showOverviewCharts')).toBe(true);
+      expect(wrapper.findComponent(TimelineView).props('overviewSeries')).toEqual(overviewSeries);
+
+      await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+      await wrapper.find('[data-trace-id="communication"]').trigger('click');
+      expect(wrapper.findComponent(TimelineView).props('showOverviewCharts')).toBe(false);
+
+      await wrapper.find('[data-testid="toggle-timeline-trace"]').trigger('click');
+      await wrapper.find('[data-trace-id="pipeTrace"]').trigger('click');
+      expect(wrapper.findComponent(TimelineView).props('showOverviewCharts')).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('PR-ROOT-031: multi-timeline source swaps swimlane via 流水视图显示; re-select is a no-op', async () => {
     const { vi } = await import('vitest');
     const adapters = await import('../../adapters');

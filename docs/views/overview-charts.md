@@ -29,6 +29,8 @@ Cube/Vector (or counter-named) overview series above the swimlane — sampling c
 
 No `OverviewSeries` → **hide** the chart region entirely ([DATA-32](../context/decisions/DATA.md)). Do **not** invent series from PipeUtilization ratios.
 
+When 流水视图显示 is active ([DATA-56](../context/decisions/DATA.md)): show 统计分析 only for **pipeTrace** (or when the catalog is absent / legacy classic swimlane). Hide while **communication** or **warpOccupy** is selected, even if `overviewSeries` is non-empty.
+
 ## Compute fill
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
@@ -74,5 +76,5 @@ Docx placeholder samples (`{"category":"Cube",1:1,2:2}` / Vector) are illustrati
 ## Related
 
 - Spec: [OverviewCharts](../../src/ui/TimelineView/OverviewCharts/) (co-located)
-- Decisions: [DATA-32](../context/decisions/DATA.md), [DATA-39](../context/decisions/DATA.md)
+- Decisions: [DATA-32](../context/decisions/DATA.md), [DATA-39](../context/decisions/DATA.md), [DATA-56](../context/decisions/DATA.md) (pipeTrace-only with 流水视图显示)
 - Product docx §: 11.2.7
