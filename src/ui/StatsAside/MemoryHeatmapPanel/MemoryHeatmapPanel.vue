@@ -461,13 +461,21 @@ watch(activeView, () => {
         >
           {{ legendBrush ? legendBrushRangeLabel : t('memoryHeatAccessCount', locale) }}
         </p>
+        <!--
+          Hit band matches brush window height (16px); the painted strip stays 8px
+          so the pointer can skim the brush chrome without dropping the filter.
+        -->
         <div
-          class="pr-heat__gradient"
+          class="pr-heat__legend-hit"
           data-testid="heat-legend-gradient"
-          :style="{ background: LEGEND_GRADIENT }"
           @pointermove="onLegendPointerMove"
           @pointerleave="clearLegendBrush"
         >
+          <div
+            class="pr-heat__gradient"
+            aria-hidden="true"
+            :style="{ background: LEGEND_GRADIENT }"
+          />
           <div
             v-if="legendBrush"
             class="pr-heat__legend-brush"
@@ -719,21 +727,32 @@ watch(activeView, () => {
   text-align: center;
 }
 
-.pr-heat__gradient {
+.pr-heat__legend-hit {
   position: relative;
+  /* Same height as `.pr-heat__legend-brush` — full window is hittestable. */
+  height: 16px;
+  width: 100%;
+  cursor: default;
+}
+
+.pr-heat__gradient {
+  position: absolute;
+  top: 50%;
+  left: 0;
   width: 100%;
   height: 8px;
   border-radius: 1px;
-  cursor: default;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .pr-heat__legend-brush {
   position: absolute;
-  top: 50%;
+  top: 0;
+  bottom: 0;
   z-index: 1;
   box-sizing: border-box;
-  height: 16px;
-  transform: translateY(-50%);
+  height: 100%;
   pointer-events: none;
   border: 1.5px solid rgba(255, 255, 255, 0.75);
   border-radius: 4px;

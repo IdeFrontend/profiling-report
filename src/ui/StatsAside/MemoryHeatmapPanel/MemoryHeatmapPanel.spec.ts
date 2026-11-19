@@ -515,9 +515,9 @@ describe('MemoryHeatmapPanel', () => {
         left: 0,
         top: 0,
         right: width,
-        bottom: 8,
+        bottom: 16,
         width,
-        height: 8,
+        height: 16, // brush-window hit band (not the 8px painted strip)
         toJSON() {
           return {};
         },
