@@ -1,7 +1,7 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { buildFolderSummaryEvents, isFolderNode, walkVisibleRows } from '../domain/swimTree';
-import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import { extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -1672,6 +1672,108 @@ export function measureRangeExactEdgeMarks(
     width,
     viewportH,
   );
+}
+
+/** Floor dim for a single-tick CSS column in density LOD (PR-RENDER-066). */
+export const TICK_DENSITY_MIN_DIM = 0.35;
+/** Count at which `tickDensityDim` saturates to 1. */
+export const TICK_DENSITY_CAP = 16;
+/** Relative soft-scale for `tickCountSimilarity` (PR-RENDER-066). */
+export const TICK_COUNT_SIM_SIGMA = 0.35;
+/** Odd-in-run multiplier when adjacent counts are identical (`sim = 1`). */
+export const TICK_ALTERNATE_FACTOR = 0.6;
+/** Density marks use this fraction of the sub-row band height. */
+export const TICK_DENSITY_BAND_SCALE = 0.6;
+
+/** True when packing every tick at min CSS width would overdraw the track. */
+export function shouldUseTickDensityLod(tickCount: number, widthCss: number): boolean {
+  return tickCount > 0 && tickCount * extendTargetSizeCss > Math.max(1, widthCss);
+}
+
+/** Continuous count → source-over dim for a density column (count 1 → minDim, cap → 1). */
+export function tickDensityDim(count: number): number {
+  const c = Math.max(0, count);
+  if (c <= 0) return 0;
+  const t = Math.log(c) / Math.log(TICK_DENSITY_CAP);
+  return TICK_DENSITY_MIN_DIM + (1 - TICK_DENSITY_MIN_DIM) * Math.min(1, Math.max(0, t));
+}
+
+/**
+ * Similarity of two column counts in `[0, 1]`: 1 when equal, →0 as the relative gap grows.
+ * Uses `|Δ| / max(a,b,1)` so 8 vs 9 stays closer than 1 vs 2.
+ */
+export function tickCountSimilarity(a: number, b: number): number {
+  const denom = TICK_COUNT_SIM_SIGMA * Math.max(a, b, 1);
+  return Math.exp(-Math.abs(a - b) / denom);
+}
+
+export interface TickDensityBin {
+  col: number;
+  count: number;
+  t0: number;
+  t1: number;
+}
+
+/**
+ * Bin tick timestamps into CSS-pixel columns of the visible `[viewStart, viewEnd)` window.
+ * Empty columns are omitted. Each bin's `[t0, t1)` spans exactly one CSS px of view time.
+ */
+export function binTicksByCssColumn(
+  times: readonly number[],
+  viewStart: number,
+  viewEnd: number,
+  widthCss: number,
+): TickDensityBin[] {
+  const W = Math.max(1, Math.floor(widthCss));
+  const span = Math.max(Number.EPSILON, viewEnd - viewStart);
+  const counts = new Int32Array(W);
+  for (const t of times) {
+    if (!(t >= viewStart) || !(t < viewEnd)) continue;
+    let col = Math.floor(((t - viewStart) / span) * W);
+    if (col < 0) col = 0;
+    else if (col >= W) col = W - 1;
+    counts[col]!++;
+  }
+  const dt = span / W;
+  const out: TickDensityBin[] = [];
+  for (let col = 0; col < W; col++) {
+    const count = counts[col]!;
+    if (count === 0) continue;
+    out.push({ col, count, t0: viewStart + col * dt, t1: viewStart + (col + 1) * dt });
+  }
+  return out;
+}
+
+export interface TickDensityMark extends TickDensityBin {
+  dim: number;
+}
+
+/**
+ * Assign paint dims: `tickDensityDim(count)`, then similarity-weighted alternate on odd steps
+ * of each contiguous occupied run (PR-RENDER-066).
+ */
+export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
+  const out: TickDensityMark[] = [];
+  let runStep = 0;
+  let prevCol = Number.NEGATIVE_INFINITY;
+  let prevCount = 0;
+  for (const bin of bins) {
+    const base = tickDensityDim(bin.count);
+    let dim = base;
+    if (bin.col === prevCol + 1) {
+      runStep += 1;
+      if (runStep % 2 === 1) {
+        const sim = tickCountSimilarity(bin.count, prevCount);
+        dim = base * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim);
+      }
+    } else {
+      runStep = 0;
+    }
+    out.push({ col: bin.col, count: bin.count, t0: bin.t0, t1: bin.t1, dim });
+    prevCol = bin.col;
+    prevCount = bin.count;
+  }
+  return out;
 }
 
 /** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */

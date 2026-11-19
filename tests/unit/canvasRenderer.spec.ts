@@ -30,6 +30,13 @@ import {
   summaryFolderId,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  TICK_ALTERNATE_FACTOR,
+  TICK_DENSITY_MIN_DIM,
+  assignTickDensityDims,
+  binTicksByCssColumn,
+  shouldUseTickDensityLod,
+  tickCountSimilarity,
+  tickDensityDim,
 } from '../../src/swimlane/layout';
 import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
@@ -1420,7 +1427,7 @@ describe('PR-RENDER: lane chrome color', () => {
     );
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
-    expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
+    expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov \* d, uSrcOver\)/);
   });
 
   it('PR-RENDER-065: duration-0 ticks do not gap-extend into continuous time coverage (#205)', async () => {
@@ -1459,6 +1466,81 @@ describe('PR-RENDER: lane chrome color', () => {
     );
     expect(webglSrc).toMatch(/isolatedGaps \? EDGE_GAP : eventGapPrev/);
     expect(webglSrc).toMatch(/isolatedGaps \? EDGE_GAP : eventGapNext/);
+  });
+
+  it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
+    expect(shouldUseTickDensityLod(10, 20)).toBe(false);
+    expect(shouldUseTickDensityLod(21, 20)).toBe(true);
+
+    expect(tickDensityDim(1)).toBeCloseTo(TICK_DENSITY_MIN_DIM, 5);
+    expect(tickDensityDim(16)).toBeCloseTo(1, 5);
+    expect(tickDensityDim(8)).toBeGreaterThan(tickDensityDim(4));
+    expect(tickDensityDim(32)).toBe(1);
+
+    expect(tickCountSimilarity(9, 9)).toBeCloseTo(1, 5);
+    expect(tickCountSimilarity(9, 8)).toBeGreaterThan(0.7);
+    expect(tickCountSimilarity(9, 2)).toBeLessThan(0.15);
+
+    // Four ticks in two CSS columns of a 2px-wide view.
+    const bins = binTicksByCssColumn([0.1, 0.2, 0.6, 0.7], 0, 1, 2);
+    expect(bins).toHaveLength(2);
+    expect(bins[0]).toMatchObject({ col: 0, count: 2 });
+    expect(bins[1]).toMatchObject({ col: 1, count: 2 });
+
+    const equalPlateau = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 1, count: 9, t0: 1, t1: 2 },
+      { col: 2, count: 9, t0: 2, t1: 3 },
+    ]);
+    const base9 = tickDensityDim(9);
+    expect(equalPlateau[0]!.dim).toBeCloseTo(base9, 5);
+    expect(equalPlateau[1]!.dim).toBeCloseTo(base9 * TICK_ALTERNATE_FACTOR, 5);
+    expect(equalPlateau[2]!.dim).toBeCloseTo(base9, 5);
+
+    const nearCounts = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 1, count: 8, t0: 1, t1: 2 },
+    ]);
+    const base8 = tickDensityDim(8);
+    const sim98 = tickCountSimilarity(8, 9);
+    expect(nearCounts[0]!.dim).toBeCloseTo(base9, 5);
+    expect(nearCounts[1]!.dim).toBeCloseTo(base8 * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim98), 5);
+    expect(nearCounts[1]!.dim).toBeLessThan(base8);
+    expect(nearCounts[1]!.dim).toBeGreaterThan(base8 * TICK_ALTERNATE_FACTOR - 1e-6);
+
+    const farCounts = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 1, count: 2, t0: 1, t1: 2 },
+    ]);
+    const base2 = tickDensityDim(2);
+    const sim92 = tickCountSimilarity(2, 9);
+    expect(farCounts[1]!.dim).toBeCloseTo(base2 * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim92), 5);
+    expect(farCounts[1]!.dim).toBeGreaterThan(base2 * 0.9);
+
+    // Gap resets the alternate run.
+    const gapped = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 2, count: 9, t0: 2, t1: 3 },
+    ]);
+    expect(gapped[0]!.dim).toBeCloseTo(base9, 5);
+    expect(gapped[1]!.dim).toBeCloseTo(base9, 5);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/rebuildTickLodMeshes/);
+    expect(webglSrc).toMatch(/createDensityChunksFromMarks/);
+    expect(webglSrc).toMatch(/assignTickDensityDims/);
+    expect(webglSrc).toMatch(/TICK_DENSITY_BAND_SCALE/);
+    expect(webglSrc).toMatch(/aDim/);
+
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc).toMatch(/shouldUseTickDensityLod/);
+    expect(canvasSrc).toMatch(/assignTickDensityDims/);
+
+    const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
+    expect(shaderSrc).toMatch(/in float aDim/);
+    expect(shaderSrc).toMatch(/in float vDim/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {

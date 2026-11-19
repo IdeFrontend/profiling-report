@@ -41,9 +41,11 @@ uniform vec3 uExtendParameters; // xyz = targetSize, margin1, margin2, all in de
 in vec2 aPos;
 in vec2 aTex;
 in vec2 aData; // x = distance to prev event end, y = distance to next event start (event coords)
+in float aDim; // per-quad density dim (1.0 for ordinary intervals / discrete ticks)
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
+out float vDim;
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -88,6 +90,7 @@ void main() {
 
   vScreenPos = vec2(screenX, screenY);
   vLrScreen = vec2(extendedL, extendedR);
+  vDim = aDim;
   gl_Position = vec4(pos, 0.0, 1.0);
 }
 `;
@@ -102,6 +105,7 @@ uniform float uSrcOver; // 1.0 = premultiplied source-over (summary bars); 0.0 =
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
+in float vDim;
 out vec4 outColor;
 
 float sdRoundBox(vec2 p, vec2 halfSize, float r) {
@@ -138,9 +142,11 @@ void main() {
   // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
   // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage
   // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars
-  // and duration-0 ticks) alpha is uColor.a * cov. uColor.a is the dim (search / collapse);
+  // and duration-0 ticks) alpha is uColor.a * cov * vDim. uColor.a is the search / collapse
+  // dim; vDim is per-quad tick-density intensity (1.0 when the aDim array is disabled).
   // using cov alone would replace the lane with a darkened color instead of fading the tick.
-  outColor = vec4(uColor.xyz * cov, mix(1.0, uColor.a * cov, uSrcOver));
+  float d = vDim;
+  outColor = vec4(uColor.xyz * cov * d, mix(1.0, uColor.a * cov * d, uSrcOver));
 }
 `;
 

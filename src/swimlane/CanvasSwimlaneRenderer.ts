@@ -48,6 +48,10 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_LABEL_COLOR,
+  TICK_DENSITY_BAND_SCALE,
+  assignTickDensityDims,
+  binTicksByCssColumn,
+  shouldUseTickDensityLod,
   type CollapseAnimState,
   type CollapseTransform,
   type LaidOutEvent,
@@ -760,6 +764,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       fill: string;
     }[] = [];
 
+    const widthCss = this.width / Math.max(dpr, Number.EPSILON);
+
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
       if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
@@ -771,12 +777,60 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         this.view.endTime,
         this.layout.maxLeafDuration,
       );
+
+      // Per sub-row: density LOD for duration-0 ticks when they would overdraw (PR-RENDER-066).
+      // Search keeps discrete ticks so name emphasis stays meaningful.
+      const densityRows = new Set<number>();
+      if (!hasSearch) {
+        const ticksByRow = new Map<number, number[]>();
+        for (let j = lo; j < hi; j++) {
+          const item = laneEvts[j]!;
+          if (item.summary || item.event.duration !== 0) continue;
+          const list = ticksByRow.get(item.rowIndex) ?? [];
+          list.push(item.event.startTime);
+          ticksByRow.set(item.rowIndex, list);
+        }
+        for (const [rowIndex, times] of ticksByRow) {
+          if (!shouldUseTickDensityLod(times.length, widthCss)) continue;
+          densityRows.add(rowIndex);
+          const marks = assignTickDensityDims(
+            binTicksByCssColumn(times, this.view.startTime, this.view.endTime, widthCss),
+          );
+          if (marks.length === 0) continue;
+          const sample = laneEvts.find((e) => !e.summary && e.rowIndex === rowIndex)!;
+          const metrics = eventBlockMetrics(
+            collapseShiftY(sample.y, this.collapse),
+            this.view.scrollY,
+          );
+          const bandY = metrics.y * dpr;
+          const bandH = metrics.h * dpr;
+          if (bandY + bandH < 0 || bandY > this.height) continue;
+          const densH = bandH * TICK_DENSITY_BAND_SCALE;
+          const densY = bandY + (bandH - densH) * 0.5;
+          const laneA = collapseAlpha(sample.y, this.collapse);
+          const fill = eventFill(sample.color, 'normal');
+          for (const m of marks) {
+            const x = ((m.t0 - this.view.startTime) / span) * this.width;
+            const w = Math.max(1, ((m.t1 - m.t0) / span) * this.width);
+            const fr = eventPaintRect(x, densY, w, densH, dpr);
+            ctx.globalAlpha = m.dim * laneA;
+            ctx.fillStyle = fill;
+            roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+
       for (let j = lo; j < hi; j++) {
         const item = laneEvts[j]!;
         const ev = item.event;
         if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
           continue;
         }
+        // Density LOD already painted this row's ticks.
+        if (!item.summary && ev.duration === 0 && densityRows.has(item.rowIndex)) continue;
+
         const x = ((ev.startTime - this.view.startTime) / span) * this.width;
         const w = Math.max(2, (ev.duration / span) * this.width);
         const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
