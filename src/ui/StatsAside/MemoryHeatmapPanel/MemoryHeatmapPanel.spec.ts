@@ -486,6 +486,26 @@ describe('MemoryHeatmapPanel', () => {
     wrapper.unmount();
   });
 
+  /** Stub the painted track rect (pointer % maps here; hit has ±5% side pads). */
+  function stubLegendTrack(wrapper: ReturnType<typeof mountPanel>, trackWidth = 200, pad = 10) {
+    const track = wrapper.get('[data-testid="heat-legend-track"]').element as HTMLElement;
+    track.getBoundingClientRect = () =>
+      ({
+        x: pad,
+        y: 0,
+        left: pad,
+        top: 0,
+        right: pad + trackWidth,
+        bottom: 22,
+        width: trackWidth,
+        height: 22,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    return { trackWidth, pad, hitLeft: 0, hitRight: pad * 2 + trackWidth };
+  }
+
   it('PR-HEAT-014: legend brush (10%) mutes non-matching cells; clears on leave', async () => {
     // Two hot cells: intensities 0.5 and 1.0 → mid brush (~45–55%) keeps only the 0.5 cell bright.
     const brushModel: MemoryHeatmapModel = {
@@ -509,25 +529,10 @@ describe('MemoryHeatmapPanel', () => {
     };
     const wrapper = mountPanel({ model: brushModel, selectedUnit: 'ub', locale: 'en' });
     const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
-    const el = gradient.element as HTMLElement;
-    const width = 200;
-    el.getBoundingClientRect = () =>
-      ({
-        x: 0,
-        y: 0,
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: 22,
-        width,
-        height: 22, // 16px window + 3px pad above/below
-        toJSON() {
-          return {};
-        },
-      }) as DOMRect;
+    const { trackWidth, pad, hitLeft, hitRight } = stubLegendTrack(wrapper);
 
     // Mid-strip → center 50%, window [45, 55].
-    await gradient.trigger('pointermove', { clientX: width / 2, clientY: 11 });
+    await gradient.trigger('pointermove', { clientX: pad + trackWidth / 2, clientY: 11 });
     const brush = wrapper.get('[data-testid="heat-legend-brush"]');
     expect(brush.attributes('style')).toMatch(/left:\s*45%/);
     expect(brush.attributes('style')).toMatch(/width:\s*10%/);
@@ -549,15 +554,14 @@ describe('MemoryHeatmapPanel', () => {
     expect(cells[2]!.classes()).toContain('pr-heat__cell--muted'); // intensity 0
     expect(cells[2]!.attributes('style')).toMatch(/background-color:\s*#2C2C2C/i);
 
-    // Left overhang: pointer at 0 → center 0%, window [-5, 5]; label coerces to 0 – 5.
-    await gradient.trigger('pointermove', { clientX: 0, clientY: 11 });
+    // Strip left edge → center 0%, window [-5, 5]; label coerces to 0 – 5.
+    await gradient.trigger('pointermove', { clientX: pad, clientY: 11 });
     expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
       /left:\s*-5%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 5');
     expect(cells[2]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 0 in range
     expect(cells[0]!.classes()).toContain('pr-heat__cell--muted'); // intensity 50 out
-    // Window on the left edge hides `0`; max stays visible.
     expect(wrapper.get('[data-testid="heat-legend-tick-min"]').attributes('style')).toMatch(
       /opacity:\s*0/,
     );
@@ -565,8 +569,17 @@ describe('MemoryHeatmapPanel', () => {
       /opacity:\s*1/,
     );
 
-    // Right overhang: pointer at 100% → window [95, 105]; label coerces to 95 – 100.
-    await gradient.trigger('pointermove', { clientX: width, clientY: 11 });
+    // Left side pad (outside strip) → center -5%, window [-10, 0]; label 0 – 0.
+    await gradient.trigger('pointermove', { clientX: hitLeft, clientY: 11 });
+    expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
+      /left:\s*-10%/,
+    );
+    expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 0');
+    expect(cells[2]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 0 captured
+    expect(cells[0]!.classes()).toContain('pr-heat__cell--muted');
+
+    // Strip right edge → window [95, 105]; label 95 – 100.
+    await gradient.trigger('pointermove', { clientX: pad + trackWidth, clientY: 11 });
     expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
       /left:\s*95%/,
     );
@@ -579,6 +592,15 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.get('[data-testid="heat-legend-tick-max"]').attributes('style')).toMatch(
       /opacity:\s*0/,
     );
+
+    // Right side pad → center 105%, window [100, 110]; label 100 – 100.
+    await gradient.trigger('pointermove', { clientX: hitRight, clientY: 11 });
+    expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
+      /left:\s*100%/,
+    );
+    expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('100 – 100');
+    expect(cells[1]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 100 captured
+    expect(cells[0]!.classes()).toContain('pr-heat__cell--muted');
 
     // Occupancy dim: mute overlay + three ≥3px bright bands (fade via --brushing class).
     const gradientEl = wrapper.get('.pr-heat__gradient');
@@ -627,24 +649,9 @@ describe('MemoryHeatmapPanel', () => {
     };
     const wrapper = mountPanel({ model: singleModel, selectedUnit: 'ub', locale: 'en' });
     const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
-    const el = gradient.element as HTMLElement;
-    const width = 200;
-    el.getBoundingClientRect = () =>
-      ({
-        x: 0,
-        y: 0,
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: 22,
-        width,
-        height: 22,
-        toJSON() {
-          return {};
-        },
-      }) as DOMRect;
+    const { trackWidth, pad } = stubLegendTrack(wrapper);
 
-    await gradient.trigger('pointermove', { clientX: width / 2, clientY: 11 });
+    await gradient.trigger('pointermove', { clientX: pad + trackWidth / 2, clientY: 11 });
     const occ = wrapper.findAll('[data-testid="heat-legend-occ"]');
     expect(occ).toHaveLength(1);
     const style = occ[0]!.attributes('style') ?? '';
