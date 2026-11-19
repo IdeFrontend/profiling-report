@@ -751,6 +751,17 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     expect(ed.setVScrollPos).toHaveBeenCalled();
 
+    // Guard is one echo: scrolling back to the mirrored offset still moves Sudu.
+    ed.setVScrollPos.mockClear();
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: mirrored,
+      writable: true,
+      configurable: true,
+    });
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).toHaveBeenCalled();
+
     // Imperative setLine (asm / Navigate By) still reveals even when focused.
     const sudu = wrapper.findComponent({ name: 'SuduCodePane' });
     (sudu.vm as { setLine: (n: number) => void }).setLine(61);
@@ -779,6 +790,10 @@ describe('SourceView', () => {
     scroll.element.dispatchEvent(new Event('scroll'));
     await wrapper.vm.$nextTick();
     expect(ed.setVScrollPos).not.toHaveBeenCalled();
+    // That reset consumed the echo. The next scroll to 0 is the user's.
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).toHaveBeenCalled();
     wrapper.unmount();
   });
 

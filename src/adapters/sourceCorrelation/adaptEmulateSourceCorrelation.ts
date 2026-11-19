@@ -138,9 +138,8 @@ function metricsFromRow(row: Record<string, string>): MetricVals {
   const relTime = parseNullableNumber(cell(row, 'RelTime'));
   const warpOccupancy = parseNullableNumber(cell(row, 'WarpOccupancy'));
   const vectorRaw = parseNullableNumber(cell(row, 'VectorUtilization'));
-  // Producer VectorUtilization is already 0–100; UI percent kind expects 0–1.
-  const vectorUtilization =
-    vectorRaw == null ? null : vectorRaw > 1 ? vectorRaw / 100 : vectorRaw;
+  // Producer VectorUtilization is 0–100, including 1 (= 1%). UI percent kind expects 0–1.
+  const vectorUtilization = vectorRaw == null ? null : vectorRaw / 100;
   return { executionCount, tickCount, relTime, warpOccupancy, vectorUtilization };
 }
 

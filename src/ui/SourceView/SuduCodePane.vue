@@ -160,10 +160,11 @@ let ignoreCaret = false;
 /** Set when the caret listener actually emitted (boot must not emit again). */
 let caretEchoed = false;
 /**
- * Last metrics `scrollTop` we wrote from the editor→table mirror (table←editor).
- * Compared in onTableScroll so our own write's *async* scroll event does not
- * re-enter `setVScrollPos`. `null` = no mirror write yet (do not treat as 0).
- * Opposite direction of `pendingEcho` — deleting either brings the loop back.
+ * Metrics `scrollTop` of one pending editor→table write (table←editor).
+ * `onTableScroll` swallows that echo once, then clears this back to `null`.
+ * A later user scroll to the same pixel must still call `setVScrollPos`.
+ * `null` = no echo pending (do not treat as 0). Opposite direction of
+ * `pendingEcho` — deleting either brings the loop back.
  */
 let mirroredScrollTop: number | null = null;
 /** True after `clearLine` hides the current-line band; cleared on first restore. */
@@ -382,7 +383,9 @@ function syncTableToCaret() {
   const scroll = tableScrollEl.value;
   if (!scroll) return;
   const target = cssScrollFromDevice(editor.getVScrollPos(), geom.value.dpr);
-  if (Math.abs(scroll.scrollTop - target) >= 0.5) scroll.scrollTop = target;
+  if (Math.abs(scroll.scrollTop - target) < 0.5) return;
+  scroll.scrollTop = target;
+  // Arm only when a scroll event will follow. An unchanged scrollTop does not.
   mirroredScrollTop = scroll.scrollTop;
 }
 
@@ -428,8 +431,10 @@ function onTableScroll() {
   if (!editor || !(geom.value.dpr > 0)) return;
   const scroll = tableScrollEl.value;
   if (!scroll) return;
-  // Our own editor→table mirror write came back as a scroll event — do not re-enter Sudu.
+  // One echo of our editor→table write. Clear it so a later scroll to the
+  // same offset (user wheel back, or the next file's reset) still moves Sudu.
   if (mirroredScrollTop != null && Math.abs(scroll.scrollTop - mirroredScrollTop) < 1) {
+    mirroredScrollTop = null;
     return;
   }
   const devicePos = deviceScrollFromCss(scroll.scrollTop, geom.value.dpr);
@@ -643,11 +648,16 @@ function setLineOrQueue(line: number): 'queued' | 'unchanged' | 'moved' {
   return setLine(line);
 }
 
-/** Sync: metrics table also resets scrollTop on file.id — treat that as our write. */
+/**
+ * Metrics table resets scrollTop to 0 on file.id. Arm one echo for that write
+ * only when the scroller is not already at 0 — an unchanged scrollTop fires no
+ * event, and a guard left at 0 would swallow the user's later return to the top.
+ */
 watch(
   () => props.file.id,
   () => {
-    mirroredScrollTop = 0;
+    const scroll = tableScrollEl.value;
+    mirroredScrollTop = scroll != null && scroll.scrollTop !== 0 ? 0 : null;
   },
 );
 
@@ -657,7 +667,6 @@ watch(
     if (!editor || !pool || !model) return;
     // Before the await, so a currentLine watch cannot move the old document.
     ignoreCaret = true;
-    mirroredScrollTop = 0;
     const api = await loadSuduApi();
     if (disposed || !editor || !pool || !model) {
       ignoreCaret = false;

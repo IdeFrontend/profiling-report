@@ -105,6 +105,24 @@ describe('adaptEmulateSourceCorrelation', () => {
     ]);
   });
 
+  it('PR-SRC-012: VectorUtilization 0–100 scales by 100, including 1 and fractions', () => {
+    const model = adaptEmulateSourceCorrelation({
+      'AsmMetrics.csv': enc(
+        [
+          'PC,InstrName,VectorUtilization',
+          '0,A,1',
+          '4,B,0.4',
+          '8,C,0',
+          '12,D,100',
+        ].join('\n'),
+      ),
+    });
+    expect(model).not.toBeNull();
+    expect(model!.assembly.lines.map((l) => l.values.vectorUtilization)).toEqual([
+      0.01, 0.004, 0, 1,
+    ]);
+  });
+
   it('PR-SRC-013: assembly-only (AsmMetrics, no SourceFiles) lights the tab', () => {
     const payloads = {
       'AsmMetrics.csv': enc(
