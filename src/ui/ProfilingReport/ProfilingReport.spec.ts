@@ -2632,7 +2632,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-034: 概览 tab is first; 时间线 stays default; 概览 mounts the overview', async () => {
+  it('PR-ROOT-035: 概览 tab is first; 时间线 stays default; 概览 mounts the overview', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'overview-tab',
@@ -2657,6 +2657,7 @@ describe('ProfilingReport scaffold', () => {
               blockSize: 16,
             },
           ],
+          pipeOccupancy: [{ id: 'cube', label: 'Cube', ratio: 0.2, colorKey: 'cube', side: 'cube' }],
         },
       },
     });
@@ -2683,7 +2684,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-034: 概览 tab is hidden for models without operator rows', async () => {
+  it('PR-ROOT-035: 概览 tab is hidden for models without operator rows', async () => {
     const wrapper = mount(ProfilingReport, {
       props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
     });
@@ -2693,7 +2694,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-034: a single operator row still renders the 概览 tab first and mounts the overview', async () => {
+  it('PR-ROOT-035: a single operator row still renders the 概览 tab first and mounts the overview', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         swimlaneModel: depsModel(),
@@ -2714,7 +2715,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-037: a failed load while 概览 is active keeps the tab strip on 时间线', async () => {
+  it('PR-ROOT-038: a failed load while 概览 is active keeps the tab strip on 时间线', async () => {
     const spy = vi.spyOn(adapters, 'loadReportSource').mockImplementation(() => {
       throw new Error('corrupt bytes');
     });
@@ -2750,7 +2751,7 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
-  it('PR-ROOT-038: W/S/A/D and Shift+P ignore the hidden timeline while 概览 is active', async () => {
+  it('PR-ROOT-039: W/S/A/D and Shift+P ignore the hidden timeline while 概览 is active', async () => {
     const wrapper = mount(ProfilingReport, {
       attachTo: document.body,
       props: {
@@ -2783,7 +2784,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-036: forwards overview optimize to the host', async () => {
+  it('PR-ROOT-037: forwards overview optimize to the host', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'overview-optimize',
@@ -2810,7 +2811,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-035: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
+  it('PR-ROOT-036: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
     const adapterLoaded = mount(ProfilingReport, {
       props: { title: 'gather_2d.npu-rep', source: loadOutRepBuffer() },
     });

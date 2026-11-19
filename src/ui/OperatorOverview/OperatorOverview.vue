@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, useId, watch } from 'vue';
-import type { ReportOperatorRow } from '../../domain/types';
+import type { PipeOccupancyItem, ReportOperatorRow } from '../../domain/types';
 import { t, type MessageKey } from '../../i18n';
 import FilterIcon from '../FilterIcon.vue';
 import SortIcon from '../SortIcon.vue';
@@ -10,12 +10,15 @@ const props = withDefaults(
   defineProps<{
     /** One row per `OpBasicInfo.csv` row across the operator pack. */
     rows?: ReportOperatorRow[];
+    /** Per-pipe occupancy from the report; drives the dock utilization line. */
+    pipeOccupancy?: PipeOccupancyItem[];
     locale?: string;
     /** Currently selected pack id; absent in host-managed mode. */
     selectedOperatorId?: string;
   }>(),
   {
     rows: () => [],
+    pipeOccupancy: () => [],
     locale: undefined,
     selectedOperatorId: undefined,
   },
@@ -27,8 +30,18 @@ const emit = defineEmits<{
   openTimeline: [];
 }>();
 
-/** Sample dock metric: the report does not compute a speedup yet. */
-const DEMO_SPEEDUP = '88.69%';
+/** Highest pipe ratio; undefined when the report carries no pipe data. */
+const peakRatio = computed(() => {
+  const ratios = props.pipeOccupancy.map((item) => item.ratio);
+  return ratios.length === 0 ? undefined : Math.max(...ratios);
+});
+
+/** Below half peak occupancy the pipeline is underutilized. */
+const underutilized = computed(() => peakRatio.value !== undefined && peakRatio.value < 0.5);
+
+const utilizationText = computed(() => (
+  peakRatio.value === undefined ? '—' : `${Math.round(peakRatio.value * 100)}%`
+));
 
 type FilterKey = 'opName' | 'opType';
 type SortableKey =
@@ -567,11 +580,14 @@ function duration(value: number | undefined): string {
           />
         </svg>
         <div class="pr-operator-overview__dock-copy">
-          <p class="pr-operator-overview__badge">
+          <p
+            v-if="underutilized"
+            class="pr-operator-overview__badge"
+          >
             {{ t('overviewLowUtilization', locale) }}
           </p>
           <p class="pr-operator-overview__speedup">
-            {{ t('overviewSpeedup', locale).replace('{value}', DEMO_SPEEDUP) }}
+            {{ t('overviewUtilization', locale).replace('{value}', utilizationText) }}
           </p>
         </div>
       </div>
@@ -616,7 +632,7 @@ function duration(value: number | undefined): string {
     </div>
 
     <p
-      v-if="rows.length > 0"
+      v-if="rows.length > 0 && underutilized"
       class="pr-operator-overview__banner"
       data-testid="operator-overview-banner"
     >

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 import { DOMWrapper, mount } from '@vue/test-utils';
 import OperatorOverview from './OperatorOverview.vue';
-import type { ReportOperatorRow } from '../../domain/types';
+import type { PipeOccupancyItem, ReportOperatorRow } from '../../domain/types';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -29,6 +29,16 @@ const rows: ReportOperatorRow[] = [
     sourceOperatorId: 'op2.npu.rep',
   },
 ];
+
+function pipes(ratios: number[]): PipeOccupancyItem[] {
+  return ratios.map((ratio, index) => ({
+    id: `pipe-${index}`,
+    label: `Pipe ${index}`,
+    ratio,
+    colorKey: 'cube',
+    side: 'cube',
+  }));
+}
 
 describe('OperatorOverview', () => {
   it('PR-OVW-001: eight table headers match mock', () => {
@@ -79,10 +89,13 @@ describe('OperatorOverview', () => {
   });
 
   it('PR-OVW-006: dock shows 低利用率 summary', () => {
-    const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
+    const wrapper = mount(OperatorOverview, {
+      props: { rows, pipeOccupancy: pipes([0.2]), locale: 'zh-CN' },
+    });
     const dock = wrapper.get('[data-testid="operator-overview-dock"]');
     expect(dock.text()).toContain('低利用率');
-    expect(dock.text()).toContain('预计本地加速比（示例）: 88.69%');
+    expect(dock.text()).toContain('流水线利用率: 20%');
+    expect(dock.text()).not.toContain('88.69');
     expect(dock.text()).toContain('选中算子的优化建议');
   });
 
@@ -114,11 +127,18 @@ describe('OperatorOverview', () => {
   });
 
   it('PR-OVW-008: banner shows underutilization copy', () => {
-    const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
-    const banner = wrapper.get('[data-testid="operator-overview-banner"]');
+    const low = mount(OperatorOverview, {
+      props: { rows, pipeOccupancy: pipes([0.2]), locale: 'zh-CN' },
+    });
+    const banner = low.get('[data-testid="operator-overview-banner"]');
     expect(banner.text()).toContain(
       '所有计算流水线均未充分利用。这可能是因为工作负载非常小，或者每个调度器发出的线程束（warp）数量不足。请查看启动统计信息和调度器统计信息部分以获取更多详情。',
     );
+
+    const high = mount(OperatorOverview, {
+      props: { rows, pipeOccupancy: pipes([0.9]), locale: 'zh-CN' },
+    });
+    expect(high.find('[data-testid="operator-overview-banner"]').exists()).toBe(false);
   });
 
   it('PR-OVW-009: Task Duration uses two decimals, dimensions stay as-is', () => {
@@ -485,6 +505,7 @@ describe('OperatorOverview', () => {
     expect(wrapper.find('[data-testid="operator-overview-dock"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="operator-overview-banner"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('88.69');
+    expect(wrapper.text()).not.toContain('流水线利用率');
     expect(wrapper.text()).not.toContain('低利用率');
     expect(wrapper.findAll('button').some((b) => b.text() === '执行优化')).toBe(false);
   });
@@ -522,16 +543,28 @@ describe('OperatorOverview', () => {
     wrapper.unmount();
   });
 
-  it('PR-OVW-028: dock speedup keeps the sample marker with the value', () => {
-    const zh = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
+  it('PR-OVW-028: dock utilization renders the computed value in both locales', () => {
+    const zh = mount(OperatorOverview, {
+      props: { rows, pipeOccupancy: pipes([0.62]), locale: 'zh-CN' },
+    });
     const zhText = zh.get('[data-testid="operator-overview-dock"]').text();
-    expect(zhText).toContain('预计本地加速比（示例）');
-    expect(zhText).toContain('88.69%');
+    expect(zhText).toContain('流水线利用率: 62%');
+    expect(zhText).not.toContain('示例');
 
-    const en = mount(OperatorOverview, { props: { rows, locale: 'en-US' } });
+    const en = mount(OperatorOverview, {
+      props: { rows, pipeOccupancy: pipes([0.62]), locale: 'en-US' },
+    });
     const enText = en.get('[data-testid="operator-overview-dock"]').text();
-    expect(enText).toContain('Estimated local speedup (sample)');
-    expect(enText).toContain('88.69%');
+    expect(enText).toContain('Pipeline utilization: 62%');
+    expect(enText).not.toContain('sample');
+  });
+
+  it('PR-OVW-034: empty pipe occupancy renders an em dash without banner or chip', () => {
+    const wrapper = mount(OperatorOverview, { props: { rows, locale: 'zh-CN' } });
+    const dock = wrapper.get('[data-testid="operator-overview-dock"]');
+    expect(dock.text()).toContain('流水线利用率: —');
+    expect(dock.text()).not.toContain('低利用率');
+    expect(wrapper.find('[data-testid="operator-overview-banner"]').exists()).toBe(false);
   });
 
   it('PR-OVW-029: row click emits update:selectedOperatorId with the row pack id', async () => {
