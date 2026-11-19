@@ -131,6 +131,7 @@ async function latestSuduEditor() {
     focus: ReturnType<typeof vi.fn>;
     setTheme: ReturnType<typeof vi.fn>;
     setVScrollPos: ReturnType<typeof vi.fn>;
+    setVScrollListener: ReturnType<typeof vi.fn>;
     hasFocus: ReturnType<typeof vi.fn>;
     highlightRanges: ReturnType<typeof vi.fn>;
     selectNextRange: ReturnType<typeof vi.fn>;
@@ -288,13 +289,22 @@ describe('SourceView', () => {
     const restored = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
     expect(restored[11]).toBe('#1e1f22');
     expect(restored[14]).toBeUndefined();
-    // Editor caret move (not a metrics click) must restore the band too.
+    // Further caret moves must not rebuild the theme (override already cleared).
     ed.setTheme.mockClear();
     ed.setPosition({ lineNumber: 50, column: 1 });
+    expect(ed.setTheme).not.toHaveBeenCalled();
+    // After clearLine again, a caret move (not a metrics click) restores the band once.
+    await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
+    await flushPromises();
+    ed.setTheme.mockClear();
+    ed.setPosition({ lineNumber: 51, column: 1 });
     expect(ed.setTheme).toHaveBeenCalled();
     const fromCaret = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
     expect(fromCaret[11]).toBe('#1e1f22');
     expect(fromCaret[14]).toBeUndefined();
+    ed.setTheme.mockClear();
+    ed.setPosition({ lineNumber: 52, column: 1 });
+    expect(ed.setTheme).not.toHaveBeenCalled();
   });
 
   it('PR-SOURCE-006c: editor click on the cleared line selects it', async () => {
@@ -694,7 +704,7 @@ describe('SourceView', () => {
     expect(row1.find('[data-col="assembly"]').text().length).toBeGreaterThan(0);
   });
 
-  it('PR-SOURCE-014f: focused editor blocks prop-driven reveal and metrics→Sudu scroll', async () => {
+  it('PR-SOURCE-014f: focused caret ownership + scroll-origin mirror', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     await flushPromises();
@@ -712,14 +722,33 @@ describe('SourceView', () => {
 
     const scroll = wrapper.find('[data-testid="source-metrics-scroll"]');
     expect(scroll.exists()).toBe(true);
+    // Editor→table mirror write: echo scroll must not re-enter setVScrollPos.
+    const vScrollCb = ed.setVScrollListener.mock.calls[0]?.[0] as
+      | ((pos: number) => void)
+      | undefined;
+    expect(vScrollCb).toBeTypeOf('function');
     Object.defineProperty(scroll.element, 'scrollTop', {
-      value: 240,
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
+    vScrollCb!(120);
+    const mirrored = scroll.element.scrollTop;
+    expect(mirrored).toBeGreaterThan(0);
+    ed.setVScrollPos.mockClear();
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).not.toHaveBeenCalled();
+
+    // User wheel on metrics while Sudu is focused still locks the panes.
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: mirrored + 240,
       writable: true,
       configurable: true,
     });
     scroll.element.dispatchEvent(new Event('scroll'));
     await wrapper.vm.$nextTick();
-    expect(ed.setVScrollPos).not.toHaveBeenCalled();
+    expect(ed.setVScrollPos).toHaveBeenCalled();
 
     // Imperative setLine (asm / Navigate By) still reveals even when focused.
     const sudu = wrapper.findComponent({ name: 'SuduCodePane' });
