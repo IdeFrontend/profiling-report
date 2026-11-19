@@ -68,6 +68,8 @@ const messages = {
     start: 'Start',
     dur: 'Duration',
     end: 'End',
+    // Instant zero-duration ticks — English in both locales, same as start/dur/end.
+    timestamp: 'Timestamp',
     // Summary-bar / tooltip title — English in both locales, same as start/dur/end.
     taskOne: '1 task',
     taskMany: '{n} tasks',
@@ -318,6 +320,8 @@ const messages = {
     start: 'Start',
     dur: 'Duration',
     end: 'End',
+    // Instant zero-duration ticks — English in both locales, same as start/dur/end.
+    timestamp: 'Timestamp',
     // Summary-bar / tooltip title — English in both locales, same as start/dur/end.
     taskOne: '1 task',
     taskMany: '{n} tasks',

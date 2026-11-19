@@ -96,4 +96,22 @@ describe('EventTooltip', () => {
     });
     expect(wrapper.find('[data-testid="event-tooltip-lane"]').text()).toBe('MTE1');
   });
+
+  it('PR-TOOLTIP-005: zero-duration ticks show Timestamp only (no Start/Dur/End)', () => {
+    const wrapper = mount(EventTooltip, {
+      props: {
+        event: makeEvent({ name: 'ICACHE_HIT', startTime: 4_542, duration: 0 }),
+        stylePos: { left: '0px', top: '0px' },
+        timeDisplayMode: 'time' as const,
+        timeOrigin: 0,
+      },
+    });
+    const text = wrapper.text();
+    expect(wrapper.find('[data-testid="event-tooltip-timestamp"]').exists()).toBe(true);
+    expect(text).toContain('Timestamp');
+    expect(text).toContain('4.542');
+    expect(text).not.toContain('Start');
+    expect(text).not.toContain('Duration');
+    expect(text).not.toContain('End');
+  });
 });
