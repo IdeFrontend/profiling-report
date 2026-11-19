@@ -1712,8 +1712,10 @@ export interface TickDensityBin {
 }
 
 /**
- * Bin tick timestamps into CSS-pixel columns of the visible `[viewStart, viewEnd)` window.
- * Empty columns are omitted. Each bin's `[t0, t1)` spans exactly one CSS px of view time.
+ * Bin tick timestamps into CSS-pixel-wide columns on a zoom-only time grid (PR-RENDER-066).
+ * `dt = span / W` depends on zoom + width, not pan. Bin edges sit at `k * dt` (absolute), so
+ * horizontal offset only changes which bins are visible — counts / dims stay pan-stable.
+ * Empty columns are omitted. `col` is the world bin index (for alternate adjacency).
  */
 export function binTicksByCssColumn(
   times: readonly number[],
@@ -1723,20 +1725,27 @@ export function binTicksByCssColumn(
 ): TickDensityBin[] {
   const W = Math.max(1, Math.floor(widthCss));
   const span = Math.max(Number.EPSILON, viewEnd - viewStart);
-  const counts = new Int32Array(W);
+  const dt = span / W;
+  // Near-view origin keeps large absolute timestamps well-conditioned.
+  const firstCol = Math.floor(viewStart / dt);
+  const grid0 = firstCol * dt;
+  // View may span W or W+1 world bins when viewStart is not on the grid.
+  const lastCol = Math.floor((viewEnd - Number.EPSILON) / dt);
+  const n = Math.max(1, lastCol - firstCol + 1);
+  const counts = new Int32Array(n);
   for (const t of times) {
     if (!(t >= viewStart) || !(t < viewEnd)) continue;
-    let col = Math.floor(((t - viewStart) / span) * W);
-    if (col < 0) col = 0;
-    else if (col >= W) col = W - 1;
-    counts[col]!++;
+    let local = Math.floor((t - grid0) / dt);
+    if (local < 0) local = 0;
+    else if (local >= n) local = n - 1;
+    counts[local]!++;
   }
-  const dt = span / W;
   const out: TickDensityBin[] = [];
-  for (let col = 0; col < W; col++) {
-    const count = counts[col]!;
+  for (let i = 0; i < n; i++) {
+    const count = counts[i]!;
     if (count === 0) continue;
-    out.push({ col, count, t0: viewStart + col * dt, t1: viewStart + (col + 1) * dt });
+    const col = firstCol + i;
+    out.push({ col, count, t0: col * dt, t1: (col + 1) * dt });
   }
   return out;
 }

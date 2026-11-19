@@ -1480,11 +1480,18 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(tickCountSimilarity(9, 8)).toBeGreaterThan(0.7);
     expect(tickCountSimilarity(9, 2)).toBeLessThan(0.15);
 
-    // Four ticks in two CSS columns of a 2px-wide view.
+    // Four ticks in two CSS columns of a 2px-wide view (viewStart=0 → world cols 0,1).
     const bins = binTicksByCssColumn([0.1, 0.2, 0.6, 0.7], 0, 1, 2);
     expect(bins).toHaveLength(2);
-    expect(bins[0]).toMatchObject({ col: 0, count: 2 });
-    expect(bins[1]).toMatchObject({ col: 1, count: 2 });
+    expect(bins[0]).toMatchObject({ col: 0, count: 2, t0: 0, t1: 0.5 });
+    expect(bins[1]).toMatchObject({ col: 1, count: 2, t0: 0.5, t1: 1 });
+
+    // Same dt + same in-window ticks → identical bins under horizontal pan (PR-RENDER-066).
+    const panTimes = [5.05, 5.15, 5.25, 5.85, 5.95];
+    const panA = binTicksByCssColumn(panTimes, 5.0, 6.0, 10);
+    const panB = binTicksByCssColumn(panTimes, 5.03, 6.03, 10);
+    expect(panA).toEqual(panB);
+    expect(assignTickDensityDims(panA)).toEqual(assignTickDensityDims(panB));
 
     const equalPlateau = assignTickDensityDims([
       { col: 0, count: 9, t0: 0, t1: 1 },
