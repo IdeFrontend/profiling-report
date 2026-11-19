@@ -371,7 +371,8 @@ function clearCellTip() {
 
 /**
  * Hover-only 10% legend brush — dims cells whose intensity falls outside [lo, hi].
- * Center is clamped so the window always stays fully on the strip.
+ * Center follows the pointer on the strip (0…100); the window may overhang past
+ * 0 / 100 so boundary intensities stay easy to capture. Range label coerces to 0…max.
  * While active, the legend strip mutes to occupancy bands (≥3px per intensity).
  */
 const legendBrush = ref<{ centerPct: number; loPct: number; hiPct: number } | null>(null);
@@ -391,8 +392,10 @@ const legendBrushRangeLabel = computed(() => {
   const brush = legendBrush.value;
   if (!brush) return '';
   const max = maxAccessCount.value;
-  const lo = Math.round((brush.loPct / 100) * max);
-  const hi = Math.round((brush.hiPct / 100) * max);
+  const loRaw = Math.round((brush.loPct / 100) * max);
+  const hiRaw = Math.round((brush.hiPct / 100) * max);
+  const lo = Math.min(max, Math.max(0, loRaw));
+  const hi = Math.min(max, Math.max(0, hiRaw));
   return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
 });
 
@@ -450,11 +453,8 @@ function onLegendPointerMove(e: PointerEvent) {
   const rect = el.getBoundingClientRect();
   if (rect.width <= 0) return;
   legendTrackWidthPx.value = rect.width;
-  const pct = ((e.clientX - rect.left) / rect.width) * 100;
-  const centerPct = Math.min(
-    100 - LEGEND_BRUSH_HALF_PCT,
-    Math.max(LEGEND_BRUSH_HALF_PCT, pct),
-  );
+  // Keep center on-strip; half-width overhang past 0 / 100 is intentional.
+  const centerPct = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
   legendBrush.value = {
     centerPct,
     loPct: centerPct - LEGEND_BRUSH_HALF_PCT,
@@ -514,9 +514,9 @@ watch(activeView, () => {
           {{ t('memoryHeatAccessCount', locale) }}
         </p>
         <!--
-          Hit band matches brush window height (16px); the painted strip stays 8px
-          so the pointer can skim the brush chrome without dropping the filter.
-          Range label rides under the window; 0/max ticks fade as it approaches.
+          Hit band = 16px window + 3px pad above/below (22px); painted strip stays 8px.
+          Window may overhang past 0/max; range label coerces to 0…max.
+          0/max ticks fade as the window approaches either end.
         -->
         <div
           class="pr-heat__legend-hit"
@@ -797,9 +797,10 @@ watch(activeView, () => {
 
 .pr-heat__legend-hit {
   position: relative;
-  /* Same height as `.pr-heat__legend-brush` — full window is hittestable. */
-  height: 16px;
+  /* 16px brush + 3px pad above/below; overhang past strip edges stays visible. */
+  height: 22px;
   width: 100%;
+  overflow: visible;
   cursor: default;
 }
 
@@ -825,11 +826,11 @@ watch(activeView, () => {
 
 .pr-heat__legend-brush {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  /* Inset 3px so the visual window stays 16px inside the 22px hit band. */
+  top: 3px;
+  bottom: 3px;
   z-index: 1;
   box-sizing: border-box;
-  height: 100%;
   pointer-events: none;
   border: 1.5px solid rgba(255, 255, 255, 0.75);
   border-radius: 4px;
