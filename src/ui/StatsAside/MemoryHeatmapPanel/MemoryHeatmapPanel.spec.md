@@ -48,7 +48,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 11. **PR-HEAT-011** — The body is the size container (`container-type: size`); the grid picks `--pr-heat-cell: min(width-fit, height-fit)` with a footer budget for title + metric. Height-fit subtracts the same **8px** frame (padding+border) as width-fit so the `#6e798d` stroke is not clipped. The body has `overflow: hidden` (no scrollbar). Tabs, legend, the always-reserved view-bar band, and the `OutsideDeclared` badge stay outside the body so they cannot clip the lattice. The grid binds both `--pr-heat-cols` and `--pr-heat-rows`, and its frame is `5px`-rounded.
 12. **PR-HEAT-012** — When the active unit has more than one view (multi-core UB), a `SourcePillSelect` in the reserved view-bar band switches the lattice / name / capacity among those views; option labels include `Core {coreId} ·` when the pack has more than one distinct `coreId` (#198). The shared pill menu scrolls when many cores are listed, with dark `.pr-root`-matched scrollbar chrome (teleported outside `.pr-root`). Single-view tabs keep the empty band (same lattice height) and mount no select.
 12. **PR-HEAT-012** — When the active unit has more than one view (multi-core UB), a `SourcePillSelect` in the reserved view-bar band switches the lattice / name / capacity among those views. Single-view tabs keep the empty band (same lattice height) and mount no select.
-13. **PR-HEAT-013** — Hovering a heat cell adds a light inset ring on that cell and mounts a teleported SA-style tip (`placeFixedTip` flip/clamp) with three rows: **Start Address** (`BaseAddress + index×CellSize` as `0x…` hex), **Cell Size** (`{n} Bytes`), **Accesses Count** / **访问次数** (comma-grouped `accessCount` = `Read+Write`). EventTooltip chrome (`--pr-surface-raised`, 12px radius). Clears on leave / view change. Capacity caption stays under the grid — never put access/instruction counts there ([DATA-51](../../../../docs/context/decisions/DATA.md)).
+13. **PR-HEAT-013** — Hovering a heat cell adds a light inset ring on that cell and mounts a teleported SA-style tip (`placeFixedTip` flip/clamp) with three rows: **Start Address** (`BaseAddress + index×CellSize` as `0x…` hex), **Cell Size** (`{n} Bytes`), **Accesses Count** / **访问次数** (comma-grouped `accessCount` = `Read+Write`). EventTooltip chrome (`--pr-surface-raised`, 12px radius). The hovered cell grows into the 2px seams so borders stay hittestable; tip/highlight stick across gaps and only clear on grid leave, another cell enter, or view change — no thrash. Capacity caption stays under the grid — never put access/instruction counts there ([DATA-51](../../../../docs/context/decisions/DATA.md)).
 
 ## Visual
 
@@ -71,7 +71,7 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | High end (`intensity = 1`) | `hsl(0, 100%, 40%)` (red) |
 | Low end (`intensity = 0`) | `hsl(100, 0%, 75%)` (gray) |
 | In between | SA HSL ramp gray→green→yellow→red (`hsl(100−pct, …)`, #200) |
-| Hovered cell | inset white ring (`box-shadow`) while the tip is open |
+| Hovered cell | inset white ring; grows `+2px` into grid gaps (hittestable seams); sticky until grid leave / other cell |
 | Grid frame | `2px` `#6e798d` border around the board, `5px` radius (sketch ~20px at 4×), one `2px` gap of inset inside it; cells clip to the radius |
 | Grid board (the lattice the gaps cut) | `#303f5e` |
 | Grid cell | `aspect-ratio: 1`, `2px` gap, `1px` radius |

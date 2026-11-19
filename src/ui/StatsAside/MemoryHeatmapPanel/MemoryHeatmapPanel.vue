@@ -271,7 +271,7 @@ const cellTipStyle = computed<CSSProperties>(() => {
   };
 });
 
-function onCellEnter(block: MemoryHeatmapBlock, e: MouseEvent) {
+function showCellTip(block: MemoryHeatmapBlock, clientX: number, clientY: number) {
   const view = activeView.value;
   if (!view) return;
   hoveredBlockIndex.value = block.index;
@@ -280,25 +280,34 @@ function onCellEnter(block: MemoryHeatmapBlock, e: MouseEvent) {
     startAddress: formatStartAddress(view.baseAddress, block.index, view.cellSize),
     cellSize: view.cellSize,
     accessCount: block.accessCount,
-    clientX: e.clientX,
-    clientY: e.clientY,
+    clientX,
+    clientY,
   };
 }
 
-function onCellMove(e: MouseEvent) {
+function onCellEnter(block: MemoryHeatmapBlock, e: MouseEvent) {
+  showCellTip(block, e.clientX, e.clientY);
+}
+
+/** Keep tip following the pointer while a cell is sticky-hovered (incl. over expanded borders). */
+function onTipPointerMove(e: MouseEvent) {
   const tip = cellTip.value;
   if (!tip) return;
   cellTip.value = { ...tip, clientX: e.clientX, clientY: e.clientY };
 }
 
-function onCellLeave() {
+/**
+ * Do not clear on cell leave — the 2px gaps between cells would thrash tip/highlight.
+ * Hovered cell grows into those gaps (CSS); tip sticks until another cell is entered or
+ * the pointer leaves the grid.
+ */
+function clearCellTip() {
   cellTip.value = null;
   hoveredBlockIndex.value = null;
 }
 
 watch(activeView, () => {
-  cellTip.value = null;
-  hoveredBlockIndex.value = null;
+  clearCellTip();
 });
 </script>
 
@@ -398,6 +407,8 @@ watch(activeView, () => {
             data-testid="heat-grid"
             role="img"
             :aria-label="gridLabel"
+            @pointermove="onTipPointerMove"
+            @pointerleave="clearCellTip"
           >
             <span
               v-for="block in activeView.blocks"
@@ -412,8 +423,6 @@ watch(activeView, () => {
               :data-access-count="String(block.accessCount)"
               :style="{ background: heatFill(block.intensity) }"
               @pointerenter="onCellEnter(block, $event)"
-              @pointermove="onCellMove($event)"
-              @pointerleave="onCellLeave"
             />
           </div>
         </div>
@@ -648,9 +657,16 @@ watch(activeView, () => {
 }
 
 .pr-heat__cell--hover {
+  /*
+   * Grow into the 2px grid gaps so borders stay hittestable — tip/highlight do not thrash
+   * when the pointer skims the seams. Sticky clear happens on grid pointerleave instead.
+   */
+  z-index: 2;
+  margin: -2px;
+  width: calc(var(--pr-heat-cell) + 4px);
+  height: calc(var(--pr-heat-cell) + 4px);
   /* Light ring reads on both gray (0%) and red (100%) fills. */
   box-shadow: inset 0 0 0 1.5px #ffffff;
-  z-index: 1;
 }
 
 .pr-heat__title {
