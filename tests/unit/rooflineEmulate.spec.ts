@@ -69,11 +69,43 @@ describe('rooflineEmulate (DATA-57a)', () => {
     });
     expect(model).toBeDefined();
     expect(model!.points).toHaveLength(2);
-    expect(model!.points.every((p) => p.seriesId === 'aiv-bp16')).toBe(true);
+    // Point seriesId matches a bandwidth-suffixed roof (SIMT-OUT / SIMT-UB).
+    expect(model!.points.map((p) => p.seriesId).sort()).toEqual([
+      'aiv-bp16-simt',
+      'aiv-bp16-simt-out',
+    ]);
+    expect(model!.points.every((p) => model!.series.some((s) => s.id === p.seriesId))).toBe(true);
     expect(model!.series).toHaveLength(17);
+    expect(model!.series.find((s) => s.id.startsWith('aiv-bp16'))!.label).toContain('AIV bf16');
     const ridgeFp16Simd =
       (model!.series.find((s) => s.id === 'aiv-fp16-simd')!.peakComputeTops * 1000) /
       model!.series.find((s) => s.id === 'aiv-fp16-simd')!.peakBandwidthGBs;
     expect(ridgeFp16Simd).toBeCloseTo(54000 / 50353.92, 8);
+  });
+
+  it('disambiguates colliding truncated labels with PC hex', () => {
+    const longA =
+      '_ZN7AscendCL28BinaryContinuousImplTemplateIfNS_3Reg9RegTensorIfL_ZNS1_L14RegTraitNumOneEEEEXadL_ZNS1_L3MulIfLNS1_13MaskMergeModeE2ES3_EEvRT1_S7_S7_RDv4_xEEEEvPU3AS6T_SC_SC_i.vector.thread';
+    const longB =
+      '_ZN7AscendCL28BinaryContinuousImplTemplateIfNS_3Reg9RegTensorIfL_ZNS1_L14RegTraitNumOneEEEEXadL_ZNS1_L3AddIfLNS1_13MaskMergeModeE2ES3_EEvRT1_S7_S7_RDv4_xEEEEvPU3AS6T_SC_SC_i.vector.thread';
+    const model = rooflineFromEmulatePayloads({
+      'RooflinePoints.csv': enc.encode(
+        [
+          'FunctionPC,FunctionSize,FunctionName,ExecutionMode,Unit,MemoryLevel,ExecutionCount,DurationTicks,FpOperations,IntegerOperations,TotalOperations,ProcessedBytes,ArithmeticIntensity,ThroughputGBs,PerformanceGFlops',
+          `1024,32,${longA},SIMD,AIV,SIMD-UB,1,1,1,0,1,8,0.125,1,1`,
+          `1124,32,${longB},SIMD,AIV,SIMD-UB,1,1,1,0,1,8,0.125,1,1`,
+        ].join('\n'),
+      ),
+      'RooflineComputePeaks.csv': enc.encode('Unit,DataType,PeakGFlops\nAIV,fp16,54000.0\n'),
+      'RooflineBandwidthPeaks.csv': enc.encode(
+        'Unit,MemoryLevel,PeakGBs\nAIV,SIMD-UB,50353.92\n',
+      ),
+    });
+    expect(model).toBeDefined();
+    const labels = model!.points.map((p) => p.label);
+    expect(new Set(labels).size).toBe(2);
+    expect(labels.every((l) => /@ 0x[0-9A-F]+$/.test(l))).toBe(true);
+    expect(labels.some((l) => l.endsWith('@ 0x400'))).toBe(true);
+    expect(labels.some((l) => l.endsWith('@ 0x464'))).toBe(true);
   });
 });

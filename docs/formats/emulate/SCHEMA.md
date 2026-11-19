@@ -124,9 +124,9 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 - [`VfSimtIPCInside`](#vfsimtipcinside)
 - [`VfSimtInvocations`](#vfsimtinvocations)
 
-## Flag-gated (absent from gelu) {#flag-gated}
+## Flag-gated (absent from committed gelu fixture) {#flag-gated}
 
-Not in the gelu `manifest.json` 101-table catalog. Produced under `--roofline`; packed on [`data/simt_gather_1d_roofline.npu-rep`](../../../data/simt_gather_1d_roofline.npu-rep) ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a); [TABLES.md §4](TABLES.md)).
+Not in the committed [`gelu.npu-rep`](../../../data/gelu.npu-rep) `manifest.json` 101-table catalog. Produced under `--roofline`; may ship on other gelu packs (e.g. gelu_2x128) and on [`data/simt_gather_1d_roofline.npu-rep`](../../../data/simt_gather_1d_roofline.npu-rep) ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a); [TABLES.md §4](TABLES.md)).
 
 - [`RooflineBandwidthPeaks`](#rooflinebandwidthpeaks)
 - [`RooflineComputePeaks`](#rooflinecomputepeaks)

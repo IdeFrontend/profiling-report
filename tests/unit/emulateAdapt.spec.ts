@@ -597,11 +597,13 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     const simd = roof.points.find((p) => p.id.includes('SIMD-UB'))!;
     expect(simd.intensity).toBeCloseTo(0.627906976744186, 10);
     expect(simd.performance).toBeCloseTo(69.12070086100613 / 1000, 12);
-    expect(simd.seriesId).toBe('aiv-fp16');
+    expect(simd.seriesId).toBe('aiv-fp16-simd');
     expect(simd.label).toBe('OnlineSoftmax.vector.thread - SIMD');
     const cube = roof.points.find((p) => p.id.includes('CUBE-L0'))!;
     expect(cube.performance).toBeCloseTo(1849.9748851894374 / 1000, 12);
-    expect(cube.seriesId).toBe('aic-int16-fp16');
+    expect(cube.seriesId).toBe('aic-int16-fp16-l0');
+    expect(roof.series.some((s) => s.id === simd.seriesId)).toBe(true);
+    expect(roof.series.some((s) => s.id === cube.seriesId)).toBe(true);
     // 3 AIV dtypes × 3 bw + 4 AIC × 2 bw = 17
     expect(roof.series).toHaveLength(17);
     expect(roof.series.some((s) => s.id.startsWith('aic-tf32-hf32'))).toBe(true);

@@ -29,7 +29,19 @@ export type RooflineSeriesId =
   | 'aic-int16-fp16'
   | 'aic-int32-fp32'
   | 'aic-fp32'
-  | 'aic-int8-fp8';
+  | 'aic-int8-fp8'
+  | 'aic-tf32-hf32';
+
+/** Compute HardwareInfo catalog ids (excludes emulate-only `aic-tf32-hf32`). */
+export const ROOFLINE_COMPUTE_SERIES_IDS: RooflineSeriesId[] = [
+  'aiv-fp16',
+  'aiv-bp16',
+  'aiv-fp32',
+  'aic-int16-fp16',
+  'aic-int32-fp32',
+  'aic-fp32',
+  'aic-int8-fp8',
+];
 
 /** Screenshot legend + colors (tabs omitted). AIV roofs dashed; AIC roofs solid. */
 export const ROOFLINE_SERIES_META: Record<
@@ -37,7 +49,7 @@ export const ROOFLINE_SERIES_META: Record<
   { group: 'aiv' | 'aic'; label: string; color: string; slopeStyle: 'solid' | 'dashed' }
 > = {
   'aiv-fp16': { group: 'aiv', label: 'AIV fp16', color: '#8C78F0', slopeStyle: 'dashed' },
-  'aiv-bp16': { group: 'aiv', label: 'AIV bp16', color: '#E63C82', slopeStyle: 'dashed' },
+  'aiv-bp16': { group: 'aiv', label: 'AIV bf16', color: '#E63C82', slopeStyle: 'dashed' },
   'aiv-fp32': { group: 'aiv', label: 'AIV fp32', color: '#32BE8C', slopeStyle: 'dashed' },
   'aic-int16-fp16': {
     group: 'aic',
@@ -56,6 +68,12 @@ export const ROOFLINE_SERIES_META: Record<
     group: 'aic',
     label: 'AIC int8 fp8',
     color: '#F0A020',
+    slopeStyle: 'solid',
+  },
+  'aic-tf32-hf32': {
+    group: 'aic',
+    label: 'AIC tf32 hf32',
+    color: '#9C27B0',
     slopeStyle: 'solid',
   },
 };
@@ -83,6 +101,8 @@ const EXAMPLE_PEAK_TOPS: Record<RooflineSeriesId, { peakComputeTops: number; pea
     'aic-int32-fp32': { peakComputeTops: 27033600000000 / OPS_PER_TOPS, peakBandwidthGBs: 1600 },
     'aic-fp32': { peakComputeTops: 27033600000000 / OPS_PER_TOPS, peakBandwidthGBs: 1600 },
     'aic-int8-fp8': { peakComputeTops: 865075200000000 / OPS_PER_TOPS, peakBandwidthGBs: 1600 },
+    // Emulate-only dtype; example ceilings unused by compute catalog.
+    'aic-tf32-hf32': { peakComputeTops: 216000000000000 / OPS_PER_TOPS, peakBandwidthGBs: 1600 },
   };
 
 const VEC_MIX: { id: string; label: string; column: string; seriesId: RooflineSeriesId }[] = [
@@ -180,6 +200,9 @@ export function peakComputeTopsFromFormula(
       return (cubeNum * 2048 * 2 * f) / MHZ_MAC_TO_TOPS;
     case 'aic-int8-fp8':
       return (cubeNum * 8192 * 2 * f) / MHZ_MAC_TO_TOPS;
+    case 'aic-tf32-hf32':
+      // Emulate-only; half of int16/fp16 cube peak when a formula is needed.
+      return (cubeNum * 2048 * 2 * f) / MHZ_MAC_TO_TOPS;
   }
 }
 
@@ -201,7 +224,7 @@ function defaultSeriesCatalog(
   cubeFrequencyMhz: number | undefined,
   vectorFrequencyMhz: number | undefined,
 ): RooflineSeries[] {
-  const ids = Object.keys(ROOFLINE_SERIES_META) as RooflineSeriesId[];
+  const ids = ROOFLINE_COMPUTE_SERIES_IDS;
   return ids.map((id) => {
     const frequencyMhz = id.startsWith('aiv-') ? vectorFrequencyMhz : cubeFrequencyMhz;
     if (canFormulaForId(id, cubeNum, vectorNum, frequencyMhz)) {
@@ -299,9 +322,9 @@ function parseRooflineJsonl(text: string): {
 
   if (seriesById.size === 0 && points.length === 0) return undefined;
   // Keep legend order (sparse — caller merges onto the full catalog).
-  const ordered = (Object.keys(ROOFLINE_SERIES_META) as RooflineSeriesId[])
-    .filter((id) => seriesById.has(id))
-    .map((id) => seriesById.get(id)!);
+  const ordered = ROOFLINE_COMPUTE_SERIES_IDS.filter((id) => seriesById.has(id)).map(
+    (id) => seriesById.get(id)!,
+  );
   return { series: ordered, points };
 }
 

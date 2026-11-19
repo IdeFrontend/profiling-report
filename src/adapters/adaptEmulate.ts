@@ -26,7 +26,7 @@ import {
 } from './pipeOccupancyEmulate';
 import { withPipeLaneUtilizations } from './withPipeLaneUtilizations';
 import { adaptSourceCorrelation } from './sourceCorrelation/adaptSourceCorrelation';
-import { rooflineFromEmulatePayloads } from './rooflineEmulate';
+import { rooflineFromEmulateTexts } from './rooflineEmulate';
 import { buildTimelineTraceBundle } from './timelineTraces';
 
 export {
@@ -64,7 +64,6 @@ const ROOFLINE_BANDWIDTH_PEAKS_NAMES = [
   'RooflineBandwidthPeaks.csv',
   'rooflinebandwidthpeaks.csv',
 ];
-const ROOFLINE_METADATA_NAMES = ['RooflineMetadata.csv', 'rooflinemetadata.csv'];
 const ROOFLINE_JSON_NAMES = ['roofline.json', 'Roofline.json'];
 
 /** Hub object names that identify an npu_emulate CSV export catalog. */
@@ -396,7 +395,7 @@ export function adaptEmulate(
     ...ROOFLINE_POINTS_NAMES,
     ...ROOFLINE_COMPUTE_PEAKS_NAMES,
     ...ROOFLINE_BANDWIDTH_PEAKS_NAMES,
-    ...ROOFLINE_METADATA_NAMES,
+    // RooflineMetadata is not read by the mapper (DATA-57a); omit from csvTexts.
     ...ROOFLINE_JSON_NAMES,
   ]) {
     const p = payloadByName(payloads, [name]);
@@ -423,7 +422,18 @@ export function adaptEmulate(
   const sourceCorrelation = adaptSourceCorrelation(payloads);
 
   // DATA-57a: Roofline*.csv (AnalysisState-gated) → shared RooflinePanel VM.
-  const roofline = rooflineFromEmulatePayloads(payloads);
+  // Reuse csvTexts already decoded above (no second UTF-8 pass).
+  const pickText = (names: string[]) => {
+    for (const n of names) if (csvTexts[n]) return csvTexts[n];
+    return undefined;
+  };
+  const roofline = rooflineFromEmulateTexts({
+    analysisState: pickText(ANALYSIS_STATE_NAMES),
+    pointsCsv: pickText(ROOFLINE_POINTS_NAMES),
+    computeCsv: pickText(ROOFLINE_COMPUTE_PEAKS_NAMES),
+    bandwidthCsv: pickText(ROOFLINE_BANDWIDTH_PEAKS_NAMES),
+    json: pickText(ROOFLINE_JSON_NAMES),
+  });
 
   const reportModel: ReportViewModel = {
     ...emptyReportViewModel(),

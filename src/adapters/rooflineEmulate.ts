@@ -58,45 +58,55 @@ const DTYPE_FAMILY: Record<string, DtypeFamily> = {
   fp16: {
     baseId: 'aiv-fp16',
     group: 'aiv',
-    label: 'AIV fp16',
+    label: ROOFLINE_SERIES_META['aiv-fp16'].label,
     color: ROOFLINE_SERIES_META['aiv-fp16'].color,
   },
   bf16: {
     baseId: 'aiv-bp16',
     group: 'aiv',
-    label: 'AIV bp16',
+    label: ROOFLINE_SERIES_META['aiv-bp16'].label,
     color: ROOFLINE_SERIES_META['aiv-bp16'].color,
   },
   fp32_aiv: {
     baseId: 'aiv-fp32',
     group: 'aiv',
-    label: 'AIV fp32',
+    label: ROOFLINE_SERIES_META['aiv-fp32'].label,
     color: ROOFLINE_SERIES_META['aiv-fp32'].color,
   },
   fp16_bf16: {
     baseId: 'aic-int16-fp16',
     group: 'aic',
-    label: 'AIC int16 fp16',
+    label: ROOFLINE_SERIES_META['aic-int16-fp16'].label,
     color: ROOFLINE_SERIES_META['aic-int16-fp16'].color,
   },
   fp32_aic: {
     baseId: 'aic-int32-fp32',
     group: 'aic',
-    label: 'AIC int32 fp32',
+    label: ROOFLINE_SERIES_META['aic-int32-fp32'].label,
     color: ROOFLINE_SERIES_META['aic-int32-fp32'].color,
   },
   int8_fp8: {
     baseId: 'aic-int8-fp8',
     group: 'aic',
-    label: 'AIC int8 fp8',
+    label: ROOFLINE_SERIES_META['aic-int8-fp8'].label,
     color: ROOFLINE_SERIES_META['aic-int8-fp8'].color,
   },
   tf32_hf32: {
     baseId: 'aic-tf32-hf32',
     group: 'aic',
-    label: 'AIC tf32 hf32',
-    color: '#9C27B0',
+    label: ROOFLINE_SERIES_META['aic-tf32-hf32'].label,
+    color: ROOFLINE_SERIES_META['aic-tf32-hf32'].color,
   },
+};
+
+/** Stable dtype order so CSV and JSON paths emit the same legend sequence. */
+const DTYPE_SORT_ORDER: Record<string, number> = {
+  fp16: 0,
+  bf16: 1,
+  fp32: 2,
+  fp16_bf16: 3,
+  tf32_hf32: 4,
+  int8_fp8: 5,
 };
 
 const MODE_HEURISTIC: Record<string, RooflineSeriesId> = {
@@ -209,7 +219,8 @@ function seriesFromFamily(
   multiBw: boolean,
 ): RooflineSeries {
   const debug = MEMORY_LEVEL_DEBUG[level];
-  const id = multiBw ? `${family.baseId}-${bwSuffix(level)}` : family.baseId;
+  // Always suffix by memory level so point.seriesId can match a roof id.
+  const id = `${family.baseId}-${bwSuffix(level)}`;
   const label = multiBw ? `${family.label} · ${debug}` : family.label;
   return {
     id,
@@ -232,8 +243,9 @@ function pointFromFields(args: {
   performanceGops: number;
 }): RooflinePoint {
   const modeKey = args.mode.trim().toUpperCase();
-  const seriesId = MODE_HEURISTIC[modeKey] ?? (args.unit.toUpperCase() === 'AIC' ? 'aic-int16-fp16' : 'aiv-fp16');
-  const color = ROOFLINE_SERIES_META[seriesId].color;
+  const baseId =
+    MODE_HEURISTIC[modeKey] ?? (args.unit.toUpperCase() === 'AIC' ? 'aic-int16-fp16' : 'aiv-fp16');
+  const color = ROOFLINE_SERIES_META[baseId].color;
   const debug = MEMORY_LEVEL_DEBUG[args.level];
   return {
     id: args.id,
@@ -242,8 +254,35 @@ function pointFromFields(args: {
     performance: args.performanceGops / GOPS_PER_TOPS,
     style: 'solid',
     color,
-    seriesId,
+    // Match the bandwidth-suffixed roof id for this point's memory level.
+    seriesId: `${baseId}-${bwSuffix(args.level)}`,
   };
+}
+
+/** Dense mangled packs share a truncated prefix — append PC when labels collide. */
+function disambiguatePointLabels(points: RooflinePoint[]): void {
+  const counts = new Map<string, number>();
+  for (const p of points) counts.set(p.label, (counts.get(p.label) ?? 0) + 1);
+  for (const p of points) {
+    if ((counts.get(p.label) ?? 0) < 2) continue;
+    const pc = p.id.split(':')[0] ?? '';
+    if (!pc) continue;
+    const n = Number(pc);
+    const hex = Number.isFinite(n) ? `0x${n.toString(16).toUpperCase()}` : pc;
+    p.label = `${p.label} @ ${hex}`;
+  }
+}
+
+function sortComputePeaks(
+  peaks: { unit: string; dataType: string; peakGops: number }[],
+): { unit: string; dataType: string; peakGops: number }[] {
+  return [...peaks].sort((a, b) => {
+    const u = (a.unit === 'AIV' ? 0 : 1) - (b.unit === 'AIV' ? 0 : 1);
+    if (u !== 0) return u;
+    const da = DTYPE_SORT_ORDER[a.dataType.trim().toLowerCase()] ?? 99;
+    const db = DTYPE_SORT_ORDER[b.dataType.trim().toLowerCase()] ?? 99;
+    return da - db;
+  });
 }
 
 function buildSeriesCrossProduct(
@@ -262,7 +301,7 @@ function buildSeriesCrossProduct(
   }
 
   const series: RooflineSeries[] = [];
-  for (const c of computePeaks) {
+  for (const c of sortComputePeaks(computePeaks)) {
     const family = dtypeFamilyFor(c.unit, c.dataType);
     if (!family || !(c.peakGops > 0)) continue;
     const bws = bwByUnit.get(c.unit.toUpperCase()) ?? bwByUnit.get(c.unit) ?? [];
@@ -331,6 +370,7 @@ function fromCsvTexts(args: {
   }
 
   if (points.length === 0) return undefined;
+  disambiguatePointLabels(points);
   return { points, mixLabels: [], series };
 }
 
@@ -412,38 +452,52 @@ function fromRooflineJson(text: string): RooflineViewModel | undefined {
   }
 
   if (points.length === 0) return undefined;
+  disambiguatePointLabels(points);
   return { points, mixLabels: [], series };
 }
 
 /**
- * Build emulate `RooflineViewModel` from leaf payloads.
+ * Build emulate `RooflineViewModel` from already-decoded texts.
  * When AnalysisState is packed, a failed latest `roofline` row omits the chart.
  * When AnalysisState is absent, still adapt from CSVs or `roofline.json`.
  * Returns undefined when gated-fail or no usable points (DATA-30 / DATA-57a).
  */
+export function rooflineFromEmulateTexts(texts: {
+  analysisState?: string;
+  pointsCsv?: string;
+  computeCsv?: string;
+  bandwidthCsv?: string;
+  json?: string;
+}): RooflineViewModel | undefined {
+  // When AnalysisState text is provided, require a passing roofline row.
+  if (texts.analysisState != null && !emulateRooflineAnalysisPassed(texts.analysisState)) {
+    return undefined;
+  }
+  if (texts.pointsCsv && texts.computeCsv && texts.bandwidthCsv) {
+    return fromCsvTexts({
+      pointsCsv: texts.pointsCsv,
+      computeCsv: texts.computeCsv,
+      bandwidthCsv: texts.bandwidthCsv,
+    });
+  }
+  if (texts.json) return fromRooflineJson(texts.json);
+  return undefined;
+}
+
+/** Decode leaf payloads then {@link rooflineFromEmulateTexts}. */
 export function rooflineFromEmulatePayloads(
   payloads: Record<string, Uint8Array>,
 ): RooflineViewModel | undefined {
   const analysisBytes = payloadByName(payloads, ANALYSIS_STATE_NAMES);
-  // When AnalysisState is packed, require a passing roofline row. Packs that
-  // only ship roofline.json (no AnalysisState) still adapt via JSON fallback.
-  if (analysisBytes && !emulateRooflineAnalysisPassed(decodeUtf8(analysisBytes))) {
-    return undefined;
-  }
-
   const pointsBytes = payloadByName(payloads, POINTS_NAMES);
   const computeBytes = payloadByName(payloads, COMPUTE_PEAKS_NAMES);
   const bandwidthBytes = payloadByName(payloads, BANDWIDTH_PEAKS_NAMES);
-
-  if (pointsBytes && computeBytes && bandwidthBytes) {
-    return fromCsvTexts({
-      pointsCsv: decodeUtf8(pointsBytes),
-      computeCsv: decodeUtf8(computeBytes),
-      bandwidthCsv: decodeUtf8(bandwidthBytes),
-    });
-  }
-
   const jsonBytes = payloadByName(payloads, JSON_NAMES);
-  if (jsonBytes) return fromRooflineJson(decodeUtf8(jsonBytes));
-  return undefined;
+  return rooflineFromEmulateTexts({
+    analysisState: analysisBytes ? decodeUtf8(analysisBytes) : undefined,
+    pointsCsv: pointsBytes ? decodeUtf8(pointsBytes) : undefined,
+    computeCsv: computeBytes ? decodeUtf8(computeBytes) : undefined,
+    bandwidthCsv: bandwidthBytes ? decodeUtf8(bandwidthBytes) : undefined,
+    json: jsonBytes ? decodeUtf8(jsonBytes) : undefined,
+  });
 }

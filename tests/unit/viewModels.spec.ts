@@ -1158,7 +1158,7 @@ describe('PR-VM: report view-models (interim)', () => {
   });
 
   it('PR-VM-009b: HardwareInfo Roofline JSON overlays full catalog + measured points', async () => {
-    const { ROOFLINE_SERIES_META } = await import('../../src/adapters/roofline');
+    const { ROOFLINE_COMPUTE_SERIES_IDS } = await import('../../src/adapters/roofline');
     const arith = [{ aiv_vec_fops: '1e6', 'aiv_time(us)': '1', aiv_vec_fp32_ratio: '1' }];
     const mem = [{ 'read_main_memory_datas(KB)': '1024' }];
     const hw = [
@@ -1174,8 +1174,8 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(model!.points.map((p) => p.id).sort()).toEqual(['aic_b8', 'aiv_simd_b16']);
     expect(model!.points.find((p) => p.id === 'aiv_simd_b16')!.label).toBe('AIV fp16');
     expect(model!.points.find((p) => p.id === 'aic_b8')!.label).toBe('AIC int8 fp8');
-    // Sparse JSON overlays the full AIV+AIC legend (does not replace it).
-    expect(model!.series.map((s) => s.id)).toEqual(Object.keys(ROOFLINE_SERIES_META));
+    // Sparse JSON overlays the full AIV+AIC compute legend (does not replace it).
+    expect(model!.series.map((s) => s.id)).toEqual(ROOFLINE_COMPUTE_SERIES_IDS);
     for (const s of model!.series) {
       expect(s.slopeStyle).toBe(s.group === 'aiv' ? 'dashed' : 'solid');
     }
