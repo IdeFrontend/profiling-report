@@ -34,6 +34,7 @@ import {
   TICK_DENSITY_MIN_DIM,
   assignTickDensityDims,
   binTicksByCssColumn,
+  partitionTickLodByRuns,
   shouldUseTickDensityLod,
   tickCountSimilarity,
   tickDensityDim,
@@ -1471,7 +1472,6 @@ describe('PR-RENDER: lane chrome color', () => {
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
     expect(shouldUseTickDensityLod(10, 20)).toBe(false);
     expect(shouldUseTickDensityLod(21, 20)).toBe(true);
-    // Gate is visible-window count: a lean visible slice must not stay aggregated.
     expect(shouldUseTickDensityLod(5, 800)).toBe(false);
 
     expect(tickDensityDim(1)).toBeCloseTo(TICK_DENSITY_MIN_DIM, 5);
@@ -1527,23 +1527,31 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(gapped[0]!.dim).toBeCloseTo(base9, 5);
     expect(gapped[1]!.dim).toBeCloseTo(base9, 5);
 
+    // Mixed per-group LOD: dense left cluster + sparse right singles in one window.
+    // W=5: dense times land in cols 0–1 (8 ticks > 2 px → density); 0.7/0.9 → cols 3/4 discrete.
+    const denseLeft = Array.from({ length: 8 }, (_, i) => i * 0.05);
+    const sparseRight = [0.7, 0.9];
+    const mixed = partitionTickLodByRuns([...denseLeft, ...sparseRight], 0, 1, 5);
+    expect(mixed.densityMarks.length).toBeGreaterThan(0);
+    expect(mixed.discreteTimes).toEqual(sparseRight);
+    // Zoom in the same window (W=20): dense run spans 8 cols with 8 ticks → discrete; sparse stay discrete.
+    const resolved = partitionTickLodByRuns([...denseLeft, ...sparseRight], 0, 1, 20);
+    expect(resolved.densityMarks).toHaveLength(0);
+    expect(resolved.discreteTimes).toHaveLength(denseLeft.length + sparseRight.length);
+
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(webglSrc).toMatch(/rebuildTickLodMeshes/);
     expect(webglSrc).toMatch(/createDensityChunksFromMarks/);
-    expect(webglSrc).toMatch(/assignTickDensityDims/);
+    expect(webglSrc).toMatch(/partitionTickLodByRuns/);
+    expect(webglSrc).toMatch(/tickDensityChunks/);
     expect(webglSrc).toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(webglSrc).toMatch(/aDim/);
-    // Visible-window gate (not whole-lane events.length) so zoom-in returns to discrete ticks.
-    expect(webglSrc).toMatch(/visibleTimes/);
-    expect(webglSrc).toMatch(
-      /shouldUseTickDensityLod\(visibleTimes\.length,\s*widthCss\)/,
-    );
 
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(canvasSrc).toMatch(/shouldUseTickDensityLod/);
-    expect(canvasSrc).toMatch(/assignTickDensityDims/);
+    expect(canvasSrc).toMatch(/partitionTickLodByRuns/);
+    expect(canvasSrc).toMatch(/densityMarks/);
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
     expect(shaderSrc).toMatch(/in float aDim/);

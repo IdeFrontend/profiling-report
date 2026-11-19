@@ -1686,9 +1686,8 @@ export const TICK_ALTERNATE_FACTOR = 0.6;
 export const TICK_DENSITY_BAND_SCALE = 0.6;
 
 /**
- * True when packing every tick at min CSS width would overdraw the track.
- * `tickCount` must be the **visible-window** count (not the whole lane) so zoom-in
- * can fall back to discrete full-height ticks (PR-RENDER-066).
+ * True when packing `tickCount` ticks at min CSS width would overdraw `widthCss`.
+ * Used per contiguous column run (not lane-wide) for mixed density/discrete paint (PR-RENDER-066).
  */
 export function shouldUseTickDensityLod(tickCount: number, widthCss: number): boolean {
   return tickCount > 0 && tickCount * extendTargetSizeCss > Math.max(1, widthCss);
@@ -1778,6 +1777,68 @@ export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDens
     prevCount = bin.count;
   }
   return out;
+}
+
+export interface TickLodPartition {
+  /** Semi-height density marks for overdrawn contiguous column runs. */
+  densityMarks: TickDensityMark[];
+  /** Timestamps that paint as full-height discrete ticks (resolved / sparse runs). */
+  discreteTimes: number[];
+}
+
+/**
+ * Split visible ticks into per-cluster density marks vs discrete times (PR-RENDER-066).
+ * A group is a contiguous run of occupied CSS columns; each run overdraws independently
+ * (`runTicks * minTickCss > runWidthCss`) so one lane can mix semi-height LOD and full-height ticks.
+ */
+export function partitionTickLodByRuns(
+  times: readonly number[],
+  viewStart: number,
+  viewEnd: number,
+  widthCss: number,
+): TickLodPartition {
+  const W = Math.max(1, Math.floor(widthCss));
+  const span = Math.max(Number.EPSILON, viewEnd - viewStart);
+  const bins = binTicksByCssColumn(times, viewStart, viewEnd, widthCss);
+  if (bins.length === 0) return { densityMarks: [], discreteTimes: [] };
+
+  const densityBins: TickDensityBin[] = [];
+  const discreteCols = new Set<number>();
+
+  let runStart = 0;
+  const flushRun = (endExclusive: number): void => {
+    const run = bins.slice(runStart, endExclusive);
+    if (run.length === 0) return;
+    let runTicks = 0;
+    for (const b of run) runTicks += b.count;
+    const runWidthCss = run[run.length - 1]!.col - run[0]!.col + 1;
+    if (shouldUseTickDensityLod(runTicks, runWidthCss)) {
+      for (const b of run) densityBins.push(b);
+    } else {
+      for (const b of run) discreteCols.add(b.col);
+    }
+  };
+
+  for (let i = 1; i < bins.length; i++) {
+    if (bins[i]!.col !== bins[i - 1]!.col + 1) {
+      flushRun(i);
+      runStart = i;
+    }
+  }
+  flushRun(bins.length);
+
+  const densityMarks = assignTickDensityDims(densityBins);
+  const discreteTimes: number[] = [];
+  if (discreteCols.size > 0) {
+    for (const t of times) {
+      if (!(t >= viewStart) || !(t < viewEnd)) continue;
+      let col = Math.floor(((t - viewStart) / span) * W);
+      if (col < 0) col = 0;
+      else if (col >= W) col = W - 1;
+      if (discreteCols.has(col)) discreteTimes.push(t);
+    }
+  }
+  return { densityMarks, discreteTimes };
 }
 
 /** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */

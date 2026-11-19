@@ -49,9 +49,7 @@ import {
   SELECTION_MUTED_LABEL,
   SUMMARY_LABEL_COLOR,
   TICK_DENSITY_BAND_SCALE,
-  assignTickDensityDims,
-  binTicksByCssColumn,
-  shouldUseTickDensityLod,
+  partitionTickLodByRuns,
   type CollapseAnimState,
   type CollapseTransform,
   type LaidOutEvent,
@@ -778,9 +776,10 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         this.layout.maxLeafDuration,
       );
 
-      // Per sub-row: density LOD for duration-0 ticks when they would overdraw (PR-RENDER-066).
-      // Search keeps discrete ticks so name emphasis stays meaningful.
-      const densityRows = new Set<number>();
+      // Per sub-row: mixed per-cluster density LOD + discrete full-height ticks (PR-RENDER-066).
+      // Search keeps all ticks discrete so name emphasis stays meaningful.
+      const discreteTickTimes = new Set<number>();
+      const densityRowIds = new Set<number>();
       if (!hasSearch) {
         const ticksByRow = new Map<number, number[]>();
         for (let j = lo; j < hi; j++) {
@@ -791,14 +790,15 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
           ticksByRow.set(item.rowIndex, list);
         }
         for (const [rowIndex, times] of ticksByRow) {
-          // `times` are already view-overlapping (laneEventRange); gate LOD on that count
-          // so zoom-in returns to discrete full-height ticks (parity with WebGL).
-          if (!shouldUseTickDensityLod(times.length, widthCss)) continue;
-          densityRows.add(rowIndex);
-          const marks = assignTickDensityDims(
-            binTicksByCssColumn(times, this.view.startTime, this.view.endTime, widthCss),
+          const { densityMarks, discreteTimes } = partitionTickLodByRuns(
+            times,
+            this.view.startTime,
+            this.view.endTime,
+            widthCss,
           );
-          if (marks.length === 0) continue;
+          for (const t of discreteTimes) discreteTickTimes.add(t);
+          if (densityMarks.length === 0) continue;
+          densityRowIds.add(rowIndex);
           const sample = laneEvts.find((e) => !e.summary && e.rowIndex === rowIndex)!;
           const metrics = eventBlockMetrics(
             collapseShiftY(sample.y, this.collapse),
@@ -811,7 +811,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
           const densY = bandY + (bandH - densH) * 0.5;
           const laneA = collapseAlpha(sample.y, this.collapse);
           const fill = eventFill(sample.color, 'normal');
-          for (const m of marks) {
+          for (const m of densityMarks) {
             const x = ((m.t0 - this.view.startTime) / span) * this.width;
             const w = Math.max(1, ((m.t1 - m.t0) / span) * this.width);
             const fr = eventPaintRect(x, densY, w, densH, dpr);
@@ -830,8 +830,15 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
           continue;
         }
-        // Density LOD already painted this row's ticks.
-        if (!item.summary && ev.duration === 0 && densityRows.has(item.rowIndex)) continue;
+        // Density clusters already painted; only resolved discrete duration-0 ticks draw full-height.
+        if (
+          !item.summary &&
+          ev.duration === 0 &&
+          densityRowIds.has(item.rowIndex) &&
+          !discreteTickTimes.has(ev.startTime)
+        ) {
+          continue;
+        }
 
         const x = ((ev.startTime - this.view.startTime) / span) * this.width;
         const w = Math.max(2, (ev.duration / span) * this.width);

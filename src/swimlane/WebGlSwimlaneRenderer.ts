@@ -22,8 +22,6 @@ import {
   LANE_HEIGHT,
   MAX_QUADS_PER_MESH,
   TICK_DENSITY_BAND_SCALE,
-  assignTickDensityDims,
-  binTicksByCssColumn,
   contentHeightFromLayout,
   encodeIntervalPair,
   eventBlockMetrics,
@@ -38,11 +36,11 @@ import {
   findLaidOutEvent,
   hexToRgb,
   hitTestLayout,
+  partitionTickLodByRuns,
   rebuildLayout,
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_EVENT_FILL,
-  shouldUseTickDensityLod,
   snapEventRect,
   type CollapseAnimState,
   type CollapseTransform,
@@ -126,13 +124,12 @@ interface SubRowMesh {
   /** Positive-duration intervals — additive blend. */
   chunks: MeshChunk[];
   /**
-   * Duration-0 ticks (instant `ph:i` / `ph:X` `dur:0`) — source-over.
-   * Min-pixel paint makes dense ticks share device columns; additive would blow out to white (#205).
-   * When `tickDensity` is true these are CSS-column LOD marks with per-quad `aDim` (PR-RENDER-066).
+   * Duration-0 ticks resolved enough for full-height discrete paint — source-over.
+   * Dense clusters that still overdraw live on `tickDensityChunks` (PR-RENDER-066).
    */
   tickChunks: MeshChunk[] | null;
-  /** View-dependent density LOD for `tickChunks` (shorter band + per-column dim). */
-  tickDensity: boolean;
+  /** Semi-height CSS-column density LOD marks with per-quad `aDim` (mixed with `tickChunks`). */
+  tickDensityChunks: MeshChunk[] | null;
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
   /** Dep-neighbor intervals drawn over a muted base mesh (resting lane color). */
@@ -972,7 +969,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const mute = muteRest && !meshes.summary;
           const baseRgb = mute ? mutedRgb : meshes.color;
           drawChunks(row.chunks, baseRgb, 1);
-          drawTickChunks(row.tickChunks, baseRgb, 1, row.tickDensity);
+          drawTickChunks(row.tickChunks, baseRgb, 1, false);
+          drawTickChunks(row.tickDensityChunks, baseRgb, 1, true);
           if (row.brightChunks || row.liftChunks) {
             // Src-over so keep-bright fills replace the muted bar (additive would double).
             gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -1251,9 +1249,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
               : intervalIdx.length * 2 === pairs.length
                 ? createChunksFromPairs(gl, pairs)
                 : createChunksFromIndices(gl, pairs, intervalIdx),
-          // Filled by `rebuildTickLodMeshes` (discrete vs density LOD — view-dependent).
+          // Filled by `rebuildTickLodMeshes` (per-group mixed discrete + density LOD).
           tickChunks: null,
-          tickDensity: false,
+          tickDensityChunks: null,
           emphasisLayers: null,
           brightChunks: null,
           liftChunks: null,
@@ -1272,9 +1270,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   /**
-   * Rebuild duration-0 tick meshes for the current view: discrete isolated ticks when zoomed in,
-   * CSS-column density LOD (continuous dim + similarity alternate) when ticks would overdraw
-   * (PR-RENDER-066). Search emphasis keeps its own discrete tickChunks and skips this path.
+   * Rebuild duration-0 tick meshes for the current view: per contiguous CSS-column run, either
+   * full-height discrete ticks or semi-height density marks (PR-RENDER-066). One lane can mix both.
+   * Search emphasis keeps its own discrete tickChunks and skips this path.
    */
   private rebuildTickLodMeshes(): void {
     const gl = this.gl;
@@ -1301,30 +1299,38 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           for (const c of row.tickChunks) this.deleteChunk(c);
           row.tickChunks = null;
         }
-        row.tickDensity = false;
-        // Search emphasis owns discrete tick draws; leave resting tickChunks empty while active.
+        if (row.tickDensityChunks) {
+          for (const c of row.tickDensityChunks) this.deleteChunk(c);
+          row.tickDensityChunks = null;
+        }
+        // Search emphasis owns discrete tick draws; leave resting tick meshes empty while active.
         if (row.emphasisLayers) continue;
 
         const events = byRow.get(`${idx}:${r}`) ?? [];
         if (events.length === 0) continue;
 
-        // LOD must key off *visible* ticks — whole-lane counts kept dense AIV rows aggregated
-        // even when zoomed into a sparse window, while leaner AIC rows stayed discrete.
         const visibleTimes: number[] = [];
         for (const e of events) {
           const t = e.event.startTime;
           if (t >= viewStart && t < viewEnd) visibleTimes.push(t);
         }
+        if (visibleTimes.length === 0) continue;
 
-        if (shouldUseTickDensityLod(visibleTimes.length, widthCss)) {
-          const marks = assignTickDensityDims(
-            binTicksByCssColumn(visibleTimes, viewStart, viewEnd, widthCss),
-          );
-          if (marks.length === 0) continue;
-          row.tickChunks = createDensityChunksFromMarks(gl, marks, this.timeBase);
-          row.tickDensity = true;
-        } else {
-          const { pairs, tickIdx } = partitionIntervalTickIndices(events, this.timeBase);
+        const { densityMarks, discreteTimes } = partitionTickLodByRuns(
+          visibleTimes,
+          viewStart,
+          viewEnd,
+          widthCss,
+        );
+        if (densityMarks.length > 0) {
+          row.tickDensityChunks = createDensityChunksFromMarks(gl, densityMarks, this.timeBase);
+        }
+        if (discreteTimes.length > 0) {
+          // Off-screen ticks stay out of the mesh; only resolved visible times need full-height paint.
+          const discreteEvents = discreteTimes.map((startTime) => ({
+            event: { startTime, duration: 0 },
+          }));
+          const { pairs, tickIdx } = partitionIntervalTickIndices(discreteEvents, this.timeBase);
           row.tickChunks =
             tickIdx.length === 0 ? null : createChunksFromIndices(gl, pairs, tickIdx, true);
         }
@@ -1361,7 +1367,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           for (const c of row.tickChunks) this.deleteChunk(c);
           row.tickChunks = null;
         }
-        row.tickDensity = false;
+        if (row.tickDensityChunks) {
+          for (const c of row.tickDensityChunks) this.deleteChunk(c);
+          row.tickDensityChunks = null;
+        }
       }
     }
 
@@ -1551,6 +1560,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       for (const row of lane.rows) {
         for (const c of row.chunks) this.deleteChunk(c);
         if (row.tickChunks) for (const c of row.tickChunks) this.deleteChunk(c);
+        if (row.tickDensityChunks) for (const c of row.tickDensityChunks) this.deleteChunk(c);
       }
     }
     this.laneMeshes = [];
