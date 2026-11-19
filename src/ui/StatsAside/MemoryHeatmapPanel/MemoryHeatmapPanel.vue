@@ -18,6 +18,8 @@ import {
   HEAT_GRID_PAD_PX,
   hitTestHeatCell,
 } from './heatHitTest';
+/** Same solid mute as swimlane selection keep-bright (`#2C2C2C`). */
+import { SELECTION_MUTED_FILL } from '../../../swimlane/layout';
 
 /**
  * biprof §11.2.3.2 Memory Utilization Heatmap panel — the right column of the topology 全屏
@@ -547,7 +549,9 @@ watch(activeView, () => {
               :data-state="block.state"
               :data-intensity="String(block.intensity)"
               :data-access-count="String(block.accessCount)"
-              :style="{ background: heatFill(block.intensity) }"
+              :style="{
+                background: cellMuted(block) ? SELECTION_MUTED_FILL : heatFill(block.intensity),
+              }"
             />
             <!-- Single overlay ring — no per-cell class / layout grow (swimlane-style). -->
             <div
@@ -819,11 +823,6 @@ watch(activeView, () => {
   box-sizing: border-box;
   /* Hits go to the grid — continuous geometry hit-test owns hover. */
   pointer-events: none;
-}
-
-/* Swimlane keep-bright: non-matching cells dim while the legend brush is active. */
-.pr-heat__cell--muted {
-  opacity: 0.25;
 }
 
 .pr-heat__hover {

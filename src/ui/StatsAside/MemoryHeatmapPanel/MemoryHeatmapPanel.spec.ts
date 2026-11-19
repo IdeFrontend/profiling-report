@@ -532,8 +532,11 @@ describe('MemoryHeatmapPanel', () => {
 
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells[0]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 50
+    expect(cells[0]!.attributes('style')).toMatch(/hsl\(/);
     expect(cells[1]!.classes()).toContain('pr-heat__cell--muted'); // intensity 100
+    expect(cells[1]!.attributes('style')).toMatch(/background:\s*#2C2C2C/i);
     expect(cells[2]!.classes()).toContain('pr-heat__cell--muted'); // intensity 0
+    expect(cells[2]!.attributes('style')).toMatch(/background:\s*#2C2C2C/i);
 
     // Edge clamp: pointer at left edge → center 5%, window still 10% wide [0, 10].
     await gradient.trigger('pointermove', { clientX: 0, clientY: 4 });
@@ -546,5 +549,6 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.find('[data-testid="heat-legend-brush"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(wrapper.findAll('.pr-heat__cell--muted')).toHaveLength(0);
+    expect(cells[1]!.attributes('style')).toMatch(/hsl\(/);
   });
 });
