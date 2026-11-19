@@ -93,11 +93,13 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: legend is Access Count + HSL strip with 0 / max access count (#200)', () => {
+  it('PR-HEAT-002: legend is Access Count + Free→Used blue strip with 0 / max access count (#200)', () => {
     const wrapper = mountPanel({ locale: 'en' });
     const legend = wrapper.get('[data-testid="heat-legend"]');
     expect(legend.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(legend.get('[data-testid="heat-legend-gradient"]').exists()).toBe(true);
+    expect(legend.get('.pr-heat__gradient').attributes('style')).toMatch(/#AFC6FE/i);
+    expect(legend.get('.pr-heat__gradient').attributes('style')).toMatch(/#3D64AD/i);
     expect(legend.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
     // Default fixture max accessCount is 300,090 on the first hot cell.
     expect(legend.get('[data-testid="heat-legend-tick-max"]').text()).toBe('300,090');
@@ -106,16 +108,17 @@ describe('MemoryHeatmapPanel', () => {
     expect(legend.text()).not.toContain('High');
   });
 
-  it('PR-HEAT-003: paints one cell per block with continuous HSL intensity (#200)', () => {
+  it('PR-HEAT-003: paints one cell per block with continuous Free→Used blue intensity (#200)', () => {
     const wrapper = mountPanel();
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells).toHaveLength(416);
     expect(cells[0].attributes('data-state')).toBe('withData');
     expect(Number(cells[0].attributes('data-intensity'))).toBeGreaterThan(0);
-    expect(cells[0].attributes('style')).toMatch(/background:\s*hsl\(/);
+    // Hot cells interpolate between Free (#AFC6FE) and Used (#3D64AD).
+    expect(cells[0].attributes('style')).toMatch(/background:\s*rgb\(/);
     expect(cells[20].attributes('data-state')).toBe('withoutData');
     expect(cells[20].attributes('data-intensity')).toBe('0');
-    expect(cells[20].attributes('style')).toMatch(/hsl\(100/);
+    expect(cells[20].attributes('style')).toMatch(/background:\s*#AFC6FE/i);
   });
 
   it('PR-HEAT-004: shows Total/Used/Free with spaced shared units (#201); omits when Total is unknown', () => {
@@ -540,7 +543,7 @@ describe('MemoryHeatmapPanel', () => {
 
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells[0]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 50
-    expect(cells[0]!.attributes('style')).toMatch(/hsl\(/);
+    expect(cells[0]!.attributes('style')).toMatch(/background:\s*rgb\(/);
     expect(cells[1]!.classes()).toContain('pr-heat__cell--muted'); // intensity 100
     expect(cells[1]!.attributes('style')).toMatch(/background:\s*#2C2C2C/i);
     expect(cells[2]!.classes()).toContain('pr-heat__cell--muted'); // intensity 0
@@ -577,9 +580,10 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.find('[data-testid="heat-legend-brush"]').exists()).toBe(false);
     expect(wrapper.findAll('[data-testid="heat-legend-occ"]')).toHaveLength(0);
     expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/linear-gradient/);
+    expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/#AFC6FE/i);
     expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(wrapper.findAll('.pr-heat__cell--muted')).toHaveLength(0);
-    expect(cells[1]!.attributes('style')).toMatch(/hsl\(/);
+    expect(cells[1]!.attributes('style')).toMatch(/background:\s*#3D64AD/i);
   });
 
   it('PR-HEAT-014: single unique intensity paints one ≥3px occupancy band', async () => {

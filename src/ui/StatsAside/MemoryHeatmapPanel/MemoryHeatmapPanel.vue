@@ -33,9 +33,6 @@ import { SELECTION_MUTED_FILL } from '../../../swimlane/layout';
 const HEAT_CELL_TIP_EST_W = 220;
 const HEAT_CELL_TIP_EST_H = 88;
 
-/** Dense stops so the HSL ramp stays continuous (labels are 0 / max access count). */
-const LEGEND_STOPS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
-
 /** Fixed brush width on the Access Count legend (percent of strip). */
 const LEGEND_BRUSH_WIDTH_PCT = 10;
 const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
@@ -43,24 +40,30 @@ const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
 const LEGEND_END_FADE_ZONE_PCT = 12;
 
 /**
- * SA Memory Utilization fill: gray at 0, then green→yellow→red as pct rises.
- * `pct = intensity * 100` where intensity is (Read+Write)/viewMax.
+ * Binary-mode Free / Used blues (same as HEAT_BLOCK_WITHOUT_DATA / WITH_DATA).
+ * Continuous intensity lerps Free (0) → Used (1).
+ */
+const HEAT_FILL_LO = '#AFC6FE';
+const HEAT_FILL_HI = '#3D64AD';
+const HEAT_FILL_LO_RGB = [0xaf, 0xc6, 0xfe] as const;
+const HEAT_FILL_HI_RGB = [0x3d, 0x64, 0xad] as const;
+
+/**
+ * Continuous Free→Used blue fill.
+ * `intensity` is (Read+Write)/viewMax in [0, 1].
  */
 function heatFill(intensity: number): string {
-  const pct = Math.min(1, Math.max(0, intensity)) * 100;
-  if (pct < 1e-4) return 'hsl(100, 0%, 75%)';
-  return `hsl(${100 - pct}, 100%, 40%)`;
+  const t = Math.min(1, Math.max(0, intensity));
+  if (t < 1e-6) return HEAT_FILL_LO;
+  if (t > 1 - 1e-6) return HEAT_FILL_HI;
+  const r = Math.round(HEAT_FILL_LO_RGB[0] + (HEAT_FILL_HI_RGB[0] - HEAT_FILL_LO_RGB[0]) * t);
+  const g = Math.round(HEAT_FILL_LO_RGB[1] + (HEAT_FILL_HI_RGB[1] - HEAT_FILL_LO_RGB[1]) * t);
+  const b = Math.round(HEAT_FILL_LO_RGB[2] + (HEAT_FILL_HI_RGB[2] - HEAT_FILL_LO_RGB[2]) * t);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
-/** Continuous legend strip stops matching `heatFill` at each 10% stop. */
-const LEGEND_GRADIENT = (() => {
-  const stops = LEGEND_STOPS.map((pct) => {
-    const color =
-      pct < 1e-4 ? 'hsl(100, 0%, 75%)' : `hsl(${100 - pct}, 100%, 40%)`;
-    return `${color} ${pct}%`;
-  });
-  return `linear-gradient(to right, ${stops.join(', ')})`;
-})();
+/** Legend strip: Free (light) → Used (deep) — same endpoints as `heatFill`. */
+const LEGEND_GRADIENT = `linear-gradient(to right, ${HEAT_FILL_LO}, ${HEAT_FILL_HI})`;
 
 /** Thousands grouped by hand — same as the BiProf/SA sample (`300,090`), not host ICU. */
 function formatAccessCount(n: number): string {
@@ -393,7 +396,7 @@ const legendBrushRangeLabel = computed(() => {
   return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
 });
 
-/** Mute base + HSL slices only while the brush is active. */
+/** Mute base + Free→Used blue slices only while the brush is active. */
 const legendGradientStyle = computed<CSSProperties>(() => {
   if (!legendBrush.value) return { background: LEGEND_GRADIENT };
   return { background: SELECTION_MUTED_FILL };
@@ -812,7 +815,7 @@ watch(activeView, () => {
   pointer-events: none;
 }
 
-/* Bright HSL slices punched through the mute base while the brush is active. */
+/* Bright Free→Used slices punched through the mute base while the brush is active. */
 .pr-heat__legend-occ {
   position: absolute;
   top: 0;

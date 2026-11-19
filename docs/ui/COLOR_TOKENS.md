@@ -81,13 +81,13 @@ No Trace `cname` mapping. Arg-key leaf names are not used for color.
 
 ## Heatmap (memory utilization)
 
-Board/frame from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-topology-fullscreen.jpeg); cell fill/legend follow the Source Assembly Memory Utilization HSL ramp (#200). Diagram unit hit-box blues stay for topology selection ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)).
+Board/frame from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-topology-fullscreen.jpeg); cell fill/legend lerp the binary Free→Used blues (#200). Diagram unit hit-box blues stay for topology selection ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)).
 
 | Token | Value | Role |
 |-------|-------|------|
-| Heat cell / legend fill | `hsl(100 − pct, pct≈0 ? 0%/75% : 100%/40%)` | Continuous intensity: gray (0%) → green → yellow → red (100%); `pct = (Read+Write)/viewMax × 100` |
-| `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | Diagram hover (35%) / selected (45%) unit tint (not the cell fill) |
-| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | Selected unit box hairline stroke on the diagram |
+| Heat cell / legend fill | RGB lerp `#AFC6FE` → `#3D64AD` | Continuous intensity: Free (0) → Used (1); `intensity = (Read+Write)/viewMax` |
+| `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | Used / high end of heat fill; diagram hover (35%) / selected (45%) unit tint |
+| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | Free / low end of heat fill; selected unit box hairline stroke on the diagram |
 | `HEAT_GRID_BOARD` | `#303F5E` | the board the grid's gaps cut into (the lattice between cells) |
 | `HEAT_GRID_FRAME` | `#6E798D` | the grid's `2px` outer border |
 | `HEAT_TAB_INDICATOR` | `#FFFFFF` | the active tab's short bar under its label |
