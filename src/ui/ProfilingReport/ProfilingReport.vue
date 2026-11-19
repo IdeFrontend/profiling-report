@@ -2039,6 +2039,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
         <OperatorOverview
           v-if="showOverviewTab"
           :rows="report?.operatorRows ?? []"
+          :pipe-occupancy="report?.pipeOccupancy ?? []"
           :locale="locale"
           :selected-operator-id="selectedOperatorId ?? undefined"
           @update:selected-operator-id="onOperatorChange"

@@ -249,9 +249,9 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
-- **2026-11-18** — **概览** requires at least one operator row (a single-row model keeps the tab, `PR-ROOT-034`).
-- **2026-11-13** — **概览** is gated on operator rows (no tab for chrome-trace / empty models), a failed load while it is active falls back to 时间线, and bare W/S/A/D / Shift+P are inert on the unmounted timeline (`PR-ROOT-034`, `PR-ROOT-037`, `PR-ROOT-038`).
-- **2026-11-12** — 概览 tab joins the strip ahead of 时间线 and mounts the operator overview (`PR-ROOT-034`); the tab-strip brand shortens to the pack operator name (`PR-ROOT-035`).
+- **2026-11-18** — **概览** requires at least one operator row (a single-row model keeps the tab, `PR-ROOT-035`).
+- **2026-11-13** — **概览** is gated on operator rows (no tab for chrome-trace / empty models), a failed load while it is active falls back to 时间线, and bare W/S/A/D / Shift+P are inert on the unmounted timeline (`PR-ROOT-035`, `PR-ROOT-038`, `PR-ROOT-039`).
+- **2026-11-12** — 概览 tab joins the strip ahead of 时间线 and mounts the operator overview (`PR-ROOT-035`); the tab-strip brand shortens to the pack operator name (`PR-ROOT-036`).
 - **2026-10-30** — CANNWork 优化 (design doc R3–R9): new **cannbotSessions** input forwarded to StatsAside, and five new host intents — **open-cannbot-stop** / **cannbot-reference** / **cannbot-view** (scope-carrying), **perform-optimization** (aside title-row 执行优化 pill), **open-cannwork** (toolbar trigger) — each behind its **own** 1s leading-edge cooldown (independent locks; R9 防抖), unlike the shared `cannbot-request` lock (PR-ROOT-032 / PR-ROOT-033).
 - **2026-10-29** — Late-bound `resolveSourceFile` still fills missing embeds (presence-only watch — unstable callback identity does not re-resolve); SourceView `session` resets search on operator / host swap but not on resolve overlay (`PR-ROOT-030`).
 - **2026-10-28** — Optional `resolveSourceFile` host hook fills missing Ascend C after load (`PR-ROOT-030`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
