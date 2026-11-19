@@ -2,12 +2,21 @@
 import { computed, ref } from 'vue';
 import { t } from '../../../i18n';
 import type { SummaryCategory } from '../../../domain/types';
+import { formatDetailValue } from '../../../domain/detailValue';
 import { highlightParts } from '../../searchHighlight';
+import SummaryDiffIndicator from '../StatsSummaryPanel/SummaryDiffIndicator.vue';
+import { metricDiff, trimDiffMagnitude, type MetricDiff } from '../../../domain/metricDiff';
 
 const props = defineProps<{
   categories: SummaryCategory[];
   activeId?: string;
   locale?: string;
+  /**
+   * The selected baseline's categories (对比基线): a field whose numeric value
+   * differs from the current one gets a delta badge right of the value —
+   * details show DELTAS (the bars show values).
+   */
+  baselineCategories?: SummaryCategory[];
 }>();
 
 const emit = defineEmits<{
@@ -15,6 +24,15 @@ const emit = defineEmits<{
 }>();
 
 const search = ref('');
+
+/** Bare numeric delta (baseline − current) for one field pair; null when either side is not numeric or equal. */
+function diffFor(current: string, baseline: string | undefined): MetricDiff | null {
+  if (baseline == null) return null;
+  const cur = Number(current);
+  const base = Number(baseline);
+  if (!Number.isFinite(cur) || !Number.isFinite(base)) return null;
+  return metricDiff(cur, base);
+}
 
 const active = computed(
   () => props.categories.find((c) => c.id === props.activeId) ?? props.categories[0] ?? null,
@@ -40,11 +58,17 @@ const fields = computed(() => {
   const rows = q
     ? category.fields.filter((f) => f.key.toLowerCase().includes(q.toLowerCase()))
     : category.fields;
-  return rows.map((f) => ({
-    key: f.key,
-    value: f.value,
-    parts: highlightParts(f.key, q),
-  }));
+  return rows.map((f) => {
+    const base = props.baselineCategories
+      ?.find((c) => c.id === category.id)
+      ?.fields.find((bf) => bf.key === f.key);
+    return {
+      key: f.key,
+      value: f.value,
+      parts: highlightParts(f.key, q),
+      diff: diffFor(f.value, base?.value),
+    };
+  });
 });
 </script>
 
@@ -138,7 +162,18 @@ const fields = computed(() => {
             :data-testid="part.match ? 'summary-field-match' : undefined"
           >{{ part.text }}</span>
         </span>
-        <span class="pr-summ__field-value">{{ field.value }}</span>
+        <span class="pr-summ__field-side">
+          <span class="pr-summ__field-value">{{ formatDetailValue(field.value) }}</span>
+          <!-- The delta badge stays on the SAME line, right after the value
+               (baseline-compare details mockup 1130). -->
+          <SummaryDiffIndicator
+            v-if="field.diff && trimDiffMagnitude(field.diff.magnitude) !== '0'"
+            :tone="field.diff.tone"
+            :text="trimDiffMagnitude(field.diff.magnitude)"
+            :direction-label="t(field.diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased', locale)"
+            :data-testid="`summary-field-diff-${field.key}`"
+          />
+        </span>
       </li>
     </ul>
   </div>
@@ -225,5 +260,14 @@ const fields = computed(() => {
   font-variant-numeric: tabular-nums;
   text-align: right;
   word-break: break-all;
+}
+
+/* Value + delta badge share one flex row so the badge never wraps under it. */
+.pr-summ__field-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
 }
 </style>

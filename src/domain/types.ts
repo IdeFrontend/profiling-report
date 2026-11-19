@@ -302,7 +302,13 @@ export interface MemoryTopologyEdge {
  *  field (DATA-39). A subset of the node ids, so a hand-built model cannot smuggle in a unit the
  *  panel has no badge slot for — the adapter's `TOPOLOGY_PLATE_NODE_IDS` tuple is checked against
  *  this union, and a new entry here fails typecheck in the panel until it gets coordinates. */
-export type MemoryTopologyPlateNodeId = 'aiv_scalar' | 'vec' | 'cube';
+export type MemoryTopologyPlateNodeId =
+  | 'aiv_scalar'
+  | 'vec'
+  | 'cube'
+  | 'simt'
+  | 'aic_scalar'
+  | 'aiv_scalar_unit';
 
 /** UI-49: unit-utilization badge painted inside a unit's own box, e.g. Scalar `33.24%`. */
 export interface MemoryTopologyPlate {
@@ -310,6 +316,13 @@ export interface MemoryTopologyPlate {
   node: MemoryTopologyPlateNodeId;
   /** `{n}%` of the unit's own utilization (DATA-28 ratio, not a peak-relative percent). */
   label: string;
+  /**
+   * Numeric percent behind `label` — `Number((ratio × 100).toFixed(2))`, e.g. `33.24` — from the
+   * same PipeUtilization ratio, so baseline comparison can diff plates without parsing strings.
+   * Optional: a hand-built / host model carrying only `label` stays valid and paints no delta.
+   * The compute adapters always fill it.
+   */
+  value?: number;
 }
 
 /** M2 memory topology: static node set + data-driven buffer-link labels. */
@@ -679,3 +692,7 @@ export interface SwimlaneRenderer {
   hitTest(x: number, y: number): string | null;
   dispose(): void;
 }
+
+/** 对比基线 data model — re-exported from the standalone model layer
+ *  (`baselinesModel.ts`), so hosts and the viewer share one source. */
+export type { Baseline, BaselinePick, BaselineReportData } from './baselinesModel';

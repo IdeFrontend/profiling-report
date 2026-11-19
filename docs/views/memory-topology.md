@@ -40,7 +40,7 @@ Fixed memory-path chrome with data-driven edge labels (BW / hit rate / util):
 
 | Field | Role | Required? |
 |-------|------|-----------|
-| `reportModel.memoryTopology` | Nodes + edges with labels; optional `peakPct` / `plates` | **Required to show** |
+| `reportModel.memoryTopology` | Nodes + edges with labels; optional `peakPct` / `plates` (formatted `label` + numeric `value`) | **Required to show** |
 | capability `memoryDiagram` | Compute feature gate | Set when topology present (compute only) |
 | capability `archDiagram` | Emulate feature gate | Set when ArchDiagramMetrics yields drawable topology |
 
@@ -66,7 +66,7 @@ The panel renders the official chrome [`memory-topology.svg`](../../src/ui/Stats
 | topology (block) | [`Memory.csv`](../formats/compute/Memory.csv.md), [`MemoryL0.csv`](../formats/compute/MemoryL0.csv.md), [`MemoryUB.csv`](../formats/compute/MemoryUB.csv.md), [`L2Cache.csv`](../formats/compute/L2Cache.csv.md), [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) | `block_id` = selected id on each CSV | `buildMemoryTopology(tables, blockId)` |
 | `edges[].label` | per [EDGE_MAP](#edge-field-source) | _(column pick, not FK)_ | First present non-`NA` source column, except GM↔L2 Main Read/Write = **sum** aic+aiv; format `{n} GB/s` / KB / `%` |
 | `nodes[l2].peakPct` | [`L2Cache.csv`](../formats/compute/L2Cache.csv.md) hit-rate cols | _(same as `l2-hit` edge)_ | DATA-21 column order |
-| `plates` (in-box utils) | `PipeUtilization` ([`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md)) | _(none)_ | `aiv_scalar_ratio` / `aiv_vec_ratio` / `aic_cube_ratio` → `{ratio×100}%` on nodes `aiv_scalar` / `vec` / `cube` (UI-49) |
+| `plates` (in-box utils) | `PipeUtilization` ([`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md)) | _(none)_ | `aiv_scalar_ratio` / `aiv_vec_ratio` / `aic_cube_ratio` → `{ratio×100}%` on nodes `aiv_scalar` / `vec` / `cube` (UI-49); each plate's numeric `value` is the printed 2dp percent (`Number((ratio×100).toFixed(2))`) for baseline-comparison diffs (PR-VM-028) |
 | show / hide | — | — | `hasDrawableTopology`: plated label or L2 peak required (PR-VM-018) |
 
 Code: `memoryTopology.ts` (`EDGE_MAP`, `PLATE_MAP`, `buildMemoryTopology*`).
@@ -100,7 +100,9 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 | **Scalar util (in-box)** | `aiv_scalar_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) `PipeUtilization` | **UI-49 (resolved):** printed `{ratio × 100}%` (DATA-28 own-busy-time ratio, not a peak-relative percent) in the AIV0 **and** AIV1 `Scalar` boxes — one field, one value, both rows |
 | **Vec util (in-box)** | `aiv_vec_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) `PipeUtilization` | **UI-49 (resolved):** `{ratio × 100}%` in the AIV0 **and** AIV1 `Vec` boxes |
 | **Cube util (in-box)** | `aic_cube_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) `PipeUtilization` | **UI-49 (resolved):** `{ratio × 100}%` in the AIC `Cube` box |
-| AIC `Scalar`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP` (in-box) | — | — | **UI-49 (resolved):** the producer's DATA-39 table marks all six rows **`NA`**, but its `SIMD VF` rows name the `Vec` position the `Vec` rows paint — so the remaining **four** positions have no field and nothing is drawn |
+| **SIMT util (in-box)** | `aiv_simt_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) `PipeUtilization` | **UI-49 (resolved):** `{ratio × 100}%` in the AIV `SIMT` box — the producer's `SIMT` rows are `NA` and real reports never carry the column (SIMT stays blank); the demo hosts synthesize the field |
+| **AIC Scalar util (in-box)** | `aic_scalar_ratio` | [`PipeUtilization.csv`](../formats/compute/PipeUtilization.csv.md) / [`summary.jsonl`](../formats/compute/summary.jsonl.md) `PipeUtilization` | **UI-49 (resolved):** `{ratio × 100}%` in the AIC `Scalar` box |
+| AIV0/AIV1 `SIMD VF`, `FixP` (in-box) | — | — | **UI-49 (resolved):** the producer's DATA-39 table marks these rows **`NA`**, but its `SIMD VF` rows name the `Vec` position the `Vec` rows paint — so the remaining **two** positions have no field and nothing is drawn |
 
 **NA (confirmed):** do not show `NA` labels; **do show 0**. Edge thickness stays static.
 
@@ -110,7 +112,7 @@ Use this table for `MemoryTopologyPanel` labels. Bare `*_read_bw` = leaving the 
 
 - Static architecture template: GM/HBM → L2 → AIC (L1, L0A/B/C, Cube, FixP, Scalar) and AIV×2 (UB, Vec/SIMT/SIMD, Scalar).
 - Overlay **GB/s** (or KB) on edges from the mapping tables. Hide `NA`; show `0`.
-- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (compute: hit rate DATA-20; emulate: `l2_cached_ratio`). **No other unit** carries a Peak(%). Compute in-box badges are **unit utilizations** (UI-49); emulate interim leaves those blank.
+- Overlay **Peak (%)** on the **L2** unit as `{n}%` under **L2 Cache** (compute: hit rate DATA-20; emulate: `l2_cached_ratio`). **No other unit** carries a Peak(%). Compute in-box badges are **unit utilizations** (UI-49); emulate interim leaves those blank. In comparison mode the numeric `plate.value` and `nodes[l2].peakPct` are diffed against the baseline model; edge labels are never diffed ([MemoryTopologyPanel.spec.md](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md), PR-VM-028).
 - **Right-click (UI-35):** open memory CSV overlay (Memory / L2Cache / MemoryUB / MemoryL0), same as **详情**.
 - Labels are **block-scoped** via the same block switcher as memory details ([DATA-19](../context/decisions/DATA.md)) on compute; emulate ArchDiagramMetrics is report-scoped.
 

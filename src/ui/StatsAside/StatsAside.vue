@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue';
 import { t, archMetricModeLabel } from '../../i18n';
+import { baselineDisplayTitle } from '../../domain/baselineTitle';
+import {
+  summaryDiffs,
+  trimDiffMagnitude,
+  type MetricDiff,
+  type SummaryMetricValues,
+} from '../../domain/metricDiff';
 import type {
+  AdaptedReport,
   BandwidthCardModel,
+  Baseline,
   MemoryHeatmapUnitId,
   MemoryTopologyModel,
   PipeOccupancyItem,
   PipeOccupancySide,
   ReportCapability,
   ReportViewModel,
+  SummaryCategory,
 } from '../../domain/types';
 import {
   bandwidthCardsFromRows,
@@ -34,10 +44,11 @@ import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vu
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import CannbotActions from './CannbotActions.vue';
+import CloseButton from '../CloseButton.vue';
+import SummaryDiffIndicator from './StatsSummaryPanel/SummaryDiffIndicator.vue';
+import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import DetailChevron from './DetailChevron.vue';
 import CannworkOptimizeIcon from '../CannworkOptimizeIcon.vue';
-import CloseButton from '../CloseButton.vue';
-import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import { cooldown } from '../../domain/cooldown';
 import type { CannbotScope, CannbotSessions } from '../../domain/cannbot';
 
@@ -50,9 +61,27 @@ const props = defineProps<{
    * topology fullscreen share one selection; omit for standalone mounts (local default).
    */
   archMetricMode?: ArchDiagramMetricMode;
+  /**
+   * Host-owned checked baselines (对比基线) — the picker's checkbox set. The
+   * aside always renders the Baseline / Operator dropdown row under the meta
+   * line; nothing checked = both show "Not selected". The Baseline pick
+   * forwards to the host (`update:selectedBaselineId`, `null` = Not selected)
+   * so the choice is global.
+   */
+  baselines?: Baseline[];
+  /** Current baseline id; null/absent = "Not selected". */
+  selectedBaselineId?: string | null;
+  /**
+   * The selected baseline's adapted pack (对比基线). Absent = the comparison state is
+   * off and the aside renders exactly as before. Data-only side channel: never enters
+   * the main load path.
+   */
+  baselineReport?: AdaptedReport | null;
+  /** Current report's operator id — auto-pairs the baseline pack when it matches. */
   /** Latest CANNWork session per scope, pushed by the host. Omitted → all scopes idle. */
   cannbotSessions?: CannbotSessions;
 }>();
+
 
 const emit = defineEmits<{
   close: [];
@@ -60,14 +89,22 @@ const emit = defineEmits<{
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-pipe-details': [];
   /** §11.2.3.2: `unit` is the heat unit clicked on the diagram, so 全屏 opens on it. */
-  'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId];
+  'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId, baseline?: MemoryTopologyModel | null];
   'open-cannbot': [scope: CannbotScope];
   'open-cannbot-stop': [scope: CannbotScope];
   'cannbot-reference': [scope: CannbotScope];
   'cannbot-view': [scope: CannbotScope];
   'perform-optimization': [];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
+  /** Baseline dropdown pick — the host-owned selection, global (`null` = Not selected). */
+  'update:selectedBaselineId': [id: string | null];
   'open-performance-hints': [];
+  /**
+   * A pointerdown inside the Baseline / Operator bar (capture phase, so the
+   * selects' own `pointerdown.stop` cannot swallow it) — the root closes the
+   * baselines popover on it (review PR #234).
+   */
+  'baseline-bar-down': [];
 }>();
 
 type PipeSide = PipeOccupancySide;
@@ -101,9 +138,11 @@ const hasDuration = computed(
 /** One block selector for every widget (DATA-19 / DATA-29): `''` = All, else that `block_id`. */
 const blockId = ref('');
 
-/** Rows for one CSV in the picked block; searches compute and memory tabs (DATA-19). */
-function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
-  const report = props.report;
+function rowsForBlockOf(
+  report: ReportViewModel | null | undefined,
+  fileName: string,
+  id: string,
+): Record<string, string>[] {
   if (!report) return [];
   const table = [...report.computeTables, ...report.memoryTables].find(
     (t) => t.fileName === fileName,
@@ -111,26 +150,167 @@ function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
   return table ? table.rows.filter((r) => r['block_id'] === id) : [];
 }
 
-const bandwidthCards = computed(() => {
-  const id = blockId.value;
-  const all = props.report?.bandwidthCards ?? [];
+/** Rows for one CSV in the picked block; searches compute and memory tabs (DATA-19). */
+function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
+  return rowsForBlockOf(props.report, fileName, id);
+}
+
+function bandwidthCardsOf(
+  report: ReportViewModel | null | undefined,
+  id: string,
+): BandwidthCardModel[] {
+  const all = report?.bandwidthCards ?? [];
   if (!id) return all;
-  const peak = props.report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
+  const peak = report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
   // A block with no `Memory.csv` shows no tile — never the All aggregate wearing its label.
-  return bandwidthCardsFromRows(rowsForBlock('Memory.csv', id), peak);
-});
-const computeCard = computed(() => {
-  const id = blockId.value;
-  const all = props.report?.computeCard;
+  return bandwidthCardsFromRows(rowsForBlockOf(report, 'Memory.csv', id), peak);
+}
+
+function computeCardOf(report: ReportViewModel | null | undefined, id: string) {
+  const all = report?.computeCard;
   if (!id) return all;
   // Peak is per-chip (DATA-29), so the picked block re-reads only the measured side and inherits
   // the peak; nothing to read (no row) blanks the tile rather than repeating the All value.
   return computeCardFromRows(
-    rowsForBlock('ArithmeticUtilization.csv', id),
-    props.report?.summary ?? {},
+    rowsForBlockOf(report, 'ArithmeticUtilization.csv', id),
+    report?.summary ?? {},
     all,
   );
+}
+
+const bandwidthCards = computed(() => bandwidthCardsOf(props.report, blockId.value));
+const computeCard = computed(() => computeCardOf(props.report, blockId.value));
+
+/* ===== Baseline comparison (对比基线) — summary cards, PIPE, topology, 详情 =====
+ * Every slice reads the same aside-local context: the resolved baseline model,
+ * plus `summaryDiffs` for the card metrics. Roofline is the remaining slice. */
+
+const baselineReport = computed(() => props.baselineReport ?? null);
+
+/** Operator options for the baseline pack; a flat pack synthesizes one option (fix: dropdown is always shown). */
+const baselineOperatorOptions = computed(() => {
+  const rep = baselineReport.value;
+  if (!rep) return [];
+  if (rep.operators && rep.operators.length > 0) {
+    return rep.operators.map((o) => ({ id: o.id, label: o.label }));
+  }
+  const keys = Object.keys(rep.operatorReports ?? {});
+  if (keys.length > 0) return keys.map((id) => ({ id, label: id }));
+  const opName = rep.reportModel?.summary.opName;
+  return opName ? [{ id: opName, label: opName }] : [];
 });
+
+const resolvedBaselineOperatorId = computed(() => {
+  const options = baselineOperatorOptions.value;
+  if (options.length === 0) return null;
+  // The bar's Operator select drives the comparison; an unmatched pick
+  // falls back to the pack's first operator.
+  const choice = asideBaselineOperator.value;
+  if (choice && options.some((o) => o.id === choice)) return choice;
+  return options[0].id;
+});
+
+/** The baseline pack's ReportViewModel for the resolved operator. */
+const baselineModel = computed<ReportViewModel | null>(() => {
+  const rep = baselineReport.value;
+  if (!rep) return null;
+  const id = resolvedBaselineOperatorId.value;
+  if (id == null) return rep.reportModel;
+  return rep.operatorReports?.[id]?.reportModel ?? rep.reportModel;
+});
+
+function sumMeasuredGBs(cards: BandwidthCardModel[], id: string): number | undefined {
+  const card = cards.find((c) => c.id === id);
+  if (!card || card.sides.length === 0) return undefined;
+  return card.sides.reduce((a, s) => a + s.measuredGBs, 0);
+}
+
+/** Raw card metrics of one report side, in the card's own units. */
+function metricValues(report: ReportViewModel | null | undefined, id: string): SummaryMetricValues {
+  const bw = bandwidthCardsOf(report, id);
+  const readCard = bw.find((c) => c.id === 'input');
+  const writeCard = bw.find((c) => c.id === 'output');
+  const compute = computeCardOf(report, id);
+  return {
+    taskDurationUs: report?.summary.taskDurationUs,
+    parallelUtilization: report?.summary.parallelUtilization,
+    parallelBalance: report?.summary.parallelBalance,
+    compute: {
+      aic: compute?.sides.find((s) => s.side === 'aic'),
+      aiv: compute?.sides.find((s) => s.side === 'aiv'),
+    },
+    bandwidth: {
+      read: readCard
+        ? { measuredGBs: sumMeasuredGBs(bw, 'input'), peakGBs: readCard.sides[0]?.peakGBs }
+        : undefined,
+      write: writeCard
+        ? { measuredGBs: sumMeasuredGBs(bw, 'output'), peakGBs: writeCard.sides[0]?.peakGBs }
+        : undefined,
+    },
+  };
+}
+
+const diffs = computed(() => {
+  const bl = baselineModel.value;
+  if (!bl || !props.report) return null;
+  return summaryDiffs(
+    metricValues(props.report, blockId.value),
+    metricValues(bl, blockId.value),
+  );
+});
+
+/**
+ * Comparison mode (对比基线): a resolved baseline pack is present. The summary cards then
+ * stack vertically — one card per row, full well width — at ANY well width, because the diff
+ * readouts need the whole tile (PR-STATS-059). Without a pack the sketch's 2×2 grid stays.
+ */
+const compareCards = computed(() => baselineModel.value != null);
+
+/**
+ * Diff text per metric — the mockup prints the unsigned magnitude in the
+ * metric's own unit: bare number for duration (unit implied by the base
+ * value) and compute, `%` attached for AICore/BW. Returns '' when a magnitude
+ * rounds to zero (no badge).
+ */
+function diffText(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): string {
+  if (!diff) return '';
+  if (kind === 'pct') {
+    const s = trimDiffMagnitude(diff.magnitude);
+    return s === '0' ? '' : `${s}%`;
+  }
+  if (kind === 'duration') {
+    // Same unit as the current card's base value: ms when it prints ms, else µs.
+    const us = props.report?.summary.taskDurationUs;
+    const s = us != null && us >= 1000 ? trimDiffMagnitude(diff.magnitude / 1000) : trimDiffMagnitude(diff.magnitude);
+    return s === '0' ? '' : s;
+  }
+  const s = trimDiffMagnitude(diff.magnitude);
+  return s === '0' ? '' : s;
+}
+
+function diffDirectionLabel(tone: MetricDiff['tone']): string {
+  return tone === 'increase' ? t('diffIncreased', props.locale) : t('diffDecreased', props.locale);
+}
+
+interface DiffView {
+  tone: MetricDiff['tone'];
+  text: string;
+  label: string;
+}
+
+/** A renderable diff: null when the metric is missing, equal, or rounds to zero. */
+function diffView(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): DiffView | null {
+  const text = diffText(diff, kind);
+  return diff && text ? { tone: diff.tone, text, label: diffDirectionLabel(diff.tone) } : null;
+}
+
+const durationDiff = computed(() => diffView(diffs.value?.taskDurationUs, 'duration'));
+const parallelDiff = computed(() => diffView(diffs.value?.parallelUtilization, 'pct'));
+const balanceDiff = computed(() => diffView(diffs.value?.parallelBalance, 'pct'));
+const computeAicDiff = computed(() => diffView(diffs.value?.computeAic, 'bare'));
+const computeAivDiff = computed(() => diffView(diffs.value?.computeAiv, 'bare'));
+const bwReadDiff = computed(() => diffView(diffs.value?.bandwidthRead, 'pct'));
+const bwWriteDiff = computed(() => diffView(diffs.value?.bandwidthWrite, 'pct'));
 const roofline = computed(() => {
   const id = blockId.value;
   if (!id) return props.report?.roofline;
@@ -449,12 +629,14 @@ const computeCategories = computed(() =>
     ),
   ),
 );
+/** The four `summary.jsonl` categories the memory 详情 lists. One predicate for the current and
+ *  the baseline side, so the comparison can never pair a category the list itself would drop. */
+const MEMORY_CATEGORY_IDS = ['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const;
+function isMemoryCategory(c: SummaryCategory): boolean {
+  return (MEMORY_CATEGORY_IDS as readonly string[]).includes(c.id);
+}
 const memoryCategories = computed(() =>
-  (props.report?.summaryCategories ?? []).filter((c) =>
-    (['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const).includes(
-      c.id as 'MemoryL0' | 'L2Cache' | 'Memory' | 'MemoryUB',
-    ),
-  ),
+  (props.report?.summaryCategories ?? []).filter(isMemoryCategory),
 );
 const activeCategory = ref('');
 watch(
@@ -559,10 +741,14 @@ watch(
  * the picked-block topology rebuild (UI-49's in-box Scalar/Vec/Cube badges live in PipeUtilization)
  * and the memory 详情 CSV field list (UI-38's MTE utilizations do too).
  */
-const memoryTablesWithPipe = computed(() => [
-  ...(props.report?.memoryTables ?? []),
-  ...(props.report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
-]);
+function memoryTablesWithPipeOf(report: ReportViewModel | null | undefined) {
+  return [
+    ...(report?.memoryTables ?? []),
+    ...(report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
+  ];
+}
+
+const memoryTablesWithPipe = computed(() => memoryTablesWithPipeOf(props.report));
 
 /** Emulate Architecture Diagram (DATA-48a): metric mode switches `*_gbs` / `*_ratio` / `*_cnt`. */
 const isArchDiagram = computed(() => (props.capabilities ?? []).includes('archDiagram'));
@@ -590,17 +776,32 @@ watch(isArchDiagram, (on) => {
  * Emulate / `archDiagram`: rebuild from ArchDiagramMetrics + selected metric mode only — never
  * `?? report.memoryTopology` (that snapshot is always default `*_gbs`; a blank mode must DATA-30 hide).
  */
-const topologyModel = computed(() => {
+function topologyOf(report: ReportViewModel | null | undefined) {
   if (isArchDiagram.value) {
-    const csv = archDiagramCsvFromTexts(props.report?.csvTexts);
+    // Each side rebuilds from its own ArchDiagramMetrics with the shared mode — never the
+    // adapter snapshot, which is always the default `*_gbs` (DATA-30 / PR-STATS-037).
+    const csv = archDiagramCsvFromTexts(report?.csvTexts);
     return topologyFromArchDiagramMetrics(csv, archMetricMode.value);
   }
   const id = blockId.value;
-  const tables = memoryTablesWithPipe.value;
+  const tables = memoryTablesWithPipeOf(report);
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
   if (id && tables.length > 0) return buildMemoryTopology(tables, id);
-  return props.report?.memoryTopology;
-});
+  return report?.memoryTopology;
+}
+
+const topologyModel = computed(() => topologyOf(props.report));
+
+/**
+ * The selected baseline's topology in the SAME scope as `topologyModel` (PR-STATS-056): All reads
+ * the baseline's adapter snapshot, a picked block rebuilds from the baseline's own CSVs (the one
+ * block selector scopes both sides), and ArchDiagram rebuilds from the baseline's own
+ * ArchDiagramMetrics with the selected metric mode. `null` without a pack, so the panel paints
+ * no delta nodes and its DOM stays exactly as before comparison.
+ */
+const topologyBaseline = computed(() =>
+  baselineModel.value ? topologyOf(baselineModel.value) : null,
+);
 
 /**
  * UI-38: the chrome's MTE blocks carry no value plate, so their utilizations are not drawn on the
@@ -623,6 +824,57 @@ const csvOnly = computed(
 );
 
 const summary = computed(() => props.report?.summary);
+
+/* ===== Baseline dropdown row (对比基线) =====
+ * Rendered under the meta line only while at least one baseline is checked
+ * (UI-63 resolved, review PR #234: no baselines → no row). Baseline
+ * (host-owned, global; `null` = Not selected) + Operator (session-local;
+ * defaults to the baseline's operator MATCHING the open report's opName,
+ * else the first; Not selected without a baseline). The row shares the
+ * Block dropdown's CardMetricSelect chrome. */
+
+const NOT_SELECTED = '';
+const baselineRows = computed(() => props.baselines ?? []);
+const selectedBaseline = computed(
+  () => baselineRows.value.find((b) => b.id === props.selectedBaselineId) ?? null,
+);
+/** Baseline dropdown: the checked set + the Not selected sentinel; picks are global. */
+const asideBaselineId = computed({
+  get: () => props.selectedBaselineId ?? NOT_SELECTED,
+  set: (id: string) => {
+    const next = id === NOT_SELECTED ? null : id;
+    if (next !== props.selectedBaselineId) emit('update:selectedBaselineId', next);
+  },
+});
+function baselineNameOf(id: string): string {
+  if (id === NOT_SELECTED) return t('baselineNotSelected', props.locale);
+  const row = baselineRows.value.find((b) => b.id === id);
+  // The derived title: filename + timestamp instead of a generated boilerplate
+  // id (review PR #234); the raw id stays the last-resort fallback.
+  return row ? baselineDisplayTitle(row) : id;
+}
+const baselineOperators = computed(() => selectedBaseline.value?.operators ?? []);
+const baselineIds = computed(() => [NOT_SELECTED, ...baselineRows.value.map((b) => b.id)]);
+/** Operator dropdown: session-local; defaults to (and re-defaults to) the
+ * baseline's operator MATCHING the open report's opName, else its first
+ * (review PR #234). */
+const asideBaselineOperator = ref('');
+const operatorOptions = computed(() =>
+  baselineOperators.value.length > 0 ? baselineOperators.value : [NOT_SELECTED]);
+function operatorNameOf(op: string): string {
+  return op === NOT_SELECTED ? t('baselineNotSelected', props.locale) : op;
+}
+watch(
+  () => selectedBaseline.value?.id,
+  () => {
+    const ops = baselineOperators.value;
+    const match = summary.value?.opName;
+    asideBaselineOperator.value =
+      (match != null && ops.includes(match) ? match : ops[0]) ?? NOT_SELECTED;
+  },
+  { immediate: true },
+);
+
 
 function numericBlockDim(blockDim: string | number | undefined): number | undefined {
   if (blockDim == null || blockDim === '') return undefined;
@@ -753,15 +1005,53 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
   return (item.side ?? side) === side;
 }
 
-const visiblePipes = computed(() => {
-  const all = scopedPipeOccupancy.value;
+/** The selected baseline's PIPE row paired with a current row (same id + side). */
+/** Baseline PIPE rows under the picked block: the same scoping rules as the
+ * current side — a block with no PipeUtilization.csv rows blanks rather than
+ * repeat the All aggregate (DATA-19 / PR-STATS-014b). */
+const scopedBaselinePipeOccupancy = computed(() => {
+  const model = baselineModel.value;
+  const all = model?.pipeOccupancy ?? [];
+  if (!model || !blockId.value) return all;
+  const rows = rowsForBlockOf(model, 'PipeUtilization.csv', blockId.value);
+  return rows.length === 0 ? [] : pipeOccupancyFromRows(rows);
+});
+
+function baselinePipeFor(row: PipeOccupancyItem) {
+  if (!baselineModel.value) return null;
+  return (
+    scopedBaselinePipeOccupancy.value.find(
+      (b) => b.id === row.id && (b.side ?? row.side) === row.side,
+    ) ?? null
+  );
+}
+/** Comparison active for the PIPE rows: the baseline pack is present. */
+const hasBaselinePipes = computed(() => baselineModel.value != null);
+
+/**
+ * The baseline pack's memory categories for the 详情 delta badges (PR-STATS-056), filtered by the
+ * same four ids as `memoryCategories` — compute categories never pair into the memory list.
+ * `undefined` without a pack keeps the list's no-baseline DOM identical.
+ */
+const baselineMemoryCategories = computed<SummaryCategory[] | undefined>(() => {
+  const model = baselineModel.value;
+  return model ? (model.summaryCategories ?? []).filter(isMemoryCategory) : undefined;
+});
+
+
+/** The side the PIPE list is filtered by right now (null = show both). */
+const activePipeSide = computed<PipeSide | null>(() => {
   // Emulate sides (`aic`/`aiv0`/`aiv1`) must not fall through to compute knownSide
   // (`aic`→cube / `aiv*`→vector) — that blanks a single-core pack (UI-54).
-  if (isMix.value || hasEmulatePipeCores.value) {
-    return all.filter((p) => matchesSide(p, pipeSide.value));
-  }
-  if (knownSide.value == null) return all;
-  return all.filter((p) => matchesSide(p, knownSide.value!));
+  if (isMix.value || hasEmulatePipeCores.value) return pipeSide.value;
+  return knownSide.value;
+});
+
+const visiblePipes = computed(() => {
+  const all = scopedPipeOccupancy.value;
+  const side = activePipeSide.value;
+  if (side == null) return all;
+  return all.filter((p) => matchesSide(p, side));
 });
 
 /**
@@ -854,7 +1144,6 @@ function openHardware() {
 
 /** 防连点（R9）：点击后 1 秒冷却期内忽略重复点击，只放行第一次。 */
 const DETAILS_COOLDOWN_MS = 1000;
-
 const openPipeDetails = cooldown(() => {
   if (showCompute.value) asideSurface.value = 'compute';
   emit('open-pipe-details');
@@ -866,7 +1155,11 @@ const openMemoryDetails = cooldown(() => {
 
 function openTopologyFullscreen() {
   const m = topologyModel.value;
-  if (m) emit('open-topology-fullscreen', m);
+  // The resolved baseline topology rides along: the root's fullscreen overlay
+  // has no access to the aside's Operator pick or block scope, so the aside —
+  // the only place that resolution lives — hands over the same comparison the
+  // stacked diagram paints (PR-STATS-056 / PR-ROOT-041).
+  if (m) emit('open-topology-fullscreen', m, undefined, topologyBaseline.value ?? null);
 }
 
 /**
@@ -875,7 +1168,7 @@ function openTopologyFullscreen() {
  */
 function openMemoryUnit(unit: MemoryHeatmapUnitId) {
   const m = topologyModel.value;
-  if (m) emit('open-topology-fullscreen', m, unit);
+  if (m) emit('open-topology-fullscreen', m, unit, topologyBaseline.value ?? null);
 }
 
 /**
@@ -976,6 +1269,7 @@ const detailTestId = computed(() => {
           @click="emit('close')"
         />
       </div>
+
       <p
         v-if="hasMeta || showMore"
         class="pr-aside__meta"
@@ -1012,524 +1306,617 @@ const detailTestId = computed(() => {
           @cannbot-view="(s) => emit('cannbot-view', s)"
         />
       </p>
+      <!-- Baseline / Operator dropdowns (对比基线): under the meta line only
+           while baselines are checked (UI-63 resolved), same chrome as the
+           Block switcher. Baseline is global (host-owned, Not selected = null);
+           Operator is session-local and defaults to the baseline's operator
+           MATCHING the open report's opName, else its first (Not selected
+           without a baseline). The capture pointerdown closes the baselines
+           popover via the root. -->
+      <div
+        v-if="baselineRows.length > 0"
+        class="pr-aside__baseline-bar"
+        data-testid="stats-baseline-bar"
+        @pointerdown.capture="emit('baseline-bar-down')"
+      >
+        <span class="pr-aside__baseline-k">{{ t('baselineLabel', locale) }}:</span>
+        <CardMetricSelect
+          v-model="asideBaselineId"
+          :options="baselineIds"
+          variant="inline"
+          test-id-prefix="aside-baseline"
+          :ariaLabel="t('baselineLabel', locale)"
+          :label-of="baselineNameOf"
+        />
+        <span class="pr-aside__baseline-k">{{ t('operatorLabel', locale) }}:</span>
+        <CardMetricSelect
+          v-model="asideBaselineOperator"
+          :options="operatorOptions"
+          variant="inline"
+          test-id-prefix="aside-baseline-operator"
+          :ariaLabel="t('operatorLabel', locale)"
+          :label-of="operatorNameOf"
+        />
+      </div>
     </header>
 
     <div
       class="pr-aside__main"
       :inert="asideSurface !== 'report'"
     >
+    <div
+      class="pr-aside__body"
+      @scroll="
+        closeTip();
+        closeDurationBreakdownTip();
+      "
+    >
       <div
-        class="pr-aside__body"
-        @scroll="
-          closeTip();
-          closeDurationBreakdownTip();
-        "
+        v-if="hasSummary"
+        class="pr-cards"
+        :class="{ 'pr-cards--compare': compareCards }"
+        data-testid="stats-summary"
       >
         <div
-          v-if="hasSummary"
-          class="pr-cards"
-          data-testid="stats-summary"
+          v-if="hasDuration && durationParts"
+          class="pr-card"
+          data-testid="stats-duration-card"
         >
-          <div
-            v-if="hasDuration && durationParts"
-            class="pr-card"
-            data-testid="stats-duration-card"
-          >
-            <div class="pr-card__label">
-              {{ t('duration', locale) }}
-            </div>
-            <div class="pr-card__value-row">
-              <div
-                class="pr-card__value"
-                data-testid="stats-duration-value"
-                v-bind="tipBind(durationValueTip, { focusable: true })"
-              >
-                <span class="pr-card__num">{{ durationParts.value }}</span>
-                <span class="pr-card__unit">{{ durationParts.unit }}</span>
-              </div>
-              <div
-                v-if="durationSecondary && !durationBreakdown"
-                class="pr-card__value-meta"
-                data-testid="stats-duration-secondary"
-                v-bind="tipBind(durationSecondary.tip, { focusable: true })"
-              >
-                {{ durationSecondary.text }}
-              </div>
-            </div>
-            <div
-              v-if="durationSegments"
-              class="pr-card__bar-track pr-card__bar-track--duration"
-              data-testid="stats-duration-bar"
-              @pointerenter="openDurationBreakdownTip"
-              @pointerleave="closeDurationBreakdownTip"
-              @pointercancel="closeDurationBreakdownTip"
-            >
-              <span
-                v-for="seg in durationSegments"
-                :key="seg.id"
-                class="pr-card__bar-seg"
-                :class="`pr-card__bar-seg--${seg.id}`"
-                :style="{ width: `${seg.pct}%` }"
-                :data-testid="`stats-duration-seg-${seg.id}`"
-              />
-            </div>
-            <div
-              v-if="durationSegments"
-              class="pr-duration-legend"
-              data-testid="stats-duration-legend"
-            >
-              <span>{{ t('durationOverhead', locale) }}</span>
-              <span>{{ t('durationCompute', locale) }}</span>
-              <span>{{ t('durationCommunication', locale) }}</span>
-            </div>
+          <div class="pr-card__label">
+            {{ t('duration', locale) }}
           </div>
-          <div
-            v-if="showAicoreCard"
-            class="pr-card"
-            :class="{ 'pr-card--na': !hasParallel }"
-            data-testid="stats-core-util-card"
-          >
-            <div class="pr-card__label">
-              {{ t('aicoreParallel', locale) }}
-            </div>
+          <div class="pr-card__value-row">
             <div
-              v-if="hasParallel"
-              class="pr-bw-cols"
-            >
-              <div
-                v-for="row in aicoreView"
-                :key="row.id"
-                class="pr-bw-col"
-                :data-testid="`stats-aicore-${row.id}`"
-              >
-                <div class="pr-bw-col__head">
-                  <span
-                    class="pr-card__value"
-                    :data-testid="`stats-aicore-${row.id}-score`"
-                    v-bind="tipBind(row.scoreTip, { focusable: true })"
-                  >
-                    <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
-                    <span class="pr-card__unit">%</span>
-                  </span>
-                  <span
-                    class="pr-bw-col__side"
-                    :data-tip="row.labelTip.value"
-                    v-bind="tipBind(row.labelTip, { whenTruncated: true })"
-                  >{{ row.labelTip.value }}</span>
-                </div>
-                <div class="pr-card__bar-track">
-                  <span
-                    class="pr-card__bar-hatch"
-                    aria-hidden="true"
-                  />
-                  <span
-                    class="pr-card__bar-fill"
-                    :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
-                    :style="{ width: `${row.score}%` }"
-                    :data-testid="`stats-aicore-${row.id}-bar`"
-                  />
-                </div>
-              </div>
-            </div>
-            <div
-              v-else
               class="pr-card__value"
+              data-testid="stats-duration-value"
+              v-bind="tipBind(durationValueTip, { focusable: true })"
             >
-              {{ t('notAvailable', locale) }}
+              <span class="pr-card__num">{{ durationParts.value }}</span>
+              <span class="pr-card__unit">{{ durationParts.unit }}</span>
+              <SummaryDiffIndicator
+                v-if="durationDiff"
+                :tone="durationDiff.tone"
+                :text="durationDiff.text"
+                :direction-label="durationDiff.label"
+                data-testid="stats-duration-diff"
+              />            </div>
+            <div
+              v-if="durationSecondary && !durationBreakdown"
+              class="pr-card__value-meta"
+              data-testid="stats-duration-secondary"
+              v-bind="tipBind(durationSecondary.tip, { focusable: true })"
+            >
+              {{ durationSecondary.text }}
             </div>
           </div>
           <div
-            v-if="showComputeCard"
-            class="pr-card"
-            data-testid="stats-compute-card"
+            v-if="durationSegments"
+            class="pr-card__bar-track pr-card__bar-track--duration"
+            data-testid="stats-duration-bar"
+            @pointerenter="openDurationBreakdownTip"
+            @pointerleave="closeDurationBreakdownTip"
+            @pointercancel="closeDurationBreakdownTip"
           >
-            <div class="pr-card__label">
-              {{ t('computePower', locale) }}
-            </div>
-            <div class="pr-bw-cols">
-              <div
-                v-for="row in computeView"
-                :key="row.side"
-                class="pr-bw-col"
-                :data-testid="`stats-compute-${row.side}`"
-              >
-                <div class="pr-bw-col__head">
-                  <span
-                    class="pr-card__value"
-                    :data-testid="`stats-compute-${row.side}-score`"
-                    v-bind="tipBind(row.scoreTip, { focusable: true })"
-                  >
-                    <span class="pr-card__num">{{ row.score }}</span>
-                  </span>
-                  <span
-                    class="pr-bw-col__side"
-                    :data-tip="row.labelTip.value"
-                    v-bind="tipBind(row.labelTip, { whenTruncated: true })"
-                  >{{ row.labelTip.value }}</span>
-                </div>
-                <div class="pr-card__bar-track">
-                  <span
-                    class="pr-card__bar-hatch"
-                    aria-hidden="true"
-                  />
-                  <span
-                    class="pr-card__bar-fill"
-                    :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
-                    :style="{ width: `${row.score}%` }"
-                    :data-testid="`stats-compute-${row.side}-bar`"
-                  />
-                </div>
-                <div
-                  class="pr-card__sub"
-                  v-bind="tipBind(row.ratioTip, { focusable: true })"
+            <span
+              v-for="seg in durationSegments"
+              :key="seg.id"
+              class="pr-card__bar-seg"
+              :class="`pr-card__bar-seg--${seg.id}`"
+              :style="{ width: `${seg.pct}%` }"
+              :data-testid="`stats-duration-seg-${seg.id}`"
+            />
+          </div>
+          <div
+            v-if="durationSegments"
+            class="pr-duration-legend"
+            data-testid="stats-duration-legend"
+          >
+            <span>{{ t('durationOverhead', locale) }}</span>
+            <span>{{ t('durationCompute', locale) }}</span>
+            <span>{{ t('durationCommunication', locale) }}</span>
+          </div>
+        </div>
+        <div
+          v-if="showAicoreCard"
+          class="pr-card"
+          :class="{ 'pr-card--na': !hasParallel }"
+          data-testid="stats-core-util-card"
+        >
+          <div class="pr-card__label">
+            {{ t('aicoreParallel', locale) }}
+          </div>
+          <div
+            v-if="hasParallel"
+            class="pr-bw-cols"
+          >
+            <div
+              v-for="row in aicoreView"
+              :key="row.id"
+              class="pr-bw-col"
+              :data-testid="`stats-aicore-${row.id}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-aicore-${row.id}-score`"
+                  v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
-                  <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
-                  <span class="pr-card__sub-unit">{{ row.unit }}</span>
-                </div>
+                  <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
+                  <span class="pr-card__unit">%</span>
+                  <SummaryDiffIndicator
+                    v-if="row.id === 'util' ? parallelDiff : balanceDiff"
+                    :tone="(row.id === 'util' ? parallelDiff : balanceDiff)!.tone"
+                    :text="(row.id === 'util' ? parallelDiff : balanceDiff)!.text"
+                    :direction-label="(row.id === 'util' ? parallelDiff : balanceDiff)!.label"
+                    :data-testid="`stats-aicore-${row.id}-diff`"
+                  />                </span>
+                <span
+                  class="pr-bw-col__side"
+                  :data-tip="row.labelTip.value"
+                  v-bind="tipBind(row.labelTip, { whenTruncated: true })"
+                >{{ row.labelTip.value }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill"
+                  :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-aicore-${row.id}-bar`"
+                />
               </div>
             </div>
           </div>
           <div
-            v-else-if="showComputePlaceholder"
-            class="pr-card pr-card--na"
-            data-testid="stats-compute-card"
+            v-else
+            class="pr-card__value"
           >
-            <div class="pr-card__label">
-              {{ t('computePower', locale) }}
-            </div>
-            <div class="pr-card__value">
-              {{ t('notAvailable', locale) }}
-            </div>
+            {{ t('notAvailable', locale) }}
           </div>
-          <div
-            v-if="bandwidthView.length > 0"
-            class="pr-card"
-            data-testid="stats-bandwidth-card"
-          >
-            <div class="pr-card__label">
-              {{ t('bandwidthUtil', locale) }}
-            </div>
-            <div class="pr-bw-cols">
-              <div
-                v-for="row in bandwidthView"
-                :key="row.dir"
-                class="pr-bw-col"
-                :data-testid="`stats-bandwidth-${row.dir}`"
-              >
-                <div class="pr-bw-col__head">
-                  <span
-                    class="pr-card__value"
-                    :data-testid="`stats-bandwidth-${row.dir}-score`"
-                    v-bind="tipBind(row.scoreTip, { focusable: true })"
-                  >
-                    <span class="pr-card__num">{{ row.score }}</span>
-                    <span class="pr-card__unit">%</span>
-                  </span>
-                  <span
-                    class="pr-bw-col__side"
-                    :data-tip="row.labelTip.value"
-                    v-bind="tipBind(row.labelTip, { whenTruncated: true })"
-                  >{{ row.labelTip.value }}</span>
-                </div>
-                <div class="pr-card__bar-track">
-                  <span
-                    class="pr-card__bar-hatch"
-                    aria-hidden="true"
-                  />
-                  <span
-                    class="pr-card__bar-fill"
-                    :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
-                    :style="{ width: `${row.score}%` }"
-                    :data-testid="`stats-bandwidth-${row.dir}-bar`"
-                  />
-                </div>
-                <div
-                  class="pr-card__sub"
-                  v-bind="tipBind(row.ratioTip, { focusable: true })"
+        </div>
+        <div
+          v-if="showComputeCard"
+          class="pr-card"
+          data-testid="stats-compute-card"
+        >
+          <div class="pr-card__label">
+            {{ t('computePower', locale) }}
+          </div>
+          <div class="pr-bw-cols">
+            <div
+              v-for="row in computeView"
+              :key="row.side"
+              class="pr-bw-col"
+              :data-testid="`stats-compute-${row.side}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-compute-${row.side}-score`"
+                  v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
-                  <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
-                  <span class="pr-card__sub-unit">{{ row.unit }}</span>
-                </div>
+                  <span class="pr-card__num">{{ row.score }}</span>
+                  <SummaryDiffIndicator
+                    v-if="row.side === 'aic' ? computeAicDiff : computeAivDiff"
+                    :tone="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.tone"
+                    :text="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.text"
+                    :direction-label="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.label"
+                    :data-testid="`stats-compute-${row.side}-diff`"
+                  />                </span>
+                <span
+                  class="pr-bw-col__side"
+                  :data-tip="row.labelTip.value"
+                  v-bind="tipBind(row.labelTip, { whenTruncated: true })"
+                >{{ row.labelTip.value }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill"
+                  :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-compute-${row.side}-bar`"
+                />
+              </div>
+              <div
+                class="pr-card__sub"
+                v-bind="tipBind(row.ratioTip, { focusable: true })"
+              >
+                <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
+                <span class="pr-card__sub-unit">{{ row.unit }}</span>
               </div>
             </div>
           </div>
         </div>
-
         <div
-          v-if="showRoofline && roofline"
-          class="pr-stack-section"
-          data-testid="stats-roofline"
+          v-else-if="showComputePlaceholder"
+          class="pr-card pr-card--na"
+          data-testid="stats-compute-card"
         >
-          <div class="pr-stack-section__head">
-            <h4>{{ t('roofline', locale) }}</h4>
-            <div class="pr-pipe-head__actions">
-              <CannbotActions
-                scope="roofline"
-                :sessions="cannbotSessions"
-                :locale="locale"
-                @open-cannbot="(s) => emit('open-cannbot', s)"
-                @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
-                @cannbot-reference="(s) => emit('cannbot-reference', s)"
-                @cannbot-view="(s) => emit('cannbot-view', s)"
-              />
+          <div class="pr-card__label">
+            {{ t('computePower', locale) }}
+          </div>
+          <div class="pr-card__value">
+            {{ t('notAvailable', locale) }}
+          </div>
+        </div>
+        <div
+          v-if="bandwidthView.length > 0"
+          class="pr-card"
+          data-testid="stats-bandwidth-card"
+        >
+          <div class="pr-card__label">
+            {{ t('bandwidthUtil', locale) }}
+          </div>
+          <div class="pr-bw-cols">
+            <div
+              v-for="row in bandwidthView"
+              :key="row.dir"
+              class="pr-bw-col"
+              :data-testid="`stats-bandwidth-${row.dir}`"
+            >
+              <div class="pr-bw-col__head">
+                <span
+                  class="pr-card__value"
+                  :data-testid="`stats-bandwidth-${row.dir}-score`"
+                  v-bind="tipBind(row.scoreTip, { focusable: true })"
+                >
+                  <span class="pr-card__num">{{ row.score }}</span>
+                  <span class="pr-card__unit">%</span>
+                  <SummaryDiffIndicator
+                    v-if="row.dir === 'read' ? bwReadDiff : bwWriteDiff"
+                    :tone="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.tone"
+                    :text="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.text"
+                    :direction-label="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.label"
+                    :data-testid="`stats-bandwidth-${row.dir}-diff`"
+                  />                </span>
+                <span
+                  class="pr-bw-col__side"
+                  :data-tip="row.labelTip.value"
+                  v-bind="tipBind(row.labelTip, { whenTruncated: true })"
+                >{{ row.labelTip.value }}</span>
+              </div>
+              <div class="pr-card__bar-track">
+                <span
+                  class="pr-card__bar-hatch"
+                  aria-hidden="true"
+                />
+                <span
+                  class="pr-card__bar-fill"
+                  :class="row.barTone === 'secondary' ? 'pr-card__bar-fill--secondary' : 'pr-card__bar-fill--primary'"
+                  :style="{ width: `${row.score}%` }"
+                  :data-testid="`stats-bandwidth-${row.dir}-bar`"
+                />
+              </div>
+              <div
+                class="pr-card__sub"
+                v-bind="tipBind(row.ratioTip, { focusable: true })"
+              >
+                <span class="pr-card__sub-ratio">{{ row.ratio }}</span>
+                <span class="pr-card__sub-unit">{{ row.unit }}</span>
+              </div>
             </div>
           </div>
-          <RooflinePanel
-            :model="roofline"
+        </div>
+      </div>
+
+      <div
+        v-if="showRoofline && roofline"
+        class="pr-stack-section"
+        data-testid="stats-roofline"
+      >
+        <div class="pr-stack-section__head">
+          <h4>{{ t('roofline', locale) }}</h4>
+          <div class="pr-pipe-head__actions">
+            <CannbotActions
+              scope="roofline"
+              :sessions="cannbotSessions"
+              :locale="locale"
+              @open-cannbot="(s) => emit('open-cannbot', s)"
+              @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
+              @cannbot-reference="(s) => emit('cannbot-reference', s)"
+              @cannbot-view="(s) => emit('cannbot-view', s)"
+            />
+          </div>
+        </div>
+        <RooflinePanel
+          :model="roofline"
+          :locale="locale"
+        />
+      </div>
+
+      <div
+        v-if="showPipe"
+        class="pr-stack-section"
+        data-testid="pipe-occupancy"
+      >
+        <div class="pr-stack-section__head">
+          <button
+            type="button"
+            class="pr-stack-section__title-btn"
+            data-testid="pipe-details"
+            @click="openPipeDetails"
+          >
+            <span class="pr-stack-section__title">{{ t('computeAnalysis', locale) }}</span>
+            <DetailChevron class="pr-stack-section__title-chevron" />
+          </button>
+          <div class="pr-pipe-head__actions">
+            <CannbotActions
+              v-if="showCompute"
+              scope="compute"
+              :sessions="cannbotSessions"
+              :locale="locale"
+              @open-cannbot="(s) => emit('open-cannbot', s)"
+              @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
+              @cannbot-reference="(s) => emit('cannbot-reference', s)"
+              @cannbot-view="(s) => emit('cannbot-view', s)"
+            />
+          </div>
+        </div>
+        <div class="pr-panel pr-panel--pipe">
+          <div
+            v-if="showBlockSwitcher"
+            class="pr-pipe-block"
+            data-testid="pipe-block-switcher"
+          >
+            <span>{{ t('block', locale) }}</span>
+            <CardMetricSelect
+              v-model="blockId"
+              :options="blockSelectOptions"
+              variant="inline"
+              test-id-prefix="pipe-block"
+              :ariaLabel="t('block', locale)"
+              :label-of="blockSelectLabel"
+            />
+          </div>
+          <div
+            v-if="showPipeSideToggle"
+            class="pr-pipe-toggle"
+            data-testid="pipe-side-toggle"
+            role="group"
+            :aria-label="t('pipeSide', locale)"
+          >
+            <button
+              v-for="side in pipeSideOptions"
+              :key="side"
+              type="button"
+              class="pr-pipe-toggle__btn"
+              :class="{ 'pr-pipe-toggle__btn--active': pipeSide === side }"
+              :data-testid="`pipe-side-${side}`"
+              @click="pipeSide = side"
+            >
+              {{ PIPE_SIDE_LABEL[side] }}
+            </button>
+          </div>
+          <div class="pr-pipe-chart">
+            <div
+              class="pr-pipe-scale"
+              data-testid="pipe-scale"
+            >
+              <span class="pr-pipe-scale__spacer" />
+              <div class="pr-pipe-scale__axis">
+                <span
+                  v-for="tick in PIPE_SCALE"
+                  :key="tick"
+                  class="pr-pipe-scale__tick"
+                >{{ tick }}%</span>
+              </div>
+            </div>
+            <ul class="pr-pipe-list">
+              <li
+                v-for="pipe in visiblePipes"
+                :key="`${pipe.id}-${pipe.side ?? 'x'}`"
+                class="pr-pipe-row"
+                :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
+              >
+                <span class="pr-pipe-row__labels">
+                  <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+                </span>
+                <span class="pr-pipe-row__stack">
+                <span class="pr-pipe-row__track">
+                  <span
+                    class="pr-pipe-row__hatch"
+                    aria-hidden="true"
+                  />
+                  <span
+                    class="pr-pipe-row__bar"
+                    :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
+                  />
+                  <span
+                    class="pr-pipe-row__grid"
+                    aria-hidden="true"
+                  />
+                  <span
+                    v-if="pipe.absoluteValue != null"
+                    class="pr-pipe-row__abs"
+                    data-testid="pipe-absolute"
+                  >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+                  <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+                </span>
+                <!-- Baseline bar: the SAME layout as the current bar — value
+                     left, percent right; only its right text differs: the
+                     基线 word before the baseline's own percent (1130 方案一). -->
+                <span
+                  v-if="baselinePipeFor(pipe)"
+                  class="pr-pipe-row__track"
+                >
+                  <span
+                    class="pr-pipe-row__hatch"
+                    aria-hidden="true"
+                  />
+                  <span
+                    class="pr-pipe-row__bar"
+                    :style="{ width: `${Math.min(100, Math.max(0, (baselinePipeFor(pipe)?.ratio ?? 0) * 100))}%` }"
+                  />
+                  <span
+                    class="pr-pipe-row__grid"
+                    aria-hidden="true"
+                  />
+                  <span
+                    v-if="baselinePipeFor(pipe)?.absoluteValue != null"
+                    class="pr-pipe-row__abs"
+                    data-testid="pipe-baseline-absolute"
+                  >{{ formatPipeAbsolute(baselinePipeFor(pipe)!.absoluteValue!) }}</span>
+                  <span
+                    class="pr-pipe-row__pct"
+                    data-testid="pipe-baseline-value"
+                  >{{ t('baselineLabel', locale) }} {{ Math.round((baselinePipeFor(pipe)?.ratio ?? 0) * 100) }}%</span>
+                </span>
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showTopology || isArchDiagram || (showMemory && !csvOnly)"
+        class="pr-stack-section"
+        :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
+      >
+        <div class="pr-stack-section__head">
+          <button
+            v-if="showMemory"
+            type="button"
+            class="pr-stack-section__title-btn"
+            data-testid="topology-details"
+            @click="openMemoryDetails"
+          >
+            <span class="pr-stack-section__title">{{ t('memoryAnalysis', locale) }}</span>
+            <DetailChevron class="pr-stack-section__title-chevron" />
+          </button>
+          <h4 v-else>
+            {{ t('memoryAnalysis', locale) }}
+          </h4>
+          <div class="pr-pipe-head__actions">
+            <CannbotActions
+              v-if="showMemory"
+              scope="memory"
+              :sessions="cannbotSessions"
+              :locale="locale"
+              @open-cannbot="(s) => emit('open-cannbot', s)"
+              @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
+              @cannbot-reference="(s) => emit('cannbot-reference', s)"
+              @cannbot-view="(s) => emit('cannbot-view', s)"
+            />
+          </div>
+        </div>
+        <div
+          v-if="showTopology || isArchDiagram"
+          class="pr-panel pr-panel--topo"
+        >
+          <div
+            v-if="isArchDiagram"
+            class="pr-pipe-block"
+            data-testid="topology-metric-switcher"
+          >
+            <span>{{ t('metric', locale) }}</span>
+            <CardMetricSelect
+              v-model="archMetricMode"
+              :options="archMetricModes"
+              variant="inline"
+              test-id-prefix="topology-metric"
+              :ariaLabel="t('archMetricMode', locale)"
+              :label-of="(m) => archMetricModeLabel(m, locale)"
+            />
+          </div>
+          <MemoryTopologyPanel
+            v-if="showTopology"
+            :model="topologyModel"
+            :baseline="topologyBaseline"
+            :locale="locale"
+            :selectable-units="hasMemoryHeatmap"
+            show-fullscreen
+            @open-details="openMemoryDetails"
+            @open-fullscreen="openTopologyFullscreen"
+            @open-memory-unit="openMemoryUnit"
+          />
+        </div>
+      </div>
+
+      <template v-if="csvOnly">
+        <div
+          v-if="showCompute"
+          data-testid="stats-compute"
+          class="pr-aside__detail"
+        >
+          <div class="pr-aside__detail-head">
+            <h4 class="pr-aside__detail-title">
+              {{ t('computeAnalysis', locale) }}
+            </h4>
+            <CannbotActions
+              scope="compute"
+              :sessions="cannbotSessions"
+              :locale="locale"
+              @open-cannbot="(s) => emit('open-cannbot', s)"
+              @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
+              @cannbot-reference="(s) => emit('cannbot-reference', s)"
+              @cannbot-view="(s) => emit('cannbot-view', s)"
+            />
+          </div>
+          <SummaryCategoryList
+            v-if="computeCategories.length > 0 && !computeCsvScope"
+            :categories="computeCategories"
+            :active-id="activeCategory"
+            :locale="locale"
+            :baseline-categories="hasBaselinePipes ? (baselineModel?.summaryCategories ?? undefined) : undefined"
+            @update:active-id="activeCategory = $event"
+          />
+          <CsvFieldListPanel
+            v-else
+            :tables="report?.computeTables ?? []"
+            :csv-texts="report?.csvTexts ?? {}"
+            :show-block-switcher="false"
+            :show-view-all="false"
+            :selected-block-id="overlayBlockId"
             :locale="locale"
           />
         </div>
-
         <div
-          v-if="showPipe"
-          class="pr-stack-section"
-          data-testid="pipe-occupancy"
+          v-if="showMemory"
+          data-testid="stats-memory"
+          class="pr-aside__detail"
         >
-          <div class="pr-stack-section__head">
-            <button
-              type="button"
-              class="pr-stack-section__title-btn"
-              data-testid="pipe-details"
-              @click="openPipeDetails"
-            >
-              <span class="pr-stack-section__title">{{ t('computeAnalysis', locale) }}</span>
-              <DetailChevron class="pr-stack-section__title-chevron" />
-            </button>
-            <div class="pr-pipe-head__actions">
-              <CannbotActions
-                v-if="showCompute"
-                scope="compute"
-                :sessions="cannbotSessions"
-                :locale="locale"
-                @open-cannbot="(s) => emit('open-cannbot', s)"
-                @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
-                @cannbot-reference="(s) => emit('cannbot-reference', s)"
-                @cannbot-view="(s) => emit('cannbot-view', s)"
-              />
-            </div>
-          </div>
-          <div class="pr-panel pr-panel--pipe">
-            <div
-              v-if="showBlockSwitcher"
-              class="pr-pipe-block"
-              data-testid="pipe-block-switcher"
-            >
-              <span>{{ t('block', locale) }}</span>
-              <CardMetricSelect
-                v-model="blockId"
-                :options="blockSelectOptions"
-                variant="inline"
-                test-id-prefix="pipe-block"
-                :ariaLabel="t('block', locale)"
-                :label-of="blockSelectLabel"
-              />
-            </div>
-            <div
-              v-if="showPipeSideToggle"
-              class="pr-pipe-toggle"
-              data-testid="pipe-side-toggle"
-              role="group"
-              :aria-label="t('pipeSide', locale)"
-            >
-              <button
-                v-for="side in pipeSideOptions"
-                :key="side"
-                type="button"
-                class="pr-pipe-toggle__btn"
-                :class="{ 'pr-pipe-toggle__btn--active': pipeSide === side }"
-                :data-testid="`pipe-side-${side}`"
-                @click="pipeSide = side"
-              >
-                {{ PIPE_SIDE_LABEL[side] }}
-              </button>
-            </div>
-            <div class="pr-pipe-chart">
-              <div
-                class="pr-pipe-scale"
-                data-testid="pipe-scale"
-              >
-                <span class="pr-pipe-scale__spacer" />
-                <div class="pr-pipe-scale__axis">
-                  <span
-                    v-for="tick in PIPE_SCALE"
-                    :key="tick"
-                    class="pr-pipe-scale__tick"
-                  >{{ tick }}%</span>
-                </div>
-              </div>
-              <ul class="pr-pipe-list">
-                <li
-                  v-for="pipe in visiblePipes"
-                  :key="`${pipe.id}-${pipe.side ?? 'x'}`"
-                  class="pr-pipe-row"
-                  :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
-                >
-                  <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-                  <span class="pr-pipe-row__track">
-                    <span
-                      class="pr-pipe-row__hatch"
-                      aria-hidden="true"
-                    />
-                    <span
-                      class="pr-pipe-row__bar"
-                      :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
-                    />
-                    <span
-                      class="pr-pipe-row__grid"
-                      aria-hidden="true"
-                    />
-                    <span
-                      v-if="pipe.absoluteValue != null"
-                      class="pr-pipe-row__abs"
-                      data-testid="pipe-absolute"
-                    >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
-                    <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="showTopology || isArchDiagram || (showMemory && !csvOnly)"
-          class="pr-stack-section"
-          :data-testid="showTopology ? 'stats-topology' : 'stats-memory-entry'"
-        >
-          <div class="pr-stack-section__head">
-            <button
-              v-if="showMemory"
-              type="button"
-              class="pr-stack-section__title-btn"
-              data-testid="topology-details"
-              @click="openMemoryDetails"
-            >
-              <span class="pr-stack-section__title">{{ t('memoryAnalysis', locale) }}</span>
-              <DetailChevron class="pr-stack-section__title-chevron" />
-            </button>
-            <h4 v-else>
+          <div class="pr-aside__detail-head">
+            <h4 class="pr-aside__detail-title">
               {{ t('memoryAnalysis', locale) }}
             </h4>
-            <div class="pr-pipe-head__actions">
-              <CannbotActions
-                v-if="showMemory"
-                scope="memory"
-                :sessions="cannbotSessions"
-                :locale="locale"
-                @open-cannbot="(s) => emit('open-cannbot', s)"
-                @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
-                @cannbot-reference="(s) => emit('cannbot-reference', s)"
-                @cannbot-view="(s) => emit('cannbot-view', s)"
-              />
-            </div>
-          </div>
-          <div
-            v-if="showTopology || isArchDiagram"
-            class="pr-panel pr-panel--topo"
-          >
-            <div
-              v-if="isArchDiagram"
-              class="pr-pipe-block"
-              data-testid="topology-metric-switcher"
-            >
-              <span>{{ t('metric', locale) }}</span>
-              <CardMetricSelect
-                v-model="archMetricMode"
-                :options="archMetricModes"
-                variant="inline"
-                test-id-prefix="topology-metric"
-                :ariaLabel="t('archMetricMode', locale)"
-                :label-of="(m) => archMetricModeLabel(m, locale)"
-              />
-            </div>
-            <MemoryTopologyPanel
-              v-if="showTopology"
-              :model="topologyModel"
+            <CannbotActions
+              scope="memory"
+              :sessions="cannbotSessions"
               :locale="locale"
-              :selectable-units="hasMemoryHeatmap"
-              show-fullscreen
-              @open-details="openMemoryDetails"
-              @open-fullscreen="openTopologyFullscreen"
-              @open-memory-unit="openMemoryUnit"
+              @open-cannbot="(s) => emit('open-cannbot', s)"
+              @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
+              @cannbot-reference="(s) => emit('cannbot-reference', s)"
+              @cannbot-view="(s) => emit('cannbot-view', s)"
             />
           </div>
+          <SummaryCategoryList
+            v-if="memoryCategories.length > 0 && !memoryCsvScope"
+            :categories="memoryCategories"
+            :active-id="activeCategory"
+            :locale="locale"
+            :baseline-categories="baselineMemoryCategories"
+            @update:active-id="activeCategory = $event"
+          />
+          <CsvFieldListPanel
+            v-else
+            :tables="memoryTablesWithPipe"
+            :csv-texts="report?.csvTexts ?? {}"
+            :selected-block-id="overlayBlockId"
+            :locale="locale"
+            @update:selected-block-id="blockId = $event"
+            @view-full-csv="emit('view-full-csv', $event)"
+          />
         </div>
-
-        <template v-if="csvOnly">
-          <div
-            v-if="showCompute"
-            data-testid="stats-compute"
-            class="pr-aside__detail"
-          >
-            <div class="pr-aside__detail-head">
-              <h4 class="pr-aside__detail-title">
-                {{ t('computeAnalysis', locale) }}
-              </h4>
-              <CannbotActions
-                scope="compute"
-                :sessions="cannbotSessions"
-                :locale="locale"
-                @open-cannbot="(s) => emit('open-cannbot', s)"
-                @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
-                @cannbot-reference="(s) => emit('cannbot-reference', s)"
-                @cannbot-view="(s) => emit('cannbot-view', s)"
-              />
-            </div>
-            <SummaryCategoryList
-              v-if="computeCategories.length > 0 && !computeCsvScope"
-              :categories="computeCategories"
-              :active-id="activeCategory"
-              :locale="locale"
-              @update:active-id="activeCategory = $event"
-            />
-            <CsvFieldListPanel
-              v-else
-              :tables="report?.computeTables ?? []"
-              :csv-texts="report?.csvTexts ?? {}"
-              :show-block-switcher="false"
-              :show-view-all="false"
-              :selected-block-id="overlayBlockId"
-              :locale="locale"
-            />
-          </div>
-          <div
-            v-if="showMemory"
-            data-testid="stats-memory"
-            class="pr-aside__detail"
-          >
-            <div class="pr-aside__detail-head">
-              <h4 class="pr-aside__detail-title">
-                {{ t('memoryAnalysis', locale) }}
-              </h4>
-              <CannbotActions
-                scope="memory"
-                :sessions="cannbotSessions"
-                :locale="locale"
-                @open-cannbot="(s) => emit('open-cannbot', s)"
-                @open-cannbot-stop="(s) => emit('open-cannbot-stop', s)"
-                @cannbot-reference="(s) => emit('cannbot-reference', s)"
-                @cannbot-view="(s) => emit('cannbot-view', s)"
-              />
-            </div>
-            <SummaryCategoryList
-              v-if="memoryCategories.length > 0 && !memoryCsvScope"
-              :categories="memoryCategories"
-              :active-id="activeCategory"
-              :locale="locale"
-              @update:active-id="activeCategory = $event"
-            />
-            <CsvFieldListPanel
-              v-else
-              :tables="memoryTablesWithPipe"
-              :csv-texts="report?.csvTexts ?? {}"
-              :selected-block-id="overlayBlockId"
-              :locale="locale"
-              @update:selected-block-id="blockId = $event"
-              @view-full-csv="emit('view-full-csv', $event)"
-            />
-          </div>
-        </template>
-      </div>
+      </template>
+    </div>
     </div>
 
     <Transition name="pr-aside-detail">
@@ -1598,6 +1985,7 @@ const detailTestId = computed(() => {
               :categories="computeCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="hasBaselinePipes ? (baselineModel?.summaryCategories ?? undefined) : undefined"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel
@@ -1616,6 +2004,7 @@ const detailTestId = computed(() => {
               :categories="memoryCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="baselineMemoryCategories"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel
@@ -1819,6 +2208,23 @@ const detailTestId = computed(() => {
   gap: 4px 12px;
 }
 
+/* Baseline / Operator dropdown row (对比基线): the Block switcher's chrome,
+   header placement under the meta line; hidden without a selected baseline. */
+.pr-aside__baseline-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 8px 0 0;
+}
+
+.pr-aside__baseline-k {
+  font-size: 12px;
+  line-height: 16px;
+  color: #999999;
+  white-space: nowrap;
+}
+
 .pr-aside__meta-seg {
   display: inline-flex;
   align-items: baseline;
@@ -2005,6 +2411,15 @@ const detailTestId = computed(() => {
   .pr-cards {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/*
+ * 对比基线 (comparison, PR-STATS-059): the diff readouts need a full-width tile, so a
+ * comparison stacks the cards vertically at ANY well width — the same single-column
+ * layout the 430px container query falls back to. Without a pack the 2×2 grid stays.
+ */
+.pr-cards--compare {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .pr-card {
@@ -2439,6 +2854,20 @@ const detailTestId = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.pr-pipe-row__labels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pr-pipe-row__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
 }
 

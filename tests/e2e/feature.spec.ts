@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../../src/ui/panelResize';
@@ -1040,4 +1042,771 @@ test.describe('PR-E2E-019 closed-dock click ensure-scroll', () => {
       }, { timeout: 3_000 })
       .toEqual(expect.objectContaining({ above: true, wrapShrunk: true }));
   });
+});
+
+test('PR-E2E-020: the baselines link opens the checkbox view; checked state is session-only', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('toggle-baselines')).toBeVisible();
+
+  // The "baselines" link opens the picker. The single view is the checkbox
+  // list of the app's reports — nothing checked initially.
+  await page.getByTestId('baselines-link').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  await expect(page.getByTestId('baselines-recent-list')).toBeVisible();
+  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
+  for (let i = 0; i < 5; i++) {
+    await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
+  }
+  // Rows title through the derived filename + timestamp, never the generated
+  // OPPROF boilerplate id (review PR #234).
+  await expect(page.locator('.pr-baseline__name').nth(0)).toHaveText('out.rep 2026-11-08 14:25');
+  await expect(page.locator('.pr-baseline__name').nth(1)).toHaveText('example.rep 2026-11-09 11:18');
+  // Only Browse in the footer — no Add Selected / radios / other actions.
+  await expect(page.getByTestId('baseline-browse')).toBeVisible();
+  await expect(page.getByTestId('baseline-add-selected')).toHaveCount(0);
+
+  // Check two reports: the checked set survives closing and reopening.
+  const checkRows = page.locator('.pr-baseline__item--check');
+  await checkRows.nth(0).click();
+  await checkRows.nth(1).click();
+  await page.getByTestId('baselines-close').click();
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baseline-check').nth(0)).toBeChecked();
+  await expect(page.getByTestId('baseline-check').nth(1)).toBeChecked();
+  await expect(page.getByTestId('baseline-check').nth(2)).not.toBeChecked();
+
+  // Browse appends the picked file as a checked row.
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('baseline-browse').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'baseline-a.npu-rep',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('npu-rep\0fake-baseline'),
+  });
+  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await expect(page.getByTestId('baseline-check').last()).toBeChecked();
+  await expect(page.locator('.pr-baseline__item--check').last()).toContainText('baseline-a.npu-rep');
+  // The browsed title is the filename + the pick timestamp (PR-BASELINE-030).
+  await expect(page.locator('.pr-baseline__name').last()).toHaveText(
+    /^baseline-a\.npu-rep \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/,
+  );
+
+  // Session-only: a reload starts with nothing checked again.
+  await page.reload();
+  await expect(page.getByTestId('toggle-baselines')).toBeVisible();
+  await page.getByTestId('baselines-link').click();
+  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
+  for (let i = 0; i < 5; i++) {
+    await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
+  }
+});
+
+test('PR-E2E-021: the bar Operator select drives per-operator comparison badges', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('stats-aside')).toBeVisible();
+  // No comparison without an adapted baseline pack.
+  await expect(page.locator('.pr-diff')).toHaveCount(0);
+
+  // PR-STATS-059: without a pack the sketch's 2×2 grid keeps two cards on one
+  // row (the default 480px aside well is above the 430px fallback)…
+  const cardBoxes = async (): Promise<Array<{ x: number; y: number; width: number; bottom: number }>> => {
+    const cards = page.locator('[data-testid="stats-summary"] .pr-card');
+    const n = await cards.count();
+    const boxes: Array<{ x: number; y: number; width: number; bottom: number }> = [];
+    for (let i = 0; i < n; i++) {
+      const b = await cards.nth(i).boundingBox();
+      if (b) boxes.push({ x: b.x, y: b.y, width: b.width, bottom: b.y + b.height });
+    }
+    return boxes;
+  };
+  const plainCards = await cardBoxes();
+  expect(plainCards.length).toBeGreaterThanOrEqual(4);
+  expect(
+    Math.abs(plainCards[1]!.y - plainCards[0]!.y),
+    'the first two cards share one row without a pack',
+  ).toBeLessThan(2);
+
+  // Browse a REAL report (real bytes, so the host glue can adapt it).
+  const outRep = readFileSync(resolve(process.cwd(), 'data/out.rep'));
+  await page.getByTestId('toggle-baselines').click();
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('baseline-browse').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'out.rep',
+    mimeType: 'application/octet-stream',
+    buffer: outRep,
+  });
+
+  // The browsed report is the FIRST added baseline, so it autoselects (review
+  // PR #234) — no manual pick needed; the host adapts its retained bytes,
+  // wraps them in a demo multi-operator pack, and hands that to the aside.
+  await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
+  await expect(page.locator('.pr-diff').first()).toBeVisible();
+
+  // …and in comparison mode the cards stack VERTICALLY at the same width:
+  // every card below the previous one, each spanning the same full width.
+  const compared = await cardBoxes();
+  expect(compared.length).toBeGreaterThanOrEqual(4);
+  for (let i = 1; i < compared.length; i++) {
+    expect(compared[i]!.y, `card ${i} stacks below card ${i - 1}`).toBeGreaterThanOrEqual(
+      compared[i - 1]!.bottom - 1,
+    );
+  }
+  const widths = new Set(compared.map((b) => Math.round(b.width)));
+  expect(widths.size, 'all cards span the same full width').toBe(1);
+  // Pressing the aside bar closes the open baselines popover (review PR #234).
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await expect(page.getByTestId('baselines-popover')).toHaveCount(0);
+
+  // The always-visible bar's Operator select drives the comparison: the default
+  // is the pack's first demo operator…
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+  const durationBadge = page.getByTestId('stats-duration-diff');
+  await expect(durationBadge).toBeVisible();
+  const before = await durationBadge.locator('.pr-diff__text').textContent();
+
+  // …and a different operator repaints the badge value.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'gelu');
+  await expect
+    .poll(async () => durationBadge.locator('.pr-diff__text').textContent())
+    .not.toBe(before);
+
+  // EVERY card shows a badge for EVERY demo operator, values differ from
+  // operator to operator, and both tones appear across the operators.
+  const cardBadges = [
+    'stats-duration-diff',
+    'stats-aicore-util-diff',
+    'stats-aicore-balance-diff',
+    'stats-compute-aic-diff',
+    'stats-compute-aiv-diff',
+    'stats-bandwidth-read-diff',
+    'stats-bandwidth-write-diff',
+  ];
+  const present = new Set<string>();
+  for (const testid of cardBadges) {
+    if (await page.getByTestId(testid).count()) present.add(testid);
+  }
+  expect(present.size).toBeGreaterThanOrEqual(5);
+  const tones = new Set<string>();
+  const textsByCard = new Map<string, Set<string>>();
+  const operators = ['matmul', 'matmul_t', 'add_n', 'relu', 'gelu', 'layernorm', 'softmax', 'conv2d'];
+  for (const op of operators) {
+    await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+    await page.getByTestId(`aside-baseline-operator-option-${op}`).click();
+    await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', op);
+    for (const testid of present) {
+      const badge = page.getByTestId(testid);
+      await expect(badge).toBeVisible();
+      const cls = (await badge.getAttribute('class')) ?? '';
+      if (cls.includes('pr-diff--increase')) tones.add('increase');
+      if (cls.includes('pr-diff--decrease')) tones.add('decrease');
+      const text = (await badge.locator('.pr-diff__text').textContent()) ?? '';
+      const seen = textsByCard.get(testid) ?? new Set<string>();
+      seen.add(text);
+      textsByCard.set(testid, seen);
+    }
+  }
+  expect([...tones].sort()).toEqual(['decrease', 'increase']);
+  // Values actually change from operator to operator on every card.
+  for (const testid of present) {
+    expect(textsByCard.get(testid)!.size, `card ${testid} varies per operator`).toBeGreaterThan(1);
+  }
+
+  // EVERY demo baseline paints comparison badges: check all five demo rows
+  // (re-opening the popover — the aside press above closed it), then select
+  // each baseline in the aside and assert badges render and the values differ
+  // from baseline to baseline.
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  const checkRows = page.locator('.pr-baseline__item--check');
+  for (let i = 0; i < 5; i++) {
+    await checkRows.nth(i).click();
+  }
+  const demoIds = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
+  const baselineDurTexts = new Set<string>();
+  for (const id of demoIds) {
+    await page.getByTestId('aside-baseline-select').getByRole('button').click();
+    await page.getByTestId(`aside-baseline-option-${id}`).click();
+    await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', id);
+    await expect(page.locator('.pr-diff').first()).toBeVisible();
+    const durText = (await page.getByTestId('stats-duration-diff').locator('.pr-diff__text').textContent()) ?? '';
+    baselineDurTexts.add(durText);
+  }
+  // Different baselines repaint DIFFERENT delta values on the same card —
+  // the raw text set must differ (an id-prefixed set would always differ
+  // even when every baseline rendered the same delta).
+  expect(baselineDurTexts.size).toBeGreaterThan(1);
+  // The fetched pack adapted under the new selection: a high-scale operator
+  // repaints a green-down read badge.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-softmax').click();
+  await expect(page.getByTestId('stats-bandwidth-read-diff')).toHaveClass(/pr-diff--decrease/);
+});
+
+test('PR-E2E-022: the aside Baseline bar hides until checked and follows the checked set', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  await expect(page.getByTestId('stats-aside')).toBeVisible();
+  // Nothing checked → NO Baseline / Operator row at all (UI-63 resolved).
+  await expect(page.getByTestId('stats-baseline-bar')).toHaveCount(0);
+  await expect(page.getByTestId('aside-baseline-select')).toHaveCount(0);
+
+  // Check two reports: the row appears, and the FIRST add autoselects that
+  // baseline (review PR #234) — no manual pick needed.
+  await page.getByTestId('toggle-baselines').click();
+  const checkRows = page.locator('.pr-baseline__item--check');
+  await checkRows.nth(0).click();
+  await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute(
+    'data-value',
+    'demo-recent-1',
+  );
+  await checkRows.nth(1).click();
+
+  // Pick one globally through the aside: the value follows, the dropdown
+  // lists exactly the checked set + Not selected, and the press closes the
+  // baselines popover (review PR #234).
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await expect(page.locator('[data-testid^="aside-baseline-option-"]')).toHaveCount(3);
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+  await expect(page.getByTestId('baselines-popover')).toHaveCount(0);
+  const firstId = await page
+    .getByTestId('aside-baseline-select')
+    .getAttribute('data-value');
+  expect(firstId).not.toBe('');
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+
+  // Unchecking the SELECTED report clears the selection: Not selected again
+  // (re-open the popover — the aside press above closed it; the row itself
+  // stays because the other baseline is still checked).
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '');
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', '');
+  await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
+
+  // The other checked report remains listed.
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await expect(page.locator('[data-testid^="aside-baseline-option-"]')).toHaveCount(2);
+
+  // Baseline switch = in-place update, never a tear-down: while the host
+  // adapts the new selection, the comparison chrome must stay mounted (the
+  // PIPE tracks used to drop and re-add, shrinking the section so the memory
+  // block below jumped up and flickered).
+  await page.goto('/?fixture=sample');
+  await page.getByTestId('toggle-baselines').click();
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.locator('.pr-baseline__item--check').nth(1).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
+  await expect(page.locator('[data-testid="pipe-baseline-value"]').first()).toBeVisible();
+  const pairedTracks = await page.locator('.pr-pipe-row__track').count();
+  await page.evaluate(() => {
+    (window as unknown as { __trackSamples: number[] }).__trackSamples = [];
+    (window as unknown as { __trackSampling: boolean }).__trackSampling = true;
+    const tick = () => {
+      if (!(window as unknown as { __trackSampling: boolean }).__trackSampling) return;
+      (window as unknown as { __trackSamples: number[] }).__trackSamples.push(
+        document.querySelectorAll('.pr-pipe-row__track').length,
+      );
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-2"]').click();
+  await expect
+    .poll(async () => page.getByTestId('aside-baseline-select').getAttribute('data-value'))
+    .toBe('demo-recent-2');
+  await page.waitForTimeout(400);
+  const samples = await page.evaluate(() => {
+    (window as unknown as { __trackSampling: boolean }).__trackSampling = false;
+    return (window as unknown as { __trackSamples: number[] }).__trackSamples;
+  });
+  expect(samples.length).toBeGreaterThan(5);
+  // Every sampled frame during the switch kept the paired bars mounted.
+  expect(Math.min(...samples)).toBe(pairedTracks);
+  await expect(page.locator('[data-testid="pipe-baseline-value"]').first()).toBeVisible();
+});
+
+test('PR-E2E-023: the aside Operator dropdown defaults to the matching (else first) operator, keeps a session pick, and resets on baseline change', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  // Check two reports and select the first.
+  await page.getByTestId('toggle-baselines').click();
+  const checkRows = page.locator('.pr-baseline__item--check');
+  await checkRows.nth(0).click();
+  await checkRows.nth(1).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+
+  // Default operator = the baseline's first demo operator.
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+  // A session-local pick sticks…
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'gelu');
+
+  // …and switching the baseline re-defaults to ITS first operator.
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(2).click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+
+  // A browsed pick joins the dropdowns too: the web host attaches the demo
+  // operators, so its Operator select defaults to the first of them.
+  const chooserPromise = page.waitForEvent('filechooser');
+  // Re-open the popover — the aside presses above closed it (review PR #234).
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
+  await page.getByTestId('baseline-browse').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: 'plain.npu-rep',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('npu-rep\0plain'),
+  });
+  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').last().click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
+});
+
+test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta badges', async ({ page }) => {
+  await page.goto('/?fixture=vector_muladd');
+  // Check a demo baseline and select it in the aside.
+  await page.getByTestId('toggle-baselines').click();
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+  await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
+
+  // PIPE rows: TWO bars per metric, BOTH in the classic layout — value
+  // left, percent right; the baseline bar's right text = 基线 <value>%.
+  const firstRow = page.locator('.pr-pipe-row').first();
+  await expect(firstRow).toBeVisible();
+  await expect(firstRow.locator('.pr-pipe-row__track')).toHaveCount(2);
+  await expect(firstRow.locator('[data-testid="pipe-baseline-value"]')).toBeVisible();
+  const chip = await firstRow.locator('[data-testid="pipe-baseline-value"]').textContent();
+  expect(chip).toMatch(/基线 \d+%/);
+  // The baseline bar shows the baseline's own value, not a delta.
+  const curPct = await firstRow.locator('.pr-pipe-row__track').first().locator('.pr-pipe-row__pct').textContent();
+  expect(chip).not.toBe(curPct);
+  // Both bars carry the same fields: percent on the right of each track.
+  await expect(firstRow.locator('.pr-pipe-row__pct')).toHaveCount(2);
+  // The layout is a STYLE contract, not just structure: the pct must be
+  // absolutely positioned at the track's right in white — the branch once
+  // shipped a swallowed CSS rule that left the pct static at the left, and
+  // every structural assertion passed.
+  const pctStyle = await firstRow
+    .locator('.pr-pipe-row__track')
+    .first()
+    .locator('.pr-pipe-row__pct')
+    .evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      const t = el.parentElement!.getBoundingClientRect();
+      return { position: cs.position, color: cs.color, rightGap: t.right - r.right };
+    });
+  expect(pctStyle.position).toBe('absolute');
+  expect(pctStyle.color).toBe('rgb(255, 255, 255)');
+  expect(pctStyle.rightGap).toBeLessThan(10);
+  // The baseline bar's right text ends at the same right edge.
+  const basePctGap = await firstRow
+    .locator('[data-testid="pipe-baseline-value"]')
+    .evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const t = el.parentElement!.getBoundingClientRect();
+      return t.right - r.right;
+    });
+  expect(Math.abs(basePctGap - pctStyle.rightGap)).toBeLessThan(2);
+  // The label column stays the metric label alone — no 基线 stacked under it.
+  await expect(firstRow.locator('.pr-pipe-row__label')).toHaveCount(1);
+
+  // Switching the operator visibly changes the baseline bar values.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect
+    .poll(async () => firstRow.locator('[data-testid="pipe-baseline-value"]').textContent())
+    .not.toBe(chip);
+
+  // details: delta badges right of the values.
+  await page.getByTestId('pipe-details').click();
+  await expect(page.getByTestId('summary-category-list')).toBeVisible();
+  const badge = page.locator('[data-testid^="summary-field-diff-"]').first();
+  await expect(badge).toBeVisible();
+  // The badge shares the value's flex line wrapper — the same line, no wrap.
+  await expect(badge.locator('xpath=..')).toHaveClass(/pr-summ__field-side/);
+
+  // Cube fixture: the Cube toggle rows pair with the baseline and DIFFER.
+  await page.goto('/?fixture=gelu');
+  await page.getByTestId('toggle-baselines').click();
+  await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
+  await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
+  // Default side is Cube (aic): every row carries TWO identical-layout bars
+  // with the SAME fields — value left, percent right.
+  await expect(page.getByTestId('pipe-side-toggle')).toBeVisible();
+  const cubeRow = page.locator('.pr-pipe-row').first();
+  await expect(cubeRow).toBeVisible();
+  await expect(cubeRow.locator('.pr-pipe-row__track')).toHaveCount(2);
+  await expect(cubeRow.locator('.pr-pipe-row__pct')).toHaveCount(2);
+  const baseA = await cubeRow.locator('[data-testid="pipe-baseline-value"]').textContent();
+  expect(baseA).toMatch(/基线 \d+%/);
+  // Switching the operator visibly changes the cube baseline values.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect
+    .poll(async () => cubeRow.locator('[data-testid="pipe-baseline-value"]').textContent())
+    .not.toBe(baseA);
+});
+
+/**
+ * Chrome metrics of the four badged topology slots, in the diagram's own 448×423 units — the
+ * measured table the panel's badge rhythm uses (`PLATE_METRICS` in MemoryTopologyPanel.vue:
+ * `titleBottom` is the title outline's bottom T, `frameBottom` the element frame's bottom F,
+ * `boxWidth` the element box's inner width). The e2e runner cannot import a Vue SFC, so the
+ * numbers are mirrored here; the assertions below fail if the panel's rhythm drifts from them.
+ */
+const TOPO_BADGE_METRICS: Record<
+  string,
+  { boxTop: number; titleBottom: number; frameBottom: number; boxWidth: number }
+> = {
+  aiv_scalar: { boxTop: 301, titleBottom: 313.595, frameBottom: 336, boxWidth: 26.5 },
+  vec: { boxTop: 335.5, titleBottom: 350.845, frameBottom: 376, boxWidth: 32 },
+  cube: { boxTop: 54, titleBottom: 83.595, frameBottom: 123, boxWidth: 28.5 },
+  simt: { boxTop: 293, titleBottom: 308.345, frameBottom: 333.5, boxWidth: 32 },
+  aic_scalar: { boxTop: 167, titleBottom: 177.095, frameBottom: 197, boxWidth: 32 },
+  aiv_scalar_unit: { boxTop: 238, titleBottom: 248.095, frameBottom: 268, boxWidth: 32 },
+  'l2-peak': { boxTop: 201.5, titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
+};
+
+/** Fixed constants of the layout (chrome units): the value digit ink extents, the word's ink
+ *  height (6.06), the 6.6 circle, and the classic air clamp for the L2 peak plate. */
+const TOPO_VALUE_INK_TOP = 1.5;
+const TOPO_RHYTHM_AIR_MIN = 0.5;
+const TOPO_RHYTHM_AIR_MAX = 4.5;
+const TOPO_BADGE_SIZE = 6.6;
+const TOPO_RHYTHM_SLACK = 2 * 3.15 + TOPO_BADGE_SIZE + 1;
+
+/**
+ * The panel's per-slot badge layout (PR-MEMTOP-027): the unit's three text rows ride a
+ * UNIFORM centre-to-centre pitch of 10 (vc = T − 3.03 + 10, bc = vc + 5.6 — the badge hugs
+ * the value) and the chrome's word positions bake the three-row block centring into the box.
+ * The L2 peak keeps the classic air rhythm. The delta text is NOT width-fitted — it paints
+ * at the value's own fitted size.
+ */
+function topoBadgeRhythm(node: string) {
+  const { titleBottom, frameBottom } = TOPO_BADGE_METRICS[node]!;
+  if (node === 'l2-peak') {
+    // The +1e-9 mirrors the panel's FP guard: an exact-integer room must not floor down.
+    const air = Math.min(
+      TOPO_RHYTHM_AIR_MAX,
+      Math.max(
+        TOPO_RHYTHM_AIR_MIN,
+        Math.floor((frameBottom - titleBottom - TOPO_RHYTHM_SLACK) / 2 + 1e-9),
+      ),
+    );
+    const valueY = titleBottom + air + 3.15;
+    const circleTop = valueY + air + 3.15 - TOPO_VALUE_INK_TOP;
+    const badgeD = Math.min(TOPO_BADGE_SIZE, frameBottom - 1.2 - circleTop);
+    const badgeY = circleTop + badgeD / 2;
+    return { air, valueY, badgeD, badgeY, frameBottom };
+  }
+  const valueY = titleBottom - 3.03 + 10;
+  const badgeY = valueY + 5.6;
+  const circleTop = badgeY - TOPO_BADGE_SIZE / 2;
+  const badgeD = Math.min(TOPO_BADGE_SIZE, frameBottom - 1.2 - circleTop);
+  return { air: 10, valueY, badgeD, badgeY, frameBottom };
+}
+
+test('PR-E2E-025: memory topology node percentages paint in-place baseline badges', async ({ page }) => {
+  // sample.lite.rep is drawable (all four in-box plates + an L2 peak), so every node
+  // percentage has something to diff once a baseline is selected.
+  await page.goto('/?fixture=sample');
+  await expect(page.getByTestId('playground-ready')).toBeVisible();
+  await expect(page.getByTestId('stats-topology')).toBeVisible({ timeout: 30_000 });
+
+  const topology = page.getByTestId('stats-topology');
+  const badges = topology.locator('[data-testid^="topo-diff-"]');
+  // No baseline: zero badge nodes — the un-compared DOM is exactly the old diagram.
+  await expect(badges).toHaveCount(0);
+
+  // Check ALL five demo baselines (DEMO-DIFF RULE: every baseline must show
+  // every badgeable element with both tones at once).
+  await page.getByTestId('toggle-baselines').click();
+  const checkRows = page.locator('.pr-baseline__item--check');
+  for (let i = 0; i < 5; i++) {
+    await checkRows.nth(i).click();
+    await expect(checkRows.nth(i).locator('input')).toBeChecked();
+  }
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute(
+    'data-value',
+    'demo-recent-1',
+  );
+
+  // Node badges appear: one per comparable node percentage, never on an edge (GB/s) value.
+  await expect(badges.first()).toBeVisible({ timeout: 15_000 });
+  const allTones = new Set<string>();
+  const textsPerBaseline = new Set<string>();
+  for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+    await page.getByTestId('aside-baseline-select').getByRole('button').click();
+    await page.getByTestId(`aside-baseline-option-${id}`).click();
+    await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', id);
+    await expect(badges.first()).toBeVisible({ timeout: 15_000 });
+    const badgeIds = await badges.evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-testid') ?? ''),
+    );
+    // sample carries six in-box plates + the L2 peak — all seven must badge.
+    expect(badgeIds.length).toBe(7);
+    for (const bid of badgeIds) {
+      expect(bid).toMatch(/^topo-diff-(aiv_scalar|vec|cube|simt|aic_scalar|aiv_scalar_unit)-\d+$|^topo-diff-l2-peak$/);
+    }
+    for (const badge of await badges.all()) {
+      const cls = (await badge.getAttribute('class')) ?? '';
+      if (cls.includes('pr-topo__diff--increase')) allTones.add('increase');
+      if (cls.includes('pr-topo__diff--decrease')) allTones.add('decrease');
+      const text = (await badge.locator('.pr-topo__diff-text').textContent()) ?? '';
+      expect(text).toMatch(/^\d+(\.\d+)?%$/);
+      expect(text).not.toBe('0%');
+    }
+    textsPerBaseline.add((await badges.locator('.pr-topo__diff-text').allTextContents()).join(','));
+  }
+  // Every baseline shows both tones at once, and values vary baseline-to-baseline.
+  expect([...allTones].sort()).toEqual(['decrease', 'increase']);
+  expect(textsPerBaseline.size).toBeGreaterThan(1);
+
+  // The memory 详情 lists paint the same delta badges (PR-STATS-056).
+  await page.getByTestId('topology-details').click();
+  await expect(page.getByTestId('summary-category-list')).toBeVisible();
+  await expect(page.locator('[data-testid^="summary-field-diff-"]').first()).toBeVisible({ timeout: 15_000 });
+  const detailsBadgeCount = await page.locator('[data-testid^="summary-field-diff-"]').count();
+  expect(detailsBadgeCount).toBeGreaterThanOrEqual(4);
+  // Close the overlay so the in-place switch sampling below runs on the stack.
+  await page.getByTestId('stats-aside-back').click();
+  await expect(page.getByTestId('summary-category-list')).toHaveCount(0);
+  // The rhythm geometry (PR-MEMTOP-027): every badge's WHITE circle hangs BELOW its value on
+  // the slot's equal-air row, the circle+text GROUP is centred on the value's x, the badge's
+  // bottom stays INSIDE the element frame, and the delta text paints at the VALUE's fitted
+  // size — the same font as the percentage. Chrome units are mapped to CSS px through the
+  // svg's own screen CTM, so the checks hold at every painted zoom. White circle / full arrow
+  // stay as they were.
+  const geometry = await topology.evaluate((root, metrics) => {
+    const svg = root.querySelector('.pr-topo__svg') as SVGSVGElement;
+    const ctm = svg.getScreenCTM()!;
+    const scale = Math.abs(ctm.d);
+    const toChromeY = (cssY: number): number => (cssY - ctm.f) / scale;
+    const valueTestid = (id: string): string =>
+      id === 'topo-diff-l2-peak' ? 'node-l2-peak' : id.replace(/^topo-diff-/, 'plate-');
+    const values = new Map(
+      [
+        ...root.querySelectorAll(
+          '[data-testid^="plate-"], [data-testid="node-l2-peak"]',
+        ),
+      ].map((t) => {
+        const bb = t.getBoundingClientRect();
+        return [
+          t.getAttribute('data-testid') ?? '',
+          {
+            x: bb.left + bb.width / 2,
+            top: bb.top,
+            bottom: bb.bottom,
+            fontPx: parseFloat(getComputedStyle(t).fontSize),
+          },
+        ] as [string, { x: number; top: number; bottom: number; fontPx: number }];
+      }),
+    );
+    const badges = [...root.querySelectorAll('[data-testid^="topo-diff-"]')].map((g) => {
+      const id = g.getAttribute('data-testid') ?? '';
+      const node =
+        id === 'topo-diff-l2-peak' ? 'l2-peak' : (id.match(/^topo-diff-(.+?)-\d+$/)?.[1] ?? '');
+      const rect = g.querySelector('rect') as SVGRectElement;
+      const arrow = g.querySelector('path') as SVGPathElement;
+      const text = g.querySelector('text') as SVGTextElement;
+      const rbb = rect.getBoundingClientRect();
+      const tbb = text.getBoundingClientRect();
+      const v = values.get(valueTestid(id))!;
+      return {
+        id,
+        node,
+        groupCentre: (Math.min(rbb.left, tbb.left) + Math.max(rbb.right, tbb.right)) / 2,
+        valueX: v.x,
+        valueTop: v.top,
+        valueBottom: v.bottom,
+        valueFontPx: v.fontPx,
+        textFontPx: parseFloat(getComputedStyle(text).fontSize),
+        badgeTop: rbb.top,
+        badgeBottom: rbb.bottom,
+        // The element frame's chrome-unit bottom, converted to the same CSS px the DOM
+        // measurements are in through the svg's own screen CTM.
+        frameBottomPx: ctm.d * (metrics[node]?.frameBottom ?? 0) + ctm.f,
+        badgeCentreChrome: toChromeY(rbb.top + rbb.height / 2),
+        diameterChrome: rbb.width / scale,
+        fill: getComputedStyle(rect).fill,
+        arrowSubpaths: (arrow.getAttribute('d') ?? '').match(/M/g)?.length ?? 0,
+      };
+    });
+    return { scale, badges };
+  }, TOPO_BADGE_METRICS);
+
+  // sample carries the six in-box plates plus the L2 peak.
+  expect(geometry.badges).toHaveLength(7);
+  for (const b of geometry.badges) {
+    const metric = TOPO_BADGE_METRICS[b.node];
+    expect(metric, `badge ${b.id} has a chrome metric row`).toBeTruthy();
+    const { badgeD, badgeY } = topoBadgeRhythm(b.node);
+    // The rhythm, computed from the same measured constants: the circle is the design size
+    // (shrunk only when the frame is shallow) and sits on the derived badge centre.
+    expect(b.diameterChrome, `badge ${b.id} circle diameter`).toBeCloseTo(badgeD, 1);
+    expect(b.badgeCentreChrome, `badge ${b.id} derived centre`).toBeCloseTo(badgeY, 1);
+    // (a) The circle+text group is centred on the value's own x. The group is laid out on the
+    //     text's advance while the ink box carries side bearings — allow 1.5 chrome units.
+    expect(
+      Math.abs(b.groupCentre - b.valueX),
+      `badge ${b.id} group is centred on its value`,
+    ).toBeLessThanOrEqual(1.5 * geometry.scale);
+    // (b) The badge hangs the equal gap under the value CENTRE (the empirical
+    //     rule — its top clears the value's ink), and its bottom stays inside
+    //     the element frame.
+    expect(b.badgeTop, `badge ${b.id} sits below the value`).toBeGreaterThanOrEqual(
+      (b.valueTop + b.valueBottom) / 2 - 0.1,
+    );
+    expect(
+      b.badgeBottom,
+      `badge ${b.id} bottom is inside the frame`,
+    ).toBeLessThanOrEqual(b.frameBottomPx + 0.05);
+    // (c) The delta text paints at the VALUE's fitted size — the same font as the percentage
+    //     it annotates (PR-MEMTOP-027): both carry the slot's one fitted style.
+    expect(
+      b.textFontPx,
+      `badge ${b.id} delta font matches the value font`,
+    ).toBeCloseTo(b.valueFontPx, 2);
+    // Chrome unchanged: white circle, full two-subpath arrow.
+    expect(b.fill).toBe('rgb(255, 255, 255)');
+    expect(b.arrowSubpaths).toBe(2);
+  }
+
+  // The three text rows (word + value + badge) centre in the unit box as ONE block: the
+  // word's ink top is read off the served chrome asset, the badge bottom off the DOM.
+  {
+    const wordTops = await page.evaluate(async () => {
+      const svg = document.querySelector('svg[viewBox="0 0 448 423"]');
+      const href = svg!.querySelector('image')!.getAttribute('href')!;
+      const txt = await (await fetch(href)).text();
+      const blob = new Blob([txt], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const im = new Image();
+      await new Promise((res) => { im.onload = res; im.src = url; });
+      const c = document.createElement('canvas');
+      c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const g = c.getContext('2d')!;
+      g.drawImage(im, 0, 0);
+      const top = (x1: number, x2: number, y1: number, y2: number): number => {
+        for (let y = y1; y <= y2; y++) {
+          for (let x = x1; x <= x2; x++) {
+            const d = g.getImageData(x, y, 1, 1).data;
+            if (d[0] > 200 && d[1] > 200 && d[2] > 200) return y;
+          }
+        }
+        return -1;
+      };
+      return {
+        aiv_scalar: top(272, 292, 303, 313),
+        simt: top(356, 377, 298, 308),
+        vec: top(356, 377, 340, 350),
+        cube: top(327, 349, 73, 83),
+        aic_scalar: top(299, 322, 167, 177),
+        aiv_scalar_unit: top(299, 322, 238, 248),
+      };
+    });
+    for (const node of ['aiv_scalar', 'simt', 'vec', 'cube', 'aic_scalar', 'aiv_scalar_unit'] as const) {
+      const metric = TOPO_BADGE_METRICS[node];
+      const badge = geometry.badges.find((x) => x.node === node)!;
+      const wordTop = wordTops[node];
+      expect(wordTop, `${node} word ink found`).toBeGreaterThan(0);
+      const badgeBottomChrome = badge.badgeCentreChrome + badge.diameterChrome / 2;
+      const blockCentre = (wordTop + badgeBottomChrome) / 2;
+      const boxCentre = (metric.boxTop + metric.frameBottom) / 2;
+      expect(Math.abs(blockCentre - boxCentre), `${node} block centres in its box`).toBeLessThanOrEqual(0.5);
+    }
+  }
+
+  // Switching the aside Operator repaints the badge values in place.
+  const textsNow = async (): Promise<string[]> =>
+    badges.locator('.pr-topo__diff-text').allTextContents();
+  const beforeOperator = (await textsNow()).join(',');
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-gelu').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute(
+    'data-value',
+    'gelu',
+  );
+  await expect.poll(async () => (await textsNow()).join(',')).not.toBe(beforeOperator);
+
+  // Back to the default operator: a baseline switch re-defaults to it anyway (PR-E2E-023),
+  // so keeping it fixed here makes the next delta clearly a BASELINE difference, not the
+  // operator reset.
+  await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
+  await page.getByTestId('aside-baseline-operator-option-matmul').click();
+  await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute(
+    'data-value',
+    'matmul',
+  );
+
+  // A baseline SWITCH is an in-place update: sample every animation frame while the host
+  // adapts the next selection — the badge nodes must never leave the DOM (no tear-down).
+  // The sampled set is the badges present both before and after the switch (a delta that
+  // legitimately becomes zero may drop its own node, per the panel's suppression rule).
+  const idsNow = async (): Promise<string[]> =>
+    badges.evaluateAll((els) => els.map((el) => el.getAttribute('data-testid') ?? ''));
+  const idsBefore = await idsNow();
+  const beforeSwitch = (await textsNow()).join(',');
+  await page.evaluate(() => {
+    (window as unknown as { __topoBadgeSamples: string[][] }).__topoBadgeSamples = [];
+    (window as unknown as { __topoBadgeSampling: boolean }).__topoBadgeSampling = true;
+    const tick = () => {
+      if (!(window as unknown as { __topoBadgeSampling: boolean }).__topoBadgeSampling) return;
+      (window as unknown as { __topoBadgeSamples: string[][] }).__topoBadgeSamples.push(
+        [...document.querySelectorAll('[data-testid^="topo-diff-"]')].map(
+          (el) => el.getAttribute('data-testid') ?? '',
+        ),
+      );
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByTestId('aside-baseline-select').getByRole('button').click();
+  await page.locator('[data-testid="aside-baseline-option-demo-recent-2"]').click();
+  await expect
+    .poll(async () => page.getByTestId('aside-baseline-select').getAttribute('data-value'))
+    .toBe('demo-recent-2');
+  // Different baselines paint different deltas on the same nodes.
+  await expect.poll(async () => (await textsNow()).join(',')).not.toBe(beforeSwitch);
+  await page.waitForTimeout(400);
+  const samples = await page.evaluate(() => {
+    (window as unknown as { __topoBadgeSampling: boolean }).__topoBadgeSampling = false;
+    return (window as unknown as { __topoBadgeSamples: string[][] }).__topoBadgeSamples;
+  });
+  const idsAfter = await idsNow();
+  const persisted = idsBefore.filter((id) => idsAfter.includes(id));
+  expect(persisted.length).toBeGreaterThanOrEqual(2);
+  expect(samples.length).toBeGreaterThan(5);
+  for (const frame of samples) {
+    for (const id of persisted) expect(frame).toContain(id);
+  }
+
+  // Unchecking the selected report clears the selection and the badges go with it.
+  // (The details click above closed the picker popover — reopen it.)
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.locator('.pr-baseline__item--check')).toHaveCount(5);
+  // The in-place sampling above left demo-recent-2 selected — uncheck it.
+  await page.locator('.pr-baseline__item--check').nth(1).click();
+  await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', '');
+  await expect.poll(async () => badges.count()).toBe(0);
 });

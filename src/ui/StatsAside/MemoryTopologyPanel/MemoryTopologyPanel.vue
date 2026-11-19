@@ -21,7 +21,7 @@ export const BASE_FONT_PX = 6.3;
  *  (L1↔L0A/B, L0A/B↔Cube, Cube↔L0C, UB↔SIMD) are far tighter than the pillars' and have no
  *  common bound. Measured walls at the value's own height band:
  *  `gm-l2-*` x≈55.75/x≈94; `l2-l1-read` / `l2-ub` / `ub-l2` x≈133.75/x≈188 (L2↔row corridor);
- *  `ub-vec`/`vec-ub` x≈315/x≈361; `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube`
+ *  `ub-vec`/`vec-ub` x≈316/x≈351; `l1-l0a`/`l1-l0b` x≈217/x≈262; `l0a-cube`/`l0b-cube`
  *  x≈282/x≈322; `cube-l0c` x≈353/x≈394; the L2 in-box plate spans the 40-unit pillar. */
 export const SLOT_MAX_W: Record<string, number> = {
   'gm-l2-read': 35.4,
@@ -29,8 +29,8 @@ export const SLOT_MAX_W: Record<string, number> = {
   'l2-ub': 49.0,
   'ub-l2': 49.0,
   'l2-l1-read': 49.0,
-  'ub-vec': 42.1,
-  'vec-ub': 42.1,
+  'ub-vec': 35.0,
+  'vec-ub': 35.0,
   'l1-l0a': 41.1,
   'l1-l0b': 40.3,
   'l0a-cube': 36.7,
@@ -43,33 +43,147 @@ export const SLOT_MAX_W: Record<string, number> = {
  * UI-49 in-box `%` badge slots — centres under each unit's own word on the 448×423 chrome.
  * Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a newly plated unit without coordinates
  * fails typecheck. The simplified chrome draws one **AIV × 2** row (not separate AIV0/AIV1
- * stacks): `Scalar` (282.2, 321.0), `Vec`/SIMD (372.1, 367.8), AIC `Cube` (338.1, 95.3) —
- * each is the export's under-word util sample centre (not the box centre / not the unit word).
+ * stacks): `Scalar` (282.2, 321.0), `Vec`/SIMD (367, 367.8), AIC `Cube` (338.1, 95.3),
+ * AIV `SIMT` (367, 320.45) — the first three are the export's under-word util sample centres
+ * (not the box centre / not the unit word); SIMT has no sample in the export (its producer row
+ * is `NA`), so its slot rides the derived value centre instead.
  * AIV0/AIV1 still share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); one chrome slot is
  * enough for the combined row.
  *
- * The other in-box badges — AIC `Scalar`, AIV `SIMT`, `FixP` — are the producer's `NA` rows
- * and carry no slot (UI-49). The producer also marks `SIMD VF` rows `NA`, but those describe
- * the `Vec` position the `Vec` rows fill, so it is painted rather than blank.
+ * The other in-box badges — AIC `Scalar`, `FixP` — are the producer's `NA` rows and carry no
+ * slot (UI-49). SIMT is plated too (`aiv_simt_ratio`): real reports never carry the column,
+ * the demo hosts synthesize it. The producer also marks `SIMD VF` rows `NA`, but those
+ * describe the `Vec` position the `Vec` rows fill, so it is painted rather than blank.
  */
 export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
   aiv_scalar: [[282.2, 321.0]],
-  vec: [[372.1, 367.8]],
+  vec: [[367, 367.8]],
   cube: [[338.1, 95.3]],
+  // The export carries no SIMT sample glyph (the producer's row is NA), so the
+  // slot rides the rhythm-derived value centre instead of a stripped sample.
+  simt: [[367, 320.45]],
+  aic_scalar: [[310.05, 184.065]],
+  aiv_scalar_unit: [[310.05, 255.065]],
 };
+
+/**
+ * Vertical chrome metrics of every plated slot, in chrome units, keyed by the adapter's
+ * `TOPOLOGY_PLATE_NODE_IDS` plus the L2 peak plate. `boxTop` is the top of the unit's own box,
+ * `titleBottom` (T) the bottom of the unit title's outline (the next label's top for the peak),
+ * `frameBottom` (F) the bottom of the element frame, and `boxWidth` the width of that element's
+ * inner box. Measured off `memory-topology.svg`; the `Record` makes a newly plated unit fail
+ * typecheck until it carries its own metrics.
+ */
+export interface SlotMetrics {
+  /** Top of the unit's own box the text block centres in. */
+  boxTop: number;
+  /** Bottom of the title outline (T). */
+  titleBottom: number;
+  /** Bottom of the element frame (F). */
+  frameBottom: number;
+  /** Inner box width the value + badge row must fit into. */
+  boxWidth: number;
+}
+
+export const PLATE_METRICS: Record<TopologyPlateNodeId | 'l2-peak', SlotMetrics> = {
+  aiv_scalar: { boxTop: 301, titleBottom: 313.595, frameBottom: 336, boxWidth: 26.5 },
+  vec: { boxTop: 335.5, titleBottom: 350.845, frameBottom: 376, boxWidth: 32 },
+  cube: { boxTop: 54, titleBottom: 83.595, frameBottom: 123, boxWidth: 28.5 },
+  simt: { boxTop: 293, titleBottom: 308.345, frameBottom: 333.5, boxWidth: 32 },
+  aic_scalar: { boxTop: 167, titleBottom: 177.095, frameBottom: 197, boxWidth: 32 },
+  aiv_scalar_unit: { boxTop: 238, titleBottom: 248.095, frameBottom: 268, boxWidth: 32 },
+  // The peak plate keeps the classic air rhythm; boxTop is unused there.
+  'l2-peak': { boxTop: 201.5, titleBottom: 207.6, frameBottom: 238.9, boxWidth: 36 },
+};
+
+/** Half the 6.3px value's glyph box (the classic slot position). */
+const VALUE_HALF_H = 3.15;
+/** Half the 6.06-unit ink height of the unit title words (`SIMT` / `SIMD` / `CUBE` / `Scalar`). */
+const WORD_INK_HALF = 3.03;
+/** Centre-to-centre pitch between the three text rows (word → value → badge) — the cube box's
+ *  classic spacing, uniform in every unit box (Product review 2026-11-18). */
+const ROW_PITCH = 10;
+/** The badge circle hugs the value from below — centre `vc + 5.6`, circle top `vc + 2.3`, a
+ *  hair under the value's ink — the design's own hug: the badge centre sits only ~a third of a
+ *  text height below the value, not a full row down (Product review 2026-11-18). The L2 peak
+ *  badge keeps its classic air rhythm instead. */
+const BADGE_PITCH = 5.6;
+/** Fallback ink extents (chrome units) of the 6.3px / 800 value glyphs: digits + `%` have no
+ *  descenders, so the ink sits asymmetrically inside the text box — roughly 2.5 above and 1.8
+ *  below the `dominant-baseline="middle"` centre. The real extents are measured per text via
+ *  `getBBox()` (see the measurement watch) and replace these when metrics exist; the equal-gap
+ *  layout must read the INK, not the box, or the visible gaps come out lopsided. */
+export const VALUE_INK_TOP = 1.5;
+const RHYTHM_AIR_MIN = 0.5;
+const RHYTHM_AIR_MAX = 4.5;
+
+/** Derived vertical rhythm of one slot. */
+export interface SlotRhythm {
+  /** Equal air above and below the value (g). */
+  air: number;
+  /** Value centre y (vc). */
+  valueY: number;
+  /** Badge circle diameter (d). */
+  badgeD: number;
+  /** Badge circle centre y (bc). */
+  badgeY: number;
+}
+
+/**
+ * Per-slot layout (PR-MEMTOP-027). The unit's three text rows — the word, the value and the
+ * delta badge — sit vertically CENTRED in the unit's own box as one block (Product review
+ * 2026-11-18), with a UNIFORM centre-to-centre pitch between the rows (`ROW_PITCH`, the cube
+ * box's classic spacing). The word is static chrome, so the chrome's word positions bake the
+ * centring in; the panel hangs the rows under the word at the fixed pitch:
+ * `vc = T − 3.03 + 10`, `bc = vc + 5.6` — the value never moves when a badge appears, and the
+ * badge hugs the value instead of sitting a full row down. The
+ * circle shrinks where that would cross the frame (`d = F − 1.2 − circleTop`).
+ *
+ * The L2 peak plate keeps the classic air rhythm — its plate is not a unit box.
+ */
+export function slotRhythm(
+  node: TopologyPlateNodeId | 'l2-peak',
+  opts: { withBadge?: boolean } = {},
+): SlotRhythm {
+  void opts;
+  const { titleBottom, frameBottom } = PLATE_METRICS[node];
+  if (node === 'l2-peak') {
+    // The +1e-9 keeps an exact-integer room from landing just below the whole
+    // number in FP (9.999… → floor 4 instead of 5).
+    const air = Math.min(
+      RHYTHM_AIR_MAX,
+      Math.max(
+        RHYTHM_AIR_MIN,
+        Math.floor((frameBottom - titleBottom - RHYTHM_SLACK) / 2 + 1e-9),
+      ),
+    );
+    const valueY = titleBottom + air + VALUE_HALF_H;
+    const circleTop = valueY + air + VALUE_HALF_H - VALUE_INK_TOP;
+    const badgeD = Math.min(DIFF_BADGE_SIZE, frameBottom - 1.2 - circleTop);
+    return { air, valueY, badgeD, badgeY: circleTop + badgeD / 2 };
+  }
+  const valueY = titleBottom - WORD_INK_HALF + ROW_PITCH;
+  const badgeY = valueY + BADGE_PITCH;
+  const circleTop = badgeY - DIFF_BADGE_SIZE / 2;
+  const badgeD = Math.min(DIFF_BADGE_SIZE, frameBottom - 1.2 - circleTop);
+  return { air: ROW_PITCH, valueY, badgeD, badgeY };
+}
 
 /**
  * Room an in-box badge has inside its own unit box before it touches a wall, in chrome units,
  * measured off the export at the badge's height band. Unlike the corridors these are box
- * interiors: Scalar and Cube are ~30 units wide, Vec only ~22 — the sketch's own `2.18%` badge
+ * interiors: Scalar and Cube are ~30 units wide, Vec ~32 — the sketch's own `2.18%` badge
  * fills 17 of them — so a value is scaled down per box (`fitFontSize`) instead of spilling over
  * the box outline. Keyed by the same `TopologyPlateNodeId` as `PLATE_SLOTS`, so plating a new
  * unit fails typecheck until it has a bound here as well as coordinates there.
  */
 export const PLATE_MAX_W: Record<TopologyPlateNodeId, number> = {
   aiv_scalar: 26.5,
-  vec: 18.5,
+  vec: 28.5,
   cube: 28.5,
+  simt: 28.5,
+  aic_scalar: 28.5,
+  aiv_scalar_unit: 28.5,
 };
 
 /** Fallback for a slot the table above forgets. It is the *tightest* measured bound, so a new
@@ -107,8 +221,8 @@ export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, numbe
   'l2-ub': [[159.7, 315.2]],
   'ub-l2': [[159.6, 331.2]],
   'l2-l1-read': [[160.1, 87.9]],
-  'ub-vec': [[338.7, 351.8]],
-  'vec-ub': [[338.6, 363.8]],
+  'ub-vec': [[333.5, 351.8]],
+  'vec-ub': [[333.5, 363.8]],
   'l1-l0a': [[239.1, 49.8]],
   'l1-l0b': [[239.1, 74.8]],
   'l0a-cube': [[300.9, 54.8]],
@@ -157,6 +271,34 @@ export function fitFontSize(
   const max = bounds[slot] ?? DEFAULT_MAX_W;
   return natural > max ? (max / natural) * base : base;
 }
+
+/**
+ * 对比基线 (baseline comparison) badge, in chrome units. The diagram's own values are 6.3px, so
+ * the badge is drawn at chrome scale — it re-creates the 1130 mockup's badge rather than
+ * reusing the 12px HTML component, which cannot render inside SVG: a WHITE circle with a full
+ * tone arrow (shaft + head), BELOW the value, and the unsigned delta in white at the value's
+ * own size right of the circle.
+ */
+export const DIFF_BADGE_SIZE = 6.6;
+
+/** Ink top + ink bottom + the 6.6 circle + 1.2 frame air — the height the layout needs before
+ *  its two equal gaps. Keeps gap, value ink, gap, badge, ≥1.2 air inside `F - T`. */
+const RHYTHM_SLACK = 2 * VALUE_HALF_H + DIFF_BADGE_SIZE + 1;
+/** Air between the badge circle and its delta text. */
+export const DIFF_BADGE_TEXT_GAP = 1;
+/** Delta-text width the group layout falls back to when text metrics are unavailable (jsdom):
+ *  roughly the widest short delta like `88.88%`. */
+export const DIFF_BADGE_TEXT_FALLBACK_W = 12;
+
+/** Circle centre x for a badge whose circle+text GROUP is centred on the value's centre `cx`:
+ *  the circle sits left of the text, so it moves left by half the text width plus the gap. */
+export function diffBadgeCircleX(cx: number, textWidth: number): number {
+  return cx - (DIFF_BADGE_TEXT_GAP + textWidth) / 2;
+}
+
+/** The L2 peak plate's own centre on the chrome — the design slot the rhythm engine lifts the `<text>` from, shared
+ *  with the badge anchor so the two cannot drift (PR-MEMTOP-026). */
+export const L2_PEAK_SLOT = [114.1, 218.3] as const;
 
 /** Zoom ladder (%) for the bar's **+** / **−**. 100 is the design's default readout and means
  *  *fitted to the box*, not 1:1 units. Stops are a fixed **1.5×** geometric series around 100,
@@ -219,6 +361,7 @@ export function continuousZoomFromDelta(current: number, deltaY: number): number
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
+import { metricDiff, trimDiffMagnitude, type DiffTone, type MetricDiff } from '../../../domain/metricDiff';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
  *  448×423). Static labels stay outlined paths (including white `MTE_*` / `FixPipe` ink on
@@ -255,6 +398,13 @@ const props = withDefaults(
     selectableUnits?: boolean;
     /** §11.2.3.2: unit the heat panel is showing — painted as the selected highlight (PR-MEMTOP-022). */
     selectedUnit?: MemoryHeatmapUnitId | null;
+    /**
+     * 对比基线 (baseline comparison): the selected baseline's topology model. Every node
+     * percentage that also exists in this side — the three in-box plates and the L2 peakPct —
+     * gets a delta badge right of its value. Absent / null means no comparison at all: the panel
+     * then renders exactly the nodes it rendered before this prop existed (PR-MEMTOP-024).
+     */
+    baseline?: MemoryTopologyModel | null;
   }>(),
   // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
   // back), but the linter needs the key present to see the optional prop as intentional.
@@ -265,6 +415,7 @@ const props = withDefaults(
     wheelGestures: false,
     selectableUnits: false,
     selectedUnit: null,
+    baseline: undefined,
   },
 );
 
@@ -328,6 +479,9 @@ const peakText = computed(() =>
   l2PeakPct.value != null ? `${l2PeakPct.value.toFixed(2)}%` : label('l2-hit'),
 );
 
+/** L2 peak plate's derived value centre (the rhythm engine's `vc` for the peak slot). */
+const peakValueY = slotRhythm('l2-peak').valueY;
+
 /**
  * UI-49 in-box unit-utilization badges. Iterates the adapter's node tuple, not the model, so the
  * ids stay typed; a unit the model gives no value is skipped entirely — an `NA` badge stays blank
@@ -336,11 +490,136 @@ const peakText = computed(() =>
  */
 const plates = computed(() =>
   TOPOLOGY_PLATE_NODE_IDS.flatMap((node) => {
-    const text = props.model?.plates?.find((p) => p.node === node)?.label;
+    const plate = props.model?.plates?.find((p) => p.node === node);
+    const text = plate?.label;
     if (!text) return [];
-    return PLATE_SLOTS[node].map(([x, y], i) => ({ node, x, y, key: `plate-${node}-${i}`, text }));
+    // The value's centre hangs under the word at the uniform row pitch
+    // (PR-MEMTOP-027) — it never moves when a baseline badge appears.
+    const { valueY } = slotRhythm(node);
+    return PLATE_SLOTS[node].map(([x], i) => ({
+      node,
+      x,
+      y: valueY,
+      key: `plate-${node}-${i}`,
+      text,
+      /** Numeric percent behind `label` (PR-VM-028); absent on a hand-built label-only model. */
+      value: plate.value,
+    }));
   }),
 );
+
+/** One 对比基线 badge. `text` is the unsigned delta in percentage points plus `%`; `direction`
+ *  is the i18n word carried by the `<title>` and the hidden description (the SVG is `role="img"`,
+ *  so its own `<title>` is not the surfaced alternative — the summary is). */
+interface DiffBadge {
+  /** `topo-diff-{node}-{slot}` / `topo-diff-l2-peak` — deliberately outside the `plate-` and
+   *  `edge-` testid prefixes, which existing tests use to count the drawn values. */
+  testid: string;
+  /** Plate key or `peak` — the comparison this badge belongs to; stable across baseline switches. */
+  sourceKey: string;
+  /** Slot whose metrics drive the circle placement; the text paints at the value's fitted size. */
+  node: TopologyPlateNodeId | 'l2-peak';
+  /** Circle centre x (the value's own centre — the badge sits BELOW it). */
+  x: number;
+  /** Circle centre y (the slot's derived `bc`). */
+  y: number;
+  /** Circle diameter in chrome units (the slot's `d`, shrunk inside shallow frames). */
+  diameter: number;
+  tone: DiffTone;
+  text: string;
+  direction: string;
+  /** FULL arrow path in chrome units (shaft + head): up for `increase`, down for `decrease`. */
+  arrow: string;
+}
+
+function makeBadge(
+  sourceKey: string,
+  testid: string,
+  node: TopologyPlateNodeId | 'l2-peak',
+  valueCx: number,
+  diff: MetricDiff,
+): DiffBadge {
+  const { badgeD, badgeY } = slotRhythm(node, { withBadge: true });
+  const text = `${trimDiffMagnitude(diff.magnitude)}%`;
+  // The circle+text GROUP is centred under the value: the circle centre sits
+  // left of the value's centre by half the text run at its PAINTED size
+  // (naturalWidths stores the fitted run; fallback when metrics are
+  // unavailable).
+  const cx = diffBadgeCircleX(
+    valueCx,
+    naturalWidths.value[testid] ?? DIFF_BADGE_TEXT_FALLBACK_W,
+  );
+  // Full arrow: a vertical shaft plus a two-stroke head joined at the tip. Both scale with the
+  // circle (shaft half-length 0.23d, head half-width 0.2d) so a shrunk badge keeps its drawing.
+  const shaft = 0.23 * badgeD;
+  const head = 0.2 * badgeD;
+  const arrow =
+    diff.tone === 'increase'
+      ? `M${cx} ${badgeY + shaft} L${cx} ${badgeY - shaft} M${cx - head} ${badgeY - 0.05} L${cx} ${badgeY - shaft} L${cx + head} ${badgeY - 0.05}`
+      : `M${cx} ${badgeY - shaft} L${cx} ${badgeY + shaft} M${cx - head} ${badgeY + 0.05} L${cx} ${badgeY + shaft} L${cx + head} ${badgeY + 0.05}`;
+  return {
+    sourceKey,
+    testid,
+    node,
+    x: cx,
+    y: badgeY,
+    diameter: badgeD,
+    tone: diff.tone,
+    text,
+    direction: t(
+      diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased',
+      props.locale,
+    ),
+    arrow,
+  };
+}
+
+/**
+ * 对比基线, plate half (PR-MEMTOP-025): every in-box percentage that also exists in the baseline
+ * model, diffed by `metricDiff` (delta = baseline − current; negative = increased = red up).
+ * Only the adapter's numeric `value` is comparable — a label-only hand-built plate has no number
+ * and paints no badge rather than diffing a formatted string.
+ */
+const plateDiffs = computed<DiffBadge[]>(() => {
+  const baseline = props.baseline;
+  if (!baseline?.plates?.length) return [];
+  return plates.value.flatMap((p) => {
+    const baselinePlate = baseline.plates?.find((bp) => bp.node === p.node);
+    const diff = metricDiff(p.value, baselinePlate?.value);
+    // metricDiff already drops missing/equal pairs; a delta that trims to `0` has no visible
+    // badge either (the same rule SummaryCategoryList uses).
+    if (!diff || trimDiffMagnitude(diff.magnitude) === '0') return [];
+    return [
+      makeBadge(
+        p.key,
+        p.key.replace(/^plate-/, 'topo-diff-'),
+        p.node,
+        p.x,
+        diff,
+      ),
+    ];
+  });
+});
+
+/**
+ * 对比基线, L2 peak half (PR-MEMTOP-026): diffed only when BOTH sides carry the numeric
+ * `peakPct`. The `l2-hit` fallback label is a string plate, not a comparable percentage, and is
+ * never parsed.
+ */
+const peakDiff = computed<DiffBadge | null>(() => {
+  const baselinePeak = props.baseline?.nodes.find((n) => n.id === 'l2')?.peakPct;
+  const diff = metricDiff(l2PeakPct.value, baselinePeak);
+  if (!diff || trimDiffMagnitude(diff.magnitude) === '0') return null;
+  return makeBadge('peak', 'topo-diff-l2-peak', 'l2-peak', L2_PEAK_SLOT[0], diff);
+});
+
+/** All badges in one list so the template has a single, stably keyed loop: the plates in their
+ *  slot order, then the L2 peak. Switching baselines patches `text` / tone in place — the loop
+ *  key is the node/slot, never the delta — and no badge node exists without a baseline. */
+const diffBadges = computed<DiffBadge[]>(() => [
+  ...plateDiffs.value,
+  ...(peakDiff.value ? [peakDiff.value] : []),
+]);
 
 /** Unique per instance: the panel renders twice at once (stacked + fullscreen overlay). */
 const summaryId = useId();
@@ -353,8 +632,13 @@ const summaryId = useId();
  */
 const summary = computed(() => {
   const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
+  const diffs = new Map(plateDiffs.value.map((d) => [d.sourceKey, d]));
   const parts: string[] = [];
-  if (peakText.value) parts.push(`${names.get('l2') ?? 'L2'}: ${peakText.value}`);
+  if (peakText.value) {
+    parts.push(
+      `${names.get('l2') ?? 'L2'}: ${peakText.value}${peakDiff.value ? ` (${peakDiff.value.direction} ${peakDiff.value.text})` : ''}`,
+    );
+  }
   const seen = new Set<string>();
   for (const v of values.value) {
     if (!v.text || seen.has(v.id)) continue;
@@ -368,7 +652,10 @@ const summary = computed(() => {
   for (const p of plates.value) {
     if (seen.has(p.node)) continue;
     seen.add(p.node);
-    parts.push(`${names.get(p.node) ?? p.node}: ${p.text}`);
+    const diff = diffs.get(p.key);
+    parts.push(
+      `${names.get(p.node) ?? p.node}: ${p.text}${diff ? ` (${diff.direction} ${diff.text})` : ''}`,
+    );
   }
   return parts.join('; ');
 });
@@ -382,10 +669,15 @@ const measureTwin = ref<SVGTextElement | null>(null);
 
 /** Per-slot type size, set only where a value outgrows its slot (PR-MEMTOP-010). */
 const fitted = ref<Record<string, number>>({});
+/** Delta-text widths at the badge's PAINTED size (CSS px, used as chrome units like the old
+ *  painted-width rule): a fitted badge text is smaller than the base, so the centring reads the
+ *  natural run scaled by the fitted/base ratio — the ink actually painted, not the 6.3px run. */
+const naturalWidths = ref<Record<string, number>>({});
 
 watchEffect(() => {
   const el = measureTwin.value;
   const next: Record<string, number> = {};
+  const widths: Record<string, number> = {};
   if (el && typeof el.getComputedTextLength === 'function') {
     const measure = (text: string): number => {
       if (!text) return 0;
@@ -398,20 +690,37 @@ watchEffect(() => {
     }
     // In-box badges get their own, tighter wall table — they sit inside a box, not a corridor.
     for (const p of plates.value) {
-      const px = fitFontSize(measure(p.text), p.node, BASE_FONT_PX, PLATE_MAX_W);
+      const natural = measure(p.text);
+      const px = fitFontSize(natural, p.node, BASE_FONT_PX, PLATE_MAX_W);
       if (px < BASE_FONT_PX) next[p.key] = px;
     }
     const peak = measure(peakText.value ?? '');
     const peakPx = fitFontSize(peak, 'l2-peak');
     if (peakPx < BASE_FONT_PX) next.peak = peakPx;
+    for (const d of diffBadges.value) {
+      const natural = measure(d.text);
+      // The badge's own wall table: the delta must clear the circle, the text gap and the
+      // element's two walls. The group centring reads the PAINTED run — the natural
+      // measurement scaled by the fitted/base ratio (svg text width is linear in
+      // font-size) — so the circle+text group centres on the ink actually drawn, not on
+      // a base-size run that is never painted.
+      if (natural > 0) {
+        // The delta paints at the VALUE's fitted size (same font as the %),
+        // so the centring factor reads that fit.
+        const px = fitted.value[d.sourceKey] ?? BASE_FONT_PX;
+        widths[d.testid] = px < BASE_FONT_PX ? natural * (px / BASE_FONT_PX) : natural;
+      }
+    }
   }
   fitted.value = next;
+  naturalWidths.value = widths;
 });
 
 function fitStyle(key: string): { fontSize: string } | undefined {
   const px = fitted.value[key];
   return px != null ? { fontSize: `${px}px` } : undefined;
 }
+
 
 /** Bar state. Per panel instance — the stacked aside and the root overlay each keep their own
  *  zoom, so covering the report (a re-mount) starts the fullscreen diagram at 100%. */
@@ -845,16 +1154,16 @@ onBeforeUnmount(stopZoomAnim);
               <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
                  `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
                  element; the testid still tells the two sources apart. -->
-              <text
-                v-if="peakText"
-                x="114.1"
-                y="218.3"
-                text-anchor="middle"
-                dominant-baseline="middle"
-                class="pr-topo__pct"
-                :style="fitStyle('peak')"
-                :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
-              >{{ peakText }}</text>
+            <text
+              v-if="peakText"
+              :x="L2_PEAK_SLOT[0]"
+              :y="peakValueY"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              class="pr-topo__pct"
+              :style="fitStyle('peak')"
+              :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
+            >{{ peakText }}</text>
 
               <text
                 v-for="v in values"
@@ -884,15 +1193,53 @@ onBeforeUnmount(stopZoomAnim);
                 :data-testid="p.key"
               >{{ p.text }}</text>
 
-              <text
-                ref="measureTwin"
-                class="pr-topo__edge"
-                x="-1000"
-                y="-1000"
-                opacity="0"
-                aria-hidden="true"
-              />
-            </template>
+        <!-- 对比基线 (PR-MEMTOP-024..027): one badge per node percentage that also exists in the
+             selected baseline, BELOW that value — plates first, then the L2 peak. The
+             list is empty without a baseline, so the un-compared DOM keeps exactly its old nodes;
+             edge (GB/s) values are never badged. Keys are the node/slot, never the delta, so a
+             baseline switch patches text and tone in place. -->
+        <g
+          v-for="d in diffBadges"
+          :key="d.testid"
+          class="pr-topo__diff"
+          :class="`pr-topo__diff--${d.tone}`"
+          :data-testid="d.testid"
+        >
+          <title>{{ d.direction }} {{ d.text }}</title>
+          <rect
+            class="pr-topo__diff-box"
+            :x="d.x - d.diameter / 2"
+            :y="d.y - d.diameter / 2"
+            :width="d.diameter"
+            :height="d.diameter"
+            :rx="d.diameter / 2"
+          />
+          <path
+            class="pr-topo__diff-arrow"
+            :d="d.arrow"
+            fill="none"
+            stroke-width="0.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <text
+            class="pr-topo__diff-text"
+            :x="d.x + d.diameter / 2 + DIFF_BADGE_TEXT_GAP"
+            :y="d.y"
+            dominant-baseline="middle"
+            :style="fitStyle(d.sourceKey)"
+          >{{ d.text }}</text>
+        </g>
+
+        <text
+          ref="measureTwin"
+          class="pr-topo__edge"
+          x="-1000"
+          y="-1000"
+          opacity="0"
+          aria-hidden="true"
+        />
+      </template>
           </svg>
         </div>
       </div>
@@ -1228,6 +1575,28 @@ onBeforeUnmount(stopZoomAnim);
  * in-box unit-utilization badges (Scalar / Vec / Cube). */
 .pr-topo__pct {
   fill: #fff;
+  font-size: 6.3px;
+  font-weight: 800;
+}
+
+/* 对比基线 badge (PR-MEMTOP-027): `SummaryDiffIndicator`'s chrome re-created at the diagram's
+ * own scale — the 1130 mockup's badge: a WHITE circle carrying a full tone arrow (shaft + head),
+ * and the unsigned delta in WHITE at the value's own size and weight, right of the circle. Green
+ * is the default (decrease); the increase class repaints the arrow red. */
+.pr-topo__diff-box {
+  fill: #ffffff;
+}
+
+.pr-topo__diff-arrow {
+  stroke: #88c858;
+}
+
+.pr-topo__diff--increase .pr-topo__diff-arrow {
+  stroke: #e7434a;
+}
+
+.pr-topo__diff-text {
+  fill: #ffffff;
   font-size: 6.3px;
   font-weight: 800;
 }
