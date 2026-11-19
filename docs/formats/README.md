@@ -214,3 +214,4 @@ Payloads are contiguous — no gaps between entries and no unreferenced trailing
 | KernelInfo summary chrome | **out** — [DATA-47](../context/decisions/DATA.md) |
 | Hardware-only open items | See per-section files under [compute/FORMAT.md](compute/FORMAT.md) |
 | Source \| SASS embeds | [`objdump.txt.md`](compute/objdump.txt.md), [`symbolizer.json.md`](compute/symbolizer.json.md), [`summary.db.md`](compute/summary.db.md) — index [compute/FORMAT.md](compute/FORMAT.md) |
+| Source freshness | [`objdump.txt`](compute/objdump.txt.md) vs matched local content — [SOURCE_PROVENANCE.md](SOURCE_PROVENANCE.md) ([DATA-57](../context/decisions/DATA.md#data-57)) |

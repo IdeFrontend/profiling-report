@@ -8,6 +8,7 @@
 | Compute (hardware / NPU-Compute) schemas | [`compute/FORMAT.md`](compute/FORMAT.md) |
 | Compute embed → UI (metrics + trace) | [`compute/METRICS_AND_TRACE.md`](compute/METRICS_AND_TRACE.md) |
 | Source \| SASS embeds | [`objdump.txt.md`](compute/objdump.txt.md), [`symbolizer.json.md`](compute/symbolizer.json.md), [`summary.db.md`](compute/summary.db.md) · view [source](../views/source.md) |
+| Source freshness (objdump vs local) | [`SOURCE_PROVENANCE.md`](SOURCE_PROVENANCE.md) ([DATA-57](../context/decisions/DATA.md#data-57)) |
 | Emulate (npu_emulate) leaf | [`emulate/FORMAT.md`](emulate/FORMAT.md) |
 | Adapter matrix | [`ADAPTERS.md`](ADAPTERS.md) |
 | View fill requirements | [`VIEW_DATA_REQUIREMENTS.md`](VIEW_DATA_REQUIREMENTS.md) |

@@ -30,6 +30,8 @@ Dual-pane **Source | SASS** correlation: Ascend C (or C++) text with per-line me
 | `navigateBy` | Metric ids for Navigate By | From columns |
 | `mock` | Must be `false` on real packs | — |
 
+**Freshness ([DATA-57](../context/decisions/DATA.md#data-57)):** compare interleaved source text in [`objdump.txt`](../formats/compute/objdump.txt.md) to matched local file content (host lookup / `resolveSourceFile` — Kirill Aleshin; do not duplicate). On mismatch → **warning** only; does **not** hide the tab. Normative: [SOURCE_PROVENANCE](../formats/SOURCE_PROVENANCE.md).
+
 ## Hide rule
 
 No real Source pack adapted → omit `sourceCorrelation` and `'sourceTab'` ([DATA-30](../context/decisions/DATA.md), [UI-37](../context/decisions/UI.md)). Do not show mock data on report packs. Do not invent Source panes from emulate tables without Product map ([DATA-45](../context/decisions/interim/DATA.md#data-45), [DATA-53](../context/questions/DATA.md)).
@@ -67,7 +69,7 @@ No real Source pack adapted → omit `sourceCorrelation` and `'sourceTab'` ([DAT
 
 ## Open
 
-DATA-52 (pack [`.asc`](../formats/compute/symbolizer.json.md#source-text) rule / single JSON), DATA-53 (emulate), DATA-54 (`Line: 0`), DATA-55 (extra metric columns).
+DATA-52 (pack [`.asc`](../formats/compute/symbolizer.json.md#source-text) rule / single JSON), DATA-53 (emulate), DATA-54 (`Line: 0`), DATA-55 (extra metric columns). Runtime freshness compare + warning UI (rule already in [DATA-57](../context/decisions/DATA.md#data-57) / [SOURCE_PROVENANCE](../formats/SOURCE_PROVENANCE.md)).
 
 ## Specs / code
 
