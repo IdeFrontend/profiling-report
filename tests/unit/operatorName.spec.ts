@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shortOperatorName } from './operatorName';
+import { shortOperatorName } from '../../src/domain/operatorName';
 
 describe('shortOperatorName', () => {
   it('PR-OPN-001: short name strips types and params', () => {

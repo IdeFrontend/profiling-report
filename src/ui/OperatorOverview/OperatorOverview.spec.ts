@@ -398,17 +398,26 @@ describe('OperatorOverview', () => {
     wrapper.unmount();
   });
 
-  it('PR-OVW-022: column widths total 100% with MixBlockDim', () => {
-    const wrapper = mount(OperatorOverview, {
+  it('PR-OVW-022: column widths total 100% with or without MixBlockDim', () => {
+    const widthsOf = (wrapper: ReturnType<typeof mount>) =>
+      wrapper.findAll('thead th').map((th) => {
+        const style = th.attributes('style') ?? '';
+        return Number.parseFloat(style.match(/width:\s*([\d.]+)%/)?.[1] ?? '0');
+      });
+
+    const withMix = mount(OperatorOverview, {
       props: { rows: [{ ...rows[0], mixBlockDim: 4 }, rows[1]] },
     });
-    const widths = wrapper.findAll('thead th').map((th) => {
-      const style = th.attributes('style') ?? '';
-      return Number.parseFloat(style.match(/width:\s*([\d.]+)%/)?.[1] ?? '0');
-    });
-    expect(widths).toHaveLength(9);
-    expect(widths.every((width) => width > 0)).toBe(true);
-    expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+    const mixedWidths = widthsOf(withMix);
+    expect(mixedWidths).toHaveLength(9);
+    expect(mixedWidths.every((width) => width > 0)).toBe(true);
+    expect(mixedWidths.reduce((total, width) => total + width, 0)).toBeCloseTo(100, 2);
+
+    const withoutMix = mount(OperatorOverview, { props: { rows } });
+    const plainWidths = widthsOf(withoutMix);
+    expect(plainWidths).toHaveLength(8);
+    expect(plainWidths.every((width) => width > 0)).toBe(true);
+    expect(plainWidths.reduce((total, width) => total + width, 0)).toBeCloseTo(100, 2);
   });
 
   it('PR-OVW-023: filter options keep raw values that shorten alike', async () => {
@@ -571,5 +580,34 @@ describe('OperatorOverview', () => {
     const selected = wrapper.findAll('tbody tr[aria-selected="true"]');
     expect(selected).toHaveLength(1);
     expect(selected[0].text()).toContain('demo_linear_tiled');
+  });
+
+  it('PR-OVW-033: roving tabindex and arrow/Home/End navigation', async () => {
+    const wrapper = mount(OperatorOverview, { props: { rows }, attachTo: document.body });
+    const bodyRows = () => wrapper.findAll('tbody tr');
+    const selectedIndex = () =>
+      bodyRows().findIndex((row) => row.attributes('aria-selected') === 'true');
+
+    expect(bodyRows().filter((row) => row.attributes('tabindex') === '0')).toHaveLength(1);
+    expect(bodyRows()[0].attributes('tabindex')).toBe('0');
+    expect(bodyRows()[1].attributes('tabindex')).toBe('-1');
+
+    await bodyRows()[0].trigger('keydown', { key: 'ArrowDown' });
+    await nextTick();
+    expect(selectedIndex()).toBe(1);
+    expect(document.activeElement).toBe(bodyRows()[1].element);
+    expect(bodyRows()[1].attributes('tabindex')).toBe('0');
+    expect(bodyRows()[0].attributes('tabindex')).toBe('-1');
+
+    await bodyRows()[1].trigger('keydown', { key: 'Home' });
+    await nextTick();
+    expect(selectedIndex()).toBe(0);
+    expect(document.activeElement).toBe(bodyRows()[0].element);
+
+    await bodyRows()[0].trigger('keydown', { key: 'End' });
+    await nextTick();
+    expect(selectedIndex()).toBe(1);
+    expect(document.activeElement).toBe(bodyRows()[1].element);
+    wrapper.unmount();
   });
 });

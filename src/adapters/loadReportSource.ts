@@ -6,7 +6,7 @@ import { isNestedNpuArchive, isNpuRep, npuArchiveStem, parseNpuRep } from './par
 import { isNestedNpuArchive160, isNpuRep160, parseNpuRep160 } from './parseNpuRep160';
 import { hasDependencies } from '../domain/dependencies';
 import type { AdaptedReport, ReportOperator } from '../domain/types';
-import { shortOperatorName } from '../ui/operatorName';
+import { shortOperatorName } from '../domain/operatorName';
 
 /** Dispatch leaf payloads to compute (`adaptPayloads`) or emulate (`adaptEmulate`). */
 function adaptLeafPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
