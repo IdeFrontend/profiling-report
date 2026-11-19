@@ -18,6 +18,7 @@ import {
   HEAT_GRID_PAD_PX,
   hitTestHeatCell,
 } from './heatHitTest';
+import { mergeOccupancyBands } from './legendOccupancy';
 /** Same solid mute as swimlane selection keep-bright (`#2C2C2C`). */
 import { SELECTION_MUTED_FILL } from '../../../swimlane/layout';
 
@@ -368,8 +369,11 @@ function clearCellTip() {
 /**
  * Hover-only 10% legend brush — dims cells whose intensity falls outside [lo, hi].
  * Center is clamped so the window always stays fully on the strip.
+ * While active, the legend strip mutes to occupancy bands (≥3px per intensity).
  */
 const legendBrush = ref<{ centerPct: number; loPct: number; hiPct: number } | null>(null);
+/** Legend hit-band width in CSS px — drives 3px → % for occupancy bands. */
+const legendTrackWidthPx = ref(0);
 
 const legendBrushStyle = computed<CSSProperties>(() => {
   const brush = legendBrush.value;
@@ -388,6 +392,33 @@ const legendBrushRangeLabel = computed(() => {
   const hi = Math.round((brush.hiPct / 100) * max);
   return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
 });
+
+/** Mute base + HSL slices only while the brush is active. */
+const legendGradientStyle = computed<CSSProperties>(() => {
+  if (!legendBrush.value) return { background: LEGEND_GRADIENT };
+  return { background: SELECTION_MUTED_FILL };
+});
+
+const legendOccupancyBands = computed(() => {
+  if (!legendBrush.value || legendTrackWidthPx.value <= 0) return [];
+  const blocks = activeView.value?.blocks ?? [];
+  return mergeOccupancyBands(
+    blocks.map((b) => b.intensity),
+    legendTrackWidthPx.value,
+  );
+});
+
+function legendOccStyle(band: { leftPct: number; widthPct: number }): CSSProperties {
+  const w = legendTrackWidthPx.value;
+  const leftPx = (band.leftPct / 100) * w;
+  return {
+    left: `${band.leftPct}%`,
+    width: `${band.widthPct}%`,
+    backgroundImage: LEGEND_GRADIENT,
+    backgroundSize: `${w}px 100%`,
+    backgroundPosition: `-${leftPx}px 0`,
+  };
+}
 
 /** Opacity for the `0` end label — fades as the brush window approaches the left edge. */
 const legendMinTickOpacity = computed(() => {
@@ -415,6 +446,7 @@ function onLegendPointerMove(e: PointerEvent) {
   if (!el) return;
   const rect = el.getBoundingClientRect();
   if (rect.width <= 0) return;
+  legendTrackWidthPx.value = rect.width;
   const pct = ((e.clientX - rect.left) / rect.width) * 100;
   const centerPct = Math.min(
     100 - LEGEND_BRUSH_HALF_PCT,
@@ -429,6 +461,7 @@ function onLegendPointerMove(e: PointerEvent) {
 
 function clearLegendBrush() {
   legendBrush.value = null;
+  legendTrackWidthPx.value = 0;
 }
 
 watch(activeView, () => {
@@ -491,8 +524,16 @@ watch(activeView, () => {
           <div
             class="pr-heat__gradient"
             aria-hidden="true"
-            :style="{ background: LEGEND_GRADIENT }"
-          />
+            :style="legendGradientStyle"
+          >
+            <div
+              v-for="(band, i) in legendOccupancyBands"
+              :key="i"
+              class="pr-heat__legend-occ"
+              data-testid="heat-legend-occ"
+              :style="legendOccStyle(band)"
+            />
+          </div>
           <div
             v-if="legendBrush"
             class="pr-heat__legend-brush"
@@ -766,7 +807,16 @@ watch(activeView, () => {
   width: 100%;
   height: 8px;
   border-radius: 1px;
+  overflow: hidden;
   transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Bright HSL slices punched through the mute base while the brush is active. */
+.pr-heat__legend-occ {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   pointer-events: none;
 }
 
