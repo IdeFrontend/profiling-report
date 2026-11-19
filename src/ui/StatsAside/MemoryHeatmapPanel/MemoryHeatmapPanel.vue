@@ -1,12 +1,5 @@
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  ref,
-  watch,
-  type CSSProperties,
-} from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch, type CSSProperties } from 'vue';
 import { t, type MessageKey } from '../../../i18n';
 import type {
   MemoryHeatmapBlock,
@@ -398,34 +391,25 @@ const legendBrush = ref<{ centerPct: number; loPct: number; hiPct: number } | nu
 /** Legend hit-band width in CSS px — drives 3px → % for occupancy bands. */
 const legendTrackWidthPx = ref(0);
 /**
- * Cell mute color fade only on brush enter/leave (not while the window slides).
- * Class must be on *before* background-color changes or the browser skips the transition.
+ * While sliding an active brush, snap cell colors (no transition). Enter/leave keep
+ * the default background-color transition so CSS can reverse mid-flight.
  */
-const legendDimAnim = ref(false);
-const heatRootEl = ref<HTMLElement | null>(null);
-let legendDimAnimTimer: ReturnType<typeof setTimeout> | null = null;
+const legendBrushSnap = ref(false);
+let legendBrushSnapRaf = 0;
 
-function scheduleLegendDimAnimEnd() {
-  if (legendDimAnimTimer != null) clearTimeout(legendDimAnimTimer);
-  legendDimAnimTimer = setTimeout(() => {
-    legendDimAnim.value = false;
-    legendDimAnimTimer = null;
-  }, LEGEND_DIM_MS);
-}
-
-/** Enable cell transition, flush layout, then apply brush/color change. */
-async function withCellDimTransition(apply: () => void) {
-  legendDimAnim.value = true;
-  await nextTick();
-  void heatRootEl.value?.offsetWidth;
+function snapBrushColors(apply: () => void) {
+  legendBrushSnap.value = true;
   apply();
-  scheduleLegendDimAnimEnd();
+  if (legendBrushSnapRaf) cancelAnimationFrame(legendBrushSnapRaf);
+  legendBrushSnapRaf = requestAnimationFrame(() => {
+    legendBrushSnap.value = false;
+    legendBrushSnapRaf = 0;
+  });
 }
 
 onBeforeUnmount(() => {
-  if (legendDimAnimTimer != null) clearTimeout(legendDimAnimTimer);
+  if (legendBrushSnapRaf) cancelAnimationFrame(legendBrushSnapRaf);
 });
-
 
 const legendBrushStyle = computed<CSSProperties>(() => {
   const brush = legendBrush.value;
@@ -508,21 +492,30 @@ function onLegendPointerMove(e: PointerEvent) {
     hiPct: centerPct + LEGEND_BRUSH_HALF_PCT,
   };
   if (legendBrush.value == null) {
-    void withCellDimTransition(() => {
-      legendBrush.value = next;
-    });
+    // Enter: sync so mute/occ/cell fades start immediately (interruptible).
+    legendBrushSnap.value = false;
+    if (legendBrushSnapRaf) {
+      cancelAnimationFrame(legendBrushSnapRaf);
+      legendBrushSnapRaf = 0;
+    }
+    legendBrush.value = next;
     return;
   }
-  // Sliding: instant mute set update (no color transition).
-  legendBrush.value = next;
+  // Sliding: instant mute set (no color transition).
+  snapBrushColors(() => {
+    legendBrush.value = next;
+  });
 }
 
 function clearLegendBrush() {
   // Keep track width so occupancy bands stay in the DOM while opacity fades out.
-  if (legendBrush.value == null) return;
-  void withCellDimTransition(() => {
-    legendBrush.value = null;
-  });
+  // Leave: sync so fade reverses immediately if enter was mid-flight.
+  legendBrushSnap.value = false;
+  if (legendBrushSnapRaf) {
+    cancelAnimationFrame(legendBrushSnapRaf);
+    legendBrushSnapRaf = 0;
+  }
+  legendBrush.value = null;
 }
 
 watch(activeView, () => {
@@ -530,10 +523,10 @@ watch(activeView, () => {
   // View swap: drop brush instantly (no enter/leave fade).
   legendBrush.value = null;
   legendTrackWidthPx.value = 0;
-  legendDimAnim.value = false;
-  if (legendDimAnimTimer != null) {
-    clearTimeout(legendDimAnimTimer);
-    legendDimAnimTimer = null;
+  legendBrushSnap.value = false;
+  if (legendBrushSnapRaf) {
+    cancelAnimationFrame(legendBrushSnapRaf);
+    legendBrushSnapRaf = 0;
   }
 });
 </script>
@@ -541,9 +534,8 @@ watch(activeView, () => {
 <template>
   <section
     v-if="units.length > 0"
-    ref="heatRootEl"
     class="pr-heat"
-    :class="{ 'pr-heat--brush-dim-anim': legendDimAnim }"
+    :class="{ 'pr-heat--brush-snap': legendBrushSnap }"
     data-testid="memory-heatmap-panel"
     role="region"
     :aria-label="t('memoryAnalysis', locale)"
@@ -1048,15 +1040,16 @@ watch(activeView, () => {
   height: var(--pr-heat-cell);
   border-radius: 1px;
   /* Fill from inline `backgroundColor` / heatFill (#200). */
+  /* Always on so enter/leave can reverse mid-flight; snapped off while sliding. */
+  transition: background-color var(--pr-heat-dim-ms, 200ms) ease;
   cursor: default;
   box-sizing: border-box;
   /* Hits go to the grid — continuous geometry hit-test owns hover. */
   pointer-events: none;
 }
 
-/* Mute↔fill fade only while brush presence flips (enter/leave), not while sliding. */
-.pr-heat--brush-dim-anim .pr-heat__cell {
-  transition: background-color var(--pr-heat-dim-ms, 200ms) ease;
+.pr-heat--brush-snap .pr-heat__cell {
+  transition: none;
 }
 
 .pr-heat__hover {
