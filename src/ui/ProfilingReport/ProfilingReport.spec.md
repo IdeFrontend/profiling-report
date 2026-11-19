@@ -163,7 +163,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 **Multi-operator packs.** An `npu-rep` container with nested operator archives renders a top-left OP selector in the toolbar. Switching operators swaps the swimlane + report models from the pre-adapted per-operator reports (no re-parse) and resets the viewport, selection, and Source-tab frame caret like a fresh load, while preserving aside visibility and panel widths. Re-selecting the already-active operator is a no-op (no reset).
 
-**Multi-timeline packs (§11.14 / DATA-56).** When a leaf carries more than one catalog CTEF embed (`Communication.json` / `PipeTrace.json` / SimtWarp*), the toolbar shows 流水视图显示 radios. Switching swaps the pre-adapted swimlane only (report metrics stay), resets the viewport/selection like an operator switch, and preserves aside visibility and panel widths. Unmatched kinds (e.g. `stat`) are omitted; the control is hidden when fewer than two traces are present. Clearing **source** drops the selector and the cached models with the operator state, so a later select cannot restore the closed swimlane.
+**Multi-timeline packs (§11.14 / DATA-56).** When a leaf carries more than one catalog CTEF embed (`Communication.json` / `PipeTrace.json` / SimtWarp*), the toolbar shows 流水视图显示 radios. Switching swaps the pre-adapted swimlane only (report metrics stay), resets the viewport/selection like an operator switch, and preserves aside visibility and panel widths. Unmatched kinds (e.g. `stat`) are omitted; the control is hidden when fewer than two traces are present. Clearing **source** drops the selector and the cached models with the operator state, so a later select cannot restore the closed swimlane. **统计分析** (`overviewSeries` from Sampling.json) shows only while **pipeTrace** is selected (or when the catalog is absent); communication / warpOccupy hide the charts.
 
 **Corner wash.** Owned by [ReportToolbar](../ReportToolbar/ReportToolbar.spec.md) (criterion 19 there), not the root. At the root it was a child of `.pr-root` beneath `.pr-main`, which is opaque at `z-index: 1`, so it never painted. It also has to exist on both toolbar render paths, and only one of them is a direct child of the root.
 
@@ -210,6 +210,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 31. **PR-ROOT-031** — Multi-timeline source shows 流水视图显示; switching traces swaps swimlane without re-parse and resets the viewport; re-select is a no-op; clearing source hides the selector.
 32. **PR-ROOT-032** — Analysis, stop, optimize and open CANNWork reach the host while reference and view are hidden.
 33. **PR-ROOT-033** — Stop, optimize and open CANNWork have independent 1s cooldowns.
+34. **PR-ROOT-034** — 统计分析 charts show for pipeTrace (and catalog-absent legacy); hide for communication / warpOccupy.
 
 ## Edge Cases
 

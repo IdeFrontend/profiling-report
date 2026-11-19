@@ -395,8 +395,9 @@ Format and statuses: [README.md](README.md).
   2. Menu is **single-select** (times are inconsistent across traces). Show the toolbar control only when ≥2 catalog files are present; omit unmatched options (including design **stat** until a matched embed exists).
   3. Default selection prefers **pipeTrace** when present.
   4. Classic `trace.json` (ns) remains the legacy fallback when the catalog is empty — not a menu row.
-- **Specs:** [timeline-traces](../../../specs/core/timeline-traces.spec.md), [timeline](../../views/timeline.md), [ReportToolbar](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [ProfilingReport](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
-- **Source:** `npu-compute性能优化` §11.14 多流水显示; design `1130/流水显示筛选`.
+  5. **统计分析** (`overviewSeries` from [`Sampling.json`](../../formats/compute/Sampling.json.md) / `sampling.json`) shows only while the active timeline is **pipeTrace**, or when the catalog is absent (legacy classic swimlane). Switching to **communication** / **warpOccupy** hides the charts even when Sampling counters exist.
+- **Specs:** [timeline-traces](../../../specs/core/timeline-traces.spec.md), [timeline](../../views/timeline.md), [overview-charts](../../views/overview-charts.md), [ReportToolbar](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [ProfilingReport](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
+- **Source:** `npu-compute性能优化` §11.14 多流水显示; design `1130/流水显示筛选`; follow-up on [#218](https://github.com/IdeFrontend/profiling-report/pull/218) (2026-11-19).
 
 ---
 

@@ -18,7 +18,7 @@ Inspects the head magic (first 8 bytes):
 2. **`cann-rep`** — classic engineering / sample fixture container. Parses via `parseRep` / `adaptRep` → full `AdaptedReport`.
 3. **Otherwise** — assumes standalone JSON, parses as CTEF, converts via `chromeTraceToSwimlane` → `AdaptedReport` with an empty `ReportViewModel` (empty summary, empty pipeOccupancy, empty overviewSeries). This triggers the aside panel auto-hide in ProfilingReport per PROC-3.
 
-Throws on empty input. Throws with descriptive message on corrupted binary or unparseable JSON. Valid JSON that is not CTEF (no paintable events — complete X or instant `ph:i`) fails in `chromeTraceToSwimlane` and propagates the error.
+Throws on empty input. Throws with descriptive message on corrupted binary or unparseable JSON. Valid JSON that is not CTEF (no paintable events — complete X, positive-`dur` `ph:i`, or instant `ph:i`) fails in `chromeTraceToSwimlane` and propagates the error.
 
 ## Acceptance Criteria
 
@@ -36,6 +36,7 @@ Throws on empty input. Throws with descriptive message on corrupted binary or un
 [PROC-2](../../docs/context/decisions/PROC.md) — product host extension `.npu-rep`. PROC-3 — standalone CTEF opens without CSV pack; aside hides. [npu-rep.spec](./npu-rep.spec.md), [rep-format.spec](./rep-format.spec.md).
 
 ## Changelog
+- **2026-11-18** — Non-CTEF JSON fails when there is no complete interval (`X` with `ts`+`dur`, or `i` with positive `dur`), matching PR-SWIM-017.
 - **2026-09-14** — PR-JSON-004: route simulator leaves by `manifest.json` ([PROC-8](../../docs/context/decisions/PROC.md)).
 - **2026-09-07** — Document product `npu-rep` detection ahead of classic `cann-rep` and CTEF ([PROC-2](../../docs/context/decisions/PROC.md)).
 - **2026-08-05** — Initial spec. Core behaviors established.

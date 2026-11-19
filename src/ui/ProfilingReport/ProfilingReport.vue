@@ -443,7 +443,16 @@ const nsPerPx = computed((): number | undefined => {
 });
 const clockFreqMHz = computed(() => resolveClockFreqMHz(report.value?.summary));
 
-const showOverview = computed(() => (report.value?.overviewSeries?.length ?? 0) > 0);
+/**
+ * 统计分析 from Sampling.json — only with the pipe-trace timeline (or legacy
+ * classic `trace.json` when the §11.14 catalog is absent). Hide when the
+ * catalog selector is on communication / warpOccupy ([DATA-56]).
+ */
+const showOverview = computed(() => {
+  if ((report.value?.overviewSeries?.length ?? 0) === 0) return false;
+  const selected = selectedTimelineTraceId.value;
+  return selected == null || selected === 'pipeTrace';
+});
 /** M4 performance-hints rows (adapter join); empty when absent (DATA-30). */
 const performanceHints = computed(() => report.value?.performanceHints ?? []);
 const hasPerformanceHints = computed(

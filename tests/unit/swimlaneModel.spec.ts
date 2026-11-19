@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { adaptRep, chromeTraceToSwimlane, parseRep } from '../../src/index';
 import { nestParents } from '../../src/adapters/chromeTraceToSwimlane';
+import { withDerivedUtilizations } from '../../src/domain/utilization';
 import { loadOutRepBytes } from '../helpers/fixtures';
 
 describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
@@ -103,12 +104,6 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
 
   it('PR-SWIM-005: rejects traces with no paintable events', () => {
     expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no paintable events/);
-    // Positive-dur ph:i alone is not paintable here (#207 owns that path).
-    expect(() =>
-      chromeTraceToSwimlane({
-        traceEvents: [{ ph: 'i', name: 'RV_VLOOPv2', pid: 1, tid: 1, ts: 10, dur: 3 }],
-      }),
-    ).toThrow(/no paintable events/);
   });
 
   it('PR-SWIM-018: instant ph:i becomes a duration-0 event (#205)', () => {
@@ -117,13 +112,13 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
         { ph: 'M', name: 'thread_name', pid: 1, tid: 'ICACHE_READ', args: { name: 'ICACHE_READ' } },
         { ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 'ICACHE_READ', ts: 12.5 },
         { ph: 'i', name: 'ICACHE_MISS', pid: 1, tid: 'ICACHE_READ', ts: 14, dur: 0 },
-        // Positive dur on ph:i is out of scope here (#207).
-        { ph: 'i', name: 'SKIP_POS_DUR', pid: 1, tid: 'ICACHE_READ', ts: 15, dur: 3 },
+        // Positive dur on ph:i is an interval bar (#207 / PR-SWIM-017).
+        { ph: 'i', name: 'POS_DUR', pid: 1, tid: 'ICACHE_READ', ts: 15, dur: 3 },
         { ph: 'X', name: 'ICACHE REFILL', pid: 1, tid: 'ICACHE_READ', ts: 20, dur: 0 },
       ],
     });
     const events = model.processes[0]!.threads[0]!.events;
-    expect(events).toHaveLength(3);
+    expect(events).toHaveLength(4);
     expect(events[0]).toEqual(
       expect.objectContaining({ name: 'ICACHE_HIT', startTime: 12_500, duration: 0 }),
     );
@@ -131,6 +126,9 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       expect.objectContaining({ name: 'ICACHE_MISS', startTime: 14_000, duration: 0 }),
     );
     expect(events[2]).toEqual(
+      expect.objectContaining({ name: 'POS_DUR', startTime: 15_000, duration: 3_000 }),
+    );
+    expect(events[3]).toEqual(
       expect.objectContaining({ name: 'ICACHE REFILL', startTime: 20_000, duration: 0 }),
     );
 
@@ -234,6 +232,60 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(nanSrc.events.map((e) => e.name)).toEqual(['op']);
     expect(nanSrc.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
     expect(Number.isFinite(nanDur.maxTime)).toBe(true);
+  });
+
+  it('PR-SWIM-017: ph:i with positive finite dur becomes an interval bar (#207)', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'M', name: 'process_name', pid: 20, args: { name: 'AIV0_RVECLP' } },
+        { ph: 'M', name: 'thread_name', pid: 20, tid: 1, args: { name: 'SLOT00' } },
+        { ph: 'i', name: 'RV_VLOOPv2', pid: 20, tid: 1, ts: 12.5, dur: 0.006 },
+      ],
+    });
+    const thread = model.processes[0]!.threads[0]!;
+    expect(model.processes[0]!.name).toBe('AIV0_RVECLP');
+    expect(thread.events).toHaveLength(1);
+    const ev = thread.events[0]!;
+    expect(ev.name).toBe('RV_VLOOPv2');
+    expect(ev.startTime).toBe(12_500);
+    expect(ev.duration).toBe(6);
+    // Real i-with-dur slices are busy time — derived util must not hide them.
+    const derived = withDerivedUtilizations(model);
+    expect(derived.processes[0]!.threads[0]!.utilization).toBe(1);
+  });
+
+  it('PR-SWIM-017: non-finite dur is not an interval', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 1, dur: 2 },
+        { ph: 'i', name: 'nan', pid: 1, tid: 1, ts: 3, dur: Number.NaN },
+        { ph: 'i', name: 'inf', pid: 1, tid: 1, ts: 4, dur: Number.POSITIVE_INFINITY },
+      ],
+    });
+    expect(model.processes[0]!.threads[0]!.events.map((e) => e.name)).toEqual(['op']);
+    expect(() =>
+      chromeTraceToSwimlane({
+        traceEvents: [{ ph: 'i', name: 'inf', pid: 1, tid: 1, ts: 4, dur: Number.POSITIVE_INFINITY }],
+      }),
+    ).toThrow(/no paintable events/);
+  });
+
+  it('PR-SWIM-017: s/f inside ph:i binds that interval, not the enclosing X', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'outer', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'i', name: 'slice', pid: 1, tid: 1, ts: 10, dur: 10 },
+        { ph: 'X', name: 'target', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 's', id: 'f1', pid: 1, tid: 1, ts: 15 },
+        { ph: 'f', id: 'f1', pid: 1, tid: 2, ts: 205 },
+      ],
+    });
+    const t1 = model.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    const t2 = model.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+    expect(t1.events.map((e) => e.name)).toEqual(['outer', 'slice']);
+    expect(t1.events[0]!.dependencies).toBeUndefined();
+    expect(t1.events[1]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(t2.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 1 }]);
   });
 
   it('PR-SWIM-006: s/f pairs link EventRefs across threads', () => {
