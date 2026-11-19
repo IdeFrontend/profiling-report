@@ -345,36 +345,88 @@ describe('MemoryHeatmapPanel', () => {
     );
   });
 
-  it('PR-HEAT-013: SA cell tip shows Start Address, Cell Size, Accesses Count + hover ring', async () => {
-    const wrapper = mountPanel(
-      {
-        selectedUnit: 'ub',
-        locale: 'zh-CN',
-        model: {
-          units: [
-            {
-              id: 'ub',
-              views: [
-                view({
-                  memoryName: 'UB',
-                  cellSize: 128,
-                  baseAddress: 0x100,
-                  blocks: blocks(8, 2),
-                  totalBytes: 1024,
-                  usedBytes: 256,
-                  freeBytes: 768,
-                }),
-              ],
-            },
+  /**
+   * Stub a 2×4 lattice with 10px cells so pointermove hit-test is deterministic in jsdom.
+   * Outer = border×2 + pad×2 + 2×10 + 1×gap = 4+4+20+2 = 30 wide; height 4 rows → 50.
+   */
+  function stubHeatGrid(wrapper: ReturnType<typeof mountPanel>, cols = 2, rows = 4, cell = 10) {
+    const gap = 2;
+    const pad = 2;
+    const border = 2;
+    const innerW = cols * cell + (cols - 1) * gap;
+    const innerH = rows * cell + (rows - 1) * gap;
+    const width = innerW + 2 * pad + 2 * border;
+    const height = innerH + 2 * pad + 2 * border;
+    const grid = wrapper.get('[data-testid="heat-grid"]');
+    const el = grid.element as HTMLElement;
+    el.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height,
+        width,
+        height,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    return {
+      grid,
+      /** Client coords for the center of cell (col, row). */
+      cellCenter(col: number, row: number) {
+        const x = border + pad + col * (cell + gap) + cell / 2;
+        const y = border + pad + row * (cell + gap) + cell / 2;
+        return { clientX: x, clientY: y };
+      },
+      /** Client coords in the gap between col0 and col1 on row 0. */
+      seamAfterCol0() {
+        const x = border + pad + cell + gap / 2;
+        const y = border + pad + cell / 2;
+        return { clientX: x, clientY: y };
+      },
+    };
+  }
+
+  const tipFixture = {
+    selectedUnit: 'ub' as const,
+    model: {
+      units: [
+        {
+          id: 'ub' as const,
+          views: [
+            view({
+              memoryName: 'UB',
+              columns: 2,
+              rows: 4,
+              cellSize: 128,
+              baseAddress: 0x100,
+              blocks: blocks(8, 2),
+              totalBytes: 1024,
+              usedBytes: 256,
+              freeBytes: 768,
+            }),
           ],
         },
-      },
+      ],
+    },
+  };
+
+  it('PR-HEAT-013: SA cell tip shows Start Address, Cell Size, Accesses Count + overlay ring', async () => {
+    const wrapper = mountPanel(
+      { ...tipFixture, locale: 'zh-CN' },
       { attachTo: document.body },
     );
     const cell = wrapper.findAll('.pr-heat__cell')[0]!;
     expect(cell.attributes('data-access-count')).toBe('300090');
-    await cell.trigger('pointerenter', { clientX: 40, clientY: 60 });
-    expect(cell.classes()).toContain('pr-heat__cell--hover');
+    // No per-cell hover class — overlay owns the ring (no layout grow).
+    expect(cell.classes()).not.toContain('pr-heat__cell--hover');
+
+    const { grid, cellCenter } = stubHeatGrid(wrapper);
+    await grid.trigger('pointermove', cellCenter(0, 0));
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(true);
     const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
     expect(tip).not.toBeNull();
     // BaseAddress 0x100 + index 0 * 128 = 0x100
@@ -388,31 +440,35 @@ describe('MemoryHeatmapPanel', () => {
     expect(tip!.querySelector('[data-testid="heat-cell-tip-accesses-value"]')!.textContent).toBe(
       '300,090',
     );
-    // EventTooltip chrome on the teleported tip.
     expect((tip as HTMLElement).classList.contains('pr-tooltip')).toBe(true);
-    // Leaving a cell into the seam must not thrash — sticky until grid leave / other cell.
-    await cell.trigger('pointerleave');
-    expect(cell.classes()).toContain('pr-heat__cell--hover');
+
+    // Seam move keeps sticky hover (geometry attributes gap to left cell).
+    await grid.trigger('pointermove', stubHeatGrid(wrapper).seamAfterCol0());
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(true);
     expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).not.toBeNull();
-    await wrapper.get('[data-testid="heat-grid"]').trigger('pointerleave');
-    expect(cell.classes()).not.toContain('pr-heat__cell--hover');
+
+    await grid.trigger('pointerleave');
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(false);
     expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).toBeNull();
     wrapper.unmount();
   });
 
-  it('PR-HEAT-013: tip sticks across cell seams; switches only on another cell', async () => {
-    const wrapper = mountPanel({ selectedUnit: 'ub', locale: 'en' }, { attachTo: document.body });
-    const cells = wrapper.findAll('.pr-heat__cell');
-    await cells[0]!.trigger('pointerenter', { clientX: 10, clientY: 10 });
-    expect(cells[0]!.classes()).toContain('pr-heat__cell--hover');
+  it('PR-HEAT-013: tip sticks across seams; switches only when hit-test lands on another cell', async () => {
+    const wrapper = mountPanel(
+      { ...tipFixture, locale: 'en' },
+      { attachTo: document.body },
+    );
+    const { grid, cellCenter, seamAfterCol0 } = stubHeatGrid(wrapper);
+    await grid.trigger('pointermove', cellCenter(0, 0));
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(true);
     expect(
       document.querySelector('[data-testid="heat-cell-tip-accesses-value"]')!.textContent,
     ).toBe('300,090');
-    await cells[0]!.trigger('pointerleave');
-    expect(cells[0]!.classes()).toContain('pr-heat__cell--hover');
-    await cells[1]!.trigger('pointerenter', { clientX: 20, clientY: 10 });
-    expect(cells[0]!.classes()).not.toContain('pr-heat__cell--hover');
-    expect(cells[1]!.classes()).toContain('pr-heat__cell--hover');
+    await grid.trigger('pointermove', seamAfterCol0());
+    expect(
+      document.querySelector('[data-testid="heat-cell-tip-accesses-value"]')!.textContent,
+    ).toBe('300,090');
+    await grid.trigger('pointermove', cellCenter(1, 0));
     expect(
       document.querySelector('[data-testid="heat-cell-tip-accesses-value"]')!.textContent,
     ).toBe('32');
@@ -420,13 +476,19 @@ describe('MemoryHeatmapPanel', () => {
   });
 
   it('PR-HEAT-013: EN tip labels match SA Accesses Count', async () => {
-    const wrapper = mountPanel({ selectedUnit: 'ub', locale: 'en' }, { attachTo: document.body });
-    await wrapper.findAll('.pr-heat__cell')[0]!.trigger('pointerenter', { clientX: 10, clientY: 10 });
+    const wrapper = mountPanel(
+      { ...tipFixture, locale: 'en' },
+      { attachTo: document.body },
+    );
+    const { grid, cellCenter } = stubHeatGrid(wrapper);
+    await grid.trigger('pointermove', cellCenter(0, 0));
     const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
     expect(tip!.textContent).toContain('Start Address');
     expect(tip!.textContent).toContain('Cell Size');
     expect(tip!.textContent).toContain('Accesses Count');
-    expect(tip!.querySelector('[data-testid="heat-cell-tip-address-value"]')!.textContent).toBe('0x0');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-address-value"]')!.textContent).toBe(
+      '0x100',
+    );
     wrapper.unmount();
   });
 });
