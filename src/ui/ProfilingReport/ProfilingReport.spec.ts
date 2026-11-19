@@ -151,6 +151,8 @@ function heatmapReport() {
               memoryName: 'UB',
               columns: 8,
               rows: 4,
+              cellSize: 128,
+              baseAddress: 0,
               blocks,
               totalBytes: 1024,
               usedBytes: 96,

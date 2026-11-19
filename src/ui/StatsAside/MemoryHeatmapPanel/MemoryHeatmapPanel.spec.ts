@@ -26,6 +26,8 @@ function view(partial: Partial<MemoryHeatmapView> & Pick<MemoryHeatmapView, 'blo
     memoryName: 'UB',
     columns: 16,
     rows: 26,
+    cellSize: 128,
+    baseAddress: 0,
     ...partial,
   };
 }
@@ -91,23 +93,38 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: legend is a Low→High gradient (#200)', () => {
+  it('PR-HEAT-002: legend is a single % tick HSL gradient strip (#200)', () => {
     const wrapper = mountPanel({ locale: 'en' });
     const legend = wrapper.get('[data-testid="heat-legend"]');
-    expect(legend.text()).toContain('Low');
-    expect(legend.text()).toContain('High');
-    expect(legend.find('.pr-heat__gradient').exists()).toBe(true);
+    expect(legend.get('[data-testid="heat-legend-gradient"]').exists()).toBe(true);
+    const ticks = legend.findAll('[data-testid="heat-legend-ticks"] .pr-heat__legend-tick');
+    expect(ticks.map((n) => n.text())).toEqual([
+      '0%',
+      '10%',
+      '20%',
+      '30%',
+      '40%',
+      '50%',
+      '60%',
+      '70%',
+      '80%',
+      '90%',
+      '100%',
+    ]);
+    expect(legend.text()).not.toContain('Low');
+    expect(legend.text()).not.toContain('High');
   });
 
-  it('PR-HEAT-003: paints one cell per block with continuous intensity (#200)', () => {
+  it('PR-HEAT-003: paints one cell per block with continuous HSL intensity (#200)', () => {
     const wrapper = mountPanel();
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells).toHaveLength(416);
     expect(cells[0].attributes('data-state')).toBe('withData');
     expect(Number(cells[0].attributes('data-intensity'))).toBeGreaterThan(0);
-    expect(cells[0].attributes('style')).toMatch(/background:/);
+    expect(cells[0].attributes('style')).toMatch(/background:\s*hsl\(/);
     expect(cells[20].attributes('data-state')).toBe('withoutData');
     expect(cells[20].attributes('data-intensity')).toBe('0');
+    expect(cells[20].attributes('style')).toMatch(/hsl\(100/);
   });
 
   it('PR-HEAT-004: shows Total/Used/Free with spaced shared units (#201); omits when Total is unknown', () => {
@@ -328,30 +345,65 @@ describe('MemoryHeatmapPanel', () => {
     );
   });
 
-  it('PR-HEAT-013: BiProf cell tip shows memory name + 已用指令条数 with comma count', async () => {
-    const wrapper = mountPanel({ selectedUnit: 'ub', locale: 'zh-CN' }, { attachTo: document.body });
+  it('PR-HEAT-013: SA cell tip shows Start Address, Cell Size, Accesses Count + hover ring', async () => {
+    const wrapper = mountPanel(
+      {
+        selectedUnit: 'ub',
+        locale: 'zh-CN',
+        model: {
+          units: [
+            {
+              id: 'ub',
+              views: [
+                view({
+                  memoryName: 'UB',
+                  cellSize: 128,
+                  baseAddress: 0x100,
+                  blocks: blocks(8, 2),
+                  totalBytes: 1024,
+                  usedBytes: 256,
+                  freeBytes: 768,
+                }),
+              ],
+            },
+          ],
+        },
+      },
+      { attachTo: document.body },
+    );
     const cell = wrapper.findAll('.pr-heat__cell')[0]!;
     expect(cell.attributes('data-access-count')).toBe('300090');
     await cell.trigger('pointerenter', { clientX: 40, clientY: 60 });
+    expect(cell.classes()).toContain('pr-heat__cell--hover');
     const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
     expect(tip).not.toBeNull();
-    expect(tip!.querySelector('[data-testid="heat-cell-tip-title"]')!.textContent).toBe('UB');
-    expect(tip!.querySelector('[data-testid="heat-cell-tip-row"]')!.textContent).toContain('已用指令条数');
-    expect(tip!.querySelector('[data-testid="heat-cell-tip-value"]')!.textContent).toBe('300,090');
+    // BaseAddress 0x100 + index 0 * 128 = 0x100
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-address"]')!.textContent).toContain('起始地址');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-address-value"]')!.textContent).toBe('0x100');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-cell-size"]')!.textContent).toContain('单元大小');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-cell-size-value"]')!.textContent).toBe(
+      '128 Bytes',
+    );
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-accesses"]')!.textContent).toContain('访问次数');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-accesses-value"]')!.textContent).toBe(
+      '300,090',
+    );
     // EventTooltip chrome on the teleported tip.
     expect((tip as HTMLElement).classList.contains('pr-tooltip')).toBe(true);
     await cell.trigger('pointerleave');
+    expect(cell.classes()).not.toContain('pr-heat__cell--hover');
     expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).toBeNull();
     wrapper.unmount();
   });
 
-  it('PR-HEAT-013: EN tip label is Instructions used', async () => {
+  it('PR-HEAT-013: EN tip labels match SA Accesses Count', async () => {
     const wrapper = mountPanel({ selectedUnit: 'ub', locale: 'en' }, { attachTo: document.body });
     await wrapper.findAll('.pr-heat__cell')[0]!.trigger('pointerenter', { clientX: 10, clientY: 10 });
     const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
-    expect(tip!.querySelector('[data-testid="heat-cell-tip-row"]')!.textContent).toContain(
-      'Instructions used',
-    );
+    expect(tip!.textContent).toContain('Start Address');
+    expect(tip!.textContent).toContain('Cell Size');
+    expect(tip!.textContent).toContain('Accesses Count');
+    expect(tip!.querySelector('[data-testid="heat-cell-tip-address-value"]')!.textContent).toBe('0x0');
     wrapper.unmount();
   });
 });
