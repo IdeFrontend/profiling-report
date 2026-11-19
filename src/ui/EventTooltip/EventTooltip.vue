@@ -51,7 +51,7 @@ const title = computed(() => {
   return name;
 });
 
-/** Instant ticks (`duration === 0`) show one Timestamp row instead of Start/Dur/End. */
+/** Instant ticks (`duration === 0`) show a bare formatted time instead of Start/Dur/End. */
 const isInstantTick = computed(() => props.event.duration === 0);
 </script>
 
@@ -73,7 +73,6 @@ const isInstantTick = computed(() => props.event.duration === 0);
     </div>
     <template v-if="isInstantTick">
       <div data-testid="event-tooltip-timestamp">
-        {{ t('timestamp', locale) }}:
         {{ formatDisplayTimeAuto(event.startTime, timeOrigin, startEndOpts) }}
       </div>
     </template>

@@ -97,7 +97,7 @@ describe('EventTooltip', () => {
     expect(wrapper.find('[data-testid="event-tooltip-lane"]').text()).toBe('MTE1');
   });
 
-  it('PR-TOOLTIP-005: zero-duration ticks show Timestamp only (no Start/Dur/End)', () => {
+  it('PR-TOOLTIP-005: zero-duration ticks show a bare formatted time (no Start/Dur/End)', () => {
     const wrapper = mount(EventTooltip, {
       props: {
         event: makeEvent({ name: 'ICACHE_HIT', startTime: 4_542, duration: 0 }),
@@ -106,10 +106,10 @@ describe('EventTooltip', () => {
         timeOrigin: 0,
       },
     });
+    const tip = wrapper.get('[data-testid="event-tooltip-timestamp"]');
+    expect(tip.text()).toMatch(/4\.542/);
+    expect(tip.text()).not.toContain('Timestamp');
     const text = wrapper.text();
-    expect(wrapper.find('[data-testid="event-tooltip-timestamp"]').exists()).toBe(true);
-    expect(text).toContain('Timestamp');
-    expect(text).toContain('4.542');
     expect(text).not.toContain('Start');
     expect(text).not.toContain('Duration');
     expect(text).not.toContain('End');
