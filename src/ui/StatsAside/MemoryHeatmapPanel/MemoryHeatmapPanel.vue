@@ -1058,10 +1058,8 @@ watch(activeView, () => {
   border-radius: 1px;
   box-sizing: border-box;
   pointer-events: none;
-  /* Size + fill from hoverOverlayStyle; lift above neighbors. */
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 2px 8px rgba(0, 0, 0, 0.45);
+  /* Size + fill from hoverOverlayStyle; stroke matches board gap (#303f5e / 2px). */
+  box-shadow: 0 0 0 2px #303f5e;
 }
 
 .pr-heat__title {

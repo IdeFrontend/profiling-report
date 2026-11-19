@@ -72,7 +72,7 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | High end (`intensity = 1`) | `#3D64AD` (Used / deep blue) |
 | Low end (`intensity = 0`) | `#AFC6FE` (Free / light blue) |
 | In between | RGB lerp Free→Used (`#AFC6FE` → `#3D64AD`, #200) |
-| Hovered cell | single overlay zoomed tile (+4px/side, centered, same fill + light lift shadow); seams owned by hit-test; sticky until grid leave / other cell |
+| Hovered cell | single overlay zoomed tile (+4px/side, centered, same fill + `2px` `#303f5e` stroke matching board gaps); seams owned by hit-test; sticky until grid leave / other cell |
 | Grid frame | `2px` `#6e798d` border around the board, `5px` radius (sketch ~20px at 4×), one `2px` gap of inset inside it; cells clip to the radius |
 | Grid board (the lattice the gaps cut) | `#303f5e` |
 | Grid cell | `aspect-ratio: 1`, `2px` gap, `1px` radius |
