@@ -276,8 +276,12 @@ const hoverOverlayStyle = computed<CSSProperties>(() => {
 });
 
 const cellTipStyle = computed<CSSProperties>(() => {
-  if (!tipContent.value) return { position: 'fixed', left: '0px', top: '0px' };
-  const { left, top } = placeFixedTip({
+  if (!tipContent.value) {
+    return { position: 'fixed', left: '0px', top: '0px', right: 'auto', bottom: 'auto' };
+  }
+  // Flipped axes use right/bottom so the pointer gap stays FIXED_TIP_OFFSET_PX even when
+  // HEAT_CELL_TIP_EST_* overshoots the painted tip (left = x - offset - tipW did not).
+  const pos = placeFixedTip({
     x: tipPointer.value.x,
     y: tipPointer.value.y,
     tipW: HEAT_CELL_TIP_EST_W,
@@ -289,8 +293,10 @@ const cellTipStyle = computed<CSSProperties>(() => {
   return {
     position: 'fixed',
     zIndex: 1000,
-    left: `${left}px`,
-    top: `${top}px`,
+    left: pos.left == null ? 'auto' : `${pos.left}px`,
+    right: pos.right == null ? 'auto' : `${pos.right}px`,
+    top: pos.top == null ? 'auto' : `${pos.top}px`,
+    bottom: pos.bottom == null ? 'auto' : `${pos.bottom}px`,
   };
 });
 
