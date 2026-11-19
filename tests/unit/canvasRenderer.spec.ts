@@ -1468,9 +1468,9 @@ describe('PR-RENDER: lane chrome color', () => {
   });
 
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
-    // Singles stay full bright; multi-hit columns use the log curve into [minDim, 1].
-    expect(tickDensityDim(1)).toBe(1);
-    expect(tickDensityDim(2)).toBeGreaterThanOrEqual(TICK_DENSITY_MIN_DIM);
+    // Budget curve: count 1 → minDim, cap → 1 (isolated singles get dim 1 via runWidth===1).
+    expect(tickDensityDim(1)).toBeCloseTo(TICK_DENSITY_MIN_DIM, 5);
+    expect(tickDensityDim(2)).toBeGreaterThan(TICK_DENSITY_MIN_DIM);
     expect(tickDensityDim(2)).toBeLessThan(1);
     expect(tickDensityDim(16)).toBeCloseTo(1, 5);
     expect(tickDensityDim(8)).toBeGreaterThan(tickDensityDim(4));
@@ -1493,61 +1493,86 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(panA).toEqual(panB);
     expect(assignTickDensityDims(panA)).toEqual(assignTickDensityDims(panB));
 
+    // Per-run ink budget: 3×9 → targetInk=min(3, dim(27))=1, then odd-step alternate.
     const equalPlateau = assignTickDensityDims([
       { col: 0, count: 9, t0: 0, t1: 1 },
       { col: 1, count: 9, t0: 1, t1: 2 },
       { col: 2, count: 9, t0: 2, t1: 3 },
     ]);
-    const base9 = tickDensityDim(9);
-    expect(equalPlateau[0]!.dim).toBeCloseTo(base9, 5);
-    expect(equalPlateau[1]!.dim).toBeCloseTo(base9 * TICK_ALTERNATE_FACTOR, 5);
-    expect(equalPlateau[2]!.dim).toBeCloseTo(base9, 5);
+    expect(equalPlateau[0]!.dim).toBeCloseTo(1 / 3, 5);
+    expect(equalPlateau[1]!.dim).toBeCloseTo((1 / 3) * TICK_ALTERNATE_FACTOR, 5);
+    expect(equalPlateau[2]!.dim).toBeCloseTo(1 / 3, 5);
 
+    const nearInk = Math.min(2, tickDensityDim(17));
     const nearCounts = assignTickDensityDims([
       { col: 0, count: 9, t0: 0, t1: 1 },
       { col: 1, count: 8, t0: 1, t1: 2 },
     ]);
-    const base8 = tickDensityDim(8);
     const sim98 = tickCountSimilarity(8, 9);
-    expect(nearCounts[0]!.dim).toBeCloseTo(base9, 5);
-    expect(nearCounts[1]!.dim).toBeCloseTo(base8 * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim98), 5);
-    expect(nearCounts[1]!.dim).toBeLessThan(base8);
-    expect(nearCounts[1]!.dim).toBeGreaterThan(base8 * TICK_ALTERNATE_FACTOR - 1e-6);
+    expect(nearCounts[0]!.dim).toBeCloseTo(nearInk * (9 / 17), 5);
+    expect(nearCounts[1]!.dim).toBeCloseTo(
+      nearInk * (8 / 17) * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim98),
+      5,
+    );
 
+    const farInk = Math.min(2, tickDensityDim(11));
     const farCounts = assignTickDensityDims([
       { col: 0, count: 9, t0: 0, t1: 1 },
       { col: 1, count: 2, t0: 1, t1: 2 },
     ]);
-    const base2 = tickDensityDim(2);
     const sim92 = tickCountSimilarity(2, 9);
-    expect(farCounts[1]!.dim).toBeCloseTo(base2 * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim92), 5);
-    expect(farCounts[1]!.dim).toBeGreaterThan(base2 * 0.9);
+    expect(farCounts[0]!.dim).toBeCloseTo(farInk * (9 / 11), 5);
+    expect(farCounts[1]!.dim).toBeCloseTo(
+      farInk * (2 / 11) * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim92),
+      5,
+    );
 
-    // Gap resets the alternate run.
+    // Gap resets: each single-column run gets full targetInk 1.
     const gapped = assignTickDensityDims([
       { col: 0, count: 9, t0: 0, t1: 1 },
       { col: 2, count: 9, t0: 2, t1: 3 },
     ]);
-    expect(gapped[0]!.dim).toBeCloseTo(base9, 5);
-    expect(gapped[1]!.dim).toBeCloseTo(base9, 5);
+    expect(gapped[0]!.dim).toBe(1);
+    expect(gapped[1]!.dim).toBe(1);
 
-    // Adjacent singles stay full bright (no alternate striping).
-    const singles = assignTickDensityDims([
+    // Adjacent singles share ink (no mid-zoom splash); isolated single stays full bright.
+    const adjInk = Math.min(3, tickDensityDim(3));
+    const adjacentSingles = assignTickDensityDims([
       { col: 0, count: 1, t0: 0, t1: 1 },
       { col: 1, count: 1, t0: 1, t1: 2 },
       { col: 2, count: 1, t0: 2, t1: 3 },
     ]);
-    expect(singles.map((m) => m.dim)).toEqual([1, 1, 1]);
+    expect(adjacentSingles[0]!.dim).toBeCloseTo(adjInk / 3, 5);
+    expect(adjacentSingles[1]!.dim).toBeCloseTo((adjInk / 3) * TICK_ALTERNATE_FACTOR, 5);
+    expect(adjacentSingles[2]!.dim).toBeCloseTo(adjInk / 3, 5);
+    const inkBeforeAlt =
+      adjacentSingles[0]!.dim +
+      adjacentSingles[1]!.dim / TICK_ALTERNATE_FACTOR +
+      adjacentSingles[2]!.dim;
+    expect(inkBeforeAlt).toBeCloseTo(adjInk, 5);
+    expect(adjInk).toBeLessThan(1);
 
-    // Unified path: dense + sparse bins all become full-height marks (no discrete partition).
+    const isolated = assignTickDensityDims([{ col: 5, count: 1, t0: 5, t1: 6 }]);
+    expect(isolated[0]!.dim).toBe(1);
+
+    // Sixteen adjacent singles: shared budget tickDensityDim(16)=1 (not 16× full bright).
+    const splash = assignTickDensityDims(
+      Array.from({ length: 16 }, (_, i) => ({ col: i, count: 1, t0: i, t1: i + 1 })),
+    );
+    const splashSum = splash.reduce((s, m) => s + m.dim, 0);
+    expect(splashSum).toBeLessThan(1.1);
+    expect(splashSum).toBeGreaterThan(0.5);
+    expect(splash.every((m) => m.dim < 0.2)).toBe(true);
+
+    // Unified path still paints density marks for mixed bins.
     const denseLeft = Array.from({ length: 8 }, (_, i) => i * 0.05);
-    const sparseRight = [0.7, 0.9];
+    const sparseRight = [0.9]; // world col 4 — gap from dense cols 0–1 → isolated full bright
     const marks = assignTickDensityDims(
       binTicksByCssColumn([...denseLeft, ...sparseRight], 0, 1, 5),
     );
     expect(marks.length).toBeGreaterThan(0);
     expect(marks.some((m) => m.count >= 2)).toBe(true);
-    expect(marks.filter((m) => m.count === 1).every((m) => m.dim === 1)).toBe(true);
+    expect(marks.some((m) => m.count === 1 && m.dim === 1)).toBe(true);
 
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;

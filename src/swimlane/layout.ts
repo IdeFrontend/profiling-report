@@ -1674,7 +1674,7 @@ export function measureRangeExactEdgeMarks(
   );
 }
 
-/** Floor dim for multi-hit CSS columns in tick density paint (PR-RENDER-066). */
+/** Floor dim for the count→ink budget curve (PR-RENDER-066). */
 export const TICK_DENSITY_MIN_DIM = 0.35;
 /** Count at which `tickDensityDim` saturates to 1. */
 export const TICK_DENSITY_CAP = 16;
@@ -1684,13 +1684,13 @@ export const TICK_COUNT_SIM_SIGMA = 0.35;
 export const TICK_ALTERNATE_FACTOR = 0.6;
 
 /**
- * Continuous count → source-over dim for a density column.
- * Single-tick columns stay full bright (`1`); multi-hit columns use log into `[minDim, 1]`.
+ * Continuous count → ink-budget weight (count 1 → minDim, cap → 1).
+ * Used as the shared budget for a multi-column contiguous run; isolated singles
+ * get full bright via `assignTickDensityDims` (`runWidth === 1` → targetInk 1).
  */
 export function tickDensityDim(count: number): number {
   const c = Math.max(0, count);
   if (c <= 0) return 0;
-  if (c <= 1) return 1;
   const t = Math.log(c) / Math.log(TICK_DENSITY_CAP);
   return TICK_DENSITY_MIN_DIM + (1 - TICK_DENSITY_MIN_DIM) * Math.min(1, Math.max(0, t));
 }
@@ -1755,31 +1755,51 @@ export interface TickDensityMark extends TickDensityBin {
 }
 
 /**
- * Assign paint dims: `tickDensityDim(count)`, then similarity-weighted alternate on odd steps
- * of contiguous runs that include a multi-hit column (PR-RENDER-066). Adjacent single-tick
- * columns stay full bright so resolved ticks are not striped.
+ * Assign paint dims with per-run ink conservation (PR-RENDER-066).
+ * Contiguous occupied columns share `targetInk = runWidth === 1 ? 1 : min(runWidth, tickDensityDim(runTicks))`
+ * distributed by count, then similarity-weighted alternate on odd steps. Spreading N ticks across
+ * N adjacent columns no longer multiplies brightness (mid-zoom splash); gap-isolated singles stay full bright.
  */
 export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
   const out: TickDensityMark[] = [];
-  let runStep = 0;
-  let prevCol = Number.NEGATIVE_INFINITY;
-  let prevCount = 0;
-  for (const bin of bins) {
-    const base = tickDensityDim(bin.count);
-    let dim = base;
-    if (bin.col === prevCol + 1) {
-      runStep += 1;
-      if (runStep % 2 === 1 && (bin.count >= 2 || prevCount >= 2)) {
-        const sim = tickCountSimilarity(bin.count, prevCount);
-        dim = base * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim);
-      }
-    } else {
-      runStep = 0;
+  if (bins.length === 0) return out;
+
+  let runStart = 0;
+  const flushRun = (endExclusive: number): void => {
+    const run = bins.slice(runStart, endExclusive);
+    if (run.length === 0) return;
+    let runTicks = 0;
+    for (const b of run) runTicks += b.count;
+    const runWidth = run[run.length - 1]!.col - run[0]!.col + 1;
+    const targetInk = runWidth === 1 ? 1 : Math.min(runWidth, tickDensityDim(runTicks));
+    const marks: TickDensityMark[] = [];
+    for (const b of run) {
+      marks.push({
+        col: b.col,
+        count: b.count,
+        t0: b.t0,
+        t1: b.t1,
+        dim: targetInk * (b.count / runTicks),
+      });
     }
-    out.push({ col: bin.col, count: bin.count, t0: bin.t0, t1: bin.t1, dim });
-    prevCol = bin.col;
-    prevCount = bin.count;
+    for (let i = 1; i < marks.length; i++) {
+      if (i % 2 === 1) {
+        const cur = marks[i]!;
+        const prev = marks[i - 1]!;
+        const sim = tickCountSimilarity(cur.count, prev.count);
+        cur.dim *= 1 - (1 - TICK_ALTERNATE_FACTOR) * sim;
+      }
+    }
+    for (const m of marks) out.push(m);
+  };
+
+  for (let i = 1; i < bins.length; i++) {
+    if (bins[i]!.col !== bins[i - 1]!.col + 1) {
+      flushRun(i);
+      runStart = i;
+    }
   }
+  flushRun(bins.length);
   return out;
 }
 
