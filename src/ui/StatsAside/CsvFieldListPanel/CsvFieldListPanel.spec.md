@@ -39,6 +39,7 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 7. **PR-CSV-007** — ArchDiagramMetrics EAV pivots to parameterName → value (deduped; meta columns hidden).
 8. **PR-CSV-008** — View all only for wide-row projection; hidden for ArchDiagram EAV even when `showViewAll` is true.
 9. **PR-CSV-009** — Tab label for `PipeUtilizationHist.csv` is `Pipe Utilization`; fields use projected `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys ([UI-55](../../../../docs/context/decisions/UI.md)).
+10. **PR-CSV-010** — Field VALUES display at most four decimals (`formatDetailValue`): `0.5052200000000001` → `0.5052`; shorter precision keeps its string.
 
 ## Visual
 

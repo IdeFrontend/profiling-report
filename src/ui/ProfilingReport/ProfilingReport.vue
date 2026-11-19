@@ -35,6 +35,9 @@ import {
   DEFAULT_DEPENDENCY_DEPTH,
   normalizeDependencyDepth,
   type AdaptedReport,
+  type Baseline,
+  type BaselineReportData,
+  type BaselinePick,
   type DependencyMode,
   type MeasureRange,
   type MemoryHeatmapUnitId,
@@ -164,6 +167,33 @@ const props = withDefaults(defineProps<{
    * Library never reads the filesystem; return `null` to keep the placeholder.
    */
   resolveSourceFile?: ResolveSourceFile;
+  /** Host-owned baseline list (对比基线) — the library renders and selects; the
+   *  host persists (ARCHITECTURE: host persistence via props/state, no storage in
+   *  the library). */
+  baselines?: Baseline[];
+  /** Current baseline id. */
+  selectedBaselineId?: string | null;
+  /**
+   * Optional host hook: opens the file dialog for the baseline picker + press.
+   * The library never reads the filesystem; return `null` to cancel. Absent =
+   * the baseline control is hidden.
+   */
+  pickBaselineFile?: () => Promise<BaselinePick | null>;
+  /**
+   * Recent performance reports for the picker's checkbox view — what the host
+   * currently lists as its own reports (MSTT: the Performance results tree;
+   * the bundled web hosts: the shared demo list). Host-owned: the checked set
+   * IS the `baselines` list and every toggle comes back as `update:baselines`.
+   */
+  /**
+   * The selected baseline's adapted pack (对比基线 comparison), supplied by the
+   * host: it adapts the baseline bytes itself via the public `loadReportSource`
+   * and tags the result with the baseline id. Data-only side channel — never
+   * enters the main load path; a payload whose id does not match the current
+   * selection is ignored (a late adaptation must not paint under a new pick).
+   */
+  baselineReport?: BaselineReportData | null;
+  recentBaselines?: Baseline[];
 }>(), {
   title: undefined,
   source: undefined,
@@ -202,6 +232,8 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
   'export-html': [{ fileName: string }];
+  'update:baselines': [baselines: Baseline[]];
+  'update:selectedBaselineId': [id: string | null];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -300,6 +332,8 @@ const timelineRef = ref<{
   ) => number;
 } | null>(null);
 const layoutRef = ref<{ rootEl: HTMLElement | null } | null>(null);
+/** The mounted toolbar (fallback or main) — its exposed `closeBaselinesPicker`. */
+const toolbarRef = ref<InstanceType<typeof ReportToolbar> | null>(null);
 /** Session-only panel sizes (not persisted). User drag updates preferred; fit clamps actual. */
 const preferredGutterWidth = ref(GUTTER_WIDTH_DEFAULT);
 const preferredAsideWidth = ref(ASIDE_WIDTH_DEFAULT);
@@ -427,6 +461,13 @@ watch(archMetricMode, (mode) => {
   if (!topologyFullscreen.value || !isArchDiagram.value) return;
   const csv = archDiagramCsvFromTexts(report.value?.csvTexts);
   fullscreenTopology.value = topologyFromArchDiagramMetrics(csv, mode) ?? null;
+  if (fullscreenBaselineTopology.value) {
+    const baseCsv = archDiagramCsvFromTexts(
+      activeBaselineReport.value?.reportModel?.csvTexts,
+    );
+    fullscreenBaselineTopology.value =
+      topologyFromArchDiagramMetrics(baseCsv, mode) ?? null;
+  }
 });
 
 /** Environment-routed behavior for host-dependent actions (extensible map in `environments.ts`). */
@@ -998,8 +1039,13 @@ function onTopologyFullscreenAfterLeave() {
   selectedMemoryUnit.value = null;
 }
 
-function onOpenTopologyFullscreen(model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId) {
+function onOpenTopologyFullscreen(
+  model: MemoryTopologyModel,
+  unit?: MemoryHeatmapUnitId,
+  baseline?: MemoryTopologyModel | null,
+) {
   fullscreenTopology.value = model;
+  fullscreenBaselineTopology.value = baseline ?? null;
   // 如果是直接点击一个 memory 进来则直接对应显示相应的内容; via 全屏 it defaults (activeMemoryUnit).
   selectedMemoryUnit.value = unit ?? null;
   topologyFullscreen.value = true;
@@ -1205,6 +1251,11 @@ onBeforeUnmount(() => {
 
 /** Escape drops the measure overlay and the marquee multi-selection alike. */
 function onRootKeydown(e: KeyboardEvent) {
+  // A popover that already handled Escape (显示控制, 快捷键说明, the baseline
+  // picker, …) calls preventDefault on its document-level listener — which runs
+  // before this window listener. Respect that: one Escape press must dismiss
+  // only the popover, not also clear measure / the multi-selection behind it.
+  if (e.defaultPrevented) return;
   if (e.key === 'Escape' && htmlExportOpen.value) {
     e.preventDefault();
     closeHtmlExportDialog();
@@ -1802,6 +1853,75 @@ function onAside(visible: boolean) {
 }
 
 /**
+ * The comparison's baseline model (对比基线). The last payload stays mounted while
+ * the host swaps the selection (stale-while-revalidate); only a **null** payload
+ * ends the comparison. Data-only — never touches the load path, never sets
+ * loadError / capabilities / view state.
+ */
+const activeBaselineReport = computed<AdaptedReport | null>(() => {
+  const payload = props.baselineReport;
+  if (!payload) return null;
+  // Keep the last payload mounted while its id no longer matches the current
+  // selection: the host delivers the replacement asynchronously (fetch/IPC),
+  // and dropping the comparison for that gap tears the aside down and back —
+  // the PIPE rows lose their baseline bars, the sections below jump up and
+  // flicker. The host nulls the payload on failure / deselect, which is what
+  // actually ends the comparison; a fresh matching payload updates values in
+  // place (stale-while-revalidate).
+  return payload.report;
+});
+
+/**
+ * Topology 全屏 comparison (PR-ROOT-041): the fullscreen panel is mounted from a
+ * one-shot current-model snapshot, so its baseline comes from the same active
+ * payload the aside compares against. Scope mirrors the stacked aside's rule:
+ * All reads the pack's adapter snapshot; ArchDiagram rebuilds from the pack's
+ * own ArchDiagramMetrics with the shared metric mode (its snapshot is always
+ * the default `*_gbs`). `null` without a payload.
+ */
+/** The aside-resolved baseline topology for the 全屏 overlay, carried by the
+ * open-topology-fullscreen emit: the aside is the only place that resolves
+ * the baseline pack's Operator pick and block scope, so the fullscreen paints
+ * exactly the comparison the stacked diagram paints (PR-ROOT-041). */
+const fullscreenBaselineTopology = ref<MemoryTopologyModel | null>(null);
+
+/**
+ * The picker's checkbox set IS the baseline list (host-owned, one view). The
+ * root adds two rules on top (review PR #234):
+ *
+ * 1. Invariant: the selection can never point at a baseline that is not in
+ *    the list — an uncheck of the selected report clears it.
+ * 2. First-add autoselect: when the list goes from EMPTY to non-empty (the
+ *    first baseline added in the popup) and nothing is selected, the added
+ *    entry is selected automatically — the user need not pick it manually.
+ *    The mount run (a host-restored list) never autoselects, and neither
+ *    does an add onto a non-empty list.
+ */
+watch(
+  () => [props.baselines, props.selectedBaselineId] as const,
+  ([list, sel], oldPair) => {
+    const items = list ?? [];
+    if (sel != null && !items.some((b) => b.id === sel)) {
+      emit('update:selectedBaselineId', null);
+      return;
+    }
+    const prev = oldPair?.[0] ?? [];
+    if (oldPair && prev.length === 0 && items.length > 0 && sel == null) {
+      const added = items.find((b) => !prev.some((p) => p.id === b.id));
+      emit('update:selectedBaselineId', (added ?? items[0])!.id);
+    }
+  },
+  { immediate: true },
+);
+
+/** The aside's Baseline / Operator bar was pressed: close the baselines
+ * popover (review PR #234 — the bar stops pointerdown, so the popover's own
+ * outside-dismiss never sees those clicks). */
+function onBaselineBarDown() {
+  toolbarRef.value?.closeBaselinesPicker();
+}
+
+/**
  * StatsAside title-row 性能分析 trigger → environment-routed (`environments.ts`).
  *
  * `vscode`: hand the request to the host (`open-performance-hints-in-problems`) and leave
@@ -1919,6 +2039,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
+      ref="toolbarRef"
       v-if="!showTimeline && !showSource"
       :title="title"
       :search-query="viewState.searchQuery"
@@ -1939,6 +2060,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :active-tab="activeTab"
       :source-tab-enabled="sourceTabEnabled"
       :html-export-available="htmlExportAvailable"
+      :baselines="baselines"
+      :pick-baseline-file="pickBaselineFile"
+      :recent-baselines="recentBaselines"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:selected-timeline-trace-id="onTimelineTraceChange"
@@ -1955,6 +2079,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @open-cannwork="emitOpenCannwork"
       @open-user-guide="emit('open-user-guide', $event)"
       @export-html="onExportHtml"
+      @update:baselines="emit('update:baselines', $event)"
     />
 
     <p
@@ -1975,6 +2100,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     >
       <template #main>
         <ReportToolbar
+          ref="toolbarRef"
           v-if="showTimeline || showSource"
           :title="title"
           :search-query="viewState.searchQuery"
@@ -1994,6 +2120,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :active-tab="activeTab"
           :source-tab-enabled="sourceTabEnabled"
           :html-export-available="htmlExportAvailable"
+          :baselines="baselines"
+          :pick-baseline-file="pickBaselineFile"
+          :recent-baselines="recentBaselines"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:selected-timeline-trace-id="onTimelineTraceChange"
@@ -2009,6 +2138,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @open-cannwork="emitOpenCannwork"
           @open-user-guide="emit('open-user-guide', $event)"
           @export-html="onExportHtml"
+          @update:baselines="emit('update:baselines', $event)"
         />
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
@@ -2091,7 +2221,11 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :report="report"
           :locale="locale"
           :capabilities="caps"
+          :baselines="baselines ?? []"
+          :selected-baseline-id="selectedBaselineId ?? null"
+          :baseline-report="activeBaselineReport"
           :cannbot-sessions="cannbotSessions"
+          @update:selected-baseline-id="emit('update:selectedBaselineId', $event)"
           @close="onAside(false)"
           @view-full-csv="emit('view-full-csv', $event)"
           @open-hardware-details="emit('open-hardware-details')"
@@ -2103,6 +2237,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @perform-optimization="emitPerformOptimization"
           @open-topology-fullscreen="onOpenTopologyFullscreen"
           @open-performance-hints="onOpenPerformanceHints"
+          @baseline-bar-down="onBaselineBarDown"
         />
       </template>
     </ReportLayout>
@@ -2250,6 +2385,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
             <MemoryTopologyPanel
               v-if="fullscreenTopology"
               :model="fullscreenTopology"
+              :baseline="fullscreenBaselineTopology"
               :locale="locale"
               :open-details-on-contextmenu="false"
               :selectable-units="hasMemoryHeatmap"

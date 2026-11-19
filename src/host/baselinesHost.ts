@@ -1,0 +1,540 @@
+import { ref, watch } from 'vue';
+import type { Ref } from 'vue';
+import { loadReportSource } from '../adapters/loadReportSource';
+import { MEMORY_TOPOLOGY_NODE_DEFS } from '../adapters/memoryTopology';
+import type {
+  AdaptedReport,
+  Baseline,
+  BaselinePick,
+  BaselineReportData,
+  MemoryTopologyModel,
+  MemoryTopologyPlate,
+} from '../domain/types';
+
+export interface BaselinesHost {
+  baselines: Ref<Baseline[]>;
+  selectedBaselineId: Ref<string | null>;
+  /** Adapted pack of the selected baseline; null until adapted / on failure. */
+  baselineReport: Ref<BaselineReportData | null>;
+  pickBaselineFile(): Promise<BaselinePick | null>;
+  onBaselinesUpdate(next: Baseline[]): void;
+  onSelectedBaselineId(id: string | null): void;
+  onFileChosen(e: Event): void;
+  onPickCancel(): void;
+}
+
+/**
+ * Demo operator names for the aside's Operator dropdown — the web hosts have no
+ * pack metadata behind them, so every baseline carries the same eight demo
+ * operators the way MSTT would carry the pack's real ones.
+ */
+const DEMO_BASELINE_OPERATORS = [
+  'matmul',
+  'matmul_t',
+  'add_n',
+  'relu',
+  'gelu',
+  'layernorm',
+  'softmax',
+  'conv2d',
+] as const;
+
+/** Fill missing `operators` with the demo set; real operators pass through. */
+export function withDemoBaselineOperators(baselines: Baseline[]): Baseline[] {
+  return baselines.map((b) =>
+    b.operators && b.operators.length > 0 ? b : { ...b, operators: [...DEMO_BASELINE_OPERATORS] });
+}
+
+/** Per-operator metric scales for the demo multi-operator packs — ops below the
+ * base scale (0.4..0.85) read as increases (red up) against the open report,
+ * ops above (1.15..1.6) as decreases (green down), so flipping the Operator
+ * select paints both tones. MSTT's real packs pass through untouched. */
+// The default (first) operator keeps scale 1.0 so the demo bars/badges are
+// fat and visible on first selection; flipping operators alternates smaller
+// and larger scales (both tones).
+const DEMO_OPERATOR_SCALES = [1.0, 0.35, 1.2, 0.5, 1.4, 0.65, 1.6, 0.8];
+
+function hashKey(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+/** Percentages clamp at 100, like the PIPE demo ratios clamp at 1. */
+function clampPercent(n: number): number {
+  return Math.min(100, Math.max(0, n));
+}
+
+/**
+ * Seed a full memory topology for the demo pack. Values are derived from the
+ * mixed baseline seed, never from whatever the fixture carried: the bundled
+ * fixtures that share a topology (out.rep / example / roofline_multi all read
+ * 23.04% / 7.19% with a 0% L2 peak) would otherwise leave most demo baselines
+ * visually identical — the exact failure the summary metrics were reseeded
+ * for. The demo pack is synthetic (its PIPE rows are replaced the same way),
+ * so the topology is reseeded too; `scaleMeasuredMetrics` then spreads it per
+ * operator.
+ *
+ * The node ids are the adapter's real ones (`TOPOLOGY_PLATE_NODE_IDS` plus the
+ * `l2` peak node), so the seeded model badges through the same code path as a
+ * natively adapted one.
+ */
+function ensureDemoTopology(model: AdaptedReport['reportModel'], seed: number): void {
+  const topology: MemoryTopologyModel = model.memoryTopology ?? {
+    nodes: MEMORY_TOPOLOGY_NODE_DEFS.map((n) => ({ ...n })),
+    edges: [],
+  };
+  model.memoryTopology = topology;
+  // The demo baselines are consecutive ids ("demo-recent-1", "-2", …), and
+  // hashKey returns consecutive integers for them; Knuth-multiply the seed so
+  // every slice of bits below still varies between two neighbouring baselines
+  // (plain shifts collapsed vec/cube/peak onto the same value).
+  const mixed = Math.imul(seed, 0x9e3779b1) >>> 0;
+  const plate = (node: MemoryTopologyPlate['node'], value: number): MemoryTopologyPlate => ({
+    node,
+    // Same `{n.toFixed(2)}%` contract the adapter's `formatLabel` emits.
+    label: `${value.toFixed(2)}%`,
+    value,
+  });
+  // DEMO-DIFF RULE (AGENTS.md): every badgeable element must show a non-zero
+  // difference against the open report (sample.rep: aiv_scalar 33.24, vec
+  // 6.72, cube 51.40, simt 21.50, l2 peak 0.60) for EVERY demo baseline, with
+  // both tones visible at once. The ranges sit strictly on one side of every
+  // fixture's own values (and never contain them), so no baseline can land on
+  // a zero delta; the seed still varies each value baseline-to-baseline.
+  topology.plates = [
+    // Ranges also keep every operator scale (up to 1.6) below the 100 clamp,
+    // so all eight operators stay pairwise distinct (the host spec asserts it).
+    plate('aiv_scalar', 45 + (mixed % 17)), // always ABOVE current -> red up
+    plate('vec', 1 + (mixed % 4)), // always BELOW current -> green down
+    plate('cube', 8 + ((mixed >>> 10) % 10)), // always BELOW current -> green down
+    // 45..58: never hits 21.50 under any demo scale (21.5/scale is non-integer
+    // or outside the range), and 58 x 1.6 = 92.8 stays below the 100 clamp.
+    plate('simt', 45 + ((mixed >>> 20) % 14)), // always ABOVE current -> red up
+    // 45..56: never hits 22.93 under any demo scale (22.93/scale is non-integer
+    // or outside the range), and 56 x 1.6 = 89.6 stays below the 100 clamp.
+    plate('aic_scalar', 45 + ((mixed >>> 25) % 12)), // always ABOVE current -> red up
+    // 45..57: never hits 33.24 under any demo scale (33.24/scale is non-integer
+    // or outside the range), and 57 x 1.6 = 91.2 stays below the 100 clamp.
+    plate('aiv_scalar_unit', 45 + ((mixed >>> 28) % 13)), // always ABOVE current -> red up
+  ];
+  const peakPct = 55 + ((mixed >>> 15) % 8); // always ABOVE current -> red up
+  const l2 = topology.nodes.find((n) => n.id === 'l2');
+  if (l2) l2.peakPct = peakPct;
+  else topology.nodes.push({ id: 'l2', label: 'L2 Cache', peakPct });
+}
+
+/**
+ * Seed every metric family the summary cards display, so that a demo pack
+ * always diffs against EVERY card the open report shows (a fixture that
+ * lacks, say, bandwidthCards would otherwise leave those cards badge-less
+ * for every operator). Every seeded default varies with `seed` — the
+ * baseline's id — so flipping baselines visibly changes the demo values.
+ */
+function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): void {
+  // Same seed mixing as ensureDemoTopology: consecutive demo ids must not
+  // collapse onto equal values in any bit slice.
+  const mixed = Math.imul(seed, 0x9e3779b1) >>> 0;
+  if (!model.summary) model.summary = {};
+  const s = model.summary;
+  // Unconditional: the pack is synthetic demo data, so the measured metrics
+  // are always reseeded. Filling only missing fields once left fixtures that
+  // share values (sample / out.rep / example all adapt to the same
+  // taskDurationUs) with a zero delta on the default operator — no badge on
+  // any card — which broke the "every demo operator diffs every card"
+  // guarantee. Peaks stay chip-level constants.
+  s.taskDurationUs = 800 + (seed % 20) * 60;
+  s.parallelUtilization = 0.3 + (seed % 8) * 0.05;
+  s.parallelBalance = 0.3 + ((seed >> 3) % 8) * 0.05;
+  // Both sides always seeded: a single-side fixture (roofline_multi carries
+  // only aiv) must still diff the AIC compute card.
+  model.computeCard = {
+    sides: [
+      { side: 'aic', measuredTflops: 40 + (seed % 10) * 5, peakTflops: 100 },
+      { side: 'aiv', measuredTflops: 30 + ((seed >> 2) % 10) * 4, peakTflops: 100 },
+    ],
+  };
+  {
+    // Demo pipes REPLACE whatever the baseline fixture carried: the demo row
+    // set mirrors the real fixture shapes (vector-side reports plus the
+    // gelu-like aic/aiv0/aiv1 compute cores), so the bars pair with the open
+    // report's rows on every toggle — including Cube on fixtures whose own
+    // cube rows are all-zero or absent (out.rep carries no aic rows at all,
+    // which once left the Cube toggle without baseline bars).
+    const pipeSeed: Array<[string, string, string, string]> = [];
+    // Classic compute sides — sample.lite.rep and vector_muladd carry
+    // cube[..]/vector[..] rows (a mix report: cube AND vector side sets).
+    for (const side of ['cube', 'vector']) {
+      pipeSeed.push(
+        ['cube', 'Cube', 'cube', side],
+        ['mte1', 'MTE1', 'mte1', side],
+        ['mte2', 'MTE2', 'mte2', side],
+        ['mte3', 'MTE3', 'mte3', side],
+        ['fixp', 'Fixp', 'fixp', side],
+        ['scalar', 'Scalar', 'scalar', side],
+        ['icache', 'ICache', 'icache', side],
+        ['vector', 'Vector', 'vector', side],
+      );
+    }
+    // Emulate cores — gelu.npu-rep carries aic/aiv0/aiv1 rows.
+    for (const side of ['aic', 'aiv0', 'aiv1']) {
+      pipeSeed.push(
+        ['scalar', 'Scalar', 'scalar', side],
+        ['cube', 'Cube', 'cube', side],
+        ['fixp', 'Fixp', 'fixp', side],
+        ['mte1', 'MTE1', 'mte1', side],
+        ['mte2', 'MTE2', 'mte2', side],
+        ['mte3', 'MTE3', 'mte3', side],
+        ['simt', 'Simt', 'simt', side],
+        ['vector', 'Vector', 'vector', side],
+      );
+    }
+    model.pipeOccupancy = pipeSeed.map(([id, label, colorKey, side], i) => ({
+      id,
+      label,
+      colorKey,
+      side: side as never,
+      ratio: 0.3 + ((i + seed) % 7) * 0.08,
+      // The baseline bar shows the SAME fields as the current bar — its own
+      // value rides at the left of the track, percent at the right.
+      absoluteValue: 0.3 + ((i + seed) % 7) * 0.08,
+    }));
+  }
+  // DEMO-DIFF RULE: the memory 详情 fields mirror sample.rep's Memory /
+  // MemoryL0 / MemoryUB / L2Cache keys and sit strictly on one side of
+  // sample's own values (never equal), with per-baseline variation and
+  // mixed tones (some above -> green, some below -> red).
+  const memoryCats: Record<string, [string, number][]> = {
+    Memory: [
+      ['aic_main_mem_read_bw(GB/s)', 700 + (mixed % 10) * 10],
+      ['aic_main_mem_write_bw(GB/s)', 600 + ((mixed >>> 4) % 10) * 10],
+      ['aiv_mte2_ratio', 0.15 + ((mixed >>> 8) % 5) * 0.02],
+      ['aiv_mte3_ratio', 0.35 + ((mixed >>> 12) % 5) * 0.03],
+      ['GM_to_UB_bw_usage_rate(%)', 60 + (mixed % 20)],
+      ['UB_to_GM_bw_usage_rate(%)', 1 + ((mixed >>> 5) % 3)],
+    ],
+    MemoryL0: [
+      ['aiv_time(us)', 12 + (mixed % 10)],
+      ['aiv_total_cycles', 8000 + (mixed % 500)],
+    ],
+    MemoryUB: [
+      ['aiv_time(us)', 12 + (mixed % 10)],
+      ['aiv_total_cycles', 8000 + (mixed % 500)],
+      ['aiv_ub_read_bw_vector(GB/s)', 90 + (mixed % 30)],
+    ],
+    L2Cache: [
+      ['aiv_total_hit_rate(%)', 85 + (mixed % 10)],
+      ['aiv_read_hit_rate(%)', 90 + (mixed % 5)],
+    ],
+  };
+  if (!model.summaryCategories?.length) {
+    // Demo details set mirroring the typical op categories so the 详情 overlay
+    // pairs field-by-field with the open report's fields.
+    // DEMO-DIFF RULE: the compute detail values vary per baseline too (a
+    // per-baseline factor keeps them strictly above sample's own values while
+    // the per-operator scale still applies).
+    const vary = 1 + (mixed % 6) * 0.05;
+    const cats: Record<string, [string, number][]> = {
+      PipeUtilization: [
+        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000], ['aiv_vec_time(us)', 39],
+        ['aiv_vec_ratio', 0.9], ['aiv_scalar_time(us)', 1], ['aiv_scalar_ratio', 0.02],
+        ['aiv_mte2_time(us)', 0.004], ['aiv_mte2_ratio', 0.0002], ['aiv_mte2_active_bw(GB/s)', 30],
+        ['aiv_mte3_time(us)', 0.002], ['aiv_mte3_ratio', 0.0001], ['aiv_icache_miss_rate', 0.01],
+      ],
+      ArithmeticUtilization: [
+        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000], ['aiv_vec_ratio', 0.9],
+        ['aiv_vec_vf_ratio', 0.1], ['aiv_vec_sfu_ratio', 0.05], ['aiv_vec_simt_vf_ratio', 0.9],
+      ],
+      ResourceConflictRatio: [
+        ['aiv_time(us)', 40], ['aiv_total_cycles', 60000], ['aiv_vec_stu_cflt_ratio', 0.02],
+        ['aiv_vec_ldu_cflt_ratio', 0.01], ['aiv_vec_sfu_cflt_ratio', 0.01], ['aiv_vec_wait_ratio', 0.03],
+        ['aiv_mte2_wait_ratio', 0.01], ['aiv_mte3_wait_ratio', 0.01],
+      ],
+    };
+    // The memory 详情 field keys mirror the sample report's Memory /
+    // MemoryL0 / MemoryUB categories so the delta badges pair field-by-field.
+    for (const id of ['Memory', 'MemoryL0', 'MemoryUB', 'L2Cache'] as const) {
+      if (!cats[id]) cats[id] = memoryCats[id];
+    }
+    model.summaryCategories = Object.entries(cats).map(([id, fields]) => ({
+      id,
+      title: id,
+      fields: fields.map(([key, value]) => ({ key, value: String(value * vary) })),
+    }));
+  } else {
+    // The fixture already carries categories: append the missing memory ids
+    // so the memory 详情 comparison badges exist for EVERY demo baseline.
+    const existing = new Set(model.summaryCategories.map((c) => c.id));
+    for (const id of ['Memory', 'MemoryL0', 'MemoryUB', 'L2Cache'] as const) {
+      if (existing.has(id)) continue;
+      const fields = memoryCats[id].map(([key, value]) => ({ key, value: String(value) }));
+      model.summaryCategories.push({ id, title: id, fields });
+    }
+  }
+  model.bandwidthCards = [
+    { id: 'input', sides: [{ side: 'aic', measuredGBs: 300 + (seed % 10) * 40, peakGBs: 800 }] },
+    { id: 'output', sides: [{ side: 'aic', measuredGBs: 150 + ((seed >> 4) % 10) * 30, peakGBs: 800 }] },
+  ];
+  ensureDemoTopology(model, seed);
+}
+
+/** Scale one ReportViewModel's measured metrics (peaks stay chip-level). */
+function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number, seed: number): void {
+  ensureDemoMetrics(model, seed);
+  const s = model.summary;
+  if (typeof s.taskDurationUs === 'number') model.summary.taskDurationUs = s.taskDurationUs * scale;
+  if (typeof s.parallelUtilization === 'number') {
+    model.summary.parallelUtilization = s.parallelUtilization * scale;
+  }
+  if (typeof s.parallelBalance === 'number') model.summary.parallelBalance = s.parallelBalance * scale;
+  for (const side of model.computeCard?.sides ?? []) {
+    if (typeof side.measuredTflops === 'number') side.measuredTflops *= scale;
+  }
+  for (const card of model.bandwidthCards ?? []) {
+    for (const side of card.sides) {
+      if (typeof side.measuredGBs === 'number') side.measuredGBs *= scale;
+    }
+  }
+  for (const p of model.pipeOccupancy ?? []) {
+    p.ratio = Math.min(1, Math.max(0, p.ratio * scale));
+    if (typeof p.absoluteValue === 'number') p.absoluteValue *= scale;
+  }
+  // Memory-topology plates and the L2 peak are percentages (0..100), so they
+  // clamp there instead of at 1. `label` is rewritten with the numeric value:
+  // the diagram prints the label and the badge diffs the number, and the two
+  // must never disagree after a scale.
+  for (const plate of model.memoryTopology?.plates ?? []) {
+    if (typeof plate.value !== 'number') continue;
+    plate.value = clampPercent(plate.value * scale);
+    plate.label = `${plate.value.toFixed(2)}%`;
+  }
+  const l2 = model.memoryTopology?.nodes.find((n) => n.id === 'l2');
+  if (l2 && typeof l2.peakPct === 'number') l2.peakPct = clampPercent(l2.peakPct * scale);
+  for (const c of model.summaryCategories ?? []) {
+    for (const f of c.fields) {
+      const n = Number(f.value);
+      if (Number.isFinite(n)) f.value = String(n * scale);
+    }
+  }
+}
+
+/**
+ * Wrap an adapted flat pack into a demo multi-operator pack: one synthetic
+ * operator per demo name, each with the same metrics scaled differently — the
+ * aside's Operator select then drives per-operator comparison values.
+ */
+export function withDemoOperatorPack(report: AdaptedReport, variationKey = ''): AdaptedReport {
+  // No early return for packs that already carry `operators`: the aside's
+  // Operator dropdown is stamped with the eight demo names
+  // (withDemoBaselineOperators), so a native op1/op2 pack (example.npu.rep,
+  // browsed nested reports) would resolve every demo name to its first
+  // operator and never change values. The demo pack ALWAYS synthesizes the
+  // eight operators.
+  const seed = hashKey(variationKey);
+  const base = report.reportModel;
+  const operatorReports: Record<string, AdaptedReport> = {};
+  DEMO_BASELINE_OPERATORS.forEach((name, i) => {
+    const model = structuredClone(base);
+    scaleMeasuredMetrics(model, DEMO_OPERATOR_SCALES[i], seed);
+    operatorReports[name] = { reportModel: model, swimlaneModel: report.swimlaneModel };
+  });
+  return {
+    ...report,
+    operators: DEMO_BASELINE_OPERATORS.map((name) => ({ id: name, label: name })),
+    operatorReports,
+  };
+}
+
+/**
+ * Demo recent-report list for the picker's second view (Add Recent). The web
+ * hosts have no plugin behind them, so the host supplies these the way MSTT
+ * supplies its live Performance results tree. Names follow the real opprof
+ * runId format the plugin lists (`OPPROF_<YYYYMMDDHHMMSS>_<16 random uppercase
+ * letters>`, one folder per run under `<workspaceRoot>/.vscode/opprof/`).
+ */
+export const DEMO_RECENT_BASELINES: Baseline[] = [
+  {
+    id: 'demo-recent-1',
+    name: 'OPPROF_20261108142517_QKWFPLXZVTRNBGMA',
+    path: '/data/out.rep',
+    // The OPPROF run id embeds the stamp; carried explicitly so the derived
+    // title (filename + timestamp) never depends on parsing (review PR #234).
+    pickedAt: new Date(2026, 10, 8, 14, 25, 17).getTime(),
+  },
+  {
+    id: 'demo-recent-2',
+    name: 'OPPROF_20261109111842_MJNHEYSDCQXVBRUW',
+    path: '/data/example.rep',
+    pickedAt: new Date(2026, 10, 9, 11, 18, 42).getTime(),
+  },
+  {
+    id: 'demo-recent-3',
+    name: 'OPPROF_20261109152306_ZAXWQPLOKMNJIUHY',
+    path: '/data/gelu.npu-rep',
+    pickedAt: new Date(2026, 10, 9, 15, 23, 6).getTime(),
+  },
+  {
+    id: 'demo-recent-4',
+    name: 'OPPROF_20261110100955_BGTRFVEDCWSXQAZP',
+    path: '/data/gather_2d.npu-rep',
+    pickedAt: new Date(2026, 10, 10, 10, 9, 55).getTime(),
+  },
+  {
+    id: 'demo-recent-5',
+    name: 'OPPROF_20261110135206_HYGTFRDESWQAZXCV',
+    path: '/data/roofline_multi.npu-rep',
+    pickedAt: new Date(2026, 10, 10, 13, 52, 6).getTime(),
+  },
+];
+
+/**
+ * Shared host glue for the baselines contract (对比基线): the library renders
+ * and selects; this host keeps the list in session state only and opens the
+ * file dialog through a hidden file input. There is deliberately no
+ * persistence here — the library contract leaves persistence to the host, and
+ * the bundled web hosts (playground / exported HTML shell) treat baselines
+ * like every other test value: alive for the open page, gone on reload.
+ * A real host (MSTT) persists through its own storage via the same
+ * `update:baselines` / `update:selectedBaselineId` emits.
+ */
+export function createBaselinesHost(
+  input: () => HTMLInputElement | null,
+): BaselinesHost {
+const baselines = ref<Baseline[]>([]);
+  const selectedBaselineId = ref<string | null>(null);
+  /**
+   * Adapted pack of the selected baseline (对比基线 comparison). The library
+   * renders and selects; this host adapts the picked File itself via the public
+   * `loadReportSource` and tags the result with the baseline id, so a late
+   * adaptation can never paint under a new selection.
+   */
+  const baselineReport = ref<BaselineReportData | null>(null);
+
+  /** Picked File by pseudo-path — the browser cannot reopen a path, so the bytes live here. */
+  const filesByPath = new Map<string, File>();
+
+  /**
+   * Bumped on every resolved pick, even when the path dedupes onto the already
+   * selected row: the watcher below would otherwise never re-run and a
+   * re-pick after reload would never refresh the payload.
+   */
+  const pickNonce = ref(0);
+
+  /** Monotonic guard: a stale adaptation is discarded. */
+  let adaptGen = 0;
+
+  watch(
+    () => [baselines.value, selectedBaselineId.value, pickNonce.value] as const,
+    async ([list, sel]) => {
+      const gen = ++adaptGen;
+      if (!sel) {
+        baselineReport.value = null;
+        return;
+      }
+      const entry = list.find((b) => b.id === sel);
+      if (!entry) {
+        baselineReport.value = null;
+        return;
+      }
+      const file = filesByPath.get(entry.path);
+      let bytes: Uint8Array | null = null;
+      try {
+        if (file) {
+          bytes = new Uint8Array(await file.arrayBuffer());
+        } else if (entry.path.startsWith('/data/') && typeof fetch === 'function') {
+          // Demo entries carry the playground fixture URLs as their path —
+          // no retained File, so the glue fetches the bytes itself.
+          // ponytail: the exported HTML shell has no /data files, so the fetch
+          // 404s there and degrades to no comparison, exactly like MSTT
+          // passing paths this glue cannot open.
+          const res = await fetch(entry.path);
+          if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
+        }
+      } catch (err) {
+        console.warn('[baselinesHost] baseline adaptation failed', err);
+        // Only the current run may degrade the payload — a superseded run
+        // failing after a newer selection must not wipe that newer payload.
+        if (gen === adaptGen) baselineReport.value = null;
+        return;
+      }
+      if (!bytes) {
+        // No backing bytes (a non-demo entry picked outside Browse):
+        // graceful no-comparison state.
+        if (gen === adaptGen) baselineReport.value = null;
+        return;
+      }
+      try {
+        const report = loadReportSource(
+          bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+        );
+        if (gen !== adaptGen) return; // stale — a newer pick superseded this run
+        baselineReport.value = { baselineId: sel, report: withDemoOperatorPack(report, sel) };
+      } catch (err) {
+        // Corrupt/unsupported baseline degrades to "no comparison", never to the main report's error state.
+        console.warn('[baselinesHost] baseline adaptation failed', err);
+        baselineReport.value = null;
+      }
+    },
+    { immediate: true },
+  );
+
+  function onBaselinesUpdate(next: Baseline[]): void {
+    baselines.value = next;
+  }
+
+  function onSelectedBaselineId(id: string | null): void {
+    selectedBaselineId.value = id;
+  }
+
+  let resolvePick: ((pick: BaselinePick | null) => void) | null = null;
+
+  function pickBaselineFile(): Promise<BaselinePick | null> {
+    return new Promise((resolve) => {
+      resolvePick = resolve;
+      input()?.click();
+    });
+  }
+
+  function onFileChosen(e: Event): void {
+    const el = e.target as HTMLInputElement;
+    const file = el.files?.[0];
+    el.value = '';
+    const resolve = resolvePick;
+    resolvePick = null;
+    if (!resolve) return;
+    if (!file) {
+      resolve(null);
+      return;
+    }
+    // ponytail: browser File objects expose no real path; name alone would make
+    // two distinct files with the same name dedupe into one baseline (the root
+    // dedupes by path). Size + lastModified disambiguate distinct picks while
+    // an identical re-pick still dedupes. Ceiling: the pseudo-path is a display
+    // identity, not an openable locator, and a regenerated report (new
+    // size/mtime) appends instead of re-selecting; comparison rendering must
+    // treat `path` as opaque. Real hosts (MSTT) return absolute paths and never
+    // see this.
+    const path = `${file.name} (${file.size} B, ${file.lastModified})`;
+    filesByPath.set(path, file);
+    pickNonce.value += 1;
+    // The file's real mtime feeds the derived title (review PR #234).
+    resolve({ name: file.name, path, pickedAt: file.lastModified });
+  }
+
+  function onPickCancel(): void {
+    const resolve = resolvePick;
+    resolvePick = null;
+    resolve?.(null);
+  }
+
+  return {
+    baselines,
+    selectedBaselineId,
+    baselineReport,
+    pickBaselineFile,
+    onBaselinesUpdate,
+    onSelectedBaselineId,
+    onFileChosen,
+    onPickCancel,
+  };
+}

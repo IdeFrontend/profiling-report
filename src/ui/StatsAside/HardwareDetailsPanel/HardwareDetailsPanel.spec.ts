@@ -26,6 +26,28 @@ describe('HardwareDetailsPanel', () => {
     expect(wrapper.text()).toContain('1650');
   });
 
+  it('PR-HW-003: field values display at most four decimals, residue trimmed', () => {
+    const wrapper = mount(HardwareDetailsPanel, {
+      props: {
+        model: {
+          sections: [
+            {
+              id: 'op',
+              title: 'OpBasicInfo',
+              fields: [
+                { key: 'Current Freq', value: '1.7999999999999999' },
+                { key: 'Op Name', value: 'add_custom' },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    expect(wrapper.text()).toContain('1.8');
+    expect(wrapper.text()).toContain('add_custom');
+    wrapper.unmount();
+  });
+
   it('PR-HW-002: empty sections → no panel', () => {
     const wrapper = mount(HardwareDetailsPanel, {
       props: { model: { sections: [] } },

@@ -85,7 +85,7 @@ describe('RooflinePanel', () => {
     expect(mix.exists()).toBe(true);
     expect(mix.text()).toContain('Vec_FP32');
     expect(mix.text()).toContain('Vec_MISC');
-    expect(mix.text()).toContain('84.100000%');
+    expect(mix.text()).toContain('84.10%');
     expect(mix.find('.pr-roofline__mix-name').exists()).toBe(true);
     expect(mix.find('.pr-roofline__mix-pct').exists()).toBe(true);
   });

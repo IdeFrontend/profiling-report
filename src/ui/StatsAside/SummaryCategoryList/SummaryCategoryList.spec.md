@@ -27,6 +27,8 @@ Searchable `summary.jsonl` category field list used under **All** block scope in
 1. **PR-SUMM-001** — Renders a tab per category; switching tabs changes visible fields.
 2. **PR-SUMM-002** — Search filters and highlights matching keys (same chip tokens as CsvFieldListPanel / UI-43).
 3. **PR-SUMM-003** — Zero matches leave an empty list; query survives tab switch.
+4. **PR-SUMM-004** — With `baselineCategories`, a field whose numeric value differs from the baseline's gets a tone badge with the bare delta right of its value (details show DELTAS); the badge shares the value's flex line wrapper, so it sits on the SAME line right after the value and never wraps under it; non-numeric or equal fields carry none.
+5. **PR-SUMM-005** — Field VALUES display at most four decimals ([formatDetailValue](../../../domain/detailValue.ts)): binary-float residue is rounded away (`0.9796212499999999` → `0.9796`, `1.50000` → `1.5`); a value already inside the ceiling keeps its printed precision (`2.0`, `0.77`); non-numeric strings pass through.
 
 ## Visual
 
@@ -38,5 +40,8 @@ Same search / match tokens as [CsvFieldListPanel](../CsvFieldListPanel/CsvFieldL
 | Search match | substring chip: fill `#1d283c`, text `#688aec` weight `600`, radius `3px`, pad `0`; rest of label `#8e8e8e`; non-matching rows hidden |
 | Field key | `#8e8e8e`; value `#e6e6e6` right-aligned |
 
+
 ## Changelog
+- **2026-11-19** — Product review: the field delta badges read through the panel's ONE two-decimal format (PR-STATS-060) — `0.2` becomes `0.20`; field VALUES keep their own ≤4-decimal rule (PR-SUMM-005).
+- **2026-11-12** — 对比基线 details: delta badges right of field values (PR-SUMM-004).
 - **2026-09-23** — Add search filter + substring highlight (parity with CsvFieldListPanel / UI-43) so All-scope 详情 is not search-less.
