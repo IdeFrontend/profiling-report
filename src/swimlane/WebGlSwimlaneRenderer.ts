@@ -119,8 +119,9 @@ interface SubRowMesh {
   /** Positive-duration intervals — additive blend. */
   chunks: MeshChunk[];
   /**
-   * Duration-0 ticks — discrete source-over mesh built once at setModel (no per-pan rebuild).
-   * Canvas keeps CSS-column density LOD (PR-RENDER-066); WebGL stays discrete for frame cost.
+   * Duration-0 ticks — discrete additive mesh built once at setModel (real neighbor gaps, no
+   * per-pan rebuild). Isolates extend like short durables; nearby ticks see small gaps so they
+   * do not force-extend into overlapping 1px marks. Search emphasis ticks stay source-over.
    */
   tickChunks: MeshChunk[] | null;
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
@@ -133,10 +134,9 @@ interface SubRowMesh {
 
 /**
  * Encode a sub-row's events into one gap-correct `pairs` buffer and index lists for
- * positive-duration intervals vs duration-0 ticks. Interval chunks keep global gaps so
- * thin-event extension sees real neighbors; tick chunks are built with isolated gaps
- * (see `createChunksFromIndices(..., { isolatedGaps: true })`) so they never gap-extend
- * into a continuous strip (#205).
+ * positive-duration intervals vs duration-0 ticks. Resting tick meshes reuse real neighbor
+ * gaps (same as intervals) so only true isolates thin-extend; search emphasis ticks still
+ * pass `isolatedGaps: true` when built.
  */
 export function partitionIntervalTickIndices(
   events: readonly { event: { startTime: number; duration: number } }[],
@@ -304,9 +304,8 @@ export function setVbSquareWithGaps(
  * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
  * (pos, uv, data) enables branchless extension in the vertex shader.
  *
- * `isolatedGaps`: duration-0 ticks pass `EDGE_GAP` on both sides so each mark extends to the
- * fixed min tick width only — never toward a neighbor (which would fill empty gaps / merge
- * dense ph:i into a continuous strip — #205).
+ * `isolatedGaps`: search emphasis ticks pass `EDGE_GAP` on both sides so each mark extends to
+ * the fixed min tick width only. Resting ticks use real gaps (durable parity).
  */
 function createChunk(
   gl: WebGL2RenderingContext,
@@ -407,7 +406,7 @@ function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): Mes
 
 /**
  * Sparse subsequence of `pairs`.
- * @param isolatedGaps duration-0 ticks: ignore neighbor gaps (see `createChunk`).
+ * @param isolatedGaps search emphasis ticks: ignore neighbor gaps (see `createChunk`).
  */
 function createChunksFromIndices(
   gl: WebGL2RenderingContext,
@@ -862,7 +861,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
             gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
           }
         };
-        /** Duration-0 ticks: source-over so dense min-width marks stay lane-colored (#205). */
+        /** Search discrete ticks: source-over so dense min-width marks stay lane-colored (#205). */
         const drawTickChunks = (
           ticks: MeshChunk[] | null,
           rgb: [number, number, number],
@@ -887,7 +886,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const mute = muteRest && !meshes.summary;
           const baseRgb = mute ? mutedRgb : meshes.color;
           drawChunks(row.chunks, baseRgb, 1);
-          drawTickChunks(row.tickChunks, baseRgb, 1);
+          // Resting ticks: same additive path as durables (real gaps → isolates match brightness).
+          if (row.tickChunks && row.tickChunks.length > 0) {
+            drawChunks(row.tickChunks, baseRgb, 1);
+          }
           if (row.brightChunks || row.liftChunks) {
             // Src-over so keep-bright fills replace the muted bar (additive would double).
             gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -1166,10 +1168,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
               : intervalIdx.length * 2 === pairs.length
                 ? createChunksFromPairs(gl, pairs)
                 : createChunksFromIndices(gl, pairs, intervalIdx),
+          // Real neighbor gaps (durable parity); search emphasis still uses isolatedGaps.
           tickChunks:
             tickIdx.length === 0
               ? null
-              : createChunksFromIndices(gl, pairs, tickIdx, true),
+              : createChunksFromIndices(gl, pairs, tickIdx, false),
           emphasisLayers: null,
           brightChunks: null,
           liftChunks: null,

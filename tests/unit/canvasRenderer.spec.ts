@@ -1385,9 +1385,8 @@ describe('PR-RENDER: lane chrome color', () => {
     );
   });
 
-  it('PR-RENDER-064: duration-0 ticks partition separately and paint source-over (#205)', async () => {
-    // Dense ICACHE ph:i (duration 0) share a sub-row; min-width paint overlaps in screen space.
-    // Additive blending would saturate those columns to white — ticks must leave the interval mesh.
+  it('PR-RENDER-064: duration-0 ticks partition separately; resting additive, search source-over (#205)', async () => {
+    // Dense ICACHE ph:i (duration 0) share a sub-row; ticks leave the interval index list.
     const { pairs, intervalIdx, tickIdx } = partitionIntervalTickIndices(
       [
         { event: { startTime: 10, duration: 5 } },
@@ -1400,7 +1399,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(pairs).toHaveLength(8);
     expect(intervalIdx).toEqual([0, 3]);
     expect(tickIdx).toEqual([1, 2]);
-    // All-ticks lane (ICACHE_READ): nothing stays on the additive interval mesh.
+    // All-ticks lane (ICACHE_READ): nothing stays on the interval index list.
     const ticksOnly = partitionIntervalTickIndices(
       [
         { event: { startTime: 0.52, duration: 0 } },
@@ -1416,16 +1415,20 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     expect(webglSrc).toMatch(/partitionIntervalTickIndices/);
     expect(webglSrc).toMatch(/tickChunks/);
-    // Tick draw path flips to source-over, then restores additive before the function ends.
-    // A later keep-bright block also sets source-over, so the match has to close on this function.
+    expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
+    // Resting ticks share additive drawChunks with durables.
+    expect(webglSrc).toMatch(
+      /Resting ticks: same additive path[\s\S]*drawChunks\(row\.tickChunks/,
+    );
+    // Search discrete ticks still flip to source-over via drawTickChunks.
     const tickDraw = webglSrc.match(
       /const drawTickChunks = \([\s\S]*?\n {8}\};/,
     )?.[0];
     expect(tickDraw).toBeTruthy();
-    // Argument `1` / `0`, not the `1` inside `uniform1f` on the restore line.
     expect(tickDraw).toMatch(
       /blendFuncSeparate\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA, gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)[\s\S]*uniform1f\(swim\.uSrcOver, 1\)[\s\S]*blendFuncSeparate\(gl\.ONE, gl\.ONE, gl\.ONE, gl\.ONE\)[\s\S]*uniform1f\(swim\.uSrcOver, 0\)/,
     );
+    expect(webglSrc).toMatch(/drawTickChunks\(layer\.tickChunks/);
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
     expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov \* d, uSrcOver\)/);
@@ -1459,9 +1462,12 @@ describe('PR-RENDER: lane chrome color', () => {
     const [posStart] = encodeIntervalPair(base + 100, 1, base);
     expect(posEnd - posStart).toBeGreaterThanOrEqual(1);
 
-    // Tick meshes pass isolatedGaps=true so extension never reads neighbor gaps.
+    // Resting ticks: real gaps; search emphasis ticks: isolatedGaps=true.
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
+    expect(webglSrc).toMatch(
+      /createChunksFromIndices\(gl, pairs, tickIdx,\s*false\)/,
+    );
     expect(webglSrc).toMatch(
       /createChunksFromIndices\(gl, pairs, tickIdx,\s*true\)/,
     );
@@ -1590,8 +1596,8 @@ describe('PR-RENDER: lane chrome color', () => {
     // WebGL: discrete setModel tickChunks (no per-pan density VBO rebuild).
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toMatch(/createChunksFromIndices\(gl, pairs, tickIdx,\s*true\)/);
-    expect(webglSrc).toMatch(/drawTickChunks\(row\.tickChunks/);
+    expect(webglSrc).toMatch(/createChunksFromIndices\(gl, pairs, tickIdx,\s*false\)/);
+    expect(webglSrc).toMatch(/drawChunks\(row\.tickChunks/);
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
     expect(webglSrc).not.toMatch(/createDensityChunksFromMarks/);
     expect(webglSrc).not.toMatch(/assignTickDensityDims/);

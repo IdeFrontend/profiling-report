@@ -142,8 +142,8 @@ void main() {
   // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
   // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage
   // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars
-  // and duration-0 ticks) alpha is uColor.a * cov * vDim. uColor.a is the search / collapse
-  // dim; vDim is per-quad tick-density intensity (1.0 when the aDim array is disabled).
+  // and search discrete ticks) alpha is uColor.a * cov * vDim. uColor.a is the search /
+  // collapse dim; vDim is per-quad density intensity (1.0 when the aDim array is disabled).
   // using cov alone would replace the lane with a darkened color instead of fading the tick.
   float d = vDim;
   outColor = vec4(uColor.xyz * cov * d, mix(1.0, uColor.a * cov * d, uSrcOver));
