@@ -266,23 +266,23 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').text()).toContain('分块');
     // Same CardMetricSelect chrome as card-header / ArchDiagram Metric (not native .pr-block-pill).
     expect(wrapper.get('[data-testid="pipe-block-select"]').classes()).toContain('pr-metric-select');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50.00%');
     // All = summary.jsonl aggregate (4.0), not the first block's 1.0.
     expect(wrapper.text()).toContain('4.00 GB/s');
 
     await pickPipeBlock(wrapper, '1');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80.00%');
     expect(wrapper.text()).toContain('2.00 GB/s');
     expect(wrapper.text()).not.toContain('4.00 GB/s');
 
     // All must return to the summary.jsonl aggregate from a non-default pick (not via an intervening `0`).
     await pickPipeBlock(wrapper, '');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50.00%');
     expect(wrapper.text()).toContain('4.00 GB/s');
     expect(wrapper.text()).not.toContain('2.00 GB/s');
 
     await pickPipeBlock(wrapper, '0');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20.00%');
     expect(wrapper.text()).toContain('1.00 GB/s');
   });
 
@@ -619,14 +619,14 @@ describe('StatsAside', () => {
     expect(naCard.text()).toContain('N/A');
     expect(naCard.text()).not.toContain('10');
     // PIPE re-reads the block's own row (0.8, not the All 0.5) …
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80.00%');
     expect(wrapper.text()).not.toContain('50%');
     // … and the selector stays reachable so All can be restored.
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
     await pickPipeBlock(wrapper, '');
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50.00%');
   });
 
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {
@@ -705,21 +705,21 @@ describe('StatsAside', () => {
 
     let rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
-    expect(rows).toContain('51'); // round(0.505*100)
-    expect(rows).not.toContain('19'); // aiv0 MTE3 ~19%
+    expect(rows).toContain('50.50%'); // round(0.505*100)
+    expect(rows).not.toContain('18.56%'); // aiv0 MTE3 ~19%
     expect(rows).not.toContain('26'); // aiv1 MTE3
 
     await wrapper.get('[data-testid="pipe-side-aiv0"]').trigger('click');
     rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('MTE3');
-    expect(rows).toContain('19'); // round(0.1856*100)
+    expect(rows).toContain('18.56%'); // the unified two-decimal PIPE percent
     expect(rows).not.toContain('26');
-    expect(rows).not.toContain('51');
+    expect(rows).not.toContain('50.50%');
 
     await wrapper.get('[data-testid="pipe-side-aiv1"]').trigger('click');
     rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('26'); // round(0.264*100)
-    expect(rows).not.toContain('19');
+    expect(rows).not.toContain('18.56%');
 
     // Re-passing an equivalent report must not wipe Vector 1 back to Cube (aic).
     await wrapper.setProps({
@@ -755,7 +755,7 @@ describe('StatsAside', () => {
     expect(aic.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
     let rows = aic.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
-    expect(rows).toContain('51');
+    expect(rows).toContain('50.50%');
     expect(rows).toContain('MTE3');
 
     const aivOnly = [
@@ -775,7 +775,7 @@ describe('StatsAside', () => {
     rows = aiv.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
     expect(rows).toContain('48');
-    expect(rows).toContain('19');
+    expect(rows).toContain('18.56%');
   });
 
   it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {
@@ -1263,8 +1263,8 @@ describe('StatsAside', () => {
         }),
       },
     });
-    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toBe('54');
-    expect(wrapper.get('[data-testid="stats-compute-aiv-score"]').text()).toBe('53');
+    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toBe('54.00');
+    expect(wrapper.get('[data-testid="stats-compute-aiv-score"]').text()).toBe('53.00');
     expect(wrapper.get('[data-testid="stats-compute-aic-bar"]').attributes('style')).toContain('width: 54%');
     expect(wrapper.get('[data-testid="stats-compute-aic"]').text()).toMatch(/Cube/);
     expect(wrapper.get('[data-testid="stats-compute-aiv"]').text()).toMatch(/Vector/);
@@ -1892,7 +1892,7 @@ describe('StatsAside', () => {
     expect(read.text()).toMatch(/读|Read/);
     // DATA-8: read = aic + aiv = 80 + 90 = 170 → score round(170/1600×100) = 11
     expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/11/);
-    expect(read.text()).toMatch(/170\.0 \/ 1600\.0\s*GB\/s/);
+    expect(read.text()).toMatch(/170.00 \/ 1600.00\s*GB\/s/);
     expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
       value: cardTipValue('170 / 1600 GB/s'),
       hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
@@ -1902,7 +1902,7 @@ describe('StatsAside', () => {
     );
     const write = card.get('[data-testid="stats-bandwidth-write"]');
     expect(write.text()).toMatch(/写|Write/);
-    expect(write.text()).toMatch(/1\.56 \/ 1600\.0\s*GB\/s/);
+    expect(write.text()).toMatch(/1\.56 \/ 1600\.00\s*GB\/s/);
   });
 
   it('PR-STATS-024: out.rep cards use 1600 GB/s peak (~1% score), not max of measured', () => {
@@ -1950,7 +1950,7 @@ describe('StatsAside', () => {
         }),
       },
     });
-    expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.065/);
+    expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.07/);
     const track = withAbs.get('.pr-pipe-row__track');
     expect(track.find('.pr-pipe-row__bar .pr-pipe-row__abs').exists()).toBe(false);
     expect(track.find(':scope > .pr-pipe-row__abs').exists()).toBe(true);
@@ -3385,6 +3385,19 @@ describe('StatsAside', () => {
     expect(withBase.get('[data-testid="stats-summary"]').classes()).toContain('pr-cards--compare');
   });
 
+  it('PR-STATS-060: the panel has ONE two-decimal format — trailing zeros included', async () => {
+    const { formatAsideValue, formatAsidePct, asideRoundsToZero } = await import('./asideValueFormat');
+    expect(formatAsideValue(54)).toBe('54.00');
+    expect(formatAsideValue(1.5)).toBe('1.50');
+    expect(formatAsideValue(0.065)).toBe('0.07');
+    expect(formatAsidePct(53)).toBe('53.00%');
+    expect(formatAsidePct(5.75)).toBe('5.75%');
+    expect(asideRoundsToZero(0)).toBe(true);
+    expect(asideRoundsToZero(0.004)).toBe(true);
+    expect(asideRoundsToZero(0.005)).toBe(false);
+    expect(asideRoundsToZero(0.01)).toBe(false);
+  });
+
   it('PR-STATS-045: the bar Operator select drives the comparison per operator', async () => {
     const baseline: AdaptedReport = {
       ...adaptedPack(report({ summary: { taskDurationUs: 500, opName: 'op-a' } })),
@@ -3411,7 +3424,7 @@ describe('StatsAside', () => {
     ).toBe('op-a');
     const util = wrapper.get('[data-testid="stats-aicore-util-diff"]');
     expect(util.classes()).toContain('pr-diff--decrease');
-    expect(util.get('.pr-diff__text').text()).toBe('40%');
+    expect(util.get('.pr-diff__text').text()).toBe('40.00%');
 
     // Picking op-b in the always-visible bar repaints the comparison:
     // 0.3 vs current 0.5 → red up 20%.
@@ -3426,7 +3439,7 @@ describe('StatsAside', () => {
     ).toBe('op-b');
     const utilB = wrapper.get('[data-testid="stats-aicore-util-diff"]');
     expect(utilB.classes()).toContain('pr-diff--increase');
-    expect(utilB.get('.pr-diff__text').text()).toBe('20%');
+    expect(utilB.get('.pr-diff__text').text()).toBe('20.00%');
     // The operator choice stays aside-local: no update:* emit.
     expect(
       Object.keys(wrapper.emitted()).filter((k) => k.startsWith('update:')),
@@ -3444,7 +3457,7 @@ describe('StatsAside', () => {
     // current 1000 µs vs baseline 500 µs → 0.5 ms red up.
     const badge = wrapper.get('[data-testid="stats-duration-diff"]');
     expect(badge.classes()).toContain('pr-diff--increase');
-    expect(badge.get('.pr-diff__text').text()).toBe('0.5');
+    expect(badge.get('.pr-diff__text').text()).toBe('0.50');
   });
 
   it('PR-STATS-055: comparison PIPE rows show two bars with values — current and baseline', async () => {
@@ -3465,7 +3478,7 @@ describe('StatsAside', () => {
       props: { report: report({ summary: { taskDurationUs: 1 }, pipeOccupancy: pipes }) },
     });
     expect(plain.find('[data-testid="pipe-baseline-value"]').exists()).toBe(false);
-    expect(plain.findAll('.pr-pipe-row__pct').map((p) => p.text())).toEqual(['50%', '30%']);
+    expect(plain.findAll('.pr-pipe-row__pct').map((p) => p.text())).toEqual(['50.00%', '30.00%']);
     plain.unmount();
 
     // With a pack: two bars per metric, BOTH in the classic layout — value
@@ -3493,11 +3506,11 @@ describe('StatsAside', () => {
     expect(row.get('.pr-pipe-row__label').text()).toBe('Vector');
     // The current bar keeps its classic percent in comparison mode.
     expect(wrapper.findAll('.pr-pipe-row__pct').map((p) => p.text())).toEqual([
-      '50%', `${t('baselineLabel')} 80%`, '30%', `${t('baselineLabel')} 60%`,
+      '50.00%', `${t('baselineLabel')} 80.00%`, '30.00%', `${t('baselineLabel')} 60.00%`,
     ]);
     const baseVals = wrapper.findAll('[data-testid="pipe-baseline-value"]');
     expect(baseVals.map((c) => c.text())).toEqual([
-      `${t('baselineLabel')} 80%`, `${t('baselineLabel')} 60%`,
+      `${t('baselineLabel')} 80.00%`, `${t('baselineLabel')} 60.00%`,
     ]);
     wrapper.unmount();
 
@@ -3520,8 +3533,8 @@ describe('StatsAside', () => {
         ),
       },
     });
-    expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toBe('0.60763');
-    expect(withAbs.get('[data-testid="pipe-baseline-absolute"]').text()).toBe('0.81234');
+    expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toBe('0.61');
+    expect(withAbs.get('[data-testid="pipe-baseline-absolute"]').text()).toBe('0.81');
     withAbs.unmount();
 
     // The row set is the report's own fields: a baseline pipe the report
@@ -3585,9 +3598,9 @@ describe('StatsAside', () => {
       },
     });
     await pickPipeBlock(scoped, '1');
-    expect(scoped.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(scoped.get('.pr-pipe-row__pct').text()).toBe('80.00%');
     expect(scoped.get('[data-testid="pipe-baseline-value"]').text()).toBe(
-      `${t('baselineLabel')} 40%`,
+      `${t('baselineLabel')} 40.00%`,
     );
     scoped.unmount();
 
@@ -3642,7 +3655,7 @@ describe('StatsAside', () => {
     const down = decreased.get('[data-testid="stats-duration-diff"]');
     expect(down.classes()).toContain('pr-diff--decrease');
     expect(down.find('.pr-icon').classes()).toContain('pr-icon--diff-down');
-    expect(down.get('.pr-diff__text').text()).toBe('2.4');
+    expect(down.get('.pr-diff__text').text()).toBe('2.40');
 
     const increased = mount(StatsAside, {
       props: {
@@ -3653,7 +3666,7 @@ describe('StatsAside', () => {
     const up = increased.get('[data-testid="stats-duration-diff"]');
     expect(up.classes()).toContain('pr-diff--increase');
     expect(up.find('.pr-icon').classes()).toContain('pr-icon--diff-up');
-    expect(up.get('.pr-diff__text').text()).toBe('2.4');
+    expect(up.get('.pr-diff__text').text()).toBe('2.40');
 
     // A sub-ms card prints µs, so the delta stays in µs.
     const micro = mount(StatsAside, {
@@ -3662,7 +3675,7 @@ describe('StatsAside', () => {
         baselineReport: adaptedPack(report({ summary: { taskDurationUs: 700, opName: 'relu' } })),
       },
     });
-    expect(micro.get('[data-testid="stats-duration-diff"] .pr-diff__text').text()).toBe('200');
+    expect(micro.get('[data-testid="stats-duration-diff"] .pr-diff__text').text()).toBe('200.00');
   });
 
   it('PR-STATS-047: AICore 并行使用率/负载均衡度 diffs in percentage points per column', () => {
@@ -3680,10 +3693,10 @@ describe('StatsAside', () => {
     });
     const util = wrapper.get('[data-testid="stats-aicore-util-diff"]');
     expect(util.classes()).toContain('pr-diff--decrease'); // 70% − 50%
-    expect(util.get('.pr-diff__text').text()).toBe('20%');
+    expect(util.get('.pr-diff__text').text()).toBe('20.00%');
     const bal = wrapper.get('[data-testid="stats-aicore-balance-diff"]');
     expect(bal.classes()).toContain('pr-diff--increase'); // 50% − 70%
-    expect(bal.get('.pr-diff__text').text()).toBe('20%');
+    expect(bal.get('.pr-diff__text').text()).toBe('20.00%');
   });
 
   it('PR-STATS-048: compute Cube/Vector diffs render as bare numbers', () => {
@@ -3748,10 +3761,10 @@ describe('StatsAside', () => {
     });
     const read = wrapper.get('[data-testid="stats-bandwidth-read-diff"]');
     expect(read.classes()).toContain('pr-diff--decrease'); // 50 − 10
-    expect(read.get('.pr-diff__text').text()).toBe('40%');
+    expect(read.get('.pr-diff__text').text()).toBe('40.00%');
     const write = wrapper.get('[data-testid="stats-bandwidth-write-diff"]');
     expect(write.classes()).toContain('pr-diff--increase'); // 1 − 2
-    expect(write.get('.pr-diff__text').text()).toBe('1%');
+    expect(write.get('.pr-diff__text').text()).toBe('1.00%');
   });
 
   it('PR-STATS-050: missing sides, equal values, and sub-precision deltas suppress badges', () => {
@@ -3804,7 +3817,7 @@ describe('StatsAside', () => {
     expect(badge.classes()).toContain('pr-diff');
     expect(badge.classes()).toContain('pr-diff--increase');
     expect(badge.get('.pr-diff__badge .pr-icon').classes()).toContain('pr-icon--diff-up');
-    expect(badge.get('.pr-diff__text').text()).toBe('1');
+    expect(badge.get('.pr-diff__text').text()).toBe('1.00');
     // The sr-only direction word keeps AT informed of the tone.
     expect(badge.get('.pr-field-sr').text()).toBe('Increased');
 
@@ -4118,7 +4131,7 @@ describe('StatsAside comparison wiring — topology + memory 详情 (PR-STATS-05
       '[data-testid="stats-memory"] [data-testid="summary-field-diff-aiv_main_mem_read_bw"]',
     );
     expect(stackedDiff.classes()).toContain('pr-diff--increase'); // baseline 80 − current 100
-    expect(stackedDiff.get('.pr-diff__text').text()).toBe('20');
+    expect(stackedDiff.get('.pr-diff__text').text()).toBe('20.00');
     stacked.unmount();
 
     // The drilled-in memory overlay pairs the same categories.
@@ -4136,7 +4149,7 @@ describe('StatsAside comparison wiring — topology + memory 详情 (PR-STATS-05
     await overlayMount.get('[data-testid="topology-details"]').trigger('click');
     const overlay = overlayMount.get('[data-testid="stats-memory"]');
     const overlayDiff = overlay.get('[data-testid="summary-field-diff-aiv_main_mem_read_bw"]');
-    expect(overlayDiff.get('.pr-diff__text').text()).toBe('20');
+    expect(overlayDiff.get('.pr-diff__text').text()).toBe('20.00');
     overlayMount.unmount();
 
     // The filter is the four memory ids: a compute-only baseline pairs nothing into the list.

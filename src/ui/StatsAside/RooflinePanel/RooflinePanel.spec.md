@@ -58,6 +58,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 [view-models](../../../../specs/core/view-models.spec.md), DATA-37a–f, [roofline](../../../../docs/views/roofline.md#tabs-fields).
 
 ## Changelog
+- **2026-11-19** — Product review: the mix labels read through the panel's ONE two-decimal format (PR-STATS-060): `84.100000%` becomes `84.10%`.
 
 - **2026-11-10** — The panel no longer renders its own `h4` title: `StatsAside`'s roofline section head owns the visible title (with the roofline cannbot group beside it). The svg `aria-label` keeps using `t('roofline')`.
 - **2026-10-22** — Dashed AIV roofs use butt caps so the `4 3` gap stays open at the lit 3.5px stroke.

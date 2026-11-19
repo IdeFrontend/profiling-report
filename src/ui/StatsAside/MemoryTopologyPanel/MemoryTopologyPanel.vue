@@ -361,7 +361,8 @@ export function continuousZoomFromDelta(current: number, deltaY: number): number
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
-import { metricDiff, trimDiffMagnitude, type DiffTone, type MetricDiff } from '../../../domain/metricDiff';
+import { metricDiff, type DiffTone, type MetricDiff } from '../../../domain/metricDiff';
+import { asideRoundsToZero, formatAsidePct } from '../asideValueFormat';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
  *  448×423). Static labels stay outlined paths (including white `MTE_*` / `FixPipe` ink on
@@ -476,7 +477,7 @@ const values = computed(() =>
 
 /** DATA-20 plate text: `{n}%` from `peakPct`, else the `l2-hit` edge label. */
 const peakText = computed(() =>
-  l2PeakPct.value != null ? `${l2PeakPct.value.toFixed(2)}%` : label('l2-hit'),
+  l2PeakPct.value != null ? formatAsidePct(l2PeakPct.value) : label('l2-hit'),
 );
 
 /** L2 peak plate's derived value centre (the rhythm engine's `vc` for the peak slot). */
@@ -540,7 +541,7 @@ function makeBadge(
   diff: MetricDiff,
 ): DiffBadge {
   const { badgeD, badgeY } = slotRhythm(node, { withBadge: true });
-  const text = `${trimDiffMagnitude(diff.magnitude)}%`;
+  const text = formatAsidePct(diff.magnitude);
   // The circle+text GROUP is centred under the value: the circle centre sits
   // left of the value's centre by half the text run at its PAINTED size
   // (naturalWidths stores the fitted run; fallback when metrics are
@@ -588,7 +589,7 @@ const plateDiffs = computed<DiffBadge[]>(() => {
     const diff = metricDiff(p.value, baselinePlate?.value);
     // metricDiff already drops missing/equal pairs; a delta that trims to `0` has no visible
     // badge either (the same rule SummaryCategoryList uses).
-    if (!diff || trimDiffMagnitude(diff.magnitude) === '0') return [];
+    if (!diff || asideRoundsToZero(diff.magnitude)) return [];
     return [
       makeBadge(
         p.key,
@@ -609,7 +610,7 @@ const plateDiffs = computed<DiffBadge[]>(() => {
 const peakDiff = computed<DiffBadge | null>(() => {
   const baselinePeak = props.baseline?.nodes.find((n) => n.id === 'l2')?.peakPct;
   const diff = metricDiff(l2PeakPct.value, baselinePeak);
-  if (!diff || trimDiffMagnitude(diff.magnitude) === '0') return null;
+  if (!diff || asideRoundsToZero(diff.magnitude)) return null;
   return makeBadge('peak', 'topo-diff-l2-peak', 'l2-peak', L2_PEAK_SLOT[0], diff);
 });
 

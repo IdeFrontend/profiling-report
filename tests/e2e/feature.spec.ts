@@ -1391,7 +1391,7 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
   await expect(firstRow.locator('.pr-pipe-row__track')).toHaveCount(2);
   await expect(firstRow.locator('[data-testid="pipe-baseline-value"]')).toBeVisible();
   const chip = await firstRow.locator('[data-testid="pipe-baseline-value"]').textContent();
-  expect(chip).toMatch(/基线 \d+%/);
+  expect(chip).toMatch(/基线 \d+\.\d{2}%/);
   // The baseline bar shows the baseline's own value, not a delta.
   const curPct = await firstRow.locator('.pr-pipe-row__track').first().locator('.pr-pipe-row__pct').textContent();
   expect(chip).not.toBe(curPct);
@@ -1456,7 +1456,7 @@ test('PR-E2E-024: PIPE comparison shows two bars with values; details show delta
   await expect(cubeRow.locator('.pr-pipe-row__track')).toHaveCount(2);
   await expect(cubeRow.locator('.pr-pipe-row__pct')).toHaveCount(2);
   const baseA = await cubeRow.locator('[data-testid="pipe-baseline-value"]').textContent();
-  expect(baseA).toMatch(/基线 \d+%/);
+  expect(baseA).toMatch(/基线 \d+\.\d{2}%/);
   // Switching the operator visibly changes the cube baseline values.
   await page.getByTestId('aside-baseline-operator-select').getByRole('button').click();
   await page.getByTestId('aside-baseline-operator-option-gelu').click();

@@ -4,10 +4,10 @@ import { t, archMetricModeLabel } from '../../i18n';
 import { baselineDisplayTitle } from '../../domain/baselineTitle';
 import {
   summaryDiffs,
-  trimDiffMagnitude,
   type MetricDiff,
   type SummaryMetricValues,
 } from '../../domain/metricDiff';
+import { asideRoundsToZero, formatAsidePct, formatAsideValue } from './asideValueFormat';
 import type {
   AdaptedReport,
   BandwidthCardModel,
@@ -269,23 +269,22 @@ const compareCards = computed(() => baselineModel.value != null);
 /**
  * Diff text per metric — the mockup prints the unsigned magnitude in the
  * metric's own unit: bare number for duration (unit implied by the base
- * value) and compute, `%` attached for AICore/BW. Returns '' when a magnitude
- * rounds to zero (no badge).
+ * value) and compute, `%` attached for AICore/BW. Everything rides the panel's
+ * ONE two-decimal format (PR-STATS-060); a magnitude whose two-decimal
+ * rounding lands on `0.00` yields no badge.
  */
 function diffText(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): string {
   if (!diff) return '';
   if (kind === 'pct') {
-    const s = trimDiffMagnitude(diff.magnitude);
-    return s === '0' ? '' : `${s}%`;
+    return asideRoundsToZero(diff.magnitude) ? '' : formatAsidePct(diff.magnitude);
   }
   if (kind === 'duration') {
     // Same unit as the current card's base value: ms when it prints ms, else µs.
     const us = props.report?.summary.taskDurationUs;
-    const s = us != null && us >= 1000 ? trimDiffMagnitude(diff.magnitude / 1000) : trimDiffMagnitude(diff.magnitude);
-    return s === '0' ? '' : s;
+    const magnitude = us != null && us >= 1000 ? diff.magnitude / 1000 : diff.magnitude;
+    return asideRoundsToZero(magnitude) ? '' : formatAsideValue(magnitude);
   }
-  const s = trimDiffMagnitude(diff.magnitude);
-  return s === '0' ? '' : s;
+  return asideRoundsToZero(diff.magnitude) ? '' : formatAsideValue(diff.magnitude);
 }
 
 function diffDirectionLabel(tone: MetricDiff['tone']): string {
@@ -1080,17 +1079,12 @@ const durationValueTip = computed(() =>
 );
 
 function formatPipeAbsolute(v: number): string {
-  if (Math.abs(v) >= 100) return v.toFixed(2);
-  if (Math.abs(v) >= 1) return v.toFixed(2);
-  return v.toFixed(5);
+  return formatAsideValue(v);
 }
 
-/** UI-34 / DATA-33h: magnitude rounding for GB/s and TFLOPS subtitles. */
+/** UI-34 / DATA-33h: GB/s and TFLOPS subtitles ride the panel's ONE format (PR-STATS-060). */
 function formatMagnitude(n: number): string {
-  if (n >= 10) return n.toFixed(1);
-  if (n >= 0.01) return n.toFixed(2);
-  if (n >= 0.001) return n.toFixed(3);
-  return n.toFixed(4);
+  return formatAsideValue(n);
 }
 
 function utilScore(measured: number, peak: number): number {
@@ -1441,7 +1435,7 @@ const detailTestId = computed(() => {
                   :data-testid="`stats-aicore-${row.id}-score`"
                   v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
-                  <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
+                  <span class="pr-card__num">{{ formatAsideValue(row.score) }}</span>
                   <span class="pr-card__unit">%</span>
                   <SummaryDiffIndicator
                     v-if="row.id === 'util' ? parallelDiff : balanceDiff"
@@ -1498,7 +1492,7 @@ const detailTestId = computed(() => {
                   :data-testid="`stats-compute-${row.side}-score`"
                   v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
-                  <span class="pr-card__num">{{ row.score }}</span>
+                  <span class="pr-card__num">{{ formatAsideValue(row.score) }}</span>
                   <SummaryDiffIndicator
                     v-if="row.side === 'aic' ? computeAicDiff : computeAivDiff"
                     :tone="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.tone"
@@ -1567,7 +1561,7 @@ const detailTestId = computed(() => {
                   :data-testid="`stats-bandwidth-${row.dir}-score`"
                   v-bind="tipBind(row.scoreTip, { focusable: true })"
                 >
-                  <span class="pr-card__num">{{ row.score }}</span>
+                  <span class="pr-card__num">{{ formatAsideValue(row.score) }}</span>
                   <span class="pr-card__unit">%</span>
                   <SummaryDiffIndicator
                     v-if="row.dir === 'read' ? bwReadDiff : bwWriteDiff"
@@ -1737,7 +1731,7 @@ const detailTestId = computed(() => {
                     class="pr-pipe-row__abs"
                     data-testid="pipe-absolute"
                   >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
-                  <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+                  <span class="pr-pipe-row__pct">{{ formatAsidePct(pipe.ratio * 100) }}</span>
                 </span>
                 <!-- Baseline bar: the SAME layout as the current bar — value
                      left, percent right; only its right text differs: the
@@ -1766,7 +1760,7 @@ const detailTestId = computed(() => {
                   <span
                     class="pr-pipe-row__pct"
                     data-testid="pipe-baseline-value"
-                  >{{ t('baselineLabel', locale) }} {{ Math.round((baselinePipeFor(pipe)?.ratio ?? 0) * 100) }}%</span>
+                  >{{ t('baselineLabel', locale) }} {{ formatAsidePct((baselinePipeFor(pipe)?.ratio ?? 0) * 100) }}</span>
                 </span>
                 </span>
               </li>

@@ -5,7 +5,8 @@ import type { SummaryCategory } from '../../../domain/types';
 import { formatDetailValue } from '../../../domain/detailValue';
 import { highlightParts } from '../../searchHighlight';
 import SummaryDiffIndicator from '../StatsSummaryPanel/SummaryDiffIndicator.vue';
-import { metricDiff, trimDiffMagnitude, type MetricDiff } from '../../../domain/metricDiff';
+import { metricDiff, type MetricDiff } from '../../../domain/metricDiff';
+import { asideRoundsToZero, formatAsideValue } from '../asideValueFormat';
 
 const props = defineProps<{
   categories: SummaryCategory[];
@@ -167,9 +168,9 @@ const fields = computed(() => {
           <!-- The delta badge stays on the SAME line, right after the value
                (baseline-compare details mockup 1130). -->
           <SummaryDiffIndicator
-            v-if="field.diff && trimDiffMagnitude(field.diff.magnitude) !== '0'"
+            v-if="field.diff && !asideRoundsToZero(field.diff.magnitude)"
             :tone="field.diff.tone"
-            :text="trimDiffMagnitude(field.diff.magnitude)"
+            :text="formatAsideValue(field.diff.magnitude)"
             :direction-label="t(field.diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased', locale)"
             :data-testid="`summary-field-diff-${field.key}`"
           />

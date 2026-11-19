@@ -42,5 +42,6 @@ Same search / match tokens as [CsvFieldListPanel](../CsvFieldListPanel/CsvFieldL
 
 
 ## Changelog
+- **2026-11-19** — Product review: the field delta badges read through the panel's ONE two-decimal format (PR-STATS-060) — `0.2` becomes `0.20`; field VALUES keep their own ≤4-decimal rule (PR-SUMM-005).
 - **2026-11-12** — 对比基线 details: delta badges right of field values (PR-SUMM-004).
 - **2026-09-23** — Add search filter + substring highlight (parity with CsvFieldListPanel / UI-43) so All-scope 详情 is not search-less.

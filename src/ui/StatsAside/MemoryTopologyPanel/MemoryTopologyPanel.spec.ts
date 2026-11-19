@@ -767,7 +767,7 @@ describe('MemoryTopologyPanel baseline comparison (PR-MEMTOP-024..028)', () => {
     // Scalar 57.90 vs baseline 50: delta = 50 − 57.90 = −7.9 → the value INCREASED (red up).
     const up = wrapper.get('[data-testid="topo-diff-aiv_scalar-0"]');
     expect(up.classes()).toContain('pr-topo__diff--increase');
-    expect(up.get('text.pr-topo__diff-text').text()).toBe('7.9%');
+    expect(up.get('text.pr-topo__diff-text').text()).toBe('7.90%');
 
     // Vec 2.18 vs baseline 3: delta = +0.82 → the value DECREASED (green down).
     const down = wrapper.get('[data-testid="topo-diff-vec-0"]');
