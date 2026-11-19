@@ -93,13 +93,15 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: legend is Access Count + HSL strip with 0/50/100% ticks (#200)', () => {
+  it('PR-HEAT-002: legend is Access Count + HSL strip with 0 / max access count (#200)', () => {
     const wrapper = mountPanel({ locale: 'en' });
     const legend = wrapper.get('[data-testid="heat-legend"]');
     expect(legend.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(legend.get('[data-testid="heat-legend-gradient"]').exists()).toBe(true);
-    const ticks = legend.findAll('[data-testid="heat-legend-ticks"] .pr-heat__legend-tick');
-    expect(ticks.map((n) => n.text())).toEqual(['0%', '50%', '100%']);
+    expect(legend.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
+    // Default fixture max accessCount is 300,090 on the first hot cell.
+    expect(legend.get('[data-testid="heat-legend-tick-max"]').text()).toBe('300,090');
+    expect(legend.text()).not.toContain('%');
     expect(legend.text()).not.toContain('Low');
     expect(legend.text()).not.toContain('High');
   });
@@ -479,5 +481,70 @@ describe('MemoryHeatmapPanel', () => {
       '0x100',
     );
     wrapper.unmount();
+  });
+
+  it('PR-HEAT-014: legend brush (10%) mutes non-matching cells; clears on leave', async () => {
+    // Two hot cells: intensities 0.5 and 1.0 → mid brush (~45–55%) keeps only the 0.5 cell bright.
+    const brushModel: MemoryHeatmapModel = {
+      units: [
+        {
+          id: 'ub',
+          views: [
+            view({
+              columns: 2,
+              rows: 2,
+              blocks: [
+                { index: 0, state: 'withData', intensity: 0.5, accessCount: 50 },
+                { index: 1, state: 'withData', intensity: 1, accessCount: 100 },
+                { index: 2, state: 'withoutData', intensity: 0, accessCount: 0 },
+                { index: 3, state: 'withoutData', intensity: 0, accessCount: 0 },
+              ],
+            }),
+          ],
+        },
+      ],
+    };
+    const wrapper = mountPanel({ model: brushModel, selectedUnit: 'ub', locale: 'en' });
+    const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
+    const el = gradient.element as HTMLElement;
+    const width = 200;
+    el.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: 8,
+        width,
+        height: 8,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+
+    // Mid-strip → center clamped at 50%, window [45, 55].
+    await gradient.trigger('pointermove', { clientX: width / 2, clientY: 4 });
+    const brush = wrapper.get('[data-testid="heat-legend-brush"]');
+    expect(brush.attributes('style')).toMatch(/left:\s*45%/);
+    expect(brush.attributes('style')).toMatch(/width:\s*10%/);
+    expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('45 – 55');
+
+    const cells = wrapper.findAll('.pr-heat__cell');
+    expect(cells[0]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 50
+    expect(cells[1]!.classes()).toContain('pr-heat__cell--muted'); // intensity 100
+    expect(cells[2]!.classes()).toContain('pr-heat__cell--muted'); // intensity 0
+
+    // Edge clamp: pointer at left edge → center 5%, window still 10% wide [0, 10].
+    await gradient.trigger('pointermove', { clientX: 0, clientY: 4 });
+    expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
+      /left:\s*0%/,
+    );
+    expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('0 – 10');
+
+    await gradient.trigger('pointerleave');
+    expect(wrapper.find('[data-testid="heat-legend-brush"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
+    expect(wrapper.findAll('.pr-heat__cell--muted')).toHaveLength(0);
   });
 });

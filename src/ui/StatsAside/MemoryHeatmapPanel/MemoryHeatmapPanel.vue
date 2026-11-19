@@ -30,11 +30,12 @@ import {
 const HEAT_CELL_TIP_EST_W = 220;
 const HEAT_CELL_TIP_EST_H = 88;
 
-/** Legend labels under the strip — only the ends + midpoint (readable; not every 10%). */
-const LEGEND_TICKS = [0, 50, 100] as const;
-
-/** Dense stops so the HSL ramp stays continuous even with sparse tick labels. */
+/** Dense stops so the HSL ramp stays continuous (labels are 0 / max access count). */
 const LEGEND_STOPS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
+
+/** Fixed brush width on the Access Count legend (percent of strip). */
+const LEGEND_BRUSH_WIDTH_PCT = 10;
+const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
 
 /**
  * SA Memory Utilization fill: gray at 0, then green→yellow→red as pct rises.
@@ -211,6 +212,19 @@ const metricLabel = computed(() => {
 const gridColumns = computed(() => activeView.value?.columns ?? 1);
 const gridRows = computed(() => activeView.value?.rows ?? 1);
 
+/** Active view max access count — right legend label + brush range readout. */
+const maxAccessCount = computed(() => {
+  const blocks = activeView.value?.blocks;
+  if (!blocks?.length) return 0;
+  let max = 0;
+  for (const b of blocks) {
+    if (b.accessCount > max) max = b.accessCount;
+  }
+  return max;
+});
+
+const legendMaxLabel = computed(() => formatAccessCount(maxAccessCount.value));
+
 function onTabsKeydown(e: KeyboardEvent) {
   const at = TABS.indexOf(props.selectedUnit ?? TABS[0]);
   const target =
@@ -347,8 +361,61 @@ function clearCellTip() {
   hoveredBlockIndex.value = null;
 }
 
+/**
+ * Hover-only 10% legend brush — dims cells whose intensity falls outside [lo, hi].
+ * Center is clamped so the window always stays fully on the strip.
+ */
+const legendBrush = ref<{ centerPct: number; loPct: number; hiPct: number } | null>(null);
+
+const legendBrushStyle = computed<CSSProperties>(() => {
+  const brush = legendBrush.value;
+  if (!brush) return { display: 'none' };
+  return {
+    left: `${brush.loPct}%`,
+    width: `${LEGEND_BRUSH_WIDTH_PCT}%`,
+  };
+});
+
+const legendBrushRangeLabel = computed(() => {
+  const brush = legendBrush.value;
+  if (!brush) return '';
+  const max = maxAccessCount.value;
+  const lo = Math.round((brush.loPct / 100) * max);
+  const hi = Math.round((brush.hiPct / 100) * max);
+  return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
+});
+
+function cellMuted(block: MemoryHeatmapBlock): boolean {
+  const brush = legendBrush.value;
+  if (!brush) return false;
+  const pct = block.intensity * 100;
+  return pct < brush.loPct || pct > brush.hiPct;
+}
+
+function onLegendPointerMove(e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement | null;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const pct = ((e.clientX - rect.left) / rect.width) * 100;
+  const centerPct = Math.min(
+    100 - LEGEND_BRUSH_HALF_PCT,
+    Math.max(LEGEND_BRUSH_HALF_PCT, pct),
+  );
+  legendBrush.value = {
+    centerPct,
+    loPct: centerPct - LEGEND_BRUSH_HALF_PCT,
+    hiPct: centerPct + LEGEND_BRUSH_HALF_PCT,
+  };
+}
+
+function clearLegendBrush() {
+  legendBrush.value = null;
+}
+
 watch(activeView, () => {
   clearCellTip();
+  clearLegendBrush();
 });
 </script>
 
@@ -390,21 +457,32 @@ watch(activeView, () => {
           class="pr-heat__legend-title"
           data-testid="heat-legend-title"
         >
-          {{ t('memoryHeatAccessCount', locale) }}
+          {{ legendBrush ? legendBrushRangeLabel : t('memoryHeatAccessCount', locale) }}
         </p>
         <div
           class="pr-heat__gradient"
           data-testid="heat-legend-gradient"
-          aria-hidden="true"
           :style="{ background: LEGEND_GRADIENT }"
-        />
+          @pointermove="onLegendPointerMove"
+          @pointerleave="clearLegendBrush"
+        >
+          <div
+            v-if="legendBrush"
+            class="pr-heat__legend-brush"
+            data-testid="heat-legend-brush"
+            aria-hidden="true"
+            :style="legendBrushStyle"
+          />
+        </div>
         <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
           <span
-            v-for="pct in LEGEND_TICKS"
-            :key="pct"
             class="pr-heat__legend-tick"
-            :data-pct="String(pct)"
-          >{{ pct }}%</span>
+            data-testid="heat-legend-tick-min"
+          >0</span>
+          <span
+            class="pr-heat__legend-tick"
+            data-testid="heat-legend-tick-max"
+          >{{ legendMaxLabel }}</span>
         </div>
       </div>
     </div>
@@ -462,7 +540,10 @@ watch(activeView, () => {
               v-for="block in activeView.blocks"
               :key="block.index"
               class="pr-heat__cell"
-              :class="{ 'pr-heat__cell--with': block.state === 'withData' }"
+              :class="{
+                'pr-heat__cell--with': block.state === 'withData',
+                'pr-heat__cell--muted': cellMuted(block),
+              }"
               :data-state="block.state"
               :data-intensity="String(block.intensity)"
               :data-access-count="String(block.accessCount)"
@@ -470,7 +551,11 @@ watch(activeView, () => {
             />
             <!-- Single overlay ring — no per-cell class / layout grow (swimlane-style). -->
             <div
-              v-if="hoveredBlockIndex != null"
+              v-if="
+                hoveredBlockIndex != null &&
+                activeView.blocks[hoveredBlockIndex] &&
+                !cellMuted(activeView.blocks[hoveredBlockIndex])
+              "
               class="pr-heat__hover"
               data-testid="heat-cell-hover"
               aria-hidden="true"
@@ -631,9 +716,25 @@ watch(activeView, () => {
 }
 
 .pr-heat__gradient {
+  position: relative;
   width: 100%;
   height: 8px;
   border-radius: 1px;
+  cursor: default;
+}
+
+.pr-heat__legend-brush {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  box-sizing: border-box;
+  height: 16px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
 }
 
 .pr-heat__legend-ticks {
@@ -718,6 +819,11 @@ watch(activeView, () => {
   box-sizing: border-box;
   /* Hits go to the grid — continuous geometry hit-test owns hover. */
   pointer-events: none;
+}
+
+/* Swimlane keep-bright: non-matching cells dim while the legend brush is active. */
+.pr-heat__cell--muted {
+  opacity: 0.25;
 }
 
 .pr-heat__hover {
