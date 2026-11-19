@@ -294,6 +294,43 @@ onBeforeUnmount(() => {
   /* ~8–9 options; heat multicore / Source file lists can be long. */
   max-height: min(240px, calc(100vh - 16px));
   overflow-y: auto;
+  /*
+   * Teleported to `body` — outside `.pr-root` — so tokens.css scrollbar rules
+   * do not apply. Mirror `.pr-root` bars (dark thumb, no white track/arrows).
+   */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+.pr-source-select__menu::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #5a5a5a;
+  background-clip: content-box;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+  background-clip: content-box;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .pr-source-select__option {
