@@ -199,6 +199,46 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 0 · AIV0 UB');
   });
 
+  it('PR-HEAT-010b: single-core packs omit the Core id prefix', () => {
+    const single: MemoryHeatmapModel = {
+      units: [
+        {
+          id: 'ub',
+          views: [
+            view({
+              coreId: 0,
+              ownerName: 'AIV0',
+              memoryName: 'UB',
+              blocks: blocks(8, 1),
+              totalBytes: 256,
+              usedBytes: 32,
+              freeBytes: 224,
+            }),
+          ],
+        },
+        {
+          id: 'l1',
+          views: [
+            view({
+              coreId: 0,
+              ownerName: 'AIC',
+              memoryName: 'L1',
+              blocks: blocks(8, 0),
+              totalBytes: 512,
+              usedBytes: 0,
+              freeBytes: 512,
+            }),
+          ],
+        },
+      ],
+    };
+    const ub = mountPanel({ model: single, selectedUnit: 'ub' });
+    expect(ub.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB');
+    expect(ub.get('[data-testid="heat-unit-name"]').text()).not.toContain('Core');
+    const l1 = mountPanel({ model: single, selectedUnit: 'l1' });
+    expect(l1.get('[data-testid="heat-unit-name"]').text()).toBe('AIC L1');
+  });
+
   it('PR-HEAT-005: blanks a selected unit the model has no source for', () => {
     const wrapper = mountPanel({ selectedUnit: 'l0c' });
     expect(wrapper.find('[data-testid="heat-empty"]').exists()).toBe(true);
