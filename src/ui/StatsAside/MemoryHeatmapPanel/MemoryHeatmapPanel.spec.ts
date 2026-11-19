@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryHeatmapPanel from './MemoryHeatmapPanel.vue';
 import type { MemoryHeatmapModel, MemoryHeatmapView } from '../../../domain/types';
+
+/** Legend slide updates coalesce to one rAF — flush before asserting mute/chrome. */
+async function flushLegendBrushFrame() {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+  await nextTick();
+}
 
 function blocks(count: number, withData: number) {
   return Array.from({ length: count }, (_, index) => {
@@ -108,8 +117,9 @@ describe('MemoryHeatmapPanel', () => {
     expect(legend.text()).not.toContain('High');
   });
 
-  it('PR-HEAT-003: paints one cell per block with continuous Free→Used blue intensity (#200)', () => {
+  it('PR-HEAT-003: paints one cell per block with continuous Free→Used blue intensity (#200)', async () => {
     const wrapper = mountPanel();
+    await nextTick(); // imperative heatFill paint
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells).toHaveLength(416);
     expect(cells[0].attributes('data-state')).toBe('withData');
@@ -210,6 +220,7 @@ describe('MemoryHeatmapPanel', () => {
     expect(item!.textContent).toContain('Core 1 · AIV1 UB');
     item!.click();
     await wrapper.vm.$nextTick();
+    await nextTick(); // imperative --with paint after view remount
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 1 · AIV1 UB');
     expect(wrapper.findAll('.pr-heat__cell--with')).toHaveLength(10);
   });
@@ -530,10 +541,11 @@ describe('MemoryHeatmapPanel', () => {
       ],
     };
     const wrapper = mountPanel({ model: brushModel, selectedUnit: 'ub', locale: 'en' });
+    await nextTick(); // imperative cell fill paint after mount
     const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
     const { trackWidth, pad, hitLeft, hitRight } = stubLegendTrack(wrapper);
 
-    // Mid-strip → center 50%, window [45, 55].
+    // Mid-strip → center 50%, window [45, 55]. Enter applies sync (no rAF).
     await gradient.trigger('pointermove', { clientX: pad + trackWidth / 2, clientY: 11 });
     const brush = wrapper.get('[data-testid="heat-legend-brush"]');
     expect(brush.attributes('style')).toMatch(/left:\s*45%/);
@@ -558,6 +570,7 @@ describe('MemoryHeatmapPanel', () => {
 
     // Strip left edge → center 0%, window [-5, 5]; label coerces to 0 – 5.
     await gradient.trigger('pointermove', { clientX: pad, clientY: 11 });
+    await flushLegendBrushFrame();
     expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
       /left:\s*-5%/,
     );
@@ -573,6 +586,7 @@ describe('MemoryHeatmapPanel', () => {
 
     // Left side pad (outside strip) → center -5%, window [-10, 0]; label 0 – 0.
     await gradient.trigger('pointermove', { clientX: hitLeft, clientY: 11 });
+    await flushLegendBrushFrame();
     expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
       /left:\s*-10%/,
     );
@@ -582,6 +596,7 @@ describe('MemoryHeatmapPanel', () => {
 
     // Strip right edge → window [95, 105]; label 95 – 100.
     await gradient.trigger('pointermove', { clientX: pad + trackWidth, clientY: 11 });
+    await flushLegendBrushFrame();
     expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
       /left:\s*95%/,
     );
@@ -597,6 +612,7 @@ describe('MemoryHeatmapPanel', () => {
 
     // Right side pad → center 105%, window [100, 110]; label 100 – 100.
     await gradient.trigger('pointermove', { clientX: hitRight, clientY: 11 });
+    await flushLegendBrushFrame();
     expect(wrapper.get('[data-testid="heat-legend-brush"]').attributes('style')).toMatch(
       /left:\s*100%/,
     );
@@ -650,6 +666,7 @@ describe('MemoryHeatmapPanel', () => {
       ],
     };
     const wrapper = mountPanel({ model: singleModel, selectedUnit: 'ub', locale: 'en' });
+    await nextTick();
     const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
     const { trackWidth, pad } = stubLegendTrack(wrapper);
 

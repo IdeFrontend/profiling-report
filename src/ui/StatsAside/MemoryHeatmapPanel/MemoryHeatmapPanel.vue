@@ -383,32 +383,164 @@ function clearCellTip() {
 
 /**
  * Hover-only 10% legend brush — dims cells whose intensity falls outside [lo, hi].
- * Center follows the pointer on the strip (0…100); the window may overhang past
- * 0 / 100 so boundary intensities stay easy to capture. Range label coerces to 0…max.
- * While active, the legend strip mutes to occupancy bands (≥3px per intensity).
+ * Center follows the pointer on the strip; window may overhang past 0 / 100.
+ * Cell mute is patched imperatively so Vue does not re-render the lattice every move.
  */
 const legendBrush = ref<{ centerPct: number; loPct: number; hiPct: number } | null>(null);
 /** Legend hit-band width in CSS px — drives 3px → % for occupancy bands. */
 const legendTrackWidthPx = ref(0);
 /**
- * While sliding an active brush, snap cell colors (no transition). Enter/leave keep
- * the default background-color transition so CSS can reverse mid-flight.
+ * Stable while the brush is sliding: disables cell color transitions after the
+ * enter fade's first frame. Cleared on leave so unmute can reverse mid-flight.
  */
-const legendBrushSnap = ref(false);
-let legendBrushSnapRaf = 0;
+const legendBrushing = ref(false);
 
-function snapBrushColors(apply: () => void) {
-  legendBrushSnap.value = true;
-  apply();
-  if (legendBrushSnapRaf) cancelAnimationFrame(legendBrushSnapRaf);
-  legendBrushSnapRaf = requestAnimationFrame(() => {
-    legendBrushSnap.value = false;
-    legendBrushSnapRaf = 0;
+/** Precomputed per active view — used by imperative mute patches. */
+let cellIntensityPct: number[] = [];
+let cellFillColors: string[] = [];
+let cellWithDataBits = new Uint8Array(0);
+let cellMutedBits = new Uint8Array(0);
+
+let legendBrushMoveRaf = 0;
+let legendBrushingRaf = 0;
+let pendingLegendClientX: number | null = null;
+let lastAppliedBrushCenter: number | null = null;
+
+function rebuildCellPaintCache(view: MemoryHeatmapView | null) {
+  if (!view?.blocks.length) {
+    cellIntensityPct = [];
+    cellFillColors = [];
+    cellWithDataBits = new Uint8Array(0);
+    cellMutedBits = new Uint8Array(0);
+    return;
+  }
+  const n = view.blocks.length;
+  cellIntensityPct = new Array(n);
+  cellFillColors = new Array(n);
+  cellWithDataBits = new Uint8Array(n);
+  cellMutedBits = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const block = view.blocks[i]!;
+    cellIntensityPct[i] = block.intensity * 100;
+    cellFillColors[i] = heatFill(block.intensity);
+    cellWithDataBits[i] = block.state === 'withData' ? 1 : 0;
+  }
+}
+
+/**
+ * Apply fill + mute to lattice cells. When `force` is set (view remount), every
+ * cell is painted (incl. `--with`); otherwise only mute bits that changed.
+ */
+function patchMutedCells(
+  brush: { loPct: number; hiPct: number } | null,
+  force = false,
+) {
+  const grid = gridEl.value;
+  if (!grid) return;
+  const cells = grid.querySelectorAll<HTMLElement>('.pr-heat__cell');
+  const n = Math.min(cells.length, cellIntensityPct.length);
+  for (let i = 0; i < n; i++) {
+    const pct = cellIntensityPct[i]!;
+    const muted = brush != null && (pct < brush.loPct || pct > brush.hiPct);
+    const bit = muted ? 1 : 0;
+    const el = cells[i]!;
+    if (force) {
+      el.classList.toggle('pr-heat__cell--with', cellWithDataBits[i] === 1);
+    }
+    if (!force && cellMutedBits[i] === bit) continue;
+    cellMutedBits[i] = bit;
+    el.classList.toggle('pr-heat__cell--muted', muted);
+    el.style.backgroundColor = muted ? SELECTION_MUTED_FILL : cellFillColors[i]!;
+  }
+}
+
+function quantizeBrushCenter(pct: number): number {
+  return Math.round(pct * 4) / 4;
+}
+
+function applyLegendBrush(next: { centerPct: number; loPct: number; hiPct: number } | null) {
+  const wasOn = legendBrush.value != null;
+  legendBrush.value = next;
+  if (next == null) {
+    legendBrushing.value = false;
+    if (legendBrushingRaf) {
+      cancelAnimationFrame(legendBrushingRaf);
+      legendBrushingRaf = 0;
+    }
+    lastAppliedBrushCenter = null;
+    patchMutedCells(null);
+    return;
+  }
+  patchMutedCells(next);
+  if (!wasOn) {
+    // Enter: keep transitions for one frame, then lock snap while sliding.
+    legendBrushing.value = false;
+    if (legendBrushingRaf) cancelAnimationFrame(legendBrushingRaf);
+    legendBrushingRaf = requestAnimationFrame(() => {
+      legendBrushingRaf = 0;
+      if (legendBrush.value != null) legendBrushing.value = true;
+    });
+  } else {
+    legendBrushing.value = true;
+  }
+}
+
+function flushLegendBrushFromClientX(clientX: number) {
+  const track = legendTrackEl.value;
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  if (legendTrackWidthPx.value !== rect.width) {
+    legendTrackWidthPx.value = rect.width;
+  }
+  const rawPct = ((clientX - rect.left) / rect.width) * 100;
+  const centerPct = quantizeBrushCenter(
+    Math.min(100 + LEGEND_BRUSH_HALF_PCT, Math.max(-LEGEND_BRUSH_HALF_PCT, rawPct)),
+  );
+  if (lastAppliedBrushCenter === centerPct && legendBrush.value != null) return;
+  lastAppliedBrushCenter = centerPct;
+  applyLegendBrush({
+    centerPct,
+    loPct: centerPct - LEGEND_BRUSH_HALF_PCT,
+    hiPct: centerPct + LEGEND_BRUSH_HALF_PCT,
   });
 }
 
+function onLegendPointerMove(e: PointerEvent) {
+  pendingLegendClientX = e.clientX;
+  // Enter synchronously so mute/occ fades start on the same event.
+  if (legendBrush.value == null) {
+    flushLegendBrushFromClientX(e.clientX);
+    return;
+  }
+  if (legendBrushMoveRaf) return;
+  legendBrushMoveRaf = requestAnimationFrame(() => {
+    legendBrushMoveRaf = 0;
+    if (pendingLegendClientX != null) flushLegendBrushFromClientX(pendingLegendClientX);
+  });
+}
+
+function clearLegendBrush() {
+  // Keep track width so occupancy bands stay mounted while opacity fades out.
+  pendingLegendClientX = null;
+  if (legendBrushMoveRaf) {
+    cancelAnimationFrame(legendBrushMoveRaf);
+    legendBrushMoveRaf = 0;
+  }
+  applyLegendBrush(null);
+}
+
+function isBrushMutedIndex(index: number): boolean {
+  const brush = legendBrush.value;
+  if (!brush) return false;
+  const pct = cellIntensityPct[index];
+  if (pct == null) return false;
+  return pct < brush.loPct || pct > brush.hiPct;
+}
+
 onBeforeUnmount(() => {
-  if (legendBrushSnapRaf) cancelAnimationFrame(legendBrushSnapRaf);
+  if (legendBrushMoveRaf) cancelAnimationFrame(legendBrushMoveRaf);
+  if (legendBrushingRaf) cancelAnimationFrame(legendBrushingRaf);
 });
 
 const legendBrushStyle = computed<CSSProperties>(() => {
@@ -467,75 +599,38 @@ const legendMaxTickOpacity = computed(() => {
   return Math.min(1, Math.max(0, (100 - brush.hiPct) / LEGEND_END_FADE_ZONE_PCT));
 });
 
-function cellMuted(block: MemoryHeatmapBlock): boolean {
-  const brush = legendBrush.value;
-  if (!brush) return false;
-  const pct = block.intensity * 100;
-  return pct < brush.loPct || pct > brush.hiPct;
-}
-
-function onLegendPointerMove(e: PointerEvent) {
-  const track = legendTrackEl.value;
-  if (!track) return;
-  const rect = track.getBoundingClientRect();
-  if (rect.width <= 0) return;
-  legendTrackWidthPx.value = rect.width;
-  // Side pads let center reach ±half-brush so the window can be 0–0 / max–max.
-  const rawPct = ((e.clientX - rect.left) / rect.width) * 100;
-  const centerPct = Math.min(
-    100 + LEGEND_BRUSH_HALF_PCT,
-    Math.max(-LEGEND_BRUSH_HALF_PCT, rawPct),
-  );
-  const next = {
-    centerPct,
-    loPct: centerPct - LEGEND_BRUSH_HALF_PCT,
-    hiPct: centerPct + LEGEND_BRUSH_HALF_PCT,
-  };
-  if (legendBrush.value == null) {
-    // Enter: sync so mute/occ/cell fades start immediately (interruptible).
-    legendBrushSnap.value = false;
-    if (legendBrushSnapRaf) {
-      cancelAnimationFrame(legendBrushSnapRaf);
-      legendBrushSnapRaf = 0;
+watch(
+  activeView,
+  (view) => {
+    clearCellTip();
+    pendingLegendClientX = null;
+    if (legendBrushMoveRaf) {
+      cancelAnimationFrame(legendBrushMoveRaf);
+      legendBrushMoveRaf = 0;
     }
-    legendBrush.value = next;
-    return;
-  }
-  // Sliding: instant mute set (no color transition).
-  snapBrushColors(() => {
-    legendBrush.value = next;
-  });
-}
-
-function clearLegendBrush() {
-  // Keep track width so occupancy bands stay in the DOM while opacity fades out.
-  // Leave: sync so fade reverses immediately if enter was mid-flight.
-  legendBrushSnap.value = false;
-  if (legendBrushSnapRaf) {
-    cancelAnimationFrame(legendBrushSnapRaf);
-    legendBrushSnapRaf = 0;
-  }
-  legendBrush.value = null;
-}
-
-watch(activeView, () => {
-  clearCellTip();
-  // View swap: drop brush instantly (no enter/leave fade).
-  legendBrush.value = null;
-  legendTrackWidthPx.value = 0;
-  legendBrushSnap.value = false;
-  if (legendBrushSnapRaf) {
-    cancelAnimationFrame(legendBrushSnapRaf);
-    legendBrushSnapRaf = 0;
-  }
-});
+    if (legendBrushingRaf) {
+      cancelAnimationFrame(legendBrushingRaf);
+      legendBrushingRaf = 0;
+    }
+    legendBrush.value = null;
+    legendBrushing.value = false;
+    lastAppliedBrushCenter = null;
+    legendTrackWidthPx.value = 0;
+    rebuildCellPaintCache(view);
+    // Remounted cells have no inline fill until this paint runs.
+    // Use current brush (cleared above on view swap; may be set if enter raced mount).
+    void nextTick(() => patchMutedCells(legendBrush.value, true));
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
   <section
     v-if="units.length > 0"
     class="pr-heat"
-    :class="{ 'pr-heat--brush-snap': legendBrushSnap }"
+    :class="{ 'pr-heat--brushing': legendBrushing }"
+    :style="{ '--pr-heat-dim-ms': `${LEGEND_DIM_MS}ms` }"
     data-testid="memory-heatmap-panel"
     role="region"
     :aria-label="t('memoryAnalysis', locale)"
@@ -685,29 +780,24 @@ watch(activeView, () => {
             @pointermove="onGridPointerMove"
             @pointerleave="clearCellTip"
           >
+            <!--
+              Fills + mute are patched imperatively (see patchMutedCells) so
+              legendBrush chrome updates do not re-style every lattice cell.
+            -->
             <span
               v-for="block in activeView.blocks"
               :key="block.index"
               class="pr-heat__cell"
-              :class="{
-                'pr-heat__cell--with': block.state === 'withData',
-                'pr-heat__cell--muted': cellMuted(block),
-              }"
               :data-state="block.state"
               :data-intensity="String(block.intensity)"
               :data-access-count="String(block.accessCount)"
-              :style="{
-                backgroundColor: cellMuted(block)
-                  ? SELECTION_MUTED_FILL
-                  : heatFill(block.intensity),
-              }"
             />
             <!-- Zoomed filled overlay — cells keep fixed size (no layout grow). -->
             <div
               v-if="
                 hoveredBlockIndex != null &&
                 activeView.blocks[hoveredBlockIndex] &&
-                !cellMuted(activeView.blocks[hoveredBlockIndex])
+                !isBrushMutedIndex(hoveredBlockIndex)
               "
               class="pr-heat__hover"
               data-testid="heat-cell-hover"
@@ -1048,7 +1138,7 @@ watch(activeView, () => {
   pointer-events: none;
 }
 
-.pr-heat--brush-snap .pr-heat__cell {
+.pr-heat--brushing .pr-heat__cell {
   transition: none;
 }
 
