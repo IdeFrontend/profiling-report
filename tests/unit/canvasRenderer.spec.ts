@@ -1559,6 +1559,13 @@ describe('PR-RENDER: lane chrome color', () => {
 
     const isolated = assignTickDensityDims([{ col: 5, count: 1, t0: 5, t1: 6 }]);
     expect(isolated[0]!.dim).toBe(1);
+    expect(isolated[0]!.isolated).toBe(true);
+
+    // Gap of 2+ empty cols → two isolated singles (additive WebGL path).
+    expect(farGap.every((m) => m.isolated)).toBe(true);
+    expect(nearGap.every((m) => !m.isolated)).toBe(true);
+    expect(adjacentSingles.every((m) => !m.isolated)).toBe(true);
+    expect(gap1Singles.every((m) => !m.isolated)).toBe(true);
 
     // Wide plateau stays bright (no ink-budget washout).
     const wide = assignTickDensityDims(
@@ -1566,6 +1573,7 @@ describe('PR-RENDER: lane chrome color', () => {
     );
     expect(wide.every((m) => m.dim >= TICK_ALTERNATE_FACTOR - 1e-6)).toBe(true);
     expect(wide.filter((_, i) => i % 2 === 0).every((m) => m.dim === 1)).toBe(true);
+    expect(wide.every((m) => !m.isolated)).toBe(true);
 
     const denseLeft = Array.from({ length: 8 }, (_, i) => i * 0.05);
     const sparseRight = [0.9];
@@ -1575,12 +1583,16 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(marks.length).toBeGreaterThan(0);
     expect(marks.some((m) => m.count >= 2)).toBe(true);
     expect(marks.some((m) => m.count === 1 && m.dim === 1)).toBe(true);
+    expect(marks.some((m) => m.isolated)).toBe(true);
+    expect(marks.some((m) => !m.isolated)).toBe(true);
 
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(webglSrc).toMatch(/rebuildTickLodMeshes/);
     expect(webglSrc).toMatch(/createDensityChunksFromMarks/);
     expect(webglSrc).toMatch(/assignTickDensityDims/);
+    expect(webglSrc).toMatch(/tickSrcOverChunks/);
+    expect(webglSrc).toMatch(/m\.isolated/);
     expect(webglSrc).toMatch(/aDim/);
     expect(webglSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(webglSrc).not.toMatch(/tickDensityChunks/);

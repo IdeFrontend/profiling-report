@@ -1756,35 +1756,53 @@ export function binTicksByCssColumn(
 
 export interface TickDensityMark extends TickDensityBin {
   dim: number;
+  /**
+   * Sole member of its gap-tolerant nearby group — WebGL paints these additive (durable-event
+   * brightness parity). Grouped marks (2+) stay source-over so dense ticks cannot white-blow.
+   */
+  isolated: boolean;
 }
 
 /**
  * Assign paint dims (PR-RENDER-066): per-column brightness (count 1 → 1, else log dim), then
  * similarity-weighted alternate on odd steps of a **gap-tolerant** nearby group
  * (`emptyCols <= TICK_ALTERNATE_MAX_GAP`). No shared ink budget — dense plateaus stay visible;
- * nearby ticks keep stippling longer through mid-zoom.
+ * nearby ticks keep stippling longer through mid-zoom. Marks that are alone in their group get
+ * `isolated: true` for additive WebGL compositing.
  */
 export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
   const out: TickDensityMark[] = [];
-  let runStep = 0;
-  let prevCol = Number.NEGATIVE_INFINITY;
-  let prevCount = 0;
-  for (const bin of bins) {
-    const base = bin.count <= 1 ? 1 : tickDensityDim(bin.count);
-    let dim = base;
-    const emptyCols = bin.col - prevCol - 1;
-    if (prevCol !== Number.NEGATIVE_INFINITY && emptyCols <= TICK_ALTERNATE_MAX_GAP) {
-      runStep += 1;
-      if (runStep % 2 === 1) {
+  let i = 0;
+  while (i < bins.length) {
+    let j = i + 1;
+    while (
+      j < bins.length &&
+      bins[j]!.col - bins[j - 1]!.col - 1 <= TICK_ALTERNATE_MAX_GAP
+    ) {
+      j += 1;
+    }
+    const isolated = j - i === 1;
+    let prevCount = 0;
+    for (let k = i; k < j; k++) {
+      const bin = bins[k]!;
+      const base = bin.count <= 1 ? 1 : tickDensityDim(bin.count);
+      let dim = base;
+      const runStep = k - i;
+      if (runStep > 0 && runStep % 2 === 1) {
         const sim = tickCountSimilarity(bin.count, prevCount);
         dim = base * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim);
       }
-    } else {
-      runStep = 0;
+      out.push({
+        col: bin.col,
+        count: bin.count,
+        t0: bin.t0,
+        t1: bin.t1,
+        dim,
+        isolated,
+      });
+      prevCount = bin.count;
     }
-    out.push({ col: bin.col, count: bin.count, t0: bin.t0, t1: bin.t1, dim });
-    prevCol = bin.col;
-    prevCount = bin.count;
+    i = j;
   }
   return out;
 }
