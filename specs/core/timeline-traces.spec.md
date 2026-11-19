@@ -22,6 +22,8 @@ Unmatched kinds (including design **stat**) are omitted until a matched embed ex
 
 **Fallback.** When the catalog is empty, compute uses classic `trace.json` (ns); emulate uses PipeTrace-or-native-merge as before. Classic `trace.json` is never a menu row.
 
+**统计分析.** `overviewSeries` from Sampling.json shows only while the active catalog id is **pipeTrace**, or when the catalog is absent. Communication / warpOccupy hide the charts ([DATA-56](../../docs/context/decisions/DATA.md)).
+
 ## Acceptance Criteria
 
 1. **PR-TLTRACE-001** — Discovers catalog aliases.

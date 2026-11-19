@@ -58,7 +58,7 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 
 | Adapted field | Embed | Columns / notes | Schema SSOT |
 |---------------|-------|-----------------|-------------|
-| `SwimlaneModel` | §11.14 catalog when present ([`Communication.json`](../formats/compute/Communication.json.md) / [`PipeTrace.json`](../formats/compute/PipeTrace.json.md) / SimtWarp*, µs); else classic [`trace.json`](../formats/compute/trace.json.md) (ns) | CTEF `ph:X` events; multi-file → 流水视图显示 radios ([DATA-56](../context/decisions/DATA.md)) | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
+| `SwimlaneModel` | §11.14 catalog when present ([`Communication.json`](../formats/compute/Communication.json.md) / [`PipeTrace.json`](../formats/compute/PipeTrace.json.md) / SimtWarp*, µs); else classic [`trace.json`](../formats/compute/trace.json.md) (ns) | CTEF `ph:X` events; multi-file → 流水视图显示 radios ([DATA-56](../context/decisions/DATA.md)); 统计分析 (Sampling) only for **pipeTrace** / catalog-absent | [compute/FORMAT](../formats/compute/FORMAT.md), [METRICS](../formats/compute/METRICS_AND_TRACE.md) |
 
 <a id="structure"></a>
 
