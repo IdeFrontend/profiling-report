@@ -38,6 +38,8 @@ const LEGEND_BRUSH_WIDTH_PCT = 10;
 const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
 /** Fade 0 / max tick labels as the brush window edge enters this % of the strip. */
 const LEGEND_END_FADE_ZONE_PCT = 12;
+/** Mute / occupancy dim fade on brush enter/leave (cells + legend). */
+const LEGEND_DIM_MS = 200;
 
 /**
  * Binary-mode Free / Used blues (same as HEAT_BLOCK_WITHOUT_DATA / WITH_DATA).
@@ -399,14 +401,9 @@ const legendBrushRangeLabel = computed(() => {
   return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
 });
 
-/** Mute base + Free→Used blue slices only while the brush is active. */
-const legendGradientStyle = computed<CSSProperties>(() => {
-  if (!legendBrush.value) return { background: LEGEND_GRADIENT };
-  return { background: SELECTION_MUTED_FILL };
-});
-
+/** Occupancy bands stay mounted after leave so opacity can fade out. */
 const legendOccupancyBands = computed(() => {
-  if (!legendBrush.value || legendTrackWidthPx.value <= 0) return [];
+  if (legendTrackWidthPx.value <= 0) return [];
   const blocks = activeView.value?.blocks ?? [];
   return mergeOccupancyBands(
     blocks.map((b) => b.intensity),
@@ -463,13 +460,14 @@ function onLegendPointerMove(e: PointerEvent) {
 }
 
 function clearLegendBrush() {
+  // Keep track width so occupancy bands stay in the DOM while opacity fades out.
   legendBrush.value = null;
-  legendTrackWidthPx.value = 0;
 }
 
 watch(activeView, () => {
   clearCellTip();
-  clearLegendBrush();
+  legendBrush.value = null;
+  legendTrackWidthPx.value = 0;
 });
 </script>
 
@@ -521,14 +519,20 @@ watch(activeView, () => {
         <div
           class="pr-heat__legend-hit"
           data-testid="heat-legend-gradient"
+          :style="{ '--pr-heat-dim-ms': `${LEGEND_DIM_MS}ms` }"
           @pointermove="onLegendPointerMove"
           @pointerleave="clearLegendBrush"
         >
           <div
             class="pr-heat__gradient"
+            :class="{ 'pr-heat__gradient--brushing': !!legendBrush }"
             aria-hidden="true"
-            :style="legendGradientStyle"
+            :style="{ background: LEGEND_GRADIENT }"
           >
+            <div
+              class="pr-heat__legend-mute"
+              data-testid="heat-legend-mute"
+            />
             <div
               v-for="(band, i) in legendOccupancyBands"
               :key="i"
@@ -626,7 +630,9 @@ watch(activeView, () => {
               :data-intensity="String(block.intensity)"
               :data-access-count="String(block.accessCount)"
               :style="{
-                background: cellMuted(block) ? SELECTION_MUTED_FILL : heatFill(block.intensity),
+                backgroundColor: cellMuted(block)
+                  ? SELECTION_MUTED_FILL
+                  : heatFill(block.intensity),
               }"
             />
             <!-- Single overlay ring — no per-cell class / layout grow (swimlane-style). -->
@@ -716,6 +722,7 @@ watch(activeView, () => {
 
 <style scoped>
 .pr-heat {
+  --pr-heat-dim-ms: 200ms;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -816,12 +823,32 @@ watch(activeView, () => {
   pointer-events: none;
 }
 
-/* Bright Free→Used slices punched through the mute base while the brush is active. */
+/* Solid mute over the always-on gradient; fades with brush enter/leave. */
+.pr-heat__legend-mute {
+  position: absolute;
+  inset: 0;
+  background: #2c2c2c;
+  opacity: 0;
+  transition: opacity var(--pr-heat-dim-ms, 200ms) ease;
+}
+
+.pr-heat__gradient--brushing .pr-heat__legend-mute {
+  opacity: 1;
+}
+
+/* Bright Free→Used slices above the mute; fade with the same timing. */
 .pr-heat__legend-occ {
   position: absolute;
   top: 0;
   bottom: 0;
+  z-index: 1;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity var(--pr-heat-dim-ms, 200ms) ease;
+}
+
+.pr-heat__gradient--brushing .pr-heat__legend-occ {
+  opacity: 1;
 }
 
 .pr-heat__legend-brush {
@@ -934,7 +961,8 @@ watch(activeView, () => {
   width: var(--pr-heat-cell);
   height: var(--pr-heat-cell);
   border-radius: 1px;
-  /* Fill comes from inline `heatFill(intensity)` (#200). */
+  /* Fill from inline `backgroundColor` / heatFill (#200); mute lerps on brush. */
+  transition: background-color var(--pr-heat-dim-ms, 200ms) ease;
   cursor: default;
   box-sizing: border-box;
   /* Hits go to the grid — continuous geometry hit-test owns hover. */
