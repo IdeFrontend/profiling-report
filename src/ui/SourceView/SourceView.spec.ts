@@ -131,6 +131,7 @@ async function latestSuduEditor() {
     focus: ReturnType<typeof vi.fn>;
     setTheme: ReturnType<typeof vi.fn>;
     setVScrollPos: ReturnType<typeof vi.fn>;
+    hasFocus: ReturnType<typeof vi.fn>;
     highlightRanges: ReturnType<typeof vi.fn>;
     selectNextRange: ReturnType<typeof vi.fn>;
     selectPrevRange: ReturnType<typeof vi.fn>;
@@ -693,19 +694,21 @@ describe('SourceView', () => {
     expect(row1.find('[data-col="assembly"]').text().length).toBeGreaterThan(0);
   });
 
-  it('PR-SOURCE-014f: editor pointer gesture does not revealLine or push table scroll into Sudu', async () => {
+  it('PR-SOURCE-014f: focused editor blocks prop-driven reveal and metrics→Sudu scroll', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
     await flushPromises();
     const ed = await latestSuduEditor();
+    ed.hasFocus.mockReturnValue(true);
     ed.revealLine.mockClear();
     ed.setVScrollPos.mockClear();
+    ed.setPosition.mockClear();
 
-    await wrapper.find('[data-testid="sudu-editor-host"]').trigger('pointerdown');
-    // Parent currentLine update while the button is still down (caret echo path).
+    // Prop echo while focused must not bounce setPosition/revealLine back into Sudu.
     await wrapper.findComponent({ name: 'SuduCodePane' }).vm.$emit('update:currentLine', 46);
     await wrapper.vm.$nextTick();
     expect(ed.revealLine).not.toHaveBeenCalled();
+    expect(ed.setPosition).not.toHaveBeenCalled();
 
     const scroll = wrapper.find('[data-testid="source-metrics-scroll"]');
     expect(scroll.exists()).toBe(true);
@@ -718,8 +721,7 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     expect(ed.setVScrollPos).not.toHaveBeenCalled();
 
-    window.dispatchEvent(new Event('pointerup'));
-    await wrapper.vm.$nextTick();
+    // Imperative setLine (asm / Navigate By) still reveals even when focused.
     const sudu = wrapper.findComponent({ name: 'SuduCodePane' });
     (sudu.vm as { setLine: (n: number) => void }).setLine(61);
     expect(ed.revealLine).toHaveBeenCalledWith(61);

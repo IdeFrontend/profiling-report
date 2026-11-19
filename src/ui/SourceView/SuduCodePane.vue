@@ -153,13 +153,11 @@ let pendingCaretEcho = false;
 let ignoreCaret = false;
 /** Set when the caret listener actually emitted (boot must not emit again). */
 let caretEchoed = false;
-/**
- * True from editor pointerdown until window pointerup/cancel.
- * While the user is dragging/clicking the canvas, do not reveal or push
- * metrics-table scroll into the editor (would scroll under the button and
- * start a selection ↔ caret ↔ reveal loop).
- */
-let editorPointerDown = false;
+
+/** True when Sudu reports focus — covers click, tab, and other focus paths. */
+function editorHasFocus(): boolean {
+  return !!editor?.hasFocus?.();
+}
 
 const metricColumns = computed(() => props.file.metricsColumns);
 const metricColIds = computed(() => metricColumns.value.map((c) => c.id));
@@ -401,8 +399,8 @@ function wireSync() {
 function onTableScroll() {
   if (props.followScroll === false) return;
   if (!editor || !(geom.value.dpr > 0)) return;
-  // Editor owns scroll during a live pointer gesture on the canvas.
-  if (editorPointerDown) return;
+  // Focused editor owns vertical scroll (click/tab/…); do not push table scroll under the caret.
+  if (editorHasFocus()) return;
   const scroll = tableScrollEl.value;
   if (!scroll) return;
   const devicePos = deviceScrollFromCss(scroll.scrollTop, geom.value.dpr);
@@ -527,17 +525,8 @@ function stepSearch(dir: 1 | -1) {
  * Canvas click. Sudu notifies only when the line changes, so a click on the
  * line clearLine left in place would leave the metrics row unselected.
  */
-function endEditorPointer() {
-  editorPointerDown = false;
-  window.removeEventListener('pointerup', endEditorPointer, true);
-  window.removeEventListener('pointercancel', endEditorPointer, true);
-}
-
 function onEditorPointerDown() {
   if (!editor) return;
-  editorPointerDown = true;
-  window.addEventListener('pointerup', endEditorPointer, true);
-  window.addEventListener('pointercancel', endEditorPointer, true);
   editor.setTheme(suduEditorTheme());
   const line = editor.getPosition?.()?.lineNumber;
   if (line == null) return;
@@ -575,14 +564,9 @@ function setLine(line: number): 'unchanged' | 'moved' {
   if (!editor) return 'unchanged';
   editor.setTheme(suduEditorTheme());
   const prev = editor.getPosition?.()?.lineNumber;
-  // Live canvas gesture: never reveal / refocus — that scrolls under the button
-  // and turns the click into a drag-selection loop (PR feedback on #240).
-  if (editorPointerDown) {
-    if (prev !== line) editor.setPosition({ lineNumber: line, column: 1 });
-    const next = editor.getPosition?.()?.lineNumber;
-    if (prev == null || next == null) return prev === line ? 'unchanged' : 'moved';
-    return next === prev ? 'unchanged' : 'moved';
-  }
+  // Imperative only (asm → source, Navigate By, boot). Prop echoes while focused
+  // are blocked in the currentLine watch — do not skip reveal here or correlation
+  // jumps would fail when the canvas still has focus.
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.revealLine(line);
   editor.focus();
@@ -684,8 +668,8 @@ watch(
       pendingCaretEcho = false;
       return;
     }
-    // User click/drag owns the caret — do not setPosition/reveal back into the canvas.
-    if (editorPointerDown) return;
+    // Focused editor owns the caret (click, tab, …) — do not bounce prop updates back.
+    if (editorHasFocus()) return;
     const pos = editor.getPosition?.();
     // Already on the line — setPosition is a no-op for caret; do not fight scroll.
     if (pos && pos.lineNumber === line) return;
@@ -702,7 +686,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true;
   ignoreCaret = false;
-  endEditorPointer();
   paintedSearchRanges = [];
   closeCopyMenu();
   detachCopyMenuListeners();

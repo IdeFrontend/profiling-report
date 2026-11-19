@@ -44,7 +44,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 12. **PR-SOURCE-012** — Highest selects the selected pane’s maximum Navigate By row (the later line when values tie) and, with Link views on, correlates that line. It does not move both carets to line 1. A second click stays on that row.
 13. **PR-SOURCE-013** — SASS pane renders `asm-table-pane` (no Sudu) with `#`, Address, Assembly, then metric columns from `model.assembly.metricsColumns` (compute fixture: Instructions Executed · Sampling Stall · Warp Occupancy).
 14. **PR-SOURCE-014** — After an asm row click, Sudu caret echoes for the mapped source line do not snap the asm current row to `mapped[0]` or steal pane selection (no timer gate — absorb + same-group stay).
-14f. **PR-SOURCE-014f** — While the Source editor has an active pointer gesture (`pointerdown` until `pointerup`/`cancel`), do not call `revealLine` / `revealLineInCenter` and do not push metrics-table scroll into Sudu (`setVScrollPos`). Programmatic `setLine` after the gesture still reveals.
+14f. **PR-SOURCE-014f** — While Sudu `hasFocus()` is true, do not bounce `currentLine` prop updates into `setPosition`/`revealLine` and do not push metrics-table scroll into Sudu (`setVScrollPos`). Imperative `setLine` (asm / Navigate By) still reveals.
 15. **PR-SOURCE-015** — Switching the Source file select clears source and asm current rows. The previous file's correlated highlight is replaced: with Link views on, the new file's mapped instructions are highlighted, and a file that owns none shows no correlated rows. The shared search query is kept.
 16. **PR-SOURCE-016** — Lowest selects the selected pane’s minimum Navigate By row among rows with data (the earlier line when values tie). A numeric 0 is not selected. The other pane’s Navigate By is not used.
 17. **PR-SOURCE-017** — Metrics / SASS column headers expose resize handles on every column except the last (`source-col-resize`); dragging trades width with the next column so only that divider moves.
@@ -67,7 +67,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 ## Changelog
 
 - **2026-11-18** — Virtualize large Source/SASS metrics tables; O(1) cell lookups (`PR-SOURCE-028`).
-- **2026-11-19** — Editor pointer gesture blocks `revealLine` and metrics→Sudu scroll push so a source click cannot start a selection/reveal loop (`PR-SOURCE-014f`).
+- **2026-11-19** — Sudu `hasFocus()` blocks prop-driven `revealLine` and metrics→Sudu scroll push so a focused source editor cannot start a selection/reveal loop (`PR-SOURCE-014f`).
 - **2026-11-17** — SASS metric columns come from the model (emulate MVP / compute stall set); assembly-only when `files` empty (DATA-53).
 - **2026-10-27** — `clearLine` pins Sudu `EditorBackground` and hides the current-line band with that same `#1e1f22` plane (Sudu dark `editBg`), so an unmapped asm clear no longer leaves a `#1a1a1a` strip (`PR-SOURCE-006`).
 - **2026-10-24** — Navigation tooltips are the full sentence for that button (next / previous row with data, highest, next higher, next lower, lowest) in the corresponding metric column.
