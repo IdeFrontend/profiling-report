@@ -13,6 +13,11 @@ import {
   FIXED_TIP_OFFSET_PX,
   placeFixedTip,
 } from '../../placeFixedTip';
+import {
+  HEAT_GRID_GAP_PX,
+  HEAT_GRID_PAD_PX,
+  hitTestHeatCell,
+} from './heatHitTest';
 
 /**
  * biprof §11.2.3.2 Memory Utilization Heatmap panel — the right column of the topology 全屏
@@ -239,24 +244,42 @@ function onViewSelect(id: string) {
   if (Number.isFinite(value)) viewIndex.value = value;
 }
 
-/** SA heat-cell tip — Start Address, Cell Size, Accesses Count (#194). */
-const cellTip = ref<{
+/**
+ * SA heat-cell tip (#194) — swimlane-style: one grid pointermove + geometry hit-test,
+ * same-index early return (chase tip xy only), single overlay ring (no per-cell layout grow).
+ */
+const gridEl = ref<HTMLElement | null>(null);
+
+/** Tip content — rebuilt only when the hovered block changes. */
+const tipContent = ref<{
   blockIndex: number;
   startAddress: string;
   cellSize: number;
   accessCount: number;
-  clientX: number;
-  clientY: number;
 } | null>(null);
+
+/** Tip chase coords — separate so same-cell moves do not rewrite tip rows. */
+const tipPointer = ref({ x: 0, y: 0 });
 
 const hoveredBlockIndex = ref<number | null>(null);
 
+const hoverOverlayStyle = computed<CSSProperties>(() => {
+  const index = hoveredBlockIndex.value;
+  const view = activeView.value;
+  if (index == null || !view) return { display: 'none' };
+  const col = index % view.columns;
+  const row = Math.floor(index / view.columns);
+  return {
+    left: `calc(${HEAT_GRID_PAD_PX}px + ${col} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px))`,
+    top: `calc(${HEAT_GRID_PAD_PX}px + ${row} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px))`,
+  };
+});
+
 const cellTipStyle = computed<CSSProperties>(() => {
-  const tip = cellTip.value;
-  if (!tip) return { position: 'fixed', left: '0px', top: '0px' };
+  if (!tipContent.value) return { position: 'fixed', left: '0px', top: '0px' };
   const { left, top } = placeFixedTip({
-    x: tip.clientX,
-    y: tip.clientY,
+    x: tipPointer.value.x,
+    y: tipPointer.value.y,
     tipW: HEAT_CELL_TIP_EST_W,
     tipH: HEAT_CELL_TIP_EST_H,
     viewportW: typeof window !== 'undefined' ? window.innerWidth : 1024,
@@ -271,38 +294,47 @@ const cellTipStyle = computed<CSSProperties>(() => {
   };
 });
 
-function showCellTip(block: MemoryHeatmapBlock, clientX: number, clientY: number) {
+function applyHoverBlock(block: MemoryHeatmapBlock, clientX: number, clientY: number) {
   const view = activeView.value;
   if (!view) return;
+  tipPointer.value = { x: clientX, y: clientY };
+  if (hoveredBlockIndex.value === block.index && tipContent.value?.blockIndex === block.index) {
+    return;
+  }
   hoveredBlockIndex.value = block.index;
-  cellTip.value = {
+  tipContent.value = {
     blockIndex: block.index,
     startAddress: formatStartAddress(view.baseAddress, block.index, view.cellSize),
     cellSize: view.cellSize,
     accessCount: block.accessCount,
-    clientX,
-    clientY,
   };
 }
 
-function onCellEnter(block: MemoryHeatmapBlock, e: MouseEvent) {
-  showCellTip(block, e.clientX, e.clientY);
-}
-
-/** Keep tip following the pointer while a cell is sticky-hovered (incl. over expanded borders). */
-function onTipPointerMove(e: MouseEvent) {
-  const tip = cellTip.value;
-  if (!tip) return;
-  cellTip.value = { ...tip, clientX: e.clientX, clientY: e.clientY };
-}
-
 /**
- * Do not clear on cell leave — the 2px gaps between cells would thrash tip/highlight.
- * Hovered cell grows into those gaps (CSS); tip sticks until another cell is entered or
- * the pointer leaves the grid.
+ * Continuous hover like swimlane: hit-test every move; seams keep the left/top cell;
+ * null hit inside the grid chrome stays sticky until leave.
  */
+function onGridPointerMove(e: PointerEvent) {
+  const view = activeView.value;
+  const el = gridEl.value;
+  if (!view || !el) return;
+  const hit = hitTestHeatCell(e.clientX, e.clientY, el.getBoundingClientRect(), {
+    columns: view.columns,
+    rows: view.rows,
+    blockCount: view.blocks.length,
+  });
+  if (hit == null) {
+    // Padding/border ring: chase tip if we already have a cell; else ignore.
+    if (tipContent.value) tipPointer.value = { x: e.clientX, y: e.clientY };
+    return;
+  }
+  const block = view.blocks[hit];
+  if (!block) return;
+  applyHoverBlock(block, e.clientX, e.clientY);
+}
+
 function clearCellTip() {
-  cellTip.value = null;
+  tipContent.value = null;
   hoveredBlockIndex.value = null;
 }
 
@@ -402,27 +434,32 @@ watch(activeView, () => {
           data-testid="heat-lattice"
         >
           <div
+            ref="gridEl"
             class="pr-heat__grid"
             :style="{ '--pr-heat-cols': gridColumns, '--pr-heat-rows': gridRows }"
             data-testid="heat-grid"
             role="img"
             :aria-label="gridLabel"
-            @pointermove="onTipPointerMove"
+            @pointermove="onGridPointerMove"
             @pointerleave="clearCellTip"
           >
             <span
               v-for="block in activeView.blocks"
               :key="block.index"
               class="pr-heat__cell"
-              :class="{
-                'pr-heat__cell--with': block.state === 'withData',
-                'pr-heat__cell--hover': hoveredBlockIndex === block.index,
-              }"
+              :class="{ 'pr-heat__cell--with': block.state === 'withData' }"
               :data-state="block.state"
               :data-intensity="String(block.intensity)"
               :data-access-count="String(block.accessCount)"
               :style="{ background: heatFill(block.intensity) }"
-              @pointerenter="onCellEnter(block, $event)"
+            />
+            <!-- Single overlay ring — no per-cell class / layout grow (swimlane-style). -->
+            <div
+              v-if="hoveredBlockIndex != null"
+              class="pr-heat__hover"
+              data-testid="heat-cell-hover"
+              aria-hidden="true"
+              :style="hoverOverlayStyle"
             />
           </div>
         </div>
@@ -457,7 +494,7 @@ watch(activeView, () => {
     -->
     <Teleport to="body">
       <div
-        v-if="cellTip"
+        v-if="tipContent"
         class="pr-tooltip pr-heat-cell-tip"
         data-testid="heat-cell-tooltip"
         :style="cellTipStyle"
@@ -470,7 +507,7 @@ watch(activeView, () => {
           <span
             class="pr-heat-cell-tip__value"
             data-testid="heat-cell-tip-address-value"
-          >{{ cellTip.startAddress }}</span>
+          >{{ tipContent.startAddress }}</span>
         </div>
         <div
           class="pr-heat-cell-tip__row"
@@ -480,7 +517,7 @@ watch(activeView, () => {
           <span
             class="pr-heat-cell-tip__value"
             data-testid="heat-cell-tip-cell-size-value"
-          >{{ cellTip.cellSize }} {{ t('memoryHeatBytes', locale) }}</span>
+          >{{ tipContent.cellSize }} {{ t('memoryHeatBytes', locale) }}</span>
         </div>
         <div
           class="pr-heat-cell-tip__row"
@@ -490,7 +527,7 @@ watch(activeView, () => {
           <span
             class="pr-heat-cell-tip__value"
             data-testid="heat-cell-tip-accesses-value"
-          >{{ formatAccessCount(cellTip.accessCount) }}</span>
+          >{{ formatAccessCount(tipContent.accessCount) }}</span>
         </div>
       </div>
     </Teleport>
@@ -634,6 +671,7 @@ watch(activeView, () => {
     calc((100cqw - 8px) / var(--pr-heat-cols) - 2px),
     calc((100cqh - var(--pr-heat-footer) - 8px) / var(--pr-heat-rows) - 2px)
   );
+  position: relative;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(var(--pr-heat-cols), var(--pr-heat-cell));
@@ -654,17 +692,18 @@ watch(activeView, () => {
   /* Fill comes from inline `heatFill(intensity)` (#200). */
   cursor: default;
   box-sizing: border-box;
+  /* Hits go to the grid — continuous geometry hit-test owns hover. */
+  pointer-events: none;
 }
 
-.pr-heat__cell--hover {
-  /*
-   * Grow into the 2px grid gaps so borders stay hittestable — tip/highlight do not thrash
-   * when the pointer skims the seams. Sticky clear happens on grid pointerleave instead.
-   */
+.pr-heat__hover {
+  position: absolute;
   z-index: 2;
-  margin: -2px;
-  width: calc(var(--pr-heat-cell) + 4px);
-  height: calc(var(--pr-heat-cell) + 4px);
+  width: var(--pr-heat-cell);
+  height: var(--pr-heat-cell);
+  border-radius: 1px;
+  box-sizing: border-box;
+  pointer-events: none;
   /* Light ring reads on both gray (0%) and red (100%) fills. */
   box-shadow: inset 0 0 0 1.5px #ffffff;
 }
@@ -717,7 +756,7 @@ watch(activeView, () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  animation: pr-heat-cell-tip-in 120ms ease;
+  /* No enter fade — cell switches must feel instant (swimlane EventTooltip). */
 }
 
 .pr-heat-cell-tip__row {
@@ -740,20 +779,5 @@ watch(activeView, () => {
   font-variant-numeric: tabular-nums;
   text-align: right;
   color: #e8e8e8;
-}
-
-@keyframes pr-heat-cell-tip-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pr-heat-cell-tip.pr-tooltip {
-    animation: none;
-  }
 }
 </style>
