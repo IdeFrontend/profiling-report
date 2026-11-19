@@ -1308,10 +1308,17 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const events = byRow.get(`${idx}:${r}`) ?? [];
         if (events.length === 0) continue;
 
-        if (shouldUseTickDensityLod(events.length, widthCss)) {
-          const times = events.map((e) => e.event.startTime);
+        // LOD must key off *visible* ticks — whole-lane counts kept dense AIV rows aggregated
+        // even when zoomed into a sparse window, while leaner AIC rows stayed discrete.
+        const visibleTimes: number[] = [];
+        for (const e of events) {
+          const t = e.event.startTime;
+          if (t >= viewStart && t < viewEnd) visibleTimes.push(t);
+        }
+
+        if (shouldUseTickDensityLod(visibleTimes.length, widthCss)) {
           const marks = assignTickDensityDims(
-            binTicksByCssColumn(times, viewStart, viewEnd, widthCss),
+            binTicksByCssColumn(visibleTimes, viewStart, viewEnd, widthCss),
           );
           if (marks.length === 0) continue;
           row.tickChunks = createDensityChunksFromMarks(gl, marks, this.timeBase);

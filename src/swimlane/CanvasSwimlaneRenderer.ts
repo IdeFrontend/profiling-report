@@ -791,6 +791,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
           ticksByRow.set(item.rowIndex, list);
         }
         for (const [rowIndex, times] of ticksByRow) {
+          // `times` are already view-overlapping (laneEventRange); gate LOD on that count
+          // so zoom-in returns to discrete full-height ticks (parity with WebGL).
           if (!shouldUseTickDensityLod(times.length, widthCss)) continue;
           densityRows.add(rowIndex);
           const marks = assignTickDensityDims(

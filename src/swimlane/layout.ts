@@ -1685,7 +1685,11 @@ export const TICK_ALTERNATE_FACTOR = 0.6;
 /** Density marks use this fraction of the sub-row band height. */
 export const TICK_DENSITY_BAND_SCALE = 0.6;
 
-/** True when packing every tick at min CSS width would overdraw the track. */
+/**
+ * True when packing every tick at min CSS width would overdraw the track.
+ * `tickCount` must be the **visible-window** count (not the whole lane) so zoom-in
+ * can fall back to discrete full-height ticks (PR-RENDER-066).
+ */
 export function shouldUseTickDensityLod(tickCount: number, widthCss: number): boolean {
   return tickCount > 0 && tickCount * extendTargetSizeCss > Math.max(1, widthCss);
 }

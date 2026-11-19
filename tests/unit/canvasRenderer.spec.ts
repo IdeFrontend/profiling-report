@@ -1471,6 +1471,8 @@ describe('PR-RENDER: lane chrome color', () => {
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
     expect(shouldUseTickDensityLod(10, 20)).toBe(false);
     expect(shouldUseTickDensityLod(21, 20)).toBe(true);
+    // Gate is visible-window count: a lean visible slice must not stay aggregated.
+    expect(shouldUseTickDensityLod(5, 800)).toBe(false);
 
     expect(tickDensityDim(1)).toBeCloseTo(TICK_DENSITY_MIN_DIM, 5);
     expect(tickDensityDim(16)).toBeCloseTo(1, 5);
@@ -1532,6 +1534,11 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/assignTickDensityDims/);
     expect(webglSrc).toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(webglSrc).toMatch(/aDim/);
+    // Visible-window gate (not whole-lane events.length) so zoom-in returns to discrete ticks.
+    expect(webglSrc).toMatch(/visibleTimes/);
+    expect(webglSrc).toMatch(
+      /shouldUseTickDensityLod\(visibleTimes\.length,\s*widthCss\)/,
+    );
 
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
