@@ -1756,19 +1756,14 @@ export function binTicksByCssColumn(
 
 export interface TickDensityMark extends TickDensityBin {
   dim: number;
-  /**
-   * Sole member of its gap-tolerant nearby group — WebGL paints these additive (durable-event
-   * brightness parity). Grouped marks (2+) stay source-over so dense ticks cannot white-blow.
-   */
-  isolated: boolean;
 }
 
 /**
  * Assign paint dims (PR-RENDER-066): per-column brightness (count 1 → 1, else log dim), then
  * similarity-weighted alternate on odd steps of a **gap-tolerant** nearby group
  * (`emptyCols <= TICK_ALTERNATE_MAX_GAP`). No shared ink budget — dense plateaus stay visible;
- * nearby ticks keep stippling longer through mid-zoom. Marks that are alone in their group get
- * `isolated: true` for additive WebGL compositing.
+ * nearby ticks keep stippling longer through mid-zoom. WebGL paints all density marks additive
+ * (columns do not overlap); search discrete ticks stay source-over.
  */
 export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
   const out: TickDensityMark[] = [];
@@ -1781,7 +1776,6 @@ export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDens
     ) {
       j += 1;
     }
-    const isolated = j - i === 1;
     let prevCount = 0;
     for (let k = i; k < j; k++) {
       const bin = bins[k]!;
@@ -1792,19 +1786,30 @@ export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDens
         const sim = tickCountSimilarity(bin.count, prevCount);
         dim = base * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim);
       }
-      out.push({
-        col: bin.col,
-        count: bin.count,
-        t0: bin.t0,
-        t1: bin.t1,
-        dim,
-        isolated,
-      });
+      out.push({ col: bin.col, count: bin.count, t0: bin.t0, t1: bin.t1, dim });
       prevCount = bin.count;
     }
     i = j;
   }
   return out;
+}
+
+/**
+ * Snap a world-grid density mark's left edge to one viewport CSS pixel for paint (PR-RENDER-066).
+ * Membership / dim stay on `k·dt`; only the painted quad snaps so WebGL coverage peaks at 1.0
+ * (Canvas `eventPaintRect` parity). Consecutive world cols always map to distinct CSS pixels.
+ */
+export function snapDensityMarkPaintTimes(
+  t0: number,
+  viewStart: number,
+  viewEnd: number,
+  widthCss: number,
+): [number, number] {
+  const W = Math.max(1, Math.floor(widthCss));
+  const span = Math.max(Number.EPSILON, viewEnd - viewStart);
+  const x0 = Math.floor(((t0 - viewStart) / span) * W);
+  const x = Math.max(0, Math.min(W - 1, x0));
+  return [viewStart + (x / W) * span, viewStart + ((x + 1) / W) * span];
 }
 
 /** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */

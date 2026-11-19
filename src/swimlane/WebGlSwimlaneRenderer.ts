@@ -25,6 +25,7 @@ import {
   binTicksByCssColumn,
   contentHeightFromLayout,
   encodeIntervalPair,
+  snapDensityMarkPaintTimes,
   eventBlockMetrics,
   eventEmphasis,
   isKeepBright,
@@ -124,15 +125,11 @@ interface SubRowMesh {
   /** Positive-duration intervals — additive blend. */
   chunks: MeshChunk[];
   /**
-   * Gap-isolated duration-0 density marks — additive + `uSrcOver=0` so lone ticks match short
-   * durable brightness (PR-RENDER-066). Search uses discrete tickChunks on emphasis layers instead.
+   * Duration-0 CSS-column density marks — additive (columns do not overlap) with per-quad `aDim`
+   * and viewport CSS-pixel paint snap (PR-RENDER-066). Search uses discrete tickChunks on
+   * emphasis layers (source-over) instead.
    */
   tickChunks: MeshChunk[] | null;
-  /**
-   * Nearby/grouped duration-0 density marks — source-over so stacked instants do not
-   * additive-saturate (#205).
-   */
-  tickSrcOverChunks: MeshChunk[] | null;
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
   /** Dep-neighbor intervals drawn over a muted base mesh (resting lane color). */
@@ -457,16 +454,23 @@ function createChunksFromIndices(
   return chunks;
 }
 
-/** Density-LOD column marks: one isolated quad per CSS column with per-quad `aDim`. */
+/**
+ * Density-LOD column marks: one isolated quad per CSS column with per-quad `aDim`.
+ * Paint times snap to the viewport CSS grid so coverage peaks at 1.0 (Canvas parity).
+ */
 function createDensityChunksFromMarks(
   gl: WebGL2RenderingContext,
   marks: readonly TickDensityMark[],
   timeBase: number,
+  viewStart: number,
+  viewEnd: number,
+  widthCss: number,
 ): MeshChunk[] {
   const pairs: number[] = [];
   const dims: number[] = [];
   for (const m of marks) {
-    const [a, b] = encodeIntervalPair(m.t0, m.t1 - m.t0, timeBase);
+    const [t0, t1] = snapDensityMarkPaintTimes(m.t0, viewStart, viewEnd, widthCss);
+    const [a, b] = encodeIntervalPair(t0, t1 - t0, timeBase);
     pairs.push(a, b);
     dims.push(m.dim);
   }
@@ -960,11 +964,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const mute = muteRest && !meshes.summary;
           const baseRgb = mute ? mutedRgb : meshes.color;
           drawChunks(row.chunks, baseRgb, 1);
-          // Gap-isolated density marks: same additive path as durable intervals.
+          // Density marks: additive (non-overlapping CSS columns) + durable brightness.
           if (row.tickChunks && row.tickChunks.length > 0) {
             drawChunks(row.tickChunks, baseRgb, 1);
           }
-          drawTickChunks(row.tickSrcOverChunks, baseRgb, 1);
           if (row.brightChunks || row.liftChunks) {
             // Src-over so keep-bright fills replace the muted bar (additive would double).
             gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -1245,7 +1248,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
                 : createChunksFromIndices(gl, pairs, intervalIdx),
           // Filled by `rebuildTickLodMeshes` (full-height CSS-column density marks).
           tickChunks: null,
-          tickSrcOverChunks: null,
           emphasisLayers: null,
           brightChunks: null,
           liftChunks: null,
@@ -1265,9 +1267,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
   /**
    * Rebuild duration-0 tick meshes for the current view as full-height CSS-column density marks
-   * with continuous count→dim + similarity alternate (PR-RENDER-066). Gap-isolated marks go to
-   * additive `tickChunks`; nearby groups go to source-over `tickSrcOverChunks`. Search emphasis
-   * keeps its own discrete tickChunks and skips this path.
+   * with continuous count→dim + similarity alternate (PR-RENDER-066). All density marks paint
+   * additive (non-overlapping columns) with viewport CSS-pixel snap. Search emphasis keeps its
+   * own discrete tickChunks and skips this path.
    */
   private rebuildTickLodMeshes(): void {
     const gl = this.gl;
@@ -1294,10 +1296,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           for (const c of row.tickChunks) this.deleteChunk(c);
           row.tickChunks = null;
         }
-        if (row.tickSrcOverChunks) {
-          for (const c of row.tickSrcOverChunks) this.deleteChunk(c);
-          row.tickSrcOverChunks = null;
-        }
         // Search emphasis owns discrete tick draws; leave resting tick meshes empty while active.
         if (row.emphasisLayers) continue;
 
@@ -1315,14 +1313,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           binTicksByCssColumn(visibleTimes, viewStart, viewEnd, widthCss),
         );
         if (marks.length === 0) continue;
-        const isolated = marks.filter((m) => m.isolated);
-        const grouped = marks.filter((m) => !m.isolated);
-        if (isolated.length > 0) {
-          row.tickChunks = createDensityChunksFromMarks(gl, isolated, this.timeBase);
-        }
-        if (grouped.length > 0) {
-          row.tickSrcOverChunks = createDensityChunksFromMarks(gl, grouped, this.timeBase);
-        }
+        row.tickChunks = createDensityChunksFromMarks(
+          gl,
+          marks,
+          this.timeBase,
+          viewStart,
+          viewEnd,
+          widthCss,
+        );
       }
     }
   }
@@ -1355,10 +1353,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         if (row.tickChunks) {
           for (const c of row.tickChunks) this.deleteChunk(c);
           row.tickChunks = null;
-        }
-        if (row.tickSrcOverChunks) {
-          for (const c of row.tickSrcOverChunks) this.deleteChunk(c);
-          row.tickSrcOverChunks = null;
         }
       }
     }
@@ -1549,7 +1543,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       for (const row of lane.rows) {
         for (const c of row.chunks) this.deleteChunk(c);
         if (row.tickChunks) for (const c of row.tickChunks) this.deleteChunk(c);
-        if (row.tickSrcOverChunks) for (const c of row.tickSrcOverChunks) this.deleteChunk(c);
       }
     }
     this.laneMeshes = [];

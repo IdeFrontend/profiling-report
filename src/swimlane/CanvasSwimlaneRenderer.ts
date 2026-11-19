@@ -804,14 +804,12 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
           if (bandY + bandH < 0 || bandY > this.height) continue;
           const laneA = collapseAlpha(sample.y, this.collapse);
           const fill = eventFill(sample.color, 'normal');
-          // Canvas has no additive lane fill; isolated marks already carry dim=1 (singles) /
-          // log dim (multi-hit column) so they match durable source-over weight. Grouped marks
-          // keep similarity alternate via m.dim (WebGL paints those source-over).
+          // Canvas source-over + eventPaintRect integer snap; dim carries count/alternate.
+          // WebGL density marks paint additive with the same CSS-pixel snap helper.
           for (const m of marks) {
             const x = ((m.t0 - this.view.startTime) / span) * this.width;
             const w = Math.max(1, ((m.t1 - m.t0) / span) * this.width);
             const fr = eventPaintRect(x, bandY, w, bandH, dpr);
-            // `m.isolated` is WebGL-only compositing; Canvas always source-over with m.dim.
             ctx.globalAlpha = m.dim * laneA;
             ctx.fillStyle = fill;
             roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
