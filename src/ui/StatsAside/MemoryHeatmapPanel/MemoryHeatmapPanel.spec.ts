@@ -560,10 +560,71 @@ describe('MemoryHeatmapPanel', () => {
       /opacity:\s*1/,
     );
 
+    // Occupancy dim: unique intensities 0, 0.5, 1 → three ≥3px bright bands on mute base.
+    const gradientEl = wrapper.get('.pr-heat__gradient');
+    expect(gradientEl.attributes('style')).toMatch(/background:\s*#2C2C2C/i);
+    const occ = wrapper.findAll('[data-testid="heat-legend-occ"]');
+    expect(occ).toHaveLength(3);
+    for (const band of occ) {
+      const style = band.attributes('style') ?? '';
+      expect(style).toMatch(/width:\s*[\d.]+%/);
+      const widthMatch = style.match(/width:\s*([\d.]+)%/);
+      expect(Number(widthMatch?.[1])).toBeGreaterThanOrEqual(1.5); // 3px / 200px
+      expect(style).toMatch(/background-image:/);
+    }
+
     await gradient.trigger('pointerleave');
     expect(wrapper.find('[data-testid="heat-legend-brush"]').exists()).toBe(false);
+    expect(wrapper.findAll('[data-testid="heat-legend-occ"]')).toHaveLength(0);
+    expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/linear-gradient/);
     expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(wrapper.findAll('.pr-heat__cell--muted')).toHaveLength(0);
     expect(cells[1]!.attributes('style')).toMatch(/hsl\(/);
+  });
+
+  it('PR-HEAT-014: single unique intensity paints one ≥3px occupancy band', async () => {
+    const singleModel: MemoryHeatmapModel = {
+      units: [
+        {
+          id: 'ub',
+          views: [
+            view({
+              columns: 2,
+              rows: 1,
+              blocks: [
+                { index: 0, state: 'withData', intensity: 0.4, accessCount: 40 },
+                { index: 1, state: 'withData', intensity: 0.4, accessCount: 40 },
+              ],
+            }),
+          ],
+        },
+      ],
+    };
+    const wrapper = mountPanel({ model: singleModel, selectedUnit: 'ub', locale: 'en' });
+    const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
+    const el = gradient.element as HTMLElement;
+    const width = 200;
+    el.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: 16,
+        width,
+        height: 16,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+
+    await gradient.trigger('pointermove', { clientX: width / 2, clientY: 4 });
+    const occ = wrapper.findAll('[data-testid="heat-legend-occ"]');
+    expect(occ).toHaveLength(1);
+    const style = occ[0]!.attributes('style') ?? '';
+    const widthMatch = style.match(/width:\s*([\d.]+)%/);
+    expect(Number(widthMatch?.[1])).toBeCloseTo(1.5, 5);
+    wrapper.unmount();
   });
 });
