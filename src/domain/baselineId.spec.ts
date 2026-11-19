@@ -22,4 +22,12 @@ describe('newBaselineId', () => {
     expect(id).toMatch(/^b-[0-9a-z]+-[0-9a-z]+$/);
     expect(random).toHaveBeenCalledOnce();
   });
+
+  it('keeps the lockstep shape when Math.random() returns exactly 0', () => {
+    // `(0).toString(36).slice(2, 10)` is '' — without the guard the id ends
+    // with a bare dash and FALLBACK_ID_RE stops matching it.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.stubGlobal('crypto', undefined);
+    expect(newBaselineId()).toMatch(/^b-[0-9a-z]+-[0-9a-z]+$/);
+  });
 });

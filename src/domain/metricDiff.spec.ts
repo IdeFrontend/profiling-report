@@ -102,6 +102,17 @@ describe('summaryDiffs', () => {
     expect(diffs.bandwidthWrite).toEqual({ tone: 'decrease', delta: 12.5, magnitude: 12.5 });
   });
 
+  it('compute/bandwidth deltas are utilization points — peaks may differ per side', () => {
+    // Current 90/100 (90% of a 100-peak) vs baseline 50/50 (100% of a 50-peak):
+    // the RAW throughput rose, but utilization fell 100 → 90, so the tone is
+    // 'decrease' with a 10-point delta — not a raw-TFLOPS comparison.
+    const diffs = summaryDiffs(
+      { compute: { aic: { measuredTflops: 90, peakTflops: 100 } } },
+      { compute: { aic: { measuredTflops: 50, peakTflops: 50 } } },
+    );
+    expect(diffs.computeAic).toEqual({ tone: 'decrease', delta: 10, magnitude: 10 });
+  });
+
   it('nulls each diff independently when a side is missing', () => {
     const diffs = summaryDiffs(current, {
       taskDurationUs: 1200,

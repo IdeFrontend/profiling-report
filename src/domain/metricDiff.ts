@@ -106,12 +106,19 @@ export interface SummaryMetricValues {
 }
 
 export interface SummaryDiffs {
+  /** Delta in RAW µs (the card converts to its display unit before formatting). */
   taskDurationUs: MetricDiff | null;
+  /** Delta in PERCENTAGE POINTS (fraction × 100). */
   parallelUtilization: MetricDiff | null;
+  /** Delta in PERCENTAGE POINTS (fraction × 100; may be negative — see utilizationPercent). */
   parallelBalance: MetricDiff | null;
+  /** Delta in percentage points OF UTILIZATION (measured ÷ that side's own peak). */
   computeAic: MetricDiff | null;
+  /** Delta in percentage points OF UTILIZATION (measured ÷ that side's own peak). */
   computeAiv: MetricDiff | null;
+  /** Delta in percentage points OF UTILIZATION (measured ÷ that direction's own peak). */
   bandwidthRead: MetricDiff | null;
+  /** Delta in percentage points OF UTILIZATION (measured ÷ that direction's own peak). */
   bandwidthWrite: MetricDiff | null;
 }
 
@@ -119,6 +126,11 @@ export interface SummaryDiffs {
  * Per-metric diffs between two reports. Duration is diffed in raw µs; the
  * derived metrics (parallel fractions, compute, bandwidth) are converted to
  * percentage points first so the delta carries the card's own unit.
+ *
+ * Compute and bandwidth are percentage points of UTILIZATION, not of raw
+ * throughput: each side divides its measured by ITS OWN peak, and the peaks
+ * may differ between the two reports. The delta therefore compares how much
+ * of each machine's capacity was used — not the raw TFLOPS/GB/s movement.
  */
 export function summaryDiffs(current: SummaryMetricValues, baseline: SummaryMetricValues): SummaryDiffs {
   const computeSide = (side: keyof NonNullable<SummaryMetricValues['compute']>): MetricDiff | null => {

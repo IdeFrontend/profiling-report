@@ -11,5 +11,9 @@ export function newBaselineId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return `b-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  // `Math.random()` can return exactly 0 — its base-36 form is '0', not ''.
+  // Keep at least one digit so the shape always matches the title module's
+  // FALLBACK_ID_RE (an unmatched generated id would surface as a title).
+  const rand = Math.random().toString(36).slice(2, 10) || '0';
+  return `b-${Date.now().toString(36)}-${rand}`;
 }

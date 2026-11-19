@@ -55,6 +55,8 @@ export {
   normalizeDependencyDepth,
 } from './domain/types';
 
+export { newBaselineId } from './domain/baselineId';
+
 export { buildCannbotPayload, CANNBOT_PROMPT } from './domain/cannbot';
 export type { CannbotPayload, CannbotReportMeta, CannbotScope } from './domain/cannbot';
 
