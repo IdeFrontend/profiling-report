@@ -167,6 +167,13 @@ watch(
 
 watch(() => focusKey(props.focus), () => applyFocus(), { immediate: true });
 
+/** fileId → source file (built once per model). */
+const filesById = computed(() => {
+  const map = new Map<string, SourceFileModel>();
+  for (const f of props.model.files) map.set(f.id, f);
+  return map;
+});
+
 /** fileId → asm lines in listing order (built once per model, not per click). */
 const asmLinesByFile = computed(() => {
   const map = new Map<string, number[]>();
@@ -222,7 +229,7 @@ const correlatedAsm = computed(() => {
   if (asmLine.value == null) return [];
   const hit = props.model.asmToSource.get(asmLine.value);
   if (!hit) return [];
-  const hitFile = props.model.files.find((f) => f.id === hit.fileId) ?? file;
+  const hitFile = filesById.value.get(hit.fileId) ?? file;
   return sourceMappedAsm(hitFile, hit.line);
 });
 

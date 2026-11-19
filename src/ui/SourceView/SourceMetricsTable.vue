@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type {
   SourceFileModel,
   SourceLineMetrics,
@@ -327,14 +327,10 @@ function scrollToLine(line: number) {
   const h = rowH.value;
   const top = (line - 1) * h;
   const view = el.clientHeight || viewportHeight.value || h * FALLBACK_VIEWPORT_ROWS;
+  // One policy: place the line about a third down the viewport (no scrollIntoView).
   const next = Math.max(0, top - Math.floor(view / 3));
   if (Math.abs(el.scrollTop - next) >= 0.5) el.scrollTop = next;
   scrollTop.value = el.scrollTop;
-  void nextTick(() => {
-    el.querySelector<HTMLElement>(`tr[data-line="${line}"]`)?.scrollIntoView({
-      block: 'nearest',
-    });
-  });
 }
 
 onMounted(() => {

@@ -16,7 +16,8 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 ## Unit contract
 
 - Line numbers are **1-based**.
-- Correlation keys use `` `${fileId}:${line}` ``.
+- Correlation maps: per-file `sourceToAsm: Map<sourceLine, asmLines[]>` and model `asmToSource: Map<asmLine, { fileId, line }>`.
+- Sparse emulate source files may set `lineCount` (metrics table extent) while `lines` stays sparse; dense listings omit `lineCount`.
 - `mock: true` only on the deterministic fixture; real embeds set `mock: false`.
 
 ## Behavior
@@ -35,7 +36,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
   - Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load.
   - Instructions Executed (count) and Warp Occupancy (0–1 fraction) stay 0 unless the table also has `Instructions_Executed` and `Warp_Occupancy`. Sample packs include them; gather_2d does not ([DATA-55](../../docs/context/questions/DATA.md)). Mapped source lines sum stall and instructions and average occupancy.
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
-- Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; correlation keys use that file's id.
+- Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; that file's id is the basename used in `asmToSource` hits.
 - When that pack text is absent, adapt still emits the file with a `// missing source embed: …` placeholder sized to the grown metrics line count and keeps mapped stall / instr / occupancy rollups so a host `resolveSourceFile` can fill the editor later without dropping them ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 
 **Real path — emulate ELF CSVs.** When payloads include non-empty `SourceInstructions.csv` **or** `AsmMetrics.csv` with `PC` + instruction text, `adaptSourceCorrelation` builds a real model via `adaptEmulateSourceCorrelation` (`mock: false`, [DATA-53](../../docs/context/decisions/DATA.md)):

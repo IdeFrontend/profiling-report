@@ -755,6 +755,30 @@ describe('SourceView', () => {
     const sudu = wrapper.findComponent({ name: 'SuduCodePane' });
     (sudu.vm as { setLine: (n: number) => void }).setLine(61);
     expect(ed.revealLine).toHaveBeenCalledWith(61);
+
+    // File switch resets mirroredScrollTop — a scrollTop=0 echo must not push Sudu.
+    ed.setVScrollPos.mockClear();
+    const sharpen = model.files[0]!;
+    const other = {
+      ...sharpen,
+      id: 'other.cpp',
+      path: 'other.cpp',
+      text: 'int other() {\n  return 0;\n}\n',
+      sourceToAsm: new Map<number, number[]>(),
+    };
+    await wrapper.setProps({
+      model: { ...model, files: [sharpen, other] },
+    });
+    await flushPromises();
+    await pickNavigate(wrapper, 'source-file-select', 'other.cpp');
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
@@ -1313,12 +1337,10 @@ describe('SourceView', () => {
 
     await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
     expect(correlated()).toEqual([]);
-    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
     await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
     await flushPromises();
     expect(correlated()).toEqual(moved.map(String));
-    expect(scroll).toHaveBeenCalled();
-    scroll.mockRestore();
+    // File-match re-link calls AsmTablePane.setLine → scrollToLine (thirds placement).
 
     await wrapper.find('[data-testid="asm-table-pane"] tr[data-line="40"]').trigger('click');
     await flushPromises();

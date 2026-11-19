@@ -67,7 +67,7 @@ See FEATURE_MATRIX / UX_SPEC; sketch `task-measure-mode.jpeg`.
 | Input | Requirement |
 |-------|-------------|
 | Compute multi-file ([`objdump.txt`](compute/objdump.txt.md) + [`symbolizer.json`](compute/symbolizer.json.md) / [`summary.db`](compute/summary.db.md) + source [`.asc`](compute/symbolizer.json.md#source-text)) | → `reportModel.sourceCorrelation` with `mock: false` ([DATA-52](../context/questions/DATA.md) partial) |
-| Emulate ELF ([`SourceInstructions.csv`](emulate/SourceInstructions.csv.md) / [`AsmMetrics.csv`](emulate/AsmMetrics.csv.md) + optional SourceFiles/Lines/DebugInfo/SourceLineMetrics) | → `mock: false` when gate passes ([DATA-53](../context/decisions/DATA.md)); assembly-only OK |
+| Emulate ELF ([`SourceInstructions.csv`](emulate/SourceInstructions.csv.md) / [`AsmMetrics.csv`](emulate/AsmMetrics.csv.md) + optional SourceFiles/Lines/DebugInfo/SourceLineMetrics) | → `mock: false` when gate passes ([DATA-53](../context/decisions/DATA.md)); assembly-only OK; sparse source may set `lineCount` with sparse `lines` ([DATA-53d](../context/decisions/interim/DATA.md#data-53d)) |
 | `SourceCorrelation.json` (or Product-named embed) | Reserved; schema still TBD → ignored until Product locks it |
 | Missing embeds on report packs | Omit `sourceCorrelation` and `'sourceTab'`; 源码 control is absent ([UI-37](../context/decisions/UI.md)) |
 | Chrome Trace–only | Omit `sourceCorrelation` and `'sourceTab'` |

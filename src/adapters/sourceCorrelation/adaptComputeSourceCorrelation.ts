@@ -80,10 +80,11 @@ function findSourceText(
   return null;
 }
 
+/** Two hex words (hi lo) for a report PC — supports full 64-bit hex strings. */
 function formatAddress(pcHex: string): string {
-  const hi = '00000000';
-  const lo = pcHex.padStart(8, '0');
-  return `${hi} ${lo}`;
+  const clean = pcHex.replace(/^0x/i, '');
+  const padded = clean.padStart(16, '0');
+  return `${padded.slice(0, -8)} ${padded.slice(-8)}`;
 }
 
 function emptyMetrics(lineCount: number): SourceLineMetrics[] {

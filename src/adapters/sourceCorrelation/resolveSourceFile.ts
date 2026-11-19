@@ -53,6 +53,14 @@ export function applyResolvedSourceText(
 ): SourceFileModel {
   const lineCount = Math.max(1, text.split(/\r?\n/).length);
   const prevByLine = new Map(file.lines.map((row) => [row.line, row]));
+  const zeroValues = (): Record<string, number | string | null> => {
+    const values: Record<string, number | string | null> = {};
+    for (const col of file.metricsColumns) {
+      if (col.kind === 'text') values[col.id] = '';
+      else values[col.id] = 0;
+    }
+    return values;
+  };
   const lines: SourceLineMetrics[] = Array.from({ length: lineCount }, (_, i) => {
     const line = i + 1;
     const prev = prevByLine.get(line);
@@ -63,14 +71,7 @@ export function applyResolvedSourceText(
         ...(prev.stallBreakdown ? { stallBreakdown: [...prev.stallBreakdown] } : {}),
       };
     }
-    return {
-      line,
-      values: {
-        instructionsExecuted: 0,
-        samplingStall: 0,
-        warpOccupancy: 0,
-      },
-    };
+    return { line, values: zeroValues() };
   });
   // Dense `lines` define the extent — drop sparse emulate `lineCount` so the
   // metrics table does not keep the placeholder max line after host resolve.

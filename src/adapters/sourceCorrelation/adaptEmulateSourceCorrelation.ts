@@ -98,10 +98,11 @@ function parsePc(raw: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/** Two hex words (hi lo) for a report PC — supports full 64-bit values. */
 function formatAddress(pc: number): string {
-  const hi = '00000000';
-  const lo = pc.toString(16).padStart(8, '0');
-  return `${hi} ${lo}`;
+  const hi = Math.floor(pc / 0x1_0000_0000);
+  const lo = pc % 0x1_0000_0000;
+  return `${hi.toString(16).padStart(8, '0')} ${lo.toString(16).padStart(8, '0')}`;
 }
 
 function languageFor(path: string): string {

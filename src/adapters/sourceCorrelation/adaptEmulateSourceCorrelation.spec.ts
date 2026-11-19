@@ -74,6 +74,7 @@ describe('adaptEmulateSourceCorrelation', () => {
     expect(model!.mock).toBe(false);
     expect(model!.assembly.lines).toHaveLength(3);
     expect(model!.assembly.lines[0]!.values.address).toBe('00000000 00000000');
+    expect(model!.assembly.lines[1]!.values.address).toBe('00000000 00000004');
     expect(model!.assembly.lines[0]!.values.assembly).toBe('ADD.X x0, x1');
     expect(model!.assembly.lines[0]!.values.executionCount).toBe(10);
     expect(model!.assembly.lines[0]!.values.tickCount).toBe(100);
@@ -110,6 +111,8 @@ describe('adaptEmulateSourceCorrelation', () => {
         [
           'PC,InstrName,ExecutionCount,TickCount,RelTime,WarpOccupancy,VectorUtilization',
           '16,"MOV x0, x1",2,20,0.1,0.5,50',
+          // 64-bit report PC — high word must not be hardcoded zeros
+          `${0x7f7b00001234},"LDR x8, [x9]",1,1,0.01,0.1,10`,
         ].join('\n'),
       ),
     };
@@ -117,9 +120,10 @@ describe('adaptEmulateSourceCorrelation', () => {
     const model = adaptEmulateSourceCorrelation(payloads)!;
     expect(model.mock).toBe(false);
     expect(model.files).toEqual([]);
-    expect(model.assembly.lines).toHaveLength(1);
+    expect(model.assembly.lines).toHaveLength(2);
     expect(model.assembly.lines[0]!.values.assembly).toBe('MOV x0, x1');
     expect(model.assembly.lines[0]!.values.address).toBe('00000000 00000010');
+    expect(model.assembly.lines[1]!.values.address).toBe('00007f7b 00001234');
     expect(model.asmToSource.size).toBe(0);
   });
 

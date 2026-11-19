@@ -26,12 +26,21 @@ function bigAsmFile(n: number): SourceFileModel {
 }
 
 describe('SourceMetricsTable virtualization', () => {
+  function virtExtentPx(wrapper: ReturnType<typeof mount>, rowH: number, lineCount: number) {
+    const pads = wrapper.findAll('.pr-src-metrics__virt-pad');
+    const padH = pads.reduce((sum, p) => sum + Number.parseFloat(p.attributes('style')?.match(/height:\s*([\d.]+)px/)?.[1] ?? '0'), 0);
+    const rows = wrapper.findAll('tr[data-line]').length;
+    return { padH, rows, total: padH + rows * rowH, expected: lineCount * rowH };
+  }
+
   it('PR-SOURCE-028: large listings mount a viewport window, not every row', () => {
+    const rowH = 18;
+    const n = 5000;
     const wrapper = mount(SourceMetricsTable, {
       props: {
-        file: bigAsmFile(5000),
+        file: bigAsmFile(n),
         currentLine: null,
-        rowHeightCss: 18,
+        rowHeightCss: rowH,
         showHeader: true,
         showLineNumbers: true,
       },
@@ -41,14 +50,18 @@ describe('SourceMetricsTable virtualization', () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.length).toBeLessThan(500);
     expect(wrapper.find('.pr-src-metrics__virt-pad').exists()).toBe(true);
+    const ext = virtExtentPx(wrapper, rowH, n);
+    expect(ext.total).toBe(ext.expected);
     wrapper.unmount();
   });
 
   it('PR-SOURCE-028b: sparse lineCount virtualizes extent without dense metrics rows', () => {
+    const rowH = 18;
+    const n = 8000;
     const file: SourceFileModel = {
       id: '7',
       path: '/sdk/huge.h',
-      text: `${Array.from({ length: 8000 }, () => '').join('\n')}\n`,
+      text: `${Array.from({ length: n }, () => '').join('\n')}\n`,
       metricsColumns: [
         { id: 'executionCount', label: 'Instructions Executed', kind: 'number' },
       ],
@@ -56,13 +69,13 @@ describe('SourceMetricsTable virtualization', () => {
         { line: 3, values: { executionCount: 10 } },
         { line: 7900, values: { executionCount: 2 } },
       ],
-      lineCount: 8000,
+      lineCount: n,
     };
     const wrapper = mount(SourceMetricsTable, {
       props: {
         file,
         currentLine: null,
-        rowHeightCss: 18,
+        rowHeightCss: rowH,
         showHeader: false,
         showLineNumbers: false,
       },
@@ -70,6 +83,8 @@ describe('SourceMetricsTable virtualization', () => {
     });
     expect(wrapper.findAll('tr[data-line]').length).toBeLessThan(200);
     expect(wrapper.find('.pr-src-metrics__virt-pad').exists()).toBe(true);
+    const ext = virtExtentPx(wrapper, rowH, n);
+    expect(ext.total).toBe(ext.expected);
     wrapper.unmount();
   });
 });
