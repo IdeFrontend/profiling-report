@@ -1674,7 +1674,7 @@ export function measureRangeExactEdgeMarks(
   );
 }
 
-/** Floor dim for the count→ink budget curve (PR-RENDER-066). */
+/** Floor dim for multi-hit CSS columns (PR-RENDER-066). */
 export const TICK_DENSITY_MIN_DIM = 0.35;
 /** Count at which `tickDensityDim` saturates to 1. */
 export const TICK_DENSITY_CAP = 16;
@@ -1682,11 +1682,15 @@ export const TICK_DENSITY_CAP = 16;
 export const TICK_COUNT_SIM_SIGMA = 0.35;
 /** Odd-in-run multiplier when adjacent counts are identical (`sim = 1`). */
 export const TICK_ALTERNATE_FACTOR = 0.6;
+/**
+ * Max empty CSS columns between occupied bins that still join one alternate group.
+ * Gap 1 keeps nearby mid-zoom ticks stippling; larger gaps reset so true isolates stay solid.
+ */
+export const TICK_ALTERNATE_MAX_GAP = 1;
 
 /**
- * Continuous count → ink-budget weight (count 1 → minDim, cap → 1).
- * Used as the shared budget for a multi-column contiguous run; isolated singles
- * get full bright via `assignTickDensityDims` (`runWidth === 1` → targetInk 1).
+ * Continuous count → dim for multi-hit columns (count 1 → minDim, cap → 1).
+ * Single-tick columns use `dim = 1` in `assignTickDensityDims`.
  */
 export function tickDensityDim(count: number): number {
   const c = Math.max(0, count);
@@ -1755,51 +1759,33 @@ export interface TickDensityMark extends TickDensityBin {
 }
 
 /**
- * Assign paint dims with per-run ink conservation (PR-RENDER-066).
- * Contiguous occupied columns share `targetInk = runWidth === 1 ? 1 : min(runWidth, tickDensityDim(runTicks))`
- * distributed by count, then similarity-weighted alternate on odd steps. Spreading N ticks across
- * N adjacent columns no longer multiplies brightness (mid-zoom splash); gap-isolated singles stay full bright.
+ * Assign paint dims (PR-RENDER-066): per-column brightness (count 1 → 1, else log dim), then
+ * similarity-weighted alternate on odd steps of a **gap-tolerant** nearby group
+ * (`emptyCols <= TICK_ALTERNATE_MAX_GAP`). No shared ink budget — dense plateaus stay visible;
+ * nearby ticks keep stippling longer through mid-zoom.
  */
 export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
   const out: TickDensityMark[] = [];
-  if (bins.length === 0) return out;
-
-  let runStart = 0;
-  const flushRun = (endExclusive: number): void => {
-    const run = bins.slice(runStart, endExclusive);
-    if (run.length === 0) return;
-    let runTicks = 0;
-    for (const b of run) runTicks += b.count;
-    const runWidth = run[run.length - 1]!.col - run[0]!.col + 1;
-    const targetInk = runWidth === 1 ? 1 : Math.min(runWidth, tickDensityDim(runTicks));
-    const marks: TickDensityMark[] = [];
-    for (const b of run) {
-      marks.push({
-        col: b.col,
-        count: b.count,
-        t0: b.t0,
-        t1: b.t1,
-        dim: targetInk * (b.count / runTicks),
-      });
-    }
-    for (let i = 1; i < marks.length; i++) {
-      if (i % 2 === 1) {
-        const cur = marks[i]!;
-        const prev = marks[i - 1]!;
-        const sim = tickCountSimilarity(cur.count, prev.count);
-        cur.dim *= 1 - (1 - TICK_ALTERNATE_FACTOR) * sim;
+  let runStep = 0;
+  let prevCol = Number.NEGATIVE_INFINITY;
+  let prevCount = 0;
+  for (const bin of bins) {
+    const base = bin.count <= 1 ? 1 : tickDensityDim(bin.count);
+    let dim = base;
+    const emptyCols = bin.col - prevCol - 1;
+    if (prevCol !== Number.NEGATIVE_INFINITY && emptyCols <= TICK_ALTERNATE_MAX_GAP) {
+      runStep += 1;
+      if (runStep % 2 === 1) {
+        const sim = tickCountSimilarity(bin.count, prevCount);
+        dim = base * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim);
       }
+    } else {
+      runStep = 0;
     }
-    for (const m of marks) out.push(m);
-  };
-
-  for (let i = 1; i < bins.length; i++) {
-    if (bins[i]!.col !== bins[i - 1]!.col + 1) {
-      flushRun(i);
-      runStart = i;
-    }
+    out.push({ col: bin.col, count: bin.count, t0: bin.t0, t1: bin.t1, dim });
+    prevCol = bin.col;
+    prevCount = bin.count;
   }
-  flushRun(bins.length);
   return out;
 }
 
