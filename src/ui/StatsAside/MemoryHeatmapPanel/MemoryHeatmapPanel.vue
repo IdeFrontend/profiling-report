@@ -38,6 +38,8 @@ const LEGEND_STOPS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
 /** Fixed brush width on the Access Count legend (percent of strip). */
 const LEGEND_BRUSH_WIDTH_PCT = 10;
 const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
+/** Fade 0 / max tick labels as the brush window edge enters this % of the strip. */
+const LEGEND_END_FADE_ZONE_PCT = 12;
 
 /**
  * SA Memory Utilization fill: gray at 0, then green→yellow→red as pct rises.
@@ -387,6 +389,20 @@ const legendBrushRangeLabel = computed(() => {
   return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
 });
 
+/** Opacity for the `0` end label — fades as the brush window approaches the left edge. */
+const legendMinTickOpacity = computed(() => {
+  const brush = legendBrush.value;
+  if (!brush) return 1;
+  return Math.min(1, Math.max(0, brush.loPct / LEGEND_END_FADE_ZONE_PCT));
+});
+
+/** Opacity for the max end label — fades as the brush window approaches the right edge. */
+const legendMaxTickOpacity = computed(() => {
+  const brush = legendBrush.value;
+  if (!brush) return 1;
+  return Math.min(1, Math.max(0, (100 - brush.hiPct) / LEGEND_END_FADE_ZONE_PCT));
+});
+
 function cellMuted(block: MemoryHeatmapBlock): boolean {
   const brush = legendBrush.value;
   if (!brush) return false;
@@ -459,11 +475,12 @@ watch(activeView, () => {
           class="pr-heat__legend-title"
           data-testid="heat-legend-title"
         >
-          {{ legendBrush ? legendBrushRangeLabel : t('memoryHeatAccessCount', locale) }}
+          {{ t('memoryHeatAccessCount', locale) }}
         </p>
         <!--
           Hit band matches brush window height (16px); the painted strip stays 8px
           so the pointer can skim the brush chrome without dropping the filter.
+          Range label rides under the window; 0/max ticks fade as it approaches.
         -->
         <div
           class="pr-heat__legend-hit"
@@ -482,16 +499,23 @@ watch(activeView, () => {
             data-testid="heat-legend-brush"
             aria-hidden="true"
             :style="legendBrushStyle"
-          />
+          >
+            <span
+              class="pr-heat__legend-brush-range"
+              data-testid="heat-legend-brush-range"
+            >{{ legendBrushRangeLabel }}</span>
+          </div>
         </div>
         <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
           <span
             class="pr-heat__legend-tick"
             data-testid="heat-legend-tick-min"
+            :style="{ opacity: legendMinTickOpacity }"
           >0</span>
           <span
             class="pr-heat__legend-tick"
             data-testid="heat-legend-tick-max"
+            :style="{ opacity: legendMaxTickOpacity }"
           >{{ legendMaxLabel }}</span>
         </div>
       </div>
@@ -760,9 +784,27 @@ watch(activeView, () => {
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
 }
 
+.pr-heat__legend-brush-range {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: #e8e8e8;
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .pr-heat__legend-ticks {
+  /* Room for the brush range label that sits under the window. */
+  position: relative;
+  z-index: 0;
   display: flex;
   justify-content: space-between;
+  min-height: 12px;
   color: #b3b3b3;
   font-size: 10px;
   line-height: 1;
@@ -771,6 +813,7 @@ watch(activeView, () => {
 
 .pr-heat__legend-tick {
   flex: none;
+  transition: opacity 80ms linear;
 }
 
 .pr-heat__view-bar {
