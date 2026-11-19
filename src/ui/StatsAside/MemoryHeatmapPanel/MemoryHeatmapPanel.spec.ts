@@ -115,10 +115,10 @@ describe('MemoryHeatmapPanel', () => {
     expect(cells[0].attributes('data-state')).toBe('withData');
     expect(Number(cells[0].attributes('data-intensity'))).toBeGreaterThan(0);
     // Hot cells interpolate between Free (#AFC6FE) and Used (#3D64AD).
-    expect(cells[0].attributes('style')).toMatch(/background:\s*rgb\(/);
+    expect(cells[0].attributes('style')).toMatch(/background-color:\s*rgb\(/);
     expect(cells[20].attributes('data-state')).toBe('withoutData');
     expect(cells[20].attributes('data-intensity')).toBe('0');
-    expect(cells[20].attributes('style')).toMatch(/background:\s*#AFC6FE/i);
+    expect(cells[20].attributes('style')).toMatch(/background-color:\s*#AFC6FE/i);
   });
 
   it('PR-HEAT-004: shows Total/Used/Free with spaced shared units (#201); omits when Total is unknown', () => {
@@ -543,11 +543,11 @@ describe('MemoryHeatmapPanel', () => {
 
     const cells = wrapper.findAll('.pr-heat__cell');
     expect(cells[0]!.classes()).not.toContain('pr-heat__cell--muted'); // intensity 50
-    expect(cells[0]!.attributes('style')).toMatch(/background:\s*rgb\(/);
+    expect(cells[0]!.attributes('style')).toMatch(/background-color:\s*rgb\(/);
     expect(cells[1]!.classes()).toContain('pr-heat__cell--muted'); // intensity 100
-    expect(cells[1]!.attributes('style')).toMatch(/background:\s*#2C2C2C/i);
+    expect(cells[1]!.attributes('style')).toMatch(/background-color:\s*#2C2C2C/i);
     expect(cells[2]!.classes()).toContain('pr-heat__cell--muted'); // intensity 0
-    expect(cells[2]!.attributes('style')).toMatch(/background:\s*#2C2C2C/i);
+    expect(cells[2]!.attributes('style')).toMatch(/background-color:\s*#2C2C2C/i);
 
     // Left overhang: pointer at 0 → center 0%, window [-5, 5]; label coerces to 0 – 5.
     await gradient.trigger('pointermove', { clientX: 0, clientY: 11 });
@@ -580,9 +580,11 @@ describe('MemoryHeatmapPanel', () => {
       /opacity:\s*0/,
     );
 
-    // Occupancy dim: unique intensities 0, 0.5, 1 → three ≥3px bright bands on mute base.
+    // Occupancy dim: mute overlay + three ≥3px bright bands (fade via --brushing class).
     const gradientEl = wrapper.get('.pr-heat__gradient');
-    expect(gradientEl.attributes('style')).toMatch(/background:\s*#2C2C2C/i);
+    expect(gradientEl.classes()).toContain('pr-heat__gradient--brushing');
+    expect(gradientEl.attributes('style')).toMatch(/linear-gradient/);
+    expect(wrapper.get('[data-testid="heat-legend-mute"]').exists()).toBe(true);
     const occ = wrapper.findAll('[data-testid="heat-legend-occ"]');
     expect(occ).toHaveLength(3);
     for (const band of occ) {
@@ -595,12 +597,14 @@ describe('MemoryHeatmapPanel', () => {
 
     await gradient.trigger('pointerleave');
     expect(wrapper.find('[data-testid="heat-legend-brush"]').exists()).toBe(false);
-    expect(wrapper.findAll('[data-testid="heat-legend-occ"]')).toHaveLength(0);
+    // Bands stay mounted so opacity can fade out; brushing class clears immediately.
+    expect(wrapper.get('.pr-heat__gradient').classes()).not.toContain('pr-heat__gradient--brushing');
+    expect(wrapper.findAll('[data-testid="heat-legend-occ"]')).toHaveLength(3);
     expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/linear-gradient/);
     expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/#AFC6FE/i);
     expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(wrapper.findAll('.pr-heat__cell--muted')).toHaveLength(0);
-    expect(cells[1]!.attributes('style')).toMatch(/background:\s*#3D64AD/i);
+    expect(cells[1]!.attributes('style')).toMatch(/background-color:\s*#3D64AD/i);
   });
 
   it('PR-HEAT-014: single unique intensity paints one ≥3px occupancy band', async () => {
