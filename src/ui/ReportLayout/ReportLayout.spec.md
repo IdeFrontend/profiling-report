@@ -55,7 +55,7 @@ Resizable panel chrome (widths owned by ProfilingReport; handle lives here):
 
 ## Design sketches
 
-- [Entry overview](../../../docs/ui/source/v930/entry.jpeg) — two-column layout
+- [Entry overview](../../../docs/ui/source/930/EntryPoint/screenshot.png) — two-column layout
 
 ## Changelog
 - **2026-09-07** — Aside track tween signals `asideTrackAnimating` so the swimlane freezes its backing store mid-animation (`PR-LAYOUT-008`).

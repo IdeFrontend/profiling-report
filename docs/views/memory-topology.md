@@ -27,7 +27,7 @@ Full field tables: [§ edge-field-source](#edge-field-source) (compute) · [§ p
 
 **AIV × 2** is one subblock. Compute paints a single `aiv_*` field per plate (no aiv0/aiv1 split). Emulate dual `aiv0_*` / `aiv1_*`: **sum** for `*_gbs` / `*_cnt`, **unweighted average** of scalar `*_ratio` when both present ([DATA-48a](../context/decisions/interim/DATA.md)). (GM↔L2 Main Read/Write remains aic+aiv **sum** — [DATA-40](../context/decisions/DATA.md) — a different axis.)
 
-**Component crop:** ![Memory topology](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) (raster of the runtime SVG / `v930-chrome/memory-topology`). Historical dual-AIV product dump: [`v930/report-stats-scrolled`](../ui/source/v930/report-stats-scrolled.jpeg) (link only — not the current chrome).
+**Component crop:** ![Memory topology](../../src/ui/StatsAside/MemoryTopologyPanel/visual/memory-topology.png) (raster of the runtime SVG / `v930-chrome/memory-topology`). Historical dual-AIV product dump: [`v930/report-stats-scrolled`](../ui/source/930/MemoryLoadAnalysisZoomFullscreenFromStats/screenshot.png) (link only — not the current chrome).
 
 ## Purpose
 
@@ -120,9 +120,9 @@ Component ACs that also own these rules: [MemoryTopologyPanel.spec.md](../../src
 
 ### Details / CSV tabs（内存负载分析详情）— §11.2.6.1
 
-Memory detail controls ([`v930/memory-load-detail`](../ui/source/v930/memory-load-detail.jpeg)):
+Memory detail controls ([`v930/memory-load-detail`](../ui/source/930/MemoryLoadAnalysisDetails/screenshot.png)):
 
-![Memory load details](../ui/source/v930/memory-load-detail.jpeg)
+![Memory load details](../ui/source/930/MemoryLoadAnalysisDetails/screenshot.png)
 
 | Control | Behavior |
 | --- | --- |

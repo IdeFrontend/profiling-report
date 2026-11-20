@@ -60,7 +60,7 @@ Under [decisions/interim/](decisions/interim/) until Product/data spec completes
 - Market / competitors (NVIDIA Nsight analogues): [MARKET_AND_COMPETITORS.md](MARKET_AND_COMPETITORS.md)
 - Packaging proposals (PKG-1 … PKG-3): [PACKAGING_SUGGESTIONS.md](PACKAGING_SUGGESTIONS.md); gesture parity [UI-41](decisions/UI.md)
 - **Interim MVP defaults:** [decisions/interim/](decisions/interim/) (not Product-final)
-- UI sketches: [`docs/ui/source/v930/`](../ui/source/v930/) — index [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md)
+- UI sketches: [`docs/ui/source/930/`](../ui/source/930/) — index [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md)
 - Color tokens: [COLOR_TOKENS.md](../ui/COLOR_TOKENS.md)
 - View data requirements: [VIEW_DATA_REQUIREMENTS.md](../formats/VIEW_DATA_REQUIREMENTS.md)
 - UX specification: [UX_SPEC.md](../ui/UX_SPEC.md)

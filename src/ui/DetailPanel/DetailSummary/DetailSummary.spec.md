@@ -47,7 +47,7 @@ Normative crop: [`visual/identity-card.png`](./visual/identity-card.png) — [`v
 ## Design sketches
 
 - [identity-card](./visual/identity-card.png) — raised 「详情」 left event card from `v930/detail-strip-raised`
-- [Event details](../../../../docs/ui/source/v930/detail-strip-raised.jpeg) — full frame
+- [Event details](../../../../docs/ui/source/930/ClickFloatingBottomBar/screenshot.png) — full frame
 
 ## Dependencies
 

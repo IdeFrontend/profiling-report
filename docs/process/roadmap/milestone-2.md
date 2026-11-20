@@ -2,7 +2,7 @@
 
 **Target date:** **2026-08-25**
 
-**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg)). (4) **Roofline** panel from fixture arithmetic data (interim formulas if DATA-37 still open). (5) Timeline **time-range measure / 度量模式** ([`v930/task-measure-mode`](../../ui/source/v930/task-measure-mode.jpeg); local overlay only — aside not recomputed). Spec host: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
+**Goal:** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with real edge values ([`v930/memory-load-detail`](../../ui/source/930/MemoryLoadAnalysisDetails/screenshot.png)). (4) **Roofline** panel from fixture arithmetic data (interim formulas if DATA-37 still open). (5) Timeline **time-range measure / 度量模式** ([`v930/task-measure-mode`](../../ui/source/930/TaskTimeMeasurementMode/screenshot.png); local overlay only — aside not recomputed). Spec host: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
 
 **Data note:** `out.rep` has no deps — ship interim DATA-36 encoding + synthetic playground fixture for CI; swap adapter when Product finalizes DATA-36.
 
@@ -27,7 +27,7 @@ Index: [README.md](README.md) · Previous: [milestone-1.md](milestone-1.md)
 | Host chrome | **New (host)** | i18n, load errors; capability flags; workspace dep (I-PKG-1) |
 | Details panel | **New** | Replaces compact strip: name + timing; incoming/current/outgoing mini-graph with depth filters; raw args when present; hide when no selection |
 | Memory graph chart | **New** | `MemoryTopologyPanel`: static SVG topology + **data-driven edge labels** from Memory* CSVs / `summary.jsonl` categories (UI-38 + changelog #5). The diagram mounts only when the block is *drawable* — a plated edge value or the L2 plate (PR-VM-018) — with **详情** still reachable when memory CSVs exist. Edge thickness static. Optional: hover/click syncs field-list rows |
-| Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `source/v930/entry.jpeg` / `source/v930/entry.jpeg` / `source/v930/report-stats-open.jpeg`. Hide if no usable points. Capability flag `roofline` |
+| Roofline | **New** | `RooflinePanel`: log-log bottleneck chart from `ArithmeticUtilization.csv` (+ related fields); sketches `source/930/EntryPoint/screenshot.png` / `source/930/EntryPoint/screenshot.png` / `source/930/OpenReportStatistics/screenshot.png`. Hide if no usable points. Capability flag `roofline` |
 | Overview / DATA-33 tiles / secondary tabs | **Out** | → [M3](milestone-3.md) |
 
 ## Implementation tasks

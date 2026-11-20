@@ -160,6 +160,8 @@ the residue is composite-asset color drift and font raster mismatch, not layout.
 - Small raster tiles in large boxes render at natural size, centered, no-repeat (the stock html does); stretched composites use `object-fit:fill`.
 - `background-image` urls inside the `style` attribute must use single quotes — double quotes break the attribute.
 - The full-page annotation dim (`#66262626`) is a design-tool layer; the stock render drops it — skip it.
+- Full-page mask `Image` nodes (弹窗遮罩) dim the app behind a modal: render the image but ignore its export `backgroundColor` (it double-darkens: measured 8 vs the design's 22). Raise modal containers (octoName ending in `弹窗` / `对话框`) into the floating layer so the mask never covers them — the mask name (`弹窗遮罩/Dark`) must NOT match that rule.
+- `蒙版` nodes are only sometimes invisible: a shape-only mask group (no image anywhere in its subtree) is dropped like the stock html; a `蒙版` with images inside is a clipping viewport whose subtree IS the visible content — render it.
 - Five screens were exported without `assets/` (ContextReference, ReferenceInvoked, CannWorkInvokedLoggedIn/Out, DocumentSearch). Name adoption + structural recovery fill most of them (see the flow); whatever is left is listed in the export-gaps table in `DESIGN_INDEX.md`.
 - Design `screenshot.png` is RGBA; diff buffers must use each image's own channel count.
 - The export writes `"src": "assets/…"` with a space after the colon; the sanitizer minifies `arkUIDSL.json` at the end, producing `"src":"assets/…"` — rewrite patterns must match both formattings.

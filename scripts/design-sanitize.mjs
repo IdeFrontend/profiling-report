@@ -243,6 +243,15 @@ for (const s of screens) {
   if (fix && html !== orig) writeFileSync(htmlPath, html);
 }
 
+// per-screen export archives are redundant once the folders are extracted
+{
+  const zips = join(root, '_zips');
+  if (existsSync(zips)) {
+    if (fix) { rmSync(zips, { recursive: true, force: true }); fixCount++; console.log('  removed _zips/ (per-screen archives, redundant)'); }
+    else problems.push('_zips/ present at the export root (redundant archives — removed by --fix)');
+  }
+}
+
 // export-root MANIFEST.md is superseded by the DESIGN_INDEX section this script regenerates
 {
   const mf = join(root, 'MANIFEST.md');

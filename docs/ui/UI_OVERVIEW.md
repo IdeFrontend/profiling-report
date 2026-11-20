@@ -14,7 +14,7 @@ Sketches place the viewer inside a VS Code–like IDE with:
 
 **MVP:** **Timeline** is the primary view. **源码** appears only when the pack has a real Source | SASS model ([UI-37](../context/decisions/UI.md)). **详情** / **缓存** are not in the chrome (see [FEATURE_MATRIX.md](FEATURE_MATRIX.md)).
 
-Primary overview sketches: `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg`.
+Primary overview sketches: `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png`.
 
 ## Layout regions (Timeline)
 
@@ -67,17 +67,17 @@ Card0 | Card1                 ← only group header (40px)
 
 **Lane names:** producer / synthetic model supplies explicit nodes ([DATA-35](../context/decisions/DATA.md)); viewer does not invent Card/Core hierarchy from flat `AIV0/PIPE_*` traces. Product **target** is this sketch tree ([DATA-31](../context/questions/DATA.md)); sample `out.rep` stays thin AIV pipes until a golden arrives. Playground stress presets emit the Card tree.
 
-Reference: `source/v930/entry.jpeg`, `source/v930/hardware-more-detail.jpeg` (expanded Core2.Cube).
+Reference: `source/930/EntryPoint/screenshot.png`, `source/930/ReportStatisticsMoreHardwareInfo/screenshot.png` (expanded Core2.Cube).
 
 ### 4. Swimlane surface
 
 - Color-coded duration rectangles on each lane, vertically centered between gutter-aligned row dividers
-- **Multi-height lanes:** a titled leaf lane whose events overlap in time splits into non-overlapping **sub-rows** under one title (`source/v930/task-multi-height.jpeg` — “Task 存在多个时，高度加高”); the lane grows to `rowCount × 22px`, each event vertically centered in its own sub-row band, one gutter title cell spanning them all
+- **Multi-height lanes:** a titled leaf lane whose events overlap in time splits into non-overlapping **sub-rows** under one title (`source/930/MultipleTasksHeightIncreased/screenshot.png` — “Task 存在多个时，高度加高”); the lane grows to `rowCount × 22px`, each event vertically centered in its own sub-row band, one gutter title cell spanning them all
 - Labels on blocks when width allows (`DC_PRELOAD_XN_IMM`, Aten ops, …): vertically centered in the block; horizontally centered in the on-screen (clipped) event rect
 - Uniform lane background for all event-sequence rows (no zebra striping); horizontal dividers continue from the left gutter across each lane
-- **Pin lane (P2):** leaf-row pushpin in gutter (`source/v930/hardware-more-detail.jpeg`); pinned duplicates in sticky strip at top (events only, no dep links; cross-card pin order) — see [`INTERACTIONS.md`](INTERACTIONS.md)
+- **Pin lane (P2):** leaf-row pushpin in gutter (`source/930/ReportStatisticsMoreHardwareInfo/screenshot.png`); pinned duplicates in sticky strip at top (events only, no dep links; cross-card pin order) — see [`INTERACTIONS.md`](INTERACTIONS.md)
 - Optional faint background bands (`ProfilerStep#N`) — Phase 2 / when data exists
-- Dependency curves between blocks — Phase 2 (`source/v930/entry.jpeg`)
+- Dependency curves between blocks — Phase 2 (`source/930/EntryPoint/screenshot.png`)
 
 Visual language should feel close to PyPTO swimlane (dark gutter, dense bars, idle gaps as empty space).
 
@@ -88,17 +88,17 @@ Modes observed in sketches:
 | Mode | Sketch | Content | Phase |
 |------|--------|---------|------:|
 | Report statistics | `v930/report-stats-open`, `v930/compute-load`, `v930/compute-load-detail`, `v930/memory-load-detail` | Total time; PIPE bars + Cube\|Vector (MIX); compute/memory detail tabs; block + 查看全部 | M / M1 |
-| Roofline (within stats aside or sibling) | `source/v930/entry.jpeg`, `source/v930/entry.jpeg` | Log-log bottleneck chart | M2 |
-| Memory topology | `source/v930/memory-load-detail.jpeg`, changelog #5 | Static SVG + data-driven edge labels | M2 |
-| Hardware details | `source/v930/hardware-more-detail.jpeg` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([DATA-34](../context/decisions/DATA.md)) |
-| Pipe field list | `source/v930/compute-load.jpeg`, `source/v930/compute-load-detail.jpeg` | Searchable PipeUtilization columns (filter + highlight, UI-43) | M1 |
-| Memory analysis | `source/v930/memory-load-detail.jpeg`, `source/v930/memory-load-detail.jpeg` | **Static SVG** + **data-driven edge labels** ([UI-38](../context/decisions/UI.md)) | P2 |
+| Roofline (within stats aside or sibling) | `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png` | Log-log bottleneck chart | M2 |
+| Memory topology | `source/930/MemoryLoadAnalysisDetails/screenshot.png`, changelog #5 | Static SVG + data-driven edge labels | M2 |
+| Hardware details | `source/930/ReportStatisticsMoreHardwareInfo/screenshot.png` | Host CPU, NPU chip, AI Core counts, HBM | Out of MVP ([DATA-34](../context/decisions/DATA.md)) |
+| Pipe field list | `source/930/ComputeLoadAnalysis/screenshot.png`, `source/930/ComputeLoadAnalysisDetails/screenshot.png` | Searchable PipeUtilization columns (filter + highlight, UI-43) | M1 |
+| Memory analysis | `source/930/MemoryLoadAnalysisDetails/screenshot.png`, `source/930/MemoryLoadAnalysisDetails/screenshot.png` | **Static SVG** + **data-driven edge labels** ([UI-38](../context/decisions/UI.md)) | P2 |
 
 **MVP:** Summary tiles that have clear data + PIPE bars when CSV present; **hide** anything without inputs ([VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md)). Overview charts hidden until series exist. Colors: [COLOR_TOKENS.md](COLOR_TOKENS.md).
 
 ### 6. Bottom / selection details
 
-On event select (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`):
+On event select (`source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png`):
 
 - Op / instruction name, start → duration
 - Related paths / PC (when present)
@@ -120,4 +120,4 @@ On event select (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`):
 | Theme CSS variables injection | Toolbar inside report |
 | Opening `.npu-rep` / Chrome Trace `.json` | All layout regions above |
 
-Explorer annotation in `source/v930/entry.jpeg` (anomaly detection / performance tuning folders) is **host tree UX**, not part of the Vue report component.
+Explorer annotation in `source/930/EntryPoint/screenshot.png` (anomaly detection / performance tuning folders) is **host tree UX**, not part of the Vue report component.

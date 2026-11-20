@@ -7,16 +7,16 @@ Full-frame high-res design dumps. **Append-only** by batch; do not overwrite fil
 ```
 source/
   manifest.yaml     machine index (stable ids, original names, component hints)
-  v930/             930 性能调优 dump (canonical)
-  v930-sim/         930 仿真 dump
-  v930-chrome/      930 内存拓扑 official SVG chrome (448×423)
-  v930-source/      930 源码 tab reference (Source / SASS)
-  1130/             1130 Octo/HDesign export — per-screen folders (arkUIDSL + screenshot + assets),
-                    shared fonts/tailwind/assets in 1130/_shared/, indexed in ../DESIGN_INDEX.md
+  930/              current 930 Octo/HDesign export — per-screen folders (arkUIDSL + screenshot + assets),
+                    shared fonts/tailwind/assets in 930/_shared/, indexed in ../DESIGN_INDEX.md
+  930-legacy/       four legacy 930 frames with no export equivalent (fullscreen topology overlay,
+                    Source/SASS view, official chrome SVG, roofline review card); everything else
+                    from the old dumps is superseded by 930/ and removed
+  1130/             1130 Octo/HDesign export — same per-screen layout, indexed in ../DESIGN_INDEX.md
 ```
 
-The 1130 batch is **not** the append-only jpeg convention: each screen is a folder with the
-Octo export (`arkUIDSL.json` — the single source of truth, `screenshot.png`, sanitized
+The 930 and 1130 batches are **not** the append-only jpeg convention: each screen is a folder
+with the Octo export (`arkUIDSL.json` — the single source of truth, `screenshot.png`, sanitized
 `index.html`, `assets/`). Work with it via the design-tools skill
 (`.agents/skills/design-tools/SKILL.md`): `npm run design:sanitize|render|diff|find`.
 

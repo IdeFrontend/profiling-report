@@ -25,7 +25,7 @@ For usage scenarios and how views coordinate, see **[UX_SPEC.md](UX_SPEC.md)**.
 
 ## Hover
 
-Sketch: `source/v930/task-hover.jpeg`
+Sketch: `source/930/TaskHover/screenshot.png`
 
 - Hovering an event shows a tooltip: **name**, **start**, **duration**, **end**. Times use **per-value** auto units (`formatDisplayTimeAuto` / `formatTimeAuto`, 4 significant digits) — independent of viewport zoom ([UI-40](../context/decisions/UI.md)). Optional **CPU clocks** on tooltip/detail are derived per [UI-45](../context/decisions/UI.md). No host `timeUnit` prop.
 - Highlight the hovered rectangle by **lifting its own fill**, not by outlining it: `eventFill()` derives every state from the lane's base colour in OKLCH (`hover` and `selected` both `L+0.33`, with `selected` also `C×1.05`). Ringing on hover as well as selection is what made the two read as one state — the defect AC-08 reported — so the ring is selection's alone and rides over its fill. A block that is both keeps the selected fill. Both lifts clear the `L 0.6` label flip, so **a label inverts as the pointer crosses it**. A hovered block keeps full opacity under a selection — without that, dark text on a light fill washed by the selection dim is unreadable.
@@ -40,7 +40,7 @@ Sketch: `source/v930/task-hover.jpeg`
 
 ## Single selection
 
-Sketches: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (click → 详情 + 置灰), [`v930/detail-strip-raised`](./source/v930/detail-strip-raised.jpeg)
+Sketches: [`v930/task-click-detail`](./source/930/TaskClickedBottomBarOthersDimmed/screenshot.png) (click → 详情 + 置灰), [`v930/detail-strip-raised`](./source/930/ClickFloatingBottomBar/screenshot.png)
 
 - Click event → selected state, a 2px white ring. Distinct from hover, which lifts the fill instead.
 - Populate detail region with at least name and start → duration (and end).
@@ -52,7 +52,7 @@ Sketches: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (clic
 
 ## Multi-select
 
-Sketch: [`v930/task-marquee`](./source/v930/task-marquee.jpeg)
+Sketch: [`v930/task-marquee`](./source/930/TaskSelectionBox/screenshot.png)
 
 - **Unmodified drag on the swimlane** (>4px) draws a marquee rectangle and selects every leaf event whose block intersects it. This is the default gesture — that press does **not** pan; pan moved to Shift+wheel / trackpad horizontal scroll. Below 4px the press is still a click-to-select.
 - **Pending press (≤4px):** visually a no-op until the gate is crossed — lane-row / gutter hover highlight and the default-mode hover-gap Δt overlay stay as they were under the pointer. Do not clear them on `pointerdown` (that flashed the header and gap arrow on every click).
@@ -74,7 +74,7 @@ Sketch: [`v930/task-marquee`](./source/v930/task-marquee.jpeg)
 
 ## Pin lane (gutter pushpin)
 
-Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (Core2.Cube expanded gutter)
+Sketch: [`v930/hardware-more-detail`](./source/930/ReportStatisticsMoreHardwareInfo/screenshot.png) (Core2.Cube expanded gutter)
 
 **Product (2026-09-04) — [UI-44](../context/questions/deferred.md):** folder/group pin is **deferred** out of the current iteration. Shipped behavior remains **leaf lanes only**. Folder + subtree strip is parked on `feat/pin-grouping-nodes` (PR [#69](https://github.com/IdeFrontend/profiling-report/pull/69) closed unmerged).
 
@@ -88,7 +88,7 @@ Sketch: [`v930/hardware-more-detail`](./source/v930/hardware-more-detail.jpeg) (
 
 ## Context menu
 
-Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
+Sketch: [`v930/task-context-menu`](./source/930/TaskContextMenu/screenshot.png)
 
 - Right-click lane or event → menu (e.g. **Reset zoom** at any timeline point while zoomed in, **Pin row** + global Shift+P, copy name, reveal in details). **Pin row** writes the same **pinnedLaneIds** as the gutter pushpin; gutter icon is the primary affordance in this pass.
 
@@ -96,7 +96,7 @@ Sketch: [`v930/task-context-menu`](./source/v930/task-context-menu.jpeg)
 
 ## Dependencies
 
-Sketch: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (swimlane beziers + Relevant toolbar callout)
+Sketch: [`v930/task-click-detail`](./source/930/TaskClickedBottomBarOthersDimmed/screenshot.png) (swimlane beziers + Relevant toolbar callout)
 
 - Optional curved links between predecessor/successor events, drawn by `WebGlSwimlaneRenderer` / `CanvasSwimlaneRenderer` ([DependencyLinksLayer spec](../../src/ui/TimelineView/SwimlaneView/DependencyLinksLayer/DependencyLinksLayer.spec.md)).
 - Display control (mode + hop depth) filters which curves are drawn.
@@ -121,7 +121,7 @@ Sketch: [`v930/task-click-detail`](./source/v930/task-click-detail.jpeg) (swimla
 
 ## Time-range measure (度量模式)
 
-Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg). Delivery: **M2**.
+Sketch: [`v930/task-measure-mode`](./source/930/TaskTimeMeasurementMode/screenshot.png). Delivery: **M2**.
 
 - Toolbar **caliper** toggles `measureMode`. While active, the swimlane drag creates a measure range instead of a marquee (zoom/wheel still allowed unless Product says otherwise).
 - Drag on the swimlane (or time axis) sets `measureRange: { startUs, endUs }` (order-normalized). On the swimlane, create starts only after move >4px; a click (≤4px) over an event snaps the range to that event’s borders and selects the event. Borders animate from a prior range when one exists, otherwise shrink in from the visible window; empty swimlane click expands the range to the visible window then clears it and clears the event selection. During appear/clear (view↔range) tweens, hide the axis Δt arrow and duration label (borders + fades still animate); keep Δt chrome when tweening between two non-empty ranges.

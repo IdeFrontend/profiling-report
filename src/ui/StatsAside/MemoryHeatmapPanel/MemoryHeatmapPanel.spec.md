@@ -82,8 +82,8 @@ The two blues and the board/frame greys are the frame's own, sampled from `v930-
 ## Design sketches
 
 - [heat-panel](./visual/heat-panel.png) — the overlay's right panel, from `v930-sim/memory-topology-fullscreen` (biprof §11.2.3.2) — [`visual/provenance.yaml`](./visual/provenance.yaml)
-- [memory-topology-fullscreen](../../../../docs/ui/source/v930-sim/memory-topology-fullscreen.jpeg) — full frame: diagram left, heat panel right
-- [memory-topology-zoom](../../../../docs/ui/source/v930-sim/memory-topology-zoom.jpeg) — the stacked aside the units are clicked in
+- [memory-topology-fullscreen](../../../../docs/ui/source/930-legacy/v930-sim/memory-topology-fullscreen.jpeg) — full frame: diagram left, heat panel right
+- [memory-topology-zoom](../../../../docs/ui/source/930/MemoryLoadAnalysisZoomFullscreen/screenshot.png) — the stacked aside the units are clicked in
 
 ## Dependencies
 

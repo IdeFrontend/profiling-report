@@ -43,11 +43,20 @@ const enumVal = {
 const out = [];
 let z = 0;
 let rendered = 0;
-// The full-page annotation dim is not rendered by the stock html — skip it here too.
-function isDim(s, bbox) {
-  return bbox && bbox[0] <= 0 && bbox[1] <= 0 && bbox[2] >= 1919 && bbox[3] >= 1079 &&
+const PAGE_W = dsl.ui?.styles?.width || 1920;
+const PAGE_H = dsl.ui?.styles?.height || 1080;
+// The full-page annotation dim (#66262626) is not rendered by the stock html — skip it.
+// A full-page mask Image IS rendered (it dims the app behind a modal), but modal nodes
+// (octoName 弹窗 / 对话框) are raised into the floating layer so the mask never covers
+// them — that is how the design's own screenshot composites (backdrop dimmed, dialog
+// bright). The modal rule must not apply to the page root (its name contains 弹窗 too).
+function isOverlay(n, s, bbox) {
+  return bbox && bbox[0] <= 0 && bbox[1] <= 0 && bbox[2] >= PAGE_W - 1 && bbox[3] >= PAGE_H - 1 &&
     (s.backgroundColor || '').toUpperCase() === '#66262626';
 }
+// end-anchored: the modal containers are named 弹窗 / 深色模式/弹窗, while the mask is
+// 弹窗遮罩/Dark — it must stay below the modal, so it must not match here
+const MODAL_RE = /(弹窗|对话框)$/;
 // Floating UI paints above the app (and above the chart axis texts it overlaps).
 const FLOATING = new Set(['文字标注', '提示悬浮', '深色模式/下拉菜单 面板', '报告统计', '滚动条', '顶部菜单栏', '底部栏/Dark', '菜单']);
 let currentLayer = 'app';
@@ -76,12 +85,37 @@ function clipInset(clip, bbox) {
   const l = Math.max(0, clip[0] - x1);
   return (t || r || b || l) ? `clip-path:inset(${t}px ${r}px ${b}px ${l}px)` : null;
 }
-function walk(n, layer, texts, clips, parentOp) {
+// 蒙版 (mask) groups hold both the invisible mask backdrop (an opaque fill rectangle,
+// e.g. #C4C4C4 — the stock html never draws it) and real visible content (code lines,
+// chips, translucent highlight bars; or whole chart viewports in the zoom screens).
+// Rule: inside a 蒙版 whose subtree has no images, skip only the opaque leaf fills;
+// everything else renders normally.
+function subtreeHasImage(n) {
+  let hasImage = false;
+  (function scan(x) {
+    if (!x || typeof x !== 'object' || hasImage) return;
+    if (x.src) { hasImage = true; return; }
+    for (const c of x.children || []) scan(c);
+  })(n);
+  return hasImage;
+}
+function isOpaqueFill(n) {
+  if (n.src || typeof n.content === 'string') return false;
+  if ((n.children || []).length) return false;
+  const bg = (n.styles || {}).backgroundColor;
+  if (!bg) return false;
+  const h = bg.replace('#', '');
+  if (h.length === 8) return parseInt(h.slice(0, 2), 16) === 255;
+  return h.length === 6;
+}
+function walk(n, layer, texts, clips, parentOp, inMask = false) {
   if (!n || typeof n !== 'object') return;
+  if (n.meta?.octoName === '蒙版') inMask = !subtreeHasImage(n);
+  else if (inMask && isOpaqueFill(n)) return;
   const s = n.styles || {};
   const m = n.meta || {};
-  if (FLOATING.has(m.octoName)) layer = 'float';
-  if (m.bbox && !isDim(s, m.bbox)) {
+  if (FLOATING.has(m.octoName) || (n !== dsl.ui && MODAL_RE.test(m.octoName || ''))) layer = 'float';
+  if (m.bbox && !isOverlay(n, s, m.bbox)) {
     const isText = n.componentName === 'Text' && typeof n.content === 'string';
     if (isText === texts && layer === currentLayer) {
       rendered++;
@@ -103,7 +137,11 @@ function walk(n, layer, texts, clips, parentOp) {
         `z-index:${z}`,
       ];
       // every style attribute, verbatim
-      if (s.backgroundColor) css.push(`background-color:${dslColor(s.backgroundColor)}`);
+      // a full-page mask image carries its own alpha; its export background would
+      // double-darken the backdrop (measured 8 vs the design's 22 on 930 dialogs)
+      const isMaskImage = n.componentName === 'Image' && n.src && m.bbox &&
+        m.bbox[0] <= 0 && m.bbox[1] <= 0 && m.bbox[2] >= PAGE_W - 1 && m.bbox[3] >= PAGE_H - 1;
+      if (s.backgroundColor && !isMaskImage) css.push(`background-color:${dslColor(s.backgroundColor)}`);
       if (s.linearGradient) css.push(`background-image:${dslGradient(s.linearGradient)}`);
       if (s.borderRadius != null) {
         if (typeof s.borderRadius === 'object')
@@ -133,16 +171,21 @@ function walk(n, layer, texts, clips, parentOp) {
       for (const cut of cuts) css.push(cut);
 
       if (isText) {
+        const lineH = s.lineHeight ?? s.fontSize ?? 12;
+        const boxH = s.height ?? y2 - y1;
+        // The stock html wraps only when the box is taller than one line (height >
+        // lineHeight ⇒ pre-wrap + word-break, like the export); a single-line box uses
+        // pre so a too-narrow bbox never reflows the text.
+        const wraps = boxH > lineH + 1;
         css.push(
           `font-size:${s.fontSize ?? 12}px`,
           `color:${dslColor(s.fontColor) ?? '#fff'}`,
           `font-weight:${s.fontWeight ?? 400}`,
-          `line-height:${s.lineHeight ?? s.fontSize ?? 12}px`,
+          `line-height:${lineH}px`,
           `text-align:${String(s.textAlign ?? 'start').toLowerCase()}`,
-          // The stock html uses white-space:pre (no wrapping) for single-line texts
-          // and pre-wrap for multiline ones — bbox width must not reflow them.
-          `white-space:${n.content.includes('\n') ? 'pre-wrap' : 'pre'}`,
+          `white-space:${wraps ? 'pre-wrap' : 'pre'}`,
         );
+        if (wraps) css.push(`word-break:break-word`);
         if (s.verticalAlign && s.verticalAlign !== 'Top') css.push(`display:flex`, `align-items:${enumVal[s.verticalAlign] ?? 'flex-start'}`);
         out.push(`<div style="${css.join(';')}">${n.content.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</div>`);
       } else if (n.componentName === 'Image' && n.src) {
@@ -168,7 +211,7 @@ function walk(n, layer, texts, clips, parentOp) {
   }
   // rounded containers clip their descendants (flat DOM loses overflow clipping)
   const childClips = hasRadius(s) && m.bbox ? [...clips, m.bbox] : clips;
-  for (const c of n.children || []) walk(c, layer, texts, childClips, parentOp * (s.opacity ?? 1));
+  for (const c of n.children || []) walk(c, layer, texts, childClips, parentOp * (s.opacity ?? 1), inMask);
 }
 // Four passes: app shapes < app texts < floating shapes < floating texts.
 for (const layer of ['app', 'float']) {
@@ -177,8 +220,7 @@ for (const layer of ['app', 'float']) {
   walk(dsl.ui, 'app', true, [], 1);
 }
 
-const root = dsl.ui?.styles || {};
-const W = root.width || 1920, H = root.height || 1080;
+const W = PAGE_W, H = PAGE_H;
 // the icon font is optional (the sanitizer drops it when no text uses its glyphs)
 const iconFont = `${base}../_shared/fonts/HMSymbolVF.ttf`;
 const iconFace = existsSync(iconFont)

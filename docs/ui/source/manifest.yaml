@@ -6,92 +6,92 @@ batches:
     label: "930 性能调优"
     files:
       - id: entry
-        path: v930/entry.jpeg
+        path: 930/EntryPoint/screenshot.png
         original_name: "930版本-性能调优_入口.jpeg"
         scenes: [entry, toolbar, overview, gutter, swimlane]
         components: [ReportToolbar, TimeOverviewBar, LaneGutter, AxisRuler, CursorTimestamp, SwimlaneCanvas, OverviewCharts]
       - id: report-stats-open
-        path: v930/report-stats-open.jpeg
+        path: 930/OpenReportStatistics/screenshot.png
         original_name: "930版本-性能调优_打开报告统计.jpeg"
         scenes: [report-stats, aside]
         components: [StatsAside, StatsSummaryPanel, RooflinePanel, CsvFieldListPanel]
       - id: roofline-card-2026-10-15
-        path: v930/roofline-card-2026-10-15.png
+        path: 930-legacy/v930/roofline-card-2026-10-15.png
         original_name: "screenshot-2026-10-15-12-25-14.png"
         scenes: [report-stats, roofline]
         components: [RooflinePanel]
       - id: report-stats-scrolled
-        path: v930/report-stats-scrolled.jpeg
+        path: 930/MemoryLoadAnalysisZoomFullscreenFromStats/screenshot.png
         original_name: "930版本-性能调优_报告统计-滚动到底部.jpeg"
         scenes: [report-stats, aside-scroll]
         components: [StatsAside]
       - id: search-highlight
-        path: v930/search-highlight.jpeg
+        path: 930/SearchHighlight/screenshot.png
         original_name: "930版本-性能调优_搜索高亮显示.jpeg"
         scenes: [search, highlight]
         components: [ReportToolbar, SwimlaneCanvas, CursorTimestamp]
       - id: detail-strip-raised
-        path: v930/detail-strip-raised.jpeg
+        path: 930/ClickFloatingBottomBar/screenshot.png
         original_name: "930版本-性能调优_点击上浮底部栏.jpeg"
         scenes: [detail-strip]
         components: [DetailPanel, DetailSummary, DetailParameter, DetailRelevant]
       - id: memory-load-detail
-        path: v930/memory-load-detail.jpeg
+        path: 930/MemoryLoadAnalysisDetails/screenshot.png
         original_name: "930版本-性能调优_点击内存负载分析的详情后.jpeg"
         scenes: [memory-load, detail]
         components: [StatsAside, CsvFieldListPanel]
       - id: compute-load
-        path: v930/compute-load.jpeg
+        path: 930/ComputeLoadAnalysis/screenshot.png
         original_name: "930版本-性能调优_计算负载分析.jpeg"
         scenes: [compute-load]
         components: [StatsAside, PipeOccupancyPanel]
       - id: compute-load-detail
-        path: v930/compute-load-detail.jpeg
+        path: 930/ComputeLoadAnalysisDetails/screenshot.png
         original_name: "930版本-性能调优_点击计算负载分析的详情后.jpeg"
         scenes: [compute-load, detail]
         components: [StatsAside, CsvFieldListPanel]
       - id: hardware-more-detail
-        path: v930/hardware-more-detail.jpeg
+        path: 930/ReportStatisticsMoreHardwareInfo/screenshot.png
         original_name: "930版本-性能调优_点击报告统计右边的更多后-硬件信息详情.jpeg"
         scenes: [hardware, gutter, pin]
         components: [StatsAside, HardwareDetailsPanel, LaneGutter]
       - id: task-hover
-        path: v930/task-hover.jpeg
+        path: 930/TaskHover/screenshot.png
         original_name: "930版本-性能调优_Task 悬浮时.jpeg"
         scenes: [task-hover, tooltip]
         components: [EventTooltip, SwimlaneCanvas]
       - id: task-context-menu
-        path: v930/task-context-menu.jpeg
+        path: 930/TaskContextMenu/screenshot.png
         original_name: "930版本-性能调优_Task 右键时.jpeg"
         scenes: [task-context-menu]
         components: [ContextMenu]
       - id: task-marquee
-        path: v930/task-marquee.jpeg
+        path: 930/TaskSelectionBox/screenshot.png
         original_name: "930版本-性能调优_Task 框选时.jpeg"
         scenes: [task-marquee, multiselect]
         components: [SwimlaneCanvas, MultiSelectSummary]
       - id: task-measure-mode
-        path: v930/task-measure-mode.jpeg
+        path: 930/TaskTimeMeasurementMode/screenshot.png
         original_name: "930版本-性能调优_Task 时间度量模式.jpeg"
         scenes: [measure]
         components: [SwimlaneCanvas, ReportToolbar, TimeOverviewBar]
       - id: task-multi-height
-        path: v930/task-multi-height.jpeg
+        path: 930/MultipleTasksHeightIncreased/screenshot.png
         original_name: "930版本-性能调优_Task 存在多个时，高度加高.jpeg"
         scenes: [task-multi-height]
         components: [SwimlaneCanvas]
       - id: task-click-detail
-        path: v930/task-click-detail.jpeg
+        path: 930/TaskClickedBottomBarOthersDimmed/screenshot.png
         original_name: "930版本-性能调优_Task 点击后-出现底部栏、其他task置灰.jpeg"
         scenes: [task-select, detail, deps, dim]
         components: [SwimlaneCanvas, DetailPanel]
       - id: change-log
-        path: v930/change-log.jpeg
+        path: 930/ChangeLog/screenshot.png
         original_name: "930版本-性能调优_变更记录.jpeg"
         scenes: [change-log, measure, compute-load, csv-tabs, memory-topology]
         components: [SwimlaneCanvas, PipeOccupancyPanel, CsvFieldListPanel, MemoryTopologyPanel]
       - id: report-stats-duration-2026-10-21
-        path: v930/report-stats-duration-2026-10-21.png
+        path: 930/OpenReportStatistics/screenshot.png
         original_name: "screenshot-2026-10-21-15-37-05(1).jpeg"
         scenes: [report-stats, duration]
         components: [StatsAside, StatsSummaryPanel]
@@ -106,12 +106,12 @@ batches:
     label: "930 仿真（内存负载分析缩放 / 全屏，性能提示）"
     files:
       - id: memory-topology-zoom
-        path: v930-sim/memory-topology-zoom.jpeg
+        path: 930/MemoryLoadAnalysisZoomFullscreen/screenshot.png
         original_name: "930版本-仿真_11.2.3.2_内存负载分析缩放+全屏.jpeg"
         scenes: [memory-load, memory-topology, memory-heatmap, zoom, aside, unit-selection]
         components: [StatsAside, MemoryTopologyPanel]
       - id: memory-topology-fullscreen
-        path: v930-sim/memory-topology-fullscreen.jpeg
+        path: 930-legacy/v930-sim/memory-topology-fullscreen.jpeg
         # 2026-10 refresh: zoom bar moves under the diagram (left of heat), not under the heat panel.
         original_name: "1030_仿真上板公共_npu-emulate 仿真_内存负载分析_内存负载分析全屏(1).jpeg"
         scenes: [memory-load, memory-topology, memory-heatmap, fullscreen, unit-selection]
@@ -119,7 +119,7 @@ batches:
       # Same frame as the 2026-09 dump, now the 7680×4320 original (was a 1024×576
       # downscale). Resolution upgrade of one frame, not a design change — id and path stay.
       - id: performance-hints
-        path: v930-sim/performance-hints.jpeg
+        path: 930/ReportPanelPerformanceTips/screenshot.png
         original_name: "930版本-仿真_性能提示_报告面板-性能提示.jpeg"
         scenes: [performance-hints, report-panel, aside-title-trigger]
         components: [StatsAside, PerformanceHintsDock]
@@ -130,7 +130,7 @@ batches:
     label: "930 源码（代码关联）"
     files:
       - id: source-correlation
-        path: v930-source/source-correlation.jpeg
+        path: 930-legacy/v930-source/source-correlation.jpeg
         original_name: "代码关联_源码.jpeg"
         scenes: [source, sass]
         components: [SourceView]
@@ -152,7 +152,7 @@ batches:
     label: "930 内存拓扑 chrome（448×423 SVG）"
     files:
       - id: memory-topology
-        path: v930-chrome/memory-topology.svg
+        path: 930-legacy/v930-chrome/memory-topology.svg
         original_name: "memory-topology.svg"
         scenes: [memory-load, memory-topology]
         components: [MemoryTopologyPanel]

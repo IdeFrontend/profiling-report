@@ -65,7 +65,7 @@ Axis chrome: [`AxisRuler.spec.md`](../TimeAxis/AxisRuler/AxisRuler.spec.md). Cro
 
 - [range-handles](./visual/range-handles.png) — from `v930/entry`
 - [handle](./visual/handle.png) — from `v930/entry` (left/right share one glyph)
-- [Statistical analysis (overview charts)](../../../../docs/ui/source/v930/entry.jpeg)
+- [Statistical analysis (overview charts)](../../../../docs/ui/source/930/EntryPoint/screenshot.png)
 
 ## Changelog
 - **2026-09-29** — Full-selection window drag snaps to exact bounds (no ε drift flipping the viewport unit / lower-axis labels); PR-OVERVIEW-007.

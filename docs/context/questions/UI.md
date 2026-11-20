@@ -68,7 +68,7 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Question:** What are the real row schemas and interactions for **Inline Functions**, **Source Markers**, and **Statistics** (columns, click→navigate rules, empty states)? Sketch shows dual Source selectors under Inline Functions — are those nested dual panes or filters?
 
-**Answer so far:** Dock bodies ship mock-derived tables from correlation / metrics until Product locks schemas ([v930-source/source-correlation](../../ui/source/v930-source/source-correlation.jpeg)).
+**Answer so far:** Dock bodies ship mock-derived tables from correlation / metrics until Product locks schemas ([v930-source/source-correlation](../../ui/source/930-legacy/v930-source/source-correlation.jpeg)).
 
 **Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md).
 
@@ -76,7 +76,7 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Status:** `open`
 
-**Question:** Does Product want a value heat tint on metrics cells (e.g. Sampling Stall), and if so which columns, color scale, and thresholds? [`v930-source/source-correlation`](../../ui/source/v930-source/source-correlation.jpeg) shows plain numbers + grey Warp Occupancy bars only — no warm cell fill.
+**Question:** Does Product want a value heat tint on metrics cells (e.g. Sampling Stall), and if so which columns, color scale, and thresholds? [`v930-source/source-correlation`](../../ui/source/930-legacy/v930-source/source-correlation.jpeg) shows plain numbers + grey Warp Occupancy bars only — no warm cell fill.
 
 **Answer so far:** Sketch has **no** heat tint. An amber fill was tried and removed as non-sketch. Leave cells uncolored until Product asks for heat.
 

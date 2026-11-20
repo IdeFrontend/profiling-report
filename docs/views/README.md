@@ -43,23 +43,23 @@ Surfaces still described in legacy [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA
 
 ## Mockup index
 
-Source files under [`../ui/source/v930/`](../ui/source/v930/). Full design hierarchy: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md).
+Source files under [`../ui/source/930/`](../ui/source/930/). Full design hierarchy: [`DESIGN_INDEX.md`](../ui/DESIGN_INDEX.md).
 
 | File | Section |
 | --- | --- |
-| [`entry-overview.png`](../ui/source/v930/entry.jpeg) | Entry + overall timeline chrome |
-| [`npu-rep-layout.png`](../ui/source/v930/entry.jpeg) | Container binary layout |
-| [`report-stats.png`](../ui/source/v930/report-stats-open.jpeg) | Report statistics |
-| [`hardware-details.png`](../ui/source/v930/hardware-more-detail.jpeg) | Hardware details |
-| [`roofline.png`](../ui/source/v930/report-stats-open.jpeg) | Roofline |
-| [`pipe-occupancy.png`](../ui/source/v930/compute-load.jpeg) | Pipe occupancy bars |
-| [`pipe-details.png`](../ui/source/v930/compute-load-detail.jpeg) | Pipe details list |
+| [`entry-overview.png`](../ui/source/930/EntryPoint/screenshot.png) | Entry + overall timeline chrome |
+| [`npu-rep-layout.png`](../ui/source/930/EntryPoint/screenshot.png) | Container binary layout |
+| [`report-stats.png`](../ui/source/930/OpenReportStatistics/screenshot.png) | Report statistics |
+| [`hardware-details.png`](../ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png) | Hardware details |
+| [`roofline.png`](../ui/source/930/OpenReportStatistics/screenshot.png) | Roofline |
+| [`pipe-occupancy.png`](../ui/source/930/ComputeLoadAnalysis/screenshot.png) | Pipe occupancy bars |
+| [`pipe-details.png`](../ui/source/930/ComputeLoadAnalysisDetails/screenshot.png) | Pipe details list |
 | [`memory-topology-annotated.png`](../../src/ui/StatsAside/MemoryTopologyPanel/memory-topology.svg) | Memory topology SVG (448×423, AIC + AIV × 2) |
-| [`memory-load-heatmap.png`](../ui/source/v930/report-stats-scrolled.jpeg) | Historical dual-AIV memory-load dump (not current chrome) |
-| [`statistical-analysis.png`](../ui/source/v930/entry.jpeg) | Cube/Vector statistical tracks |
-| [`kernel-block-timeline.png`](../ui/source/v930/entry.jpeg) | Block timeline |
-| [`event-details.png`](../ui/source/v930/detail-strip-raised.jpeg) | Event / Relevant details |
-| [`source-correlation.jpeg`](../ui/source/v930-source/source-correlation.jpeg) | Source \| SASS dual pane |
+| [`memory-load-heatmap.png`](../ui/source/930/MemoryLoadAnalysisZoomFullscreenFromStats/screenshot.png) | Historical dual-AIV memory-load dump (not current chrome) |
+| [`statistical-analysis.png`](../ui/source/930/EntryPoint/screenshot.png) | Cube/Vector statistical tracks |
+| [`kernel-block-timeline.png`](../ui/source/930/EntryPoint/screenshot.png) | Block timeline |
+| [`event-details.png`](../ui/source/930/ClickFloatingBottomBar/screenshot.png) | Event / Relevant details |
+| [`source-correlation.jpeg`](../ui/source/930-legacy/v930-source/source-correlation.jpeg) | Source \| SASS dual pane |
 
 ## SSOT rules
 

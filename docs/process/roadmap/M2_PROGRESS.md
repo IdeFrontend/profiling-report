@@ -13,7 +13,7 @@ M2 extends the M1 demo-data library into an MSTT-embeddable product with swimlan
 
 **Goal (from [milestone-2.md](milestone-2.md)):** (1) Ship M1 library into MSTT. (2) Swimlane selection with prev/next dependency lines and a details panel. (3) Memory topology **graph chart** with data-driven edge values. (4) **Roofline** panel from fixture arithmetic data (interim I-DATA-37). (5) Timeline **time-range measure** (local overlay until UI-42).
 
-Design frames: [`v930/task-measure-mode`](../../ui/source/v930/task-measure-mode.jpeg), [`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg), [`v930/task-click-detail`](../../ui/source/v930/task-click-detail.jpeg). Host spec: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
+Design frames: [`v930/task-measure-mode`](../../ui/source/930/TaskTimeMeasurementMode/screenshot.png), [`v930/memory-load-detail`](../../ui/source/930/MemoryLoadAnalysisDetails/screenshot.png), [`v930/task-click-detail`](../../ui/source/930/TaskClickedBottomBarOthersDimmed/screenshot.png). Host spec: [MSTT_INTEGRATION.md](../../architecture/MSTT_INTEGRATION.md).
 
 ---
 

@@ -16,7 +16,7 @@ Renders major **1px** bars with labels immediately to the **right**, plus short 
 
 ## Visual
 
-Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Crop: [`visual/viewport-ticks.png`](./visual/viewport-ticks.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Layout truth: [`docs/ui/source/v930/entry.jpeg`](../../../../../docs/ui/source/v930/entry.jpeg).
+Normative tokens for total + viewport axes (also used by `TimeOverviewBar`). Crop: [`visual/viewport-ticks.png`](./visual/viewport-ticks.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Layout truth: [`docs/ui/source/930/EntryPoint/screenshot.png`](../../../../../docs/ui/source/930/EntryPoint/screenshot.png).
 
 | Token | Value |
 |-------|--------|

@@ -37,7 +37,7 @@ Crops: [`visual/tooltip.png`](./visual/tooltip.png), [`visual/tooltip-context.pn
 
 - [tooltip](./visual/tooltip.png) — from `v930/task-hover`
 - [tooltip-context](./visual/tooltip-context.png) — hovered event + tooltip from `v930/task-hover`
-- [Task hover](../../../docs/ui/source/v930/task-hover.jpeg) — full frame
+- [Task hover](../../../docs/ui/source/930/TaskHover/screenshot.png) — full frame
 
 ## Dependencies
 

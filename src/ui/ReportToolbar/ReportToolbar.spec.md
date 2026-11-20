@@ -46,7 +46,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 ## Visual
 
-Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg) (device px @ dump resolution). Control height **~28–29 px** CSS. Chrome strip is **min-height 60px** on one row; when tabs + toolbar no longer fit side-by-side the **whole** `.pr-toolbar` (search, zoom, actions) wraps to a second row together and the corner wash stretches with the taller chrome. If the second row is still too narrow, trailing icon actions crop (`overflow-x: clip`) while search and zoom stay visible; cropped trailing controls are marked `inert` so they leave the tab order.
+Source band ~y=400–472 in [`source/930/EntryPoint/screenshot.png`](../../../docs/ui/source/930/EntryPoint/screenshot.png) (device px @ dump resolution). Control height **~28–29 px** CSS. Chrome strip is **min-height 60px** on one row; when tabs + toolbar no longer fit side-by-side the **whole** `.pr-toolbar` (search, zoom, actions) wraps to a second row together and the corner wash stretches with the taller chrome. If the second row is still too narrow, trailing icon actions crop (`overflow-x: clip`) while search and zoom stay visible; cropped trailing controls are marked `inert` so they leave the tab order.
 
 Lives in the **main** column only (above the timeline), not spanning the StatsAside — see [ReportLayout](../ReportLayout/ReportLayout.spec.md).
 
@@ -63,7 +63,7 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 
 ### OP selector (`visual/op-selector.png`, `visual/op-selector-open.png`)
 
-Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg) (open). Context: [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png).
+Source: [`v930/entry`](../../../docs/ui/source/930/EntryPoint/screenshot.png) (closed), [`v930/hardware-more-detail`](../../../docs/ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png) (open). Context: [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png).
 
 | Token | Value |
 |-------|--------|
@@ -125,7 +125,7 @@ Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, he
 
 ### Display control popover
 
-Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg), [`visual/display-control.png`](./visual/display-control.png).
+Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png), [`visual/display-control.png`](./visual/display-control.png).
 
 | Token | Value |
 |-------|--------|
@@ -231,9 +231,9 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [op-selector-tabs](./visual/op-selector-tabs.png) — OP + 时间线 context + chrome gradient from `v930/entry`
 - [op-selector-open](./visual/op-selector-open.png) — open menu from `v930/hardware-more-detail`
 - [timeline-trace-selector](./visual/timeline-trace-selector.png) — 流水视图显示 trigger + radio menu from `1130/pipeline-display-filter`
-- [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
-- [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger + open OP menu
-- [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
+- [v930 entry](../../../docs/ui/source/930/EntryPoint/screenshot.png) — full layout context
+- [hardware-more-detail](../../../docs/ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png) — 显示控制 popover + layers trigger + open OP menu
+- [task-measure-mode](../../../docs/ui/source/930/TaskTimeMeasurementMode/screenshot.png) — measure mode active
 - [pipeline-display-filter](../../../docs/ui/source/1130/PipelineDisplayFilter/screenshot.png) — full-frame 流水显示筛选 mockup
 
 ## Changelog

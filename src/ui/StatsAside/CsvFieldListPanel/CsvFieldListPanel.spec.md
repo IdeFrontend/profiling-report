@@ -60,9 +60,9 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [tabs-search](./visual/tabs-search.png) — from `v930/compute-load-detail`
 - [field-rows](./visual/field-rows.png) — from `v930/compute-load-detail`
 - [block-switcher](./visual/block-switcher.png) — from `v930/memory-load-detail`
-- [compute-load-detail](../../../../docs/ui/source/v930/compute-load-detail.jpeg) — full frame
-- [search-highlight](../../../../docs/ui/source/v930/search-highlight.jpeg) — search match chrome
-- [memory-load-detail](../../../../docs/ui/source/v930/memory-load-detail.jpeg) — full frame
+- [compute-load-detail](../../../../docs/ui/source/930/ComputeLoadAnalysisDetails/screenshot.png) — full frame
+- [search-highlight](../../../../docs/ui/source/930/SearchHighlight/screenshot.png) — search match chrome
+- [memory-load-detail](../../../../docs/ui/source/930/MemoryLoadAnalysisDetails/screenshot.png) — full frame
 
 ## Changelog
 - **2026-09-23** — Search restores filter **+** substring highlight chip (UI-43 reversed to filter + highlight).
