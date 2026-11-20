@@ -32,8 +32,6 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Source | SASS (DATA-53).** `adaptEmulate` calls `adaptSourceCorrelation`. When ELF `SourceInstructions` / `AsmMetrics` gate passes, attach `sourceCorrelation` (`mock: false`) and advertise **`sourceTab`**. Assembly-only (no SourceFiles) is allowed. Gelu-without-ELF and IPCAsmMetrics-only packs omit the tab ([UI-37](../../docs/context/decisions/UI.md)).
 
-**Omit gap panels.** Do not populate `overviewSeries` or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards.
-
 **Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`; **`memoryHeatmap`** when a heat unit is drawable; **`sourceTab`** when a real (non-mock) Source model attaches; **`roofline`** when emulate points exist. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载).
 
 **Errors.** Corrupt marker or unparseable PipeTrace → throw. Missing PipeTrace or optional analytics embeds → omit fields / null swimlane, do not throw.
