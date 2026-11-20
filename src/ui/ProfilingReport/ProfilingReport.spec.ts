@@ -3019,6 +3019,38 @@ describe('ProfilingReport scaffold', () => {
     expect(text).toContain('live_update');
     expect(text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(false);
 
+    // Basename match when the workspace path is not the symbolizer path,
+    // including over text that is already resolved.
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'profiling-report/source-file-updated',
+          fileName: '/other/dir/gather_2d.asc',
+          basename: 'gather_2d.asc',
+          text: 'extern "C" void basename_match() {}\n',
+        },
+      }),
+    );
+    await nextTick();
+    expect(wrapper.findComponent(SourceView).props('model').files[0].text).toContain(
+      'basename_match',
+    );
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'profiling-report/source-file-updated',
+          fileName: missingPath,
+          basename: 'gather_2d.asc',
+          text: 'extern "C" void replaced_again() {}\n',
+        },
+      }),
+    );
+    await nextTick();
+    const replaced = wrapper.findComponent(SourceView).props('model').files[0].text as string;
+    expect(replaced).toContain('replaced_again');
+    expect(replaced).not.toContain('basename_match');
+
     // Malformed payloads are ignored.
     window.dispatchEvent(
       new MessageEvent('message', {
@@ -3026,7 +3058,7 @@ describe('ProfilingReport scaffold', () => {
       }),
     );
     await nextTick();
-    expect(wrapper.findComponent(SourceView).props('model').files[0].text).toContain('live_update');
+    expect(wrapper.findComponent(SourceView).props('model').files[0].text).toContain('replaced_again');
     wrapper.unmount();
   });
 

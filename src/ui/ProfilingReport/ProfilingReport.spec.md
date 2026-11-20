@@ -215,7 +215,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 34. **PR-ROOT-034** — 统计分析 charts show for pipeTrace (and catalog-absent legacy); hide for communication / warpOccupy.
 38. **PR-ROOT-038** — `environment: 'vscode'` without `resolveSourceFile` fills missing text through the webview bridge.
 39. **PR-ROOT-039** — A SourceView `source-text` emission applies to the report overlay and survives a Source → Timeline → Source round trip.
-40. **PR-ROOT-040** — A `profiling-report/source-file-updated` window message fills a matching placeholder before the Source tab is shown; malformed payloads are ignored.
+40. **PR-ROOT-040** — A `profiling-report/source-file-updated` window message fills a matching placeholder before the Source tab is shown. A basename match applies when `fileName` is a different path. A later message replaces text that is already resolved. Malformed payloads are ignored.
 41. **PR-ROOT-041** — A later missing-source fill starts from the live overlay and keeps previously dropped text. A drop or `source-file-updated` that lands while that fill is awaiting the host is still present after a sibling file resolves.
 
 ## Edge Cases
@@ -250,6 +250,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-11-20** — `source-file-updated` matches on basename when the path differs, and a later message replaces text that is already resolved (`PR-ROOT-040`).
 - **2026-11-20** — An in-flight missing-source fill keeps a drop or host update that lands during the await, and a late `resolveSourceFile` replaces an already-active VS Code bridge (`PR-ROOT-030`, `PR-ROOT-041`).
 - **2026-11-13** — SourceView drop / browse text lives in a ProfilingReport overlay, so it survives tab switches; `profiling-report/source-file-updated` messages update it live, and missing-source fills keep it (`PR-ROOT-039`–`041`).
 - **2026-11-13** — `environment: 'vscode'` without `resolveSourceFile` falls back to the VS Code webview bridge for missing source (`PR-ROOT-038`).
