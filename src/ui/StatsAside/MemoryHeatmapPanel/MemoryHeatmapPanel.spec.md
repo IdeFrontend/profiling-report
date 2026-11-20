@@ -55,7 +55,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 
 Dark-only: panel `#262626` (the topology card's surface, not `--pr-bg-panel`), tab strip ruled on `#333333`, active tab on the short white bar. The panel is mounted as the 全屏 overlay's right column (**400px**, the sketch's ~398px band) and meets the diagram with **no** stroke between them — the frame's own boundary is the panel's `#262626` against the overlay's literal `#1a1a1a` (not `--pr-bg-aside`, which light-theme remaps), not a divider line. Every value below is measured off the sketch crop (`visual/heat-panel.png`, a 1:1 crop of the 7680×4320 frame, i.e. **4×** — so sketch px ÷ 4 = frame px).
 
-Shipped block order: tab strip → rule → legend → **reserved view-bar** (multi-view pill or empty band, PR-HEAT-012) → optional `OutsideDeclared` badge → body (`grid` → selected view name → `Total / Used / Free` caption). Nothing sits *above* the lattice inside the body except the grid itself.
+Shipped block order: tab strip → rule → **reserved view-bar** (multi-view pill or empty band, PR-HEAT-012) → Access Count legend → optional `OutsideDeclared` badge → body (`grid` → selected view name → `Total / Used / Free` caption). Nothing sits *above* the lattice inside the body except the grid itself.
 
 | Token | Value |
 |-------|-------|
@@ -65,8 +65,8 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | Tab strip rule | `#333333` `1px` across the panel's content width |
 | Tab strip rhythm | label-to-label ink `26px` (the frame's `106px` at 4×), so the labels sit apart rather than as boxed chips |
 | Legend | centred in the column; **Access Count** title, one continuous Free→Used blue strip `8px` tall (`#AFC6FE` → `#3D64AD`) + `0` / max-access-count labels (fade near brush); 10% hover brush (may overhang 0/max; 22px hit + ±5% side pads; coerced `0–0` / `max–max` at outer pads) with range label under the window + match-count tip above (only when ≥1 cell); instant 10% brush chrome; brush-active solid Canvas veil + bright Canvas in-range layer; occupancy dim (200ms mute overlay + ≥3px blue bands) |
-| Legend offsets | strip ~`47.5px` under the strip's rule; legend bottom pad `12px` into the view-bar band |
-| View-bar | always reserved (`min-height` = Source pill `28px`); multi-view UB mounts `SourcePillSelect` |
+| Legend offsets | under the view-bar; `12px` pad above/below the legend block |
+| View-bar | always reserved under the tab rule (`min-height` = Source pill `28px`); multi-view UB mounts `SourcePillSelect`; sits **above** the Access Count legend |
 | Unit name under the grid | active view (`{owner} {MemoryName}`), `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid |
 | Metric caption | `#b3b3b3`, `12px`/`15px` line-height, centred `13px` under the unit name — `Total: {n} / Used: {n} / Free: {n}` ([DATA-51](../../../../docs/context/decisions/DATA.md)); omitted when Total unknown |
 | High end (`intensity = 1`) | `#3D64AD` (Used / deep blue) |
@@ -103,6 +103,7 @@ Board/frame greys stay from `v930-sim/memory-topology-fullscreen` (`#303F5E` boa
 - **2026-11-19** — #200: SA HSL gray→green→yellow→red fill + single `%` tick legend strip (replaces blue Low/High).
 - **2026-11-20** — #194 / PR #225: lattice cells on Canvas 2D (base + bright) under/over the CSS mute veil; DOM hover overlay + tip + brush chrome unchanged.
 - **2026-11-20** — #194 / PR #225: base / mute-veil / bright canvases share one board box + cached `--pr-heat-cell` geom so brush highlights do not jump.
+- **2026-11-20** — #194 / PR #225: view-bar (multi-view pill) moves above the Access Count legend.
 - **2026-11-20** — #194 / PR #225: heat board fills the frame via CSS `inset` (no stale JS size); paint + hover share measured cellW/cellH so the lattice fills the border and the zoom overlay tracks cells.
 - **2026-11-20** — #194 / PR #225: base / mute-veil / bright canvases share one board box + cached measured geom so brush highlights do not jump (do not parse `--pr-heat-cell` — custom props stay as `min(calc(cq*))`).
 - **2026-11-20** — #194 / PR #225: mute veil is a solid Canvas fill (no per-cell grid); legend brush match-count tip above the window when ≥1 cell is highlighted.

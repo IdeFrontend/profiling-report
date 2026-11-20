@@ -252,6 +252,10 @@ describe('MemoryHeatmapPanel', () => {
   it('PR-HEAT-012: multi-view UB exposes a selector and switches the lattice', async () => {
     const wrapper = mountPanel();
     expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBeUndefined();
+    // View-bar sits above the Access Count legend (DOM order).
+    const viewBar = wrapper.get('[data-testid="heat-view-bar"]').element;
+    const legend = wrapper.get('[data-testid="heat-legend"]').element;
+    expect(viewBar.compareDocumentPosition(legend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const trigger = wrapper.get('[data-testid="heat-view-select"]');
     expect(trigger.classes()).toContain('pr-block-pill');
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 0 · AIV0 UB');

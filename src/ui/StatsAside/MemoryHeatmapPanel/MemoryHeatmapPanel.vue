@@ -861,6 +861,25 @@ watch(
       </button>
     </div>
 
+    <!--
+      Always reserve this band so multi-view UB does not shrink the lattice vs other tabs.
+      Above the Access Count legend; outside the body so the lattice cannot clip the pill (PR-HEAT-011).
+    -->
+    <div
+      class="pr-heat__view-bar"
+      data-testid="heat-view-bar"
+      :data-empty="!(activeUnit && activeUnit.views.length > 1) || undefined"
+    >
+      <SourcePillSelect
+        v-if="activeUnit && activeUnit.views.length > 1"
+        :caption="t('memoryHeatView', locale)"
+        :model-value="viewSelectValue"
+        :options="viewSelectOptions"
+        test-id="heat-view-select"
+        @update:model-value="onViewSelect"
+      />
+    </div>
+
     <div class="pr-heat__legend" data-testid="heat-legend">
       <div class="pr-heat__legend-scale">
         <p
@@ -939,25 +958,6 @@ watch(
           >{{ legendMaxLabel }}</span>
         </div>
       </div>
-    </div>
-
-    <!--
-      Always reserve this band so multi-view UB does not shrink the lattice vs other tabs.
-      Outside the body size container so the lattice cannot clip the pill (PR-HEAT-011).
-    -->
-    <div
-      class="pr-heat__view-bar"
-      data-testid="heat-view-bar"
-      :data-empty="!(activeUnit && activeUnit.views.length > 1) || undefined"
-    >
-      <SourcePillSelect
-        v-if="activeUnit && activeUnit.views.length > 1"
-        :caption="t('memoryHeatView', locale)"
-        :model-value="viewSelectValue"
-        :options="viewSelectOptions"
-        test-id="heat-view-select"
-        @update:model-value="onViewSelect"
-      />
     </div>
 
     <!-- Outside the body so the badge cannot steal lattice height (PR-HEAT-011 / DATA-50). -->
@@ -1167,8 +1167,8 @@ watch(
   flex: none;
   align-items: center;
   justify-content: center;
-  /* 12px bottom: view-bar band is always reserved below. */
-  padding: 44px 0 12px;
+  /* View-bar sits above; modest pad into the lattice below. */
+  padding: 12px 0;
 }
 
 .pr-heat__legend-scale {
@@ -1322,7 +1322,8 @@ watch(
   justify-content: center;
   /* Match SourcePillSelect closed height so empty tabs keep the same lattice. */
   min-height: var(--pr-src-control-h, 28px);
-  margin: 0 0 12px;
+  /* Under the tab rule, above the Access Count legend. */
+  margin: 16px 0 0;
 }
 
 .pr-heat__outside {
