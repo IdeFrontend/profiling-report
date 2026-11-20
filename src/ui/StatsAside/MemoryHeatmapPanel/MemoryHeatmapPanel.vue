@@ -50,8 +50,8 @@ const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
 const LEGEND_END_FADE_ZONE_PCT = 12;
 /** Mute / occupancy dim fade on brush enter/leave (cells + legend). */
 const LEGEND_DIM_MS = 200;
-/** Painted track + ticks column width (title sits to the left). */
-const LEGEND_STRIP_PX = 150;
+/** Painted track + ticks column width (centred; title sits between 0 / max). */
+const LEGEND_STRIP_PX = 180;
 /** Mute veil cell fill — gaps stay clear so board `#303f5e` grid lines show through. */
 const HEAT_MUTE_FILL = '#2C2C2C';
 
@@ -894,87 +894,85 @@ watch(
     </div>
 
     <div class="pr-heat__legend" data-testid="heat-legend">
-      <div class="pr-heat__legend-scale">
-        <p
-          class="pr-heat__legend-title"
-          data-testid="heat-legend-title"
-        >
-          {{ t('memoryHeatAccessCount', locale) }}
-        </p>
-        <!--
-          Strip column = 150px track + ticks. Hit band = 16px window + 3px pad
-          above/below (22px) and ±5% side pads (half brush) so approaching from
-          left/right can capture 0–0 / max–max. Painted strip stays 8px.
-        -->
+      <!--
+        Centred 180px strip: gradient on top; 0 / Access Count / max under it.
+        Hit band = 16px window + 3px pad above/below (22px) and ±5% side pads
+        (half brush) so approaching from left/right can capture 0–0 / max–max.
+      -->
+      <div
+        class="pr-heat__legend-strip"
+        data-testid="heat-legend-strip"
+        :style="{ width: `${LEGEND_STRIP_PX}px` }"
+      >
         <div
-          class="pr-heat__legend-strip"
-          data-testid="heat-legend-strip"
-          :style="{ width: `${LEGEND_STRIP_PX}px` }"
+          class="pr-heat__legend-hit"
+          data-testid="heat-legend-gradient"
+          :style="{ '--pr-heat-dim-ms': `${LEGEND_DIM_MS}ms` }"
+          @pointermove="onLegendPointerMove"
+          @pointerleave="clearLegendBrush"
         >
           <div
-            class="pr-heat__legend-hit"
-            data-testid="heat-legend-gradient"
-            :style="{ '--pr-heat-dim-ms': `${LEGEND_DIM_MS}ms` }"
-            @pointermove="onLegendPointerMove"
-            @pointerleave="clearLegendBrush"
+            ref="legendTrackEl"
+            class="pr-heat__legend-track"
+            data-testid="heat-legend-track"
           >
             <div
-              ref="legendTrackEl"
-              class="pr-heat__legend-track"
-              data-testid="heat-legend-track"
+              class="pr-heat__gradient"
+              :class="{ 'pr-heat__gradient--brushing': legendDimOn }"
+              aria-hidden="true"
+              :style="{ background: LEGEND_GRADIENT }"
             >
               <div
-                class="pr-heat__gradient"
-                :class="{ 'pr-heat__gradient--brushing': legendDimOn }"
-                aria-hidden="true"
-                :style="{ background: LEGEND_GRADIENT }"
-              >
-                <div
-                  class="pr-heat__legend-mute"
-                  data-testid="heat-legend-mute"
-                />
-                <div
-                  v-for="(band, i) in legendOccupancyBands"
-                  :key="i"
-                  class="pr-heat__legend-occ"
-                  data-testid="heat-legend-occ"
-                  :style="legendOccStyle(band)"
-                />
-              </div>
-              <!-- Always mounted; shown via imperative `hidden` before dim fades start. -->
+                class="pr-heat__legend-mute"
+                data-testid="heat-legend-mute"
+              />
               <div
-                ref="brushChromeEl"
-                class="pr-heat__legend-brush"
-                data-testid="heat-legend-brush"
-                aria-hidden="true"
+                v-for="(band, i) in legendOccupancyBands"
+                :key="i"
+                class="pr-heat__legend-occ"
+                data-testid="heat-legend-occ"
+                :style="legendOccStyle(band)"
+              />
+            </div>
+            <!-- Always mounted; shown via imperative `hidden` before dim fades start. -->
+            <div
+              ref="brushChromeEl"
+              class="pr-heat__legend-brush"
+              data-testid="heat-legend-brush"
+              aria-hidden="true"
+              hidden
+            >
+              <span
+                ref="brushMatchEl"
+                class="pr-heat__legend-brush-match"
+                data-testid="heat-legend-brush-match"
                 hidden
-              >
-                <span
-                  ref="brushMatchEl"
-                  class="pr-heat__legend-brush-match"
-                  data-testid="heat-legend-brush-match"
-                  hidden
-                />
-                <span
-                  ref="brushRangeEl"
-                  class="pr-heat__legend-brush-range"
-                  data-testid="heat-legend-brush-range"
-                />
-              </div>
+              />
+              <span
+                ref="brushRangeEl"
+                class="pr-heat__legend-brush-range"
+                data-testid="heat-legend-brush-range"
+              />
             </div>
           </div>
-          <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
-            <span
-              class="pr-heat__legend-tick"
-              data-testid="heat-legend-tick-min"
-              :style="{ opacity: legendMinTickOpacity }"
-            >0</span>
-            <span
-              class="pr-heat__legend-tick"
-              data-testid="heat-legend-tick-max"
-              :style="{ opacity: legendMaxTickOpacity }"
-            >{{ legendMaxLabel }}</span>
-          </div>
+        </div>
+        <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
+          <span
+            class="pr-heat__legend-tick"
+            data-testid="heat-legend-tick-min"
+            :style="{ opacity: legendMinTickOpacity }"
+          >0</span>
+          <p
+            class="pr-heat__legend-title"
+            data-testid="heat-legend-title"
+          >
+            {{ t('memoryHeatAccessCount', locale) }}
+          </p>
+          <span
+            class="pr-heat__legend-tick"
+            data-testid="heat-legend-tick-max"
+            :style="{ opacity: legendMaxTickOpacity }"
+          >{{ legendMaxLabel }}</span>
         </div>
       </div>
     </div>
@@ -1195,35 +1193,26 @@ watch(
   padding-top: 28px;
 }
 
-.pr-heat__legend-scale {
-  display: flex;
-  flex-direction: row;
-  flex: none;
-  align-items: center;
-  gap: 10px;
-  width: auto;
-  max-width: 100%;
-}
-
-.pr-heat__legend-title {
-  flex: none;
-  margin: 0;
-  color: #b3b3b3;
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 600;
-  text-align: start;
-  white-space: nowrap;
-}
-
 .pr-heat__legend-strip {
   display: flex;
   flex: none;
   flex-direction: column;
   gap: 6px;
-  /* Width from LEGEND_STRIP_PX inline style (150). */
+  /* Width from LEGEND_STRIP_PX inline style (180). */
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.pr-heat__legend-title {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+  color: #b3b3b3;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .pr-heat__legend-hit {
@@ -1341,7 +1330,9 @@ watch(
   position: relative;
   z-index: 0;
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 6px;
   min-height: 18px;
   color: #b3b3b3;
   font-size: 10px;
