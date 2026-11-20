@@ -19,7 +19,7 @@ const PIPE_NAME_MAP: {
 }[] = [
   { match: /^cube$/i, id: 'cube', label: 'Cube', colorKey: 'cube' },
   { match: /^vector$|^vec$|^simd$/i, id: 'vector', label: 'Vector', colorKey: 'vector' },
-  { match: /^simt$/i, id: 'simt', label: 'SIMT', colorKey: 'default' },
+  { match: /^simt$/i, id: 'simt', label: 'SIMT cache', colorKey: 'default' },
   { match: /^mte1$/i, id: 'mte1', label: 'MTE1', colorKey: 'mte1' },
   { match: /^mte2$/i, id: 'mte2', label: 'MTE2', colorKey: 'mte2' },
   { match: /^mte3$/i, id: 'mte3', label: 'MTE3', colorKey: 'mte3' },

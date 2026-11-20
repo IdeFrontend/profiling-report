@@ -884,6 +884,26 @@ onBeforeUnmount(stopZoomAnim);
                 :data-testid="p.key"
               >{{ p.text }}</text>
 
+              <!-- #202: chrome SIMT word → SIMT cache (Product). Outlined path removed from the asset;
+                   two-line live label (SIMT / cache via stacked tspans) at the former glyph centre
+                   so PR-MEMTOP-001b stays path-only. -->
+              <text
+                x="404"
+                y="331.5"
+                text-anchor="middle"
+                class="pr-topo__chrome-label"
+                data-testid="chrome-label-simt-cache"
+              >
+                <tspan
+                  x="404"
+                  dy="0"
+                >SIMT</tspan>
+                <tspan
+                  x="404"
+                  dy="1.15em"
+                >cache</tspan>
+              </text>
+
               <text
                 ref="measureTwin"
                 class="pr-topo__edge"
@@ -1230,6 +1250,12 @@ onBeforeUnmount(stopZoomAnim);
   fill: #fff;
   font-size: 6.3px;
   font-weight: 800;
+}
+
+.pr-topo__chrome-label {
+  fill: #fff;
+  font-size: 5.5px;
+  font-weight: 700;
 }
 
 /* Visually hidden, still in the a11y tree: the diagram's text alternative (PR-MEMTOP-011).
