@@ -63,7 +63,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 
 ## Swim CounterTracks (Trace `ph:C`)
 
-Stroke/fill from CTEF **`process_name`** via `colorForCounterProcess` ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)). All leaves under one process share one hex. Paint alpha **0.45** (`counterLanePaint` `FILL_ALPHA`).
+Stroke/fill from CTEF **`process_name`** via `colorForCounterProcess` ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)). All leaves under one process share one hex. Paint alpha **0.45** (`counterLanePaint` `FILL_ALPHA`). Memory util with KB is **one** CounterTrack (Y = Using Bytes; tip still lists util % + KB).
 
 | Source | Hex | Rule |
 |--------|-----|------|

@@ -269,26 +269,23 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(procs).toHaveLength(1);
     expect(procs[0]!.id).toBe('p-counter-22');
     expect(procs[0]!.name).toBe('AIV0_UB_UTILIZATION (memory_utilization)');
-    expect(procs[0]!.threads.map((t) => t.name)).toEqual([
-      'Utilization (%)',
-      'Using Bytes (KB)',
-    ]);
+    // Memory util collapses % + KB into one KB-Y leaf; tip still has both via `values`.
+    expect(procs[0]!.threads.map((t) => t.name)).toEqual(['Using Bytes (KB)']);
     const utilLeaf = procs[0]!.threads[0]!;
     expect(utilLeaf.counter?.points).toEqual([
       {
         t: 5_000,
-        v: 0.02,
+        v: 0.05,
         values: { 'Utilization (%)': 0.02, 'Using Bytes (KB)': 0.05 },
       },
       {
         t: 10_000,
-        v: 0.03,
+        v: 0.04,
         values: { 'Utilization (%)': 0.03, 'Using Bytes (KB)': 0.04 },
       },
     ]);
-    expect(utilLeaf.counter?.yMax).toBe(0.03);
+    expect(utilLeaf.counter?.yMax).toBe(0.05);
     expect(utilLeaf.counter?.colorHex).toBe(MEMORY_UTIL_COUNTER_COLOR);
-    expect(procs[0]!.threads[1]!.counter?.colorHex).toBe(MEMORY_UTIL_COUNTER_COLOR);
 
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
@@ -296,10 +293,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     });
     expect(adapted.reportModel.overviewSeries).toEqual([]);
     const counterProc = adapted.swimlaneModel?.processes.find((p) => p.id === 'p-counter-22');
-    expect(counterProc?.threads.map((t) => t.name)).toEqual([
-      'Utilization (%)',
-      'Using Bytes (KB)',
-    ]);
+    expect(counterProc?.threads.map((t) => t.name)).toEqual(['Using Bytes (KB)']);
   });
 
   it('PR-ASIM-016: unit-util ph:C → CounterTrack leaf under process (no fraction×100)', () => {
@@ -483,10 +477,8 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(adapted.reportModel.overviewSeries).toEqual([]);
     expect(adapted.swimlaneModel).not.toBeNull();
     const counterProc = adapted.swimlaneModel!.processes.find((p) => p.id === 'p-counter-22');
-    expect(counterProc?.threads.map((t) => t.name)).toEqual([
-      'Utilization (%)',
-      'Using Bytes (KB)',
-    ]);
+    expect(counterProc?.threads.map((t) => t.name)).toEqual(['Using Bytes (KB)']);
+    expect(counterProc?.threads[0]?.counter?.points[0]?.v).toBe(1.25);
     expect(counterProc?.threads[0]?.counter?.points[0]?.values).toEqual({
       'Utilization (%)': 0.5,
       'Using Bytes (KB)': 1.25,

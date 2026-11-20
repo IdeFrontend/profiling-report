@@ -1,9 +1,10 @@
 /**
  * Chrome Trace `ph:C` counters → swim CounterTracks (Chrome / Perfetto-like).
- * One process per counter pid; one leaf per numeric `args` key.
+ * One process per counter pid; one leaf per numeric `args` key
+ * (memory util collapses `%` + KB into one KB-Y leaf).
  */
 
-import { colorForCounterProcess } from '../domain/laneColors';
+import { colorForCounterProcess, isMemoryUtilProcess } from '../domain/laneColors';
 import type { SwimCounterPoint, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
 import {
   unitToNsFactor,
@@ -95,9 +96,24 @@ type SeriesBucket = {
   points: CounterPoint[];
 };
 
+/** Memory util: prefer a single KB-Y leaf when `Using Bytes (KB)` is present. */
+const MEMORY_BYTES_KEY = 'Using Bytes (KB)';
+
+/** Arg keys that become CounterTrack leaves for this process + sample. */
+function seriesKeysForSample(
+  processName: string,
+  values: Record<string, number>,
+): string[] {
+  if (isMemoryUtilProcess(processName) && Number.isFinite(values[MEMORY_BYTES_KEY])) {
+    return [MEMORY_BYTES_KEY];
+  }
+  return Object.keys(values);
+}
+
 /**
  * Build CounterTrack processes from every populated `ph:C` series in a Chrome Trace.
  * Empty pids (metadata only) are skipped. Same-`ts` multi-`C` keeps last per series.
+ * Memory util with KB collapses `%` + KB into one leaf (Y = KB; tip keeps both).
  */
 export function counterProcessesFromTrace(
   traceJson: unknown,
@@ -123,12 +139,11 @@ export function counterProcessesFromTrace(
     const ts = Number(e.ts);
     if (!Number.isFinite(ts)) continue;
     const values = numericCounterArgs(e.args);
-    const keys = Object.keys(values);
-    if (keys.length === 0) continue;
+    if (Object.keys(values).length === 0) continue;
     const pid = String(e.pid ?? 0);
     const pname = processName.get(pid) ?? `Process ${pid}`;
     const t = ts * toNs;
-    for (const argKey of keys) {
+    for (const argKey of seriesKeysForSample(pname, values)) {
       const seriesId = `${pid}\0${argKey}`;
       let bucket = bySeries.get(seriesId);
       if (!bucket) {

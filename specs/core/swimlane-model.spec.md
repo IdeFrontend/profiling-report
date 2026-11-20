@@ -33,7 +33,7 @@ interface SwimEvent    {
 }
 ```
 
-**Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). A leaf with `counter` is a **CounterTrack** lane: `events` stay `[]`; layout marks `FlatLane.counter` and the Canvas overlay paints a step-after area ([UI-61](../../docs/context/decisions/UI.md) / [DATA-57](../../docs/context/decisions/DATA.md)). Points are `{ t, v, values? }` (`values` = full numeric `ph:C` args for the tip); optional `colorHex` overrides lane paint color. Only `SwimProcess` (Card) uses group-header chrome.
+**Folder vs leaf:** non-empty `children` ⇒ folder (lane-style gutter row; `events` ignored / `[]`). Otherwise leaf (may paint events; spacer leaves may use `events: []`). A leaf with `counter` is a **CounterTrack** lane: `events` stay `[]`; layout marks `FlatLane.counter`, sets band height to `COUNTER_LANE_HEIGHT` (26px; interval lanes stay `LANE_HEIGHT` 22px), and the Canvas overlay paints a step-after area ([UI-61](../../docs/context/decisions/UI.md) / [DATA-57](../../docs/context/decisions/DATA.md)). Points are `{ t, v, values? }` (`values` = full numeric `ph:C` args for the tip); optional `colorHex` overrides lane paint color. Only `SwimProcess` (Card) uses group-header chrome.
 
 **`skipCardHeaders`:** when `true`, `rebuildLayout` / `contentHeightFromModel` skip Card header rows. Used only for the viewer-built pinned sticky-strip model — never on adapter/producer models.
 

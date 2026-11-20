@@ -24,7 +24,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Memory Utilization Heatmap (biprof §11.2.3.2).** Fill `memoryHeatmap` from `MemoryHeatmapLayout` + `MemoryHeatmapCells` (+ optional `CoreTypes`) via `memoryHeatmapFromTexts` and advertise **`memoryHeatmap`** ([PR-VM-025](./view-models.spec.md), [DATA-50](../../docs/context/decisions/DATA.md) / [DATA-51](../../docs/context/decisions/DATA.md)). No UbRw fallback. Omit when no view is drawable.
 
-**Swim CounterTracks ([DATA-57](../../docs/context/decisions/DATA.md) / [UI-61](../../docs/context/decisions/UI.md)).** Append CounterTrack Cards from every Trace **`ph:C`** with numeric `args` via `mergeCounterTracksFromTrace` (one process per pid, one leaf per arg key; skip empty shells; same-`ts` multi-`C` keeps **last**; no Trace→`overviewSeries` — 统计分析 stays Sampling-only ([DATA-32](../../docs/context/decisions/DATA.md) / [DATA-39](../../docs/context/decisions/DATA.md))). Standalone CTEF JSON uses the same merge in `adaptChromeTrace`.
+**Swim CounterTracks ([DATA-57](../../docs/context/decisions/DATA.md) / [UI-61](../../docs/context/decisions/UI.md)).** Append CounterTrack Cards from every Trace **`ph:C`** with numeric `args` via `mergeCounterTracksFromTrace` (one process per pid, one leaf per arg key; memory util with `Using Bytes (KB)` collapses to one KB-Y leaf whose tip still lists util % + KB; skip empty shells; same-`ts` multi-`C` keeps **last**; no Trace→`overviewSeries` — 统计分析 stays Sampling-only ([DATA-32](../../docs/context/decisions/DATA.md) / [DATA-39](../../docs/context/decisions/DATA.md))). Standalone CTEF JSON uses the same merge in `adaptChromeTrace`.
 
 **Omit gap panels.** Do not populate `roofline` or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards. Do not invent overview series from PipeUtilization ratios or Trace util pipes.
 
@@ -51,7 +51,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 13. **PR-ASIM-012** — `SourceLineHints` without `SourceLines` → raw `sourceLineId`, no invented line numbers; `KernelHints` rows have no pc/sourceLineId; `PC` kept as exact decimal string.
 14. **PR-ASIM-013** — ELF SourceInstructions / AsmMetrics → `sourceCorrelation.mock === false` and capability **`sourceTab`**.
 15. **PR-ASIM-014** — Without ELF Source* / AsmMetrics (IPC-only / gelu-shaped) → omit `sourceCorrelation` and `'sourceTab'`.
-16. **PR-ASIM-015** — Trace `ph:C` with multi-arg samples → one process per pid, one leaf per numeric arg; same-`ts` keeps last; `values` snapshot on points; empty shells omitted; `overviewSeries` stays `[]` (DATA-57).
+16. **PR-ASIM-015** — Trace `ph:C` with multi-arg samples → one process per pid; memory util with KB → one `Using Bytes (KB)` leaf (`v` = KB, `values` has both keys); same-`ts` keeps last; empty shells omitted; `overviewSeries` stays `[]` (DATA-57).
 17. **PR-ASIM-016** — Unit-util `ph:C` → CounterTrack leaf with shipped `Utilization (%)` (no ×100); empty shells omitted.
 18. **PR-ASIM-017** — Queue-util `ph:C` (PUSHQ and other pipes) → CounterTracks with depth auto-Y; empty shells omitted.
 19. **PR-ASIM-018** — Standalone `adaptChromeTrace` merges the same `ph:C` CounterTracks (DATA-57).
@@ -73,7 +73,7 @@ DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (
 Emulate Source follow-ons (stalls / IPC / richer metrics / tick→ns / SASS label): interim [DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e), [UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a).
 
 ## Changelog
-- **2026-11-20** — DATA-57 generic `ph:C` CounterTracks; PR-ASIM-015…018 (standalone + emulate; multi-arg leaves; no util-specific readers).
+- **2026-11-20** — DATA-57 generic `ph:C` CounterTracks; PR-ASIM-015…018 (standalone + emulate; multi-arg leaves; memory util one KB-Y chart; no util-specific readers).
 - **2026-11-20** — PR-ASIM-017: queue-util CT counters → swim CounterTracks with depth auto-Y (#206 / DATA-57).
 - **2026-11-20** — PR-ASIM-016: unit-util CT counters → swim CounterTracks (#209 / DATA-57).
 - **2026-11-18** — PR-ASIM-015: memory-util CT counters → swim CounterTracks (#208 / DATA-57 / UI-61).

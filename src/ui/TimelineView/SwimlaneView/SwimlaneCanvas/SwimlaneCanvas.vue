@@ -25,6 +25,7 @@ import {
   findHoverGap,
   findLaidOutEvent,
   IDLE_COLLAPSE,
+  flatLaneHeight,
   LANE_HEIGHT,
   LANE_PAD_Y,
   laneAtContentY,
@@ -259,7 +260,7 @@ function emitCounterHover(
   // hitLayout.y is already collapse-shifted — same CSS space as paintCounterLanes.
   const yCss = hit.lane.y - view.scrollY;
   const plotTop = yCss + LANE_PAD_Y;
-  const plotH = Math.max(1, LANE_HEIGHT - LANE_PAD_Y * 2);
+  const plotH = Math.max(1, flatLaneHeight(hit.lane) - LANE_PAD_Y * 2);
   const yMax = series.yMax > 0 ? series.yMax : 1;
   const clamped = Math.min(yMax, Math.max(0, pt.v));
   const localDotY = plotTop + plotH * (1 - clamped / yMax);
