@@ -557,6 +557,7 @@ describe('MemoryHeatmapPanel', () => {
     // Mid-strip → center 50%, window [45, 55]. Enter applies sync (no rAF).
     await gradient.trigger('pointermove', { clientX: pad + trackWidth / 2, clientY: 11 });
     const brush = wrapper.get('[data-testid="heat-legend-brush"]');
+    expect(brush.attributes('hidden')).toBeUndefined();
     expect(brush.attributes('style')).toMatch(/left:\s*45%/);
     expect(brush.attributes('style')).toMatch(/width:\s*10%/);
     expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
@@ -642,15 +643,15 @@ describe('MemoryHeatmapPanel', () => {
       expect(style).toMatch(/background-image:/);
     }
 
-    // Leave: brush chrome clears instantly; veil starts fade; bright stays until transitionend.
+    // Leave: brush chrome hides before fades; veil starts fade; bright stays until transitionend.
     await gradient.trigger('pointerleave');
-    expect(wrapper.find('[data-testid="heat-legend-brush"]').exists()).toBe(false);
+    expect(brush.attributes('hidden')).toBe('');
     expect(veil.classes()).not.toContain('pr-heat__mute-veil--on');
+    expect(wrapper.get('.pr-heat__gradient').classes()).not.toContain('pr-heat__gradient--brushing');
     expect(brightOn(wrapper)).toHaveLength(1);
     await veil.trigger('transitionend', { propertyName: 'opacity' });
     expect(brightOn(wrapper)).toHaveLength(0);
-    // Bands stay mounted so opacity can fade out; brushing class clears immediately.
-    expect(wrapper.get('.pr-heat__gradient').classes()).not.toContain('pr-heat__gradient--brushing');
+    // Bands stay mounted so opacity can fade out.
     expect(wrapper.findAll('[data-testid="heat-legend-occ"]')).toHaveLength(3);
     expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/linear-gradient/);
     expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/#AFC6FE/i);
