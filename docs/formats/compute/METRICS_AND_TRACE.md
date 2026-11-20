@@ -39,7 +39,7 @@ Time units in CSVs are typically **microseconds** (`*(us)`). Bandwidth columns u
 | [`Communication.json`](Communication.json.md) | Swimlane (µs); option **communication 通信** | Same catalog |
 | [`SimtWarpOccpy.json`](SimtWarpOccpy.json.md) / `simt_warp_occupancy.json` | Swimlane (µs); option **warp occupy** | Same catalog |
 
-Sketches: [`docs/ui/`](../../ui/), [`1130/pipeline-display-filter`](../../ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg).
+Sketches: [`docs/ui/`](../../ui/), [`1130/pipeline-display-filter`](../../ui/source/1130/PipelineDisplayFilter/screenshot.png).
 
 ---
 

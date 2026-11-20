@@ -50,3 +50,7 @@ npu-compute*.pdf
 screenshot-*.png
 screenshot-*.jpeg
 screenshot-*.jpg
+# Octo design export archives (extracted per-screen folders are the working copy)
+docs/ui/source/*/*.zip
+# generated design renders (npm run design:render)
+docs/ui/source/**/_rebuilt.html

@@ -141,7 +141,7 @@ batches:
     label: "1130 仿真上板公共（流水显示筛选）"
     files:
       - id: pipeline-display-filter
-        path: "1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg"
+        path: "1130/PipelineDisplayFilter/screenshot.png"
         original_name: "1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg"
         scenes: [timeline, toolbar, pipeline-display-filter]
         components: [ReportToolbar, TimelineView]
