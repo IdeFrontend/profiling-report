@@ -628,7 +628,30 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
             peakBandwidthSIMT_OUT: 1638.4,
           },
         },
-        AIC: {},
+        AIC: {
+          // Insertion order is not the legend order. Sort must use AIC:fp32
+          // (stripped cube_ prefix), not AIC:cube_fp32.
+          cube_fp32: {
+            peakFlops: 26000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+          cube_int8_fp8: {
+            peakFlops: 864000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+          cube_fp16_bf16: {
+            peakFlops: 432000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+          cube_tf32_hf32: {
+            peakFlops: 216000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+        },
       },
       kernels: {
         'gather - SIMT': {
@@ -672,7 +695,19 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       'roofline.json': enc.encode(jsonKernels),
     });
     expect(jsonOnly.capabilities).toContain('roofline');
-    expect(jsonOnly.reportModel.roofline!.points[0]!.performance).toBeCloseTo(999 / 1000, 12);
+    const jsonRoof = jsonOnly.reportModel.roofline!;
+    expect(jsonRoof.points[0]!.performance).toBeCloseTo(999 / 1000, 12);
+    expect(jsonRoof.series.filter((s) => s.group === 'aic').map((s) => s.id)).toEqual([
+      'aic-int16-fp16-l0',
+      'aic-int16-fp16-cube-out',
+      'aic-tf32-hf32-l0',
+      'aic-tf32-hf32-cube-out',
+      'aic-fp32-l0',
+      'aic-fp32-cube-out',
+      'aic-int8-fp8-l0',
+      'aic-int8-fp8-cube-out',
+    ]);
+    expect(jsonRoof.series.find((s) => s.id === 'aic-fp32-l0')!.label).toBe('AIC fp32 · L0');
   });
 });
 describe('npu-rep / loadReportSource profile routing', () => {
