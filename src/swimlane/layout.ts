@@ -1744,7 +1744,8 @@ export function binTicksByCssColumn(
   const n = Math.max(1, lastCol - firstCol + 1);
   const counts = new Int32Array(n);
   for (const t of times) {
-    if (!(t >= viewStart) || !(t < viewEnd)) continue;
+    // viewEnd is inclusive: zoom-to-fit sets it to maxTime, which is a duration-0 tick.
+    if (!(t >= viewStart) || t > viewEnd) continue;
     let local = Math.floor((t - grid0) / dt);
     if (local < 0) local = 0;
     else if (local >= n) local = n - 1;
@@ -1843,10 +1844,13 @@ export function encodeIntervalPair(
   let f1 = Math.fround(start + duration - base);
   if (!(f1 > f0)) {
     if (duration === 0) {
-      // Instant tick: next float32 only. A ≥1ns nudge overlaps sub-ns ICACHE ph:i
-      // (~0.6ns apart) into a continuous time slab that paints as one gray bar (#205).
-      f1 = nextFloat32Up(f0);
-      if (!(f1 > f0)) f1 = f0 + Number.EPSILON;
+      // Instant tick: next float32 while that step is sub-nanosecond. A ≥1 ns
+      // nudge overlaps ~0.6 ns ICACHE ph:i into one slab (#205). From 2^23 ns
+      // the float32 ulp itself is ≥1 ns, so leave the pair degenerate and let
+      // the vertex shader expand floor==ceil to one device column.
+      const step = nextFloat32Up(f0);
+      const width = step - f0;
+      f1 = width > 0 && width < 1 ? step : f0;
     } else {
       // Float32 collapsed a short/large-magnitude interval — nudge end by ≥1ns (rel).
       f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));

@@ -777,9 +777,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       );
 
       // Per sub-row: full-height CSS-column density marks for duration-0 ticks (PR-RENDER-066).
-      // Search keeps all ticks discrete so name emphasis stays meaningful.
+      // Search and selection keep ticks discrete so dim / mute stay per event.
       const densityRowIds = new Set<number>();
-      if (!hasSearch) {
+      if (!hasSearch && !hasSelection && !hasMulti) {
         const ticksByRow = new Map<number, number[]>();
         for (let j = lo; j < hi; j++) {
           const item = laneEvts[j]!;

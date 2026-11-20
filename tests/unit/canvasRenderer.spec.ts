@@ -1433,7 +1433,9 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov \* d, uSrcOver\)/);
     // Per-pipe count-hit (center-in-column) + device-column stipple.
     expect(shaderSrc).toMatch(/uUseCountMetric/);
-    expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) < 0\.5/);
+    expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
+    expect(shaderSrc).toMatch(/cov = alt;/);
+    expect(shaderSrc).not.toMatch(/min\(alt, rrShape\)/);
     expect(shaderSrc).toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
     expect(shaderSrc).toMatch(/if \(screenR <= screenL\) screenR = screenL \+ 1\.0/);
     expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
@@ -1461,6 +1463,14 @@ describe('PR-RENDER: lane chrome color', () => {
     const span = starts[starts.length - 1]! - starts[0]!;
     expect(covered).toBeLessThan(span * 0.05);
 
+    // From 2^23 ns the float32 ulp is ≥1 ns. Next-up pairs would overlap
+    // 0.606 ns ticks into a slab; those pairs stay degenerate instead.
+    const far = Array.from({ length: 40 }, (_, i) => 10_000_000 + i * spacing);
+    for (const t of far) {
+      const [a, b] = encodeIntervalPair(t, 0, 0);
+      expect(b).toBe(a);
+    }
+
     // Positive-duration collapse path is unchanged (≥1ns nudge when float32 merges ends).
     const base = 1_000_000_000;
     const [, posEnd] = encodeIntervalPair(base + 100, 1, base);
@@ -1487,6 +1497,10 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(bins).toHaveLength(2);
     expect(bins[0]).toMatchObject({ col: 0, count: 2, t0: 0, t1: 0.5 });
     expect(bins[1]).toMatchObject({ col: 1, count: 2, t0: 0.5, t1: 1 });
+    // viewEnd is inclusive (zoom-to-fit end == last duration-0 tick).
+    const endTick = binTicksByCssColumn([10, 100], 0, 100, 10);
+    expect(endTick.reduce((sum, bin) => sum + bin.count, 0)).toBe(2);
+    expect(binTicksByCssColumn([100.1], 0, 100, 10)).toEqual([]);
 
     // Same dt + same in-window ticks → identical bins under horizontal pan (PR-RENDER-066).
     const panTimes = [5.05, 5.15, 5.25, 5.85, 5.95];
@@ -1601,6 +1615,7 @@ describe('PR-RENDER: lane chrome color', () => {
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(canvasSrc).toMatch(/assignTickDensityDims/);
+    expect(canvasSrc).toMatch(/!hasSearch && !hasSelection && !hasMulti/);
     expect(canvasSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(canvasSrc).not.toMatch(/partitionTickLodByRuns/);
   });

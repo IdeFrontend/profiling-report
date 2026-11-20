@@ -150,15 +150,16 @@ void main() {
   // Per-pipe metric (uUseCountMetric): durable-majority pipes use length AA; tick-majority /
   // tie pipes use count-hit so dense zero-width interiors accumulate by event count. Count hits
   // when hCoverage > 0 or the event center lies in this device column (L≈R still paints).
+  // A hit is a full stipple unit: the zero-width SDF is ~0 and would drop the 1 px quad.
   float cov;
   if (uUseCountMetric < 0.5) {
     cov = min(hCoverage, rrShape);
   } else {
     float center = (l + r) * 0.5;
-    bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) < 0.5;
+    bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) <= 0.5;
     if (hit) {
       float alt = mod(floor(vScreenPos.x), 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
-      cov = min(alt, rrShape);
+      cov = alt;
     } else {
       cov = 0.0;
     }
