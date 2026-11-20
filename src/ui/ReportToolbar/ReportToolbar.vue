@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
+import { computed, h, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import PrIcon from '../PrIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import ToolbarSearch from './ToolbarSearch.vue';
@@ -55,6 +55,13 @@ const props = withDefaults(
     activeTab?: 'timeline' | 'source';
     /** When true, 源码 is selectable. */
     sourceTabEnabled?: boolean;
+    /** Source-compare mode: swaps the source chrome for the compare controls. */
+    compareMode?: boolean;
+    /** True when a baseline operator exists to compare against. */
+    compareAvailable?: boolean;
+    /** Host embeds the Source surface alone: omit the view-tab strip. */
+    hideTabs?: boolean;
+    compareBaselineId?: string | null;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
      * leave this false. Playground (and other hosts that serve the shell template)
@@ -66,6 +73,10 @@ const props = withDefaults(
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
     activeTab: 'timeline',
     sourceTabEnabled: false,
+    compareMode: false,
+    compareAvailable: false,
+    hideTabs: false,
+    compareBaselineId: null,
     htmlExportAvailable: false,
     clockFreqMHz: undefined,
     locale: undefined,
@@ -93,6 +104,16 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'export-html': [];
   'open-cannwork': [];
+  'compare-enter': [];
+  'compare-exit': [];
+  'update:compareBaselineId': [id: string];
+  'compare-find-next': [];
+  'compare-find-prev': [];
+  'compare-find-search': [];
+  'compare-nav-highest': [];
+  'compare-nav-lowest': [];
+  'compare-sort-asc': [];
+  'compare-sort-desc': [];
 }>();
 
 const TIMELINE_TRACE_LABEL_KEY: Record<TimelineTraceKind, MessageKey> = {
@@ -104,6 +125,28 @@ const TIMELINE_TRACE_LABEL_KEY: Record<TimelineTraceKind, MessageKey> = {
 function timelineTraceLabel(id: TimelineTraceKind): string {
   return t(TIMELINE_TRACE_LABEL_KEY[id], props.locale);
 }
+
+/** Shared download glyph for the timeline and compare export buttons. */
+const ExportHtmlIcon = () =>
+  h(
+    'svg',
+    { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': 'true' },
+    [
+      h('path', {
+        d: 'M8 2v8M5.2 7.8 8 10.6l2.8-2.8',
+        stroke: 'currentColor',
+        'stroke-width': '1.3',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+      }),
+      h('path', {
+        d: 'M3 12.5h10',
+        stroke: 'currentColor',
+        'stroke-width': '1.3',
+        'stroke-linecap': 'round',
+      }),
+    ],
+  );
 
 function onDepthChange(event: Event) {
   // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
@@ -152,6 +195,20 @@ const opTriggerRef = ref<HTMLButtonElement | null>(null);
 const opMenuRef = ref<HTMLElement | null>(null);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
+
+/** Left-side operator name in the compare chrome (e.g. the current OP). */
+const currentOperatorLabel = computed(
+  () => props.operators?.find((o) => o.id === props.selectedOperatorId)?.label ?? '',
+);
+/** A baseline can't be the operator being inspected. */
+const baselineOptions = computed(() =>
+  (props.operators ?? []).filter((o) => o.id !== props.selectedOperatorId),
+);
+
+function onCompareBaselineChange(event: Event) {
+  const id = (event.target as HTMLSelectElement).value;
+  if (id) emit('update:compareBaselineId', id);
+}
 const showTimelineTraceSelector = computed(() => (props.timelineTraces?.length ?? 0) > 1);
 
 /** Drop stale open state when the selector unmounts (e.g. host swaps to a single-op source). */
@@ -477,6 +534,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 <template>
   <div
     class="pr-chrome"
+    :class="{ 'pr-chrome--compare': compareMode }"
     data-testid="report-toolbar"
   >
     <div
@@ -485,12 +543,13 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       aria-hidden="true"
     />
     <nav
+      v-if="!hideTabs"
       class="pr-tabs"
       data-testid="report-tabs"
       :aria-label="t('reportViews', locale)"
     >
       <div
-        v-if="showOperatorSelector"
+        v-if="showOperatorSelector && !compareMode"
         class="pr-op-select"
         data-testid="op-selector"
       >
@@ -1129,27 +1188,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         :aria-label="t('exportHtml', locale)"
         @click="emit('export-html')"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M8 2v8M5.2 7.8 8 10.6l2.8-2.8"
-            stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M3 12.5h10"
-            stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linecap="round"
-          />
-        </svg>
+        <ExportHtmlIcon />
       </button>
 
       <button
@@ -1165,12 +1204,193 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
     </div>
 
     <!-- Source first control bar (Left/Right View, Search, actions) sits on the tab
-         row — SourceView Teleports into this host (v930-source). -->
+         row — SourceView Teleports into this host (v930-source). Kept mounted (v-show,
+         not v-if) so the teleport target exists while SourceView mounts in the same
+         flush: a target resolved at mount is never re-resolved on the disabled flip. -->
     <div
-      v-else-if="activeTab === 'source'"
+      v-show="activeTab === 'source'"
       class="pr-toolbar pr-toolbar--source"
+      :class="{ 'pr-toolbar--compare': compareMode }"
       data-testid="source-chrome-host"
-    />
+    >
+      <template v-if="compareMode">
+        <div class="pr-compare__left">
+          <div class="pr-op-select pr-compare__op-select">
+            <button
+              ref="opTriggerRef"
+              type="button"
+              class="pr-compare__op"
+              data-testid="compare-current-op"
+              :aria-expanded="opMenuOpen"
+              :aria-haspopup="'listbox'"
+              :aria-controls="opMenuOpen ? opMenuId : undefined"
+              @click="toggleOpMenu"
+              @keydown="onTriggerKeydown"
+            >
+              <span
+                class="pr-op-select__label"
+                data-testid="op-selector-label"
+              >{{ currentOperatorLabel }}</span>
+              <svg
+                class="pr-compare__caret"
+                viewBox="0 0 10 6"
+                width="10"
+                height="6"
+                aria-hidden="true"
+              >
+                <path
+                  d="M0 0l5 6 5-6z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <div
+              v-if="opMenuOpen"
+              class="pr-op-select__backdrop"
+              @click="closeOpMenu()"
+            />
+            <ul
+              v-if="opMenuOpen"
+              :id="opMenuId"
+              ref="opMenuRef"
+              class="pr-op-select__menu"
+              role="listbox"
+              :aria-label="t('tabOp', locale)"
+            >
+              <li
+                v-for="(op, index) in operators"
+                :key="op.id"
+                class="pr-op-select__item"
+                :class="{ 'pr-op-select__item--active': op.id === selectedOperatorId }"
+                role="option"
+                tabindex="0"
+                :aria-selected="op.id === selectedOperatorId"
+                data-testid="op-item"
+                @click="selectOperator(op.id)"
+                @keydown="onOptionKeydown($event, op.id)"
+                @focus="activeOptionIndex = index"
+              >
+                {{ op.label }}
+              </li>
+            </ul>
+          </div>
+          <span class="pr-compare__title">{{ t('sourceDiffTitle', locale) }}</span>
+          <label class="pr-compare__baseline">
+            <span>{{ t('sourceDiffBaseline', locale) }}</span>
+            <select
+              class="pr-compare__select"
+              data-testid="compare-baseline"
+              :value="compareBaselineId ?? ''"
+              @change="onCompareBaselineChange"
+            >
+              <option
+                v-for="op in baselineOptions"
+                :key="op.id"
+                :value="op.id"
+              >
+                {{ op.label }}
+              </option>
+            </select>
+          </label>
+        </div>
+        <div class="pr-compare__right">
+          <button
+            type="button"
+            class="pr-compare__exit"
+            data-testid="compare-exit"
+            @click="emit('compare-exit')"
+          >
+            {{ t('sourceDiffExit', locale) }}
+          </button>
+          <ToolbarSearch
+            class="pr-compare-search"
+            :model-value="searchQuery"
+            :locale="locale"
+            input-test-id="compare-search"
+            @update:model-value="emit('update:searchQuery', $event)"
+            @submit="emit('compare-find-search')"
+          />
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-find-next"
+            :aria-label="t('sourceFindNext', locale)"
+            :title="t('sourceFindNext', locale)"
+            @click="emit('compare-find-next')"
+          >
+            <PrIcon name="chevron-down" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-find-prev"
+            :aria-label="t('sourceFindPrev', locale)"
+            :title="t('sourceFindPrev', locale)"
+            @click="emit('compare-find-prev')"
+          >
+            <PrIcon name="chevron-up" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-nav-highest"
+            :aria-label="t('sourceNavHighest', locale)"
+            :title="t('sourceNavHighest', locale)"
+            @click="emit('compare-nav-highest')"
+          >
+            <PrIcon name="to-top" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-sort-asc"
+            :aria-label="t('sourceSortAsc', locale)"
+            :title="t('sourceSortAsc', locale)"
+            @click="emit('compare-sort-asc')"
+          >
+            <PrIcon name="sort-asc" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-sort-desc"
+            :aria-label="t('sourceSortDesc', locale)"
+            :title="t('sourceSortDesc', locale)"
+            @click="emit('compare-sort-desc')"
+          >
+            <PrIcon name="sort-desc" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-nav-lowest"
+            :aria-label="t('sourceNavLowest', locale)"
+            :title="t('sourceNavLowest', locale)"
+            @click="emit('compare-nav-lowest')"
+          >
+            <PrIcon name="to-bottom" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn pr-icon-tip"
+            data-testid="compare-user-guide"
+            :aria-label="t('userGuide', locale)"
+            @click="openUserGuide"
+          >
+            <PrIcon name="help" />
+          </button>
+        </div>
+      </template>
+      <button
+        v-else-if="compareAvailable"
+        type="button"
+        class="pr-compare__btn pr-compare__btn--text"
+        data-testid="compare-enter"
+        @click="emit('compare-enter')"
+      >
+        {{ t('sourceDiffEnter', locale) }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -1220,6 +1440,11 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
     radial-gradient(59% 100.4% at 41% 0%, rgba(44, 41, 175, 0.2) 0%, rgba(0, 0, 0, 0) 100%),
     linear-gradient(90deg, rgba(0, 90, 219, 0.1) 3.614%, rgba(0, 2, 172, 0) 76.501%);
   pointer-events: none;
+}
+
+/* Compare band is flat #1f1f1f in the 1130 sketch — no accent wash. */
+.pr-chrome--compare .pr-chrome__wash {
+  display: none;
 }
 
 .pr-tabs {
@@ -1376,6 +1601,17 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   overflow-y: visible;
 }
 
+/* Compare-only chrome band: 28px controls in a 40px band (v930 sketch). */
+.pr-chrome--compare {
+  /* Sketch frames the band with 1px #2a2a2a top and bottom. The top line is an
+     inset shadow: `.pr-root` clips overflow, and a real border-top would grow
+     the band past its 40px height. */
+  box-shadow: inset 0 1px 0 #2a2a2a;
+  border-bottom-color: #2a2a2a;
+  min-height: 40px;
+  padding: 5.5px 8px;
+}
+
 /* Source first control bar: same tab row, no extra margin/padding (v930-source). */
 .pr-toolbar--source {
   flex: 1 1 auto;
@@ -1384,6 +1620,12 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   margin: 0 0 0 auto;
   padding: 0;
   gap: 0;
+}
+
+.pr-toolbar--compare {
+  justify-content: space-between;
+  margin-left: 0;
+  gap: 12px;
 }
 
 /* Search + zoom stay fully visible; rightmost icon actions are what get clipped. */
@@ -2024,5 +2266,133 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   width: 24px;
   height: 24px;
   flex-shrink: 0;
+}
+
+/* Source-compare chrome (v930 sketch): replaces the single-file source toolbar. */
+.pr-compare__left,
+.pr-compare__right {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.pr-compare__right {
+  gap: 4px;
+  margin-left: auto;
+}
+
+.pr-compare__op {
+  display: inline-flex;
+  align-items: center;
+  gap: 12.5px;
+  margin-right: 22.5px;
+  padding: 0 0 0 20.5px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pr-compare__op-select {
+  margin-right: 0;
+}
+
+.pr-compare__caret {
+  flex: 0 0 auto;
+  color: #b2b2b2;
+}
+
+.pr-compare__title {
+  margin-right: 55.5px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.pr-compare__baseline {
+  display: inline-flex;
+  align-items: center;
+  gap: 9.75px;
+  font-size: 12px;
+  color: #b2b2b2;
+  white-space: nowrap;
+}
+
+.pr-compare__select {
+  appearance: none;
+  width: 305px;
+  height: 28px;
+  padding: 0 24px 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23b4b4b4' d='M0 0l5 6 5-6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  color: #999999;
+  font: inherit;
+  font-size: 12px;
+}
+
+.pr-compare__exit {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: #343434;
+  color: #b4b4b4;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pr-compare__exit:hover {
+  background: #3d3d3d;
+}
+
+.pr-compare__select:focus-visible,
+.pr-compare__btn:focus-visible,
+.pr-compare__exit:focus-visible,
+.pr-compare__op:focus-visible {
+  outline: 1px solid var(--pr-accent, #5291ff);
+  outline-offset: 1px;
+}
+
+.pr-compare__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #b2b2b2;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Compare action icons take the 4px select/exit radius; the timeline/source strip keeps 6px. */
+.pr-compare__right .pr-toolbar__icon-btn {
+  border-radius: 4px;
+}
+
+.pr-compare__btn:hover {
+  color: var(--pr-text, #e6e6e6);
+  border-color: #3a3a3a;
+}
+
+.pr-compare__btn--text {
+  padding: 0 8px;
+  font-size: 12px;
+  border-color: #3a3a3a;
 }
 </style>

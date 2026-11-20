@@ -17,6 +17,8 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 
 **Component events.** `ProfilingReport` emits `ready`, `select`, `error`, `view-full-csv`, `open-hardware-details`, `open-pipe-details`, `open-performance-hints-in-problems`, `open-user-guide`, `export-html` (canonical set in [COMPONENTS.md](../../docs/architecture/COMPONENTS.md)). The performance-hints emit is environment-routed: the aside's title-row 性能分析 trigger emits it when the `environment` prop routes to Problems (host `'vscode'`), while `'browser'` — or an omitted/unknown environment — opens the library's internal hints dock instead ([environments.ts](../../src/ui/environments.ts)). The `environment` prop is an open union (`'vscode' | 'browser' | (string & {})`) and is otherwise inert today. `export-html` fires after a successful single-file HTML download from original `source` bytes when `allowHtmlExport` is true (default false). Export fetch/stitch failure does not emit `error`. `select` tracks the **single** selection only: `null` means "no single selection" — it also fires when a marquee commit replaces the single selection with a multi-selection, so hosts must not read it as "nothing is selected" (contract: [ProfilingReport Outputs](../../src/ui/ProfilingReport/ProfilingReport.spec.md)). The marquee's `multi-select` / `multi-select-span` are internal child→root emits and the multi-select dock is self-contained; neither is part of the host-facing surface.
 
+**Compare-only prop.** `compareOnly` (default false) is an opt-in demo/embed surface: it omits the view tabs and starts on 源码对比 when a non-current operator exists, falling back to the single-pane 源码 view. Hosts that omit it keep the standard tab strip ([PR-ROOT-035](../../src/ui/ProfilingReport/ProfilingReport.spec.md)).
+
 ## Dependencies
 
 [ARCHITECTURE.md](../../docs/architecture/ARCHITECTURE.md), [MSTT_INTEGRATION.md](../../docs/architecture/MSTT_INTEGRATION.md).
@@ -26,6 +28,7 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 *Architecture contracts — verified by integration tests and typecheck.*
 
 ## Changelog
+- **2026-11-19** — `compareOnly` prop documented: opt-in tab-less Source compare surface for the playground demo; default false keeps the view tabs (`PR-ROOT-035`).
 - **2026-09-25** — `open-performance-hints-in-problems` added to the host-facing events and the `environment` prop documented: the title-row 性能分析 trigger routes to the host Problems view on `'vscode'`, to the internal dock on `'browser'`/omitted ([environments.ts](../../src/ui/environments.ts)).
 - **2026-09-14** — Package `exports` document `./style.css` and `./memory-topology.svg`; hosts must serve the chrome at web-root `/memory-topology.svg`.
 - **2026-09-07** — Re-export `DEFAULT_USER_GUIDE_URL` from barrel.

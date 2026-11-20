@@ -51,6 +51,10 @@ const props = withDefaults(
     showHeader?: boolean;
     /** Leading `#` column (SASS table-only pane; Sudu owns line numbers on Source). */
     showLineNumbers?: boolean;
+    /** Metric column emphasized by Navigate By (Source compare). */
+    highlightColumn?: string | null;
+    /** Compare panes: 16px cell inset, 13px values, 20px rows, thin bar. */
+    compare?: boolean;
     /**
      * Controlled column widths (px). When omitted the table keeps its own map
      * (Asm pane). Sudu pane passes a shared map so the external header stays aligned.
@@ -68,6 +72,8 @@ const props = withDefaults(
     fontSizeCss: undefined,
     showHeader: true,
     showLineNumbers: false,
+    highlightColumn: null,
+    compare: false,
     columnWidths: null,
     locale: undefined,
   },
@@ -437,6 +443,7 @@ const styleVars = computed(() => {
 <template>
   <div
     class="pr-src-metrics"
+    :class="{ 'pr-src-metrics--compare': compare }"
     :style="styleVars"
     data-testid="source-metrics"
   >
@@ -485,7 +492,9 @@ const styleVars = computed(() => {
               v-for="col in columns"
               :key="col.id"
               :title="col.label"
-              :class="{ 'pr-src-metrics__left': isTextCol(col) }"
+              :class="{
+                'pr-src-metrics__left': isTextCol(col),
+              }"
             >
               <span class="pr-src-metrics__th-label">{{ col.label }}</span>
               <span
@@ -682,11 +691,76 @@ const styleVars = computed(() => {
   color: #cccccc;
 }
 
+/* Compare panes: v930 sketch metrics plane. Shared single-pane Source keeps its 8px/12px metrics. */
+.pr-src-metrics--compare .pr-src-metrics__scroll {
+  overflow-y: auto;
+  scrollbar-gutter: auto;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__scroll::-webkit-scrollbar-thumb {
+  background-color: #4d4d4d;
+  border: 0;
+  border-radius: 0;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__table th,
+.pr-src-metrics--compare .pr-src-metrics__table td {
+  padding-left: 16px;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__table th {
+  font-size: 12px;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__table td {
+  box-shadow: inset 0 -1px 0 var(--pr-border-separator, #2a2a2a);
+}
+
+.pr-src-metrics--compare .pr-src-metrics__num,
+.pr-src-metrics--compare .pr-src-metrics__text {
+  color: #e7e7e7;
+  font-size: 13px;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__bar-track {
+  height: 16px;
+  border: 0;
+  border-radius: 3px;
+  background: repeating-linear-gradient(-45deg, #343434 0 1px, #1f1f1f 1px 4px);
+}
+
+.pr-src-metrics--compare .pr-src-metrics__bar-track::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px dashed #4b4b4b;
+  z-index: 1;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__bar-fill {
+  border-radius: 3px 0 0 3px;
+  background: #373737;
+}
+
+.pr-src-metrics--compare .pr-src-metrics__bar-label {
+  inset: 0 7px 0 0;
+  color: #999999;
+  font-size: 13px;
+  line-height: 16px;
+}
+
 .pr-src-metrics__head {
   flex: 0 0 auto;
   /* Titles live in a ~20px row — never show a scrollbar here; body drives scrollLeft. */
   overflow: hidden;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid var(--pr-border-separator, #2a2a2a);
   background: #2a2a2a;
   border-radius: 6px 6px 0 0;
 }
@@ -759,6 +833,7 @@ const styleVars = computed(() => {
   padding-right: 6px;
 }
 
+/* Navigate By target — the design keeps the header unmarked. */
 .pr-src-metrics__col-resize {
   position: absolute;
   top: 0;
@@ -845,7 +920,7 @@ const styleVars = computed(() => {
   /* v930-source: ~⅔ of the ~18px mono row — taller capsule than the old 10px. */
   height: 14px;
   border-radius: 7px;
-  border: 1px solid #333333;
+  border: 1px solid var(--pr-border-separator, #2a2a2a);
   overflow: hidden;
   /* Unused remainder: diagonal hatch (v930-source). */
   background:

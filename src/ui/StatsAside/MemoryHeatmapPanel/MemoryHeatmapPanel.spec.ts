@@ -172,7 +172,7 @@ describe('MemoryHeatmapPanel', () => {
     const wrapper = mountPanel();
     expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBeUndefined();
     const trigger = wrapper.get('[data-testid="heat-view-select"]');
-    expect(trigger.classes()).toContain('pr-block-pill');
+    expect(trigger.element.closest('.pr-block-pill')).toBeTruthy();
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB');
     await trigger.trigger('click');
     const item = document.querySelector(

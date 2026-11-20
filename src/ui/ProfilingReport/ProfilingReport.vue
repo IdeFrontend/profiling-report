@@ -98,6 +98,8 @@ import { animateProgress, animateViewWindow, prefersReducedMotion } from '../Tim
 import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/layout';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
+import SourceDiffView from '../SourceDiff/SourceDiffView.vue';
+import { pickBaselineOperatorId } from '../SourceDiff/diffAlign';
 import '../tokens.css';
 import {
   availableGutterMetrics,
@@ -152,6 +154,12 @@ const props = withDefaults(defineProps<{
   allowHtmlExport?: boolean;
   /** URL of the inlined report-shell template served by the host. */
   htmlExportTemplateUrl?: string;
+  /**
+   * Demo/embed mode: hide the view tabs and open the Source compare surface
+   * directly when a non-current operator exists. Default false keeps the tabs
+   * and the 进入源码对比 entry.
+   */
+  compareOnly?: boolean;
   /** Host environment. Routes environment-dependent actions (title-row 性能分析 →
    *  Problems on `vscode`, internal dock otherwise). Open union so future
    *  environments can be added without touching consumers. */
@@ -179,6 +187,7 @@ const props = withDefaults(defineProps<{
   userGuideUrl: DEFAULT_USER_GUIDE_URL,
   allowHtmlExport: false,
   htmlExportTemplateUrl: DEFAULT_HTML_EXPORT_TEMPLATE_URL,
+  compareOnly: false,
   preferRenderer: undefined,
   capabilities: undefined,
   environment: undefined,
@@ -484,6 +493,56 @@ const sourceTabEnabled = computed(
     report.value.sourceCorrelation.mock !== true,
 );
 const activeTab = ref<'timeline' | 'source'>('timeline');
+/** Source-compare mode: left = current operator, right = chosen baseline operator. */
+const compareMode = ref(false);
+const compareBaselineId = ref('');
+const sourceDiffRef = ref<InstanceType<typeof SourceDiffView> | null>(null);
+const compareAvailable = computed(() => operators.value.length > 1);
+const compareBaselineReport = computed<AdaptedReport | null>(
+  () => operatorReports.value[compareBaselineId.value] ?? null,
+);
+const compareBaselineModel = computed<SourceCorrelationModel | null>(
+  () => compareBaselineReport.value?.reportModel.sourceCorrelation ?? null,
+);
+
+function exitCompareMode() {
+  compareMode.value = false;
+}
+
+function enterCompareMode() {
+  const id = pickBaselineOperatorId(operators.value, selectedOperatorId.value);
+  if (!id) return;
+  compareBaselineId.value = id;
+  compareMode.value = true;
+}
+
+function onCompareBaselineChange(id: string) {
+  if (id) compareBaselineId.value = id;
+}
+
+// A new report invalidates the comparison pair. Switching operator keeps compare mode
+// (left pane reloads); when it lands on the baseline, pick another baseline.
+watch([() => props.reportModel], () => exitCompareMode());
+
+watch(selectedOperatorId, (id) => {
+  if (!compareMode.value || id !== compareBaselineId.value) return;
+  const next = pickBaselineOperatorId(operators.value, id);
+  if (next) compareBaselineId.value = next;
+  else exitCompareMode();
+});
+
+/** compareOnly starts on Source and never shows the tab strip; no baseline → single pane. */
+watch(
+  [() => props.reportModel, internalReport, selectedOperatorId, sourceTabEnabled, compareAvailable],
+  () => {
+    if (!props.compareOnly || !sourceTabEnabled.value) return;
+    activeTab.value = 'source';
+    // Only seed the pair. Re-entering on every operator switch would overwrite a
+    // baseline the user picked; the selectedOperatorId watcher handles collisions.
+    if (compareAvailable.value && !compareMode.value) enterCompareMode();
+  },
+  { immediate: true, flush: 'post' },
+);
 /** Caret the Source tab applies after a Parameter frame click. */
 const sourceFocus = ref<SourceFrameTarget | null>(null);
 const showSource = computed(
@@ -501,6 +560,7 @@ watch(sourceTabEnabled, (ok) => {
 
 function onActiveTab(tab: 'timeline' | 'source') {
   if (tab === 'source' && !sourceTabEnabled.value) return;
+  if (tab !== 'source') exitCompareMode();
   activeTab.value = tab;
 }
 
@@ -1938,6 +1998,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :user-guide-url="userGuideUrl"
       :active-tab="activeTab"
       :source-tab-enabled="sourceTabEnabled"
+      :hide-tabs="compareOnly"
       :html-export-available="htmlExportAvailable"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
@@ -1993,6 +2054,10 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :user-guide-url="userGuideUrl"
           :active-tab="activeTab"
           :source-tab-enabled="sourceTabEnabled"
+          :hide-tabs="compareOnly"
+          :compare-mode="compareMode"
+          :compare-available="compareAvailable && sourceTabEnabled"
+          :compare-baseline-id="compareBaselineId"
           :html-export-available="htmlExportAvailable"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
@@ -2003,6 +2068,16 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
           @update:active-tab="onActiveTab"
+          @compare-enter="enterCompareMode"
+          @compare-exit="exitCompareMode"
+          @update:compare-baseline-id="onCompareBaselineChange"
+          @compare-find-next="sourceDiffRef?.findNext()"
+          @compare-find-prev="sourceDiffRef?.findPrev()"
+          @compare-find-search="sourceDiffRef?.findSearch(1)"
+          @compare-nav-highest="sourceDiffRef?.navHighest()"
+          @compare-nav-lowest="sourceDiffRef?.navLowest()"
+          @compare-sort-asc="sourceDiffRef?.sortAsc()"
+          @compare-sort-desc="sourceDiffRef?.sortDesc()"
           @zoom-to-fit="onZoomToFit"
           @zoom-in="onZoomIn"
           @zoom-out="onZoomOut"
@@ -2010,8 +2085,18 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @open-user-guide="emit('open-user-guide', $event)"
           @export-html="onExportHtml"
         />
+        <SourceDiffView
+          v-if="showSource && report && report.sourceCorrelation && compareMode && compareBaselineModel"
+          ref="sourceDiffRef"
+          :current="report.sourceCorrelation"
+          :baseline="compareBaselineModel"
+          :locale="locale"
+          :sudu-worker-url="suduWorkerUrl"
+          :search-query="viewState.searchQuery"
+          @exit="exitCompareMode"
+        />
         <SourceView
-          v-if="showSource && report?.sourceCorrelation"
+          v-else-if="showSource && report?.sourceCorrelation"
           :model="report.sourceCorrelation"
           :session="sourceSession"
           :focus="sourceFocus"
@@ -2077,7 +2162,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @dismiss="onContextMenuDismiss"
         />
         <p
-          v-if="!showTimeline"
+          v-if="!showTimeline && !compareOnly"
           class="pr-error"
           data-testid="no-timeline"
         >

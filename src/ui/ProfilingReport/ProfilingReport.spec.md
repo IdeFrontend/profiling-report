@@ -211,6 +211,7 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 32. **PR-ROOT-032** — Analysis, stop, optimize and open CANNWork reach the host while reference and view are hidden.
 33. **PR-ROOT-033** — Stop, optimize and open CANNWork have independent 1s cooldowns.
 34. **PR-ROOT-034** — 统计分析 charts show for pipeTrace (and catalog-absent legacy); hide for communication / warpOccupy.
+35. **PR-ROOT-035** — Opt-in **compareOnly** hides the view-tab strip and opens 源码对比 on load when the report has a non-current operator; with no baseline it keeps the single-pane 源码 view. **退出对比** returns to that single pane without tabs, and the prop's default `false` keeps both tabs and the compare entry.
 
 ## Edge Cases
 
@@ -244,6 +245,7 @@ All child component specs. [CursorTimestamp](../CursorTimestamp/CursorTimestamp.
 DATA-30 (OP selector semantics), PROC-3 (standalone CTEF hides aside).
 
 ## Changelog
+- **2026-11-19** — Opt-in **compareOnly** demo mode: hides the view tabs, starts on 源码对比 with the first non-current baseline, falls back to single-pane 源码, and keeps 源码 visible after 退出对比 (`PR-ROOT-035`).
 - **2026-10-30** — CANNWork 优化 (design doc R3–R9): new **cannbotSessions** input forwarded to StatsAside, and five new host intents — **open-cannbot-stop** / **cannbot-reference** / **cannbot-view** (scope-carrying), **perform-optimization** (aside title-row 执行优化 pill), **open-cannwork** (toolbar trigger) — each behind its **own** 1s leading-edge cooldown (independent locks; R9 防抖), unlike the shared `cannbot-request` lock (PR-ROOT-032 / PR-ROOT-033).
 - **2026-10-29** — Late-bound `resolveSourceFile` still fills missing embeds (presence-only watch — unstable callback identity does not re-resolve); SourceView `session` resets search on operator / host swap but not on resolve overlay (`PR-ROOT-030`).
 - **2026-10-28** — Optional `resolveSourceFile` host hook fills missing Ascend C after load (`PR-ROOT-030`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
