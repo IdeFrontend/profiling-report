@@ -75,8 +75,16 @@ describe('rooflineEmulate (DATA-57a)', () => {
       'aiv-bp16-simt-out',
     ]);
     expect(model!.points.every((p) => model!.series.some((s) => s.id === p.seriesId))).toBe(true);
-    expect(model!.series).toHaveLength(17);
-    expect(model!.series.filter((s) => s.group === 'aic').map((s) => s.id)).toEqual([
+    expect(model!.series.map((s) => s.id)).toEqual([
+      'aiv-fp16-simd',
+      'aiv-fp16-simt',
+      'aiv-fp16-simt-out',
+      'aiv-bp16-simd',
+      'aiv-bp16-simt',
+      'aiv-bp16-simt-out',
+      'aiv-fp32-simd',
+      'aiv-fp32-simt',
+      'aiv-fp32-simt-out',
       'aic-int16-fp16-l0',
       'aic-int16-fp16-cube-out',
       'aic-tf32-hf32-l0',
