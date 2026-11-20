@@ -1167,8 +1167,8 @@ watch(
   flex: none;
   align-items: center;
   justify-content: center;
-  /* View-bar sits above; modest pad into the lattice below. */
-  padding: 12px 0;
+  /* View-bar sits above — extra top pad separates the pill from Access Count. */
+  padding: 28px 0 12px;
 }
 
 .pr-heat__legend-scale {
