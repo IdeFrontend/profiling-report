@@ -381,17 +381,25 @@ function clearCellTip() {
 
 /**
  * Hover-only 10% legend brush — dims out-of-range cells via a single mute veil
- * + bright top layer (in-range cells). Brush chrome is instant; only veil/legend fade.
+ * + bright top layer (in-range cells). Brush chrome is imperative DOM so it paints
+ * before reactive legend/heatmap fades start.
  */
 const legendBrush = ref<{ centerPct: number; loPct: number; hiPct: number } | null>(null);
 /** Legend hit-band width in CSS px — drives 3px → % for occupancy bands. */
 const legendTrackWidthPx = ref(0);
+/**
+ * Legend strip mute/occ fade target — separate from brush chrome so the window can
+ * show/hide before these opacity transitions start.
+ */
+const legendDimOn = ref(false);
 /**
  * Heat mute veil opacity target. Cleared on leave so the single veil can fade out
  * while bright cells stay until `transitionend` (no flash of dimmed in-range cells).
  */
 const heatVeilOn = ref(false);
 
+const brushChromeEl = ref<HTMLElement | null>(null);
+const brushRangeEl = ref<HTMLElement | null>(null);
 const brightEl = ref<HTMLElement | null>(null);
 
 /** Precomputed per active view — used by imperative base/bright paints. */
@@ -466,15 +474,54 @@ function quantizeBrushCenter(pct: number): number {
   return Math.round(pct * 4) / 4;
 }
 
-function applyLegendBrush(next: { centerPct: number; loPct: number; hiPct: number } | null) {
-  legendBrush.value = next;
+function brushRangeLabelText(brush: { loPct: number; hiPct: number }): string {
+  const max = maxAccessCount.value;
+  const loRaw = Math.round((brush.loPct / 100) * max);
+  const hiRaw = Math.round((brush.hiPct / 100) * max);
+  const lo = Math.min(max, Math.max(0, loRaw));
+  const hi = Math.min(max, Math.max(0, hiRaw));
+  return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
+}
+
+/** Imperative browsing window — must run before reactive dim flags flip. */
+function setBrushChrome(next: { centerPct: number; loPct: number; hiPct: number } | null) {
+  const el = brushChromeEl.value;
+  if (!el) return;
+  if (next == null) {
+    el.hidden = true;
+    return;
+  }
+  el.style.left = `${next.loPct}%`;
+  el.style.width = `${LEGEND_BRUSH_WIDTH_PCT}%`;
+  const label = brushRangeEl.value;
+  if (label) label.textContent = brushRangeLabelText(next);
+  el.hidden = false;
+}
+
+function applyLegendBrush(
+  next: { centerPct: number; loPct: number; hiPct: number } | null,
+  trackWidthPx?: number,
+) {
   if (next == null) {
     lastAppliedBrushCenter = null;
-    // Instant brush chrome clear; start veil fade; keep bright until transitionend.
+    // Hide browsing window first, then start leave fades.
+    setBrushChrome(null);
+    legendBrush.value = null;
+    legendDimOn.value = false;
     heatVeilOn.value = false;
     return;
   }
-  heatVeilOn.value = true;
+  const entering = legendBrush.value == null;
+  // Show/move browsing window first (direct DOM), then start or continue dims.
+  setBrushChrome(next);
+  legendBrush.value = next;
+  if (trackWidthPx != null && legendTrackWidthPx.value !== trackWidthPx) {
+    legendTrackWidthPx.value = trackWidthPx;
+  }
+  if (entering) {
+    legendDimOn.value = true;
+    heatVeilOn.value = true;
+  }
   lastBrightBrush = next;
   patchBrightCells(next);
 }
@@ -491,20 +538,20 @@ function flushLegendBrushFromClientX(clientX: number) {
   if (!track) return;
   const rect = track.getBoundingClientRect();
   if (rect.width <= 0) return;
-  if (legendTrackWidthPx.value !== rect.width) {
-    legendTrackWidthPx.value = rect.width;
-  }
   const rawPct = ((clientX - rect.left) / rect.width) * 100;
   const centerPct = quantizeBrushCenter(
     Math.min(100 + LEGEND_BRUSH_HALF_PCT, Math.max(-LEGEND_BRUSH_HALF_PCT, rawPct)),
   );
   if (lastAppliedBrushCenter === centerPct && legendBrush.value != null) return;
   lastAppliedBrushCenter = centerPct;
-  applyLegendBrush({
-    centerPct,
-    loPct: centerPct - LEGEND_BRUSH_HALF_PCT,
-    hiPct: centerPct + LEGEND_BRUSH_HALF_PCT,
-  });
+  applyLegendBrush(
+    {
+      centerPct,
+      loPct: centerPct - LEGEND_BRUSH_HALF_PCT,
+      hiPct: centerPct + LEGEND_BRUSH_HALF_PCT,
+    },
+    rect.width,
+  );
 }
 
 function onLegendPointerMove(e: PointerEvent) {
@@ -542,26 +589,6 @@ function isBrushMutedIndex(index: number): boolean {
 
 onBeforeUnmount(() => {
   if (legendBrushMoveRaf) cancelAnimationFrame(legendBrushMoveRaf);
-});
-
-const legendBrushStyle = computed<CSSProperties>(() => {
-  const brush = legendBrush.value;
-  if (!brush) return { display: 'none' };
-  return {
-    left: `${brush.loPct}%`,
-    width: `${LEGEND_BRUSH_WIDTH_PCT}%`,
-  };
-});
-
-const legendBrushRangeLabel = computed(() => {
-  const brush = legendBrush.value;
-  if (!brush) return '';
-  const max = maxAccessCount.value;
-  const loRaw = Math.round((brush.loPct / 100) * max);
-  const hiRaw = Math.round((brush.hiPct / 100) * max);
-  const lo = Math.min(max, Math.max(0, loRaw));
-  const hi = Math.min(max, Math.max(0, hiRaw));
-  return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
 });
 
 /** Occupancy bands stay mounted after leave so opacity can fade out. */
@@ -610,6 +637,7 @@ watch(
       legendBrushMoveRaf = 0;
     }
     legendBrush.value = null;
+    legendDimOn.value = false;
     heatVeilOn.value = false;
     lastBrightBrush = null;
     lastAppliedBrushCenter = null;
@@ -617,6 +645,7 @@ watch(
     rebuildCellPaintCache(view);
     // Remounted cells have no inline fill until this paint runs.
     void nextTick(() => {
+      setBrushChrome(null);
       paintBaseCells();
       patchBrightCells(null, true);
     });
@@ -685,7 +714,7 @@ watch(
           >
             <div
               class="pr-heat__gradient"
-              :class="{ 'pr-heat__gradient--brushing': !!legendBrush }"
+              :class="{ 'pr-heat__gradient--brushing': legendDimOn }"
               aria-hidden="true"
               :style="{ background: LEGEND_GRADIENT }"
             >
@@ -701,17 +730,19 @@ watch(
                 :style="legendOccStyle(band)"
               />
             </div>
+            <!-- Always mounted; shown via imperative `hidden` before dim fades start. -->
             <div
-              v-if="legendBrush"
+              ref="brushChromeEl"
               class="pr-heat__legend-brush"
               data-testid="heat-legend-brush"
               aria-hidden="true"
-              :style="legendBrushStyle"
+              hidden
             >
               <span
+                ref="brushRangeEl"
                 class="pr-heat__legend-brush-range"
                 data-testid="heat-legend-brush-range"
-              >{{ legendBrushRangeLabel }}</span>
+              />
             </div>
           </div>
         </div>
@@ -1050,6 +1081,7 @@ watch(
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.12);
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
+  /* No transition — chrome must paint before legend/heatmap fades (flushSync). */
 }
 
 .pr-heat__legend-brush-range {
