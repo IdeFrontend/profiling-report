@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import MemoryHeatmapPanel from './MemoryHeatmapPanel.vue';
@@ -546,6 +546,95 @@ describe('MemoryHeatmapPanel', () => {
     wrapper.unmount();
   });
 
+  it('PR-HEAT-013: tip and hover clear when the active view changes', async () => {
+    const wrapper = mountPanel(
+      {
+        locale: 'en',
+        selectedUnit: 'ub',
+        model: {
+          units: [
+            {
+              id: 'ub',
+              views: [
+                view({
+                  memoryName: 'UB',
+                  ownerName: 'AIV0',
+                  columns: 2,
+                  rows: 4,
+                  cellSize: 128,
+                  baseAddress: 0x100,
+                  blocks: blocks(8, 2),
+                }),
+                view({
+                  memoryName: 'UB',
+                  ownerName: 'AIV1',
+                  coreTypeId: 3,
+                  columns: 2,
+                  rows: 4,
+                  cellSize: 128,
+                  baseAddress: 0x200,
+                  blocks: blocks(8, 1),
+                }),
+              ],
+            },
+          ],
+        },
+      },
+      { attachTo: document.body },
+    );
+    const { grid, cellCenter } = stubHeatGrid(wrapper);
+    await grid.trigger('pointermove', cellCenter(0, 0));
+    expect(document.querySelector('[data-testid="heat-cell-tip-address-value"]')!.textContent).toBe(
+      '0x100',
+    );
+    await wrapper.get('[data-testid="heat-view-select"]').trigger('click');
+    const item = document.querySelector(
+      '[data-testid="heat-view-select-menu"] [data-value="1"]',
+    ) as HTMLElement | null;
+    expect(item).not.toBeNull();
+    item!.click();
+    await nextTick();
+    expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).toBeNull();
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-HEAT-013: hover zoom tile tracks a lattice resize', async () => {
+    const callbacks: ResizeObserverCallback[] = [];
+    const realRO = globalThis.ResizeObserver;
+    class FakeResizeObserver {
+      constructor(cb: ResizeObserverCallback) {
+        callbacks.push(cb);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    const wrapper = mountPanel({ ...tipFixture, locale: 'en' }, { attachTo: document.body });
+    try {
+      const board = wrapper.get('[data-testid="heat-board"]').element as HTMLElement;
+      Object.defineProperty(board, 'clientWidth', { configurable: true, get: () => 0 });
+      Object.defineProperty(board, 'clientHeight', { configurable: true, get: () => 0 });
+      const { grid, cellCenter } = stubHeatGrid(wrapper);
+      await nextTick();
+      await grid.trigger('pointermove', cellCenter(0, 0));
+      const before = wrapper.get('[data-testid="heat-cell-hover"]').attributes('style') ?? '';
+      const widthBefore = Number(before.match(/width:\s*([\d.]+)px/)?.[1]);
+      stubHeatGrid(wrapper, 2, 4, 20);
+      expect(callbacks.length).toBeGreaterThan(0);
+      callbacks[0]!([], {} as ResizeObserver);
+      await nextTick();
+      const after = wrapper.get('[data-testid="heat-cell-hover"]').attributes('style') ?? '';
+      const widthAfter = Number(after.match(/width:\s*([\d.]+)px/)?.[1]);
+      expect(widthAfter).toBeGreaterThan(widthBefore);
+    } finally {
+      wrapper.unmount();
+      if (realRO) vi.stubGlobal('ResizeObserver', realRO);
+      else vi.unstubAllGlobals();
+    }
+  });
+
   /** Stub the painted track rect (pointer % maps here; hit has ±5% side pads). */
   function stubLegendTrack(wrapper: ReturnType<typeof mountPanel>, trackWidth = 200, pad = 10) {
     const track = wrapper.get('[data-testid="heat-legend-track"]').element as HTMLElement;
@@ -733,6 +822,43 @@ describe('MemoryHeatmapPanel', () => {
     const style = occ[0]!.attributes('style') ?? '';
     const widthMatch = style.match(/width:\s*([\d.]+)%/);
     expect(Number(widthMatch?.[1])).toBeCloseTo(1.5, 5);
+    wrapper.unmount();
+  });
+
+  it('PR-HEAT-014: match count uses the same integer span as the range label', async () => {
+    // max 3, mid window 45–55% rounds to 1–2. Percent membership would highlight nothing.
+    const odd: MemoryHeatmapModel = {
+      units: [
+        {
+          id: 'ub',
+          views: [
+            view({
+              columns: 2,
+              rows: 2,
+              blocks: [
+                { index: 0, state: 'withData', intensity: 1 / 3, accessCount: 1 },
+                { index: 1, state: 'withData', intensity: 2 / 3, accessCount: 2 },
+                { index: 2, state: 'withData', intensity: 1, accessCount: 3 },
+                { index: 3, state: 'withoutData', intensity: 0, accessCount: 0 },
+              ],
+            }),
+          ],
+        },
+      ],
+    };
+    const wrapper = mountPanel({ model: odd, selectedUnit: 'ub', locale: 'en' });
+    await nextTick();
+    const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
+    const { trackWidth, pad } = stubLegendTrack(wrapper);
+    await gradient.trigger('pointermove', { clientX: pad + trackWidth / 2, clientY: 11 });
+    expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('1 – 2');
+    expect(wrapper.get('[data-testid="heat-legend-brush-match"]').text()).toBe('2 cells');
+
+    const { grid, cellCenter } = stubHeatGrid(wrapper, 2, 2);
+    await grid.trigger('pointermove', cellCenter(0, 0));
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(true);
+    await grid.trigger('pointermove', cellCenter(0, 1));
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });
