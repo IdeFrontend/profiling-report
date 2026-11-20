@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
-import { LANE_HEIGHT } from '../../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT } from '../../../swimlane/layout';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import CounterHoverTip from './CounterHoverTip.vue';
 import SwimlaneView from './SwimlaneView.vue';
@@ -698,7 +698,7 @@ describe('SwimlaneView', () => {
       },
     });
     const strip = wrapper.get('[data-testid="pinned-strip"]').element as HTMLElement;
-    // Transition uses --pr-pinned-h; computed height still reflects rowCount × LANE_HEIGHT.
+    // Transition uses --pr-pinned-h; computed height still reflects rowCount × 22.
     expect(strip.style.getPropertyValue('--pr-pinned-h').trim() || strip.style.height).toBe('44px');
   });
 
@@ -3070,8 +3070,8 @@ describe('SwimlaneView', () => {
         value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
       });
 
-      // Header 40px + mid of counter lane.
-      const y = 40 + LANE_HEIGHT / 2;
+      // Header 40px + mid of counter lane (24px OverviewCharts parity).
+      const y = 40 + COUNTER_LANE_HEIGHT / 2;
       await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
       await nextTick();
 
@@ -3137,5 +3137,79 @@ describe('SwimlaneView', () => {
       expect(tip.get('[data-testid="counter-hover-using"]').text()).toMatch(/Using\s*12\.35 KB/);
       tip.unmount();
     });
+  });
+
+  it('PR-SWIMVIEW-049: CounterTrack gutter + content height use 24px OverviewCharts band', () => {
+    const ctId = 'counter-AIV0_UB_UTILIZATION';
+    const model = {
+      minTime: 0,
+      maxTime: 1000,
+      processes: [
+        {
+          id: 'p-ct',
+          name: 'Memory utilization',
+          threads: [
+            {
+              id: ctId,
+              name: 'AIV0_UB_UTILIZATION',
+              events: [],
+              counter: {
+                points: [{ t: 0, v: 2, abs: 0.05 }],
+                yMax: 2,
+                colorHex: '#E7434A',
+              },
+            },
+            {
+              id: 'event-lane',
+              name: 'MTE1',
+              events: [{ id: 'e1', name: 'busy', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+    };
+    const view = createViewState(model);
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          {
+            id: 'p-ct',
+            name: 'Memory utilization',
+            lanes: [
+              {
+                id: ctId,
+                name: 'AIV0_UB_UTILIZATION',
+                color: '#E7434A',
+                counter: true,
+              },
+              {
+                id: 'event-lane',
+                name: 'MTE1',
+                color: '#888',
+                utilization: 0.5,
+              },
+            ],
+          },
+        ],
+        collapsedIds: [],
+        model,
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+    });
+    const ctRow = wrapper.get(`[data-testid="gutter-lane-${ctId}"]`).element as HTMLElement;
+    const eventRow = wrapper.get('[data-testid="gutter-lane-event-lane"]').element as HTMLElement;
+    expect(ctRow.style.height).toBe(`${COUNTER_LANE_HEIGHT}px`);
+    expect(eventRow.style.height).toBe('22px');
+    expect(COUNTER_LANE_HEIGHT).toBe(24);
+    // Canvas sizer uses contentHeightFromModel floor (120) when short.
+    expect(
+      (wrapper.get('[data-testid="swimlane"]').element as HTMLElement).querySelector(
+        '.pr-swim-canvas-sizer',
+      )?.getAttribute('style'),
+    ).toMatch(/height:\s*120px/);
+    wrapper.unmount();
   });
 });

@@ -5,6 +5,15 @@ import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
+/**
+ * CounterTrack lane band — matches OverviewCharts `OVERVIEW_LANE_H` (16px paint + 8px gap).
+ * Event/folder rows stay `LANE_HEIGHT` (22).
+ */
+export const COUNTER_LANE_HEIGHT = 24;
+/** Empty band above CounterTrack paint (OverviewCharts `OVERVIEW_TRACK_GAP` parity). */
+export const COUNTER_TRACK_GAP = 8;
+/** CounterTrack step-after paint height (OverviewCharts `OVERVIEW_TRACK_H` parity). */
+export const COUNTER_TRACK_H = 16;
 /** Matches `.pr-gutter__group` height so canvas lanes align with gutter labels. */
 export const LANE_GROUP_HEADER_HEIGHT = 40;
 /** Card / root group-header strip across gutter + swimlane (`rgb(42, 42, 42)`). */
@@ -96,6 +105,18 @@ export interface FlatLane {
   alpha?: number;
 }
 
+/** Content-space height of a laid-out lane band (CounterTrack = 24; else rowCount × 22). */
+export function laneBandHeight(lane: Pick<FlatLane, 'counter' | 'rowCount'>): number {
+  return lane.counter ? COUNTER_LANE_HEIGHT : lane.rowCount * LANE_HEIGHT;
+}
+
+/** Visible leaf/folder band height from the model thread (CounterTrack = 24). */
+export function threadBandHeight(thread: SwimThread, folder: boolean): number {
+  if (folder) return LANE_HEIGHT;
+  if (thread.counter) return COUNTER_LANE_HEIGHT;
+  return leafRowCount(thread) * LANE_HEIGHT;
+}
+
 /**
  * In-flight collapse/expand tween applied to a layout built from the **expanded**
  * model. `visible` = 1 fully expanded, 0 fully collapsed. `hiddenHeight` is the
@@ -141,7 +162,7 @@ export function groupEdges(
   const header = layout.headers.find((h) => h.id === groupId);
   if (header) return { top: header.y, foldY: header.y + LANE_GROUP_HEADER_HEIGHT };
   const lane = layout.lanes.find((l) => l.thread.id === groupId);
-  if (lane) return { top: lane.y, foldY: lane.y + lane.rowCount * LANE_HEIGHT };
+  if (lane) return { top: lane.y, foldY: lane.y + laneBandHeight(lane) };
   return null;
 }
 
@@ -214,7 +235,7 @@ export function groupSubtreeSpan(
     for (let i = li + 1; i < layout.lanes.length; i++) {
       const l = layout.lanes[i]!;
       if (l.depth <= folder.depth) break;
-      end = l.y + l.rowCount * LANE_HEIGHT;
+      end = l.y + laneBandHeight(l);
     }
   }
   return { top: edges.top, foldY: edges.foldY, subtreeEnd: end };
@@ -324,7 +345,7 @@ function modelGeometry(model: SwimlaneModel): { rows: GeoRow[]; height: number }
       y += LANE_GROUP_HEADER_HEIGHT;
       continue;
     }
-    const h = (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
+    const h = threadBandHeight(row.thread, row.kind === 'folder');
     rows.push({ id: row.thread.id, y, h, kind: row.kind, depth: row.depth });
     y += h;
   }
@@ -655,7 +676,7 @@ function visibleLaneRowHeight(model: SwimlaneModel, collapsedIds: readonly strin
   let h = 0;
   const walk = (nodes: SwimThread[]): void => {
     for (const n of nodes) {
-      h += LANE_HEIGHT;
+      h += n.counter ? COUNTER_LANE_HEIGHT : LANE_HEIGHT;
       if (isFolderNode(n) && !collapsed.has(n.id)) walk(n.children ?? []);
     }
   };
@@ -849,7 +870,7 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
     bottom = Math.max(bottom, h.y + LANE_GROUP_HEADER_HEIGHT);
   }
   for (const l of layout.lanes) {
-    bottom = Math.max(bottom, l.y + l.rowCount * LANE_HEIGHT);
+    bottom = Math.max(bottom, l.y + laneBandHeight(l));
   }
   return bottom;
 }
@@ -866,7 +887,7 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
     }
     // Folders are always one band (`rebuildLayout` hardcodes `rowCount: 1`); do not use
     // `leafRowCount` here — a folder that somehow carried events would desync DOM Card strips.
-    h += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
+    h += threadBandHeight(row.thread, row.kind === 'folder');
   }
   return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
@@ -898,7 +919,7 @@ export function layoutHeaders(model: SwimlaneModel | null): GroupHeader[] {
       headers.push({ id: row.process.id, name: row.process.name, y });
       y += LANE_GROUP_HEADER_HEIGHT;
     } else {
-      y += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
+      y += threadBandHeight(row.thread, row.kind === 'folder');
     }
   }
   return headers;
@@ -975,7 +996,7 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
       eventsByLane.push([]);
-      y += LANE_HEIGHT;
+      y += COUNTER_LANE_HEIGHT;
       continue;
     }
     const rowCount = leafRowCount(thread);
@@ -1158,7 +1179,7 @@ export function laneAtContentY(
   for (let i = 0; i < layout.lanes.length; i++) {
     const l = layout.lanes[i]!;
     if (l.alpha === 0) continue;
-    if (!(contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT)) continue;
+    if (!(contentY >= l.y && contentY < l.y + laneBandHeight(l))) continue;
     if (l.folder) {
       folder = l;
       folderIndex = i;
@@ -1259,7 +1280,7 @@ export function eventsIntersectingRect(
     if ((lane.alpha ?? 1) <= 0) continue;
     if (lane.folder) continue;
     const laneTop = lane.y - view.scrollY;
-    const laneH = lane.rowCount * LANE_HEIGHT;
+    const laneH = laneBandHeight(lane);
     if (laneTop + laneH < top - 1 || laneTop > bottom + 1) continue;
     const laneEvts = layout.eventsByLane[i];
     if (!laneEvts?.length) continue;

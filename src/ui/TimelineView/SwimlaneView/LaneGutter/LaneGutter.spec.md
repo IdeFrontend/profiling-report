@@ -41,7 +41,7 @@ Crops: [`visual/expanders.png`](./visual/expanders.png), [`visual/expander-detai
 | Card chrome | Owned by `SwimlaneView` full-width strips: open-angle caret (`#a8a8a8`, 10×10), label `14px` / `700` / `22px` line-height / `#e6e6e6`, fill `rgb(42, 42, 42)`, row `40px`. Gutter contributes only a transparent **40px spacer**. |
 | Nested folder chevron | Open-angle stroke caret on lane-style rows that have `children`. Expanded = **down**; collapsed = **right**. Color `#a8a8a8`. Layout box `10×10`, stroke ~1.2px. |
 | Leaf chevron | **Omitted**. |
-| Lane / folder label | `11px` / weight `400` / `#b0b0b0`; row height `22px` (`LANE_HEIGHT`); truncated with ellipsis. |
+| Lane / folder label | `11px` / weight `400` / `#b0b0b0`; row height `22px` (`LANE_HEIGHT`); CounterTrack leaves `24px` (`COUNTER_LANE_HEIGHT`, OverviewCharts parity); truncated with ellipsis. |
 | Indent | Depth 0 under Card: pad-left `24px` (= group pad `8` + chev `10` + gap `6`). Each nested level adds `14px`. |
 | Separators | `1px` rule under Card spacer and under each lane/folder (`#3a3a3a` / `#333`). |
 | Gutter surface | Lane rows `#1f1f1f` (`--pr-bg-deep`). Lane rows keep the gutter `1px solid #3a3a3a` right border. |

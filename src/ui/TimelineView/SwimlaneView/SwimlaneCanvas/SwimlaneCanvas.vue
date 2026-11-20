@@ -26,7 +26,8 @@ import {
   findLaidOutEvent,
   IDLE_COLLAPSE,
   LANE_HEIGHT,
-  LANE_PAD_Y,
+  COUNTER_TRACK_GAP,
+  COUNTER_TRACK_H,
   laneAtContentY,
   laneIdAtPoint,
   leafLaneIdAtPoint,
@@ -255,8 +256,9 @@ function emitCounterHover(
   }
   // hitLayout.y is already collapse-shifted — same CSS space as paintCounterLanes.
   const yCss = hit.lane.y - view.scrollY;
-  const plotTop = yCss + LANE_PAD_Y;
-  const plotH = Math.max(1, LANE_HEIGHT - LANE_PAD_Y * 2);
+  // OverviewCharts parity: 8px gap above + 16px paint inside 24px band.
+  const plotTop = yCss + COUNTER_TRACK_GAP;
+  const plotH = COUNTER_TRACK_H;
   const yMax = series.yMax > 0 ? series.yMax : 1;
   const clamped = Math.min(yMax, Math.max(0, pt.v));
   const localDotY = plotTop + plotH * (1 - clamped / yMax);
