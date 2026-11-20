@@ -533,6 +533,9 @@ function lanesWithBars(
     if (bar) lane.bar = bar;
     if (t.children !== undefined) {
       lane.children = lanesWithBars(t.children, bars);
+    } else if (t.counter) {
+      lane.counter = true;
+      lane.rowCount = 1;
     } else {
       lane.rowCount = leafRowCount(t);
     }

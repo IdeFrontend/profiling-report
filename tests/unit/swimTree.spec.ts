@@ -11,12 +11,18 @@ import {
   walkVisibleRows,
 } from '../../src/domain/swimTree';
 import type { SwimlaneModel } from '../../src/domain/types';
+import { OVERVIEW_LANE_H } from '../../src/ui/TimelineView/OverviewCharts/overviewLayout';
 import {
   contentHeightFromModel,
+  COUNTER_LANE_HEIGHT,
+  COUNTER_TRACK_GAP,
+  COUNTER_TRACK_H,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  laneBandHeight,
   layoutHeaders,
   rebuildLayout,
+  threadBandHeight,
 } from '../../src/swimlane/layout';
 
 function nestedModel(): SwimlaneModel {
@@ -136,7 +142,7 @@ describe('swimTree + nested layout', () => {
   });
 
   it('rebuildLayout uses SwimCounterSeries.colorHex for counter lanes', () => {
-    const layout = rebuildLayout({
+    const model = {
       minTime: 0,
       maxTime: 1000,
       processes: [
@@ -157,10 +163,19 @@ describe('swimTree + nested layout', () => {
           ],
         },
       ],
-    });
+    };
+    const layout = rebuildLayout(model);
     const lane = layout.lanes.find((l) => l.counter);
     expect(lane?.color).toBe('#E7434A');
     expect(lane?.thread.counter?.points[0]?.abs).toBe(0.05);
+    // PR-SWIMVIEW-049 / OverviewCharts parity: 8 + 16 = 24.
+    expect(COUNTER_LANE_HEIGHT).toBe(OVERVIEW_LANE_H);
+    expect(COUNTER_TRACK_GAP + COUNTER_TRACK_H).toBe(COUNTER_LANE_HEIGHT);
+    expect(laneBandHeight(lane!)).toBe(COUNTER_LANE_HEIGHT);
+    expect(threadBandHeight(lane!.thread, false)).toBe(COUNTER_LANE_HEIGHT);
+    // Body floor is 120px; layout bottom is header + counter band.
+    expect(contentHeightFromModel(model)).toBe(120);
+    expect(lane!.y + laneBandHeight(lane!)).toBe(LANE_GROUP_HEADER_HEIGHT + COUNTER_LANE_HEIGHT);
   });
 
   it('rebuildLayout carries no bands; folders still lay out as lanes', () => {

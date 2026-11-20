@@ -4,7 +4,14 @@
 
 import type { SwimlaneViewWindow } from '../domain/types';
 import { stepAfterVertices } from '../ui/TimelineView/OverviewCharts/stepPath';
-import { LANE_HEIGHT, LANE_PAD_Y, collapseShiftY, type FlatLane, type CollapseTransform } from './layout';
+import {
+  COUNTER_LANE_HEIGHT,
+  COUNTER_TRACK_GAP,
+  COUNTER_TRACK_H,
+  collapseShiftY,
+  type FlatLane,
+  type CollapseTransform,
+} from './layout';
 
 /** OverviewCharts / UI-61 parity — memory util CT uses `#E7434A` at this alpha. */
 const FILL_ALPHA = 0.45;
@@ -12,6 +19,7 @@ const FILL_ALPHA = 0.45;
 /**
  * Paint counter step-after charts for visible counter lanes into an already-scaled
  * device-pixel canvas context (`width`/`height` are device px).
+ * Lane band = 24px (OverviewCharts parity): 8px gap above + 16px paint.
  */
 export function paintCounterLanes(
   ctx: CanvasRenderingContext2D,
@@ -23,17 +31,17 @@ export function paintCounterLanes(
   collapse: CollapseTransform,
 ): void {
   const span = Math.max(1, view.endTime - view.startTime);
-  const pad = LANE_PAD_Y * dpr;
+  const gap = COUNTER_TRACK_GAP * dpr;
+  const plotH = COUNTER_TRACK_H * dpr;
   for (const lane of lanes) {
     if (!lane.counter) continue;
     const series = lane.thread.counter;
     if (!series || series.points.length === 0) continue;
     const yCss = collapseShiftY(lane.y, collapse) - view.scrollY;
     const y0 = yCss * dpr;
-    const laneH = LANE_HEIGHT * dpr;
+    const laneH = COUNTER_LANE_HEIGHT * dpr;
     if (y0 + laneH < 0 || y0 > height) continue;
-    const plotTop = y0 + pad;
-    const plotH = Math.max(1, laneH - pad * 2);
+    const plotTop = y0 + gap;
     const yMax = series.yMax > 0 ? series.yMax : 1;
     const verts = stepAfterVertices(series.points, view.startTime, view.endTime);
     if (verts.length === 0) continue;

@@ -215,7 +215,7 @@ Format and statuses: [README.md](README.md).
 - **Question:** How should swim CounterTrack lanes look and behave relative to Chrome CounterTrack / OverviewCharts / #181?
 - **Decision:**
   1. **Placement:** Chrome-like **inline CounterTrack lanes** in the swim hierarchy (under a util Card such as **Memory utilization**), not the 统计分析 OverviewCharts block.
-  2. **Shape:** step-after area + stroke; hold the last sample across gaps until the next point.
+  2. **Shape:** step-after area + stroke; hold the last sample across gaps until the next point. Lane band **24px** (16px paint + 8px gap above) — same as OverviewCharts tracks; event/folder rows stay 22px.
   3. **Y scale:** **per-track auto** from that track’s samples (`yMax`); not the shared overview 0–100 domain (queue depths need this).
   4. **Labels:** gutter label = **pipe id** stripped from `process_name` (e.g. `AIV0_UB_UTILIZATION`).
   5. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.
