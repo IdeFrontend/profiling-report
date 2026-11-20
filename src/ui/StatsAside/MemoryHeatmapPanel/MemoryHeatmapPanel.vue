@@ -895,9 +895,9 @@ watch(
 
     <div class="pr-heat__legend" data-testid="heat-legend">
       <!--
-        Centred 180px strip: gradient on top; 0 / Access Count / max under it.
-        Hit band = 16px window + 3px pad above/below (22px) and ±5% side pads
-        (half brush) so approaching from left/right can capture 0–0 / max–max.
+        Centred 180px strip. 0 / max sit on the brush-range row (centred on the
+        track ends); Access Count is a tight centred caption under the bar.
+        Hit band = 16px window + 3px pad above/below (22px) and ±5% side pads.
       -->
       <div
         class="pr-heat__legend-strip"
@@ -954,26 +954,25 @@ watch(
                 data-testid="heat-legend-brush-range"
               />
             </div>
+            <!-- Same Y as brush-range; centred on track 0% / 100%. -->
+            <span
+              class="pr-heat__legend-tick pr-heat__legend-tick--min"
+              data-testid="heat-legend-tick-min"
+              :style="{ opacity: legendMinTickOpacity }"
+            >0</span>
+            <span
+              class="pr-heat__legend-tick pr-heat__legend-tick--max"
+              data-testid="heat-legend-tick-max"
+              :style="{ opacity: legendMaxTickOpacity }"
+            >{{ legendMaxLabel }}</span>
           </div>
         </div>
-        <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
-          <span
-            class="pr-heat__legend-tick"
-            data-testid="heat-legend-tick-min"
-            :style="{ opacity: legendMinTickOpacity }"
-          >0</span>
-          <p
-            class="pr-heat__legend-title"
-            data-testid="heat-legend-title"
-          >
-            {{ t('memoryHeatAccessCount', locale) }}
-          </p>
-          <span
-            class="pr-heat__legend-tick"
-            data-testid="heat-legend-tick-max"
-            :style="{ opacity: legendMaxTickOpacity }"
-          >{{ legendMaxLabel }}</span>
-        </div>
+        <p
+          class="pr-heat__legend-title"
+          data-testid="heat-legend-title"
+        >
+          {{ t('memoryHeatAccessCount', locale) }}
+        </p>
       </div>
     </div>
 
@@ -1197,18 +1196,17 @@ watch(
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: 6px;
+  /* Title sits just under the brush-range / 0–max tick row. */
+  gap: 2px;
   /* Width from LEGEND_STRIP_PX inline style (180). */
   max-width: 100%;
   box-sizing: border-box;
 }
 
 .pr-heat__legend-title {
-  flex: 1 1 auto;
   margin: 0;
-  min-width: 0;
   color: #b3b3b3;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1;
   font-weight: 600;
   text-align: center;
@@ -1222,6 +1220,8 @@ watch(
   height: 22px;
   width: calc(100% + 2 * 5%);
   margin-inline: -5%;
+  /* Room under the hit for brush-range + 0/max ticks (same Y as brush-range). */
+  margin-bottom: 18px;
   padding-inline: 5%;
   overflow: visible;
   cursor: default;
@@ -1325,24 +1325,30 @@ watch(
   pointer-events: none;
 }
 
-.pr-heat__legend-ticks {
-  /* Room for the brush range label that sits under the window (+8px gap). */
-  position: relative;
+/*
+ * End ticks share the brush-range row: brush is inset 3px in the 22px hit, so
+ * brush bottom + 8px = track bottom - 3px + 8px. Centred on track 0% / 100%.
+ */
+.pr-heat__legend-tick {
+  position: absolute;
+  top: calc(100% - 3px + 8px);
   z-index: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  min-height: 18px;
   color: #b3b3b3;
   font-size: 10px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transition: opacity 80ms linear;
 }
 
-.pr-heat__legend-tick {
-  flex: none;
-  transition: opacity 80ms linear;
+.pr-heat__legend-tick--min {
+  left: 0;
+  transform: translateX(-50%);
+}
+
+.pr-heat__legend-tick--max {
+  left: 100%;
+  transform: translateX(-50%);
 }
 
 .pr-heat__view-bar {

@@ -102,10 +102,11 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: centred 180px Free→Used strip with 0 / Access Count / max under it (#200)', () => {
+  it('PR-HEAT-002: centred 180px strip; 0/max on brush-range row; Access Count under bar (#200)', () => {
     const wrapper = mountPanel({ locale: 'en' });
     const legend = wrapper.get('[data-testid="heat-legend"]');
     const strip = legend.get('[data-testid="heat-legend-strip"]');
+    const track = legend.get('[data-testid="heat-legend-track"]');
     const title = legend.get('[data-testid="heat-legend-title"]');
     const tickMin = legend.get('[data-testid="heat-legend-tick-min"]');
     const tickMax = legend.get('[data-testid="heat-legend-tick-max"]');
@@ -116,10 +117,13 @@ describe('MemoryHeatmapPanel', () => {
     expect(tickMin.text()).toBe('0');
     // Default fixture max accessCount is 300,090 on the first hot cell.
     expect(tickMax.text()).toBe('300,090');
-    // Strip is centred 180px; under-bar row is 0 / title / max.
+    // Strip 180px; end ticks live on the track (brush-range Y); title is under the hit.
     expect(strip.attributes('style')).toMatch(/width:\s*180px/);
+    expect(tickMin.classes()).toContain('pr-heat__legend-tick--min');
+    expect(tickMax.classes()).toContain('pr-heat__legend-tick--max');
+    expect(track.element.contains(tickMin.element)).toBe(true);
+    expect(track.element.contains(tickMax.element)).toBe(true);
     expect(tickMin.element.compareDocumentPosition(title.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(title.element.compareDocumentPosition(tickMax.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(legend.text()).not.toContain('%');
     expect(legend.text()).not.toContain('Low');
     expect(legend.text()).not.toContain('High');
