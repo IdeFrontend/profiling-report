@@ -432,7 +432,7 @@ let legendBrushMoveRaf = 0;
 let pendingLegendClientX: number | null = null;
 let lastAppliedBrushCenter: number | null = null;
 /** Last brush used for bright membership — kept through veil leave fade. */
-let lastBrightBrush: { loPct: number; hiPct: number } | null = null;
+const lastBrightBrush = ref<{ loPct: number; hiPct: number } | null>(null);
 let gridResizeObserver: ResizeObserver | null = null;
 
 /**
@@ -701,14 +701,14 @@ function applyLegendBrush(
     legendDimOn.value = true;
     heatVeilOn.value = true;
   }
-  lastBrightBrush = next;
+  lastBrightBrush.value = next;
   patchBrightCells(next);
 }
 
 function onHeatVeilTransitionEnd(e: TransitionEvent) {
   if (e.propertyName !== 'opacity') return;
   if (heatVeilOn.value) return;
-  lastBrightBrush = null;
+  lastBrightBrush.value = null;
   patchBrightCells(null);
 }
 
@@ -759,7 +759,7 @@ function clearLegendBrush() {
 
 function isBrushMutedIndex(index: number): boolean {
   // Live brush, or last window while bright cells remain through the leave fade.
-  const active = legendBrush.value ?? lastBrightBrush;
+  const active = legendBrush.value ?? lastBrightBrush.value;
   if (!active) return false;
   const count = cellAccessCounts[index];
   if (count == null) return false;
@@ -825,7 +825,7 @@ watch(
     legendBrush.value = null;
     legendDimOn.value = false;
     heatVeilOn.value = false;
-    lastBrightBrush = null;
+    lastBrightBrush.value = null;
     lastAppliedBrushCenter = null;
     legendTrackWidthPx.value = 0;
     rebuildCellPaintCache(view);

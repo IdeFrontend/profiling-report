@@ -861,4 +861,41 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(false);
     wrapper.unmount();
   });
+
+  it('PR-HEAT-014: hover tile returns after the brush veil fades', async () => {
+    const brushModel: MemoryHeatmapModel = {
+      units: [
+        {
+          id: 'ub',
+          views: [
+            view({
+              columns: 2,
+              rows: 2,
+              blocks: [
+                { index: 0, state: 'withData', intensity: 0.5, accessCount: 50 },
+                { index: 1, state: 'withData', intensity: 1, accessCount: 100 },
+                { index: 2, state: 'withoutData', intensity: 0, accessCount: 0 },
+                { index: 3, state: 'withoutData', intensity: 0, accessCount: 0 },
+              ],
+            }),
+          ],
+        },
+      ],
+    };
+    const wrapper = mountPanel({ model: brushModel, selectedUnit: 'ub', locale: 'en' });
+    await nextTick();
+    const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
+    const { trackWidth, pad } = stubLegendTrack(wrapper);
+    await gradient.trigger('pointermove', { clientX: pad + trackWidth / 2, clientY: 11 });
+    const { grid, cellCenter } = stubHeatGrid(wrapper, 2, 2);
+    // Count 100 is outside the 45–55 window, so the tile stays off while the brush is live.
+    await grid.trigger('pointermove', cellCenter(1, 0));
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(false);
+    await gradient.trigger('pointerleave');
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="heat-mute-veil"]').trigger('transitionend', { propertyName: 'opacity' });
+    await nextTick();
+    expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
 });
