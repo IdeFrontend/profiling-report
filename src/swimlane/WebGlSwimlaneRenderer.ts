@@ -74,10 +74,7 @@ interface MeshChunk {
 interface EmphasisLayer {
   rgb: [number, number, number];
   dim: number;
-  /** Positive-duration intervals — additive blend. */
   chunks: MeshChunk[];
-  /** Duration-0 ticks — source-over so dense min-width marks do not saturate white (#205). */
-  tickChunks: MeshChunk[] | null;
 }
 
 /** Composite an opaque ClearType label backdrop with the same additive dim as its event fill. */
@@ -116,43 +113,14 @@ const CURVE_INSTANCE_FLOATS = 10;
 interface SubRowMesh {
   /** Content-space Y of this sub-row's lane band (lane.y + rowIndex * LANE_HEIGHT). */
   y: number;
-  /** Positive-duration intervals — additive blend. */
+  /** All events (including duration-0) — additive blend; thin events use count-hit FS metric. */
   chunks: MeshChunk[];
-  /**
-   * Duration-0 ticks — discrete additive mesh built once at setModel (real neighbor gaps, no
-   * per-pan rebuild). Isolates extend like short durables; nearby ticks see small gaps so they
-   * do not force-extend into overlapping 1px marks. Search emphasis ticks stay source-over.
-   */
-  tickChunks: MeshChunk[] | null;
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
   /** Dep-neighbor intervals drawn over a muted base mesh (resting lane color). */
   brightChunks: MeshChunk[] | null;
   /** Selected / multi intervals: selected-state fill (overlay no longer 2D-lifts the set). */
   liftChunks: MeshChunk[] | null;
-}
-
-/**
- * Encode a sub-row's events into one gap-correct `pairs` buffer and index lists for
- * positive-duration intervals vs duration-0 ticks. Resting tick meshes reuse real neighbor
- * gaps (same as intervals) so only true isolates thin-extend; search emphasis ticks still
- * pass `isolatedGaps: true` when built.
- */
-export function partitionIntervalTickIndices(
-  events: readonly { event: { startTime: number; duration: number } }[],
-  timeBase: number,
-): { pairs: number[]; intervalIdx: number[]; tickIdx: number[] } {
-  const pairs: number[] = [];
-  const intervalIdx: number[] = [];
-  const tickIdx: number[] = [];
-  for (const item of events) {
-    const gi = pairs.length / 2;
-    const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, timeBase);
-    pairs.push(a, b);
-    if (item.event.duration === 0) tickIdx.push(gi);
-    else intervalIdx.push(gi);
-  }
-  return { pairs, intervalIdx, tickIdx };
 }
 
 interface LaneMeshes {
@@ -304,8 +272,6 @@ export function setVbSquareWithGaps(
  * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
  * (pos, uv, data) enables branchless extension in the vertex shader.
  *
- * `isolatedGaps`: search emphasis ticks pass `EDGE_GAP` on both sides so each mark extends to
- * the fixed min tick width only. Resting ticks use real gaps (durable parity).
  */
 function createChunk(
   gl: WebGL2RenderingContext,
@@ -313,7 +279,6 @@ function createChunk(
   off: number,
   pairCount: number,
   indexAt: (i: number) => number = (i) => off + i,
-  isolatedGaps = false,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
   const vb = new Float32Array(numSquares * 24);
@@ -324,8 +289,8 @@ function createChunk(
       i * 24,
       pairs[gi * 2]!,
       pairs[gi * 2 + 1]!,
-      isolatedGaps ? EDGE_GAP : eventGapPrev(pairs, gi),
-      isolatedGaps ? EDGE_GAP : eventGapNext(pairs, gi),
+      eventGapPrev(pairs, gi),
+      eventGapNext(pairs, gi),
       vb,
     );
     const n = i * 4;
@@ -404,21 +369,17 @@ function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): Mes
   return chunks;
 }
 
-/**
- * Sparse subsequence of `pairs`.
- * @param isolatedGaps search emphasis ticks: ignore neighbor gaps (see `createChunk`).
- */
+/** Sparse subsequence of `pairs` (gaps still from the full array). */
 function createChunksFromIndices(
   gl: WebGL2RenderingContext,
   pairs: number[],
   indices: number[],
-  isolatedGaps = false,
 ): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const total = indices.length;
   for (let off = 0; off < total; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, total - off);
-    chunks.push(createChunk(gl, pairs, off, count, (i) => indices[off + i]!, isolatedGaps));
+    chunks.push(createChunk(gl, pairs, off, count, (i) => indices[off + i]!));
   }
   return chunks;
 }
@@ -861,35 +822,15 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
             gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
           }
         };
-        /** Search discrete ticks: source-over so dense min-width marks stay lane-colored (#205). */
-        const drawTickChunks = (
-          ticks: MeshChunk[] | null,
-          rgb: [number, number, number],
-          dim: number,
-        ): void => {
-          if (!ticks || ticks.length === 0) return;
-          gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-          if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
-          drawChunks(ticks, rgb, dim);
-          if (!meshes.summary) {
-            gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
-            if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
-          }
-        };
 
         if (row.emphasisLayers) {
           for (const layer of row.emphasisLayers) {
             drawChunks(layer.chunks, layer.rgb, layer.dim);
-            drawTickChunks(layer.tickChunks, layer.rgb, layer.dim);
           }
         } else {
           const mute = muteRest && !meshes.summary;
           const baseRgb = mute ? mutedRgb : meshes.color;
           drawChunks(row.chunks, baseRgb, 1);
-          // Resting ticks: same additive path as durables (real gaps → isolates match brightness).
-          if (row.tickChunks && row.tickChunks.length > 0) {
-            drawChunks(row.tickChunks, baseRgb, 1);
-          }
           if (row.brightChunks || row.liftChunks) {
             // Src-over so keep-bright fills replace the muted bar (additive would double).
             gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -1158,21 +1099,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         // layout.events is startTime-ordered per lane; grouping preserves that within a sub-row.
         const events = byRow.get(`${idx}:${r}`) ?? [];
         allEvents.push(...events);
-        const { pairs, intervalIdx, tickIdx } = partitionIntervalTickIndices(events, this.timeBase);
+        const pairs: number[] = [];
+        for (const item of events) {
+          const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+          pairs.push(a, b);
+        }
         rows.push({
           y: lane.y + r * LANE_HEIGHT,
-          // Full-row pairs keep gapPrev/gapNext correct across the interval/tick split.
-          chunks:
-            intervalIdx.length === 0
-              ? []
-              : intervalIdx.length * 2 === pairs.length
-                ? createChunksFromPairs(gl, pairs)
-                : createChunksFromIndices(gl, pairs, intervalIdx),
-          // Real neighbor gaps (durable parity); search emphasis still uses isolatedGaps.
-          tickChunks:
-            tickIdx.length === 0
-              ? null
-              : createChunksFromIndices(gl, pairs, tickIdx, false),
+          chunks: createChunksFromPairs(gl, pairs),
           emphasisLayers: null,
           brightChunks: null,
           liftChunks: null,
@@ -1231,7 +1165,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         if (!row) continue;
         const byKey = new Map<
           string,
-          { rgb: [number, number, number]; dim: number; events: LaidOutEvent[] }
+          { rgb: [number, number, number]; dim: number; pairs: number[] }
         >();
         for (const item of events) {
           if (item.summary) continue;
@@ -1252,39 +1186,24 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           const key = `${muted ? 1 : 0}|${lifted ? 1 : 0}|${alpha}`;
           let entry = byKey.get(key);
           if (!entry) {
-            entry = { rgb: hexToRgb(fill), dim: alpha, events: [] };
+            entry = { rgb: hexToRgb(fill), dim: alpha, pairs: [] };
             byKey.set(key, entry);
           }
-          entry.events.push(item);
+          const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+          entry.pairs.push(a, b);
         }
         // Dimmer layers first so full-bright selection/matches paint on top. Rows with only
-        // summary bars keep the base mesh full-bright. Duration-0 ticks stay on a source-over
-        // mesh so dense ICACHE marks do not additive-saturate (#205).
+        // summary bars keep the base mesh full-bright.
         row.emphasisLayers =
           byKey.size === 0
             ? null
             : [...byKey.values()]
                 .sort((a, b) => a.dim - b.dim)
-                .map(({ rgb, dim, events: layerEvts }) => {
-                  const { pairs, intervalIdx, tickIdx } = partitionIntervalTickIndices(
-                    layerEvts,
-                    this.timeBase,
-                  );
-                  return {
-                    rgb,
-                    dim,
-                    chunks:
-                      intervalIdx.length === 0
-                        ? []
-                        : intervalIdx.length * 2 === pairs.length
-                          ? createChunksFromPairs(gl, pairs)
-                          : createChunksFromIndices(gl, pairs, intervalIdx),
-                    tickChunks:
-                      tickIdx.length === 0
-                        ? null
-                        : createChunksFromIndices(gl, pairs, tickIdx, true),
-                  };
-                });
+                .map(({ rgb, dim, pairs }) => ({
+                  rgb,
+                  dim,
+                  chunks: createChunksFromPairs(gl, pairs),
+                }));
       }
     }
   }
@@ -1362,7 +1281,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         if (row.emphasisLayers) {
           for (const layer of row.emphasisLayers) {
             for (const c of layer.chunks) this.deleteChunk(c);
-            if (layer.tickChunks) for (const c of layer.tickChunks) this.deleteChunk(c);
           }
           row.emphasisLayers = null;
         }
@@ -1391,7 +1309,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     for (const lane of this.laneMeshes) {
       for (const row of lane.rows) {
         for (const c of row.chunks) this.deleteChunk(c);
-        if (row.tickChunks) for (const c of row.tickChunks) this.deleteChunk(c);
       }
     }
     this.laneMeshes = [];

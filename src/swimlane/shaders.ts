@@ -26,6 +26,12 @@ export const extendTargetSizeCss = 1;
 export const extendMargin1Css = 2;
 export const extendMargin2Css = 4;
 
+/**
+ * Odd device-column multiplier for thin-event count-hit stipple (matches Canvas
+ * `TICK_ALTERNATE_FACTOR` in layout.ts). Long dense additive fills zebra instead of a solid bar.
+ */
+export const thinEventAlternateFactor = 0.6;
+
 /** Scale a CSS-px corner/width value to integer device px: `* dpr`, then round `((x+0.5)|0)`. */
 export function rrToDevicePx(cssPx: number, dpr: number): number {
   return (cssPx * dpr + 0.5) | 0;
@@ -135,16 +141,23 @@ void main() {
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
   float rrShape = clamp(0.5 - dist, 0.0, 1.0);
-  // for wide events horizontal event coverage equals to round-rect-coverage on edges 
-  // for very thin events round-rect-coverage provide brighter inaccurate results
-  // using min
-  float cov = min(hCoverage, rrShape);
+  // Wide events: length AA (hCoverage). Thin / zero-dur (rawW < 1 device px): each pixel hit
+  // contributes one count unit (not fractional length) so additive blend aggregates by event
+  // count; odd device columns stipple with thinEventAlternateFactor so dense blocks zebra.
+  float cov;
+  if (rawW >= 1.0) {
+    cov = min(hCoverage, rrShape);
+  } else if (hCoverage > 0.0) {
+    float alt = mod(floor(vScreenPos.x), 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
+    cov = min(alt, rrShape);
+  } else {
+    cov = 0.0;
+  }
   // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
   // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage
-  // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars
-  // and search discrete ticks) alpha is uColor.a * cov * vDim. uColor.a is the search /
-  // collapse dim; vDim is per-quad density intensity (1.0 when the aDim array is disabled).
-  // using cov alone would replace the lane with a darkened color instead of fading the tick.
+  // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars)
+  // alpha is uColor.a * cov * vDim. uColor.a is the search / collapse dim; vDim is per-quad
+  // density intensity (1.0 when the aDim array is disabled).
   float d = vDim;
   outColor = vec4(uColor.xyz * cov * d, mix(1.0, uColor.a * cov * d, uSrcOver));
 }

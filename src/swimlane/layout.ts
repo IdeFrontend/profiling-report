@@ -1,7 +1,13 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { buildFolderSummaryEvents, isFolderNode, walkVisibleRows } from '../domain/swimTree';
-import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import {
+  maxRR,
+  minRR,
+  rrSwitchThreshold,
+  rrToDevicePx,
+  thinEventAlternateFactor,
+} from './shaders';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -1680,8 +1686,8 @@ export const TICK_DENSITY_MIN_DIM = 0.35;
 export const TICK_DENSITY_CAP = 16;
 /** Relative soft-scale for `tickCountSimilarity` (PR-RENDER-066). */
 export const TICK_COUNT_SIM_SIGMA = 0.35;
-/** Odd-in-run multiplier when adjacent counts are identical (`sim = 1`). */
-export const TICK_ALTERNATE_FACTOR = 0.6;
+/** Odd-in-run / odd device-column stipple (shared with WebGL thin-event FS). */
+export const TICK_ALTERNATE_FACTOR = thinEventAlternateFactor;
 /**
  * Max empty CSS columns between occupied bins that still join one alternate group.
  * Gap 1 keeps nearby mid-zoom ticks stippling; larger gaps reset so true isolates stay solid.

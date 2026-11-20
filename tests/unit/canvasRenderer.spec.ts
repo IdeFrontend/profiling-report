@@ -44,10 +44,15 @@ import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimla
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import {
   compositeLabelBackdrop,
-  partitionIntervalTickIndices,
   WebGlSwimlaneRenderer,
 } from '../../src/swimlane/WebGlSwimlaneRenderer';
-import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
+import {
+  maxRR,
+  minRR,
+  rrSwitchThreshold,
+  rrToDevicePx,
+  thinEventAlternateFactor,
+} from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
 /** Brace-match a class method so a reorder cannot yield an empty slice that vacuously passes. */
@@ -1381,60 +1386,29 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(overlay).toMatch(/createChunksFromIndices/);
     expect(overlay).not.toMatch(/createChunksFromPairs/);
     expect(webglSrc).toMatch(
-      /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!, isolatedGaps\)/,
+      /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!\)/,
     );
   });
 
-  it('PR-RENDER-064: duration-0 ticks partition separately; resting additive, search source-over (#205)', async () => {
-    // Dense ICACHE ph:i (duration 0) share a sub-row; ticks leave the interval index list.
-    const { pairs, intervalIdx, tickIdx } = partitionIntervalTickIndices(
-      [
-        { event: { startTime: 10, duration: 5 } },
-        { event: { startTime: 12.5, duration: 0 } },
-        { event: { startTime: 14, duration: 0 } },
-        { event: { startTime: 20, duration: 3 } },
-      ],
-      0,
-    );
-    expect(pairs).toHaveLength(8);
-    expect(intervalIdx).toEqual([0, 3]);
-    expect(tickIdx).toEqual([1, 2]);
-    // All-ticks lane (ICACHE_READ): nothing stays on the interval index list.
-    const ticksOnly = partitionIntervalTickIndices(
-      [
-        { event: { startTime: 0.52, duration: 0 } },
-        { event: { startTime: 0.520606, duration: 0 } },
-        { event: { startTime: 1.2, duration: 0 } },
-      ],
-      0,
-    );
-    expect(ticksOnly.intervalIdx).toEqual([]);
-    expect(ticksOnly.tickIdx).toEqual([0, 1, 2]);
-
+  it('PR-RENDER-064: duration-0 events share the additive interval mesh (#205)', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toMatch(/partitionIntervalTickIndices/);
-    expect(webglSrc).toMatch(/tickChunks/);
+    expect(webglSrc).not.toMatch(/partitionIntervalTickIndices/);
+    expect(webglSrc).not.toMatch(/tickChunks/);
+    expect(webglSrc).not.toMatch(/drawTickChunks/);
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
-    // Resting ticks share additive drawChunks with durables.
-    expect(webglSrc).toMatch(
-      /Resting ticks: same additive path[\s\S]*drawChunks\(row\.tickChunks/,
-    );
-    // Search discrete ticks still flip to source-over via drawTickChunks.
-    const tickDraw = webglSrc.match(
-      /const drawTickChunks = \([\s\S]*?\n {8}\};/,
-    )?.[0];
-    expect(tickDraw).toBeTruthy();
-    expect(tickDraw).toMatch(
-      /blendFuncSeparate\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA, gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)[\s\S]*uniform1f\(swim\.uSrcOver, 1\)[\s\S]*blendFuncSeparate\(gl\.ONE, gl\.ONE, gl\.ONE, gl\.ONE\)[\s\S]*uniform1f\(swim\.uSrcOver, 0\)/,
-    );
-    expect(webglSrc).toMatch(/drawTickChunks\(layer\.tickChunks/);
+    // One createChunksFromPairs path for all events (including duration-0).
+    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
     expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov \* d, uSrcOver\)/);
+    // Thin-event count-hit + device-column stipple.
+    expect(shaderSrc).toMatch(/rawW >= 1\.0/);
+    expect(shaderSrc).toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
+    expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
   });
 
-  it('PR-RENDER-065: duration-0 ticks do not gap-extend into continuous time coverage (#205)', async () => {
+  it('PR-RENDER-065: duration-0 ticks do not merge into continuous time coverage (#205)', async () => {
     // Sub-ns ICACHE spacing (~0.606ns). A ≥1ns encode pair overlaps neighbors into one slab.
     const spacing = 0.606;
     const starts = Array.from({ length: 40 }, (_, i) => 4300 + i * spacing);
@@ -1461,18 +1435,6 @@ describe('PR-RENDER: lane chrome color', () => {
     const [, posEnd] = encodeIntervalPair(base + 100, 1, base);
     const [posStart] = encodeIntervalPair(base + 100, 1, base);
     expect(posEnd - posStart).toBeGreaterThanOrEqual(1);
-
-    // Resting ticks: real gaps; search emphasis ticks: isolatedGaps=true.
-    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
-      .default as string;
-    expect(webglSrc).toMatch(
-      /createChunksFromIndices\(gl, pairs, tickIdx,\s*false\)/,
-    );
-    expect(webglSrc).toMatch(
-      /createChunksFromIndices\(gl, pairs, tickIdx,\s*true\)/,
-    );
-    expect(webglSrc).toMatch(/isolatedGaps \? EDGE_GAP : eventGapPrev/);
-    expect(webglSrc).toMatch(/isolatedGaps \? EDGE_GAP : eventGapNext/);
   });
 
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
@@ -1593,11 +1555,11 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(s1a).toBeCloseTo(s0b, 10);
     expect(s0a).not.toBeCloseTo(s0b, 10);
 
-    // WebGL: discrete setModel tickChunks (no per-pan density VBO rebuild).
+    // WebGL: single additive mesh (no tickChunks / density VBO rebuild).
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toMatch(/createChunksFromIndices\(gl, pairs, tickIdx,\s*false\)/);
-    expect(webglSrc).toMatch(/drawChunks\(row\.tickChunks/);
+    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
+    expect(webglSrc).not.toMatch(/tickChunks/);
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
     expect(webglSrc).not.toMatch(/createDensityChunksFromMarks/);
     expect(webglSrc).not.toMatch(/assignTickDensityDims/);
