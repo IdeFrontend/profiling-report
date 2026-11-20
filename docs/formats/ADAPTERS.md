@@ -39,7 +39,7 @@ Do **not** invent compute CSVs from emulate tables ([DATA-45](../context/decisio
 | Summary cards | [report-summary](../views/report-summary.md) | [`OpBasicInfo.csv`](compute/OpBasicInfo.csv.md) + [`summary.jsonl`](compute/summary.jsonl.md) | **out** ([DATA-47](../context/decisions/DATA.md)) |
 | PIPE bars | [pipe-occupancy](../views/pipe-occupancy.md) | [`PipeUtilization.csv`](compute/PipeUtilization.csv.md) | [`PipesUtilization.csv`](emulate/PipesUtilization.csv.md) / [`PipeUtilizationHist.csv`](emulate/PipeUtilizationHist.csv.md) **in** |
 | Overview | [overview-charts](../views/overview-charts.md) | [`Sampling.json`](compute/Sampling.json.md) | **hide** (no Sampling; Trace util → swim CounterTracks [DATA-57](../context/decisions/DATA.md)) |
-| Swim CounterTracks | [timeline](../views/timeline.md) | — | Trace `ph:C` mem (#208) + unit (#209) + queue (#206) util pipes ([DATA-57](../context/decisions/DATA.md)) |
+| Swim CounterTracks | [timeline](../views/timeline.md) | — | Trace `ph:C` counters (generic CTEF; [DATA-57](../context/decisions/DATA.md)) |
 | `roofline` | [roofline](../views/roofline.md) | [`ArithmeticUtilization.csv`](compute/ArithmeticUtilization.csv.md) + [`Memory.csv`](compute/Memory.csv.md) | **hide** (gap) |
 | `memoryDiagram` | [memory-topology](../views/memory-topology.md) | Memory* ([`Memory.csv`](compute/Memory.csv.md) …) | compute only (Asc 内存负载) |
 | `archDiagram` | [memory-topology](../views/memory-topology.md) | — | Emulate [`ArchDiagramMetrics.csv`](emulate/ArchDiagramMetrics.csv.md) **in** on the same chrome + `memoryTopology` VM ([DATA-48a](../context/decisions/interim/DATA.md)); not `memoryDiagram` |
