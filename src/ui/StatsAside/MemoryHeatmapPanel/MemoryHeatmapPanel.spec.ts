@@ -707,9 +707,16 @@ describe('MemoryHeatmapPanel', () => {
     expect(brush.attributes('style')).toMatch(/width:\s*10%/);
     expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('45 – 55');
-    // End ticks stay fully visible (no fade — they sit beside the bar, not under the range label).
-    expect(wrapper.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
-    expect(wrapper.get('[data-testid="heat-legend-tick-max"]').text()).toBe('100');
+    // End ticks stay fully visible. Text alone stays green if an opacity fade returns.
+    const tickOpacity = (id: string) =>
+      (wrapper.get(`[data-testid="${id}"]`).element as HTMLElement).style.opacity;
+    const expectTicksOpaque = () => {
+      expect(wrapper.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
+      expect(wrapper.get('[data-testid="heat-legend-tick-max"]').text()).toBe('100');
+      expect(['', '1']).toContain(tickOpacity('heat-legend-tick-min'));
+      expect(['', '1']).toContain(tickOpacity('heat-legend-tick-max'));
+    };
+    expectTicksOpaque();
 
     // Heat dim: lattice veil canvas + bright canvas; base canvas stays mounted.
     const veil = wrapper.get('[data-testid="heat-mute-veil"]');
@@ -730,8 +737,7 @@ describe('MemoryHeatmapPanel', () => {
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 5');
     expect(match.text()).toBe('2 cells'); // intensity 0 cells
-    expect(wrapper.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
-    expect(wrapper.get('[data-testid="heat-legend-tick-max"]').text()).toBe('100');
+    expectTicksOpaque();
 
     // Left side pad (outside strip) → center -5%, window [-10, 0]; label 0 – 0.
     await gradient.trigger('pointermove', { clientX: hitLeft, clientY: 11 });
@@ -750,8 +756,7 @@ describe('MemoryHeatmapPanel', () => {
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('95 – 100');
     expect(match.text()).toBe('1 cells');
-    expect(wrapper.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
-    expect(wrapper.get('[data-testid="heat-legend-tick-max"]').text()).toBe('100');
+    expectTicksOpaque();
 
     // Right side pad → center 105%, window [100, 110]; label 100 – 100.
     await gradient.trigger('pointermove', { clientX: hitRight, clientY: 11 });
