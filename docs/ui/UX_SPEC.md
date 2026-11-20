@@ -34,7 +34,7 @@ Operator (OP) developer tuning Ascend / CANN kernels inside **MSTT** (and later 
 
 ### Out of scope (host or other products)
 
-- MSTT performance explorer tree and “add visualization” flows (context only — `source/v930/entry.jpeg`)
+- MSTT performance explorer tree and “add visualization” flows (context only — `source/930/EntryPoint/screenshot.png`)
 - MindStudio Insight `.bin` operator Source/Cache graphs
 - System-level Insight (training/cluster) timelines
 
@@ -57,7 +57,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | User opens a `.npu-rep` from MSTT results |
 | **Steps** | 1) Host opens panel 2) Library loads models 3) Timeline tab active 4) Aside shows summary + PIPE 5) Swimlane + overview charts fill main pane |
 | **Success** | User can answer “how long?” and “which pipes dominate?” without clicking events |
-| **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
+| **Sketches** | `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png` |
 
 ### S2 — Find busy / idle regions on the timeline (M)
 
@@ -67,7 +67,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | After S1; user zooms/pans |
 | **Steps** | Zoom around interest; pan; optionally expand gutter groups; scan colored blocks and idle gaps |
 | **Success** | User identifies a time window and lanes worth inspecting |
-| **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
+| **Sketches** | `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png` |
 
 ### S3 — Inspect one event (M)
 
@@ -77,7 +77,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Pointer over / click on a swimlane block |
 | **Steps** | Hover → tooltip; click → selection + detail strip; click empty → clear |
 | **Success** | User has name, start, duration, end without leaving Timeline |
-| **Sketches** | `source/v930/search-highlight.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
+| **Sketches** | `source/930/SearchHighlight/screenshot.png`, `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png` |
 
 ### S4 — Compare utilization across cores / lanes (M)
 
@@ -87,7 +87,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Viewing gutter util bars and PIPE aside |
 | **Steps** | Read util bars in gutter; optionally switch Card-header metric (时钟周期 / 利用率) to compare alternate views; compare PIPE ranking in aside; expand a core to see child pipes |
 | **Success** | User can point to hottest / coldest lanes under the chosen metric |
-| **Sketches** | Util bars + metric dropdown in `source/v930/entry.jpeg`; [`SwimlaneView/visual/metric-dropdown-closed.png`](../../src/ui/TimelineView/SwimlaneView/visual/metric-dropdown-closed.png) |
+| **Sketches** | Util bars + metric dropdown in `source/930/EntryPoint/screenshot.png`; [`SwimlaneView/visual/metric-dropdown-closed.png`](../../src/ui/TimelineView/SwimlaneView/visual/metric-dropdown-closed.png) |
 
 ### S5 — Drill into PIPE / compute / memory metrics (M1)
 
@@ -97,7 +97,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | After S1; user needs more than bar chart |
 | **Steps** | Read PIPE bars; if MIX, toggle Cube \| Vector; open compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio); type to filter field labels; open memory tabs + block switcher; optionally 查看全部 |
 | **Success** | User ranks pipes and inspects raw fields without invented formulas |
-| **Sketches** | Bars: [`v930/compute-load`](./source/v930/compute-load.jpeg). Details: [`v930/compute-load-detail`](./source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](./source/v930/memory-load-detail.jpeg) |
+| **Sketches** | Bars: [`v930/compute-load`](./source/930/ComputeLoadAnalysis/screenshot.png). Details: [`v930/compute-load-detail`](./source/930/ComputeLoadAnalysisDetails/screenshot.png), [`v930/memory-load-detail`](./source/930/MemoryLoadAnalysisDetails/screenshot.png) |
 | **Components** | `PipeOccupancyPanel`; `SummaryCategoryList` (All); `CsvFieldListPanel` (picked block) — see [COMPONENTS](../architecture/COMPONENTS.md) |
 
 ### S6 — Analyze memory paths (M2)
@@ -108,7 +108,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | After S1; topology is on the stacked 报告统计 scroll |
 | **Steps** | View topology under PIPE; the diagram's own bar zooms it (**放大** / **缩小** / **适应窗口**, PR-MEMTOP-015) or opens **全屏**, which covers the report with the same diagram; the five heat units (`L1` / `UB` / `L0A` / `L0B` / `L0C`, [UI-60](../context/decisions/UI.md)) hover-highlight and are clickable — a click opens **全屏** with that unit's heat panel selected; **详情** opens memory CSV field list; correlate with timeline window |
 | **Success** | User identifies memory-bound paths; the fullscreen right panel shows the selected unit's allocation grid (biprof §11.2.3.2) |
-| **Sketches** | `source/v930/memory-load-detail.jpeg`, `source/v930-sim/memory-topology-zoom.jpeg`, `source/v930-sim/memory-topology-fullscreen.jpeg` |
+| **Sketches** | `source/930/MemoryLoadAnalysisDetails/screenshot.png`, `source/930/MemoryLoadAnalysisZoomFullscreen/screenshot.png`, `source/930-legacy/v930-sim/memory-topology-fullscreen.jpeg` |
 
 ### S7 — Review hardware context (P2)
 
@@ -118,7 +118,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | “更多” on summary or hardware aside mode |
 | **Steps** | Open hardware details; read chip / core / memory inventory |
 | **Success** | User knows which NPU configuration produced the report |
-| **Sketches** | `source/v930/hardware-more-detail.jpeg`, `source/v930/entry.jpeg` annotations |
+| **Sketches** | `source/930/ReportStatisticsMoreHardwareInfo/screenshot.png`, `source/930/EntryPoint/screenshot.png` annotations |
 | **Depends** | **Out of MVP** until further specs ([DATA-34](../context/decisions/DATA.md)) |
 
 ### S8 — Follow dependencies / multi-select (P2)
@@ -129,7 +129,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | Select event with deps enabled; or marquee drag on the swimlane |
 | **Steps** | Toggle dep links; select event → dependency mini-graph; marquee drag → summary table + axis Δt; context menu pin |
 | **Success** | User sees predecessors/successors or slice aggregates |
-| **Sketches** | `source/v930/entry.jpeg`, `source/v930/entry.jpeg`, `source/v930/entry.jpeg` |
+| **Sketches** | `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png` |
 
 ### S9 — Secondary tabs (源码 enabled)
 
@@ -139,7 +139,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 | **Trigger** | User clicks **源码** when the pack has a real Source model (or the host passes `'sourceTab'` plus a non-mock model) |
 | **Steps** | Load Source | SASS surface (`v930-source/source-correlation`); return to **时间线** restores view state |
 | **Success** | Source opens with the real correlation model; packs without embeds hide 源码; **详情** / **缓存** are not in the chrome ([UI-37](../context/decisions/UI.md)) |
-| **Sketches** | [`v930-source/source-correlation`](./source/v930-source/source-correlation.jpeg); tab chrome in `source/v930/entry.jpeg` |
+| **Sketches** | [`v930-source/source-correlation`](./source/930-legacy/v930-source/source-correlation.jpeg); tab chrome in `source/930/EntryPoint/screenshot.png` |
 | **Data** | [source view packet](../views/source.md) · [compute FORMAT](../formats/compute/FORMAT.md) |
 
 ---
@@ -161,7 +161,7 @@ Fidelity of lane content depends on trace richness. Product **target** is sketch
 ### Host chrome (not library)
 
 - Editor tab title: report filename (e.g. `result.npu-rep`; sometimes beside `trace.json`)
-- Explorer: performance tuning / anomaly folders (`source/v930/entry.jpeg`) — **host**
+- Explorer: performance tuning / anomaly folders (`source/930/EntryPoint/screenshot.png`) — **host**
 
 ### Library chrome
 
@@ -271,8 +271,8 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 
 ### Flow S3 (M)
 
-1. Pointer enters event → tooltip with name/start/dur/end (`source/v930/task-hover.jpeg`).
-2. Click → selection styling + `DetailPanel` (`source/v930/entry.jpeg`).
+1. Pointer enters event → tooltip with name/start/dur/end (`source/930/TaskHover/screenshot.png`).
+2. Click → selection styling + `DetailPanel` (`source/930/EntryPoint/screenshot.png`).
 3. Click background → clear selection and strip.
 
 ### Flow S4 (M)
@@ -283,13 +283,13 @@ Gesture primitives: [INTERACTIONS.md](INTERACTIONS.md).
 ### Flow S5 (M1)
 
 1. MVP: read PIPE bars in aside.
-2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the matching substring ([UI-43](../context/decisions/UI.md)); inspect values (`source/v930/compute-load-detail.jpeg`).
+2. Open pipe details list; type filter (e.g. `aic_mte3`) hides non-matching rows and highlights the matching substring ([UI-43](../context/decisions/UI.md)); inspect values (`source/930/ComputeLoadAnalysisDetails/screenshot.png`).
 
 ### Flow S6–S9
 
 - **S6:** Aside → memory topology (static SVG + data-driven labels, [UI-38](../context/decisions/UI.md)) → zoom bar on the diagram (缩小 / 放大 / 适应窗口, PR-MEMTOP-015) → optional **全屏** overlay or details list.
 - **S7:** Deferred — hardware aside **out of MVP** ([DATA-34](../context/decisions/DATA.md)).
-- **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/v930/entry.jpeg`, `source/v930/entry.jpeg`).
+- **S8:** Enable dep links → select event → mini-graph; or multi-select → table; right-click → pin (`source/930/EntryPoint/screenshot.png`, `source/930/EntryPoint/screenshot.png`).
 - **S9:** Click **源码** → Source | SASS surface; return to **时间线** restores view state; **详情** / **缓存** are not in the chrome ([UI-37](../context/decisions/UI.md)).
 
 ---

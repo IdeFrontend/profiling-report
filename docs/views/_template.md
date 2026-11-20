@@ -16,7 +16,7 @@ Copy this file to `docs/views/<kebab-id>.md`. Heading order is **fixed** — do 
 
 ## Sketches
 
-![<caption>](../ui/source/v930/<file>.jpeg)
+![<caption>](../ui/source/930/<Screen>/screenshot.png)
 
 **Component crop (optional):** ![<caption>](../../src/ui/<Component>/visual/<file>.png)
 

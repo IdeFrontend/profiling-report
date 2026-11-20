@@ -227,9 +227,9 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 
 ## Design sketches
 
-- [Entry overview with sidebar](../../../docs/ui/source/v930/entry.jpeg)
-- [Report stats](../../../docs/ui/source/v930/report-stats-open.jpeg)
-- [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
+- [Entry overview with sidebar](../../../docs/ui/source/930/EntryPoint/screenshot.png)
+- [Report stats](../../../docs/ui/source/930/OpenReportStatistics/screenshot.png)
+- [v930 entry](../../../docs/ui/source/930/EntryPoint/screenshot.png) — full layout context
 
 ## Dependencies
 

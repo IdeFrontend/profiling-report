@@ -11,11 +11,11 @@
 
 ## Sketches
 
-![Entry / timeline chrome](../ui/source/v930/entry.jpeg)
+![Entry / timeline chrome](../ui/source/930/EntryPoint/screenshot.png)
 
-![Task hover](../ui/source/v930/task-hover.jpeg)
+![Task hover](../ui/source/930/TaskHover/screenshot.png)
 
-![Task click detail](../ui/source/v930/task-click-detail.jpeg)
+![Task click detail](../ui/source/930/TaskClickedBottomBarOthersDimmed/screenshot.png)
 
 ## Purpose
 
@@ -25,7 +25,7 @@ Primary Gantt / swimlane of OP execution over time. Opens from `.npu-rep` or sta
 
 ## Entry / OP selector (docx §11.2.2)
 
-![Entry overview](../ui/source/v930/entry.jpeg)
+![Entry overview](../ui/source/930/EntryPoint/screenshot.png)
 
 | # | UI | Behavior / data |
 | --- | --- | --- |

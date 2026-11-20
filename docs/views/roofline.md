@@ -11,7 +11,7 @@
 
 ## Sketches
 
-![Product Roofline card](../ui/source/v930/roofline-card-2026-10-15.png)
+![Product Roofline card](../ui/source/930-legacy/v930/roofline-card-2026-10-15.png)
 
 **Component crop:** ![Roofline](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png)
 

@@ -1,6 +1,6 @@
 # Color Tokens (Normative from Sketches)
 
-Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([UI-39](../context/decisions/UI.md)). Extracted from [`source/v930/`](./source/v930/) (`entry.jpeg` and related frames). Roundings are ±4–8 in RGB from sampled pixels.
+Sketch colors are **normative** for PIPE bars, overview series, and swimlane event categories ([UI-39](../context/decisions/UI.md)). Extracted from the 930 design entry frame — current export: [`source/930/EntryPoint/screenshot.png`](./source/930/EntryPoint/screenshot.png). Roundings are ±4–8 in RGB from sampled pixels.
 
 Implement as CSS variables (and matching `colorKey` on `PipeOccupancyItem`). MSTT theme may tint chrome; **category hues below stay fixed** unless Product revises this file.
 
@@ -38,7 +38,7 @@ Lane event-sequence fill matches `--pr-bg-deep` (`#1F1F1F`).
 
 ## PIPE occupancy + category keys
 
-Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-load.jpeg) (and `entry.jpeg` swimlane), ordered as in sketches: Cube → Vector → MTE2 → MTE1 → FixP → MTE3 → Scalar.
+Sampled primarily from PIPE bars in [`v930/compute-load`](./source/930/ComputeLoadAnalysis/screenshot.png) (and `entry.jpeg` swimlane), ordered as in sketches: Cube → Vector → MTE2 → MTE1 → FixP → MTE3 → Scalar.
 
 | `colorKey` | Hex | Role |
 |------------|-----|------|
@@ -73,7 +73,7 @@ Fill uses the same colour at **alpha 0.45** (`counterLanePaint` `FILL_ALPHA`, Ov
 
 ## Heatmap (memory utilization)
 
-Sampled from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-topology-fullscreen.jpeg) — the biprof **§11.2.3.2 Memory Utilization Heatmap** legend and block grid, and reused for the clickable unit tint on the topology ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)). Two allocation states, **no third state**.
+Sampled from [`v930-sim/memory-topology-fullscreen`](./source/930-legacy/v930-sim/memory-topology-fullscreen.jpeg) — the biprof **§11.2.3.2 Memory Utilization Heatmap** legend and block grid, and reused for the clickable unit tint on the topology ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)). Two allocation states, **no third state**.
 
 | Token | Hex | Role |
 |-------|-----|------|

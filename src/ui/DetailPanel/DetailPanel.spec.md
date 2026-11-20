@@ -47,7 +47,7 @@ Normative crop: [`visual/panel-chrome.png`](./visual/panel-chrome.png) — [`vis
 ## Design sketches
 
 - [panel-chrome](./visual/panel-chrome.png) — full raised 「详情」 dock from `v930/detail-strip-raised`
-- [Task click detail](../../../docs/ui/source/v930/task-click-detail.jpeg) — click → dock appears, with the dependency toolbar annotations
+- [Task click detail](../../../docs/ui/source/930/TaskClickedBottomBarOthersDimmed/screenshot.png) — click → dock appears, with the dependency toolbar annotations
 
 ## Dependencies
 

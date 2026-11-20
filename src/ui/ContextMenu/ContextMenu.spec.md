@@ -101,7 +101,7 @@ Pin state is shared with the gutter pushpin per [view-state.spec.md](../../../sp
 ## Design sketches
 
 - [context-menu](./visual/context-menu.png) — from `v930/task-context-menu`
-- [Task context menu](../../../docs/ui/source/v930/task-context-menu.jpeg) — full frame
+- [Task context menu](../../../docs/ui/source/930/TaskContextMenu/screenshot.png) — full frame
 
 Design hierarchy: [docs/ui/DESIGN_INDEX.md](../../../docs/ui/DESIGN_INDEX.md).
 

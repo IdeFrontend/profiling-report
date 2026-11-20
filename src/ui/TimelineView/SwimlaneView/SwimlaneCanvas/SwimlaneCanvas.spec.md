@@ -185,8 +185,8 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 - [search-highlight](./visual/search-highlight.png) — from `v930/search-highlight`
 - [measure-overlay](./visual/measure-overlay.png) — from `v930/task-measure-mode`
 - [multi-height](./visual/multi-height.png) — from `v930/task-multi-height`
-- [Kernel block timeline](../../../../../docs/ui/source/v930/entry.jpeg) — full frame
-- [Task measure mode](../../../../../docs/ui/source/v930/task-measure-mode.jpeg) — full frame
+- [Kernel block timeline](../../../../../docs/ui/source/930/EntryPoint/screenshot.png) — full frame
+- [Task measure mode](../../../../../docs/ui/source/930/TaskTimeMeasurementMode/screenshot.png) — full frame
 
 ## Dependencies
 

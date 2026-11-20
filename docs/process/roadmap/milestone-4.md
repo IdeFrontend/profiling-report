@@ -35,7 +35,7 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 | PIPE occupancy + CSV details | **In** | Emulate basenames only — no invent `PipeUtilization.csv` |
 | Architecture Diagram | **In** | ArchDiagramMetrics → interim plated chrome; capability `archDiagram`; UI title **内存负载分析** |
 | CANNBot compute / memory | **In** | Host opens UI; library emits payload; summary-scope icon omitted with meta |
-| Performance hints（性能提示） | **In** | Sketch [`v930-sim/performance-hints`](../../ui/source/v930-sim/performance-hints.jpeg); gelu packs the hint CSVs; bottom dock table built (`PerformanceHintsDock`, capability `performanceHints`) |
+| Performance hints（性能提示） | **In** | Sketch [`v930-sim/performance-hints`](../../ui/source/930/ReportPanelPerformanceTips/screenshot.png); gelu packs the hint CSVs; bottom dock table built (`PerformanceHintsDock`, capability `performanceHints`) |
 | Memory Utilization Heatmap | **In** | Layout+Cells → `memoryHeatmap` VM + capability; fullscreen right panel (§11.2.3.2); tabs L1/UB/L0A/L0B/L0C ([DATA-50](../../context/decisions/DATA.md) / [UI-60](../../context/decisions/UI.md)) |
 | Roofline / VF IPC / call stacks / full ArchDiagramModel | **Out** | Phase 2 ([DATA-48](../../context/questions/DATA.md)) |
 

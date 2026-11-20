@@ -73,11 +73,11 @@ Executable test id catalog (after scaffold): [`tests/README.md`](../tests/README
 
 ## Design sketches
 
-PNG mockups live under [`ui/source/v930/`](ui/source/v930/). Component crops live next to Vue code under `src/ui/{Component}/visual/`. Hierarchy: [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md).
+PNG mockups live under [`ui/source/930/`](ui/source/930/). Component crops live next to Vue code under `src/ui/{Component}/visual/`. Hierarchy: [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md).
 
 UCD visual-review ledger (English): [`ui/review/UI_REVIEW_FINDINGS.md`](ui/review/UI_REVIEW_FINDINGS.md).
 
-Design frames covering former changelog deltas (度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, topology): [`ui/source/v930/`](ui/source/v930/) — see [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md) and delivery [roadmap](process/roadmap/).
+Design frames covering former changelog deltas (度量模式, Cube/Vector MIX toggle, compute/memory detail tabs, topology): [`ui/source/930/`](ui/source/930/) — see [`ui/DESIGN_INDEX.md`](ui/DESIGN_INDEX.md) and delivery [roadmap](process/roadmap/).
 
 ## Research archive
 
