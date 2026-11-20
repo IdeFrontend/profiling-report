@@ -130,13 +130,14 @@ describe('MemoryHeatmapPanel', () => {
     expect(grid.attributes('aria-label')).toBe('20 / 416 个块已用');
   });
 
-  it('PR-HEAT-003: sizes + paints canvases from measured grid box (not --pr-heat-cell text)', async () => {
+  it('PR-HEAT-003: paints canvases from board/grid box (not --pr-heat-cell text)', async () => {
     // Regression: getPropertyValue('--pr-heat-cell') returns unresolved min(calc(cq*)),
-    // so geom must come from getBoundingClientRect or the board stays empty.
+    // so geom must come from the laid-out board/grid box or the lattice stays empty.
     const host = document.createElement('div');
     document.body.appendChild(host);
     const wrapper = mountPanel({}, { attachTo: host });
     const grid = wrapper.get('[data-testid="heat-grid"]').element as HTMLElement;
+    const board = wrapper.get('[data-testid="heat-board"]').element as HTMLElement;
     grid.getBoundingClientRect = () =>
       ({
         x: 0,
@@ -151,24 +152,22 @@ describe('MemoryHeatmapPanel', () => {
           return {};
         },
       }) as DOMRect;
-    // immediate watch queues paint on nextTick — stub is in place before that runs
-    // if mount already flushed, trigger RO / second tick.
+    // Board uses CSS inset (no JS size); stub client box so paint has a positive area.
+    Object.defineProperty(board, 'clientWidth', { configurable: true, get: () => 160 });
+    Object.defineProperty(board, 'clientHeight', { configurable: true, get: () => 260 });
     await nextTick();
     await nextTick();
-    const board = wrapper.get('[data-testid="heat-board"]').element as HTMLElement;
     const canvas = wrapper.get('[data-testid="heat-canvas"]').element as HTMLCanvasElement;
-    // If first paint raced before the stub, force a redraw via ResizeObserver callback
-    // by dispatching a synthetic size through the bound observer (re-set selectedUnit).
-    if (!board.style.width) {
+    if (canvas.width === 0) {
       await wrapper.setProps({ selectedUnit: 'l1' });
       await nextTick();
       await wrapper.setProps({ selectedUnit: 'ub' });
       await nextTick();
       await nextTick();
     }
-    // Board sized to inner = 168-8 × 268-8.
-    expect(board.style.width).toBe('160px');
-    expect(board.style.height).toBe('260px');
+    // Board fills via CSS inset — no stale inline width/height.
+    expect(board.style.width).toBe('');
+    expect(board.style.height).toBe('');
     expect(canvas.width).toBeGreaterThan(0);
     expect(canvas.height).toBeGreaterThan(0);
     wrapper.unmount();

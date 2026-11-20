@@ -103,6 +103,7 @@ Board/frame greys stay from `v930-sim/memory-topology-fullscreen` (`#303F5E` boa
 - **2026-11-19** — #200: SA HSL gray→green→yellow→red fill + single `%` tick legend strip (replaces blue Low/High).
 - **2026-11-20** — #194 / PR #225: lattice cells on Canvas 2D (base + bright) under/over the CSS mute veil; DOM hover overlay + tip + brush chrome unchanged.
 - **2026-11-20** — #194 / PR #225: base / mute-veil / bright canvases share one board box + cached `--pr-heat-cell` geom so brush highlights do not jump.
+- **2026-11-20** — #194 / PR #225: heat board fills the frame via CSS `inset` (no stale JS size); paint + hover share measured cellW/cellH so the lattice fills the border and the zoom overlay tracks cells.
 - **2026-11-20** — #194 / PR #225: base / mute-veil / bright canvases share one board box + cached measured geom so brush highlights do not jump (do not parse `--pr-heat-cell` — custom props stay as `min(calc(cq*))`).
 - **2026-11-20** — #194 / PR #225: mute veil is a Canvas lattice (board grid lines show in gaps); legend brush match-count tip above the window when ≥1 cell is highlighted.
 - **2026-11-20** — #194 / PR #225: lattice cells on Canvas 2D (base + bright) under/over the mute veil; DOM hover overlay + tip + brush chrome unchanged.
