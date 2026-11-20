@@ -179,4 +179,29 @@ function onEnter(event: KeyboardEvent) {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+
+/* Compare-chrome variant (1130 sketch): 184px pill, 6px radius, 17px glyph at 9.5px,
+   44.75px text start. Scoped so the timeline/source pill keeps its 190px / 4px tokens. */
+.pr-compare-search {
+  flex: 0 0 184px;
+  width: 184px;
+}
+
+.pr-compare-search input {
+  width: 184px;
+  padding-left: 44.75px;
+  border-radius: 6px;
+}
+
+.pr-compare-search input::placeholder {
+  color: #999999;
+}
+
+.pr-compare-search .pr-toolbar__search-icon {
+  left: 9.5px;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  color: #b4b4b4;
+}
 </style>

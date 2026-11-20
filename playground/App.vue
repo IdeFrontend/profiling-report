@@ -21,6 +21,8 @@ const FILE_FIXTURES = {
   gather_2d: { name: 'gather_2d.npu-rep', url: '/data/gather_2d.npu-rep' },
   /** §11.8.2 PDF sample: HardwareInfo Roofline category with several w/t/q circles. */
   roofline_multi: { name: 'roofline_multi.npu-rep', url: '/data/roofline_multi.npu-rep' },
+  /** 源码对比 demo: three leaves whose source differs pairwise (baseline switching). */
+  'source-diff': { name: 'source-diff-demo.npu-rep', url: '/data/source-diff/demo.npu-rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
 
@@ -287,6 +289,10 @@ onMounted(async () => {
           data-testid="fixture-roofline-multi"
         >roofline_multi.npu-rep</a>
         <a
+          :href="fixtureHref('source-diff')"
+          data-testid="fixture-source-diff"
+        >source-diff demo</a>
+        <a
           :href="fixtureHref('deps')"
           data-testid="fixture-deps"
         >deps</a>
@@ -383,6 +389,7 @@ onMounted(async () => {
         :prefer-renderer="preferRenderer"
         :locale="locale"
         :allow-html-export="true"
+        :compare-only="queryFixture === 'source-diff'"
         @view-full-csv="onViewFullCsv"
       />
       <ProfilingReport

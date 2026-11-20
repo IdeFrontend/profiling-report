@@ -123,6 +123,24 @@ Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, he
 
 **HTML export.** When `htmlExportAvailable` is true, a **Download HTML Report** control sits immediately before user-guide (`data-testid="export-html"`). Click emits `export-html`. Default is hidden. ProfilingReport turns it on when `allowHtmlExport` is true (default false) and `source` bytes exist; report-shell leaves it false because it already *is* the bundle.
 
+### Compare chrome (source-diff)
+
+Source: [`1130/…baseline和源码diff_源码对比`](../../../docs/ui/source/1130/1130_仿真上板公共_baseline和源码diff_源码对比.jpeg) (7680×4320 = 4 image px per CSS px). The compare band is flat — no corner wash — and the shared search pill / action icons take their own tokens here. Timeline and Source keep the tables above (`190px`, radius `4px`, icon `16px`, action radius `6px`).
+
+| Token | Value |
+|-------|--------|
+| Band | `40px` tall, `padding: 5.5px 8px`, bg `#1f1f1f` |
+| Wash | absent (`display: none`); the sketch band is flat |
+| Edges | top edge `#2a2a2a` (inset shadow — `.pr-root` clips a real `border-top`), `border-bottom: 1px solid #2a2a2a` |
+| Operator trigger | `padding-left: 20.5px`; label→caret gap `12.5px`; caret→title `22.5px` |
+| Title 源码对比 | `12px` / `400` / `#ffffff`; margin-right `55.5px` |
+| Baseline label | gap to select `9.75px`; label colour unchanged |
+| Baseline select | width `305px`; value `#999999`; caret `#b4b4b4` |
+| Exit comparison | label `#b4b4b4`; box `114.41×28`, bg `#343434` (unchanged) |
+| Right group | after exit: search, then icon actions; gaps `4px`; user-guide stays last |
+| Search pill | width `184px`, radius `6px`, input padding-left `44.75px`, icon `17×17` at `left: 9.5px` (`#b4b4b4`), placeholder `#999999`; label→field gap `4px` |
+| Action icons | radius `4px` (matches select/exit); `28×28`, gap `4px` |
+
 ### Display control popover
 
 Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg), [`visual/display-control.png`](./visual/display-control.png).
@@ -211,7 +229,9 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 28. **PR-TOOLBAR-027** — When `htmlExportAvailable` is true, `export-html` renders immediately before `open-user-guide` and emits `export-html` on click. When false (default), the control is absent. User-guide remains last among `data-toolbar-clip` actions.
 29. **PR-TOOLBAR-028** — Toolbar icon / zoom buttons tip via shared `.pr-icon-tip` (`aria-label` → CSS `::after`), not native `title` (same ~1s delay / light OS chrome as AC-20.2). Tip opens **below** the control so `.pr-chrome` / `.pr-root` overflow does not clip it. Trailing `data-toolbar-clip` tips (and `.pr-icon-tip--end`) right-align so the chrome's `overflow-x: clip` does not crop them.
 30. **PR-TOOLBAR-029** — Timeline-trace selector hidden when fewer than two traces; shown with the `pipeline-view` (bars + focus reticle) glyph immediately before measure when two or more; emits `update:selectedTimelineTraceId` on select; re-select does not emit; ArrowDown/Enter/Escape match the OP menu; leaving Timeline drops the menu listeners.
-31. **PR-TOOLBAR-030** — 打开CANNWork renders on the timeline tab immediately left of the search field (`open-cannwork-trigger`, `cannwork-analyse` glyph, localized `openCannwork` name) and emits **open-cannwork** on click; the Source tab chrome omits it (R7).
+30. **PR-TOOLBAR-030** — 打开CANNWork renders on the timeline tab immediately left of the search field (`open-cannwork-trigger`, `cannwork-analyse` glyph, localized `openCannwork` name) and emits **open-cannwork** on click; the Source tab chrome omits it (R7).
+31. **PR-TOOLBAR-031** — The compare chrome has **no** `export-html` button (export stays in the normal report chrome only); the baseline label carries its fullwidth colon only in zh, never in en.
+32. **PR-TOOLBAR-032** — The compare chrome matches the 1130 source-diff sketch: flat `#1f1f1f` band with no corner wash, `#2a2a2a` top (inset shadow) and bottom edges, left-group gaps `20.5 / 12.5 / 22.5 / 55.5 / 9.75`, title `#ffffff` at weight `400`, baseline select `305px` with `#999999` value and `#b4b4b4` caret, exit label `#b4b4b4`, compare search pill `184px` / radius `6px` / text inset `44.75px` / `17px` icon at `9.5px` with `#b4b4b4` tint and `#999999` placeholder, compare action-icon radius `4px`. Band stays `40px` with `padding: 5.5px 8px`; exit box, operator trigger, labels, dock and status bar are unchanged; the timeline/source search pill and action radius stay as documented above.
 
 ## Edge Cases
 
@@ -237,6 +257,7 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [pipeline-display-filter](../../../docs/ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg) — full-frame 流水显示筛选 mockup
 
 ## Changelog
+- **2026-11-19** — Compare chrome matches the 1130 source-diff sketch (`PR-TOOLBAR-032`): flat band (wash hidden), `#2a2a2a` edges, `305px` baseline select, `#ffffff`/`400` title, measured left-group gaps, `184px` / `6px` compare search pill, `4px` compare action-icon radius. Timeline/source tokens unchanged.
 - **2026-11-16** — 流水视图显示 uses the product `pipeline-view` glyph (bars + focus reticle) and sits immediately before measure (not a Source-tab `list` icon after measure).
 - **2026-11-12** — Design crop for 流水视图显示 radio selector from 1130 mockup (`timeline-trace-selector.png`).
 - **2026-10-30** — 打开CANNWork trigger (CANNWork 优化 R7, `PR-TOOLBAR-030`): pure-icon button immediately left of the search field on the timeline tab, emitting `open-cannwork`; absent on the Source tab like the rest of the timeline strip.

@@ -14,7 +14,7 @@ import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
-import type { SwimlaneModel } from '../../domain/types';
+import type { AdaptedReport, ReportCapability, SwimlaneModel } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 vi.mock('@sudu-ide/code-review', () => ({
@@ -2811,5 +2811,124 @@ describe('ProfilingReport scaffold', () => {
     await wrapper.get('[data-testid="open-cannwork-trigger"]').trigger('click');
     expect(wrapper.emitted('open-cannwork')).toHaveLength(2);
     wrapper.unmount();
+  });
+
+  it('PR-DIFF-204: compare mode picks a non-current baseline, survives operator switch, resets on tab change', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-compare',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      operators: { id: string; label: string }[];
+      selectedOperatorId: string;
+      operatorReports: Record<string, AdaptedReport>;
+    };
+    vm.operators = [
+      { id: 'op1', label: 'OP 1' },
+      { id: 'op2', label: 'OP 2' },
+    ];
+    vm.selectedOperatorId = 'op1';
+    vm.operatorReports = {
+      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+    };
+    await nextTick();
+
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(
+      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
+    ).toBe('op2');
+
+    // Switching the current operator to the baseline keeps compare mode and re-picks one.
+    vm.selectedOperatorId = 'op2';
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(
+      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
+    ).toBe('op1');
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-035: compareOnly opens compare without tabs; default keeps both tabs', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const settings = {
+      title: 'compare-only',
+      swimlaneModel: depsModel(),
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+      capabilities: ['sourceTab'] as ReportCapability[],
+    };
+
+    const standard = mount(ProfilingReport, { props: settings });
+    expect(standard.find('[data-testid="tab-timeline"]').exists()).toBe(true);
+    expect(standard.find('[data-testid="tab-source"]').exists()).toBe(true);
+    standard.unmount();
+
+    const wrapper = mount(ProfilingReport, { props: { ...settings, compareOnly: true } });
+    const vm = wrapper.vm as unknown as {
+      operators: { id: string; label: string }[];
+      selectedOperatorId: string;
+      operatorReports: Record<string, AdaptedReport>;
+    };
+    vm.operators = [
+      { id: 'op1', label: 'OP 1' },
+      { id: 'op2', label: 'OP 2' },
+    ];
+    vm.selectedOperatorId = 'op1';
+    vm.operatorReports = {
+      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+    };
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.findAll('.pr-tabs__tab')).toHaveLength(0);
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(
+      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
+    ).toBe('op2');
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.findAll('.pr-tabs__tab')).toHaveLength(0);
+    wrapper.unmount();
+
+    const single = mount(ProfilingReport, {
+      props: { ...settings, compareOnly: true, swimlaneModel: undefined },
+    });
+    const singleVm = single.vm as unknown as {
+      operators: { id: string; label: string }[];
+      selectedOperatorId: string;
+      operatorReports: Record<string, AdaptedReport>;
+    };
+    singleVm.operators = [{ id: 'op1', label: 'OP 1' }];
+    singleVm.selectedOperatorId = 'op1';
+    singleVm.operatorReports = {
+      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+    };
+    await nextTick();
+    await nextTick();
+    expect(single.findAll('.pr-tabs__tab')).toHaveLength(0);
+    expect(single.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(single.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(single.find('[data-testid="no-timeline"]').exists()).toBe(false);
+    single.unmount();
   });
 });

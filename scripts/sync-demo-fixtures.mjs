@@ -57,6 +57,17 @@ for (const [from, name] of copies) {
   console.log(`synced ${from} -> playground/public/data/${name}`)
 }
 
+/** 源码对比 demo: nested container plus the three leaf files. */
+const sourceDiffDir = join(destDir, 'source-diff')
+mkdirSync(sourceDiffDir, { recursive: true })
+for (const name of ['demo.npu-rep', 'left.npu-rep', 'mid.npu-rep', 'right.npu-rep']) {
+  const from = `data/source-diff/${name}`
+  const src = join(root, from)
+  assertNotLfsPointer(src)
+  copyFileSync(src, join(sourceDiffDir, name))
+  console.log(`synced ${from} -> playground/public/data/source-diff/${name}`)
+}
+
 /** Sudu Source-tab worker (TeaVM) — served same-origin from playground. */
 const suduDir = join(root, 'playground/public/sudu')
 mkdirSync(suduDir, { recursive: true })

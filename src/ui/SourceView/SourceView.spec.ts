@@ -170,6 +170,36 @@ describe('SourceView', () => {
     );
   });
 
+  it('PR-SOURCE-029: chrome follows a teleport host that appears after mount', async () => {
+    const errors: unknown[] = [];
+    const wrapper = mount(SourceView, {
+      props: { model: mockSourceCorrelation() },
+      global: {
+        config: {
+          errorHandler: (err: unknown) => {
+            errors.push(err);
+          },
+        },
+      },
+    });
+    await flushPromises();
+    // No host yet: the chrome renders in place instead of teleporting into a null target.
+    expect(wrapper.find('[data-testid="source-view-toolbar"]').exists()).toBe(true);
+
+    const host = document.createElement('div');
+    host.dataset.testid = 'source-chrome-host';
+    document.body.appendChild(host);
+    await flushPromises();
+    await wrapper.vm.$nextTick();
+
+    expect(errors).toEqual([]);
+    expect(host.querySelector('[data-testid="source-view-toolbar"]')).not.toBeNull();
+
+    wrapper.unmount();
+    host.remove();
+    expect(errors).toEqual([]);
+  });
+
   it('PR-SOURCE-002: mock badge visible for mock model', () => {
     const wrapper = mount(SourceView, {
       props: { model: mockSourceCorrelation() },
@@ -344,7 +374,7 @@ describe('SourceView', () => {
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     await asmTable.find('tr[data-line="2"]').trigger('click');
     await flushPromises();
-    expect(wrapper.find('[data-testid="source-file-select"]').text()).toContain('sharpen.cpp');
+    expect(wrapper.find('[data-testid="source-file-select-label"]').text()).toContain('sharpen.cpp');
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
     expect(asmTable.find('tr[data-line="2"]').classes()).toContain('pr-src-metrics__row--current');
@@ -387,9 +417,9 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-link-asm"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-redo-resolve"]').exists()).toBe(false);
     // Shared chrome pill (tokens.css) — same family as CSV / PIPE block selects.
-    expect(wrapper.find('[data-testid="source-file-select"]').classes()).toContain('pr-block-pill');
-    expect(wrapper.find('[data-testid="source-navigate-by"]').classes()).toContain('pr-block-pill');
-    expect(wrapper.find('[data-testid="source-asm-navigate-by"]').classes()).toContain('pr-block-pill');
+    expect(wrapper.find('[data-testid="source-file-select"]').element.closest('.pr-block-pill')).toBeTruthy();
+    expect(wrapper.find('[data-testid="source-navigate-by"]').element.closest('.pr-block-pill')).toBeTruthy();
+    expect(wrapper.find('[data-testid="source-asm-navigate-by"]').element.closest('.pr-block-pill')).toBeTruthy();
   });
 
   it('PR-SOURCE-008: both panes paint search; Enter and prev/next use selected pane', async () => {
@@ -554,18 +584,15 @@ describe('SourceView', () => {
   it('PR-SOURCE-011: linked Navigate By selects a shared metric on both panes', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
-    const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
-    const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
-    expect(asmNav.attributes('disabled')).toBeUndefined();
     expect(wrapper.get('[data-testid="source-link-asm"]').attributes('aria-pressed')).toBe('true');
 
     await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
-    expect(asmNav.text()).toContain('Sampling Stall');
-    expect(sourceNav.text()).toContain('Sampling Stall');
+    expect(wrapper.get('[data-testid="source-asm-navigate-by-label"]').text()).toContain('Sampling Stall');
+    expect(wrapper.get('[data-testid="source-navigate-by-label"]').text()).toContain('Sampling Stall');
 
     await pickNavigate(wrapper, 'source-navigate-by', 'warpOccupancy');
-    expect(sourceNav.text()).toContain('Warp Occupancy');
-    expect(asmNav.text()).toContain('Warp Occupancy');
+    expect(wrapper.get('[data-testid="source-navigate-by-label"]').text()).toContain('Warp Occupancy');
+    expect(wrapper.get('[data-testid="source-asm-navigate-by-label"]').text()).toContain('Warp Occupancy');
     wrapper.unmount();
   });
 
@@ -576,13 +603,11 @@ describe('SourceView', () => {
       metricsColumns: model.assembly.metricsColumns.filter((c) => c.id !== 'warpOccupancy'),
     };
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
-    const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
-    const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
 
     await wrapper.get('[data-testid="source-link-source"]').trigger('click');
     await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
-    expect(asmNav.text()).toContain('Sampling Stall');
-    expect(sourceNav.text()).toContain('Instructions Executed');
+    expect(wrapper.get('[data-testid="source-asm-navigate-by-label"]').text()).toContain('Sampling Stall');
+    expect(wrapper.get('[data-testid="source-navigate-by-label"]').text()).toContain('Instructions Executed');
 
     await wrapper.get('[data-testid="source-link-source"]').trigger('click');
     await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
@@ -592,8 +617,8 @@ describe('SourceView', () => {
     await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
 
     await pickNavigate(wrapper, 'source-navigate-by', 'warpOccupancy');
-    expect(sourceNav.text()).toContain('Warp Occupancy');
-    expect(asmNav.text()).toContain('Sampling Stall');
+    expect(wrapper.get('[data-testid="source-navigate-by-label"]').text()).toContain('Warp Occupancy');
+    expect(wrapper.get('[data-testid="source-asm-navigate-by-label"]').text()).toContain('Sampling Stall');
     wrapper.unmount();
   });
 
@@ -910,7 +935,8 @@ describe('SourceView', () => {
     ) as HTMLElement;
     otherOpt.click();
     await wrapper.vm.$nextTick();
-    expect(fileSelect.text()).toContain('other.cpp');
+    expect(fileSelect.element.closest('.pr-block-pill')).toBeTruthy();
+    expect(wrapper.find('[data-testid="source-file-select-label"]').text()).toContain('other.cpp');
     expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
     expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
@@ -959,7 +985,7 @@ describe('SourceView', () => {
       const trigger = wrapper.get(`[data-testid="${id}"]`);
       expect(trigger.element.tagName).toBe('BUTTON');
       expect(trigger.attributes('disabled')).toBeUndefined();
-      expect(trigger.classes()).toContain('pr-block-pill');
+      expect(trigger.element.closest('.pr-block-pill')).toBeTruthy();
     }
 
     await wrapper.get('[data-testid="source-left-view"]').trigger('click');
@@ -1278,7 +1304,7 @@ describe('SourceView', () => {
       props: { model, focus: { fileId: 'sharpen.cpp', line: 1 } },
     });
     await flushPromises();
-    expect(atLine1.get('[data-testid="source-file-select"]').text()).toBe('sharpen.cpp');
+    expect(atLine1.get('[data-testid="source-file-select-label"]').text()).toBe('sharpen.cpp');
     expect(
       atLine1.get('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').attributes('data-line'),
     ).toBe('1');
@@ -1359,7 +1385,7 @@ describe('SourceView', () => {
 
     await wrapper.find('[data-testid="asm-table-pane"] tr[data-line="40"]').trigger('click');
     await flushPromises();
-    expect(wrapper.find('[data-testid="source-file-select"]').text()).toContain('other.cpp');
+    expect(wrapper.find('[data-testid="source-file-select-label"]').text()).toContain('other.cpp');
     expect(
       wrapper.find('[data-testid="source-pane-source"] tr[data-line="2"]').classes(),
     ).toContain('pr-src-metrics__row--current');
