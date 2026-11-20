@@ -19,8 +19,6 @@ import {
   hitTestHeatCell,
 } from './heatHitTest';
 import { mergeOccupancyBands } from './legendOccupancy';
-/** Same solid mute as swimlane selection keep-bright (`#2C2C2C`). */
-import { SELECTION_MUTED_FILL } from '../../../swimlane/layout';
 
 /**
  * biprof §11.2.3.2 Memory Utilization Heatmap panel — the right column of the topology 全屏
@@ -382,43 +380,46 @@ function clearCellTip() {
 }
 
 /**
- * Hover-only 10% legend brush — dims cells whose intensity falls outside [lo, hi].
- * Center follows the pointer on the strip; window may overhang past 0 / 100.
- * Cell mute is patched imperatively so Vue does not re-render the lattice every move.
+ * Hover-only 10% legend brush — dims out-of-range cells via a single mute veil
+ * + bright top layer (in-range cells). Brush chrome is instant; only veil/legend fade.
  */
 const legendBrush = ref<{ centerPct: number; loPct: number; hiPct: number } | null>(null);
 /** Legend hit-band width in CSS px — drives 3px → % for occupancy bands. */
 const legendTrackWidthPx = ref(0);
 /**
- * Stable while the brush is sliding: disables cell color transitions after the
- * enter fade's first frame. Cleared on leave so unmute can reverse mid-flight.
+ * Heat mute veil opacity target. Cleared on leave so the single veil can fade out
+ * while bright cells stay until `transitionend` (no flash of dimmed in-range cells).
  */
-const legendBrushing = ref(false);
+const heatVeilOn = ref(false);
 
-/** Precomputed per active view — used by imperative mute patches. */
+const brightEl = ref<HTMLElement | null>(null);
+
+/** Precomputed per active view — used by imperative base/bright paints. */
 let cellIntensityPct: number[] = [];
 let cellFillColors: string[] = [];
 let cellWithDataBits = new Uint8Array(0);
-let cellMutedBits = new Uint8Array(0);
+/** 1 = shown on the bright layer (in brush range). */
+let cellBrightBits = new Uint8Array(0);
 
 let legendBrushMoveRaf = 0;
-let legendBrushingRaf = 0;
 let pendingLegendClientX: number | null = null;
 let lastAppliedBrushCenter: number | null = null;
+/** Last brush used for bright membership — kept through veil leave fade. */
+let lastBrightBrush: { loPct: number; hiPct: number } | null = null;
 
 function rebuildCellPaintCache(view: MemoryHeatmapView | null) {
   if (!view?.blocks.length) {
     cellIntensityPct = [];
     cellFillColors = [];
     cellWithDataBits = new Uint8Array(0);
-    cellMutedBits = new Uint8Array(0);
+    cellBrightBits = new Uint8Array(0);
     return;
   }
   const n = view.blocks.length;
   cellIntensityPct = new Array(n);
   cellFillColors = new Array(n);
   cellWithDataBits = new Uint8Array(n);
-  cellMutedBits = new Uint8Array(n);
+  cellBrightBits = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
     const block = view.blocks[i]!;
     cellIntensityPct[i] = block.intensity * 100;
@@ -427,30 +428,37 @@ function rebuildCellPaintCache(view: MemoryHeatmapView | null) {
   }
 }
 
-/**
- * Apply fill + mute to lattice cells. When `force` is set (view remount), every
- * cell is painted (incl. `--with`); otherwise only mute bits that changed.
- */
-function patchMutedCells(
-  brush: { loPct: number; hiPct: number } | null,
-  force = false,
-) {
+/** Paint base lattice fills (always heatFill — dim is the veil, not cell color). */
+function paintBaseCells() {
   const grid = gridEl.value;
   if (!grid) return;
-  const cells = grid.querySelectorAll<HTMLElement>('.pr-heat__cell');
+  const cells = grid.querySelectorAll<HTMLElement>(':scope > .pr-heat__cell');
+  const n = Math.min(cells.length, cellFillColors.length);
+  for (let i = 0; i < n; i++) {
+    const el = cells[i]!;
+    el.classList.toggle('pr-heat__cell--with', cellWithDataBits[i] === 1);
+    el.style.backgroundColor = cellFillColors[i]!;
+  }
+}
+
+/**
+ * Show/hide preallocated bright-layer cells for the brush window.
+ * Only touches indices whose on-bit changed — safe for rAF-coalesced slides.
+ */
+function patchBrightCells(brush: { loPct: number; hiPct: number } | null, force = false) {
+  const layer = brightEl.value;
+  if (!layer) return;
+  const cells = layer.querySelectorAll<HTMLElement>('.pr-heat__cell--bright');
   const n = Math.min(cells.length, cellIntensityPct.length);
   for (let i = 0; i < n; i++) {
     const pct = cellIntensityPct[i]!;
-    const muted = brush != null && (pct < brush.loPct || pct > brush.hiPct);
-    const bit = muted ? 1 : 0;
+    const on = brush != null && pct >= brush.loPct && pct <= brush.hiPct;
+    const bit = on ? 1 : 0;
+    if (!force && cellBrightBits[i] === bit) continue;
+    cellBrightBits[i] = bit;
     const el = cells[i]!;
-    if (force) {
-      el.classList.toggle('pr-heat__cell--with', cellWithDataBits[i] === 1);
-    }
-    if (!force && cellMutedBits[i] === bit) continue;
-    cellMutedBits[i] = bit;
-    el.classList.toggle('pr-heat__cell--muted', muted);
-    el.style.backgroundColor = muted ? SELECTION_MUTED_FILL : cellFillColors[i]!;
+    el.classList.toggle('pr-heat__cell--bright-on', on);
+    el.style.backgroundColor = on ? cellFillColors[i]! : '';
   }
 }
 
@@ -459,30 +467,23 @@ function quantizeBrushCenter(pct: number): number {
 }
 
 function applyLegendBrush(next: { centerPct: number; loPct: number; hiPct: number } | null) {
-  const wasOn = legendBrush.value != null;
   legendBrush.value = next;
   if (next == null) {
-    legendBrushing.value = false;
-    if (legendBrushingRaf) {
-      cancelAnimationFrame(legendBrushingRaf);
-      legendBrushingRaf = 0;
-    }
     lastAppliedBrushCenter = null;
-    patchMutedCells(null);
+    // Instant brush chrome clear; start veil fade; keep bright until transitionend.
+    heatVeilOn.value = false;
     return;
   }
-  patchMutedCells(next);
-  if (!wasOn) {
-    // Enter: keep transitions for one frame, then lock snap while sliding.
-    legendBrushing.value = false;
-    if (legendBrushingRaf) cancelAnimationFrame(legendBrushingRaf);
-    legendBrushingRaf = requestAnimationFrame(() => {
-      legendBrushingRaf = 0;
-      if (legendBrush.value != null) legendBrushing.value = true;
-    });
-  } else {
-    legendBrushing.value = true;
-  }
+  heatVeilOn.value = true;
+  lastBrightBrush = next;
+  patchBrightCells(next);
+}
+
+function onHeatVeilTransitionEnd(e: TransitionEvent) {
+  if (e.propertyName !== 'opacity') return;
+  if (heatVeilOn.value) return;
+  lastBrightBrush = null;
+  patchBrightCells(null);
 }
 
 function flushLegendBrushFromClientX(clientX: number) {
@@ -508,7 +509,7 @@ function flushLegendBrushFromClientX(clientX: number) {
 
 function onLegendPointerMove(e: PointerEvent) {
   pendingLegendClientX = e.clientX;
-  // Enter synchronously so mute/occ fades start on the same event.
+  // Enter synchronously so veil/occ fades start on the same event.
   if (legendBrush.value == null) {
     flushLegendBrushFromClientX(e.clientX);
     return;
@@ -531,16 +532,16 @@ function clearLegendBrush() {
 }
 
 function isBrushMutedIndex(index: number): boolean {
-  const brush = legendBrush.value;
-  if (!brush) return false;
+  // Live brush, or last window while bright cells remain through the leave fade.
+  const active = legendBrush.value ?? lastBrightBrush;
+  if (!active) return false;
   const pct = cellIntensityPct[index];
   if (pct == null) return false;
-  return pct < brush.loPct || pct > brush.hiPct;
+  return pct < active.loPct || pct > active.hiPct;
 }
 
 onBeforeUnmount(() => {
   if (legendBrushMoveRaf) cancelAnimationFrame(legendBrushMoveRaf);
-  if (legendBrushingRaf) cancelAnimationFrame(legendBrushingRaf);
 });
 
 const legendBrushStyle = computed<CSSProperties>(() => {
@@ -608,18 +609,17 @@ watch(
       cancelAnimationFrame(legendBrushMoveRaf);
       legendBrushMoveRaf = 0;
     }
-    if (legendBrushingRaf) {
-      cancelAnimationFrame(legendBrushingRaf);
-      legendBrushingRaf = 0;
-    }
     legendBrush.value = null;
-    legendBrushing.value = false;
+    heatVeilOn.value = false;
+    lastBrightBrush = null;
     lastAppliedBrushCenter = null;
     legendTrackWidthPx.value = 0;
     rebuildCellPaintCache(view);
     // Remounted cells have no inline fill until this paint runs.
-    // Use current brush (cleared above on view swap; may be set if enter raced mount).
-    void nextTick(() => patchMutedCells(legendBrush.value, true));
+    void nextTick(() => {
+      paintBaseCells();
+      patchBrightCells(null, true);
+    });
   },
   { immediate: true },
 );
@@ -629,7 +629,6 @@ watch(
   <section
     v-if="units.length > 0"
     class="pr-heat"
-    :class="{ 'pr-heat--brushing': legendBrushing }"
     :style="{ '--pr-heat-dim-ms': `${LEGEND_DIM_MS}ms` }"
     data-testid="memory-heatmap-panel"
     role="region"
@@ -780,10 +779,7 @@ watch(
             @pointermove="onGridPointerMove"
             @pointerleave="clearCellTip"
           >
-            <!--
-              Fills + mute are patched imperatively (see patchMutedCells) so
-              legendBrush chrome updates do not re-style every lattice cell.
-            -->
+            <!-- Base lattice — always heatFill; dim comes from the veil, not cell color. -->
             <span
               v-for="block in activeView.blocks"
               :key="block.index"
@@ -792,6 +788,30 @@ watch(
               :data-intensity="String(block.intensity)"
               :data-access-count="String(block.accessCount)"
             />
+            <!-- Single mute veil — only heatmap element that animates on enter/leave. -->
+            <div
+              class="pr-heat__mute-veil"
+              :class="{ 'pr-heat__mute-veil--on': heatVeilOn }"
+              data-testid="heat-mute-veil"
+              aria-hidden="true"
+              @transitionend="onHeatVeilTransitionEnd"
+            />
+            <!--
+              Bright top layer — in-range cells only (imperative show/hide).
+              Preallocated to avoid Vue lattice rebuilds while sliding.
+            -->
+            <div
+              ref="brightEl"
+              class="pr-heat__bright"
+              data-testid="heat-bright-layer"
+              aria-hidden="true"
+            >
+              <span
+                v-for="block in activeView.blocks"
+                :key="`bright-${block.index}`"
+                class="pr-heat__cell pr-heat__cell--bright"
+              />
+            </div>
             <!-- Zoomed filled overlay — cells keep fixed size (no layout grow). -->
             <div
               v-if="
@@ -1129,22 +1149,54 @@ watch(
   width: var(--pr-heat-cell);
   height: var(--pr-heat-cell);
   border-radius: 1px;
-  /* Fill from inline `backgroundColor` / heatFill (#200). */
-  /* Always on so enter/leave can reverse mid-flight; snapped off while sliding. */
-  transition: background-color var(--pr-heat-dim-ms, 200ms) ease;
+  /* Fill from inline `backgroundColor` / heatFill (#200). Dim is the veil, not cell color. */
   cursor: default;
   box-sizing: border-box;
   /* Hits go to the grid — continuous geometry hit-test owns hover. */
   pointer-events: none;
 }
 
-.pr-heat--brushing .pr-heat__cell {
-  transition: none;
+/* One mute veil over the base lattice — sole heatmap enter/leave animation. */
+.pr-heat__mute-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 3px;
+  background: #2c2c2c;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--pr-heat-dim-ms, 200ms) ease;
+}
+
+.pr-heat__mute-veil--on {
+  opacity: 1;
+}
+
+/* Bright in-range cells above the veil — membership snaps; no fade. */
+.pr-heat__bright {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(var(--pr-heat-cols), var(--pr-heat-cell));
+  grid-template-rows: repeat(var(--pr-heat-rows), var(--pr-heat-cell));
+  gap: 2px;
+  padding: 2px;
+  pointer-events: none;
+}
+
+.pr-heat__cell--bright {
+  visibility: hidden;
+}
+
+.pr-heat__cell--bright-on {
+  visibility: visible;
 }
 
 .pr-heat__hover {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   border-radius: 1px;
   box-sizing: border-box;
   pointer-events: none;
