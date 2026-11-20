@@ -556,7 +556,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(kernel.typeName).toBe('shared_bank_conflicts');
   });
 
-  it('PR-ASIM-013: Roofline*.csv → roofline + capability; AnalysisState gate; JSON fallback (DATA-57a)', () => {
+  it('PR-ASIM-016: Roofline*.csv → roofline + capability; AnalysisState gate; JSON fallback (DATA-57a)', () => {
     const analysisOk = 'AnalysisName,AnalysisPassed\nroofline,1\n';
     const analysisFail = 'AnalysisName,AnalysisPassed\nroofline,0\n';
     const points = [

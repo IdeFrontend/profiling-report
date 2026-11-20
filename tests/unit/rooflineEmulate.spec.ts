@@ -1,6 +1,6 @@
 /**
  * Emulate roofline mapper unit tests (DATA-57a).
- * @covers PR-ASIM-013
+ * @covers PR-ASIM-016
  */
 import { describe, expect, it } from 'vitest';
 import {
