@@ -66,7 +66,7 @@ Hard error only if the source cannot be parsed. Empty events → empty lanes (st
 
 | UI region | Content |
 | --- | --- |
-| Left tree | Hierarchical **Card** → 通信 / 计算 / 储存HBM → `CoreN.Cube` / `CoreN.Vec*` → pipes (`ALL`, `SCALAR`, `FLOWCTRL`, `MTE1/2/3`, `CUBE`, `FIXP`, `CACHEMISS`, …) with utilization % bars. Only Card is a group header; nested folders are lane-style expandable rows |
+| Left tree | Hierarchical **Card** → 通信 / 计算 / 储存HBM → `CoreN.Cube` / `CoreN.Vec*` → pipes (`ALL`, `SCALAR`, `FLOWCTRL`, `MTE1/2/3`, `CUBE`, `FIXP`, `CACHEMISS`, …) with utilization % bars. Only Card is a group header; nested folders are lane-style expandable rows. When `nestCardTree` is on and lane names already encode `CoreN.*`, the Card header lists those Core ids (`Core0` / `Core0, Core1`) — never invent a Core id that is missing from the producer names (#197) |
 | Main pane | Gantt / swimlane blocks on a time or **时钟周期** axis |
 | Selection | Click block → bottom **详情** ([event-details](event-details.md) §11.2.8.1) |
 | Dependencies | Curved connectors between related blocks |
