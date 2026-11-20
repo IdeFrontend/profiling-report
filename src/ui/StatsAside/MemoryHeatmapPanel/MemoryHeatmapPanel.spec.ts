@@ -526,7 +526,7 @@ describe('MemoryHeatmapPanel', () => {
     wrapper.unmount();
   });
 
-  it('PR-HEAT-013: EN tip labels match SA Accesses Count', async () => {
+  it('PR-HEAT-013: EN tip labels match SA Access Count', async () => {
     const wrapper = mountPanel(
       { ...tipFixture, locale: 'en' },
       { attachTo: document.body },
@@ -536,7 +536,7 @@ describe('MemoryHeatmapPanel', () => {
     const tip = document.querySelector('[data-testid="heat-cell-tooltip"]');
     expect(tip!.textContent).toContain('Start Address');
     expect(tip!.textContent).toContain('Cell Size');
-    expect(tip!.textContent).toContain('Accesses Count');
+    expect(tip!.textContent).toContain('Access Count');
     expect(tip!.querySelector('[data-testid="heat-cell-tip-address-value"]')!.textContent).toBe(
       '0x100',
     );

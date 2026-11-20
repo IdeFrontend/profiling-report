@@ -1062,7 +1062,7 @@ watch(
     </div>
 
     <!--
-      SA Memory Utilization cell tip (#194): Start Address, Cell Size, Accesses Count.
+      SA Memory Utilization cell tip (#194): Start Address, Cell Size, Access Count.
       Teleport→body + placeFixedTip so the panel cannot crop it.
     -->
     <Teleport to="body">
