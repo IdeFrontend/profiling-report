@@ -306,17 +306,21 @@ const hoveredBlockIndex = ref<number | null>(null);
 const hoverOverlayStyle = computed<CSSProperties>(() => {
   const index = hoveredBlockIndex.value;
   const view = activeView.value;
-  if (index == null || !view) return { display: 'none' };
+  const geom = paintedGeom;
+  if (index == null || !view || !geom) return { display: 'none' };
   const block = view.blocks[index];
   if (!block) return { display: 'none' };
   const col = index % view.columns;
   const row = Math.floor(index / view.columns);
   const grow = HEAT_HOVER_GROW_PX;
+  // Same cellW/cellH/pad as canvas paint — not var(--pr-heat-cell) (can disagree with board box).
+  const left = HEAT_GRID_PAD_PX + col * (geom.cellW + HEAT_GRID_GAP_PX) - grow;
+  const top = HEAT_GRID_PAD_PX + row * (geom.cellH + HEAT_GRID_GAP_PX) - grow;
   return {
-    left: `calc(${HEAT_GRID_PAD_PX}px + ${col} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px) - ${grow}px)`,
-    top: `calc(${HEAT_GRID_PAD_PX}px + ${row} * (var(--pr-heat-cell) + ${HEAT_GRID_GAP_PX}px) - ${grow}px)`,
-    width: `calc(var(--pr-heat-cell) + ${grow * 2}px)`,
-    height: `calc(var(--pr-heat-cell) + ${grow * 2}px)`,
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${geom.cellW + grow * 2}px`,
+    height: `${geom.cellH + grow * 2}px`,
     backgroundColor: heatFill(block.intensity),
   };
 });
@@ -431,8 +435,8 @@ let lastBrightBrush: { loPct: number; hiPct: number } | null = null;
 let gridResizeObserver: ResizeObserver | null = null;
 
 /**
- * Shared lattice paint box — all three canvases must use this exact snapshot so
- * bright highlights land on the same pixels as base/veil (no jump on brush).
+ * Shared lattice paint box — all three canvases + hover overlay use this snapshot
+ * so highlights land on the same pixels as base/veil.
  */
 type LatticePaintGeom = {
   columns: number;
@@ -440,6 +444,8 @@ type LatticePaintGeom = {
   blockCount: number;
   innerW: number;
   innerH: number;
+  cellW: number;
+  cellH: number;
   dpr: number;
 };
 let paintedGeom: LatticePaintGeom | null = null;
@@ -467,25 +473,40 @@ function currentDpr(): number {
 }
 
 /**
- * Lattice box from the laid-out grid border box.
- * Do NOT parse `--pr-heat-cell`: custom props keep their specified `min(calc(cq*))`
- * string, so parseFloat is NaN and painting never runs. Brush-only redraws reuse
- * `paintedGeom` so layers stay pixel-aligned.
+ * Lattice box from the board element (CSS `inset: pad` fills the content box).
+ * Do NOT parse `--pr-heat-cell` (unresolved `min(calc(cq*))`) and do NOT assign
+ * a JS width/height on the board — that cached a smaller stale box and left empty
+ * space inside the frame. Brush-only redraws reuse `paintedGeom`.
  */
 function readLatticeGeom(view: MemoryHeatmapView): LatticePaintGeom | null {
+  const board = boardEl.value;
   const grid = gridEl.value;
   if (!grid || view.columns < 1 || view.rows < 1) return null;
-  const rect = grid.getBoundingClientRect();
-  const chrome = 2 * HEAT_GRID_BORDER_PX + 2 * HEAT_GRID_PAD_PX;
-  const innerW = rect.width - chrome;
-  const innerH = rect.height - chrome;
+  // Prefer the board's laid-out content box; fall back to grid border-box − chrome.
+  let innerW = 0;
+  let innerH = 0;
+  if (board) {
+    innerW = board.clientWidth;
+    innerH = board.clientHeight;
+  }
+  if (innerW <= 0 || innerH <= 0) {
+    const rect = grid.getBoundingClientRect();
+    const chrome = 2 * HEAT_GRID_BORDER_PX + 2 * HEAT_GRID_PAD_PX;
+    innerW = rect.width - chrome;
+    innerH = rect.height - chrome;
+  }
   if (innerW <= 0 || innerH <= 0) return null;
+  const cellW = (innerW - (view.columns - 1) * HEAT_GRID_GAP_PX) / view.columns;
+  const cellH = (innerH - (view.rows - 1) * HEAT_GRID_GAP_PX) / view.rows;
+  if (cellW <= 0 || cellH <= 0) return null;
   return {
     columns: view.columns,
     rows: view.rows,
     blockCount: view.blocks.length,
     innerW,
     innerH,
+    cellW,
+    cellH,
     dpr: currentDpr(),
   };
 }
@@ -499,13 +520,6 @@ function syncCanvasBacking(
   if (canvas.width !== bw) canvas.width = bw;
   if (canvas.height !== bh) canvas.height = bh;
   return canvas.getContext('2d');
-}
-
-function syncBoardBox(geom: LatticePaintGeom) {
-  const board = boardEl.value;
-  if (!board) return;
-  board.style.width = `${geom.innerW}px`;
-  board.style.height = `${geom.innerH}px`;
 }
 
 function paintLayer(
@@ -565,7 +579,6 @@ function redrawHeatCanvases() {
   const geom = readLatticeGeom(view);
   if (!geom) return;
   paintedGeom = geom;
-  syncBoardBox(geom);
   paintBaseCanvas(geom);
   paintVeilCanvas(geom);
   paintBrightCanvas(geom);
@@ -1356,11 +1369,13 @@ watch(
   overflow: visible;
 }
 
-/* Shared absolute box — canvases fill 100% so layout boxes cannot diverge. */
+/*
+ * Shared absolute box — inset matches grid padding so the board always fills the
+ * content box (no JS width/height; those went stale and shrank the lattice).
+ */
 .pr-heat__board {
   position: absolute;
-  left: 2px;
-  top: 2px;
+  inset: 2px;
   z-index: 0;
   pointer-events: none;
 }
