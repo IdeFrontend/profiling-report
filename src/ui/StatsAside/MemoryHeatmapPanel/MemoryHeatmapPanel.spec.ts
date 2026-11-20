@@ -130,6 +130,51 @@ describe('MemoryHeatmapPanel', () => {
     expect(grid.attributes('aria-label')).toBe('20 / 416 个块已用');
   });
 
+  it('PR-HEAT-003: sizes + paints canvases from measured grid box (not --pr-heat-cell text)', async () => {
+    // Regression: getPropertyValue('--pr-heat-cell') returns unresolved min(calc(cq*)),
+    // so geom must come from getBoundingClientRect or the board stays empty.
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const wrapper = mountPanel({}, { attachTo: host });
+    const grid = wrapper.get('[data-testid="heat-grid"]').element as HTMLElement;
+    grid.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 168,
+        bottom: 268,
+        width: 168,
+        height: 268,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    // immediate watch queues paint on nextTick — stub is in place before that runs
+    // if mount already flushed, trigger RO / second tick.
+    await nextTick();
+    await nextTick();
+    const board = wrapper.get('[data-testid="heat-board"]').element as HTMLElement;
+    const canvas = wrapper.get('[data-testid="heat-canvas"]').element as HTMLCanvasElement;
+    // If first paint raced before the stub, force a redraw via ResizeObserver callback
+    // by dispatching a synthetic size through the bound observer (re-set selectedUnit).
+    if (!board.style.width) {
+      await wrapper.setProps({ selectedUnit: 'l1' });
+      await nextTick();
+      await wrapper.setProps({ selectedUnit: 'ub' });
+      await nextTick();
+      await nextTick();
+    }
+    // Board sized to inner = 168-8 × 268-8.
+    expect(board.style.width).toBe('160px');
+    expect(board.style.height).toBe('260px');
+    expect(canvas.width).toBeGreaterThan(0);
+    expect(canvas.height).toBeGreaterThan(0);
+    wrapper.unmount();
+    host.remove();
+  });
+
   it('PR-HEAT-004: shows Total/Used/Free with spaced shared units (#201); omits when Total is unknown', () => {
     expect(mountPanel().find('[data-testid="heat-metric"]').text()).toBe(
       'Total: 256 KB / Used: 2.5 KB / Free: 253.5 KB',
