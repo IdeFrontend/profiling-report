@@ -23,7 +23,9 @@ describe('placeFixedTip', () => {
     });
     expect(pos).toEqual({
       left: 100 + FIXED_TIP_OFFSET_PX,
+      right: null,
       top: 80 + FIXED_TIP_OFFSET_PX,
+      bottom: null,
     });
   });
 
@@ -36,9 +38,11 @@ describe('placeFixedTip', () => {
       viewportW: 800,
       viewportH: 600,
     });
-    expect(pos.top).toBe(y - FIXED_TIP_OFFSET_PX - COUNTER_HOVER_TIP_EST_H);
-    expect(pos.top + COUNTER_HOVER_TIP_EST_H).toBeLessThanOrEqual(600 - FIXED_TIP_PAD_PX);
+    // Bottom edge anchored at y - offset — gap stays offset even if tipH is wrong.
+    expect(pos.top).toBeNull();
+    expect(pos.bottom).toBe(600 - (y - FIXED_TIP_OFFSET_PX));
     expect(pos.left).toBe(100 + FIXED_TIP_OFFSET_PX);
+    expect(pos.right).toBeNull();
   });
 
   it('flips left of the pointer when right would crop the right edge', () => {
@@ -50,9 +54,34 @@ describe('placeFixedTip', () => {
       viewportW: 800,
       viewportH: 600,
     });
-    expect(pos.left).toBe(x - FIXED_TIP_OFFSET_PX - COUNTER_HOVER_TIP_EST_W);
-    expect(pos.left + COUNTER_HOVER_TIP_EST_W).toBeLessThanOrEqual(800 - FIXED_TIP_PAD_PX);
+    // Right edge anchored at x - offset — gap equals offset (not tipW-dependent).
+    expect(pos.left).toBeNull();
+    expect(pos.right).toBe(800 - (x - FIXED_TIP_OFFSET_PX));
     expect(pos.top).toBe(80 + FIXED_TIP_OFFSET_PX);
+    expect(pos.bottom).toBeNull();
+  });
+
+  it('keeps the same pointer gap when flipped left even if tipW is overestimated', () => {
+    const x = 750;
+    const fat = placeFixedTip({
+      x,
+      y: 80,
+      tipW: 400,
+      tipH: 40,
+      viewportW: 800,
+      viewportH: 600,
+    });
+    const slim = placeFixedTip({
+      x,
+      y: 80,
+      tipW: 120,
+      tipH: 40,
+      viewportW: 800,
+      viewportH: 600,
+    });
+    // Both flip; both anchor the near edge at x - offset.
+    expect(fat.right).toBe(slim.right);
+    expect(fat.right).toBe(800 - (x - FIXED_TIP_OFFSET_PX));
   });
 
   it('flips both axes near the bottom-right corner', () => {
@@ -65,13 +94,15 @@ describe('placeFixedTip', () => {
       viewportW: 800,
       viewportH: 600,
     });
-    expect(pos.left).toBe(x - FIXED_TIP_OFFSET_PX - COUNTER_HOVER_TIP_EST_W);
-    expect(pos.top).toBe(y - FIXED_TIP_OFFSET_PX - COUNTER_HOVER_TIP_EST_H);
-    expect(pos.left).toBeGreaterThanOrEqual(FIXED_TIP_PAD_PX);
-    expect(pos.top).toBeGreaterThanOrEqual(FIXED_TIP_PAD_PX);
+    expect(pos.left).toBeNull();
+    expect(pos.top).toBeNull();
+    expect(pos.right).toBe(800 - (x - FIXED_TIP_OFFSET_PX));
+    expect(pos.bottom).toBe(600 - (y - FIXED_TIP_OFFSET_PX));
+    expect(pos.right).toBeGreaterThanOrEqual(FIXED_TIP_PAD_PX);
+    expect(pos.bottom).toBeGreaterThanOrEqual(FIXED_TIP_PAD_PX);
   });
 
-  it('clamps when a left flip would still crop past the left edge', () => {
+  it('pins left when a left flip would still crop past the left edge', () => {
     const pos = placeFixedTip({
       x: 20,
       y: 80,
@@ -81,10 +112,10 @@ describe('placeFixedTip', () => {
       viewportH: 600,
     });
     expect(pos.left).toBe(FIXED_TIP_PAD_PX);
-    expect(pos.left + 200).toBeGreaterThan(180); // tip wider than viewport — still pinned to pad
+    expect(pos.right).toBeNull();
   });
 
-  it('clamps when an above flip would still crop past the top edge', () => {
+  it('pins top when an above flip would still crop past the top edge', () => {
     const pos = placeFixedTip({
       x: 100,
       y: 10,
@@ -94,5 +125,6 @@ describe('placeFixedTip', () => {
       viewportH: 60,
     });
     expect(pos.top).toBe(FIXED_TIP_PAD_PX);
+    expect(pos.bottom).toBeNull();
   });
 });

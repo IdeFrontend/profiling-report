@@ -129,6 +129,8 @@ function heatmapReport() {
   const blocks = Array.from({ length: 32 }, (_, index) => ({
     index,
     state: index < 3 ? ('withData' as const) : ('withoutData' as const),
+    intensity: index < 3 ? 1 : 0,
+    accessCount: index < 3 ? 16 : 0,
   }));
   return {
     ...topologyReport(),
@@ -144,6 +146,8 @@ function heatmapReport() {
               memoryName: 'UB',
               columns: 8,
               rows: 4,
+              cellSize: 128,
+              baseAddress: 0,
               blocks,
               totalBytes: 1024,
               usedBytes: 96,

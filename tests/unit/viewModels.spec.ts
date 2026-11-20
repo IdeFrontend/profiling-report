@@ -675,6 +675,15 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(l0a.rows).toBe(2);
     expect(l0a.blocks).toHaveLength(8);
     expect(l0a.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0, 1]);
+    // #200: (8+8)=16 and (8+0)=8 → intensities 1 and 0.5 against view max 16.
+    expect(l0a.blocks[0].intensity).toBe(1);
+    expect(l0a.blocks[1].intensity).toBe(0.5);
+    // SA tip value = Read+Write per cell (#194); address = BaseAddress + index×CellSize.
+    expect(l0a.blocks[0].accessCount).toBe(16);
+    expect(l0a.blocks[1].accessCount).toBe(8);
+    expect(l0a.blocks[2].accessCount).toBe(0);
+    expect(l0a.cellSize).toBe(32);
+    expect(l0a.baseAddress).toBe(0);
     expect(l0a.totalBytes).toBe(256);
     expect(l0a.usedBytes).toBe(64);
     expect(l0a.freeBytes).toBe(192);
@@ -712,13 +721,17 @@ describe('PR-VM: report view-models (interim)', () => {
         'CoreId,CoreTypeId,MemoryType,CellRow,CellCol,ReadAddresses,WriteAddresses',
         '0.0,1.0,2.0,0,0,4,0',
         '0.0,1.0,2.0,0,1,0,0',
-        '0.0,1.0,2.0,9,9,1,1',
+        // Off-lattice traffic must not raise viewMax (legend scale is the in-grid max).
+        '0.0,1.0,2.0,9,9,100,0',
         // Missing coords still count toward Used N; no withData paint.
         '0.0,1.0,2.0,,,1,1',
       ].join('\n'),
     })!;
     const dottedView = dotted.units.find((u) => u.id === 'l0a')!.views[0];
     expect(dottedView.blocks.filter((b) => b.state === 'withData').map((b) => b.index)).toEqual([0]);
+    // In-grid 4 stays intensity 1 even though the off-lattice row is 100.
+    expect(dottedView.blocks[0].accessCount).toBe(4);
+    expect(dottedView.blocks[0].intensity).toBe(1);
     // Used = N * CellSize for all four Cells rows (zero-traffic + OOB + no-coords).
     expect(dottedView.usedBytes).toBe(64);
     // Free is unclamped — Used == Total here (4*16).

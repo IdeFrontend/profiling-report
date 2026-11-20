@@ -73,17 +73,18 @@ Fill uses the same colour at **alpha 0.45** (`counterLanePaint` `FILL_ALPHA`, Ov
 
 ## Heatmap (memory utilization)
 
-Sampled from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-topology-fullscreen.jpeg) — the biprof **§11.2.3.2 Memory Utilization Heatmap** legend and block grid, and reused for the clickable unit tint on the topology ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)). Two allocation states, **no third state**.
+Board/frame from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-topology-fullscreen.jpeg); cell fill/legend lerp the binary Free→Used blues (#200). Diagram unit hit-box blues stay for topology selection ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)).
 
-| Token | Hex | Role |
-|-------|-----|------|
-| `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | `已用` / `Used` legend swatch + used grid cells; also the diagram's hover (35%) / selected (45%) unit tint |
-| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | `空闲` / `Free` legend swatch + free grid cells; the selected unit box's hairline stroke |
+| Token | Value | Role |
+|-------|-------|------|
+| Heat cell / legend fill | RGB lerp `#AFC6FE` → `#3D64AD` | Continuous intensity: Free (0) → Used (1); `intensity = (Read+Write)/viewMax` |
+| `HEAT_BLOCK_WITH_DATA` | `#3D64AD` | Used / high end of heat fill; diagram hover (35%) / selected (45%) unit tint |
+| `HEAT_BLOCK_WITHOUT_DATA` | `#AFC6FE` | Free / low end of heat fill; selected unit box hairline stroke on the diagram |
 | `HEAT_GRID_BOARD` | `#303F5E` | the board the grid's gaps cut into (the lattice between cells) |
 | `HEAT_GRID_FRAME` | `#6E798D` | the grid's `2px` outer border |
-| `HEAT_TAB_INDICATOR` | `#FFFFFF` | the active tab's short bar under its label — the heat blue is the *selection* tint on the diagram, not the tab's indicator |
+| `HEAT_TAB_INDICATOR` | `#FFFFFF` | the active tab's short bar under its label |
 
-The five are applied directly in [`MemoryHeatmapPanel`](../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) / [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) styles (hardcoded, like the toolbar controls above) — they are the sketch's own inks, not theme-derived, so a host theme tint must not re-map them.
+Applied in [`MemoryHeatmapPanel`](../../src/ui/StatsAside/MemoryHeatmapPanel/MemoryHeatmapPanel.spec.md) / [`MemoryTopologyPanel`](../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) styles (hardcoded, like the toolbar controls above) — not theme-derived, so a host theme tint must not re-map them.
 
 ## CSS variable map (library)
 
