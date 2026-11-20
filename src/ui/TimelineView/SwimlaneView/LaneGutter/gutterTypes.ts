@@ -18,6 +18,10 @@ export type GutterLane = {
   categoryKey?: LaneCategoryKey;
   /** Sub-rows for a multi-row leaf; the gutter renders one tall title cell. */
   rowCount?: number;
+  /** CounterTrack leaf — taller band (`COUNTER_LANE_HEIGHT`). */
+  counter?: boolean;
+  /** Explicit band height in px (counters set this; else `rowCount × LANE_HEIGHT`). */
+  height?: number;
 };
 
 export type GutterGroup = {

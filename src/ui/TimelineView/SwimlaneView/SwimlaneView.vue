@@ -15,7 +15,7 @@ import {
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_GROUP_HEADER_HOVER,
-  LANE_HEIGHT,
+  flatLaneHeight,
   layoutHeaders,
   visualContentHeight,
   type CollapseAnimState,
@@ -389,7 +389,7 @@ const altMeasureCrossBridge = computed(() => {
   };
 });
 const pinnedStripHeight = computed(() =>
-  pinnedRows.value.reduce((h, row) => h + (row.lane.rowCount ?? 1) * LANE_HEIGHT, 0),
+  pinnedRows.value.reduce((h, row) => h + flatLaneHeight(row.lane), 0),
 );
 /** Sticky overview strip height (N × OVERVIEW_LANE_H) — drives enter/leave CSS tween. */
 const pinnedOverviewHeight = computed(
