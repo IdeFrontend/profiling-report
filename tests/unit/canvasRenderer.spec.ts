@@ -1497,9 +1497,14 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(bins).toHaveLength(2);
     expect(bins[0]).toMatchObject({ col: 0, count: 2, t0: 0, t1: 0.5 });
     expect(bins[1]).toMatchObject({ col: 1, count: 2, t0: 0.5, t1: 1 });
-    // viewEnd is inclusive (zoom-to-fit end == last duration-0 tick).
+    // viewEnd is inclusive and lands in the last overlapping column, not a
+    // column that starts at viewEnd (that quad paints at x == width).
     const endTick = binTicksByCssColumn([10, 100], 0, 100, 10);
     expect(endTick.reduce((sum, bin) => sum + bin.count, 0)).toBe(2);
+    expect(endTick[endTick.length - 1]).toMatchObject({ col: 9, t0: 90, t1: 100 });
+    expect(binTicksByCssColumn([100], 0, 100, 10)).toEqual([
+      expect.objectContaining({ col: 9, count: 1, t0: 90, t1: 100 }),
+    ]);
     expect(binTicksByCssColumn([100.1], 0, 100, 10)).toEqual([]);
 
     // Same dt + same in-window ticks → identical bins under horizontal pan (PR-RENDER-066).
@@ -1616,6 +1621,9 @@ describe('PR-RENDER: lane chrome color', () => {
       .default as string;
     expect(canvasSrc).toMatch(/assignTickDensityDims/);
     expect(canvasSrc).toMatch(/!hasSearch && !hasSelection && !hasMulti/);
+    const densityMarks = canvasSrc.match(/for \(const m of marks\) \{[\s\S]*?\n {10}\}/)?.[0];
+    expect(densityMarks).toMatch(/snapEventRect/);
+    expect(densityMarks).not.toMatch(/eventPaintRect/);
     expect(canvasSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(canvasSrc).not.toMatch(/partitionTickLodByRuns/);
   });

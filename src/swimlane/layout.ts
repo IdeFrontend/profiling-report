@@ -1740,7 +1740,14 @@ export function binTicksByCssColumn(
   const firstCol = Math.floor(viewStart / dt);
   const grid0 = firstCol * dt;
   // View may span W or W+1 world bins when viewStart is not on the grid.
-  const lastCol = Math.floor((viewEnd - Number.EPSILON) / dt);
+  // Last bin that starts inside the view. An on-grid viewEnd (zoom-to-fit,
+  // minTime 0) is an integer column count; subtracting EPSILON does not move
+  // it once viewEnd's ulp exceeds EPSILON, and that phantom column paints at
+  // x == width. 1e-6 column is far above float error and far below one column.
+  const endUnits = viewEnd / dt;
+  const endRounded = Math.round(endUnits);
+  const lastCol =
+    Math.abs(endUnits - endRounded) < 1e-6 ? endRounded - 1 : Math.floor(endUnits);
   const n = Math.max(1, lastCol - firstCol + 1);
   const counts = new Int32Array(n);
   for (const t of times) {
