@@ -41,8 +41,7 @@ function modelWith(files: SourceFileModel[]): SourceCorrelationModel {
       metricsColumns: [],
       lines: [],
     },
-    sourceToAsm: {},
-    asmToSource: {},
+    asmToSource: new Map(),
     navigateBy: ['samplingStall'],
     mock: false,
   };
@@ -61,12 +60,42 @@ describe('resolveSourceFile helpers', () => {
 
   it('applyResolvedSourceText replaces text and preserves stall metrics', () => {
     const text = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n');
-    const next = applyResolvedSourceText(placeholderFile(), text);
+    const next = applyResolvedSourceText(
+      placeholderFile({
+        lineCount: 1728,
+        metricsColumns: [
+          { id: 'instructionsExecuted', label: 'Instructions Executed', kind: 'number' },
+          { id: 'samplingStall', label: 'Sampling Stall', kind: 'number' },
+          { id: 'warpOccupancy', label: 'Warp Occupancy', kind: 'percent' },
+        ],
+      }),
+      text,
+    );
     expect(next.text).toBe(text);
     expect(next.lines).toHaveLength(40);
+    expect(next.lineCount).toBeUndefined();
     expect(next.lines[38]!.values.samplingStall).toBe(12);
     expect(next.lines[38]!.stallBreakdown?.[0]?.metric).toBe('IBuf empty');
     expect(next.lines[0]!.values.samplingStall).toBe(0);
+  });
+
+  it('applyResolvedSourceText zeros use the file metricsColumns (not compute ids)', () => {
+    const text = 'a\nb\nc';
+    const next = applyResolvedSourceText(
+      placeholderFile({
+        lineCount: 100,
+        metricsColumns: [
+          { id: 'executionCount', label: 'Instructions Executed', kind: 'number' },
+          { id: 'tickCount', label: 'Tick Count', kind: 'number' },
+        ],
+        lines: [{ line: 2, values: { executionCount: 9, tickCount: 3 } }],
+      }),
+      text,
+    );
+    expect(next.lines).toHaveLength(3);
+    expect(next.lines[0]!.values).toEqual({ executionCount: 0, tickCount: 0 });
+    expect(next.lines[1]!.values.executionCount).toBe(9);
+    expect(next.lines[0]!.values.instructionsExecuted).toBeUndefined();
   });
 
   it('resolveMissingSourceFiles skips embedded text and does not call resolve', async () => {

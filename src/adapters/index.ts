@@ -72,6 +72,11 @@ export {
   COMPUTE_SOURCE_EMBED_NAMES,
 } from './sourceCorrelation/adaptComputeSourceCorrelation';
 export {
+  adaptEmulateSourceCorrelation,
+  hasEmulateSourcePack,
+  EMULATE_SOURCE_EMBED_NAMES,
+} from './sourceCorrelation/adaptEmulateSourceCorrelation';
+export {
   MISSING_SOURCE_EMBED_PREFIX,
   isMissingSourceEmbed,
   fileNeedsSourceResolve,

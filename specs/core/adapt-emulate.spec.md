@@ -26,7 +26,9 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Omit gap panels.** Do not populate `overviewSeries`, `roofline`, or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards.
 
-**Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`; **`memoryHeatmap`** when a heat unit is drawable. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载). Do not set `roofline` until a dedicated mapper exists.
+**Source | SASS (DATA-53).** `adaptEmulate` calls `adaptSourceCorrelation`. When ELF `SourceInstructions` / `AsmMetrics` gate passes, attach `sourceCorrelation` (`mock: false`) and advertise **`sourceTab`**. Assembly-only (no SourceFiles) is allowed. Gelu-without-ELF and IPCAsmMetrics-only packs omit the tab ([UI-37](../../docs/context/decisions/UI.md)).
+
+**Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`; **`memoryHeatmap`** when a heat unit is drawable; **`sourceTab`** when a real (non-mock) Source model attaches. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载). Do not set `roofline` until a dedicated mapper exists.
 
 **Errors.** Corrupt marker or unparseable PipeTrace → throw. Missing PipeTrace or optional analytics embeds → omit fields / null swimlane, do not throw.
 
@@ -45,6 +47,8 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 11. **PR-ASIM-010** — No hint embeds (or unresolvable `HintMsgId`s) → `performanceHints` field omitted and capability absent ([DATA-30](../../docs/context/decisions/DATA.md)).
 12. **PR-ASIM-011** — RFC-4180 quoted `HintMessages` text with embedded commas survives `parseCsv` and the join resolves msg id 1 to the full text.
 13. **PR-ASIM-012** — `SourceLineHints` without `SourceLines` → raw `sourceLineId`, no invented line numbers; `KernelHints` rows have no pc/sourceLineId; `PC` kept as exact decimal string.
+14. **PR-ASIM-013** — ELF SourceInstructions / AsmMetrics → `sourceCorrelation.mock === false` and capability **`sourceTab`**.
+15. **PR-ASIM-014** — Without ELF Source* / AsmMetrics (IPC-only / gelu-shaped) → omit `sourceCorrelation` and `'sourceTab'`.
 
 ## Edge Cases
 
@@ -60,7 +64,10 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (interim DATA-48a); a dedicated `ArchDiagramModel` / biprof chrome rides this question.
 
+Emulate Source follow-ons (stalls / IPC / richer metrics / tick→ns / SASS label): interim [DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e), [UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a).
+
 ## Changelog
+- **2026-11-17** — Emulate Source | SASS via ELF CSVs (DATA-53): PR-ASIM-013 / PR-ASIM-014.
 - **2026-11-02** — Heat SSOT is Layout+Cells (DATA-50/51); no UbRw fallback.
 - **2026-10-01** — Memory Utilization Heatmap fills the separate `memoryHeatmap` carrier + capability (PR-VM-025, [DATA-49](../../docs/context/decisions/DATA.md)); former UbRw path superseded 2026-11-02.
 - **2026-09-24** — DATA-48a ratio merge spelled as unweighted average; EAV headers case-insensitive (PR-ASIM-008b).

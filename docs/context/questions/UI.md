@@ -58,7 +58,7 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Question:** What does **Redo Resolve** do end-to-end — re-run symbol/source resolution against embeds, clear and rebuild correlation maps, or only re-apply the current caret mapping? Does it need a progress / error surface?
 
-**Answer so far:** UI re-jumps correlation from the current (or first hot) source line; compute packs can fill maps when symbolizer `Line > 0` ([DATA-54](DATA.md)); full resolve pipeline still open ([DATA-52](DATA.md) / [DATA-53](DATA.md)).
+**Answer so far:** UI re-jumps correlation from the current (or first hot) source line; compute packs can fill maps when symbolizer `Line > 0` ([DATA-54](DATA.md)); emulate ELF maps per [DATA-53](../decisions/DATA.md); compute packing / resolve still open ([DATA-52](DATA.md)).
 
 **Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [INTERACTIONS.md](../../ui/INTERACTIONS.md).
 

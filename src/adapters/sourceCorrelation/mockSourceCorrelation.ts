@@ -286,6 +286,21 @@ function assemblyFile(): SourceFileModel {
 
 /** Deterministic Source ↔ SASS fixture used when real embeds are absent (UI-37). */
 export function mockSourceCorrelation(): SourceCorrelationModel {
+  // Map hot source lines onto contiguous asm ranges (sketch-like correlation density).
+  const sourceToAsm = new Map<number, number[]>([
+    [46, [1, 2, 3, 4, 5]], // DataCopy kernel weights
+    [61, [6, 7, 8, 9, 10, 11]], // Convolve call
+    [71, [12, 13, 14, 15, 16]], // DataCopy tile in
+    [85, [17, 18, 19, 20, 21, 22, 23]], // Convolve definition
+    [128, [40, 41, 42, 43, 44, 45]], // op.Process()
+  ]);
+  const asmToSource = new Map<number, { fileId: string; line: number }>();
+  for (const [line, asmLines] of sourceToAsm) {
+    for (const asm of asmLines) {
+      asmToSource.set(asm, { fileId: 'sharpen.cpp', line });
+    }
+  }
+
   const file: SourceFileModel = {
     id: 'sharpen.cpp',
     path: 'sharpen.cpp',
@@ -293,28 +308,12 @@ export function mockSourceCorrelation(): SourceCorrelationModel {
     text: SOURCE_TEXT,
     metricsColumns: SOURCE_COLUMNS,
     lines: sourceLines(),
+    sourceToAsm,
   };
-
-  // Map hot source lines onto contiguous asm ranges (sketch-like correlation density).
-  const sourceToAsm: Record<string, number[]> = {
-    'sharpen.cpp:46': [1, 2, 3, 4, 5], // DataCopy kernel weights
-    'sharpen.cpp:61': [6, 7, 8, 9, 10, 11], // Convolve call
-    'sharpen.cpp:71': [12, 13, 14, 15, 16], // DataCopy tile in
-    'sharpen.cpp:85': [17, 18, 19, 20, 21, 22, 23], // Convolve definition
-    'sharpen.cpp:128': [40, 41, 42, 43, 44, 45], // op.Process()
-  };
-  const asmToSource: Record<number, { fileId: string; line: number }> = {};
-  for (const [key, asmLines] of Object.entries(sourceToAsm)) {
-    const line = Number(key.split(':')[1]);
-    for (const asm of asmLines) {
-      asmToSource[asm] = { fileId: file.id, line };
-    }
-  }
 
   return {
     files: [file],
     assembly: assemblyFile(),
-    sourceToAsm,
     asmToSource,
     navigateBy: ['instructionsExecuted', 'samplingStall', 'warpOccupancy'],
     mock: true,

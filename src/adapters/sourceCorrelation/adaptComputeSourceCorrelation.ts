@@ -80,10 +80,11 @@ function findSourceText(
   return null;
 }
 
+/** Two hex words (hi lo) for a report PC — supports full 64-bit hex strings. */
 function formatAddress(pcHex: string): string {
-  const hi = '00000000';
-  const lo = pcHex.padStart(8, '0');
-  return `${hi} ${lo}`;
+  const clean = pcHex.replace(/^0x/i, '');
+  const padded = clean.padStart(16, '0');
+  return `${padded.slice(0, -8)} ${padded.slice(-8)}`;
 }
 
 function emptyMetrics(lineCount: number): SourceLineMetrics[] {
@@ -312,19 +313,27 @@ export function adaptComputeSourceCorrelation(
   };
 
   const pcToAsmLine = new Map(insns.map((insn, i) => [insn.pc, i + 1]));
-  const sourceToAsm: Record<string, number[]> = {};
-  const asmToSource: Record<number, { fileId: string; line: number }> = {};
+  const sourceToAsmByFile = new Map<string, Map<number, number[]>>();
+  const asmToSource = new Map<number, { fileId: string; line: number }>();
 
   for (const site of sites) {
     if (site.line == null) continue;
     const asmLine = pcToAsmLine.get(site.pc);
     if (asmLine == null) continue;
     const fileId = basename(site.fileName);
-    const key = `${fileId}:${site.line}`;
-    const list = sourceToAsm[key] ?? (sourceToAsm[key] = []);
-    if (!list.includes(asmLine)) list.push(asmLine);
-    if (asmToSource[asmLine] == null) {
-      asmToSource[asmLine] = { fileId, line: site.line };
+    let byLine = sourceToAsmByFile.get(fileId);
+    if (!byLine) {
+      byLine = new Map();
+      sourceToAsmByFile.set(fileId, byLine);
+    }
+    const list = byLine.get(site.line);
+    if (list) {
+      if (!list.includes(asmLine)) list.push(asmLine);
+    } else {
+      byLine.set(site.line, [asmLine]);
+    }
+    if (!asmToSource.has(asmLine)) {
+      asmToSource.set(asmLine, { fileId, line: site.line });
     }
   }
 
@@ -338,9 +347,9 @@ export function adaptComputeSourceCorrelation(
       // Keep rolled-up metrics even when text is a placeholder so resolveSourceFile
       // can fill the editor without dropping stall / instr / occupancy.
       lines: file.metrics,
+      sourceToAsm: sourceToAsmByFile.get(file.id) ?? new Map(),
     })),
     assembly,
-    sourceToAsm,
     asmToSource,
     navigateBy: ['instructionsExecuted', 'samplingStall', 'warpOccupancy'],
     mock: false,

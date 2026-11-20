@@ -130,6 +130,9 @@ async function latestSuduEditor() {
     revealLine: ReturnType<typeof vi.fn>;
     focus: ReturnType<typeof vi.fn>;
     setTheme: ReturnType<typeof vi.fn>;
+    setVScrollPos: ReturnType<typeof vi.fn>;
+    setVScrollListener: ReturnType<typeof vi.fn>;
+    hasFocus: ReturnType<typeof vi.fn>;
     highlightRanges: ReturnType<typeof vi.fn>;
     selectNextRange: ReturnType<typeof vi.fn>;
     selectPrevRange: ReturnType<typeof vi.fn>;
@@ -267,7 +270,7 @@ describe('SourceView', () => {
     ed.setTheme.mockClear();
     // Mock asm line 99 is unmapped (no asmToSource entry).
     const unmapped =
-      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+      model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line ?? null;
     expect(unmapped).not.toBeNull();
     await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
     await flushPromises();
@@ -286,13 +289,22 @@ describe('SourceView', () => {
     const restored = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
     expect(restored[11]).toBe('#1e1f22');
     expect(restored[14]).toBeUndefined();
-    // Editor caret move (not a metrics click) must restore the band too.
+    // Further caret moves must not rebuild the theme (override already cleared).
     ed.setTheme.mockClear();
     ed.setPosition({ lineNumber: 50, column: 1 });
+    expect(ed.setTheme).not.toHaveBeenCalled();
+    // After clearLine again, a caret move (not a metrics click) restores the band once.
+    await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
+    await flushPromises();
+    ed.setTheme.mockClear();
+    ed.setPosition({ lineNumber: 51, column: 1 });
     expect(ed.setTheme).toHaveBeenCalled();
     const fromCaret = ed.setTheme.mock.calls.at(-1)?.[0] as Record<number, string>;
     expect(fromCaret[11]).toBe('#1e1f22');
     expect(fromCaret[14]).toBeUndefined();
+    ed.setTheme.mockClear();
+    ed.setPosition({ lineNumber: 52, column: 1 });
+    expect(ed.setTheme).not.toHaveBeenCalled();
   });
 
   it('PR-SOURCE-006c: editor click on the cleared line selects it', async () => {
@@ -304,7 +316,7 @@ describe('SourceView', () => {
     await asmTable.find('tr[data-line="2"]').trigger('click');
     await flushPromises();
     const unmapped =
-      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+      model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line ?? null;
     expect(unmapped).not.toBeNull();
     await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
     await flushPromises();
@@ -640,10 +652,11 @@ describe('SourceView', () => {
 
   it('PR-SOURCE-014d: asm click before boot still clears the echo gate', async () => {
     const model = mockSourceCorrelation();
-    const line1Asm = model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line;
+    const line1Asm = model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line;
     expect(line1Asm).toBeDefined();
-    model.asmToSource[line1Asm!] = { fileId: 'sharpen.cpp', line: 1 };
-    model.sourceToAsm['sharpen.cpp:1'] = [line1Asm!];
+    model.asmToSource.set(line1Asm!, { fileId: 'sharpen.cpp', line: 1 });
+    model.files[0]!.sourceToAsm ??= new Map();
+    model.files[0]!.sourceToAsm.set(1, [line1Asm!]);
     const wrapper = mount(SourceView, { props: { model } });
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     await asmTable.find(`tr[data-line="${line1Asm}"]`).trigger('click');
@@ -673,7 +686,7 @@ describe('SourceView', () => {
     expect(reveals.filter((line) => line === 46).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('PR-SOURCE-013: SASS pane is table-only with sketch column order', () => {
+  it('PR-SOURCE-013: SASS pane is table-only with model metric columns', () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     const asm = wrapper.find('[data-testid="asm-table-pane"]');
     expect(asm.exists()).toBe(true);
@@ -690,6 +703,98 @@ describe('SourceView', () => {
     const row1 = asm.find('tr[data-line="1"]');
     expect(row1.find('[data-col="address"]').text()).toMatch(/00007f7b/);
     expect(row1.find('[data-col="assembly"]').text().length).toBeGreaterThan(0);
+  });
+
+  it('PR-SOURCE-014f: focused caret ownership + scroll-origin mirror', async () => {
+    const model = mockSourceCorrelation();
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const ed = await latestSuduEditor();
+    ed.hasFocus.mockReturnValue(true);
+    ed.revealLine.mockClear();
+    ed.setVScrollPos.mockClear();
+    ed.setPosition.mockClear();
+
+    // Prop echo while focused must not bounce setPosition/revealLine back into Sudu.
+    await wrapper.findComponent({ name: 'SuduCodePane' }).vm.$emit('update:currentLine', 46);
+    await wrapper.vm.$nextTick();
+    expect(ed.revealLine).not.toHaveBeenCalled();
+    expect(ed.setPosition).not.toHaveBeenCalled();
+
+    const scroll = wrapper.find('[data-testid="source-metrics-scroll"]');
+    expect(scroll.exists()).toBe(true);
+    // Editor→table mirror write: echo scroll must not re-enter setVScrollPos.
+    const vScrollCb = ed.setVScrollListener.mock.calls[0]?.[0] as
+      | ((pos: number) => void)
+      | undefined;
+    expect(vScrollCb).toBeTypeOf('function');
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
+    vScrollCb!(120);
+    const mirrored = scroll.element.scrollTop;
+    expect(mirrored).toBeGreaterThan(0);
+    ed.setVScrollPos.mockClear();
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).not.toHaveBeenCalled();
+
+    // User wheel on metrics while Sudu is focused still locks the panes.
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: mirrored + 240,
+      writable: true,
+      configurable: true,
+    });
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).toHaveBeenCalled();
+
+    // Guard is one echo: scrolling back to the mirrored offset still moves Sudu.
+    ed.setVScrollPos.mockClear();
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: mirrored,
+      writable: true,
+      configurable: true,
+    });
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).toHaveBeenCalled();
+
+    // Imperative setLine (asm / Navigate By) still reveals even when focused.
+    const sudu = wrapper.findComponent({ name: 'SuduCodePane' });
+    (sudu.vm as { setLine: (n: number) => void }).setLine(61);
+    expect(ed.revealLine).toHaveBeenCalledWith(61);
+
+    // File switch resets mirroredScrollTop — a scrollTop=0 echo must not push Sudu.
+    ed.setVScrollPos.mockClear();
+    const sharpen = model.files[0]!;
+    const other = {
+      ...sharpen,
+      id: 'other.cpp',
+      path: 'other.cpp',
+      text: 'int other() {\n  return 0;\n}\n',
+      sourceToAsm: new Map<number, number[]>(),
+    };
+    await wrapper.setProps({
+      model: { ...model, files: [sharpen, other] },
+    });
+    await flushPromises();
+    await pickNavigate(wrapper, 'source-file-select', 'other.cpp');
+    Object.defineProperty(scroll.element, 'scrollTop', {
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).not.toHaveBeenCalled();
+    // That reset consumed the echo. The next scroll to 0 is the user's.
+    scroll.element.dispatchEvent(new Event('scroll'));
+    await wrapper.vm.$nextTick();
+    expect(ed.setVScrollPos).toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it('PR-SOURCE-014: Sudu caret echo after asm click does not snap asm to mapped[0]', async () => {
@@ -739,7 +844,7 @@ describe('SourceView', () => {
     await sourceTable.find('tr[data-line="46"]').trigger('click');
     await flushPromises();
     const unmapped =
-      model.assembly.lines.find((r) => model.asmToSource[r.line] == null)?.line ?? null;
+      model.assembly.lines.find((r) => !model.asmToSource.has(r.line))?.line ?? null;
     expect(unmapped).not.toBeNull();
     await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
     await flushPromises();
@@ -1210,13 +1315,20 @@ describe('SourceView', () => {
         { line: 2, values: { instructionsExecuted: 4, samplingStall: 1, warpOccupancy: 0.2 } },
       ],
     };
-    const sourceToAsm = { ...base.sourceToAsm };
-    const moved = sourceToAsm['sharpen.cpp:128']!;
-    delete sourceToAsm['sharpen.cpp:128'];
-    sourceToAsm['other.cpp:2'] = moved;
-    const asmToSource = { ...base.asmToSource };
-    for (const line of moved) asmToSource[line] = { fileId: 'other.cpp', line: 2 };
-    const model = { ...base, files: [sharpen, other], sourceToAsm, asmToSource };
+    const sharpenMap = new Map(sharpen.sourceToAsm);
+    const moved = sharpenMap.get(128)!;
+    sharpenMap.delete(128);
+    const otherMap = new Map<number, number[]>([[2, moved]]);
+    const asmToSource = new Map(base.asmToSource);
+    for (const line of moved) asmToSource.set(line, { fileId: 'other.cpp', line: 2 });
+    const model = {
+      ...base,
+      files: [
+        { ...sharpen, sourceToAsm: sharpenMap },
+        { ...other, sourceToAsm: otherMap },
+      ],
+      asmToSource,
+    };
 
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     await flushPromises();
@@ -1240,12 +1352,10 @@ describe('SourceView', () => {
 
     await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
     expect(correlated()).toEqual([]);
-    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
     await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
     await flushPromises();
     expect(correlated()).toEqual(moved.map(String));
-    expect(scroll).toHaveBeenCalled();
-    scroll.mockRestore();
+    // File-match re-link calls AsmTablePane.setLine → scrollToLine (thirds placement).
 
     await wrapper.find('[data-testid="asm-table-pane"] tr[data-line="40"]').trigger('click');
     await flushPromises();

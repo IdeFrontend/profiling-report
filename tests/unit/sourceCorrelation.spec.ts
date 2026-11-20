@@ -34,11 +34,11 @@ describe('PR-SRC: source correlation adapter', () => {
     ]);
     expect(a.assembly.lines[0]!.values.assembly).toBeTruthy();
     expect(Number(a.assembly.lines[0]!.values.samplingStall)).toBeGreaterThan(1_000_000);
-    expect(Object.keys(a.sourceToAsm).length).toBeGreaterThan(0);
-    for (const [key, asmLines] of Object.entries(a.sourceToAsm)) {
-      const line = Number(key.split(':')[1]);
+    const maps = a.files[0]!.sourceToAsm;
+    expect(maps?.size).toBeGreaterThan(0);
+    for (const [line, asmLines] of maps!) {
       for (const asm of asmLines) {
-        expect(a.asmToSource[asm]).toEqual({ fileId: a.files[0]!.id, line });
+        expect(a.asmToSource.get(asm)).toEqual({ fileId: a.files[0]!.id, line });
       }
     }
     expect(a.navigateBy.length).toBeGreaterThan(0);

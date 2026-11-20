@@ -16,7 +16,8 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 ## Unit contract
 
 - Line numbers are **1-based**.
-- Correlation keys use `` `${fileId}:${line}` ``.
+- Correlation maps: per-file `sourceToAsm: Map<sourceLine, asmLines[]>` and model `asmToSource: Map<asmLine, { fileId, line }>`.
+- Sparse emulate source files may set `lineCount` (metrics table extent) while `lines` stays sparse; dense listings omit `lineCount`.
 - `mock: true` only on the deterministic fixture; real embeds set `mock: false`.
 
 ## Behavior
@@ -35,8 +36,17 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
   - Missing / failed sql.js init, and corrupt / unsupported DBs, are ignored (warn + zero stalls); they do not abort report load.
   - Instructions Executed (count) and Warp Occupancy (0–1 fraction) stay 0 unless the table also has `Instructions_Executed` and `Warp_Occupancy`. Sample packs include them; gather_2d does not ([DATA-55](../../docs/context/questions/DATA.md)). Mapped source lines sum stall and instructions and average occupancy.
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
-- Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; correlation keys use that file's id.
+- Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; that file's id is the basename used in `asmToSource` hits.
 - When that pack text is absent, adapt still emits the file with a `// missing source embed: …` placeholder sized to the grown metrics line count and keeps mapped stall / instr / occupancy rollups so a host `resolveSourceFile` can fill the editor later without dropping them ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
+
+**Real path — emulate ELF CSVs.** When payloads include non-empty `SourceInstructions.csv` **or** `AsmMetrics.csv` with `PC` + instruction text, `adaptSourceCorrelation` builds a real model via `adaptEmulateSourceCorrelation` (`mock: false`, [DATA-53](../../docs/context/decisions/DATA.md)):
+
+- Asm rows from `SourceInstructions` (prefer) or `AsmMetrics` fallback; Address = hex report PC; Assembly = `SourceInstrText` / `InstrName`.
+- MVP metrics from `AsmMetrics` / `SourceLineMetrics`: ExecutionCount, TickCount, RelTime, WarpOccupancy, VectorUtilization (producer 0–100 stored as 0–1 for percent display). NULL → unavailable; numeric 0 stays 0.
+- Maps from `SourceInstructions` ⟕ `DebugInfo` ⟕ `SourceFiles` ⟕ `SourceLines`; `LineNum > 0` only. Unmapped clears correlation.
+- `SourceFiles` / `SourceLines` optional — assembly-only (`files: []`) or missing-embed placeholder (shared UX with compute).
+- Do **not** light from `IPCAsmMetrics` or hint CSVs alone ([DATA-53b](../../docs/context/decisions/interim/DATA.md#data-53b)).
+- Deferred emulate slices: stalls ([DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)), richer metrics / BB / stacks ([DATA-53c](../../docs/context/decisions/interim/DATA.md#data-53c)), full-file resolve ([DATA-53d](../../docs/context/decisions/interim/DATA.md#data-53d)), tick→ns ([DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e)), SASS label ([UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a)).
 
 **Real path — single JSON.** `SourceCorrelation.json` (and aliases) remain reserved; schema is still Product-TBD, so those embeds currently return `null` ([DATA-52](../../docs/context/questions/DATA.md)).
 
@@ -59,13 +69,20 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 9. **PR-SRC-009** — Distinct symbolizer basenames become separate source files; `Line <= 0` stays unmapped.
 10. **PR-SRC-010** — Missing `.asc` embed keeps padded placeholder and mapped-line stall metrics.
 11. **PR-SRC-011** — Partial counters and invalid addresses degrade.
+12. **PR-SRC-012** — Emulate ELF CSVs yield `mock: false` with PC↔line maps and MVP metrics (NULL vs 0).
+13. **PR-SRC-013** — AsmMetrics-only (no SourceFiles) lights assembly-only model.
+14. **PR-SRC-014** — Missing SourceLines keeps missing-embed placeholder and mapped line metrics.
+15. **PR-SRC-015** — IPCAsmMetrics / hints alone do not light the gate.
+16. **PR-SRC-016** — `adaptSourceCorrelation` dispatches emulate ELF packs.
+17. **PR-SRC-017** — `adaptEmulate` with ELF attaches `sourceCorrelation` + `'sourceTab'`.
 
 ## Dependencies
 
-[UI-37](../../docs/context/decisions/UI.md), [compute FORMAT](../../docs/formats/compute/FORMAT.md), [source view](../../docs/views/source.md), [view-models](./view-models.spec.md), [DATA-52](../../docs/context/questions/DATA.md)–[DATA-55](../../docs/context/questions/DATA.md).
+[UI-37](../../docs/context/decisions/UI.md), [compute FORMAT](../../docs/formats/compute/FORMAT.md), [emulate FORMAT](../../docs/formats/emulate/FORMAT.md), [source view](../../docs/views/source.md), [view-models](./view-models.spec.md), [DATA-52](../../docs/context/questions/DATA.md), [DATA-53](../../docs/context/decisions/DATA.md), [DATA-54](../../docs/context/questions/DATA.md), [DATA-55](../../docs/context/questions/DATA.md).
 
 ## Changelog
 
+- **2026-11-17** — Emulate ELF Source path (`adaptEmulateSourceCorrelation`, DATA-53): PR-SRC-012…017.
 - **2026-11-11** — Sampling Stall accepts both producer schemas (`PcSampling`/`address`, `pc_sampling`/`pc_offset`); partial counters, invalid addresses, and missing columns degrade with warnings (`PR-SRC-011`, [#212](https://github.com/IdeFrontend/profiling-report/pull/212)).
 - **2026-10-28** — Missing `.asc` embed keeps metrics-aligned placeholder and stall rollups (`PR-SRC-010`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 - **2026-10-24** — Optional `pc_sampling` columns `Instructions_Executed` and `Warp_Occupancy` fill those Source / SASS metrics. Packs without the columns stay at 0.

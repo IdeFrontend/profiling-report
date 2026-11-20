@@ -25,7 +25,7 @@ JSON **array** of sites (gather_2d shape).
 | `Symbol[0].Line` | 1-based line; **`Line <= 0` → unmapped** ([DATA-54](../../context/questions/DATA.md) interim) |
 | `Symbol[0].FunctionName` | Stored; optional |
 
-Other Symbol keys are ignored by the current reader. Correlation maps: `sourceToAsm` / `asmToSource` keyed by `` `${fileId}:${line}` `` with `fileId` = **basename** of `FileName`. Distinct basenames → separate source files (first-seen order).
+Other Symbol keys are ignored by the current reader. Correlation maps: per-file `sourceToAsm: Map<sourceLine, asmLines[]>` and model `asmToSource: Map<asmLine, {fileId, line}>` with `fileId` = **basename** of `FileName`. Distinct basenames → separate source files (first-seen order).
 
 ## Example
 

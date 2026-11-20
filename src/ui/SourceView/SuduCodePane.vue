@@ -135,6 +135,12 @@ let paintedSearchRanges: SearchRange[] = [];
 let editor: EditorView | null = null;
 let model: TextModel | null = null;
 let pool: SuduWorkerPool | null = null;
+/**
+ * Suppresses the *synchronous* editor→table→editor hop inside `setVScrollPos`
+ * (listener sees the same device pos we just wrote). Cleared before the
+ * browser's async `scroll` event, so it cannot absorb that echo — see
+ * `mirroredScrollTop` for the opposite direction.
+ */
 let pendingEcho = -1;
 let disposed = false;
 /** Selection requested before Sudu finished booting — applied in boot(). */
@@ -153,6 +159,27 @@ let pendingCaretEcho = false;
 let ignoreCaret = false;
 /** Set when the caret listener actually emitted (boot must not emit again). */
 let caretEchoed = false;
+/**
+ * Metrics `scrollTop` of one pending editor→table write (table←editor).
+ * `onTableScroll` swallows that echo once, then clears this back to `null`.
+ * A later user scroll to the same pixel must still call `setVScrollPos`.
+ * `null` = no echo pending (do not treat as 0). Opposite direction of
+ * `pendingEcho` — deleting either brings the loop back.
+ */
+let mirroredScrollTop: number | null = null;
+/** True after `clearLine` hides the current-line band; cleared on first restore. */
+let themeOverridden = false;
+
+/** True when Sudu reports focus — covers click, tab, and other focus paths. */
+function editorHasFocus(): boolean {
+  return !!editor?.hasFocus?.();
+}
+
+function restoreThemeIfOverridden() {
+  if (!themeOverridden || !editor) return;
+  themeOverridden = false;
+  editor.setTheme(suduEditorTheme());
+}
 
 const metricColumns = computed(() => props.file.metricsColumns);
 const metricColIds = computed(() => metricColumns.value.map((c) => c.id));
@@ -299,9 +326,10 @@ async function boot() {
           emit('update:currentLine', actual);
         }
       } else {
+        // Prop-only boot line: place caret without stealing focus from the host.
         ignoreCaret = true;
         try {
-          setLine(bootLine);
+          setLine(bootLine, { focus: false });
         } finally {
           ignoreCaret = false;
         }
@@ -355,7 +383,10 @@ function syncTableToCaret() {
   const scroll = tableScrollEl.value;
   if (!scroll) return;
   const target = cssScrollFromDevice(editor.getVScrollPos(), geom.value.dpr);
-  if (Math.abs(scroll.scrollTop - target) >= 0.5) scroll.scrollTop = target;
+  if (Math.abs(scroll.scrollTop - target) < 0.5) return;
+  scroll.scrollTop = target;
+  // Arm only when a scroll event will follow. An unchanged scrollTop does not.
+  mirroredScrollTop = scroll.scrollTop;
 }
 
 function waitForGeom() {
@@ -378,15 +409,19 @@ function wireSync() {
     const scroll = tableScrollEl.value;
     if (!scroll || !(geom.value.dpr > 0)) return;
     const target = cssScrollFromDevice(vScrollPos, geom.value.dpr);
-    if (Math.abs(scroll.scrollTop - target) >= 0.5) scroll.scrollTop = target;
+    if (Math.abs(scroll.scrollTop - target) >= 0.5) {
+      scroll.scrollTop = target;
+      // Integer-rounded value the browser will report on the echo scroll event.
+      mirroredScrollTop = scroll.scrollTop;
+    }
   });
   // Caret movement is synchronous with Sudu; table current-row + parent sync follow it.
   const ed = editor;
   ed.setCaretListener((lineNumber: number) => {
     if (ignoreCaret) return;
     caretEchoed = true;
-    // clearLine's theme override survives arrow keys and editor clicks.
-    ed.setTheme(suduEditorTheme());
+    // Only rebuild the theme when clearLine actually hid the current-line band.
+    restoreThemeIfOverridden();
     emit('update:currentLine', lineNumber);
   });
 }
@@ -396,6 +431,12 @@ function onTableScroll() {
   if (!editor || !(geom.value.dpr > 0)) return;
   const scroll = tableScrollEl.value;
   if (!scroll) return;
+  // One echo of our editor→table write. Clear it so a later scroll to the
+  // same offset (user wheel back, or the next file's reset) still moves Sudu.
+  if (mirroredScrollTop != null && Math.abs(scroll.scrollTop - mirroredScrollTop) < 1) {
+    mirroredScrollTop = null;
+    return;
+  }
   const devicePos = deviceScrollFromCss(scroll.scrollTop, geom.value.dpr);
   pendingEcho = devicePos;
   editor.setVScrollPos(devicePos);
@@ -520,7 +561,7 @@ function stepSearch(dir: 1 | -1) {
  */
 function onEditorPointerDown() {
   if (!editor) return;
-  editor.setTheme(suduEditorTheme());
+  restoreThemeIfOverridden();
   const line = editor.getPosition?.()?.lineNumber;
   if (line == null) return;
   void nextTick(() => {
@@ -540,7 +581,7 @@ function onRowClick(line: number) {
   // already under the caret (initial line, or the line clearLine left in place)
   // still has to select it.
   // clearLine hides the current-line band; a click must paint it again.
-  editor.setTheme(suduEditorTheme());
+  restoreThemeIfOverridden();
   const already = editor.getPosition?.()?.lineNumber === line;
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.focus();
@@ -553,13 +594,19 @@ function onRowClick(line: number) {
  * focus() is required for the line to look selected. Caret listener may emit;
  * SourceView’s syncOrigin / same-group stay absorbs the bounce (no ignoreCaret).
  */
-function setLine(line: number): 'unchanged' | 'moved' {
+function setLine(
+  line: number,
+  opts?: { focus?: boolean },
+): 'unchanged' | 'moved' {
   if (!editor) return 'unchanged';
-  editor.setTheme(suduEditorTheme());
+  restoreThemeIfOverridden();
   const prev = editor.getPosition?.()?.lineNumber;
+  // Imperative only (asm → source, Navigate By, boot). Prop echoes while focused
+  // are blocked in the currentLine watch — do not skip reveal here or correlation
+  // jumps would fail when the canvas still has focus.
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.revealLine(line);
-  editor.focus();
+  if (opts?.focus !== false) editor.focus();
   // Do not emit here. A live caller reads 'unchanged' (onAsmLine drops the gate).
   // Boot emits only for an imperative queue — a prop-driven same line (scroll)
   // must not look like a user click.
@@ -581,6 +628,7 @@ function clearLine() {
   if (!editor) return;
   ignoreCaret = true;
   try {
+    themeOverridden = true;
     editor.setTheme(suduEditorTheme({ hideCurrentLine: true }));
     const canvas = editorHost.value?.querySelector('canvas');
     if (canvas instanceof HTMLElement) canvas.blur();
@@ -599,6 +647,19 @@ function setLineOrQueue(line: number): 'queued' | 'unchanged' | 'moved' {
   pendingCaretEcho = false;
   return setLine(line);
 }
+
+/**
+ * Metrics table resets scrollTop to 0 on file.id. Arm one echo for that write
+ * only when the scroller is not already at 0 — an unchanged scrollTop fires no
+ * event, and a guard left at 0 would swallow the user's later return to the top.
+ */
+watch(
+  () => props.file.id,
+  () => {
+    const scroll = tableScrollEl.value;
+    mirroredScrollTop = scroll != null && scroll.scrollTop !== 0 ? 0 : null;
+  },
+);
 
 watch(
   () => props.file,
@@ -658,6 +719,8 @@ watch(
       pendingCaretEcho = false;
       return;
     }
+    // Focused editor owns the caret (click, tab, …) — do not bounce prop updates back.
+    if (editorHasFocus()) return;
     const pos = editor.getPosition?.();
     // Already on the line — setPosition is a no-op for caret; do not fight scroll.
     if (pos && pos.lineNumber === line) return;

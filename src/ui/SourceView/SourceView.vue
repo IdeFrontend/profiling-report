@@ -167,13 +167,31 @@ watch(
 
 watch(() => focusKey(props.focus), () => applyFocus(), { immediate: true });
 
-/** Assembly line numbers mapped to `fileId`, in listing order. */
-function mappedAsmLines(fileId: string): number[] {
-  const lines: number[] = [];
-  for (const row of props.model.assembly.lines) {
-    if (props.model.asmToSource[row.line]?.fileId === fileId) lines.push(row.line);
+/** fileId → source file (built once per model). */
+const filesById = computed(() => {
+  const map = new Map<string, SourceFileModel>();
+  for (const f of props.model.files) map.set(f.id, f);
+  return map;
+});
+
+/** fileId → asm lines in listing order (built once per model, not per click). */
+const asmLinesByFile = computed(() => {
+  const map = new Map<string, number[]>();
+  for (const [asmLine, hit] of props.model.asmToSource) {
+    const list = map.get(hit.fileId);
+    if (list) list.push(asmLine);
+    else map.set(hit.fileId, [asmLine]);
   }
-  return lines;
+  for (const list of map.values()) list.sort((a, b) => a - b);
+  return map;
+});
+
+function mappedAsmLines(fileId: string): number[] {
+  return asmLinesByFile.value.get(fileId) ?? [];
+}
+
+function sourceMappedAsm(file: SourceFileModel | null | undefined, line: number): number[] {
+  return file?.sourceToAsm?.get(line) ?? [];
 }
 
 /** File picker only — asm→source correlation may change `selectedFileId` without reset. */
@@ -204,20 +222,21 @@ const correlatedAsm = computed(() => {
   if (!linkViews.value) return [];
   const file = sourceFile.value;
   if (file && sourceLine.value != null) {
-    return props.model.sourceToAsm[`${file.id}:${sourceLine.value}`] ?? [];
+    return sourceMappedAsm(file, sourceLine.value);
   }
   if (showFileMatch.value && file && asmLine.value == null) return mappedAsmLines(file.id);
   // Asm-driven: expand siblings via asm → source → sourceToAsm (right-panel start).
   if (asmLine.value == null) return [];
-  const hit = props.model.asmToSource[asmLine.value];
+  const hit = props.model.asmToSource.get(asmLine.value);
   if (!hit) return [];
-  return props.model.sourceToAsm[`${hit.fileId}:${hit.line}`] ?? [];
+  const hitFile = filesById.value.get(hit.fileId) ?? file;
+  return sourceMappedAsm(hitFile, hit.line);
 });
 
 const correlatedSource = computed(() => {
   if (!linkViews.value) return [];
   if (asmLine.value == null) return [];
-  const hit = props.model.asmToSource[asmLine.value];
+  const hit = props.model.asmToSource.get(asmLine.value);
   return hit ? [hit.line] : [];
 });
 
@@ -282,21 +301,21 @@ function onSourceLine(line: number) {
     syncOrigin.value = null;
     return;
   }
+  const file = sourceFile.value;
+  const mapped = sourceMappedAsm(file, line);
+  // Falite-scale: one source line can map to thousands of PCs — Set for O(1).
+  const mappedSet = mapped.length > 0 ? new Set(mapped) : null;
   // Late caret echo for the same mapped group: keep asm sibling, do not steal pane.
   if (sourceLine.value === line && asmLine.value != null && linkViews.value) {
-    const file = sourceFile.value;
-    const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
-    if (mapped.includes(asmLine.value)) return;
+    if (mappedSet?.has(asmLine.value)) return;
   }
   selectedPane.value = 'source';
   sourceLine.value = line;
   if (!linkViews.value) return;
-  const file = sourceFile.value;
-  const mapped = file ? (props.model.sourceToAsm[`${file.id}:${line}`] ?? []) : [];
-  if (mapped.length > 0) {
+  if (mappedSet && mapped.length > 0) {
     syncOrigin.value = 'source';
     // Keep the asm caret if it already belongs to this source line.
-    const stay = asmLine.value != null && mapped.includes(asmLine.value);
+    const stay = asmLine.value != null && mappedSet.has(asmLine.value);
     const target = stay ? asmLine.value! : mapped[0]!;
     asmLine.value = target;
     asmPane.value?.setLine(target);
@@ -317,7 +336,7 @@ function onAsmLine(line: number) {
   selectedPane.value = 'asm';
   asmLine.value = line;
   if (!linkViews.value) return;
-  const hit = props.model.asmToSource[line];
+  const hit = props.model.asmToSource.get(line);
   if (hit) {
     const fileChanged = hit.fileId !== selectedFileId.value;
     if (fileChanged) selectedFileId.value = hit.fileId;
