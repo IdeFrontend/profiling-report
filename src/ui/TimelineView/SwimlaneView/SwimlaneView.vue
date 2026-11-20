@@ -1261,10 +1261,8 @@ defineExpose({
       <CounterHoverTip
         v-if="counterHover"
         :name="counterHover.name"
-        :utilization="counterHover.utilization"
-        :using-kb="counterHover.usingKb"
+        :rows="counterHover.rows"
         :style-pos="counterTipStyle"
-        :locale="locale"
       />
       <div
         v-if="counterHover"

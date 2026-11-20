@@ -1,46 +1,15 @@
 <script setup lang="ts">
-import { computed, type CSSProperties } from 'vue';
-import { t } from '../../../i18n';
+import type { CSSProperties } from 'vue';
 
-const props = withDefaults(
-  defineProps<{
-    /** Pipe / lane name — tip header (parity with EventTooltip event name). */
-    name: string;
-    utilization: number;
-    usingKb?: number | null;
-    stylePos: CSSProperties;
-    locale?: string;
-  }>(),
-  { usingKb: null, locale: undefined },
-);
+export type CounterTipRow = { label: string; value: string };
 
-const utilLabel = computed(() => t('counterTipUtilization', props.locale));
-const usingLabel = computed(() => t('counterTipUsing', props.locale));
-
-const utilValue = computed(() => {
-  const n = Number.isFinite(props.utilization) ? props.utilization : 0;
-  return `${formatUtil(n)}%`;
-});
-
-const usingValue = computed(() => {
-  if (props.usingKb == null || !Number.isFinite(props.usingKb)) return null;
-  return `${formatKb(props.usingKb)} KB`;
-});
-
-/** Utilization % — short; integers stay bare. */
-function formatUtil(n: number): string {
-  if (Number.isInteger(n)) return String(n);
-  return String(Number(n.toFixed(2)));
-}
-
-/**
- * Using KB — fewer display digits than producer floats (was toPrecision(6)).
- * Cap at 2 decimal places; strip trailing zeros.
- */
-function formatKb(n: number): string {
-  if (Number.isInteger(n)) return String(n);
-  return String(Number(n.toFixed(2)));
-}
+defineProps<{
+  /** Pipe / lane / process name — tip header (parity with EventTooltip event name). */
+  name: string;
+  /** One row per numeric `ph:C` arg on the sample (data-driven; no domain parsers). */
+  rows: CounterTipRow[];
+  stylePos: CSSProperties;
+}>();
 </script>
 
 <template>
@@ -56,19 +25,13 @@ function formatKb(n: number): string {
       {{ name }}
     </div>
     <div
+      v-for="(row, i) in rows"
+      :key="`${row.label}-${i}`"
       class="pr-counter-hover-tip__row"
-      data-testid="counter-hover-util"
+      data-testid="counter-hover-row"
     >
-      <span class="pr-counter-hover-tip__name">{{ utilLabel }}</span>
-      <span class="pr-counter-hover-tip__value">{{ utilValue }}</span>
-    </div>
-    <div
-      v-if="usingValue"
-      class="pr-counter-hover-tip__row"
-      data-testid="counter-hover-using"
-    >
-      <span class="pr-counter-hover-tip__name">{{ usingLabel }}</span>
-      <span class="pr-counter-hover-tip__value">{{ usingValue }}</span>
+      <span class="pr-counter-hover-tip__name">{{ row.label }}</span>
+      <span class="pr-counter-hover-tip__value">{{ row.value }}</span>
     </div>
   </div>
 </template>
@@ -123,36 +86,18 @@ function formatKb(n: number): string {
 
 .pr-counter-hover-tip__value {
   font-variant-numeric: tabular-nums;
-  text-align: right;
   color: #e8e8e8;
+  white-space: nowrap;
 }
 
 @keyframes pr-counter-tip-in {
   from {
     opacity: 0;
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pr-counter-hover-tip.pr-tooltip {
-    animation: none;
-  }
-}
-
-/* Teleported value-dot — OverviewCharts parity (fixed so parent overflow cannot crop it). */
-.pr-counter-hover-dot {
-  position: fixed;
-  z-index: 999;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  box-sizing: border-box;
 }
 </style>

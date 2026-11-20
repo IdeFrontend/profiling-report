@@ -39,6 +39,7 @@ import {
   type MarqueeRect,
 } from '../../../../swimlane/layout';
 import { stepPointAt } from '../../OverviewCharts/stepPath';
+import { counterTipRows } from '../../../../adapters/counterTracksEmulate';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -140,12 +141,14 @@ const freezeBackingStore = computed(
   () => props.freezeBackingStore === true || asideTrackAnimating?.value === true,
 );
 
-/** CounterTrack lane hover tip payload (memory util % + optional Using KB). */
+/** CounterTrack lane hover tip payload (generic `ph:C` arg rows). */
 export type CounterHoverPayload = {
   /** Pipe / lane name — tip header (EventTooltip uses event name the same way). */
   name: string;
-  utilization: number;
-  usingKb?: number;
+  /** Primary series value (Y at step-after hold). */
+  value: number;
+  /** Tip rows from numeric args on the sample (label = arg key). */
+  rows: { label: string; value: string }[];
   clientX: number;
   clientY: number;
   /** Value-dot fixed position (OverviewCharts parity) — cursor x, step-after value y. */
@@ -169,7 +172,7 @@ const emit = defineEmits<{
   /** Lane under pointer Y — gutter header highlight (not pin). */
   'lane-hover': [laneId: string | null];
   /**
-   * CounterTrack value tip — step-after util % (+ abs KB when present). Null when
+   * CounterTrack value tip — step-after hold + numeric arg rows. Null when
    * leaving the lane or when an interval event tip wins.
    */
   'counter-hover': [payload: CounterHoverPayload | null];
@@ -262,12 +265,15 @@ function emitCounterHover(
   const localDotY = plotTop + plotH * (1 - clamped / yMax);
   const color = series.colorHex ?? hit.lane.color;
   const name = hit.lane.thread.name;
-  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}|${localDotY}`;
+  const rows = counterTipRows(pt, name);
+  const valuesKey = pt.values ? JSON.stringify(pt.values) : '';
+  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${valuesKey}|${clientX}|${clientY}|${localDotY}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
     name,
-    utilization: pt.v,
+    value: pt.v,
+    rows,
     clientX,
     clientY,
     // Follow pointer x (step-after hold); Y sits on the painted value.
@@ -275,7 +281,6 @@ function emitCounterHover(
     dotClientY: clientY - localY + localDotY,
     color,
   };
-  if (pt.abs != null) payload.usingKb = pt.abs;
   emit('counter-hover', payload);
 }
 

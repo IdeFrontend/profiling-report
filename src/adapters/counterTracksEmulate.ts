@@ -1,18 +1,14 @@
 /**
- * Emulate Trace ph:C util pipes → swim CounterTracks (Chrome CounterTrack-like).
- * #208 memory util; #209/#206 add more pipe matchers later.
+ * Chrome Trace `ph:C` counters → swim CounterTracks (Chrome / Perfetto-like).
+ * One process per counter pid; one leaf per numeric `args` key.
  */
 
 import type { SwimCounterPoint, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
-
-/** Oleg / #208: optional pipes `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION`. */
-const MEMORY_UTIL_PIPE_RE =
-  /^((?:AIC|AIV0|AIV1)_(?:UB|L0A|L0B|L0C|L1)_UTILIZATION)\b/i;
-
-const US_TO_NS = 1e3;
-
-/** Memory util CounterTrack stroke/fill (gutter low-util red hue; UI-61). */
-export const MEMORY_UTIL_COUNTER_COLOR = '#E7434A';
+import {
+  unitToNsFactor,
+  type ChromeTraceToSwimlaneOptions,
+  type TraceSourceTimeUnit,
+} from './chromeTraceToSwimlane';
 
 export type CounterPoint = SwimCounterPoint;
 
@@ -25,19 +21,49 @@ function readTraceEvents(traceJson: unknown): unknown[] {
   return [];
 }
 
-/**
- * Map `Utilization (%)` for display. Emulate memory counters often emit 0..1
- * fractions (rms_norm_quant); values already in (1, 100] stay as percent.
- */
-export function memoryUtilDisplayValue(raw: number): number | null {
-  if (!Number.isFinite(raw) || raw < 0) return null;
-  if (raw <= 1) return raw * 100;
-  if (raw <= 100) return raw;
-  return null;
+function resolveToNs(traceJson: unknown, options?: ChromeTraceToSwimlaneOptions): number {
+  if (options?.sourceTimeUnit != null) return unitToNsFactor(options.sourceTimeUnit);
+  const display =
+    traceJson && typeof traceJson === 'object'
+      ? String((traceJson as { displayTimeUnit?: unknown }).displayTimeUnit ?? '')
+          .trim()
+          .toLowerCase()
+      : '';
+  const sourceUnit: TraceSourceTimeUnit = display === 'ns' ? 'ns' : 'us';
+  return unitToNsFactor(sourceUnit);
 }
 
-/** @deprecated Prefer memoryUtilDisplayValue — kept for call-site renames during #208 retarget. */
-export const memoryUtilToOverviewPercent = memoryUtilDisplayValue;
+function processNamesByPid(events: unknown[]): Map<string, string> {
+  const processName = new Map<string, string>();
+  for (const raw of events) {
+    if (!raw || typeof raw !== 'object') continue;
+    const e = raw as {
+      ph?: string;
+      name?: string;
+      pid?: unknown;
+      args?: { name?: unknown };
+    };
+    if (e.ph !== 'M' || e.name !== 'process_name') continue;
+    const label = e.args?.name;
+    if (typeof label !== 'string' || label.length === 0) continue;
+    processName.set(String(e.pid ?? 0), label);
+  }
+  return processName;
+}
+
+/** Finite numeric entries from a `ph:C` args object (Chrome multi-series counters). */
+export function numericCounterArgs(
+  args: Record<string, unknown> | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!args) return out;
+  for (const [key, raw] of Object.entries(args)) {
+    const n = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(n)) continue;
+    out[key] = n;
+  }
+  return out;
+}
 
 function collapseSameTsLast(points: CounterPoint[]): CounterPoint[] {
   if (points.length === 0) return points;
@@ -58,33 +84,31 @@ function yMaxForPoints(points: readonly CounterPoint[]): number {
   for (const p of points) {
     if (p.v > max) max = p.v;
   }
-  // Expand slightly so a full-scale sample is not clipped to the top stroke.
   return max > 0 ? max : 1;
 }
 
-/**
- * Build counter leaf threads from populated memory-util pipes in a Chrome Trace.
- * Empty processes (metadata only) are skipped. ts µs → point `t` ns.
- */
-export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThread[] {
-  const events = readTraceEvents(traceJson);
-  const processName = new Map<string, string>();
-  for (const raw of events) {
-    if (!raw || typeof raw !== 'object') continue;
-    const e = raw as {
-      ph?: string;
-      name?: string;
-      pid?: unknown;
-      args?: { name?: unknown };
-    };
-    if (e.ph !== 'M' || e.name !== 'process_name') continue;
-    const label = e.args?.name;
-    if (typeof label !== 'string' || label.length === 0) continue;
-    processName.set(String(e.pid ?? 0), label);
-  }
+type SeriesBucket = {
+  pid: string;
+  processName: string;
+  argKey: string;
+  points: CounterPoint[];
+};
 
-  const byId = new Map<string, CounterPoint[]>();
+/**
+ * Build CounterTrack processes from every populated `ph:C` series in a Chrome Trace.
+ * Empty pids (metadata only) are skipped. Same-`ts` multi-`C` keeps last per series.
+ */
+export function counterProcessesFromTrace(
+  traceJson: unknown,
+  options?: ChromeTraceToSwimlaneOptions,
+): SwimProcess[] {
+  const events = readTraceEvents(traceJson);
+  const processName = processNamesByPid(events);
+  const toNs = resolveToNs(traceJson, options);
+  /** `${pid}\0${argKey}` → bucket (first-seen order). */
+  const bySeries = new Map<string, SeriesBucket>();
   const order: string[] = [];
+
   for (const raw of events) {
     if (!raw || typeof raw !== 'object') continue;
     const e = raw as {
@@ -95,59 +119,94 @@ export function memoryUtilCounterThreadsFromTrace(traceJson: unknown): SwimThrea
       args?: Record<string, unknown>;
     };
     if (e.ph !== 'C') continue;
-    const pname = processName.get(String(e.pid ?? 0));
-    if (!pname) continue;
-    const m = MEMORY_UTIL_PIPE_RE.exec(pname);
-    if (!m) continue;
-    if (typeof e.name === 'string' && e.name.length > 0 && e.name !== 'memory_utilization') {
-      continue;
-    }
-    const v = memoryUtilDisplayValue(Number(e.args?.['Utilization (%)']));
-    if (v == null) continue;
     const ts = Number(e.ts);
     if (!Number.isFinite(ts)) continue;
-    const usingRaw = Number(e.args?.['Using Bytes (KB)']);
-    const point: CounterPoint = { t: ts * US_TO_NS, v };
-    if (Number.isFinite(usingRaw)) point.abs = usingRaw;
-    const id = m[1]!;
-    let points = byId.get(id);
-    if (!points) {
-      points = [];
-      byId.set(id, points);
-      order.push(id);
+    const values = numericCounterArgs(e.args);
+    const keys = Object.keys(values);
+    if (keys.length === 0) continue;
+    const pid = String(e.pid ?? 0);
+    const pname = processName.get(pid) ?? `Process ${pid}`;
+    const t = ts * toNs;
+    for (const argKey of keys) {
+      const seriesId = `${pid}\0${argKey}`;
+      let bucket = bySeries.get(seriesId);
+      if (!bucket) {
+        bucket = { pid, processName: pname, argKey, points: [] };
+        bySeries.set(seriesId, bucket);
+        order.push(seriesId);
+      }
+      bucket.points.push({ t, v: values[argKey]!, values: { ...values } });
     }
-    points.push(point);
   }
 
-  const threads: SwimThread[] = [];
-  for (const id of order) {
-    const points = collapseSameTsLast(byId.get(id)!);
+  const byPid = new Map<string, { name: string; threads: SwimThread[]; order: string[] }>();
+  const pidOrder: string[] = [];
+  for (const seriesId of order) {
+    const bucket = bySeries.get(seriesId)!;
+    const points = collapseSameTsLast(bucket.points);
     if (points.length === 0) continue;
-    threads.push({
-      id: `counter-${id}`,
-      name: id,
+    let proc = byPid.get(bucket.pid);
+    if (!proc) {
+      proc = { name: bucket.processName, threads: [], order: [] };
+      byPid.set(bucket.pid, proc);
+      pidOrder.push(bucket.pid);
+    }
+    const threadId = `counter-${bucket.pid}-${bucket.argKey}`;
+    proc.threads.push({
+      id: threadId,
+      name: bucket.argKey,
       events: [],
       counter: {
         points,
         yMax: yMaxForPoints(points),
-        colorHex: MEMORY_UTIL_COUNTER_COLOR,
       },
     });
   }
-  return threads;
+
+  return pidOrder.map((pid) => {
+    const proc = byPid.get(pid)!;
+    return {
+      id: `p-counter-${pid}`,
+      name: proc.name,
+      threads: proc.threads,
+    } satisfies SwimProcess;
+  });
 }
 
-/** Append a Memory utilization process with counter leaf lanes (#208). */
-export function mergeMemoryUtilCounterTracks(
+/**
+ * Append Trace `ph:C` CounterTrack processes to a swimlane model.
+ * No-op when the Trace has no usable counter series.
+ */
+export function mergeCounterTracksFromTrace(
   model: SwimlaneModel,
   traceJson: unknown,
+  options?: ChromeTraceToSwimlaneOptions,
 ): SwimlaneModel {
-  const threads = memoryUtilCounterThreadsFromTrace(traceJson);
-  if (threads.length === 0) return model;
-  const proc: SwimProcess = {
-    id: 'p-counter-memory-util',
-    name: 'Memory utilization',
-    threads,
-  };
-  return { ...model, processes: [...model.processes, proc] };
+  const procs = counterProcessesFromTrace(traceJson, options);
+  if (procs.length === 0) return model;
+  return { ...model, processes: [...model.processes, ...procs] };
+}
+
+/** Format a counter tip cell from the arg key + numeric sample (no domain parsers). */
+export function formatCounterArgValue(key: string, value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  const text = Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+  if (/KB/i.test(key)) return `${text} KB`;
+  if (/%/.test(key)) return `${text}%`;
+  return text;
+}
+
+/** Tip rows for a counter sample — one row per numeric arg on the point. */
+export function counterTipRows(
+  point: Pick<SwimCounterPoint, 'v' | 'values'>,
+  seriesKey: string,
+): { label: string; value: string }[] {
+  const values = point.values;
+  if (values && Object.keys(values).length > 0) {
+    return Object.entries(values).map(([label, v]) => ({
+      label,
+      value: formatCounterArgValue(label, v),
+    }));
+  }
+  return [{ label: seriesKey, value: formatCounterArgValue(seriesKey, point.v) }];
 }
