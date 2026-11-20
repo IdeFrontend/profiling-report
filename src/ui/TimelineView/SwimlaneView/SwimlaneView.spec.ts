@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
-import { LANE_HEIGHT } from '../../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT } from '../../../swimlane/layout';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import CounterHoverTip from './CounterHoverTip.vue';
 import SwimlaneView from './SwimlaneView.vue';
@@ -3079,7 +3079,7 @@ describe('SwimlaneView', () => {
       });
 
       // Header 40px + mid of counter lane.
-      const y = 40 + LANE_HEIGHT / 2;
+      const y = 40 + COUNTER_LANE_HEIGHT / 2;
       await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
       await nextTick();
 
@@ -3105,6 +3105,10 @@ describe('SwimlaneView', () => {
       expect(dot).not.toBeNull();
       expect(dot!.style.left).toBe('150px');
       expect(dot!.style.background.toLowerCase()).toMatch(/#e7434a|231,\s*67,\s*74/);
+      // Inline geometry so Teleport→body stays visible without waiting on CSS.
+      expect(dot!.style.position).toBe('fixed');
+      expect(dot!.style.width).toBe('8px');
+      expect(dot!.style.height).toBe('8px');
 
       // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
       Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
