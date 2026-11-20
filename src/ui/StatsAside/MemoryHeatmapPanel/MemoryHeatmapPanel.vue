@@ -1241,7 +1241,8 @@ watch(
 
 .pr-heat__legend-brush-range {
   position: absolute;
-  top: calc(100% + 2px);
+  /* Clear the pointer over the brush window (was 2px — sat under the cursor tip). */
+  top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
@@ -1254,12 +1255,12 @@ watch(
 }
 
 .pr-heat__legend-ticks {
-  /* Room for the brush range label that sits under the window. */
+  /* Room for the brush range label that sits under the window (+8px gap). */
   position: relative;
   z-index: 0;
   display: flex;
   justify-content: space-between;
-  min-height: 12px;
+  min-height: 18px;
   color: #b3b3b3;
   font-size: 10px;
   line-height: 1;
