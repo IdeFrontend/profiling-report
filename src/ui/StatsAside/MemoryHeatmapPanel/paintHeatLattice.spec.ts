@@ -78,6 +78,22 @@ describe('paintHeatLattice', () => {
     expect(ctx.fills).toEqual(['#b', '#d']);
   });
 
+  it('paints uniformFill for every cell (mute veil lattice)', () => {
+    const ctx = mockCtx();
+    paintHeatLattice({
+      ctx,
+      columns: 2,
+      rows: 2,
+      innerWidthCss: 22,
+      innerHeightCss: 22,
+      devicePixelRatio: 1,
+      fills: [],
+      uniformFill: '#2C2C2C',
+      blockCount: 4,
+    });
+    expect(ctx.fills).toEqual(['#2C2C2C', '#2C2C2C', '#2C2C2C', '#2C2C2C']);
+  });
+
   it('pathRoundRect closes a rounded path', () => {
     const ctx = mockCtx();
     pathRoundRect(ctx, 0, 0, 10, 10, 1);
