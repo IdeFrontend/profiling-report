@@ -7,7 +7,7 @@
 | **Capability** | `roofline` |
 | **Phase** | M2 |
 | **Unification** | `adapt-mapper` (emulate — same panel, Roofline* CSV mapper) |
-| **Sept 30 (emulate)** | **in** when AnalysisState `roofline` passed and points exist ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)) |
+| **Sept 30 (emulate)** | **in** when Roofline points exist; gate on AnalysisState only when that CSV is packed (failed `roofline` row → omit; absent AnalysisState still adapts; `roofline.json` fallback) ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)) |
 
 ## Sketches
 
