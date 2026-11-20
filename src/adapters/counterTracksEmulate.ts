@@ -3,6 +3,7 @@
  * One process per counter pid; one leaf per numeric `args` key.
  */
 
+import { colorForCounterProcess } from '../domain/laneColors';
 import type { SwimCounterPoint, SwimlaneModel, SwimProcess, SwimThread } from '../domain/types';
 import {
   unitToNsFactor,
@@ -159,6 +160,7 @@ export function counterProcessesFromTrace(
       counter: {
         points,
         yMax: yMaxForPoints(points),
+        colorHex: colorForCounterProcess(bucket.processName),
       },
     });
   }
