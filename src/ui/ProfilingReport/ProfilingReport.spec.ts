@@ -2740,6 +2740,53 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(deferred.findComponent(SourceView).props('model').files[0].text).toContain('late_bound');
     deferred.unmount();
+
+    // The vscode bridge is already the resolver. A late explicit hook must
+    // still run, and a slow bridge reply must not overwrite it.
+    const host = window as Window & {
+      acquireVsCodeApi?: () => { postMessage: (message: unknown) => void };
+    };
+    const postMessage = vi.fn();
+    host.acquireVsCodeApi = () => ({ postMessage });
+    try {
+      const bridged = mount(ProfilingReport, {
+        props: {
+          title: 'late-hook-over-bridge',
+          swimlaneModel: depsModel(),
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: withMissing },
+          capabilities: ['sourceTab'],
+          environment: 'vscode',
+        },
+      });
+      await flushPromises();
+      expect(postMessage).toHaveBeenCalled();
+      const sent = postMessage.mock.calls[0]![0] as { requestId: string };
+      const explicit = vi.fn(async () => 'extern "C" void explicit_hook() {}\n');
+      await bridged.setProps({ resolveSourceFile: explicit });
+      await flushPromises();
+      expect(explicit).toHaveBeenCalledTimes(1);
+      await bridged.find('[data-testid="tab-source"]').trigger('click');
+      await nextTick();
+      expect(bridged.findComponent(SourceView).props('model').files[0].text).toContain(
+        'explicit_hook',
+      );
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            type: 'profiling-report/source-file-response',
+            requestId: sent.requestId,
+            text: 'extern "C" void stale_bridge() {}\n',
+          },
+        }),
+      );
+      await flushPromises();
+      const shown = bridged.findComponent(SourceView).props('model').files[0].text as string;
+      expect(shown).toContain('explicit_hook');
+      expect(shown).not.toContain('stale_bridge');
+      bridged.unmount();
+    } finally {
+      delete host.acquireVsCodeApi;
+    }
   });
 
   it('PR-ROOT-032: session actions, optimize and open-cannwork forward to the host with reference and view hidden', async () => {
@@ -3036,5 +3083,73 @@ describe('ProfilingReport scaffold', () => {
     expect(dropped.text).toContain('dropped_survives');
     expect(filled.text).toContain('host_filled');
     wrapper.unmount();
+
+    // A drop and a host push that land while the fill is awaiting must survive
+    // the sibling file the host does resolve.
+    const updatedPath = '/home/build/third.asc';
+    const during = {
+      ...withMissing,
+      files: [
+        ...withMissing.files,
+        {
+          ...base.files[0]!,
+          id: 'third.asc',
+          path: updatedPath,
+          text: `${MISSING_SOURCE_EMBED_PREFIX}${updatedPath}\n`,
+        },
+      ],
+    };
+    let releaseFill!: () => void;
+    const fillGate = new Promise<void>((resolve) => {
+      releaseFill = resolve;
+    });
+    const blocked = vi.fn(async (req: { fileName: string }) => {
+      if (req.fileName === droppedPath) {
+        await fillGate;
+        return null;
+      }
+      if (req.fileName === updatedPath) return 'extern "C" void host_should_lose() {}\n';
+      return 'extern "C" void host_filled() {}\n';
+    });
+    const racing = mount(ProfilingReport, {
+      props: {
+        title: 'source-fill-race',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: during },
+        capabilities: ['sourceTab'],
+        resolveSourceFile: blocked,
+      },
+    });
+    await flushPromises();
+    expect(blocked).toHaveBeenCalled();
+    await racing.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    racing.findComponent(SourceView).vm.$emit('source-text', {
+      fileId: 'gather_2d.asc',
+      text: 'extern "C" void dropped_during() {}\n',
+    });
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'profiling-report/source-file-updated',
+          fileName: updatedPath,
+          basename: 'third.asc',
+          text: 'extern "C" void live_during() {}\n',
+        },
+      }),
+    );
+    await nextTick();
+    releaseFill();
+    await flushPromises();
+    const raced = racing.findComponent(SourceView).props('model').files;
+    const droppedDuring = raced.find((f: { id: string }) => f.id === 'gather_2d.asc')!;
+    const sibling = raced.find((f: { id: string }) => f.id === 'other.cpp')!;
+    const updated = raced.find((f: { id: string }) => f.id === 'third.asc')!;
+    expect(droppedDuring.text).toContain('dropped_during');
+    expect(droppedDuring.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(false);
+    expect(sibling.text).toContain('host_filled');
+    expect(updated.text).toContain('live_during');
+    expect(updated.text).not.toContain('host_should_lose');
+    racing.unmount();
   });
 });

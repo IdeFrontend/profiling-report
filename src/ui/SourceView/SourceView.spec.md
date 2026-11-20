@@ -62,7 +62,8 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 27. **PR-SOURCE-027** — Changing the Source file keeps the full shared SASS listing, including instructions mapped to other files. Link views on highlights the selected file's instructions. An empty assembly shows `asm-empty`.
 28. **PR-SOURCE-028** — Large metrics listings (>300 rows) virtualize the tbody (viewport window + pads).
 30. **PR-SOURCE-030** — Placeholder Source file shows the resolve drop zone; real text does not.
-31. **PR-SOURCE-031** — Dropping a text file emits `source-text` with the raw file id and file text; the model is unchanged until the parent applies it.
+31. **PR-SOURCE-031** — Dropping a text file emits `source-text` with the raw file id and file text; the model is unchanged until the parent applies it. An unreadable file emits nothing and leaves the placeholder.
+32. **PR-SOURCE-032** — When Sudu `newEditor` throws, the pane shows `sudu-fallback`: a colored `<pre>` from `simpleHighlight` (keyword, comment, and string tokens) and no error string. The reason is `console.error` only.
 
 ## Design sketches
 
@@ -70,6 +71,7 @@ Dual-pane Source | SASS correlation surface for the 源码 tab (UI-37). Left pan
 
 ## Changelog
 
+- **2026-11-20** — Sudu boot failure is a colored `<pre>` with the reason on the console only (`PR-SOURCE-032`). An unreadable drop emits nothing (`PR-SOURCE-031`).
 - **2026-11-18** — Virtualize large Source/SASS metrics tables; O(1) cell lookups (`PR-SOURCE-028`).
 - **2026-11-19** — Scroll-origin guard is one echo: scrolling the metrics pane back to the mirrored offset still moves Sudu (`PR-SOURCE-014f`).
 - **2026-11-19** — Sudu `hasFocus()` blocks prop-driven caret echo; scroll mirror uses origin compare so metrics wheel still locks panes while focused (`PR-SOURCE-014f`).

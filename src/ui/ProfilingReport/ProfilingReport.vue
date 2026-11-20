@@ -10,7 +10,10 @@ import {
   resolveSourceFrame,
   type SourceFrameTarget,
 } from '../../adapters/sourceCorrelation/resolveSourceFrame';
-import { applyResolvedSourceText } from '../../adapters/sourceCorrelation/resolveSourceFile';
+import {
+  applyResolvedSourceText,
+  fileNeedsSourceResolve,
+} from '../../adapters/sourceCorrelation/resolveSourceFile';
 import {
   applyWindow,
   clearMeasure,
@@ -1082,6 +1085,28 @@ function onHostSourceFileUpdate(update: { fileName: string; basename: string; te
   for (const file of matching) applySourceText(file.id, update.text);
 }
 
+/**
+ * Host text from a fill that started on `snapshot` lands only on files that
+ * are still placeholders. A drop or `source-file-updated` during the await
+ * changes `live` without bumping `sourceResolveGen`; copying `resolved` over
+ * it would drop that text when a sibling file made `resolved` a new model.
+ */
+function mergeInFlightSourceFill(
+  snapshot: SourceCorrelationModel,
+  resolved: SourceCorrelationModel,
+  live: SourceCorrelationModel,
+): SourceCorrelationModel {
+  const resolvedById = new Map(resolved.files.map((file) => [file.id, file]));
+  const snapshotText = new Map(snapshot.files.map((file) => [file.id, file.text]));
+  const files = live.files.map((file) => {
+    const before = snapshotText.get(file.id);
+    if (before !== undefined && file.text !== before) return file;
+    if (!fileNeedsSourceResolve(file)) return file;
+    return resolvedById.get(file.id) ?? file;
+  });
+  return { ...live, files };
+}
+
 async function fillMissingSourceFiles(
   reportModel: ReportViewModel | null | undefined,
   resolveGen: number,
@@ -1093,7 +1118,16 @@ async function fillMissingSourceFiles(
   const next = await resolveMissingSourceFiles(sc, resolve);
   if (resolveGen !== sourceResolveGen) return;
   if (next === sc) return;
-  resolvedSourceCorrelation.value = next;
+  const live = currentSourceCorrelation();
+  resolvedSourceCorrelation.value =
+    live && live !== sc ? mergeInFlightSourceFill(sc, next, live) : next;
+}
+
+function refillMissingSource() {
+  const rm = props.source ? internalReport.value : props.reportModel;
+  if (!rm?.sourceCorrelation) return;
+  const resolveGen = ++sourceResolveGen;
+  void fillMissingSourceFiles(rm, resolveGen);
 }
 
 async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
@@ -1183,18 +1217,24 @@ watch(
   { immediate: true },
 );
 
-// Hosts often attach the webview bridge after first paint — re-run only when the
-// hook appears (falsy → truthy). Do not key on function identity: an inline
-// arrow each parent render would cancel in-flight fills and re-hit the host
-// for every still-placeholder file on the base model.
+// Hosts often attach the hook after first paint. Watch the explicit prop and
+// the vscode environment as separate edges: a single "prop or bridge" boolean
+// stays true once the bridge is selected, so a later resolveSourceFile never
+// runs. A new function identity does not re-run (inline arrows each render).
+// Bumping sourceResolveGen drops an in-flight bridge reply.
 watch(
-  () => !!hostResolveSourceFile.value,
-  (present, wasPresent) => {
-    if (!present || wasPresent) return;
-    const rm = props.source ? internalReport.value : props.reportModel;
-    if (!rm?.sourceCorrelation) return;
-    const resolveGen = ++sourceResolveGen;
-    void fillMissingSourceFiles(rm, resolveGen);
+  () => props.resolveSourceFile,
+  (resolve, prev) => {
+    if (!resolve || prev) return;
+    refillMissingSource();
+  },
+);
+
+watch(
+  () => props.environment === 'vscode',
+  (isVscode, was) => {
+    if (!isVscode || was || props.resolveSourceFile) return;
+    refillMissingSource();
   },
 );
 

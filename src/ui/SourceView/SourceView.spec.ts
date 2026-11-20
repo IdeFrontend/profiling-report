@@ -1486,6 +1486,53 @@ describe('SourceView', () => {
     ]);
     // The model is unchanged here, so the drop zone stays until the parent overlays text.
     expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(true);
+
+    const unreadable = new File(['nope'], 'gather_2d.asc', { type: 'text/plain' });
+    vi.spyOn(unreadable, 'text').mockRejectedValue(new Error('unreadable'));
+    await wrapper.get('[data-testid="source-resolve-drop"]').trigger('drop', {
+      dataTransfer: { files: [unreadable] },
+    });
+    await flushPromises();
+    expect(wrapper.emitted('source-text')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(true);
     wrapper.unmount();
+  });
+
+  it('PR-SOURCE-032: Sudu boot failure shows colored source and logs the reason', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    vi.mocked(newEditor).mockImplementationOnce(() => {
+      throw new Error('WebGL is not enabled');
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const base = mockSourceCorrelation();
+    const model = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          text: 'extern "C" void kernel() {\n  // note\n}\n',
+          path: '/home/build/gather_2d.asc',
+          language: 'ascend-c',
+        },
+      ],
+    };
+    try {
+      const wrapper = mount(SourceView, { props: { model } });
+      await flushPromises();
+      const fallback = wrapper.get('[data-testid="sudu-fallback"]');
+      expect(fallback.text()).toContain('kernel');
+      expect(fallback.text()).not.toContain('WebGL is not enabled');
+      expect(fallback.find('.pr-sudu-pane__tok--keyword').exists()).toBe(true);
+      expect(fallback.find('.pr-sudu-pane__tok--comment').exists()).toBe(true);
+      expect(fallback.find('.pr-sudu-pane__tok--string').exists()).toBe(true);
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[profiling-report] Sudu editor fallback',
+        'WebGL is not enabled',
+      );
+      wrapper.unmount();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
