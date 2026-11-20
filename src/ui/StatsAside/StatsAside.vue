@@ -2414,7 +2414,8 @@ const detailTestId = computed(() => {
   display: block;
   margin: 0 0 10px;
   font-size: 12px;
-  color: #b8b8b8;
+  font-weight: 600;
+  color: #ffffff;
 }
 
 .pr-pipe-chart {
