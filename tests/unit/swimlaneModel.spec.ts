@@ -140,11 +140,12 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       expect.objectContaining({ name: 'ICACHE_HIT', startTime: 1000, duration: 0 }),
     ]);
 
-    // Non-finite ts/dur must not paint, and must not poison minTime for a valid X.
+    // Non-finite / negative ts/dur must not paint, and must not poison minTime for a valid X.
     const kept = chromeTraceToSwimlane({
       traceEvents: [
         { ph: 'i', name: 'bad-dur', pid: 1, tid: 1, ts: 1, dur: Number.NaN },
         { ph: 'i', name: 'bad-ts', pid: 1, tid: 1, ts: Number.NaN },
+        { ph: 'X', name: 'neg-dur', pid: 1, tid: 1, ts: 2, dur: -1 },
         { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 10, dur: 5 },
       ],
     });

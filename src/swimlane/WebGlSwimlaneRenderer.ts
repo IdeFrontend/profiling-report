@@ -176,7 +176,6 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
   gl.bindAttribLocation(program, 0, 'aPos');
   if (vsSrc.includes('aTex')) gl.bindAttribLocation(program, 1, 'aTex');
   if (vsSrc.includes('aData')) gl.bindAttribLocation(program, 2, 'aData');
-  if (vsSrc.includes('aDim')) gl.bindAttribLocation(program, 3, 'aDim');
   gl.linkProgram(program);
   gl.deleteShader(vs);
   gl.deleteShader(fs);
@@ -794,8 +793,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       );
     if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
     if (swim.uUseCountMetric) gl.uniform1f(swim.uUseCountMetric, 0);
-    // Generic aDim = 1 when a mesh VAO leaves attrib 3 disabled (ordinary intervals / discrete ticks).
-    gl.vertexAttrib1f(3, 1);
 
     const muteRest =
       this.searchQuery.length === 0 && (this.selectedId != null || this.multiIds.size > 0);

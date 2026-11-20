@@ -176,15 +176,15 @@ export function chromeTraceToSwimlane(
       e.dur != null &&
       Number.isFinite(e.dur) &&
       e.dur > 0;
-    // Non-finite X dur/ts would poison maxTime/minTime and steal an s/f edge.
+    // Non-finite or negative X dur/ts would poison maxTime/minTime and steal an s/f edge.
     const xInterval =
       e.ph === 'X' &&
       e.ts != null &&
       Number.isFinite(e.ts) &&
       e.dur != null &&
-      Number.isFinite(e.dur);
+      Number.isFinite(e.dur) &&
+      e.dur >= 0;
     if (!(instantI || iWithDur || xInterval)) continue;
-    if (e.ts == null) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
     const k = key(e.pid, e.tid);

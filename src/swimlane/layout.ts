@@ -1808,24 +1808,6 @@ export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDens
   return out;
 }
 
-/**
- * Snap a world-grid density mark's left edge to one viewport CSS pixel for paint (PR-RENDER-066).
- * Membership / dim stay on `k·dt`; only the painted quad snaps so WebGL coverage peaks at 1.0
- * (Canvas `eventPaintRect` parity). Consecutive world cols always map to distinct CSS pixels.
- */
-export function snapDensityMarkPaintTimes(
-  t0: number,
-  viewStart: number,
-  viewEnd: number,
-  widthCss: number,
-): [number, number] {
-  const W = Math.max(1, Math.floor(widthCss));
-  const span = Math.max(Number.EPSILON, viewEnd - viewStart);
-  const x0 = Math.floor(((t0 - viewStart) / span) * W);
-  const x = Math.max(0, Math.min(W - 1, x0));
-  return [viewStart + (x / W) * span, viewStart + ((x + 1) / W) * span];
-}
-
 /** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */
 export function nextFloat32Up(x: number): number {
   const f = Math.fround(x);

@@ -35,7 +35,6 @@ import {
   TICK_DENSITY_MIN_DIM,
   assignTickDensityDims,
   binTicksByCssColumn,
-  snapDensityMarkPaintTimes,
   tickCountSimilarity,
   tickDensityDim,
 } from '../../src/swimlane/layout';
@@ -1430,7 +1429,9 @@ describe('PR-RENDER: lane chrome color', () => {
     ).toBe(false);
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
-    expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov \* d, uSrcOver\)/);
+    expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
+    expect(shaderSrc).not.toMatch(/\baDim\b/);
+    expect(shaderSrc).not.toMatch(/\bvDim\b/);
     // Per-pipe count-hit (center-in-column) + device-column stipple.
     expect(shaderSrc).toMatch(/uUseCountMetric/);
     expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
@@ -1594,16 +1595,6 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(marks.length).toBeGreaterThan(0);
     expect(marks.some((m) => m.count >= 2)).toBe(true);
     expect(marks.some((m) => m.count === 1 && m.dim === 1)).toBe(true);
-
-    // Paint snap helper stays available for Canvas/WebGL experiments (layout only).
-    expect(snapDensityMarkPaintTimes(0.3, 0, 1, 10)).toEqual([0.3, 0.4]);
-    const snapped = snapDensityMarkPaintTimes(0.35, 0.03, 1.03, 10);
-    expect(snapped[0]).toBeCloseTo(0.33, 10);
-    expect(snapped[1]).toBeCloseTo(0.43, 10);
-    const [s0a, s1a] = snapDensityMarkPaintTimes(0.1, 0.03, 1.03, 10);
-    const [s0b] = snapDensityMarkPaintTimes(0.2, 0.03, 1.03, 10);
-    expect(s1a).toBeCloseTo(s0b, 10);
-    expect(s0a).not.toBeCloseTo(s0b, 10);
 
     // WebGL: single additive mesh (no tickChunks / density VBO rebuild).
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
