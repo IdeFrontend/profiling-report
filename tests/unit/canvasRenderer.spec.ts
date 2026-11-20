@@ -1432,11 +1432,12 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
     expect(shaderSrc).not.toMatch(/\baDim\b/);
     expect(shaderSrc).not.toMatch(/\bvDim\b/);
-    // Per-pipe count-hit (center-in-column) + device-column stipple.
+    // Per-pipe count-hit (center-in-column); zebra only for non-extended hits.
     expect(shaderSrc).toMatch(/uUseCountMetric/);
     expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
-    expect(shaderSrc).toMatch(/cov = alt;/);
-    expect(shaderSrc).not.toMatch(/min\(alt, rrShape\)/);
+    expect(shaderSrc).toMatch(/if \(rawW < 1\.0\)/);
+    expect(shaderSrc).toMatch(/cov = unit;/);
+    expect(shaderSrc).not.toMatch(/min\(unit, rrShape\)/);
     expect(shaderSrc).toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
     expect(shaderSrc).toMatch(/if \(screenR <= screenL\) screenR = screenL \+ 1\.0/);
     expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
