@@ -4,6 +4,7 @@ import {
   nextTick,
   onBeforeUnmount,
   ref,
+  shallowRef,
   watch,
   type CSSProperties,
 } from 'vue';
@@ -306,7 +307,7 @@ const hoveredBlockIndex = ref<number | null>(null);
 const hoverOverlayStyle = computed<CSSProperties>(() => {
   const index = hoveredBlockIndex.value;
   const view = activeView.value;
-  const geom = paintedGeom;
+  const geom = paintedGeom.value;
   if (index == null || !view || !geom) return { display: 'none' };
   const block = view.blocks[index];
   if (!block) return { display: 'none' };
@@ -422,7 +423,7 @@ const veilCanvasEl = ref<HTMLCanvasElement | null>(null);
 const brightCanvasEl = ref<HTMLCanvasElement | null>(null);
 
 /** Precomputed per active view — used by canvas base/bright paints. */
-let cellIntensityPct: number[] = [];
+let cellAccessCounts: number[] = [];
 let cellFillColors: string[] = [];
 /** 1 = shown on the bright canvas (in brush range). */
 let cellBrightBits = new Uint8Array(0);
@@ -448,22 +449,22 @@ type LatticePaintGeom = {
   cellH: number;
   dpr: number;
 };
-let paintedGeom: LatticePaintGeom | null = null;
+const paintedGeom = shallowRef<LatticePaintGeom | null>(null);
 
 function rebuildCellPaintCache(view: MemoryHeatmapView | null) {
   if (!view?.blocks.length) {
-    cellIntensityPct = [];
+    cellAccessCounts = [];
     cellFillColors = [];
     cellBrightBits = new Uint8Array(0);
     return;
   }
   const n = view.blocks.length;
-  cellIntensityPct = new Array(n);
+  cellAccessCounts = new Array(n);
   cellFillColors = new Array(n);
   cellBrightBits = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
     const block = view.blocks[i]!;
-    cellIntensityPct[i] = block.intensity * 100;
+    cellAccessCounts[i] = block.accessCount;
     cellFillColors[i] = heatFill(block.intensity);
   }
 }
@@ -562,7 +563,7 @@ function paintVeilCanvas(geom: LatticePaintGeom) {
 }
 
 /** Clear + paint bright canvas from `cellBrightBits` (in-range cells only). */
-function paintBrightCanvas(geom: LatticePaintGeom | null = paintedGeom) {
+function paintBrightCanvas(geom: LatticePaintGeom | null = paintedGeom.value) {
   if (!geom) return;
   paintLayer(brightCanvasEl.value, geom, {
     fills: cellFillColors,
@@ -574,12 +575,12 @@ function paintBrightCanvas(geom: LatticePaintGeom | null = paintedGeom) {
 function redrawHeatCanvases() {
   const view = activeView.value;
   if (!view) {
-    paintedGeom = null;
+    paintedGeom.value = null;
     return;
   }
   const geom = readLatticeGeom(view);
   if (!geom) return;
-  paintedGeom = geom;
+  paintedGeom.value = geom;
   paintBaseCanvas(geom);
   paintVeilCanvas(geom);
   paintBrightCanvas(geom);
@@ -612,18 +613,18 @@ function setBrushMatchTip(count: number) {
  * `force` redraws even when bits are unchanged (view remount / resize path).
  */
 function patchBrightCells(brush: { loPct: number; hiPct: number } | null, force = false) {
-  const n = cellIntensityPct.length;
+  const n = cellAccessCounts.length;
   let changed = force;
   for (let i = 0; i < n; i++) {
-    const pct = cellIntensityPct[i]!;
-    const on = brush != null && pct >= brush.loPct && pct <= brush.hiPct;
+    const count = cellAccessCounts[i] ?? 0;
+    const on = brush != null && accessInBrushSpan(count, brush);
     const bit = on ? 1 : 0;
     if (cellBrightBits[i] !== bit) {
       cellBrightBits[i] = bit;
       changed = true;
     }
   }
-  if (changed) paintBrightCanvas(paintedGeom);
+  if (changed) paintBrightCanvas(paintedGeom.value);
   setBrushMatchTip(brush == null ? 0 : countBrightBits());
 }
 
@@ -641,13 +642,23 @@ function quantizeBrushCenter(pct: number): number {
   return Math.round(pct * 4) / 4;
 }
 
-function brushRangeLabelText(brush: { loPct: number; hiPct: number }): string {
+/** Clamped integer access-count span for the brush label and cell membership. */
+function brushAccessSpan(brush: { loPct: number; hiPct: number }): { lo: number; hi: number } {
   const max = maxAccessCount.value;
-  const loRaw = Math.round((brush.loPct / 100) * max);
-  const hiRaw = Math.round((brush.hiPct / 100) * max);
-  const lo = Math.min(max, Math.max(0, loRaw));
-  const hi = Math.min(max, Math.max(0, hiRaw));
-  return `${formatAccessCount(lo)} – ${formatAccessCount(hi)}`;
+  const clamp = (n: number) => Math.min(max, Math.max(0, Math.round(n)));
+  const lo = clamp((brush.loPct / 100) * max);
+  const hi = clamp((brush.hiPct / 100) * max);
+  return lo <= hi ? { lo, hi } : { lo: hi, hi: lo };
+}
+
+function accessInBrushSpan(accessCount: number, brush: { loPct: number; hiPct: number }): boolean {
+  const span = brushAccessSpan(brush);
+  return accessCount >= span.lo && accessCount <= span.hi;
+}
+
+function brushRangeLabelText(brush: { loPct: number; hiPct: number }): string {
+  const span = brushAccessSpan(brush);
+  return `${formatAccessCount(span.lo)} – ${formatAccessCount(span.hi)}`;
 }
 
 /** Imperative browsing window — must run before reactive dim flags flip. */
@@ -750,9 +761,9 @@ function isBrushMutedIndex(index: number): boolean {
   // Live brush, or last window while bright cells remain through the leave fade.
   const active = legendBrush.value ?? lastBrightBrush;
   if (!active) return false;
-  const pct = cellIntensityPct[index];
-  if (pct == null) return false;
-  return pct < active.loPct || pct > active.hiPct;
+  const count = cellAccessCounts[index];
+  if (count == null) return false;
+  return !accessInBrushSpan(count, active);
 }
 
 onBeforeUnmount(() => {

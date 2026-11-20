@@ -137,6 +137,15 @@ function unitsFromLayoutAndCells(
   }
   if (instances.length === 0) return undefined;
 
+  /** In-lattice bounds. viewMax ignores Cells rows outside Width×Height; Used still counts them. */
+  const latticeByView = new Map<string, { columns: number; rows: number }>();
+  for (const inst of instances) {
+    latticeByView.set(heatViewKey(inst.memoryType, inst.coreTypeId, inst.coreId), {
+      columns: inst.columns,
+      rows: inst.rows,
+    });
+  }
+
   /** Cells rows per view key — Used = N × CellSize (DATA-51); keyed on K only. */
   const cellCountByView = new Map<string, number>();
   /** memoryType|coreTypeId|coreId|row|col → Read+Write traffic count (#200). */
@@ -159,7 +168,13 @@ function unitsFromLayoutAndCells(
     if (value <= 0) continue;
     const cellKey = `${viewKey}|${cellRow}|${cellCol}`;
     traffic.set(cellKey, (traffic.get(cellKey) ?? 0) + value);
-    trafficMaxByView.set(viewKey, Math.max(trafficMaxByView.get(viewKey) ?? 0, traffic.get(cellKey)!));
+    const lattice = latticeByView.get(viewKey);
+    if (lattice && cellRow < lattice.rows && cellCol < lattice.columns) {
+      trafficMaxByView.set(
+        viewKey,
+        Math.max(trafficMaxByView.get(viewKey) ?? 0, traffic.get(cellKey)!),
+      );
+    }
   }
 
   const viewsByUnit = new Map<MemoryHeatmapUnitId, MemoryHeatmapView[]>();
