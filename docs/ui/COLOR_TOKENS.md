@@ -67,7 +67,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/930/ComputeLo
 
 | Token / constant | Hex | Role |
 |------------------|-----|------|
-| `MEMORY_UTIL_COUNTER_COLOR` | `#E7434A` | Memory util CounterTrack stroke + fill base ([UI-61](../context/decisions/UI.md) / [#208](https://github.com/IdeFrontend/profiling-report/issues/208)); same hue as gutter low-util `rgba(231,67,74,…)` |
+| CounterTrack default | lane `colorForThread` | Generic Trace `ph:C` CounterTracks use the lane palette ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)); optional per-series `colorHex` override |
 
 Fill uses the same colour at **alpha 0.45** (`counterLanePaint` `FILL_ALPHA`, OverviewCharts parity). Set via `SwimCounterSeries.colorHex` on the memory-util adapter path — unit/queue CounterTracks keep `colorForThread` until their slices.
 

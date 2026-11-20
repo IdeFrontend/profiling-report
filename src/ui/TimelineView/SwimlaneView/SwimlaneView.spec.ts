@@ -3013,23 +3013,31 @@ describe('SwimlaneView', () => {
       vi.restoreAllMocks();
     });
 
-    it('PR-SWIMVIEW-048: CounterTrack hover mounts teleported tip with util % + Using KB', async () => {
+    it('PR-SWIMVIEW-048: CounterTrack hover mounts teleported tip with arg rows', async () => {
       const model = {
         minTime: 0,
         maxTime: 20_000,
         processes: [
           {
-            id: 'p-counter-memory-util',
-            name: 'Memory utilization',
+            id: 'p-counter-22',
+            name: 'AIV0_UB_UTILIZATION (memory_utilization)',
             threads: [
               {
-                id: 'counter-AIV0_UB_UTILIZATION',
-                name: 'AIV0_UB_UTILIZATION',
+                id: 'counter-22-Utilization (%)',
+                name: 'Utilization (%)',
                 events: [],
                 counter: {
                   points: [
-                    { t: 5_000, v: 2, abs: 0.05 },
-                    { t: 10_000, v: 3, abs: 0.04 },
+                    {
+                      t: 5_000,
+                      v: 2,
+                      values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                    },
+                    {
+                      t: 10_000,
+                      v: 3,
+                      values: { 'Utilization (%)': 3, 'Using Bytes (KB)': 0.04 },
+                    },
                   ],
                   yMax: 3,
                   colorHex: '#E7434A',
@@ -3077,17 +3085,16 @@ describe('SwimlaneView', () => {
 
       const tip = document.querySelector('[data-testid="counter-hover-tooltip"]') as HTMLElement | null;
       expect(tip).not.toBeNull();
-      // Pipe name header (EventTooltip event-name parity).
       expect(tip!.querySelector('[data-testid="counter-hover-name"]')!.textContent).toBe(
-        'AIV0_UB_UTILIZATION',
+        'Utilization (%)',
       );
-      // OverviewCharts tip layout: label left, value right (default locale zh-CN).
-      const utilRow = tip!.querySelector('[data-testid="counter-hover-util"]') as HTMLElement;
-      const usingRow = tip!.querySelector('[data-testid="counter-hover-using"]') as HTMLElement;
-      expect(utilRow.textContent).toMatch(/利用率/);
-      expect(utilRow.textContent).toMatch(/2%/);
-      expect(usingRow.textContent).toMatch(/占用/);
-      expect(usingRow.textContent).toMatch(/0\.05 KB/);
+      const rows = [...tip!.querySelectorAll('[data-testid="counter-hover-row"]')].map(
+        (el) => el.textContent ?? '',
+      );
+      expect(rows[0]).toMatch(/Utilization \(%\)/);
+      expect(rows[0]).toMatch(/2%/);
+      expect(rows[1]).toMatch(/Using Bytes \(KB\)/);
+      expect(rows[1]).toMatch(/0\.05 KB/);
       // Inline fixed positioning so Teleport→body stays visible without waiting on CSS.
       expect(tip!.style.position).toBe('fixed');
       expect(tip!.style.left).toBe('162px');
@@ -3122,19 +3129,21 @@ describe('SwimlaneView', () => {
       wrapper.unmount();
     });
 
-    it('PR-SWIMVIEW-048: Using KB display caps at 2 decimal places', () => {
+    it('PR-SWIMVIEW-048: KB / percent tip values cap at 2 decimal places', () => {
       const tip = mount(CounterHoverTip, {
         props: {
-          name: 'AIV0_UB_UTILIZATION',
-          utilization: 12.3456,
-          usingKb: 12.345678,
+          name: 'Utilization (%)',
+          rows: [
+            { label: 'Utilization (%)', value: '12.35%' },
+            { label: 'Using Bytes (KB)', value: '12.35 KB' },
+          ],
           stylePos: { position: 'fixed', left: '0px', top: '0px' },
-          locale: 'en',
         },
       });
-      expect(tip.get('[data-testid="counter-hover-name"]').text()).toBe('AIV0_UB_UTILIZATION');
-      expect(tip.get('[data-testid="counter-hover-util"]').text()).toMatch(/Utilization\s*12\.35%/);
-      expect(tip.get('[data-testid="counter-hover-using"]').text()).toMatch(/Using\s*12\.35 KB/);
+      expect(tip.get('[data-testid="counter-hover-name"]').text()).toBe('Utilization (%)');
+      const rows = tip.findAll('[data-testid="counter-hover-row"]');
+      expect(rows[0]!.text()).toMatch(/Utilization \(%\)\s*12\.35%/);
+      expect(rows[1]!.text()).toMatch(/Using Bytes \(KB\)\s*12\.35 KB/);
       tip.unmount();
     });
   });

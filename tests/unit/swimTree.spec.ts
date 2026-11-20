@@ -149,7 +149,13 @@ describe('swimTree + nested layout', () => {
               name: 'AIV0_UB_UTILIZATION',
               events: [],
               counter: {
-                points: [{ t: 0, v: 2, abs: 0.05 }],
+                points: [
+                  {
+                    t: 0,
+                    v: 2,
+                    values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                  },
+                ],
                 yMax: 2,
                 colorHex: '#E7434A',
               },
@@ -160,7 +166,7 @@ describe('swimTree + nested layout', () => {
     });
     const lane = layout.lanes.find((l) => l.counter);
     expect(lane?.color).toBe('#E7434A');
-    expect(lane?.thread.counter?.points[0]?.abs).toBe(0.05);
+    expect(lane?.thread.counter?.points[0]?.values?.['Using Bytes (KB)']).toBe(0.05);
   });
 
   it('rebuildLayout carries no bands; folders still lay out as lanes', () => {

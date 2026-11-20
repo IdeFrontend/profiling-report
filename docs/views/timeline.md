@@ -112,11 +112,11 @@ Utilization % per row and nested `ProfilerStep#*` / ISA-like labels in the mocku
 | VM field | Source embed(s) | Join key(s) | Derivation |
 |----------|-----------------|-------------|------------|
 | `SwimlaneModel` | §11.14 catalog when present; else [`PipeTrace.json`](../formats/emulate/PipeTrace.json.md) or native tracing JSON | _(same CTEF path)_ | Catalog replaces the native merge (µs, one model per file). Else `sourceTimeUnit: 'us'; multi-file native traces → `mergeNativeChromeTraces` (remap pids). Classic `trace.json` is not a menu row |
-| CounterTrack leaves | same Trace `ph:C` on mem util pipes | pipe id from `process_name` | `mergeMemoryUtilCounterTracks` — step-after area, per-track auto Y, pipe-id label ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)); unit/queue pipes later (#209/#206) |
+| CounterTrack leaves | Trace `ph:C` (all numeric args) | process = `process_name`; leaf = arg key | `mergeCounterTracksFromTrace` — step-after area, per-track auto Y, data-driven tip rows ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)) |
 | events / lanes | same as compute CTEF | — | `chromeTraceToSwimlane` |
 | null swimlane | — | — | No trace embed → metrics-only report (no hard error) |
 
-Code: `adaptEmulate` + `findEmulateTracePayload` + `mergeMemoryUtilCounterTracks`.
+Code: `adaptEmulate` / `adaptChromeTrace` + `mergeCounterTracksFromTrace`.
 
 ## Adapter
 
