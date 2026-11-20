@@ -1405,7 +1405,7 @@ describe('PR-RENDER: lane chrome color', () => {
 
     // Per-pipe metric: durable-majority → length; tick-majority / tie → count.
     const durable = (n: number, d = 10) =>
-      Array.from({ length: n }, (_, i) => ({
+      Array.from({ length: n }, () => ({
         event: { duration: d },
         summary: false as const,
       }));
