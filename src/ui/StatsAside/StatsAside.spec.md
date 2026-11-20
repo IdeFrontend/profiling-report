@@ -72,7 +72,7 @@ DATA-33a duration + DATA-8 bandwidth + DATA-33h compute. Card group renders when
 
 - **Both** `aiv0` and `aiv1` → segmented **Cube | Vector 0 | Vector 1** (omit a missing AIC button); filter by the active core.
 - **AIC + exactly one AIV** (no second vector) → compute-style **Cube | Vector** labels on the same chrome; the Vector button keeps the real `aiv0`/`aiv1` side id for filtering.
-- **Single** emulate core → **no** chooser; show a **plain text label** (**Cube** / **Vector 0** / **Vector 1**) — not toggle/chip chrome (no border or filled background) — so the source core is visible without implying a control. Bars still show that core and must **not** fall through to compute `knownSide` (`aic`→cube / `aiv*`→vector), which would blank the list.
+- **Single** emulate core → **no** chooser; show a **plain text label** (**Cube** / **Vector 0** / **Vector 1**) — not toggle/chip chrome (no border or filled background), but solid title weight/color (`font-weight: 600`, `#ffffff`) so it reads as a section title rather than muted meta — so the source core is visible without implying a control. Bars still show that core and must **not** fall through to compute `knownSide` (`aic`→cube / `aiv*`→vector), which would blank the list.
 
 Default active side = first present in order `aic`, `aiv0`, `aiv1`. Compute MIX Cube|Vector is unchanged and mutually exclusive with this emulate path in practice (sides do not mix).
 
