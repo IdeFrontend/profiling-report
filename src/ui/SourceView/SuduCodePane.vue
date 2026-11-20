@@ -34,7 +34,6 @@ import {
   startSourceColBoundaryResize,
 } from './sourceColumnResize';
 import { matchRanges, type SearchRange } from '../searchHighlight';
-import { highlightLines } from './simpleHighlight';
 import { t } from '../../i18n';
 import { selectedTextFromSudu } from './suduSelection';
 
@@ -126,12 +125,13 @@ const ready = ref(false);
 const loadError = ref<string | null>(null);
 /** Hide editor + metrics together until Sudu has real geometry. The host stays laid out so boot can measure. */
 const showLoading = computed(() => !ready.value && loadError.value == null);
-/** Tokens for the no-WebGL fallback; empty while Sudu itself is rendering. */
-const fallbackLines = computed(() =>
-  loadError.value
-    ? highlightLines(props.file.text, props.file.language, props.file.path)
-    : [],
-);
+/** User-facing boot failure copy; raw reason stays on console only. */
+const fallbackMessage = computed(() => {
+  if (!loadError.value) return '';
+  return /webgl/i.test(loadError.value)
+    ? t('sourceEditorWebglOff')
+    : t('sourceEditorLoadFailed');
+});
 
 type EditorView = Awaited<ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newEditor']>>;
 type TextModel = ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newTextModel']>;
@@ -867,11 +867,14 @@ defineExpose({
           @pointerdown="onEditorPointerDown"
           @contextmenu.capture.prevent.stop="onEditorContextMenu"
         >
-          <pre
+          <div
             v-if="loadError"
             class="pr-sudu-pane__fallback"
             data-testid="sudu-fallback"
-          ><span v-for="(line, lineIndex) in fallbackLines" :key="lineIndex" class="pr-sudu-pane__line"><span v-for="(tok, tokIndex) in line" :key="tokIndex" :class="`pr-sudu-pane__tok pr-sudu-pane__tok--${tok.kind}`">{{ tok.text }}</span></span></pre>
+            role="alert"
+          >
+            {{ fallbackMessage }}
+          </div>
         </div>
         <div class="pr-sudu-pane__splitter" />
         <div class="pr-sudu-pane__table">
@@ -1157,44 +1160,17 @@ defineExpose({
 }
 
 .pr-sudu-pane__fallback {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
-  padding: 8px;
+  padding: 16px;
   height: 100%;
-  overflow: auto;
-  color: #d0d0d0;
-  font-family: monospace;
-  font-size: 12px;
+  color: #a0a0a0;
+  font-size: 13px;
   line-height: 1.4;
-  white-space: pre;
-}
-
-.pr-sudu-pane__line {
-  display: block;
-  min-height: 1.4em;
-}
-
-.pr-sudu-pane__tok--comment {
-  color: #6a9955;
-}
-
-.pr-sudu-pane__tok--string {
-  color: #ce9178;
-}
-
-.pr-sudu-pane__tok--number {
-  color: #b5cea8;
-}
-
-.pr-sudu-pane__tok--keyword {
-  color: #569cd6;
-}
-
-.pr-sudu-pane__tok--preproc {
-  color: #c586c0;
-}
-
-.pr-sudu-pane__tok--plain {
-  color: inherit;
+  text-align: center;
 }
 
 </style>

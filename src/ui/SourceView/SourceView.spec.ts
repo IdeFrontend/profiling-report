@@ -1498,7 +1498,7 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
-  it('PR-SOURCE-032: Sudu boot failure shows colored source and logs the reason', async () => {
+  it('PR-SOURCE-032: Sudu boot failure shows WebGL-off message and logs the reason', async () => {
     const { newEditor } = await import('@sudu-ide/code-review');
     vi.mocked(newEditor).mockImplementationOnce(() => {
       throw new Error('WebGL is not enabled');
@@ -1521,11 +1521,9 @@ describe('SourceView', () => {
       const wrapper = mount(SourceView, { props: { model } });
       await flushPromises();
       const fallback = wrapper.get('[data-testid="sudu-fallback"]');
-      expect(fallback.text()).toContain('kernel');
+      expect(fallback.text()).toBe(t('sourceEditorWebglOff'));
+      expect(fallback.text()).not.toContain('kernel');
       expect(fallback.text()).not.toContain('WebGL is not enabled');
-      expect(fallback.find('.pr-sudu-pane__tok--keyword').exists()).toBe(true);
-      expect(fallback.find('.pr-sudu-pane__tok--comment').exists()).toBe(true);
-      expect(fallback.find('.pr-sudu-pane__tok--string').exists()).toBe(true);
       expect(errorSpy).toHaveBeenCalledWith(
         '[profiling-report] Sudu editor fallback',
         'WebGL is not enabled',
