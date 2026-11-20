@@ -27,8 +27,9 @@ export const extendMargin1Css = 2;
 export const extendMargin2Css = 4;
 
 /**
- * Odd device-column multiplier for thin-event count-hit stipple (matches Canvas
+ * Odd world-column multiplier for thin-event count-hit stipple (matches Canvas
  * `TICK_ALTERNATE_FACTOR` in layout.ts). Long dense additive fills zebra instead of a solid bar.
+ * Columns are pan-stable `floor(t / dt)` with `dt = span / deviceWidth` (same idea as Canvas `k·dt`).
  */
 export const thinEventAlternateFactor = 0.6;
 
@@ -50,6 +51,7 @@ in vec2 aData; // x = distance to prev event end, y = distance to next event sta
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
+out float vStippleAlt; // pan-stable odd/even world-column factor for count-hit zebra
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -97,6 +99,14 @@ void main() {
   float screenX = mix(screenL, screenR, aTex.y);
   pos.x = pixelToGlX(screenX);
 
+  // Pan-stable stipple: world column from unextended event center (aPos times are
+  // timeBase-relative; sx = 2/span so span = 2/sx). Same event keeps the same odd/even
+  // under horizontal pan; zoom changes dt and may reflow (acceptable).
+  float span = 2.0 / uSizePos.x;
+  float dt = span / max(uResolution.x, 1.0);
+  float worldCol = floor(((lX + rX) * 0.5) / dt);
+  vStippleAlt = mod(worldCol, 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
+
   vScreenPos = vec2(screenX, screenY);
   vLrScreen = vec2(extendedL, extendedR);
   gl_Position = vec4(pos, 0.0, 1.0);
@@ -114,6 +124,7 @@ uniform float uUseCountMetric; // 1.0 = per-pipe count-hit; 0.0 = length AA (dur
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
+in float vStippleAlt;
 out vec4 outColor;
 
 float sdRoundBox(vec2 p, vec2 halfSize, float r) {
@@ -148,7 +159,7 @@ void main() {
   // when hCoverage > 0 or the event center lies in this device column (L≈R still paints).
   // A hit is a full stipple unit: the zero-width SDF is ~0 and would drop the 1 px quad.
   // Zebra only for non-extended hits (rawW < 1): isolates that thin-extend to ≥1 device px stay
-  // full bright (durable parity); dense pack interiors keep the odd-column stipple.
+  // full bright (durable parity); dense pack interiors use pan-stable vStippleAlt.
   float cov;
   if (uUseCountMetric < 0.5) {
     cov = min(hCoverage, rrShape);
@@ -156,11 +167,7 @@ void main() {
     float center = (l + r) * 0.5;
     bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) <= 0.5;
     if (hit) {
-      float unit = 1.0;
-      if (rawW < 1.0) {
-        unit *= mod(floor(vScreenPos.x), 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
-      }
-      cov = unit;
+      cov = rawW < 1.0 ? vStippleAlt : 1.0;
     } else {
       cov = 0.0;
     }
