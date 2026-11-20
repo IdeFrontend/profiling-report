@@ -18,6 +18,7 @@ import {
   counterProcessesFromTrace,
   formatCounterArgValue,
 } from '../../src/adapters/counterTracksEmulate';
+import { LANE_COLOR_HEX, MEMORY_UTIL_COUNTER_COLOR } from '../../src/domain/laneColors';
 import { buildCannbotPayload } from '../../src/domain/cannbot';
 import {
   NPU160_TYPE_CSV,
@@ -286,6 +287,8 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       },
     ]);
     expect(utilLeaf.counter?.yMax).toBe(0.03);
+    expect(utilLeaf.counter?.colorHex).toBe(MEMORY_UTIL_COUNTER_COLOR);
+    expect(procs[0]!.threads[1]!.counter?.colorHex).toBe(MEMORY_UTIL_COUNTER_COLOR);
 
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
@@ -350,6 +353,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
       { t: 2_000, v: 80, values: { 'Utilization (%)': 80 } },
     ]);
     expect(procs[0]!.threads[0]!.counter?.yMax).toBe(80);
+    expect(procs[0]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.scalar);
 
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
@@ -434,6 +438,9 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(procs[0]!.threads[0]!.counter?.yMax).toBe(10);
     expect(procs[1]!.threads[0]!.counter?.yMax).toBe(2);
     expect(procs[2]!.threads[0]!.counter?.yMax).toBe(4);
+    expect(procs[0]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.vector); // PUSHQ
+    expect(procs[1]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.vector); // PUSHQ
+    expect(procs[2]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.mte2);
 
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
