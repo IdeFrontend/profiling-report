@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch, type CSSProperties } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  watch,
+  type CSSProperties,
+} from 'vue';
 import { t, type MessageKey } from '../../../i18n';
 import type {
   MemoryHeatmapBlock,
@@ -14,11 +21,13 @@ import {
   placeFixedTip,
 } from '../../placeFixedTip';
 import {
+  HEAT_GRID_BORDER_PX,
   HEAT_GRID_GAP_PX,
   HEAT_GRID_PAD_PX,
   hitTestHeatCell,
 } from './heatHitTest';
 import { mergeOccupancyBands } from './legendOccupancy';
+import { paintHeatLattice } from './paintHeatLattice';
 
 /**
  * biprof §11.2.3.2 Memory Utilization Heatmap panel — the right column of the topology 全屏
@@ -400,13 +409,13 @@ const heatVeilOn = ref(false);
 
 const brushChromeEl = ref<HTMLElement | null>(null);
 const brushRangeEl = ref<HTMLElement | null>(null);
-const brightEl = ref<HTMLElement | null>(null);
+const baseCanvasEl = ref<HTMLCanvasElement | null>(null);
+const brightCanvasEl = ref<HTMLCanvasElement | null>(null);
 
-/** Precomputed per active view — used by imperative base/bright paints. */
+/** Precomputed per active view — used by canvas base/bright paints. */
 let cellIntensityPct: number[] = [];
 let cellFillColors: string[] = [];
-let cellWithDataBits = new Uint8Array(0);
-/** 1 = shown on the bright layer (in brush range). */
+/** 1 = shown on the bright canvas (in brush range). */
 let cellBrightBits = new Uint8Array(0);
 
 let legendBrushMoveRaf = 0;
@@ -414,60 +423,132 @@ let pendingLegendClientX: number | null = null;
 let lastAppliedBrushCenter: number | null = null;
 /** Last brush used for bright membership — kept through veil leave fade. */
 let lastBrightBrush: { loPct: number; hiPct: number } | null = null;
+let gridResizeObserver: ResizeObserver | null = null;
 
 function rebuildCellPaintCache(view: MemoryHeatmapView | null) {
   if (!view?.blocks.length) {
     cellIntensityPct = [];
     cellFillColors = [];
-    cellWithDataBits = new Uint8Array(0);
     cellBrightBits = new Uint8Array(0);
     return;
   }
   const n = view.blocks.length;
   cellIntensityPct = new Array(n);
   cellFillColors = new Array(n);
-  cellWithDataBits = new Uint8Array(n);
   cellBrightBits = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
     const block = view.blocks[i]!;
     cellIntensityPct[i] = block.intensity * 100;
     cellFillColors[i] = heatFill(block.intensity);
-    cellWithDataBits[i] = block.state === 'withData' ? 1 : 0;
   }
 }
 
-/** Paint base lattice fills (always heatFill — dim is the veil, not cell color). */
-function paintBaseCells() {
+function currentDpr(): number {
+  return typeof window !== 'undefined' ? Math.max(1, window.devicePixelRatio || 1) : 1;
+}
+
+/** Inner board size from the grid border box (matches heatHitTest chrome). */
+function gridInnerCssSize(): { innerW: number; innerH: number } | null {
   const grid = gridEl.value;
-  if (!grid) return;
-  const cells = grid.querySelectorAll<HTMLElement>(':scope > .pr-heat__cell');
-  const n = Math.min(cells.length, cellFillColors.length);
-  for (let i = 0; i < n; i++) {
-    const el = cells[i]!;
-    el.classList.toggle('pr-heat__cell--with', cellWithDataBits[i] === 1);
-    el.style.backgroundColor = cellFillColors[i]!;
-  }
+  if (!grid) return null;
+  const rect = grid.getBoundingClientRect();
+  const chrome = 2 * HEAT_GRID_BORDER_PX + 2 * HEAT_GRID_PAD_PX;
+  const innerW = rect.width - chrome;
+  const innerH = rect.height - chrome;
+  if (innerW <= 0 || innerH <= 0) return null;
+  return { innerW, innerH };
+}
+
+function syncCanvasBacking(
+  canvas: HTMLCanvasElement,
+  innerW: number,
+  innerH: number,
+  dpr: number,
+): CanvasRenderingContext2D | null {
+  const bw = Math.max(1, Math.round(innerW * dpr));
+  const bh = Math.max(1, Math.round(innerH * dpr));
+  if (canvas.width !== bw) canvas.width = bw;
+  if (canvas.height !== bh) canvas.height = bh;
+  canvas.style.width = `${innerW}px`;
+  canvas.style.height = `${innerH}px`;
+  return canvas.getContext('2d');
+}
+
+/** Paint base lattice (always heatFill — dim is the veil, not cell color). */
+function paintBaseCanvas() {
+  const canvas = baseCanvasEl.value;
+  const view = activeView.value;
+  const size = gridInnerCssSize();
+  if (!canvas || !view || !size) return;
+  const dpr = currentDpr();
+  const ctx = syncCanvasBacking(canvas, size.innerW, size.innerH, dpr);
+  if (!ctx) return;
+  paintHeatLattice({
+    ctx,
+    columns: view.columns,
+    rows: view.rows,
+    innerWidthCss: size.innerW,
+    innerHeightCss: size.innerH,
+    devicePixelRatio: dpr,
+    fills: cellFillColors,
+    blockCount: view.blocks.length,
+  });
+}
+
+/** Clear + paint bright canvas from `cellBrightBits` (in-range cells only). */
+function paintBrightCanvas() {
+  const canvas = brightCanvasEl.value;
+  const view = activeView.value;
+  const size = gridInnerCssSize();
+  if (!canvas || !view || !size) return;
+  const dpr = currentDpr();
+  const ctx = syncCanvasBacking(canvas, size.innerW, size.innerH, dpr);
+  if (!ctx) return;
+  paintHeatLattice({
+    ctx,
+    columns: view.columns,
+    rows: view.rows,
+    innerWidthCss: size.innerW,
+    innerHeightCss: size.innerH,
+    devicePixelRatio: dpr,
+    fills: cellFillColors,
+    mask: cellBrightBits,
+    blockCount: view.blocks.length,
+  });
+}
+
+function redrawHeatCanvases() {
+  paintBaseCanvas();
+  paintBrightCanvas();
 }
 
 /**
- * Show/hide preallocated bright-layer cells for the brush window.
- * Only touches indices whose on-bit changed — safe for rAF-coalesced slides.
+ * Update bright membership for the brush window, then redraw the bright canvas.
+ * `force` redraws even when bits are unchanged (view remount / resize path).
  */
 function patchBrightCells(brush: { loPct: number; hiPct: number } | null, force = false) {
-  const layer = brightEl.value;
-  if (!layer) return;
-  const cells = layer.querySelectorAll<HTMLElement>('.pr-heat__cell--bright');
-  const n = Math.min(cells.length, cellIntensityPct.length);
+  const n = cellIntensityPct.length;
+  let changed = force;
   for (let i = 0; i < n; i++) {
     const pct = cellIntensityPct[i]!;
     const on = brush != null && pct >= brush.loPct && pct <= brush.hiPct;
     const bit = on ? 1 : 0;
-    if (!force && cellBrightBits[i] === bit) continue;
-    cellBrightBits[i] = bit;
-    const el = cells[i]!;
-    el.classList.toggle('pr-heat__cell--bright-on', on);
-    el.style.backgroundColor = on ? cellFillColors[i]! : '';
+    if (cellBrightBits[i] !== bit) {
+      cellBrightBits[i] = bit;
+      changed = true;
+    }
   }
+  if (changed) paintBrightCanvas();
+}
+
+function bindGridResizeObserver(el: HTMLElement | null) {
+  gridResizeObserver?.disconnect();
+  gridResizeObserver = null;
+  if (!el || typeof ResizeObserver === 'undefined') return;
+  gridResizeObserver = new ResizeObserver(() => {
+    redrawHeatCanvases();
+  });
+  gridResizeObserver.observe(el);
 }
 
 function quantizeBrushCenter(pct: number): number {
@@ -589,6 +670,13 @@ function isBrushMutedIndex(index: number): boolean {
 
 onBeforeUnmount(() => {
   if (legendBrushMoveRaf) cancelAnimationFrame(legendBrushMoveRaf);
+  gridResizeObserver?.disconnect();
+  gridResizeObserver = null;
+});
+
+watch(gridEl, (el) => {
+  bindGridResizeObserver(el);
+  if (el) void nextTick(() => redrawHeatCanvases());
 });
 
 /** Occupancy bands stay mounted after leave so opacity can fade out. */
@@ -643,10 +731,10 @@ watch(
     lastAppliedBrushCenter = null;
     legendTrackWidthPx.value = 0;
     rebuildCellPaintCache(view);
-    // Remounted cells have no inline fill until this paint runs.
     void nextTick(() => {
       setBrushChrome(null);
-      paintBaseCells();
+      bindGridResizeObserver(gridEl.value);
+      paintBaseCanvas();
       patchBrightCells(null, true);
     });
   },
@@ -810,14 +898,12 @@ watch(
             @pointermove="onGridPointerMove"
             @pointerleave="clearCellTip"
           >
-            <!-- Base lattice — always heatFill; dim comes from the veil, not cell color. -->
-            <span
-              v-for="block in activeView.blocks"
-              :key="block.index"
-              class="pr-heat__cell"
-              :data-state="block.state"
-              :data-intensity="String(block.intensity)"
-              :data-access-count="String(block.accessCount)"
+            <!-- Base lattice — Canvas 2D; dim comes from the veil, not cell color. -->
+            <canvas
+              ref="baseCanvasEl"
+              class="pr-heat__canvas pr-heat__canvas--base"
+              data-testid="heat-canvas"
+              aria-hidden="true"
             />
             <!-- Single mute veil — only heatmap element that animates on enter/leave. -->
             <div
@@ -827,22 +913,13 @@ watch(
               aria-hidden="true"
               @transitionend="onHeatVeilTransitionEnd"
             />
-            <!--
-              Bright top layer — in-range cells only (imperative show/hide).
-              Preallocated to avoid Vue lattice rebuilds while sliding.
-            -->
-            <div
-              ref="brightEl"
-              class="pr-heat__bright"
-              data-testid="heat-bright-layer"
+            <!-- Bright top layer — in-range cells only (canvas redraw on brush slide). -->
+            <canvas
+              ref="brightCanvasEl"
+              class="pr-heat__canvas pr-heat__canvas--bright"
+              data-testid="heat-canvas-bright"
               aria-hidden="true"
-            >
-              <span
-                v-for="block in activeView.blocks"
-                :key="`bright-${block.index}`"
-                class="pr-heat__cell pr-heat__cell--bright"
-              />
-            </div>
+            />
             <!-- Zoomed filled overlay — cells keep fixed size (no layout grow). -->
             <div
               v-if="
@@ -1164,10 +1241,9 @@ watch(
   );
   position: relative;
   box-sizing: border-box;
-  display: grid;
-  grid-template-columns: repeat(var(--pr-heat-cols), var(--pr-heat-cell));
-  grid-template-rows: repeat(var(--pr-heat-rows), var(--pr-heat-cell));
-  gap: 2px;
+  /* Explicit frame size — canvases are abs-pos; no grid children for intrinsic size. */
+  width: calc(var(--pr-heat-cols) * (var(--pr-heat-cell) + 2px) - 2px + 8px);
+  height: calc(var(--pr-heat-rows) * (var(--pr-heat-cell) + 2px) - 2px + 8px);
   padding: 2px;
   border: 2px solid #6e798d;
   border-radius: 5px;
@@ -1176,16 +1252,16 @@ watch(
   overflow: visible;
 }
 
-.pr-heat__cell {
-  position: relative;
-  width: var(--pr-heat-cell);
-  height: var(--pr-heat-cell);
-  border-radius: 1px;
-  /* Fill from inline `backgroundColor` / heatFill (#200). Dim is the veil, not cell color. */
-  cursor: default;
-  box-sizing: border-box;
-  /* Hits go to the grid — continuous geometry hit-test owns hover. */
+.pr-heat__canvas {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  z-index: 0;
   pointer-events: none;
+}
+
+.pr-heat__canvas--bright {
+  z-index: 2;
 }
 
 /* One mute veil over the base lattice — sole heatmap enter/leave animation. */
@@ -1202,28 +1278,6 @@ watch(
 
 .pr-heat__mute-veil--on {
   opacity: 1;
-}
-
-/* Bright in-range cells above the veil — membership snaps; no fade. */
-.pr-heat__bright {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: repeat(var(--pr-heat-cols), var(--pr-heat-cell));
-  grid-template-rows: repeat(var(--pr-heat-rows), var(--pr-heat-cell));
-  gap: 2px;
-  padding: 2px;
-  pointer-events: none;
-}
-
-.pr-heat__cell--bright {
-  visibility: hidden;
-}
-
-.pr-heat__cell--bright-on {
-  visibility: visible;
 }
 
 .pr-heat__hover {

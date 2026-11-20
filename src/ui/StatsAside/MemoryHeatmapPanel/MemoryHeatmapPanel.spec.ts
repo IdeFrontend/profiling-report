@@ -12,15 +12,6 @@ async function flushLegendBrushFrame() {
   await nextTick();
 }
 
-/** Base lattice cells only (excludes the bright-layer clones). */
-function baseCells(wrapper: ReturnType<typeof mountPanel>) {
-  return wrapper.findAll('[data-testid="heat-grid"] > .pr-heat__cell');
-}
-
-function brightOn(wrapper: ReturnType<typeof mountPanel>) {
-  return wrapper.findAll('.pr-heat__cell--bright-on');
-}
-
 function blocks(count: number, withData: number) {
   return Array.from({ length: count }, (_, index) => {
     const hot = index < withData;
@@ -126,18 +117,15 @@ describe('MemoryHeatmapPanel', () => {
     expect(legend.text()).not.toContain('High');
   });
 
-  it('PR-HEAT-003: paints one cell per block with continuous Free→Used blue intensity (#200)', async () => {
+  it('PR-HEAT-003: paints the lattice on base + bright canvases (no per-cell DOM)', async () => {
     const wrapper = mountPanel();
-    await nextTick(); // imperative heatFill paint
-    const cells = baseCells(wrapper);
-    expect(cells).toHaveLength(416);
-    expect(cells[0].attributes('data-state')).toBe('withData');
-    expect(Number(cells[0].attributes('data-intensity'))).toBeGreaterThan(0);
-    // Hot cells interpolate between Free (#AFC6FE) and Used (#3D64AD).
-    expect(cells[0].attributes('style')).toMatch(/background-color:\s*rgb\(/);
-    expect(cells[20].attributes('data-state')).toBe('withoutData');
-    expect(cells[20].attributes('data-intensity')).toBe('0');
-    expect(cells[20].attributes('style')).toMatch(/background-color:\s*#AFC6FE/i);
+    await nextTick(); // canvas paint after mount
+    const grid = wrapper.get('[data-testid="heat-grid"]');
+    expect(grid.find('[data-testid="heat-canvas"]').exists()).toBe(true);
+    expect(grid.find('[data-testid="heat-canvas-bright"]').exists()).toBe(true);
+    expect(grid.findAll('.pr-heat__cell')).toHaveLength(0);
+    // a11y still reports used/total from the view (416 blocks, 20 with data).
+    expect(grid.attributes('aria-label')).toBe('20 / 416 个块已用');
   });
 
   it('PR-HEAT-004: shows Total/Used/Free with spaced shared units (#201); omits when Total is unknown', () => {
@@ -229,9 +217,12 @@ describe('MemoryHeatmapPanel', () => {
     expect(item!.textContent).toContain('Core 1 · AIV1 UB');
     item!.click();
     await wrapper.vm.$nextTick();
-    await nextTick(); // imperative --with paint after view remount
+    await nextTick(); // canvas repaint after view remount
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 1 · AIV1 UB');
-    expect(wrapper.findAll('[data-testid="heat-grid"] > .pr-heat__cell--with')).toHaveLength(10);
+    expect(wrapper.get('[data-testid="heat-grid"]').attributes('aria-label')).toBe(
+      '10 / 416 个块已用',
+    );
+    expect(wrapper.find('[data-testid="heat-canvas"]').exists()).toBe(true);
   });
 
   it('PR-HEAT-012: single-view tabs keep the reserved view-bar band (same lattice height)', () => {
@@ -433,10 +424,8 @@ describe('MemoryHeatmapPanel', () => {
       { ...tipFixture, locale: 'zh-CN' },
       { attachTo: document.body },
     );
-    const cell = baseCells(wrapper)[0]!;
-    expect(cell.attributes('data-access-count')).toBe('300090');
-    // No per-cell hover class — overlay owns the zoom tile (no layout grow).
-    expect(cell.classes()).not.toContain('pr-heat__cell--hover');
+    // Lattice is canvas — no per-cell DOM / hover class; overlay owns the zoom tile.
+    expect(wrapper.findAll('.pr-heat__cell')).toHaveLength(0);
 
     const { grid, cellCenter } = stubHeatGrid(wrapper);
     await grid.trigger('pointermove', cellCenter(0, 0));
@@ -528,7 +517,7 @@ describe('MemoryHeatmapPanel', () => {
     return { trackWidth, pad, hitLeft: 0, hitRight: pad * 2 + trackWidth };
   }
 
-  it('PR-HEAT-014: legend brush (10%) mutes non-matching cells; clears on leave', async () => {
+  it('PR-HEAT-014: legend brush (10%) mutes via veil + bright canvas; clears on leave', async () => {
     // Two hot cells: intensities 0.5 and 1.0 → mid brush (~45–55%) keeps only the 0.5 cell bright.
     const brushModel: MemoryHeatmapModel = {
       units: [
@@ -550,7 +539,7 @@ describe('MemoryHeatmapPanel', () => {
       ],
     };
     const wrapper = mountPanel({ model: brushModel, selectedUnit: 'ub', locale: 'en' });
-    await nextTick(); // imperative cell fill paint after mount
+    await nextTick(); // canvas paint after mount
     const gradient = wrapper.get('[data-testid="heat-legend-gradient"]');
     const { trackWidth, pad, hitLeft, hitRight } = stubLegendTrack(wrapper);
 
@@ -570,15 +559,11 @@ describe('MemoryHeatmapPanel', () => {
       /opacity:\s*1/,
     );
 
-    // Heat dim: one veil + bright top layer (in-range only). Base cells stay heatFill.
+    // Heat dim: one veil + bright canvas (in-range paint); base canvas stays mounted.
     const veil = wrapper.get('[data-testid="heat-mute-veil"]');
     expect(veil.classes()).toContain('pr-heat__mute-veil--on');
-    const cells = baseCells(wrapper);
-    expect(cells[0]!.attributes('style')).toMatch(/background-color:\s*rgb\(/);
-    expect(cells[1]!.attributes('style')).toMatch(/background-color:\s*#3D64AD/i);
-    const on = brightOn(wrapper);
-    expect(on).toHaveLength(1); // only intensity 0.5 in [45, 55]
-    expect(on[0]!.attributes('style')).toMatch(/background-color:\s*rgb\(/);
+    expect(wrapper.find('[data-testid="heat-canvas"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="heat-canvas-bright"]').exists()).toBe(true);
 
     // Strip left edge → center 0%, window [-5, 5]; label coerces to 0 – 5.
     await gradient.trigger('pointermove', { clientX: pad, clientY: 11 });
@@ -587,7 +572,6 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*-5%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 5');
-    expect(brightOn(wrapper)).toHaveLength(2); // intensity 0 cells (indices 2, 3)
     expect(wrapper.get('[data-testid="heat-legend-tick-min"]').attributes('style')).toMatch(
       /opacity:\s*0/,
     );
@@ -602,7 +586,6 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*-10%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 0');
-    expect(brightOn(wrapper)).toHaveLength(2); // intensity 0 captured
 
     // Strip right edge → window [95, 105]; label 95 – 100.
     await gradient.trigger('pointermove', { clientX: pad + trackWidth, clientY: 11 });
@@ -611,7 +594,6 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*95%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('95 – 100');
-    expect(brightOn(wrapper)).toHaveLength(1); // intensity 100
     expect(wrapper.get('[data-testid="heat-legend-tick-min"]').attributes('style')).toMatch(
       /opacity:\s*1/,
     );
@@ -626,7 +608,6 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*100%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('100 – 100');
-    expect(brightOn(wrapper)).toHaveLength(1); // intensity 100 captured
 
     // Occupancy dim: mute overlay + three ≥3px bright bands (fade via --brushing class).
     const gradientEl = wrapper.get('.pr-heat__gradient');
@@ -643,20 +624,18 @@ describe('MemoryHeatmapPanel', () => {
       expect(style).toMatch(/background-image:/);
     }
 
-    // Leave: brush chrome hides before fades; veil starts fade; bright stays until transitionend.
+    // Leave: brush chrome hides before fades; veil starts fade; bright canvas stays mounted.
     await gradient.trigger('pointerleave');
     expect(brush.attributes('hidden')).toBe('');
     expect(veil.classes()).not.toContain('pr-heat__mute-veil--on');
     expect(wrapper.get('.pr-heat__gradient').classes()).not.toContain('pr-heat__gradient--brushing');
-    expect(brightOn(wrapper)).toHaveLength(1);
+    expect(wrapper.find('[data-testid="heat-canvas-bright"]').exists()).toBe(true);
     await veil.trigger('transitionend', { propertyName: 'opacity' });
-    expect(brightOn(wrapper)).toHaveLength(0);
     // Bands stay mounted so opacity can fade out.
     expect(wrapper.findAll('[data-testid="heat-legend-occ"]')).toHaveLength(3);
     expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/linear-gradient/);
     expect(wrapper.get('.pr-heat__gradient').attributes('style')).toMatch(/#AFC6FE/i);
     expect(wrapper.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
-    expect(cells[1]!.attributes('style')).toMatch(/background-color:\s*#3D64AD/i);
   });
 
   it('PR-HEAT-014: single unique intensity paints one ≥3px occupancy band', async () => {
