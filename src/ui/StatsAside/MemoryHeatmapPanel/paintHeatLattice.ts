@@ -7,7 +7,8 @@ import { HEAT_GRID_BORDER_PX, HEAT_GRID_GAP_PX, HEAT_GRID_PAD_PX } from './heatH
 
 /** Minimal 2D context surface used by the painter (real CanvasRenderingContext2D or mock). */
 export type HeatPaintContext = {
-  fillStyle: string;
+  /** Matches CanvasRenderingContext2D — we only assign string colors. */
+  fillStyle: string | CanvasGradient | CanvasPattern;
   beginPath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
