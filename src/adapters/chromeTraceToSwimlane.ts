@@ -167,23 +167,14 @@ export function chromeTraceToSwimlane(
 
     // Complete X intervals; emulate `ph:i` with positive finite `dur` (#207); or instant
     // `ph:i` with finite ts and missing/zero `dur` as duration-0 ticks (#205).
-    const instantI =
-      e.ph === 'i' && e.ts != null && Number.isFinite(e.ts) && (e.dur == null || e.dur === 0);
+    const ts = e.ts;
+    if (ts == null || !Number.isFinite(ts)) continue;
+    const instantI = e.ph === 'i' && (e.dur == null || e.dur === 0);
     const iWithDur =
-      e.ph === 'i' &&
-      e.ts != null &&
-      Number.isFinite(e.ts) &&
-      e.dur != null &&
-      Number.isFinite(e.dur) &&
-      e.dur > 0;
-    // Non-finite or negative X dur/ts would poison maxTime/minTime and steal an s/f edge.
+      e.ph === 'i' && e.dur != null && Number.isFinite(e.dur) && e.dur > 0;
+    // Non-finite or negative X dur would poison maxTime/minTime and steal an s/f edge.
     const xInterval =
-      e.ph === 'X' &&
-      e.ts != null &&
-      Number.isFinite(e.ts) &&
-      e.dur != null &&
-      Number.isFinite(e.dur) &&
-      e.dur >= 0;
+      e.ph === 'X' && e.dur != null && Number.isFinite(e.dur) && e.dur >= 0;
     if (!(instantI || iWithDur || xInterval)) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
@@ -204,7 +195,7 @@ export function chromeTraceToSwimlane(
       threads.set(tid, thread);
     }
 
-    const startTime = e.ts * toNs;
+    const startTime = ts * toNs;
     // Model duration stays 0 for instant markers; WebGL paints a min-px tick (#205).
     const duration = instantI ? 0 : e.dur! * toNs;
     minTime = Math.min(minTime, startTime);
