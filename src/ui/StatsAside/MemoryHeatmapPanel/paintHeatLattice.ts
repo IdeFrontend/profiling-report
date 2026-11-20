@@ -54,6 +54,10 @@ export type PaintHeatLatticeArgs = {
   /** Per-block fill colors, row-major, length >= columns*rows (or blockCount). */
   fills: readonly string[];
   /**
+   * When set, paint every drawn cell this color (mute veil) instead of `fills[i]`.
+   */
+  uniformFill?: string | null;
+  /**
    * When set, only indices with bit === 1 are drawn (bright layer).
    * When omitted, every block with a fill is drawn (base layer).
    */
@@ -74,9 +78,10 @@ export function paintHeatLattice(args: PaintHeatLatticeArgs): void {
     innerHeightCss,
     devicePixelRatio,
     fills,
+    uniformFill = null,
     mask = null,
   } = args;
-  const blockCount = args.blockCount ?? fills.length;
+  const blockCount = args.blockCount ?? (uniformFill ? columns * rows : fills.length);
   const dpr = Math.max(1, devicePixelRatio || 1);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -91,11 +96,11 @@ export function paintHeatLattice(args: PaintHeatLatticeArgs): void {
 
   const stepX = cellW + HEAT_GRID_GAP_PX;
   const stepY = cellH + HEAT_GRID_GAP_PX;
-  const n = Math.min(blockCount, fills.length, columns * rows);
+  const n = Math.min(blockCount, columns * rows, uniformFill ? blockCount : fills.length);
 
   for (let i = 0; i < n; i++) {
     if (mask != null && mask[i] !== 1) continue;
-    const fill = fills[i];
+    const fill = uniformFill ?? fills[i];
     if (!fill) continue;
     const col = i % columns;
     const row = Math.floor(i / columns);

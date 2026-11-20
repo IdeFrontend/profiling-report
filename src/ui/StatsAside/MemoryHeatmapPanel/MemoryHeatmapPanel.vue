@@ -49,6 +49,8 @@ const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
 const LEGEND_END_FADE_ZONE_PCT = 12;
 /** Mute / occupancy dim fade on brush enter/leave (cells + legend). */
 const LEGEND_DIM_MS = 200;
+/** Mute veil cell fill — gaps stay clear so board `#303f5e` grid lines show through. */
+const HEAT_MUTE_FILL = '#2C2C2C';
 
 /**
  * Binary-mode Free / Used blues (same as HEAT_BLOCK_WITHOUT_DATA / WITH_DATA).
@@ -409,7 +411,9 @@ const heatVeilOn = ref(false);
 
 const brushChromeEl = ref<HTMLElement | null>(null);
 const brushRangeEl = ref<HTMLElement | null>(null);
+const brushMatchEl = ref<HTMLElement | null>(null);
 const baseCanvasEl = ref<HTMLCanvasElement | null>(null);
+const veilCanvasEl = ref<HTMLCanvasElement | null>(null);
 const brightCanvasEl = ref<HTMLCanvasElement | null>(null);
 
 /** Precomputed per active view — used by canvas base/bright paints. */
@@ -495,6 +499,31 @@ function paintBaseCanvas() {
   });
 }
 
+/**
+ * Mute veil lattice — same cell geometry as base; gaps stay clear so board
+ * `#303f5e` grid lines remain visible under the fade.
+ */
+function paintVeilCanvas() {
+  const canvas = veilCanvasEl.value;
+  const view = activeView.value;
+  const size = gridInnerCssSize();
+  if (!canvas || !view || !size) return;
+  const dpr = currentDpr();
+  const ctx = syncCanvasBacking(canvas, size.innerW, size.innerH, dpr);
+  if (!ctx) return;
+  paintHeatLattice({
+    ctx,
+    columns: view.columns,
+    rows: view.rows,
+    innerWidthCss: size.innerW,
+    innerHeightCss: size.innerH,
+    devicePixelRatio: dpr,
+    fills: [],
+    uniformFill: HEAT_MUTE_FILL,
+    blockCount: view.blocks.length,
+  });
+}
+
 /** Clear + paint bright canvas from `cellBrightBits` (in-range cells only). */
 function paintBrightCanvas() {
   const canvas = brightCanvasEl.value;
@@ -519,7 +548,29 @@ function paintBrightCanvas() {
 
 function redrawHeatCanvases() {
   paintBaseCanvas();
+  paintVeilCanvas();
   paintBrightCanvas();
+}
+
+function countBrightBits(): number {
+  let n = 0;
+  for (let i = 0; i < cellBrightBits.length; i++) {
+    if (cellBrightBits[i] === 1) n++;
+  }
+  return n;
+}
+
+/** Match-count tip above the brush — hidden when zero cells are highlighted. */
+function setBrushMatchTip(count: number) {
+  const el = brushMatchEl.value;
+  if (!el) return;
+  if (count <= 0) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.textContent = t('memoryHeatBrushMatch', props.locale).replace('{n}', formatAccessCount(count));
+  el.hidden = false;
 }
 
 /**
@@ -539,6 +590,7 @@ function patchBrightCells(brush: { loPct: number; hiPct: number } | null, force 
     }
   }
   if (changed) paintBrightCanvas();
+  setBrushMatchTip(brush == null ? 0 : countBrightBits());
 }
 
 function bindGridResizeObserver(el: HTMLElement | null) {
@@ -570,6 +622,7 @@ function setBrushChrome(next: { centerPct: number; loPct: number; hiPct: number 
   if (!el) return;
   if (next == null) {
     el.hidden = true;
+    setBrushMatchTip(0);
     return;
   }
   el.style.left = `${next.loPct}%`;
@@ -735,6 +788,7 @@ watch(
       setBrushChrome(null);
       bindGridResizeObserver(gridEl.value);
       paintBaseCanvas();
+      paintVeilCanvas();
       patchBrightCells(null, true);
     });
   },
@@ -827,6 +881,12 @@ watch(
               hidden
             >
               <span
+                ref="brushMatchEl"
+                class="pr-heat__legend-brush-match"
+                data-testid="heat-legend-brush-match"
+                hidden
+              />
+              <span
                 ref="brushRangeEl"
                 class="pr-heat__legend-brush-range"
                 data-testid="heat-legend-brush-range"
@@ -905,9 +965,13 @@ watch(
               data-testid="heat-canvas"
               aria-hidden="true"
             />
-            <!-- Single mute veil — only heatmap element that animates on enter/leave. -->
-            <div
-              class="pr-heat__mute-veil"
+            <!--
+              Mute veil lattice — same cell geometry; gaps clear so board grid lines show.
+              Sole heatmap element that animates opacity on enter/leave.
+            -->
+            <canvas
+              ref="veilCanvasEl"
+              class="pr-heat__canvas pr-heat__mute-veil"
               :class="{ 'pr-heat__mute-veil--on': heatVeilOn }"
               data-testid="heat-mute-veil"
               aria-hidden="true"
@@ -1161,6 +1225,20 @@ watch(
   /* No transition — chrome must paint before legend/heatmap fades (flushSync). */
 }
 
+.pr-heat__legend-brush-match {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: #e8e8e8;
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .pr-heat__legend-brush-range {
   position: absolute;
   top: calc(100% + 2px);
@@ -1264,15 +1342,10 @@ watch(
   z-index: 2;
 }
 
-/* One mute veil over the base lattice — sole heatmap enter/leave animation. */
+/* Mute veil lattice canvas — sole heatmap enter/leave opacity animation. */
 .pr-heat__mute-veil {
-  position: absolute;
-  inset: 0;
   z-index: 1;
-  border-radius: 3px;
-  background: #2c2c2c;
   opacity: 0;
-  pointer-events: none;
   transition: opacity var(--pr-heat-dim-ms, 200ms) ease;
 }
 

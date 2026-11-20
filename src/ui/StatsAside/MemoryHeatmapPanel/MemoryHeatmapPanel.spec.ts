@@ -559,11 +559,16 @@ describe('MemoryHeatmapPanel', () => {
       /opacity:\s*1/,
     );
 
-    // Heat dim: one veil + bright canvas (in-range paint); base canvas stays mounted.
+    // Heat dim: lattice veil canvas + bright canvas; base canvas stays mounted.
     const veil = wrapper.get('[data-testid="heat-mute-veil"]');
+    expect(veil.element.tagName).toBe('CANVAS');
     expect(veil.classes()).toContain('pr-heat__mute-veil--on');
     expect(wrapper.find('[data-testid="heat-canvas"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="heat-canvas-bright"]').exists()).toBe(true);
+    // Mid brush [45, 55] catches intensity 0.5 only → match tip shows.
+    const match = wrapper.get('[data-testid="heat-legend-brush-match"]');
+    expect(match.attributes('hidden')).toBeUndefined();
+    expect(match.text()).toBe('1 cells');
 
     // Strip left edge → center 0%, window [-5, 5]; label coerces to 0 – 5.
     await gradient.trigger('pointermove', { clientX: pad, clientY: 11 });
@@ -572,6 +577,7 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*-5%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 5');
+    expect(match.text()).toBe('2 cells'); // intensity 0 cells
     expect(wrapper.get('[data-testid="heat-legend-tick-min"]').attributes('style')).toMatch(
       /opacity:\s*0/,
     );
@@ -586,6 +592,7 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*-10%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('0 – 0');
+    expect(match.text()).toBe('2 cells');
 
     // Strip right edge → window [95, 105]; label 95 – 100.
     await gradient.trigger('pointermove', { clientX: pad + trackWidth, clientY: 11 });
@@ -594,6 +601,7 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*95%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('95 – 100');
+    expect(match.text()).toBe('1 cells');
     expect(wrapper.get('[data-testid="heat-legend-tick-min"]').attributes('style')).toMatch(
       /opacity:\s*1/,
     );
@@ -608,6 +616,14 @@ describe('MemoryHeatmapPanel', () => {
       /left:\s*100%/,
     );
     expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('100 – 100');
+    expect(match.text()).toBe('1 cells');
+
+    // Gap between 0 and 0.5 → center 25%, window [20, 30]; no cells → tip hidden.
+    await gradient.trigger('pointermove', { clientX: pad + trackWidth * 0.25, clientY: 11 });
+    await flushLegendBrushFrame();
+    expect(wrapper.get('[data-testid="heat-legend-brush-range"]').text()).toBe('20 – 30');
+    expect(match.attributes('hidden')).toBe('');
+    expect(match.text()).toBe('');
 
     // Occupancy dim: mute overlay + three ≥3px bright bands (fade via --brushing class).
     const gradientEl = wrapper.get('.pr-heat__gradient');
@@ -624,9 +640,10 @@ describe('MemoryHeatmapPanel', () => {
       expect(style).toMatch(/background-image:/);
     }
 
-    // Leave: brush chrome hides before fades; veil starts fade; bright canvas stays mounted.
+    // Leave: brush chrome (+ match tip) hides before fades; veil starts fade; bright canvas stays.
     await gradient.trigger('pointerleave');
     expect(brush.attributes('hidden')).toBe('');
+    expect(match.attributes('hidden')).toBe('');
     expect(veil.classes()).not.toContain('pr-heat__mute-veil--on');
     expect(wrapper.get('.pr-heat__gradient').classes()).not.toContain('pr-heat__gradient--brushing');
     expect(wrapper.find('[data-testid="heat-canvas-bright"]').exists()).toBe(true);
