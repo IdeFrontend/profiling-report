@@ -578,7 +578,7 @@ const styleVars = computed(() => {
               @mouseleave="col.id === 'samplingStall' ? onStallLeave() : undefined"
             >
               <template v-if="col.kind === 'bar'">
-                <!-- Sketch: hatch background, solid used fill, % at the right end -->
+                <!-- Sketch: solid track background, solid used fill, % at the right end -->
                 <span class="pr-src-metrics__bar-track">
                   <span
                     class="pr-src-metrics__bar-fill"
@@ -658,7 +658,7 @@ const styleVars = computed(() => {
                 {{ r.value }}
               </td>
               <td class="pr-src-metrics__tip-pct">
-                <!-- Same capsule as Warp Occupancy: hatch unused + solid used + % inside the bar. -->
+                <!-- Same capsule as Warp Occupancy: solid track unused + solid used + % inside the bar. -->
                 <span class="pr-src-metrics__bar-track pr-src-metrics__tip-bar">
                   <span
                     class="pr-src-metrics__bar-fill"
@@ -731,7 +731,7 @@ const styleVars = computed(() => {
   height: 16px;
   border: 0;
   border-radius: 3px;
-  background: repeating-linear-gradient(-45deg, #343434 0 1px, #1f1f1f 1px 4px);
+  background: var(--table-bg);
 }
 
 .pr-src-metrics--compare .pr-src-metrics__bar-track::after {
@@ -922,15 +922,8 @@ const styleVars = computed(() => {
   border-radius: 7px;
   border: 1px solid var(--pr-border-separator, #2a2a2a);
   overflow: hidden;
-  /* Unused remainder: diagonal hatch (v930-source). */
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      #3a3a3a,
-      #3a3a3a 2px,
-      #2a2a2a 2px,
-      #2a2a2a 4px
-    );
+  /* Unused remainder: solid track matching cell background. */
+  background: var(--table-bg);
 }
 
 /* Used occupancy: solid fill from the left. */
@@ -997,7 +990,7 @@ tr:hover td {
   background: transparent;
 }
 
-/* Stall breakdown tip — v930-source: padded card, pill header row, hatch bars.
+/* Stall breakdown tip — v930-source: padded card, pill header row, solid bars.
    Teleported to body; z-index above Source chrome so a left-flipped tip stays visible. */
 .pr-src-metrics__tip {
   position: fixed;
