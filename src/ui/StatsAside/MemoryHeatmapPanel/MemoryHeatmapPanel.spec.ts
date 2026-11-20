@@ -251,7 +251,6 @@ describe('MemoryHeatmapPanel', () => {
 
   it('PR-HEAT-012: multi-view UB exposes a selector and switches the lattice', async () => {
     const wrapper = mountPanel();
-    expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBeUndefined();
     // View-bar sits above the Access Count legend (DOM order).
     const viewBar = wrapper.get('[data-testid="heat-view-bar"]').element;
     const legend = wrapper.get('[data-testid="heat-legend"]').element;
@@ -275,9 +274,9 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.find('[data-testid="heat-canvas"]').exists()).toBe(true);
   });
 
-  it('PR-HEAT-012: single-view tabs keep the reserved view-bar band (same lattice height)', () => {
+  it('PR-HEAT-012: single-view tabs omit the view-bar (no reserved band above legend)', () => {
     const wrapper = mountPanel({ selectedUnit: 'l1' });
-    expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBe('true');
+    expect(wrapper.find('[data-testid="heat-view-bar"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="heat-view-select"]').exists()).toBe(false);
     // Pack still has core 0 and core 1 — L1 title keeps the Core prefix (#198 / R2).
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 0 · AIC L1');

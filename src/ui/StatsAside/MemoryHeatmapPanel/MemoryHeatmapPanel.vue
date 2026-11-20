@@ -863,16 +863,15 @@ watch(
     </div>
 
     <!--
-      Always reserve this band so multi-view UB does not shrink the lattice vs other tabs.
+      Multi-view only — no empty reserved band when the selector is hidden (PR-HEAT-012).
       Above the Access Count legend; outside the body so the lattice cannot clip the pill (PR-HEAT-011).
     -->
     <div
+      v-if="activeUnit && activeUnit.views.length > 1"
       class="pr-heat__view-bar"
       data-testid="heat-view-bar"
-      :data-empty="!(activeUnit && activeUnit.views.length > 1) || undefined"
     >
       <SourcePillSelect
-        v-if="activeUnit && activeUnit.views.length > 1"
         :caption="t('memoryHeatView', locale)"
         :model-value="viewSelectValue"
         :options="viewSelectOptions"
@@ -1168,8 +1167,13 @@ watch(
   flex: none;
   align-items: center;
   justify-content: center;
-  /* View-bar sits above — extra top pad separates the pill from Access Count. */
-  padding: 28px 0 12px;
+  /* Under the tab rule when the view selector is hidden. */
+  padding: 12px 0;
+}
+
+/* Extra top pad only when the multi-view pill sits above Access Count. */
+.pr-heat__view-bar + .pr-heat__legend {
+  padding-top: 28px;
 }
 
 .pr-heat__legend-scale {
@@ -1321,7 +1325,6 @@ watch(
   flex: none;
   align-items: center;
   justify-content: center;
-  /* Match SourcePillSelect closed height so empty tabs keep the same lattice. */
   min-height: var(--pr-src-control-h, 28px);
   /* Under the tab rule, above the Access Count legend. */
   margin: 16px 0 0;
