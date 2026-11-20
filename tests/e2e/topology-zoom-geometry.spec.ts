@@ -576,28 +576,27 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(fitted.fitsInside).toBe(true);
   expect(fitted.touchesBox).toBe(true);
 
-  // The grid is really laid out: Layout Width cells to a row, one row taller than the next.
-  // gelu UB is 32×64 — last cell of row 0 is index 31, first of row 1 is 32.
-  const cell = heat.locator('.pr-heat__cell');
-  const first = (await cell.nth(0).boundingBox())!;
-  const rowEnd = (await cell.nth(31).boundingBox())!;
-  const nextRow = (await cell.nth(32).boundingBox())!;
-  expect(first.width).toBeGreaterThan(0);
-  expect(rowEnd.y).toBeCloseTo(first.y, 1);
-  expect(nextRow.y).toBeGreaterThan(first.y);
-
-  // The frame is one lattice, not tiles on the panel: a `#6e798d` border around a `#303f5e` board,
-  // and no per-cell divider band anywhere (MemoryHeatmapPanel.spec.md § Visual).
+  // Lattice is Canvas 2D (base + mute veil + bright) inside the `#6e798d` / `#303f5e` frame.
+  // gelu UB is 32×64 — cols/rows bind on the grid; painted board fills the inset.
   const frame = heat.locator('[data-testid="heat-grid"]');
   await expect(frame).toHaveCSS('background-color', 'rgb(48, 63, 94)');
   await expect(frame).toHaveCSS('border-top-width', '2px');
   await expect(frame).toHaveCSS('border-top-color', 'rgb(110, 121, 141)');
-  await expect(frame.locator('.pr-heat__cell--band')).toHaveCount(0);
+  await expect(heat.getByTestId('heat-canvas')).toBeVisible();
+  await expect(heat.getByTestId('heat-mute-veil')).toBeVisible();
+  await expect(heat.getByTestId('heat-canvas-bright')).toBeVisible();
+  const canvasBox = (await heat.getByTestId('heat-canvas').boundingBox())!;
+  expect(canvasBox.width).toBeGreaterThan(0);
+  expect(canvasBox.height).toBeGreaterThan(0);
+  const layout = await frame.evaluate((el) => ({
+    cols: getComputedStyle(el).getPropertyValue('--pr-heat-cols').trim(),
+    rows: getComputedStyle(el).getPropertyValue('--pr-heat-rows').trim(),
+    inset: parseFloat(getComputedStyle(el).paddingTop),
+  }));
+  expect(layout.cols).toBe('32');
+  expect(layout.rows).toBe('64');
   // One gap of inset inside the frame, so the border does not sit on the outermost cells.
-  const inset = await frame.evaluate((el) =>
-    parseFloat(getComputedStyle(el).paddingTop),
-  );
-  expect(inset).toBeGreaterThan(0);
+  expect(layout.inset).toBeGreaterThan(0);
 
   // The active tab's indicator is the frame's short white bar — narrower than its own tab — and the
   // legend is centred in the column, both as the frame draws them.
@@ -611,9 +610,9 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   expect(parseFloat(indicator.w)).toBeLessThan(tabBox.width);
   await expect(heat.locator('.pr-heat__legend')).toHaveCSS('justify-content', 'center');
 
-  // Shipped block order: legend → reserved view-bar (PR-HEAT-012) → body (grid → `{owner} {MemoryName}`
-  // → DATA-51 capacity). gelu is a single-core pack, so UB's first view stays plain `AIV0 UB`
-  // (Core prefix only when the pack has >1 distinct coreId — #198 / PR-HEAT-010b).
+  // Shipped block order: tabs → multi-view view-bar (PR-HEAT-012) → Access Count legend → body
+  // (grid → `{owner} {MemoryName}` → DATA-51 capacity). gelu is a single-core pack, so UB's first
+  // view stays plain `AIV0 UB` (Core prefix only when the pack has >1 distinct coreId — #198).
   const order = await heat.evaluate((panel) => {
     const at = (sel: string) => {
       const el = panel.querySelector(sel);
@@ -640,11 +639,12 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
     };
   });
   const stripRule = order.tabs!.bottom - 1;
-  expect(order.gradient!.top - stripRule).toBeGreaterThan(40);
-  // View-bar band sits between legend and body — gap is no longer the old ~28px legend→grid.
+  // UB is multi-view — view-bar sits under the tab rule, above Access Count.
   expect(order.viewBar).not.toBeNull();
-  expect(order.viewBar!.top).toBeGreaterThanOrEqual(order.legend!.bottom - 1);
-  expect(order.grid!.top).toBeGreaterThanOrEqual(order.viewBar!.bottom - 1);
+  expect(order.viewBar!.top).toBeGreaterThanOrEqual(stripRule);
+  expect(order.legend!.top).toBeGreaterThanOrEqual(order.viewBar!.bottom - 1);
+  expect(order.gradient!.top - stripRule).toBeGreaterThan(40);
+  expect(order.grid!.top).toBeGreaterThanOrEqual(order.legend!.bottom - 1);
   expect(order.grid!.top - order.gradient!.bottom).toBeGreaterThan(30);
   expect(order.name!.text).toBe('AIV0 UB');
   expect(order.name!.text).not.toContain('Core');
