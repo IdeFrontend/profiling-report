@@ -602,7 +602,8 @@ function setBrushMatchTip(count: number) {
     el.textContent = '';
     return;
   }
-  el.textContent = t('memoryHeatBrushMatch', props.locale).replace('{n}', formatAccessCount(count));
+  // Plain digits — no thousands separator (range label under the brush still uses commas).
+  el.textContent = t('memoryHeatBrushMatch', props.locale).replace('{n}', String(count));
   el.hidden = false;
 }
 
