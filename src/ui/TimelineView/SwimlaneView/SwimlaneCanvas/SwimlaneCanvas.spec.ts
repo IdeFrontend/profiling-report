@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
-import { LANE_HEIGHT } from '../../../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT, LANE_HEIGHT } from '../../../../swimlane/layout';
 import { ALT_MEASURE_FIND_EVENT_KEY } from '../altMeasureShared';
 import type { SwimEvent } from '../../../../domain/types';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
@@ -5898,23 +5898,31 @@ describe('SwimlaneCanvas', () => {
     wrapper2.unmount();
   });
 
-  it('PR-CANVAS-129: counter lane hover emits util % + Using KB (step-after)', async () => {
+  it('PR-CANVAS-129: counter lane hover emits value + arg rows (step-after)', async () => {
     const counterModel = {
       minTime: 0,
       maxTime: 20_000,
       processes: [
         {
-          id: 'p-counter-memory-util',
-          name: 'Memory utilization',
+          id: 'p-counter-22',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
           threads: [
             {
-              id: 'counter-AIV0_UB_UTILIZATION',
-              name: 'AIV0_UB_UTILIZATION',
+              id: 'counter-22-Utilization (%)',
+              name: 'Utilization (%)',
               events: [],
               counter: {
                 points: [
-                  { t: 5_000, v: 2, abs: 0.05 },
-                  { t: 10_000, v: 3, abs: 0.04 },
+                  {
+                    t: 5_000,
+                    v: 2,
+                    values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                  },
+                  {
+                    t: 10_000,
+                    v: 3,
+                    values: { 'Utilization (%)': 3, 'Using Bytes (KB)': 0.04 },
+                  },
                 ],
                 yMax: 3,
                 colorHex: '#E7434A',
@@ -5946,35 +5954,45 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ model: { ...counterModel } });
     await fireAllDeviceRo();
 
-    // Header 40px + mid of counter lane (22px) → y ≈ 51.
-    const y = 40 + LANE_HEIGHT / 2;
-    // t=7500 ns → still holds first sample (v=2, abs=0.05); x = 7500/20000 * 400 = 150.
+    // Header 40px + mid of counter lane (COUNTER_LANE_HEIGHT) → y ≈ 53.
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
+    // t=7500 ns → still holds first sample; x = 7500/20000 * 400 = 150.
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
-      utilization: number;
-      usingKb?: number;
+      value: number;
+      rows: { label: string; value: string }[];
       color: string;
       dotClientX: number;
       dotClientY: number;
     } | null;
     expect(tip).toMatchObject({
-      name: 'AIV0_UB_UTILIZATION',
-      utilization: 2,
-      usingKb: 0.05,
+      name: 'Utilization (%)',
+      value: 2,
+      rows: [
+        { label: 'Utilization (%)', value: '2%' },
+        { label: 'Using Bytes (KB)', value: '0.05 KB' },
+      ],
       color: '#E7434A',
       dotClientX: 150,
     });
     expect(tip!.dotClientY).toBeGreaterThan(40);
-    expect(tip!.dotClientY).toBeLessThan(40 + LANE_HEIGHT);
+    expect(tip!.dotClientY).toBeLessThan(40 + COUNTER_LANE_HEIGHT);
 
-    // After second sample (t=10000 → x=200): keep-last abs 0.04.
+    // After second sample (t=10000 → x=200): keep-last values.
     await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1 });
     const tip2 = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       name: string;
-      utilization: number;
-      usingKb?: number;
+      value: number;
+      rows: { label: string; value: string }[];
     } | null;
-    expect(tip2).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 3, usingKb: 0.04 });
+    expect(tip2).toMatchObject({
+      name: 'Utilization (%)',
+      value: 3,
+      rows: [
+        { label: 'Utilization (%)', value: '3%' },
+        { label: 'Using Bytes (KB)', value: '0.04 KB' },
+      ],
+    });
 
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
     expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
@@ -5989,15 +6007,21 @@ describe('SwimlaneCanvas', () => {
       maxTime: 20_000,
       processes: [
         {
-          id: 'p-counter-memory-util',
-          name: 'Memory utilization',
+          id: 'p-counter-22',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
           threads: [
             {
-              id: 'counter-AIV0_UB_UTILIZATION',
-              name: 'AIV0_UB_UTILIZATION',
+              id: 'counter-22-Utilization (%)',
+              name: 'Utilization (%)',
               events: [],
               counter: {
-                points: [{ t: 5_000, v: 2, abs: 0.05 }],
+                points: [
+                  {
+                    t: 5_000,
+                    v: 2,
+                    values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                  },
+                ],
                 yMax: 3,
                 colorHex: '#E7434A',
               },
@@ -6028,13 +6052,20 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ model: { ...counterModel } });
     await fireAllDeviceRo();
 
-    const y = 40 + LANE_HEIGHT / 2;
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
-      utilization: number;
-      usingKb?: number;
+      value: number;
+      rows: { label: string; value: string }[];
     } | null;
-    expect(tip).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 2, usingKb: 0.05 });
+    expect(tip).toMatchObject({
+      name: 'Utilization (%)',
+      value: 2,
+      rows: [
+        { label: 'Utilization (%)', value: '2%' },
+        { label: 'Using Bytes (KB)', value: '0.05 KB' },
+      ],
+    });
     wrapper.unmount();
   });
 });

@@ -419,17 +419,17 @@ Format and statuses: [README.md](README.md).
 
 ## DATA-57
 
-- **Resolved:** 2026-11-17
+- **Resolved:** 2026-11-17 (revised 2026-11-20 — generic CTEF counters + memory util collapse)
 - **Was:** Product chat lock for [#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206) (no prior open-question row)
-- **Question:** How should emulate Trace `ph:C` util pipes (memory / unit / queue) map into the viewer — OverviewCharts vs swim CounterTracks, and which sample rules apply?
+- **Question:** How should Trace `ph:C` counters (memory / unit / queue util and others) map into the viewer — OverviewCharts vs swim CounterTracks?
 - **Decision:**
-  1. **Surface:** Trace util pipes become **swim CounterTrack leaves** (`SwimThread.counter`), not `reportModel.overviewSeries`. Compute 统计分析 stays **`Sampling.json` only** ([DATA-39](./DATA.md) / [DATA-32](./DATA.md)). Do not mirror Trace counters into overview.
-  2. **Memory pipes (#208):** populated processes whose `process_name` matches `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION`; counter name `memory_utilization`; one leaf per pipe id. Skip metadata-only (empty) util processes.
-  3. **Points:** `t = ts × 1e3` (µs→ns); `v` from `args["Utilization (%)"]` — values in `[0, 1]` scale ×100, values in `(1, 100]` stay as percent, else drop. Optional absolute `abs` from finite `args["Using Bytes (KB)"]` (KB; tooltip only — Y domain stays util %). Same-`ts` multi-`C` → **keep last** (whole sample, including `abs`). Per-track `yMax` = max sample (auto-Y; [UI-61](./UI.md)).
-  4. **Unit pipes (#209):** populated `<AIC|AIV0|AIV1>_UNIT_UTILIZATION` with `ph:C` `unit_utilization`; `args["Utilization (%)"]` as shipped (already 0..100 — **no** fraction×100); Card **Unit utilization**.
-  5. **Later slice:** queue pipes (#206) reuse the same CounterTrack carrier / paint path; arg keys are queue depths (`Exec/Issue Queue Utilization`).
-- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-015 / PR-ASIM-016, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
-- **Source:** Product answers 2026-11-17 (placement B; retarget #233; keep last @ same ts; counter tracks not #181 overview mirror).
+  1. **Surface:** Chrome Trace **`ph:C`** events become **swim CounterTrack leaves** (`SwimThread.counter`), not `reportModel.overviewSeries`. Compute 统计分析 stays **`Sampling.json` only** ([DATA-39](./DATA.md) / [DATA-32](./DATA.md)). Do not mirror Trace counters into overview.
+  2. **Generic CTEF:** One CounterTrack **process** per pid that has usable counters (`process_name` metadata when present). One **leaf per numeric `args` key** (Chrome multi-series counters), except memory util (below). No util-pipe whitelist, no memory/unit/queue-specific readers, no fraction→percent scaling.
+  3. **Memory util collapse:** When `process_name` matches memory util (`_(UB|L0A|L0B|L0C|L1)_UTILIZATION`) and the sample has **`Using Bytes (KB)`**, emit **one** leaf named `Using Bytes (KB)` with `v` / Y = KB; `values` still carries both `%` and KB for the tip. `%`-only memory processes stay one leaf from that arg.
+  4. **Points:** `t = ts ×` source-unit factor (emulate Trace µs→ns); `v` = that series’ arg value; optional `values` = full numeric-args snapshot for the hover tip. Same-`ts` multi-`C` → **keep last** (whole sample). Per-track `yMax` = max sample (auto-Y; [UI-61](./UI.md)). Skip pids with no numeric samples.
+  5. **Paths:** `mergeCounterTracksFromTrace` runs for emulate packs **and** standalone `adaptChromeTrace` JSON so the same Trace bytes match Perfetto.
+- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-015…018, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
+- **Source:** Product answers 2026-11-17 (placement B; counter tracks not overview); revised 2026-11-20 to generic `ph:C` + memory util one-chart (PR #244 follow-up).
 
 ---
 

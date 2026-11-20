@@ -13,6 +13,8 @@ import {
 import type { SwimlaneModel } from '../../src/domain/types';
 import {
   contentHeightFromModel,
+  COUNTER_LANE_HEIGHT,
+  flatLaneHeight,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   layoutHeaders,
@@ -146,11 +148,17 @@ describe('swimTree + nested layout', () => {
           threads: [
             {
               id: 'counter-AIV0_UB_UTILIZATION',
-              name: 'AIV0_UB_UTILIZATION',
+              name: 'Using Bytes (KB)',
               events: [],
               counter: {
-                points: [{ t: 0, v: 2, abs: 0.05 }],
-                yMax: 2,
+                points: [
+                  {
+                    t: 0,
+                    v: 0.05,
+                    values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                  },
+                ],
+                yMax: 0.05,
                 colorHex: '#E7434A',
               },
             },
@@ -160,7 +168,63 @@ describe('swimTree + nested layout', () => {
     });
     const lane = layout.lanes.find((l) => l.counter);
     expect(lane?.color).toBe('#E7434A');
-    expect(lane?.thread.counter?.points[0]?.abs).toBe(0.05);
+    expect(lane?.thread.counter?.points[0]?.values?.['Using Bytes (KB)']).toBe(0.05);
+  });
+
+  it('rebuildLayout gives CounterTrack lanes COUNTER_LANE_HEIGHT (26), intervals LANE_HEIGHT', () => {
+    const layout = rebuildLayout({
+      minTime: 0,
+      maxTime: 1000,
+      skipCardHeaders: true,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'counter-1',
+              name: 'Using Bytes (KB)',
+              events: [],
+              counter: { points: [{ t: 0, v: 1 }], yMax: 1, colorHex: '#3D64AD' },
+            },
+            {
+              id: 't-interval',
+              name: 'SCALAR',
+              events: [{ id: 'e1', name: 'op', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+    });
+    const counterLane = layout.lanes.find((l) => l.counter)!;
+    const intervalLane = layout.lanes.find((l) => l.thread.id === 't-interval')!;
+    expect(counterLane.height).toBe(COUNTER_LANE_HEIGHT);
+    expect(flatLaneHeight(counterLane)).toBe(26);
+    expect(flatLaneHeight(intervalLane)).toBe(LANE_HEIGHT);
+    expect(contentHeightFromModel({
+      minTime: 0,
+      maxTime: 1000,
+      skipCardHeaders: true,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'counter-1',
+              name: 'Using Bytes (KB)',
+              events: [],
+              counter: { points: [{ t: 0, v: 1 }], yMax: 1 },
+            },
+            {
+              id: 't-interval',
+              name: 'SCALAR',
+              events: [{ id: 'e1', name: 'op', startTime: 0, duration: 10 }],
+            },
+          ],
+        },
+      ],
+    })).toBe(COUNTER_LANE_HEIGHT + LANE_HEIGHT);
   });
 
   it('rebuildLayout carries no bands; folders still lay out as lanes', () => {

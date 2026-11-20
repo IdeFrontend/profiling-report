@@ -15,7 +15,7 @@ import {
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_GROUP_HEADER_HOVER,
-  LANE_HEIGHT,
+  flatLaneHeight,
   layoutHeaders,
   visualContentHeight,
   type CollapseAnimState,
@@ -389,7 +389,7 @@ const altMeasureCrossBridge = computed(() => {
   };
 });
 const pinnedStripHeight = computed(() =>
-  pinnedRows.value.reduce((h, row) => h + (row.lane.rowCount ?? 1) * LANE_HEIGHT, 0),
+  pinnedRows.value.reduce((h, row) => h + flatLaneHeight(row.lane), 0),
 );
 /** Sticky overview strip height (N × OVERVIEW_LANE_H) — drives enter/leave CSS tween. */
 const pinnedOverviewHeight = computed(
@@ -1261,19 +1261,25 @@ defineExpose({
       <CounterHoverTip
         v-if="counterHover"
         :name="counterHover.name"
-        :utilization="counterHover.utilization"
-        :using-kb="counterHover.usingKb"
+        :rows="counterHover.rows"
         :style-pos="counterTipStyle"
-        :locale="locale"
       />
       <div
         v-if="counterHover"
         class="pr-counter-hover-dot"
         data-testid="counter-hover-dot"
         :style="{
+          position: 'fixed',
           left: `${counterHover.dotClientX}px`,
           top: `${counterHover.dotClientY}px`,
           background: counterHover.color,
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          zIndex: 999,
+          boxSizing: 'border-box',
         }"
       />
     </Teleport>
@@ -1566,5 +1572,16 @@ defineExpose({
 
 .pr-stack-cursor--snapped {
   background: #4c4c4c;
+}
+</style>
+
+<!--
+  Unscoped chrome for Teleport → body (OverviewCharts value-dot parity). Geometry
+  is also inlined on the node so the marker stays visible if CSS is late/absent.
+-->
+<style>
+.pr-counter-hover-dot {
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 </style>

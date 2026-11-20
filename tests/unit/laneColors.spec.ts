@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  colorForCounterProcess,
   eventFill,
   eventStateOf,
   labelColorOn,
   LANE_COLOR_HEX,
   laneColorKey,
+  MEMORY_UTIL_COUNTER_COLOR,
   overviewSeriesStroke,
   overviewStrokeHex,
   OVERVIEW_CUBE_STROKE,
@@ -128,6 +130,32 @@ describe('laneColorKey', () => {
   it('keeps AIV pipe-state names intact (no Core*.*/PIPE suffix rule)', () => {
     expect(laneColorKey('AIV0/PIPE_V/status')).toBe('vector');
     expect(laneColorKey('AIV0/PIPE_S/status')).toBe('scalar');
+  });
+});
+
+describe('colorForCounterProcess', () => {
+  it('maps memory / PUSHQ / unit / pipe-tied queues to kinship hues', () => {
+    expect(colorForCounterProcess('AIV0_UB_UTILIZATION (memory_utilization)')).toBe(
+      MEMORY_UTIL_COUNTER_COLOR,
+    );
+    expect(colorForCounterProcess('AIC_L0A_UTILIZATION (memory_utilization)')).toBe(
+      MEMORY_UTIL_COUNTER_COLOR,
+    );
+    expect(colorForCounterProcess('AIV0_PUSHQ_EXEC_QUEUE_UTILIZATION (simd_post)')).toBe(
+      LANE_COLOR_HEX.vector,
+    );
+    expect(colorForCounterProcess('AIV0_UNIT_UTILIZATION (unit_utilization)')).toBe(
+      LANE_COLOR_HEX.scalar,
+    );
+    expect(colorForCounterProcess('AIC_MTE2_EXEC_QUEUE_UTILIZATION (mte2_post)')).toBe(
+      LANE_COLOR_HEX.mte2,
+    );
+    expect(colorForCounterProcess('AIC_CUBE_ISSUE_QUEUE_UTILIZATION (cube_post)')).toBe(
+      LANE_COLOR_HEX.cube,
+    );
+    expect(colorForCounterProcess('AIC_FIXP_ISSUE_QUEUE_UTILIZATION (fixp_post)')).toBe(
+      LANE_COLOR_HEX.fixp,
+    );
   });
 });
 

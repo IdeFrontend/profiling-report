@@ -210,17 +210,18 @@ Format and statuses: [README.md](README.md).
 
 ## UI-61
 
-- **Resolved:** 2026-11-17
+- **Resolved:** 2026-11-17 (revised 2026-11-20 — tip rows, colors, memory one-chart, 26px counter lanes)
 - **Was:** Product chat lock for Trace util CounterTracks ([#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206))
 - **Question:** How should swim CounterTrack lanes look and behave relative to Chrome CounterTrack / OverviewCharts / #181?
 - **Decision:**
-  1. **Placement:** Chrome-like **inline CounterTrack lanes** in the swim hierarchy (under a util Card such as **Memory utilization**), not the 统计分析 OverviewCharts block.
+  1. **Placement:** Chrome-like **inline CounterTrack lanes** in the swim hierarchy (one Card per counter pid / `process_name`), not the 统计分析 OverviewCharts block.
   2. **Shape:** step-after area + stroke; hold the last sample across gaps until the next point.
-  3. **Y scale:** **per-track auto** from that track’s samples (`yMax`); not the shared overview 0–100 domain (queue depths need this).
-  4. **Labels:** gutter label = **pipe id** stripped from `process_name` (e.g. `AIV0_UB_UTILIZATION`).
+  3. **Y scale:** **per-track auto** from that track’s samples (`yMax`); not the shared overview 0–100 domain. Memory util Y = **Using Bytes (KB)** when present ([DATA-57](./DATA.md)).
+  4. **Labels:** process Card = CTEF `process_name`; leaf = numeric **arg key** (one leaf per series; memory util with KB → single `Using Bytes (KB)` leaf).
   5. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.
   6. **Not #181:** these are counter tracks, not variable-height instruction bars.
-  7. **Memory CT color:** stroke/fill base `#E7434A` (same hue as gutter low-util red); fill alpha **0.45** (OverviewCharts / CounterTrack paint parity). Unit/queue colors are separate slices.
-  8. **Hover tip:** when the pointer is on a memory CounterTrack lane with **no** interval event under it, show a raised tip (`--pr-surface-raised`) in OverviewCharts tip layout (label left / value right): **Utilization** → `{n}%` (`v`) and **Using** → `{n} KB` when `abs` is present (KB display capped at 2 decimal places); sample via step-after hold; paint a value-dot circle on the step-after hold at the pointer x. Clear when leaving the lane or when an interval `EventTooltip` wins.
+  7. **Color:** `colorForCounterProcess(process_name)` → `SwimCounterSeries.colorHex` (same hex for every leaf under the process). Memory util → heatmap used blue `#3D64AD`; PUSHQ → vector; unit util → scalar; MTE/CUBE/FIXP queues → matching durable-pipe `LANE_COLOR_HEX`; else `colorForThread`. No Trace `cname`. See [COLOR_TOKENS](../../ui/COLOR_TOKENS.md) § Swim CounterTracks.
+  8. **Hover tip:** on a CounterTrack lane, raised tip (`--pr-surface-raised`) with OverviewCharts layout (label left / value right): **one row per numeric arg** on the sample (`values`), label = arg key; light key-based format (`%` / `KB` hints, ≤2 decimals). Sample via step-after hold; value-dot on the hold at pointer x. Clear when leaving the lane or when an interval `EventTooltip` wins.
+  9. **Lane height:** CounterTrack leaves use **`COUNTER_LANE_HEIGHT` = 26px**; interval / folder lanes stay **`LANE_HEIGHT` = 22px**.
 - **Specs:** [timeline](../../views/timeline.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [DATA-57](./DATA.md), [OverviewCharts.spec.md](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md) (Sampling-only)
-- **Source:** Product answers 2026-11-17 (1B placement, auto-Y, pipe-id labels, full path first, counter tracks not #181).
+- **Source:** Product answers 2026-11-17 (1B placement, auto-Y, full path first, counter tracks not #181); revised 2026-11-20 for generic `ph:C` tips, pipe-kinship colors, memory one-chart, 26px counter lanes.

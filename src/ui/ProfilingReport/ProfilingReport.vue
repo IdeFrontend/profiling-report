@@ -65,7 +65,7 @@ import { cooldown } from '../../domain/cooldown';
 import { hasDependencies, neighborsOf } from '../../domain/dependencies';
 import { resolveTimeUnitFromVisibleRange, resolveClockFreqMHz, nsPerPxForTrack } from '../../domain/formatTime';
 import { colorVarForLaneName } from '../../domain/laneColors';
-import { leafRowCount } from '../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT, leafRowCount } from '../../swimlane/layout';
 import {
   buildFolderSummaryEvents,
   collectLeafEventsFromModel,
@@ -533,6 +533,11 @@ function lanesWithBars(
     if (bar) lane.bar = bar;
     if (t.children !== undefined) {
       lane.children = lanesWithBars(t.children, bars);
+    } else if (t.counter) {
+      lane.counter = true;
+      lane.height = COUNTER_LANE_HEIGHT;
+      lane.rowCount = 1;
+      if (t.counter.colorHex) lane.color = t.counter.colorHex;
     } else {
       lane.rowCount = leafRowCount(t);
     }

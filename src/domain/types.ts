@@ -42,15 +42,24 @@ export interface SwimEvent {
 export type LaneCategoryKey = 'comm' | 'compute' | 'hbm';
 
 /** One CounterTrack sample: `v` is the Y-domain value; optional `abs` is producer absolute (KB). */
-export type SwimCounterPoint = { t: number; v: number; abs?: number };
+/**
+ * CounterTrack sample. `v` drives the lane Y series; optional `values` keeps every
+ * numeric `ph:C` arg at that timestamp for a data-driven hover tip.
+ */
+export type SwimCounterPoint = {
+  t: number;
+  v: number;
+  /** Full numeric args snapshot from the Chrome Trace counter event (tip rows). */
+  values?: Record<string, number>;
+};
 
-/** Chrome-like CounterTrack samples on a swim leaf (emulate Trace ph:C util pipes). */
+/** Chrome-like CounterTrack samples on a swim leaf (Trace `ph:C`). */
 export interface SwimCounterSeries {
-  /** Canonical ns timestamps; `v` in the track's Y domain (util %). */
+  /** Canonical ns timestamps; `v` in the track's Y domain (auto-scaled). */
   points: SwimCounterPoint[];
   /** Per-track auto Y max (Chrome CounterTrack); must be > 0. */
   yMax: number;
-  /** Optional stroke/fill override (e.g. memory util `#E7434A`); else `colorForThread`. */
+  /** Optional stroke/fill override; else `colorForThread`. */
   colorHex?: string;
 }
 
@@ -71,7 +80,7 @@ export interface SwimThread {
   summaryEvents?: SwimEvent[];
   /**
    * CounterTrack leaf (mutually exclusive with non-empty `events`): step-after area
-   * chart in the lane band. Emulate Trace util pipes (#208/#209/#206).
+   * chart in the lane band. Built from Chrome Trace `ph:C` counters.
    */
   counter?: SwimCounterSeries;
 }
