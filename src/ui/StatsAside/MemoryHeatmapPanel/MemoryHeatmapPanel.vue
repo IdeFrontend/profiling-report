@@ -50,6 +50,8 @@ const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
 const LEGEND_END_FADE_ZONE_PCT = 12;
 /** Mute / occupancy dim fade on brush enter/leave (cells + legend). */
 const LEGEND_DIM_MS = 200;
+/** Painted track + ticks column width (title sits to the left). */
+const LEGEND_STRIP_PX = 150;
 /** Mute veil cell fill — gaps stay clear so board `#303f5e` grid lines show through. */
 const HEAT_MUTE_FILL = '#2C2C2C';
 
@@ -900,73 +902,79 @@ watch(
           {{ t('memoryHeatAccessCount', locale) }}
         </p>
         <!--
-          Hit band = 16px window + 3px pad above/below (22px) and ±5% side pads
-          (half brush) so approaching from left/right can capture 0–0 / max–max.
-          Painted strip stays 8px; range label coerces to 0…max.
+          Strip column = 150px track + ticks. Hit band = 16px window + 3px pad
+          above/below (22px) and ±5% side pads (half brush) so approaching from
+          left/right can capture 0–0 / max–max. Painted strip stays 8px.
         -->
         <div
-          class="pr-heat__legend-hit"
-          data-testid="heat-legend-gradient"
-          :style="{ '--pr-heat-dim-ms': `${LEGEND_DIM_MS}ms` }"
-          @pointermove="onLegendPointerMove"
-          @pointerleave="clearLegendBrush"
+          class="pr-heat__legend-strip"
+          data-testid="heat-legend-strip"
+          :style="{ width: `${LEGEND_STRIP_PX}px` }"
         >
           <div
-            ref="legendTrackEl"
-            class="pr-heat__legend-track"
-            data-testid="heat-legend-track"
+            class="pr-heat__legend-hit"
+            data-testid="heat-legend-gradient"
+            :style="{ '--pr-heat-dim-ms': `${LEGEND_DIM_MS}ms` }"
+            @pointermove="onLegendPointerMove"
+            @pointerleave="clearLegendBrush"
           >
             <div
-              class="pr-heat__gradient"
-              :class="{ 'pr-heat__gradient--brushing': legendDimOn }"
-              aria-hidden="true"
-              :style="{ background: LEGEND_GRADIENT }"
+              ref="legendTrackEl"
+              class="pr-heat__legend-track"
+              data-testid="heat-legend-track"
             >
               <div
-                class="pr-heat__legend-mute"
-                data-testid="heat-legend-mute"
-              />
+                class="pr-heat__gradient"
+                :class="{ 'pr-heat__gradient--brushing': legendDimOn }"
+                aria-hidden="true"
+                :style="{ background: LEGEND_GRADIENT }"
+              >
+                <div
+                  class="pr-heat__legend-mute"
+                  data-testid="heat-legend-mute"
+                />
+                <div
+                  v-for="(band, i) in legendOccupancyBands"
+                  :key="i"
+                  class="pr-heat__legend-occ"
+                  data-testid="heat-legend-occ"
+                  :style="legendOccStyle(band)"
+                />
+              </div>
+              <!-- Always mounted; shown via imperative `hidden` before dim fades start. -->
               <div
-                v-for="(band, i) in legendOccupancyBands"
-                :key="i"
-                class="pr-heat__legend-occ"
-                data-testid="heat-legend-occ"
-                :style="legendOccStyle(band)"
-              />
-            </div>
-            <!-- Always mounted; shown via imperative `hidden` before dim fades start. -->
-            <div
-              ref="brushChromeEl"
-              class="pr-heat__legend-brush"
-              data-testid="heat-legend-brush"
-              aria-hidden="true"
-              hidden
-            >
-              <span
-                ref="brushMatchEl"
-                class="pr-heat__legend-brush-match"
-                data-testid="heat-legend-brush-match"
+                ref="brushChromeEl"
+                class="pr-heat__legend-brush"
+                data-testid="heat-legend-brush"
+                aria-hidden="true"
                 hidden
-              />
-              <span
-                ref="brushRangeEl"
-                class="pr-heat__legend-brush-range"
-                data-testid="heat-legend-brush-range"
-              />
+              >
+                <span
+                  ref="brushMatchEl"
+                  class="pr-heat__legend-brush-match"
+                  data-testid="heat-legend-brush-match"
+                  hidden
+                />
+                <span
+                  ref="brushRangeEl"
+                  class="pr-heat__legend-brush-range"
+                  data-testid="heat-legend-brush-range"
+                />
+              </div>
             </div>
           </div>
-        </div>
-        <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
-          <span
-            class="pr-heat__legend-tick"
-            data-testid="heat-legend-tick-min"
-            :style="{ opacity: legendMinTickOpacity }"
-          >0</span>
-          <span
-            class="pr-heat__legend-tick"
-            data-testid="heat-legend-tick-max"
-            :style="{ opacity: legendMaxTickOpacity }"
-          >{{ legendMaxLabel }}</span>
+          <div class="pr-heat__legend-ticks" data-testid="heat-legend-ticks">
+            <span
+              class="pr-heat__legend-tick"
+              data-testid="heat-legend-tick-min"
+              :style="{ opacity: legendMinTickOpacity }"
+            >0</span>
+            <span
+              class="pr-heat__legend-tick"
+              data-testid="heat-legend-tick-max"
+              :style="{ opacity: legendMaxTickOpacity }"
+            >{{ legendMaxLabel }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1189,18 +1197,33 @@ watch(
 
 .pr-heat__legend-scale {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: min(100%, 220px);
+  flex-direction: row;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  max-width: 100%;
 }
 
 .pr-heat__legend-title {
+  flex: none;
   margin: 0;
   color: #b3b3b3;
   font-size: 12px;
   line-height: 1;
   font-weight: 600;
-  text-align: center;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.pr-heat__legend-strip {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  /* Width from LEGEND_STRIP_PX inline style (150). */
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .pr-heat__legend-hit {

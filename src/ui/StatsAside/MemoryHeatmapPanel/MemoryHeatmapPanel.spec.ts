@@ -102,16 +102,21 @@ describe('MemoryHeatmapPanel', () => {
     expect(tabs).toHaveLength(5);
   });
 
-  it('PR-HEAT-002: legend is Access Count + Free→Used blue strip with 0 / max access count (#200)', () => {
+  it('PR-HEAT-002: legend is Access Count left of 150px Free→Used strip with 0 / max (#200)', () => {
     const wrapper = mountPanel({ locale: 'en' });
     const legend = wrapper.get('[data-testid="heat-legend"]');
-    expect(legend.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
+    const title = legend.get('[data-testid="heat-legend-title"]');
+    expect(title.text()).toBe('Access Count');
     expect(legend.find('[data-testid="heat-legend-gradient"]').exists()).toBe(true);
     expect(legend.get('.pr-heat__gradient').attributes('style')).toMatch(/#AFC6FE/i);
     expect(legend.get('.pr-heat__gradient').attributes('style')).toMatch(/#3D64AD/i);
     expect(legend.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
     // Default fixture max accessCount is 300,090 on the first hot cell.
     expect(legend.get('[data-testid="heat-legend-tick-max"]').text()).toBe('300,090');
+    // Title sits left of the strip column (DOM order); strip width is 150px.
+    const strip = legend.get('[data-testid="heat-legend-strip"]');
+    expect(title.element.compareDocumentPosition(strip.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(strip.attributes('style')).toMatch(/width:\s*150px/);
     expect(legend.text()).not.toContain('%');
     expect(legend.text()).not.toContain('Low');
     expect(legend.text()).not.toContain('High');
