@@ -257,7 +257,7 @@ describe('MemoryHeatmapPanel', () => {
     expect(l1.get('[data-testid="heat-unit-name"]').text()).toBe('AIC L1');
   });
 
-  it('PR-HEAT-010c: multi-core no-owner under-grid title matches viewOptionLabel', () => {
+  it('PR-HEAT-010c: multi-core no-owner under-grid title matches viewOptionLabel', async () => {
     const noOwner: MemoryHeatmapModel = {
       units: [
         {
@@ -285,6 +285,13 @@ describe('MemoryHeatmapPanel', () => {
     };
     const wrapper = mountPanel({ model: noOwner, selectedUnit: 'ub' });
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 0 · UB');
+    await wrapper.get('[data-testid="heat-view-select"]').trigger('click');
+    const menus = document.querySelectorAll('[data-testid="heat-view-select-menu"]');
+    const second = menus[menus.length - 1]?.querySelector('[data-value="1"]') as HTMLElement | null;
+    expect(second?.textContent?.trim()).toBe('Core 1 · UB');
+    second?.click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 1 · UB');
   });
 
   it('PR-HEAT-005: blanks a selected unit the model has no source for', () => {
