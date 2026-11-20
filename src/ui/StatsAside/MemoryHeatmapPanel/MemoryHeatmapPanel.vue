@@ -1263,15 +1263,22 @@ watch(
   /* No transition — chrome must paint before legend/heatmap fades (flushSync). */
 }
 
+/* Match-count tip — same chrome as `.pr-heat-cell-tip` / EventTooltip. */
 .pr-heat__legend-brush-match {
   position: absolute;
-  bottom: calc(100% + 2px);
+  bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
+  box-sizing: border-box;
+  padding: 6px 10px;
   white-space: nowrap;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
   color: #e8e8e8;
-  font-size: 10px;
-  line-height: 1;
+  font-size: 12px;
+  line-height: 1.45;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   pointer-events: none;
