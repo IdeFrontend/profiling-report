@@ -21,12 +21,13 @@ import {
   placeFixedTip,
 } from '../../placeFixedTip';
 import {
+  HEAT_GRID_BORDER_PX,
   HEAT_GRID_GAP_PX,
   HEAT_GRID_PAD_PX,
   hitTestHeatCell,
 } from './heatHitTest';
 import { mergeOccupancyBands } from './legendOccupancy';
-import { heatGridFrameSizeCss, paintHeatLattice } from './paintHeatLattice';
+import { paintHeatLattice } from './paintHeatLattice';
 
 /**
  * biprof §11.2.3.2 Memory Utilization Heatmap panel — the right column of the topology 全屏
@@ -466,23 +467,25 @@ function currentDpr(): number {
 }
 
 /**
- * Lattice box from the same `--pr-heat-cell` the frame CSS uses — not from a
- * fresh getBoundingClientRect (subpixels diverge across brush-only redraws).
+ * Lattice box from the laid-out grid border box.
+ * Do NOT parse `--pr-heat-cell`: custom props keep their specified `min(calc(cq*))`
+ * string, so parseFloat is NaN and painting never runs. Brush-only redraws reuse
+ * `paintedGeom` so layers stay pixel-aligned.
  */
 function readLatticeGeom(view: MemoryHeatmapView): LatticePaintGeom | null {
   const grid = gridEl.value;
-  if (!grid) return null;
-  const raw = getComputedStyle(grid).getPropertyValue('--pr-heat-cell').trim();
-  const cellCss = parseFloat(raw);
-  if (!(cellCss > 0) || view.columns < 1 || view.rows < 1) return null;
-  const frame = heatGridFrameSizeCss(view.columns, view.rows, cellCss);
-  if (frame.innerWidth <= 0 || frame.innerHeight <= 0) return null;
+  if (!grid || view.columns < 1 || view.rows < 1) return null;
+  const rect = grid.getBoundingClientRect();
+  const chrome = 2 * HEAT_GRID_BORDER_PX + 2 * HEAT_GRID_PAD_PX;
+  const innerW = rect.width - chrome;
+  const innerH = rect.height - chrome;
+  if (innerW <= 0 || innerH <= 0) return null;
   return {
     columns: view.columns,
     rows: view.rows,
     blockCount: view.blocks.length,
-    innerW: frame.innerWidth,
-    innerH: frame.innerHeight,
+    innerW,
+    innerH,
     dpr: currentDpr(),
   };
 }
