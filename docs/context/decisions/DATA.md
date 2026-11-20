@@ -419,16 +419,17 @@ Format and statuses: [README.md](README.md).
 
 ## DATA-57
 
-- **Resolved:** 2026-11-17 (revised 2026-11-20 — generic CTEF counters)
+- **Resolved:** 2026-11-17 (revised 2026-11-20 — generic CTEF counters + memory util collapse)
 - **Was:** Product chat lock for [#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206) (no prior open-question row)
 - **Question:** How should Trace `ph:C` counters (memory / unit / queue util and others) map into the viewer — OverviewCharts vs swim CounterTracks?
 - **Decision:**
   1. **Surface:** Chrome Trace **`ph:C`** events become **swim CounterTrack leaves** (`SwimThread.counter`), not `reportModel.overviewSeries`. Compute 统计分析 stays **`Sampling.json` only** ([DATA-39](./DATA.md) / [DATA-32](./DATA.md)). Do not mirror Trace counters into overview.
-  2. **Generic CTEF:** One CounterTrack **process** per pid that has usable counters (`process_name` metadata when present). One **leaf per numeric `args` key** (Chrome multi-series counters). No util-pipe whitelist, no memory/unit/queue-specific readers, no fraction→percent scaling.
-  3. **Points:** `t = ts ×` source-unit factor (emulate Trace µs→ns); `v` = that series’ arg value; optional `values` = full numeric-args snapshot for the hover tip. Same-`ts` multi-`C` → **keep last** (whole sample). Per-track `yMax` = max sample (auto-Y; [UI-61](./UI.md)). Skip pids with no numeric samples.
-  4. **Paths:** `mergeCounterTracksFromTrace` runs for emulate packs **and** standalone `adaptChromeTrace` JSON so the same Trace bytes match Perfetto.
+  2. **Generic CTEF:** One CounterTrack **process** per pid that has usable counters (`process_name` metadata when present). One **leaf per numeric `args` key** (Chrome multi-series counters), except memory util (below). No util-pipe whitelist, no memory/unit/queue-specific readers, no fraction→percent scaling.
+  3. **Memory util collapse:** When `process_name` matches memory util (`_(UB|L0A|L0B|L0C|L1)_UTILIZATION`) and the sample has **`Using Bytes (KB)`**, emit **one** leaf named `Using Bytes (KB)` with `v` / Y = KB; `values` still carries both `%` and KB for the tip. `%`-only memory processes stay one leaf from that arg.
+  4. **Points:** `t = ts ×` source-unit factor (emulate Trace µs→ns); `v` = that series’ arg value; optional `values` = full numeric-args snapshot for the hover tip. Same-`ts` multi-`C` → **keep last** (whole sample). Per-track `yMax` = max sample (auto-Y; [UI-61](./UI.md)). Skip pids with no numeric samples.
+  5. **Paths:** `mergeCounterTracksFromTrace` runs for emulate packs **and** standalone `adaptChromeTrace` JSON so the same Trace bytes match Perfetto.
 - **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-015…018, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
-- **Source:** Product answers 2026-11-17 (placement B; counter tracks not overview); revised 2026-11-20 to generic `ph:C` (PR #244 follow-up).
+- **Source:** Product answers 2026-11-17 (placement B; counter tracks not overview); revised 2026-11-20 to generic `ph:C` + memory util one-chart (PR #244 follow-up).
 - **Note:** A parallel PR briefly used bare id DATA-57 for emulate Roofline; that claim was withdrawn. Roofline continues as open [DATA-58](../questions/DATA.md#data-58) / interim [DATA-57a](./interim/DATA.md#data-57a). This DATA-57 decision remains swim CounterTracks only.
 
 ---

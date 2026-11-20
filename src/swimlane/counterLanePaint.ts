@@ -4,7 +4,13 @@
 
 import type { SwimlaneViewWindow } from '../domain/types';
 import { stepAfterVertices } from '../ui/TimelineView/OverviewCharts/stepPath';
-import { LANE_HEIGHT, LANE_PAD_Y, collapseShiftY, type FlatLane, type CollapseTransform } from './layout';
+import {
+  flatLaneHeight,
+  LANE_PAD_Y,
+  collapseShiftY,
+  type FlatLane,
+  type CollapseTransform,
+} from './layout';
 
 /** OverviewCharts / UI-61 parity — CounterTrack fill at this alpha over `lane.color`. */
 const FILL_ALPHA = 0.45;
@@ -30,7 +36,7 @@ export function paintCounterLanes(
     if (!series || series.points.length === 0) continue;
     const yCss = collapseShiftY(lane.y, collapse) - view.scrollY;
     const y0 = yCss * dpr;
-    const laneH = LANE_HEIGHT * dpr;
+    const laneH = flatLaneHeight(lane) * dpr;
     if (y0 + laneH < 0 || y0 > height) continue;
     const plotTop = y0 + pad;
     const plotH = Math.max(1, laneH - pad * 2);
