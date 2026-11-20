@@ -80,10 +80,10 @@ const DTYPE_FAMILY: Record<string, DtypeFamily> = {
     color: ROOFLINE_SERIES_META['aic-int16-fp16'].color,
   },
   fp32_aic: {
-    baseId: 'aic-int32-fp32',
+    baseId: 'aic-fp32',
     group: 'aic',
-    label: ROOFLINE_SERIES_META['aic-int32-fp32'].label,
-    color: ROOFLINE_SERIES_META['aic-int32-fp32'].color,
+    label: ROOFLINE_SERIES_META['aic-fp32'].label,
+    color: ROOFLINE_SERIES_META['aic-fp32'].color,
   },
   int8_fp8: {
     baseId: 'aic-int8-fp8',
@@ -99,15 +99,24 @@ const DTYPE_FAMILY: Record<string, DtypeFamily> = {
   },
 };
 
-/** Stable dtype order so CSV and JSON paths emit the same legend sequence. */
+/**
+ * Producer dtype order within a unit, so CSV and JSON legends match.
+ * Keys are `UNIT:datatype` — AIV and AIC `fp32` are different ranks.
+ */
 const DTYPE_SORT_ORDER: Record<string, number> = {
-  fp16: 0,
-  bf16: 1,
-  fp32: 2,
-  fp16_bf16: 3,
-  tf32_hf32: 4,
-  int8_fp8: 5,
+  'AIV:fp16': 0,
+  'AIV:bf16': 1,
+  'AIV:fp32': 2,
+  'AIC:fp16_bf16': 3,
+  'AIC:tf32_hf32': 4,
+  'AIC:fp32': 5,
+  'AIC:int8_fp8': 6,
 };
+
+function dtypeSortRank(unit: string, dataType: string): number {
+  const key = `${unit.trim().toUpperCase()}:${dataType.trim().toLowerCase().replace(/\//g, '_')}`;
+  return DTYPE_SORT_ORDER[key] ?? 99;
+}
 
 const MODE_HEURISTIC: Record<string, RooflineSeriesId> = {
   SIMD: 'aiv-fp16',
@@ -279,8 +288,8 @@ function sortComputePeaks(
   return [...peaks].sort((a, b) => {
     const u = (a.unit === 'AIV' ? 0 : 1) - (b.unit === 'AIV' ? 0 : 1);
     if (u !== 0) return u;
-    const da = DTYPE_SORT_ORDER[a.dataType.trim().toLowerCase()] ?? 99;
-    const db = DTYPE_SORT_ORDER[b.dataType.trim().toLowerCase()] ?? 99;
+    const da = dtypeSortRank(a.unit, a.dataType);
+    const db = dtypeSortRank(b.unit, b.dataType);
     return da - db;
   });
 }

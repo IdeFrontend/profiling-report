@@ -56,7 +56,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 14. **PR-ASIM-013** — ELF SourceInstructions / AsmMetrics → `sourceCorrelation.mock === false` and capability **`sourceTab`**.
 15. **PR-ASIM-014** — Without ELF Source* / AsmMetrics (IPC-only / gelu-shaped) → omit `sourceCorrelation` and `'sourceTab'`.
 16. **PR-ASIM-015** — Trace `ph:C` on `AIV0_UB_UTILIZATION` (etc.) → one swim CounterTrack leaf per populated pipe under **Memory utilization**; fraction util scaled to percent; optional `Using Bytes (KB)` → `abs`; same-`ts` keeps last (incl. abs); `colorHex` `#E7434A`; metadata-only util pids omitted; `overviewSeries` stays `[]`; no memory-util counters → no counter process (#208 / DATA-57).
-17. **PR-ASIM-016** — Passing `Roofline*.csv` (+ AnalysisState) → non-empty `roofline` + capability `roofline`; GOPS→TOps/s; dtype×bandwidth series include `aic-tf32-hf32`; failed AnalysisState omits; JSON fallback when CSVs absent ([DATA-57a](../../docs/context/decisions/interim/DATA.md#data-57a)).
+17. **PR-ASIM-016** — Passing `Roofline*.csv` (+ AnalysisState) → non-empty `roofline` + capability `roofline`; GOPS→TOps/s; dtype×bandwidth series include `aic-tf32-hf32`; AIC `fp32` maps to `aic-fp32` (not `aic-int32-fp32`) and sorts after `tf32_hf32`; failed AnalysisState omits; JSON fallback when CSVs absent ([DATA-57a](../../docs/context/decisions/interim/DATA.md#data-57a)).
 
 ## Edge Cases
 

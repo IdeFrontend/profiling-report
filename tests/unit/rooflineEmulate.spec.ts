@@ -76,6 +76,17 @@ describe('rooflineEmulate (DATA-57a)', () => {
     ]);
     expect(model!.points.every((p) => model!.series.some((s) => s.id === p.seriesId))).toBe(true);
     expect(model!.series).toHaveLength(17);
+    expect(model!.series.filter((s) => s.group === 'aic').map((s) => s.id)).toEqual([
+      'aic-int16-fp16-l0',
+      'aic-int16-fp16-cube-out',
+      'aic-tf32-hf32-l0',
+      'aic-tf32-hf32-cube-out',
+      'aic-fp32-l0',
+      'aic-fp32-cube-out',
+      'aic-int8-fp8-l0',
+      'aic-int8-fp8-cube-out',
+    ]);
+    expect(model!.series.find((s) => s.id === 'aic-fp32-l0')!.label).toBe('AIC fp32 · L0');
     expect(model!.series.find((s) => s.id.startsWith('aiv-bp16'))!.label).toContain('AIV bf16');
     const ridgeFp16Simd =
       (model!.series.find((s) => s.id === 'aiv-fp16-simd')!.peakComputeTops * 1000) /

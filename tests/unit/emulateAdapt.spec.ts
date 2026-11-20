@@ -607,6 +607,11 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     // 3 AIV dtypes × 3 bw + 4 AIC × 2 bw = 17
     expect(roof.series).toHaveLength(17);
     expect(roof.series.some((s) => s.id.startsWith('aic-tf32-hf32'))).toBe(true);
+    expect(roof.series.some((s) => s.id.startsWith('aic-int32-fp32'))).toBe(false);
+    expect(roof.series.find((s) => s.id === 'aic-fp32-l0')!.label).toBe('AIC fp32 · L0');
+    const aicIds = roof.series.filter((s) => s.group === 'aic').map((s) => s.id);
+    expect(aicIds.indexOf('aic-tf32-hf32-l0')).toBeLessThan(aicIds.indexOf('aic-fp32-l0'));
+    expect(aicIds.indexOf('aic-fp32-l0')).toBeLessThan(aicIds.indexOf('aic-int8-fp8-l0'));
     const aivFp16Simd = roof.series.find((s) => s.id === 'aiv-fp16-simd')!;
     expect(aivFp16Simd.peakComputeTops).toBeCloseTo(54, 10);
     expect(aivFp16Simd.slopeStyle).toBe('solid');

@@ -16,7 +16,7 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 ## Contents
 
 - [Tables (101)](#tables)
-- [Flag-gated (absent from gelu)](#flag-gated)
+- [Flag-gated (absent from committed gelu fixture)](#flag-gated)
 - [Views (23)](#views)
 - [Naming / type notes](#naming--type-notes)
 
@@ -123,15 +123,6 @@ When refreshing [`gelu.npu-rep`](../../../data/gelu.npu-rep), re-sync this page 
 - [`VfSimtIPCDynamic`](#vfsimtipcdynamic)
 - [`VfSimtIPCInside`](#vfsimtipcinside)
 - [`VfSimtInvocations`](#vfsimtinvocations)
-
-## Flag-gated (absent from committed gelu fixture) {#flag-gated}
-
-Not in the committed [`gelu.npu-rep`](../../../data/gelu.npu-rep) `manifest.json` 101-table catalog. Produced under `--roofline`; may ship on other gelu packs (e.g. gelu_2x128) and on [`data/simt_gather_1d_roofline.npu-rep`](../../../data/simt_gather_1d_roofline.npu-rep) ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a); [TABLES.md §4](TABLES.md)).
-
-- [`RooflineBandwidthPeaks`](#rooflinebandwidthpeaks)
-- [`RooflineComputePeaks`](#rooflinecomputepeaks)
-- [`RooflineMetadata`](#rooflinemetadata)
-- [`RooflinePoints`](#rooflinepoints)
 
 ### `AnalysisState` {#analysisstate}
 
@@ -1034,6 +1025,50 @@ Not in the committed [`gelu.npu-rep`](../../../data/gelu.npu-rep) `manifest.json
 | `RegionNameId` | `INTEGER` | Identifier for `RegionName`. *inferred* |
 | `RegionName` | `VARCHAR(20)` | Human-readable name / label. *inferred* |
 
+### `Regions` {#regions}
+
+| | |
+|--|--|
+| Kind | table |
+| Gelu rows | 0 |
+| CSV file | `Regions.csv` |
+| Role | Contract DB object from npu_emulate export. *inferred* |
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `RegionNameId` | `INTEGER` | Identifier for `RegionName`. *inferred* |
+| `RegionStart` | `INTEGER` | Register / SPR / predicate field. *inferred* |
+| `RegionEnd` | `INTEGER` | Register / SPR / predicate field. *inferred* |
+| `RegionCoreId` | `INTEGER` | Identifier for `RegionCore`. *inferred* |
+| `CoreTypeId` | `INTEGER` | FK → CoreTypes. *inferred* |
+| `RegionTypeId` | `INTEGER` | Identifier for `RegionType`. *inferred* |
+| `InstrQueueTypeId` | `INTEGER` | Identifier for `InstrQueueType`. *inferred* |
+| `WarpId` | `INTEGER` | Identifier for `Warp`. *inferred* |
+
+### `RegisterUsageStalls` {#registerusagestalls}
+
+| | |
+|--|--|
+| Kind | table |
+| Gelu rows | 0 |
+| CSV file | `RegisterUsageStalls.csv` |
+| Role | Stall, queue-full, or bubble analysis. *inferred* |
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ExecInstrId` | `INTEGER` | FK → ExecutedInstructions. *inferred* |
+| `Memory` | `INTEGER` | Memory-system related field. *inferred* |
+| `Execution` | `INTEGER` | Execution count or execution stall bucket. *inferred* |
+
+## Flag-gated (absent from committed gelu fixture) {#flag-gated}
+
+Not in the committed [`gelu.npu-rep`](../../../data/gelu.npu-rep) `manifest.json` 101-table catalog. Produced under `--roofline`; may ship on other gelu packs (e.g. gelu_2x128) and on [`data/simt_gather_1d_roofline.npu-rep`](../../../data/simt_gather_1d_roofline.npu-rep) ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a); [TABLES.md §4](TABLES.md)).
+
+- [`RooflineBandwidthPeaks`](#rooflinebandwidthpeaks)
+- [`RooflineComputePeaks`](#rooflinecomputepeaks)
+- [`RooflineMetadata`](#rooflinemetadata)
+- [`RooflinePoints`](#rooflinepoints)
+
 ### `RooflineBandwidthPeaks` {#rooflinebandwidthpeaks}
 
 | | |
@@ -1078,40 +1113,9 @@ See [RooflineMetadata.csv.md](RooflineMetadata.csv.md).
 
 See [RooflinePoints.csv.md](RooflinePoints.csv.md).
 
-### `Regions` {#regions}
+## Tables (101), continued
 
-| | |
-|--|--|
-| Kind | table |
-| Gelu rows | 0 |
-| CSV file | `Regions.csv` |
-| Role | Contract DB object from npu_emulate export. *inferred* |
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `RegionNameId` | `INTEGER` | Identifier for `RegionName`. *inferred* |
-| `RegionStart` | `INTEGER` | Register / SPR / predicate field. *inferred* |
-| `RegionEnd` | `INTEGER` | Register / SPR / predicate field. *inferred* |
-| `RegionCoreId` | `INTEGER` | Identifier for `RegionCore`. *inferred* |
-| `CoreTypeId` | `INTEGER` | FK → CoreTypes. *inferred* |
-| `RegionTypeId` | `INTEGER` | Identifier for `RegionType`. *inferred* |
-| `InstrQueueTypeId` | `INTEGER` | Identifier for `InstrQueueType`. *inferred* |
-| `WarpId` | `INTEGER` | Identifier for `Warp`. *inferred* |
-
-### `RegisterUsageStalls` {#registerusagestalls}
-
-| | |
-|--|--|
-| Kind | table |
-| Gelu rows | 0 |
-| CSV file | `RegisterUsageStalls.csv` |
-| Role | Stall, queue-full, or bubble analysis. *inferred* |
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `ExecInstrId` | `INTEGER` | FK → ExecutedInstructions. *inferred* |
-| `Memory` | `INTEGER` | Memory-system related field. *inferred* |
-| `Execution` | `INTEGER` | Execution count or execution stall bucket. *inferred* |
+Remaining gelu `manifest.json` tables.
 
 ### `SIMDSamplingStats` {#simdsamplingstats}
 
