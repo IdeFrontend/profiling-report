@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
-import { LANE_HEIGHT } from '../../../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT, LANE_HEIGHT } from '../../../../swimlane/layout';
 import { ALT_MEASURE_FIND_EVENT_KEY } from '../altMeasureShared';
 import type { SwimEvent } from '../../../../domain/types';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
@@ -5999,8 +5999,8 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ model: { ...counterModel } });
     await fireAllDeviceRo();
 
-    // Header 40px + mid of counter lane (22px) → y ≈ 51.
-    const y = 40 + LANE_HEIGHT / 2;
+    // Header 40px + mid of counter lane (COUNTER_LANE_HEIGHT) → y ≈ 53.
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
     // t=7500 ns → still holds first sample; x = 7500/20000 * 400 = 150.
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
@@ -6021,7 +6021,7 @@ describe('SwimlaneCanvas', () => {
       dotClientX: 150,
     });
     expect(tip!.dotClientY).toBeGreaterThan(40);
-    expect(tip!.dotClientY).toBeLessThan(40 + LANE_HEIGHT);
+    expect(tip!.dotClientY).toBeLessThan(40 + COUNTER_LANE_HEIGHT);
 
     // After second sample (t=10000 → x=200): keep-last values.
     await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1 });
@@ -6097,7 +6097,7 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ model: { ...counterModel } });
     await fireAllDeviceRo();
 
-    const y = 40 + LANE_HEIGHT / 2;
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       value: number;
