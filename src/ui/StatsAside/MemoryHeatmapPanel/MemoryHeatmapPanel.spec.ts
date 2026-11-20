@@ -106,7 +106,7 @@ describe('MemoryHeatmapPanel', () => {
     const wrapper = mountPanel({ locale: 'en' });
     const legend = wrapper.get('[data-testid="heat-legend"]');
     expect(legend.get('[data-testid="heat-legend-title"]').text()).toBe('Access Count');
-    expect(legend.get('[data-testid="heat-legend-gradient"]').exists()).toBe(true);
+    expect(legend.find('[data-testid="heat-legend-gradient"]').exists()).toBe(true);
     expect(legend.get('.pr-heat__gradient').attributes('style')).toMatch(/#AFC6FE/i);
     expect(legend.get('.pr-heat__gradient').attributes('style')).toMatch(/#3D64AD/i);
     expect(legend.get('[data-testid="heat-legend-tick-min"]').text()).toBe('0');
@@ -679,7 +679,7 @@ describe('MemoryHeatmapPanel', () => {
     const gradientEl = wrapper.get('.pr-heat__gradient');
     expect(gradientEl.classes()).toContain('pr-heat__gradient--brushing');
     expect(gradientEl.attributes('style')).toMatch(/linear-gradient/);
-    expect(wrapper.get('[data-testid="heat-legend-mute"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="heat-legend-mute"]').exists()).toBe(true);
     const occ = wrapper.findAll('[data-testid="heat-legend-occ"]');
     expect(occ).toHaveLength(3);
     for (const band of occ) {
