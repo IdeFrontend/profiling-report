@@ -158,7 +158,7 @@ const messages = {
     memoryHeatUnitNameL0c: 'AIC L0C',
     memoryHeatWithData: '已用',
     memoryHeatWithoutData: '空闲',
-    /** SA heat-cell tip rows (#194) — Accesses Count is Read+Write traffic, not instructions. */
+    /** SA heat-cell tip rows (#194) — Access Count is Read+Write traffic, not instructions. */
     memoryHeatStartAddress: '起始地址',
     memoryHeatCellSize: '单元大小',
     memoryHeatAccessesCount: '访问次数',
@@ -413,10 +413,10 @@ const messages = {
     memoryHeatUnitNameL0c: 'AIC L0C',
     memoryHeatWithData: 'Used',
     memoryHeatWithoutData: 'Free',
-    /** SA heat-cell tip rows (#194) — Accesses Count is Read+Write traffic, not instructions. */
+    /** SA heat-cell tip rows (#194) — Access Count is Read+Write traffic, not instructions. */
     memoryHeatStartAddress: 'Start Address',
     memoryHeatCellSize: 'Cell Size',
-    memoryHeatAccessesCount: 'Accesses Count',
+    memoryHeatAccessesCount: 'Access Count',
     /** Legend title above the heat gradient strip (#200). */
     memoryHeatAccessCount: 'Access Count',
     memoryHeatBytes: 'Bytes',
