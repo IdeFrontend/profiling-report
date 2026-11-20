@@ -2818,7 +2818,7 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.emitted('open-cannwork')).toHaveLength(2);
     wrapper.unmount();
   });
-  it('PR-ROOT-034: vscode environment fills missing source through the webview bridge', async () => {
+  it('PR-ROOT-038: vscode environment fills missing source through the webview bridge', async () => {
     const base = mockSourceCorrelation();
     const missingPath = '/home/build/gather_2d.asc';
     const withMissing = {
@@ -2883,7 +2883,7 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
-  it('PR-ROOT-035: dropped source text lives in the report and survives a tab switch', async () => {
+  it('PR-ROOT-039: dropped source text lives in the report and survives a tab switch', async () => {
     const base = mockSourceCorrelation();
     const missingPath = '/home/build/gather_2d.asc';
     const withMissing = {
@@ -2930,7 +2930,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-036: a source-file-updated message updates a hidden placeholder', async () => {
+  it('PR-ROOT-040: a source-file-updated message updates a hidden placeholder', async () => {
     const base = mockSourceCorrelation();
     const missingPath = '/home/build/gather_2d.asc';
     const withMissing = {
@@ -2983,7 +2983,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-037: a missing-source fill keeps previously dropped text', async () => {
+  it('PR-ROOT-041: a missing-source fill keeps previously dropped text', async () => {
     const base = mockSourceCorrelation();
     const droppedPath = '/home/build/gather_2d.asc';
     const otherPath = '/home/build/other.cpp';

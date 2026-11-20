@@ -1433,7 +1433,7 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
-  it('PR-SOURCE-028: placeholder shows the resolve drop zone; real text does not', async () => {
+  it('PR-SOURCE-030: placeholder shows the resolve drop zone; real text does not', async () => {
     const base = mockSourceCorrelation();
     const missing = {
       ...base,
@@ -1458,7 +1458,7 @@ describe('SourceView', () => {
     real.unmount();
   });
 
-  it('PR-SOURCE-029: dropping a source file emits its file id and text', async () => {
+  it('PR-SOURCE-031: dropping a source file emits its file id and text', async () => {
     const base = mockSourceCorrelation();
     const missing = {
       ...base,

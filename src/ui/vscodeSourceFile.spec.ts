@@ -18,14 +18,14 @@ afterEach(() => {
 });
 
 describe('vscodeSourceFile bridge', () => {
-  it('PR-SRC-012: no VS Code API means no host and a null resolve', async () => {
+  it('PR-SRC-018: no VS Code API means no host and a null resolve', async () => {
     expect(hasVsCodeHost()).toBe(false);
     await expect(
       requestSourceFile({ fileName: '/build/gather_2d.asc', basename: 'gather_2d.asc' }),
     ).resolves.toBeNull();
   });
 
-  it('PR-SRC-012: prefers the host-provided window.vscode API', async () => {
+  it('PR-SRC-018: prefers the host-provided window.vscode API', async () => {
     const postMessage = vi.fn();
     const acquire = vi.fn(() => ({ postMessage: vi.fn() }));
     host.vscode = { postMessage };
@@ -55,7 +55,7 @@ describe('vscodeSourceFile bridge', () => {
     expect(acquire).not.toHaveBeenCalled();
   });
 
-  it('PR-SRC-012: posts the exact request and resolves the matching reply', async () => {
+  it('PR-SRC-018: posts the exact request and resolves the matching reply', async () => {
     const postMessage = vi.fn();
     const acquire = vi.fn(() => ({ postMessage }));
     host.acquireVsCodeApi = acquire;
@@ -92,7 +92,7 @@ describe('vscodeSourceFile bridge', () => {
     await expect(pending).resolves.toBe('extern "C" void gather_2d_custom() {}\n');
   });
 
-  it('PR-SRC-012: ignores replies with another requestId or type', async () => {
+  it('PR-SRC-018: ignores replies with another requestId or type', async () => {
     const postMessage = vi.fn();
     host.acquireVsCodeApi = () => ({ postMessage });
     const pending = requestSourceFile({ fileName: '/a.asc', basename: 'a.asc' });
@@ -133,7 +133,7 @@ describe('vscodeSourceFile bridge', () => {
     await expect(pending).resolves.toBe('right');
   });
 
-  it('PR-SRC-012: times out to null and removes the listener', async () => {
+  it('PR-SRC-018: times out to null and removes the listener', async () => {
     vi.useFakeTimers();
     host.acquireVsCodeApi = () => ({ postMessage: vi.fn() });
     const remove = vi.spyOn(window, 'removeEventListener');
@@ -145,7 +145,7 @@ describe('vscodeSourceFile bridge', () => {
     expect(remove).toHaveBeenCalledWith('message', expect.any(Function));
   });
 
-  it('PR-SRC-013: source-file-updated forwards valid payloads and unsubscribes', () => {
+  it('PR-SRC-019: source-file-updated forwards valid payloads and unsubscribes', () => {
     const cb = vi.fn();
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
     const unsubscribe = onSourceFileUpdate(cb);
