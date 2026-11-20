@@ -5897,4 +5897,144 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
     wrapper2.unmount();
   });
+
+  it('PR-CANVAS-129: counter lane hover emits util % + Using KB (step-after)', async () => {
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-memory-util',
+          name: 'Memory utilization',
+          threads: [
+            {
+              id: 'counter-AIV0_UB_UTILIZATION',
+              name: 'AIV0_UB_UTILIZATION',
+              events: [],
+              counter: {
+                points: [
+                  { t: 5_000, v: 2, abs: 0.05 },
+                  { t: 10_000, v: 3, abs: 0.04 },
+                ],
+                yMax: 3,
+                colorHex: '#E7434A',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel } });
+    await fireAllDeviceRo();
+
+    // Header 40px + mid of counter lane (22px) → y ≈ 51.
+    const y = 40 + LANE_HEIGHT / 2;
+    // t=7500 ns → still holds first sample (v=2, abs=0.05); x = 7500/20000 * 400 = 150.
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      utilization: number;
+      usingKb?: number;
+      color: string;
+      dotClientX: number;
+      dotClientY: number;
+    } | null;
+    expect(tip).toMatchObject({
+      name: 'AIV0_UB_UTILIZATION',
+      utilization: 2,
+      usingKb: 0.05,
+      color: '#E7434A',
+      dotClientX: 150,
+    });
+    expect(tip!.dotClientY).toBeGreaterThan(40);
+    expect(tip!.dotClientY).toBeLessThan(40 + LANE_HEIGHT);
+
+    // After second sample (t=10000 → x=200): keep-last abs 0.04.
+    await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1 });
+    const tip2 = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      name: string;
+      utilization: number;
+      usingKb?: number;
+    } | null;
+    expect(tip2).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 3, usingKb: 0.04 });
+
+    await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
+    expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-129: CounterTrack tip still emits when interval hover is also reported', async () => {
+    // Regression: emitCounterHover used to bail on any eventUnder, so a phantom
+    // magnet/hit on a counter row suppressed the util tip entirely.
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-memory-util',
+          name: 'Memory utilization',
+          threads: [
+            {
+              id: 'counter-AIV0_UB_UTILIZATION',
+              name: 'AIV0_UB_UTILIZATION',
+              events: [],
+              counter: {
+                points: [{ t: 5_000, v: 2, abs: 0.05 }],
+                yMax: 3,
+                colorHex: '#E7434A',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel } });
+    await fireAllDeviceRo();
+
+    const y = 40 + LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      utilization: number;
+      usingKb?: number;
+    } | null;
+    expect(tip).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 2, usingKb: 0.05 });
+    wrapper.unmount();
+  });
 });

@@ -982,6 +982,19 @@ describe('SourceView', () => {
     expect(popup).toMatch(/\.pr-source-select__menu\s*\{[^}]*background:\s*#2a2a2a/);
     expect(popup).toMatch(/\.pr-source-select__option--selected\s*\{[^}]*background:\s*#3078f0/);
     expect(popup).toMatch(/border-radius:\s*4px/);
+    expect(popup).toMatch(
+      /\.pr-source-select__menu\s*\{[^}]*max-height:\s*min\(240px,\s*calc\(100vh - 16px\)\)/,
+    );
+    expect(popup).toMatch(/\.pr-source-select__menu\s*\{[^}]*overflow-y:\s*auto/);
+    // Teleported outside `.pr-root` — own dark scrollbar (no white track/arrows).
+    expect(popup).toMatch(/\.pr-source-select__menu::-webkit-scrollbar\s*\{[^}]*width:\s*8px/);
+    expect(popup).toMatch(
+      /\.pr-source-select__menu::-webkit-scrollbar-track\s*\{[^}]*background:\s*transparent/,
+    );
+    expect(popup).toMatch(
+      /\.pr-source-select__menu::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*#5a5a5a/,
+    );
+    expect(popup).toMatch(/\.pr-source-select__menu::-webkit-scrollbar-button\s*\{[^}]*display:\s*none/);
     wrapper.unmount();
   });
 

@@ -34,6 +34,11 @@ import {
   GUTTER_WIDTH_MIN,
   startHorizontalResize,
 } from '../../panelResize';
+import {
+  COUNTER_HOVER_TIP_EST_H,
+  COUNTER_HOVER_TIP_EST_W,
+  placeFixedTip,
+} from '../../placeFixedTip';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
@@ -45,6 +50,8 @@ import LaneGutter, { type GutterGroup } from './LaneGutter/LaneGutter.vue';
 import LaneGutterNode from './LaneGutter/LaneGutterNode.vue';
 import CardMetricSelect from './CardMetricSelect.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import type { CounterHoverPayload } from './SwimlaneCanvas/SwimlaneCanvas.vue';
+import CounterHoverTip from './CounterHoverTip.vue';
 import { animateProgress, prefersReducedMotion } from '../animateViewWindow';
 import { gutterMetricLabel, t } from '../../../i18n';
 
@@ -407,6 +414,43 @@ function onLaneHover(id: string | null): void {
   hoveredLaneId.value = id;
   emit('hover-lane', id);
 }
+
+/** CounterTrack step-after tip (memory util % + Using KB). Cleared when interval tip wins. */
+const counterHover = ref<CounterHoverPayload | null>(null);
+
+function onCounterHover(payload: CounterHoverPayload | null): void {
+  counterHover.value = payload;
+}
+
+function onCanvasHover(ev: SwimEvent | null, x: number, y: number): void {
+  // Do not clear counter tip here — `counter-hover` is emitted in the same move after
+  // `hover`. Clearing on a non-null interval event raced the counter payload when hit
+  // bleed briefly reported an event on a CounterTrack row. CounterHoverTip visibility
+  // is owned solely by `onCounterHover` / leave clears.
+  emit('hover', ev, x, y);
+}
+
+const counterTipStyle = computed(() => {
+  const p = counterHover.value;
+  if (!p) return { position: 'fixed' as const, left: '0px', top: '0px' };
+  // Flip / clamp inside the iframe viewport so a bottom-lane tip is not cropped
+  // (memory util CounterTrack sits near the panel edge). Inline fixed chrome so
+  // Teleport→body still paints if CSS is late/absent.
+  const { left, top } = placeFixedTip({
+    x: p.clientX,
+    y: p.clientY,
+    tipW: COUNTER_HOVER_TIP_EST_W,
+    tipH: COUNTER_HOVER_TIP_EST_H,
+    viewportW: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    viewportH: typeof window !== 'undefined' ? window.innerHeight : 768,
+  });
+  return {
+    position: 'fixed' as const,
+    zIndex: 1000,
+    left: `${left}px`,
+    top: `${top}px`,
+  };
+});
 
 /** Card header Y from the same row walk as the canvas, shifted by rest + in-flight folds. */
 const cardHeaders = computed(() => {
@@ -1015,7 +1059,8 @@ defineExpose({
           @multi-select="emit('multi-select', $event)"
           @multi-select-preview="onMultiSelectPreview"
           @multi-select-span="emit('multi-select-span', $event)"
-          @hover="(ev, x, y) => emit('hover', ev, x, y)"
+          @hover="onCanvasHover"
+          @counter-hover="onCounterHover"
           @lane-hover="onLaneHover"
           @cursor="onCursor"
           @set-playhead="emit('set-playhead', $event)"
@@ -1112,7 +1157,8 @@ defineExpose({
         @multi-select="emit('multi-select', $event)"
         @multi-select-preview="onMultiSelectPreview"
         @multi-select-span="emit('multi-select-span', $event)"
-        @hover="(ev, x, y) => emit('hover', ev, x, y)"
+        @hover="onCanvasHover"
+        @counter-hover="onCounterHover"
         @lane-hover="onLaneHover"
         @cursor="onCursor"
         @set-playhead="emit('set-playhead', $event)"
@@ -1211,6 +1257,26 @@ defineExpose({
         :style="{ left: `${cursorXRatio * 100}%` }"
       />
     </div>
+    <Teleport to="body">
+      <CounterHoverTip
+        v-if="counterHover"
+        :name="counterHover.name"
+        :utilization="counterHover.utilization"
+        :using-kb="counterHover.usingKb"
+        :style-pos="counterTipStyle"
+        :locale="locale"
+      />
+      <div
+        v-if="counterHover"
+        class="pr-counter-hover-dot"
+        data-testid="counter-hover-dot"
+        :style="{
+          left: `${counterHover.dotClientX}px`,
+          top: `${counterHover.dotClientY}px`,
+          background: counterHover.color,
+        }"
+      />
+    </Teleport>
   </div>
 </template>
 

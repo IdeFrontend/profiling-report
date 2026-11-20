@@ -76,6 +76,15 @@ const viewIndex = ref(0);
 
 const units = computed(() => props.model?.units ?? []);
 
+/** Distinct pack `coreId`s — Core prefix only when more than one (#198 / single-core packs stay plain). */
+const isMultiCore = computed(() => {
+  const ids = new Set<number>();
+  for (const unit of units.value) {
+    for (const view of unit.views) ids.add(view.coreId);
+  }
+  return ids.size > 1;
+});
+
 const byId = computed(() => new Map(units.value.map((u) => [u.id, u])));
 
 /** Tab the host names. A unit the model has no source for has no entry, and its body blanks. */
@@ -109,16 +118,20 @@ function unitLabel(id: MemoryHeatmapUnitId): string {
   return t(UNIT_LABEL_KEY[id], props.locale);
 }
 
+/** View label: owner + buffer; multi-core packs prepend pack `coreId` (#198) — never invent one. */
 function viewOptionLabel(view: MemoryHeatmapView): string {
-  if (view.ownerName) return `${view.ownerName} ${view.memoryName}`;
-  return view.memoryName;
+  const base = view.ownerName ? `${view.ownerName} ${view.memoryName}` : view.memoryName;
+  return isMultiCore.value ? `Core ${view.coreId} · ${base}` : base;
 }
 
-/** Under-grid title: owner + buffer when known, else the diagram's tab words. */
+/**
+ * Under-grid title: same as the view option label when the owner is known, or on multi-core
+ * packs even without an owner (`Core N · UB`). Diagram tab words only for single-core, no-owner.
+ */
 const unitName = computed(() => {
   const view = activeView.value;
   if (!view || !props.selectedUnit) return '';
-  if (view.ownerName) return `${view.ownerName} ${view.memoryName}`;
+  if (view.ownerName || isMultiCore.value) return viewOptionLabel(view);
   return t(UNIT_NAME_KEY[props.selectedUnit], props.locale);
 });
 

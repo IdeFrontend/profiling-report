@@ -111,18 +111,22 @@ function onKeydown(e: KeyboardEvent) {
   }
   if (e.key === 'ArrowDown') {
     activeIndex.value = (activeIndex.value + 1) % n;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'ArrowUp') {
     activeIndex.value = (activeIndex.value - 1 + n) % n;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'Home') {
     activeIndex.value = 0;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'End') {
     activeIndex.value = n - 1;
+    scrollActiveIntoView();
     return;
   }
   if (e.key === 'Enter' || e.key === ' ') {
@@ -135,6 +139,15 @@ function onScrollOrResize() {
   if (open.value) placeMenu();
 }
 
+/** Keep the highlighted row visible when the menu is taller than max-height. */
+function scrollActiveIntoView() {
+  void nextTick(() => {
+    document.getElementById(`${buttonId}-opt-${activeIndex.value}`)?.scrollIntoView({
+      block: 'nearest',
+    });
+  });
+}
+
 watch(open, async (v) => {
   if (!v) return;
   syncActiveFromValue();
@@ -142,6 +155,7 @@ watch(open, async (v) => {
   placeMenu();
   await nextTick();
   clampMenuToViewport();
+  scrollActiveIntoView();
 });
 
 watch(
@@ -277,6 +291,46 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 400;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  /* ~8–9 options; heat multicore / Source file lists can be long. */
+  max-height: min(240px, calc(100vh - 16px));
+  overflow-y: auto;
+  /*
+   * Teleported to `body` — outside `.pr-root` — so tokens.css scrollbar rules
+   * do not apply. Mirror `.pr-root` bars (dark thumb, no white track/arrows).
+   */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+.pr-source-select__menu::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #5a5a5a;
+  background-clip: content-box;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+  background-clip: content-box;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.pr-source-select__menu::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .pr-source-select__option {

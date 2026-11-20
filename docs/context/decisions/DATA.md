@@ -229,10 +229,10 @@ Format and statuses: [README.md](README.md).
 
 ## DATA-32 (was: Q5)
 
-- **Resolved:** 2026-07-31 (wording refreshed 2026-09-09)
+- **Resolved:** 2026-07-31 (wording refreshed 2026-09-09; amended 2026-11-18)
 - **Question:** Overview charts data source?
-- **Decision:** **Hide** overview charts when `overviewSeries` is empty. When Sampling.json has usable `ph:C` counters, [DATA-39](./DATA.md) fills the series; otherwise the adapter returns `[]` and the block stays hidden.
-- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [DATA-39](./DATA.md)
+- **Decision:** **Hide** overview charts when `overviewSeries` is empty. When Sampling.json has usable `ph:C` counters, [DATA-39](./DATA.md) fills the series; otherwise the adapter returns `[]` and the block stays hidden. Emulate Trace util pipes do **not** fill overview — they are swim CounterTracks ([DATA-57](./DATA.md)).
+- **Specs:** [VIEW_DATA_REQUIREMENTS](../../formats/VIEW_DATA_REQUIREMENTS.md), [DATA-39](./DATA.md), [DATA-57](./DATA.md)
 
 ---
 
@@ -414,6 +414,21 @@ Format and statuses: [README.md](README.md).
   5. **统计分析** (`overviewSeries` from [`Sampling.json`](../../formats/compute/Sampling.json.md) / `sampling.json`) shows only while the active timeline is **pipeTrace**, or when the catalog is absent (legacy classic swimlane). Switching to **communication** / **warpOccupy** hides the charts even when Sampling counters exist.
 - **Specs:** [timeline-traces](../../../specs/core/timeline-traces.spec.md), [timeline](../../views/timeline.md), [overview-charts](../../views/overview-charts.md), [ReportToolbar](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [ProfilingReport](../../../src/ui/ProfilingReport/ProfilingReport.spec.md)
 - **Source:** `npu-compute性能优化` §11.14 多流水显示; design `1130/流水显示筛选`; follow-up on [#218](https://github.com/IdeFrontend/profiling-report/pull/218) (2026-11-19).
+
+---
+
+## DATA-57
+
+- **Resolved:** 2026-11-17
+- **Was:** Product chat lock for [#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206) (no prior open-question row)
+- **Question:** How should emulate Trace `ph:C` util pipes (memory / unit / queue) map into the viewer — OverviewCharts vs swim CounterTracks, and which sample rules apply?
+- **Decision:**
+  1. **Surface:** Trace util pipes become **swim CounterTrack leaves** (`SwimThread.counter`), not `reportModel.overviewSeries`. Compute 统计分析 stays **`Sampling.json` only** ([DATA-39](./DATA.md) / [DATA-32](./DATA.md)). Do not mirror Trace counters into overview.
+  2. **Memory pipes (#208):** populated processes whose `process_name` matches `<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION`; counter name `memory_utilization`; one leaf per pipe id. Skip metadata-only (empty) util processes.
+  3. **Points:** `t = ts × 1e3` (µs→ns); `v` from `args["Utilization (%)"]` — values in `[0, 1]` scale ×100, values in `(1, 100]` stay as percent, else drop. Optional absolute `abs` from finite `args["Using Bytes (KB)"]` (KB; tooltip only — Y domain stays util %). Same-`ts` multi-`C` → **keep last** (whole sample, including `abs`). Per-track `yMax` = max sample (auto-Y; [UI-61](./UI.md)).
+  4. **Later slices:** unit pipes (#209) and queue pipes (#206) reuse the same CounterTrack carrier / paint path; only the pipe matcher and arg key differ.
+- **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-015, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
+- **Source:** Product answers 2026-11-17 (placement B; retarget #233; keep last @ same ts; counter tracks not #181 overview mirror).
 
 ---
 
