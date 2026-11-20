@@ -280,6 +280,7 @@ describe('MemoryHeatmapPanel', () => {
       '10 / 416 个块已用',
     );
     expect(wrapper.find('[data-testid="heat-canvas"]').exists()).toBe(true);
+    wrapper.unmount();
   });
 
   it('PR-HEAT-012: single-view tabs omit the view-bar (no reserved band above legend)', () => {
@@ -347,8 +348,10 @@ describe('MemoryHeatmapPanel', () => {
       ...document.querySelectorAll('[data-testid="heat-view-select-menu"] [role="option"]'),
     ].map((el) => el.textContent?.trim());
     expect(items).toEqual(['AIV0 UB', 'AIV1 UB']);
+    ub.unmount();
     const l1 = mountPanel({ model: single, selectedUnit: 'l1' });
     expect(l1.get('[data-testid="heat-unit-name"]').text()).toBe('AIC L1');
+    l1.unmount();
   });
 
   it('PR-HEAT-010c: multi-core no-owner under-grid title matches viewOptionLabel', async () => {
@@ -386,6 +389,7 @@ describe('MemoryHeatmapPanel', () => {
     second?.click();
     await wrapper.vm.$nextTick();
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 1 · UB');
+    wrapper.unmount();
   });
 
   it('PR-HEAT-005: blanks a selected unit the model has no source for', () => {
@@ -596,12 +600,13 @@ describe('MemoryHeatmapPanel', () => {
       '0x100',
     );
     await wrapper.get('[data-testid="heat-view-select"]').trigger('click');
-    const item = document.querySelector(
-      '[data-testid="heat-view-select-menu"] [data-value="1"]',
-    ) as HTMLElement | null;
+    const menus = document.querySelectorAll('[data-testid="heat-view-select-menu"]');
+    const item = menus[menus.length - 1]?.querySelector('[data-value="1"]') as HTMLElement | null;
     expect(item).not.toBeNull();
     item!.click();
+    await wrapper.vm.$nextTick();
     await nextTick();
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toMatch(/AIV1/);
     expect(document.querySelector('[data-testid="heat-cell-tooltip"]')).toBeNull();
     expect(wrapper.find('[data-testid="heat-cell-hover"]').exists()).toBe(false);
     wrapper.unmount();
