@@ -429,6 +429,7 @@ Format and statuses: [README.md](README.md).
   4. **Later slices:** unit pipes (#209) and queue pipes (#206) reuse the same CounterTrack carrier / paint path; only the pipe matcher and arg key differ.
 - **Specs:** [adapt-emulate](../../../specs/core/adapt-emulate.spec.md) PR-ASIM-015, [swimlane-model](../../../specs/core/swimlane-model.spec.md), [timeline](../../views/timeline.md), [ADAPTERS](../../formats/ADAPTERS.md), [UI-61](./UI.md)
 - **Source:** Product answers 2026-11-17 (placement B; retarget #233; keep last @ same ts; counter tracks not #181 overview mirror).
+- **Note:** A parallel PR briefly used bare id DATA-57 for emulate Roofline; that claim was withdrawn. Roofline continues as open [DATA-58](../questions/DATA.md#data-58) / interim [DATA-57a](./interim/DATA.md#data-57a). This DATA-57 decision remains swim CounterTracks only.
 
 ---
 

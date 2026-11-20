@@ -32,7 +32,7 @@ flowchart LR
 | `hardware-details` | [hardware-details.md](hardware-details.md) | M1 | `adapt-mapper` | **out** with summary ([DATA-47](../context/decisions/DATA.md)) | `hardware-more-detail.jpeg` |
 | `pipe-occupancy` | [pipe-occupancy.md](pipe-occupancy.md) | M | `adapt-mapper` | **in** | `compute-load.jpeg` |
 | `overview-charts` | [overview-charts.md](overview-charts.md) | M | `gap` | **hide** | OverviewCharts visual |
-| `roofline` | [roofline.md](roofline.md) | M2 | `gap` | **hide** | RooflinePanel visual |
+| `roofline` | [roofline.md](roofline.md) | M2 | `adapt-mapper` | **in** ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)) | RooflinePanel visual |
 | `memory-topology` | [memory-topology.md](memory-topology.md) | M2 / M4 | `adapt-mapper` | compute **in** (`memoryDiagram`); emulate Architecture Diagram **in** on same chrome (`archDiagram`); Memory Utilization Heatmap **in** as its own carrier (`memoryHeatmap`, §11.2.3.2) | `memory-topology.svg` (`v930-chrome`); heat panel → `v930-sim/memory-topology-fullscreen` |
 | `performance-hints` | [performance-hints.md](performance-hints.md) | M4 | `adapt-mapper` | **in** | `v930-sim` 性能提示 report panel |
 | `source` | [source.md](source.md) | M / P2 | `adapt-mapper` | compute **in**; emulate **in** when ELF gate passes ([DATA-53](../context/decisions/DATA.md)); gelu-without-ELF **hide** | `v930-source/source-correlation.jpeg` |

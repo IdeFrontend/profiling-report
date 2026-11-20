@@ -21,6 +21,11 @@ const FILE_FIXTURES = {
   gather_2d: { name: 'gather_2d.npu-rep', url: '/data/gather_2d.npu-rep' },
   /** §11.8.2 PDF sample: HardwareInfo Roofline category with several w/t/q circles. */
   roofline_multi: { name: 'roofline_multi.npu-rep', url: '/data/roofline_multi.npu-rep' },
+  /** Emulate Roofline* CSVs (DATA-57a) — thin simt_gather_1d leaf. */
+  simt_roofline: {
+    name: 'simt_gather_1d_roofline.npu-rep',
+    url: '/data/simt_gather_1d_roofline.npu-rep',
+  },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
 
@@ -286,6 +291,10 @@ onMounted(async () => {
           :href="fixtureHref('roofline_multi')"
           data-testid="fixture-roofline-multi"
         >roofline_multi.npu-rep</a>
+        <a
+          :href="fixtureHref('simt_roofline')"
+          data-testid="fixture-simt-roofline"
+        >simt_gather_1d_roofline.npu-rep</a>
         <a
           :href="fixtureHref('deps')"
           data-testid="fixture-deps"

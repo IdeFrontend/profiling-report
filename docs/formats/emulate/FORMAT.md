@@ -86,6 +86,11 @@ Full column catalog generator notes: [SCHEMA.md](SCHEMA.md). Pack status / Phase
 | [`RegionNames.csv`](RegionNames.csv.md) |
 | [`Regions.csv`](Regions.csv.md) |
 | [`RegisterUsageStalls.csv`](RegisterUsageStalls.csv.md) |
+| [`RooflineBandwidthPeaks.csv`](RooflineBandwidthPeaks.csv.md) |
+| [`RooflineComputePeaks.csv`](RooflineComputePeaks.csv.md) |
+| [`RooflineMetadata.csv`](RooflineMetadata.csv.md) |
+| [`RooflinePoints.csv`](RooflinePoints.csv.md) |
+| [`roofline.json`](roofline.json.md) |
 | [`SamplingStats.csv`](SamplingStats.csv.md) |
 | [`ScalarIpcDynamic.csv`](ScalarIpcDynamic.csv.md) |
 | [`Sections.csv`](Sections.csv.md) |
@@ -162,6 +167,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 | [`MemoryHeatmapLayout.csv`](MemoryHeatmapLayout.csv.md) + [`MemoryHeatmapCells.csv`](MemoryHeatmapCells.csv.md) (+ [`CoreTypes.csv`](CoreTypes.csv.md)) | [memory-topology § Memory Utilization Heatmap](../../views/memory-topology.md) | `memoryHeatmap` + capability `memoryHeatmap` | One view per Layout row; capacity per [DATA-51](../../context/decisions/DATA.md). No UbRw heat path ([DATA-50](../../context/decisions/DATA.md)). |
 | [`HintMessages.csv`](HintMessages.csv.md) + [`HintTypes.csv`](HintTypes.csv.md) + [`InstructionHints.csv`](InstructionHints.csv.md) + [`KernelHints.csv`](KernelHints.csv.md) + [`SourceLineHints.csv`](SourceLineHints.csv.md) | [Performance hints](../../views/performance-hints.md) | `performanceHints` + capability `performanceHints` | Joined rows (53 on gelu, [PR-ASIM-009](../../../specs/core/adapt-emulate.spec.md)); RFC-4180 quoted `HintMsgText` decoded; `SourceLineId` shown raw when `SourceLines` is not packed ([PR-ASIM-012](../../../specs/core/adapt-emulate.spec.md)). Absent / no joined rows → omit |
 | [`SourceInstructions.csv`](SourceInstructions.csv.md) and/or [`AsmMetrics.csv`](AsmMetrics.csv.md) (+ optional [`SourceFiles.csv`](SourceFiles.csv.md) / [`SourceLines.csv`](SourceLines.csv.md) / [`DebugInfo.csv`](DebugInfo.csv.md) / [`SourceLineMetrics.csv`](SourceLineMetrics.csv.md)) | [Source \| SASS](../../views/source.md) | `sourceCorrelation` + capability `sourceTab` | ELF / `--object-file` gate ([DATA-53](../../context/decisions/DATA.md)). Prefer SourceInstructions for the listing; AsmMetrics attaches MVP metrics by PC. SourceFiles/Lines optional (assembly-only OK). Do **not** light from `IPCAsmMetrics` alone. Empty on gelu-without-ELF → omit tab |
+| [`RooflinePoints.csv`](RooflinePoints.csv.md) + [`RooflineComputePeaks.csv`](RooflineComputePeaks.csv.md) + [`RooflineBandwidthPeaks.csv`](RooflineBandwidthPeaks.csv.md) (+ [`RooflineMetadata.csv`](RooflineMetadata.csv.md); gate [`AnalysisState.csv`](AnalysisState.csv.md)) | [Roofline](../../views/roofline.md) | `roofline` + capability `roofline` | HTML-matching dtype×bandwidth roofs; GOPS→TOps/s ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). [`roofline.json`](roofline.json.md) fallback when CSVs absent. Failed AnalysisState `roofline` row → omit; absent AnalysisState still adapts |
 
 **Also lit when the above mount:** StatsAside CANNBot scopes (**compute / memory** only — summary scope omitted with meta, [DATA-47](../../context/decisions/DATA.md)) from the same adapted fields — no extra embeds.
 
@@ -178,7 +184,7 @@ Packer checklist for the **currently lit** Asc Toolkit surfaces. Missing embeds 
 | [`AiCoreOccupancy.csv`](AiCoreOccupancy.csv.md) / [`aicore_utilization.json`](aicore_utilization.json.md) | AICore occupancy overlay | out-of-scope |
 | `VfIPC*.csv` / [`VfSimtIPC.csv`](VfSimtIPC.csv.md) | SIMD/SIMT VF IPC | out-of-scope |
 | Call* / CallGraph* | Call stacks | out-of-scope |
-| Roofline inputs (`Functions`, `ExecutedInstructions`, `VectorUtilizations`, …) | Roofline | **hide** (gap) |
+| `Functions` / `ExecutedInstructions` / `VectorUtilizations` (raw) | Roofline upstream | **not used** by viewer — consume analyzer `Roofline*.csv` instead ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)) |
 | `Sampling.json` | Overview charts | **hide** (gap) |
 
 Optional: other contract CSVs may be packed unused for later phases. **Not required:** sqlite3 blob (container type `5` reserved).

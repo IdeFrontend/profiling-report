@@ -37,7 +37,8 @@ Index: [README.md](README.md) · Previous: [milestone-3.md](milestone-3.md)
 | CANNBot compute / memory | **In** | Host opens UI; library emits payload; summary-scope icon omitted with meta |
 | Performance hints（性能提示） | **In** | Sketch [`v930-sim/performance-hints`](../../ui/source/v930-sim/performance-hints.jpeg); gelu packs the hint CSVs; bottom dock table built (`PerformanceHintsDock`, capability `performanceHints`) |
 | Memory Utilization Heatmap | **In** | Layout+Cells → `memoryHeatmap` VM + capability; fullscreen right panel (§11.2.3.2); tabs L1/UB/L0A/L0B/L0C ([DATA-50](../../context/decisions/DATA.md) / [UI-60](../../context/decisions/UI.md)) |
-| Roofline / VF IPC / call stacks / full ArchDiagramModel | **Out** | Phase 2 ([DATA-48](../../context/questions/DATA.md)) |
+| Roofline | **In** | When Roofline points exist ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)). AnalysisState gates only when that CSV is packed. `Roofline*.csv` preferred; `roofline.json` fallback. |
+| VF IPC / call stacks / full ArchDiagramModel | **Out** | Phase 2 ([DATA-48](../../context/questions/DATA.md)) |
 
 ## Implementation tasks
 
@@ -71,5 +72,5 @@ Normative embed → view table: [emulate/FORMAT Viewer packer](../../formats/emu
 
 ## Exit criteria
 
-- Docs agree: PIPE + **Memory load analysis** + **Memory Utilization Heatmap** (`memoryHeatmap`, §11.2.3.2) + CANNBot (compute/memory) + **性能提示** **in**; summary chrome **out**
+- Docs agree: PIPE + **Memory load analysis** + **Memory Utilization Heatmap** (`memoryHeatmap`, §11.2.3.2) + **Roofline** (when points exist, [DATA-57a](../../context/decisions/interim/DATA.md#data-57a)) + CANNBot (compute/memory) + **性能提示** **in**; summary chrome **out**
 - `adaptEmulate` fills those VM areas from packed embeds; playground demo works

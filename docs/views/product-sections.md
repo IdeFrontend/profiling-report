@@ -40,7 +40,7 @@ Same host file (`.npu-rep`); leaf via [`manifest.json`](../formats/emulate/manif
 | 11.2.3.4 / .6 | PIPE occupancy | [pipe-occupancy](pipe-occupancy.md) | **in** |
 | 11.2.3.1 | Architecture Diagram | [memory-topology](memory-topology.md) (capability `archDiagram`) | **in** (ArchDiagramMetrics→slot in **Emulate fill**; same chrome as compute) |
 | — | Overview charts | [overview-charts](overview-charts.md) | **hide** |
-| 11.2.3.5 | Roofline | [roofline](roofline.md) | **hide** |
+| 11.2.3.5 | Roofline | [roofline](roofline.md) | **in** ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)) |
 | 11.2.3.2 | Memory Utilization Heatmap | [memory-topology](memory-topology.md) (capability `memoryHeatmap`) | **in** — fullscreen right panel; Layout+Cells fill L1/UB/L0A/L0B/L0C ([DATA-50](../context/decisions/DATA.md) / [UI-60](../context/decisions/UI.md)); no UbRw / L2 heat |
 | 11.2.3.3,7–8 | AiCore / VF IPC / call stacks | _(reserved)_ | **out-of-scope** |
 | — | Source \| SASS (源码) | [source](source.md) | **in** when ELF `SourceInstructions` / `AsmMetrics` gate passes ([DATA-53](../context/decisions/DATA.md)); gelu-without-ELF **hide** |
