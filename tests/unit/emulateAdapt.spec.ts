@@ -13,6 +13,11 @@ import {
   pipeOccupancyFromHist,
   pipeOccupancyFromPipesUtilization,
 } from '../../src/index';
+import {
+  memoryUtilToOverviewPercent,
+  memoryUtilCounterThreadsFromTrace,
+  memoryUtilDisplayValue,
+} from '../../src/adapters/counterTracksEmulate';
 import { buildCannbotPayload } from '../../src/domain/cannbot';
 import {
   NPU160_TYPE_CSV,
@@ -202,6 +207,89 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(adapted.reportModel.roofline).toBeUndefined();
     expect(adapted.reportModel.hardwareDetails).toBeUndefined();
     expect(adapted.reportModel.overviewSeries).toEqual([]);
+  });
+
+  it('PR-ASIM-015: memory-util ph:C pipes → swim CounterTracks (#208)', () => {
+    expect(memoryUtilDisplayValue(0.02)).toBeCloseTo(2);
+    expect(memoryUtilToOverviewPercent(25)).toBe(25);
+    expect(memoryUtilDisplayValue(-1)).toBeNull();
+
+    const trace = {
+      traceEvents: [
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 22,
+          args: { name: 'AIV0_UB_UTILIZATION (memory_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 23,
+          args: { name: 'AIV1_UB_UTILIZATION (memory_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 1,
+          args: { name: 'AIV0_SCALAR (scalar_instr)' },
+        },
+        {
+          ph: 'C',
+          name: 'memory_utilization',
+          pid: 22,
+          tid: 0,
+          ts: 5.0,
+          args: { 'Utilization (%)': 0.02, 'Using Bytes (KB)': 0.05 },
+        },
+        {
+          ph: 'C',
+          name: 'memory_utilization',
+          pid: 22,
+          tid: 0,
+          ts: 10.0,
+          args: { 'Utilization (%)': 0.01, 'Using Bytes (KB)': 0.02 },
+        },
+        // Same ts: keep last (DATA-57).
+        {
+          ph: 'C',
+          name: 'memory_utilization',
+          pid: 22,
+          tid: 0,
+          ts: 10.0,
+          args: { 'Utilization (%)': 0.03, 'Using Bytes (KB)': 0.04 },
+        },
+        // Empty AIV1_UB pipe: process_name only — must not create a track.
+        { ph: 'C', name: 'unit_utilization', pid: 1, tid: 0, ts: 1, args: { 'Utilization (%)': 50 } },
+        { ph: 'X', name: 'work', pid: 1, tid: 1, ts: 0, dur: 20 },
+      ],
+    };
+
+    const threads = memoryUtilCounterThreadsFromTrace(trace);
+    expect(threads).toHaveLength(1);
+    expect(threads[0]!.name).toBe('AIV0_UB_UTILIZATION');
+    expect(threads[0]!.counter?.points).toEqual([
+      { t: 5_000, v: 2, abs: 0.05 },
+      { t: 10_000, v: 3, abs: 0.04 },
+    ]);
+    expect(threads[0]!.counter?.yMax).toBe(3);
+    expect(threads[0]!.counter?.colorHex).toBe('#E7434A');
+
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(JSON.stringify(trace)),
+    });
+    expect(adapted.reportModel.overviewSeries).toEqual([]);
+    const counterProc = adapted.swimlaneModel?.processes.find(
+      (p) => p.id === 'p-counter-memory-util',
+    );
+    expect(counterProc?.name).toBe('Memory utilization');
+    expect(counterProc?.threads.map((t) => t.name)).toEqual(['AIV0_UB_UTILIZATION']);
+    expect(counterProc?.threads[0]?.counter?.points).toEqual([
+      { t: 5_000, v: 2, abs: 0.05 },
+      { t: 10_000, v: 3, abs: 0.04 },
+    ]);
+    expect(counterProc?.threads[0]?.counter?.colorHex).toBe('#E7434A');
   });
 
   it('PR-ASIM-005: emulate leaves summary empty (no KernelInfo → cards; DATA-47)', () => {
@@ -501,6 +589,11 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
+    // #208 / DATA-57: gelu Trace packs populated mem util pipes → CounterTrack card.
+    const memUtil = adapted.swimlaneModel!.processes.find((p) => p.id === 'p-counter-memory-util');
+    expect(memUtil?.name).toBe('Memory utilization');
+    expect(memUtil?.threads.length).toBeGreaterThanOrEqual(1);
+    expect(memUtil?.threads.every((t) => (t.counter?.points.length ?? 0) > 0)).toBe(true);
     expect(adapted.reportModel.profile).toBe('emulate');
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);

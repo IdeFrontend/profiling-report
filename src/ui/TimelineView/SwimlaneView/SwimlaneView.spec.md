@@ -103,6 +103,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 45. **PR-SWIMVIEW-045** — Hovering the visible scrollbar cancels auto-hide until pointer leave.
 46. **PR-SWIMVIEW-046** — Scrollbar appearing under a parked pointer cancels auto-hide; moving away without leave resumes hide.
 47. **PR-SWIMVIEW-047** — Card strip name `title` only while truncated.
+48. **PR-SWIMVIEW-048** — Hovering a memory-util CounterTrack lane hosts `CounterHoverTip` (Teleport → body) with the pipe / lane name as the tip header (EventTooltip event-name parity) and OverviewCharts tip layout (label left / value right): Utilization `%` and optional Using KB (KB capped at 2 decimal places); a value-dot circle sits on the step-after hold at the pointer x; tip chrome uses unscoped fixed positioning so the teleported node stays visible; tip flips/clamps inside the viewport so bottom/side edges are not cropped.
 
 
 ## Visual
@@ -129,6 +130,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../../../../docs/ui/DESIGN_INDEX.md).
 
 ## Changelog
+- **2026-11-18** — CounterTrack hover tip host (`PR-SWIMVIEW-048`): Teleport + unscoped fixed chrome; label/value rows + value-dot; util % / Using KB; viewport flip/clamp.
 - **2026-11-18** — Card strip name exposes full `title` only while truncated (`PR-SWIMVIEW-047`).
 - **2026-10-22** — Parked-pointer hover sync clears on leave-move; hide-timeout re-check (`PR-SWIMVIEW-046`); wider overlay (12px), ~2s hide delay, pause on hover (`PR-SWIMVIEW-038`/`039`/`045`).
 - **2026-10-21** — Clear scrollbar visibility when overflow ends; forward wheel; settle mid-drag on overflow end (`PR-SWIMVIEW-042`…`044`).

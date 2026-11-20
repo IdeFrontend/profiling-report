@@ -17,6 +17,7 @@ import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
 import { emptyReportViewModel } from './adaptRep';
 import { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 import { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
+import { mergeMemoryUtilCounterTracks } from './counterTracksEmulate';
 import { parseCsv } from './parseCsv';
 import {
   csvTableFromPipeUtilizationHist,
@@ -32,6 +33,12 @@ export {
   pipeOccupancyFromPipesUtilization,
   pipeOccupancyPreferHist,
 } from './pipeOccupancyEmulate';
+export {
+  memoryUtilDisplayValue,
+  memoryUtilToOverviewPercent,
+  mergeMemoryUtilCounterTracks,
+  memoryUtilCounterThreadsFromTrace,
+} from './counterTracksEmulate';
 
 /** Producer `manifest.json` only ([PROC-8]). */
 const MANIFEST_NAMES = ['manifest.json', 'Manifest.json'];
@@ -313,24 +320,44 @@ export function adaptEmulate(
   // Absent → null swimlane; corrupt → throw. Values are µs (DATA-46); override
   // misleading displayTimeUnit:"ns" on native emulate traces.
   let swimlaneModel: SwimlaneModel | null = null;
+  let counterTraceJson: unknown | null = null;
   const catalog = buildTimelineTraceBundle(payloads, pipeOccupancy);
   if (catalog) {
     swimlaneModel = catalog.swimlaneModel;
   } else {
     const trace = findEmulateTracePayload(payloads);
     if (trace) {
-      let traceJson: unknown;
       try {
-        traceJson = JSON.parse(decodeUtf8(trace.bytes));
+        counterTraceJson = JSON.parse(decodeUtf8(trace.bytes));
       } catch {
         throw new Error(
           `[profiling-report] adaptEmulate: ${trace.name} is not valid JSON`,
         );
       }
       swimlaneModel = withPipeLaneUtilizations(
-        chromeTraceToSwimlane(traceJson, { sourceTimeUnit: 'us' }),
+        chromeTraceToSwimlane(counterTraceJson, { sourceTimeUnit: 'us' }),
         pipeOccupancy,
       );
+    }
+  }
+
+  // #208 / DATA-57: append Memory utilization CounterTracks from Trace ph:C pipes.
+  // Catalog path still reads PipeTrace/native for counters (does not mirror into overview).
+  if (swimlaneModel) {
+    if (counterTraceJson == null) {
+      const trace = findEmulateTracePayload(payloads);
+      if (trace) {
+        try {
+          counterTraceJson = JSON.parse(decodeUtf8(trace.bytes));
+        } catch {
+          throw new Error(
+            `[profiling-report] adaptEmulate: ${trace.name} is not valid JSON`,
+          );
+        }
+      }
+    }
+    if (counterTraceJson != null) {
+      swimlaneModel = mergeMemoryUtilCounterTracks(swimlaneModel, counterTraceJson);
     }
   }
 
