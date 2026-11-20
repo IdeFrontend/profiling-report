@@ -91,7 +91,12 @@ void main() {
 
   float screenY = glToPixelY(pos.y);
   // Extend this vertex's edge to the pixel bound of the EXTENDED event (sudu).
-  float screenX = mix(floor(extendedL), ceil(extendedR), aTex.y);
+  // Zero-width L≈R that lands on an integer device edge would otherwise get
+  // floor==ceil (degenerate quad); bump to 1 device column so count-hit FS can run.
+  float screenL = floor(extendedL);
+  float screenR = ceil(extendedR);
+  if (screenR <= screenL) screenR = screenL + 1.0;
+  float screenX = mix(screenL, screenR, aTex.y);
   pos.x = pixelToGlX(screenX);
 
   vScreenPos = vec2(screenX, screenY);
@@ -108,6 +113,7 @@ uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 uniform vec3 uRR; // xy = min/max painted radii (device px, rounded in JS); z = exact switch threshold × dpr
 uniform float uSrcOver; // 1.0 = premultiplied source-over (summary bars); 0.0 = additive (events)
+uniform float uUseCountMetric; // 1.0 = per-pipe count-hit; 0.0 = length AA (durable-majority pipes)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -141,17 +147,21 @@ void main() {
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
   float rrShape = clamp(0.5 - dist, 0.0, 1.0);
-  // Wide events: length AA (hCoverage). Thin / zero-dur (rawW < 1 device px): each pixel hit
-  // contributes one count unit (not fractional length) so additive blend aggregates by event
-  // count; odd device columns stipple with thinEventAlternateFactor so dense blocks zebra.
+  // Per-pipe metric (uUseCountMetric): durable-majority pipes use length AA; tick-majority /
+  // tie pipes use count-hit so dense zero-width interiors accumulate by event count. Count hits
+  // when hCoverage > 0 or the event center lies in this device column (L≈R still paints).
   float cov;
-  if (rawW >= 1.0) {
+  if (uUseCountMetric < 0.5) {
     cov = min(hCoverage, rrShape);
-  } else if (hCoverage > 0.0) {
-    float alt = mod(floor(vScreenPos.x), 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
-    cov = min(alt, rrShape);
   } else {
-    cov = 0.0;
+    float center = (l + r) * 0.5;
+    bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) < 0.5;
+    if (hit) {
+      float alt = mod(floor(vScreenPos.x), 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
+      cov = min(alt, rrShape);
+    } else {
+      cov = 0.0;
+    }
   }
   // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
   // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage

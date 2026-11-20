@@ -62,6 +62,7 @@ interface GlProgram {
   uRR: WebGLUniformLocation | null;
   uExtendParameters: WebGLUniformLocation | null;
   uSrcOver: WebGLUniformLocation | null;
+  uUseCountMetric: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -113,7 +114,7 @@ const CURVE_INSTANCE_FLOATS = 10;
 interface SubRowMesh {
   /** Content-space Y of this sub-row's lane band (lane.y + rowIndex * LANE_HEIGHT). */
   y: number;
-  /** All events (including duration-0) — additive blend; thin events use count-hit FS metric. */
+  /** All events (including duration-0) — additive blend; metric from lane `useCountMetric`. */
   chunks: MeshChunk[];
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
@@ -128,6 +129,28 @@ interface LaneMeshes {
   rows: SubRowMesh[];
   /** Collapsed-folder summary lane: drawn source-over (exact color), never additive. */
   summary?: boolean;
+  /**
+   * Per-pipe brightness metric for SWIMLANE_FS: true → count-hit (tick-majority / tie),
+   * false → length AA (more durables than duration-0).
+   */
+  useCountMetric: boolean;
+}
+
+/**
+ * Leaf-pipe brightness metric: count when duration-0 events are ≥ durables (tie → count);
+ * length AA when durables strictly outnumber zero-width. Skips summary bars.
+ */
+export function laneUsesCountMetric(
+  events: ReadonlyArray<{ event: { duration: number }; summary?: boolean }>,
+): boolean {
+  let durable = 0;
+  let zero = 0;
+  for (const item of events) {
+    if (item.summary) continue;
+    if (item.event.duration === 0) zero++;
+    else durable++;
+  }
+  return !(durable > zero);
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -176,6 +199,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uRR: gl.getUniformLocation(program, 'uRR'),
     uExtendParameters: gl.getUniformLocation(program, 'uExtendParameters'),
     uSrcOver: gl.getUniformLocation(program, 'uSrcOver'),
+    uUseCountMetric: gl.getUniformLocation(program, 'uUseCountMetric'),
   };
 }
 
@@ -769,6 +793,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         rrSwitchThreshold * this.dpr,
       );
     if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
+    if (swim.uUseCountMetric) gl.uniform1f(swim.uUseCountMetric, 0);
     // Generic aDim = 1 when a mesh VAO leaves attrib 3 disabled (ordinary intervals / discrete ticks).
     gl.vertexAttrib1f(3, 1);
 
@@ -805,6 +830,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
         gl.uniform4f(swim.uSizePos, sx, sy, px, py);
         if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
+        if (swim.uUseCountMetric) {
+          gl.uniform1f(swim.uUseCountMetric, meshes.useCountMetric ? 1 : 0);
+        }
 
         // Summary bars composite source-over so their exact fill lands without adding onto
         // the lane background (additive would lighten #2c2c2c to #4b4b4b over #1f1f1f).
@@ -1118,6 +1146,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         color: hexToRgb(summary ? SUMMARY_EVENT_FILL : lane.color),
         rows,
         summary,
+        useCountMetric: summary ? false : laneUsesCountMetric(allEvents),
       };
     });
     this.rebuildEmphasisSplit();

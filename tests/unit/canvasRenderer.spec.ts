@@ -44,6 +44,7 @@ import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimla
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import {
   compositeLabelBackdrop,
+  laneUsesCountMetric,
   WebGlSwimlaneRenderer,
 } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import {
@@ -1399,12 +1400,42 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
     // One createChunksFromPairs path for all events (including duration-0).
     expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
+    expect(webglSrc).toMatch(/uUseCountMetric/);
+    expect(webglSrc).toMatch(/laneUsesCountMetric/);
+
+    // Per-pipe metric: durable-majority → length; tick-majority / tie → count.
+    const durable = (n: number, d = 10) =>
+      Array.from({ length: n }, (_, i) => ({
+        event: { duration: d },
+        summary: false as const,
+      }));
+    const ticks = (n: number) =>
+      Array.from({ length: n }, () => ({
+        event: { duration: 0 },
+        summary: false as const,
+      }));
+    expect(laneUsesCountMetric([...durable(3), ...ticks(1)])).toBe(false);
+    expect(laneUsesCountMetric([...durable(1), ...ticks(3)])).toBe(true);
+    expect(laneUsesCountMetric([...durable(2), ...ticks(2)])).toBe(true);
+    expect(laneUsesCountMetric(ticks(1))).toBe(true);
+    expect(laneUsesCountMetric(durable(1))).toBe(false);
+    // Summary bars do not tip the tally.
+    expect(
+      laneUsesCountMetric([
+        ...durable(2),
+        ...ticks(1),
+        { event: { duration: 0 }, summary: true },
+        { event: { duration: 0 }, summary: true },
+      ]),
+    ).toBe(false);
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
     expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov \* d, uSrcOver\)/);
-    // Thin-event count-hit + device-column stipple.
-    expect(shaderSrc).toMatch(/rawW >= 1\.0/);
+    // Per-pipe count-hit (center-in-column) + device-column stipple.
+    expect(shaderSrc).toMatch(/uUseCountMetric/);
+    expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) < 0\.5/);
     expect(shaderSrc).toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
+    expect(shaderSrc).toMatch(/if \(screenR <= screenL\) screenR = screenL \+ 1\.0/);
     expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
   });
 
