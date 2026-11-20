@@ -26,6 +26,7 @@ import {
   collapseFoldsFromLayout,
   EMPTY_LAYOUT,
   eventPaintRect,
+  snapEventRect,
   IDLE_COLLAPSE,
   sameCollapseAnim,
   LANE_FILL,
@@ -48,6 +49,8 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_LABEL_COLOR,
+  assignTickDensityDims,
+  binTicksByCssColumn,
   type CollapseAnimState,
   type CollapseTransform,
   type LaidOutEvent,
@@ -781,6 +784,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       fill: string;
     }[] = [];
 
+    const widthCss = this.width / Math.max(dpr, Number.EPSILON);
+
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
       if (lane.counter) continue;
@@ -793,12 +798,58 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         this.view.endTime,
         this.layout.maxLeafDuration,
       );
+
+      // Per sub-row: full-height CSS-column density marks for duration-0 ticks (PR-RENDER-066).
+      // Search and selection keep ticks discrete so dim / mute stay per event.
+      const densityRowIds = new Set<number>();
+      if (!hasSearch && !hasSelection && !hasMulti) {
+        const ticksByRow = new Map<number, number[]>();
+        for (let j = lo; j < hi; j++) {
+          const item = laneEvts[j]!;
+          if (item.summary || item.event.duration !== 0) continue;
+          const list = ticksByRow.get(item.rowIndex) ?? [];
+          list.push(item.event.startTime);
+          ticksByRow.set(item.rowIndex, list);
+        }
+        for (const [rowIndex, times] of ticksByRow) {
+          const marks = assignTickDensityDims(
+            binTicksByCssColumn(times, this.view.startTime, this.view.endTime, widthCss),
+          );
+          if (marks.length === 0) continue;
+          densityRowIds.add(rowIndex);
+          const sample = laneEvts.find((e) => !e.summary && e.rowIndex === rowIndex)!;
+          const metrics = eventBlockMetrics(
+            collapseShiftY(sample.y, this.collapse),
+            this.view.scrollY,
+          );
+          const bandY = metrics.y * dpr;
+          const bandH = metrics.h * dpr;
+          if (bandY + bandH < 0 || bandY > this.height) continue;
+          const laneA = collapseAlpha(sample.y, this.collapse);
+          const fill = eventFill(sample.color, 'normal');
+          // Full CSS column, no event-gap inset: a 1px column would shift or dash.
+          for (const m of marks) {
+            const x = ((m.t0 - this.view.startTime) / span) * this.width;
+            const w = Math.max(1, ((m.t1 - m.t0) / span) * this.width);
+            const fr = { ...snapEventRect(x, bandY, w, bandH), r: 0 };
+            ctx.globalAlpha = m.dim * laneA;
+            ctx.fillStyle = fill;
+            roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+
       for (let j = lo; j < hi; j++) {
         const item = laneEvts[j]!;
         const ev = item.event;
         if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
           continue;
         }
+        // Density marks already painted this row's duration-0 ticks.
+        if (!item.summary && ev.duration === 0 && densityRowIds.has(item.rowIndex)) continue;
+
         const x = ((ev.startTime - this.view.startTime) / span) * this.width;
         const w = Math.max(2, (ev.duration / span) * this.width);
         const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);

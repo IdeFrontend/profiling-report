@@ -165,14 +165,17 @@ export function chromeTraceToSwimlane(
       continue;
     }
 
-    // Complete intervals: classic `ph:X`, plus emulate `ph:i` with a *positive* finite `dur`
-    // (RVECLP / RVECSU instruction slices — #207). Instant `ph:i` with missing/zero `dur`
-    // stay dropped here (see #205 for min-tick markers).
-    if (e.ph !== 'X' && e.ph !== 'i') continue;
+    // Complete X intervals; emulate `ph:i` with positive finite `dur` (#207); or instant
+    // `ph:i` with finite ts and missing/zero `dur` as duration-0 ticks (#205).
     const ts = e.ts;
-    const dur = e.dur;
-    if (ts == null || dur == null || !Number.isFinite(dur)) continue;
-    if (e.ph === 'i' && !(dur > 0)) continue;
+    if (ts == null || !Number.isFinite(ts)) continue;
+    const instantI = e.ph === 'i' && (e.dur == null || e.dur === 0);
+    const iWithDur =
+      e.ph === 'i' && e.dur != null && Number.isFinite(e.dur) && e.dur > 0;
+    // Non-finite or negative X dur would poison maxTime/minTime and steal an s/f edge.
+    const xInterval =
+      e.ph === 'X' && e.dur != null && Number.isFinite(e.dur) && e.dur >= 0;
+    if (!(instantI || iWithDur || xInterval)) continue;
     const pid = String(e.pid ?? 0);
     const tid = String(e.tid ?? 0);
     const k = key(e.pid, e.tid);
@@ -193,7 +196,8 @@ export function chromeTraceToSwimlane(
     }
 
     const startTime = ts * toNs;
-    const duration = dur * toNs;
+    // Model duration stays 0 for instant markers; WebGL paints a min-px tick (#205).
+    const duration = instantI ? 0 : e.dur! * toNs;
     minTime = Math.min(minTime, startTime);
     maxTime = Math.max(maxTime, startTime + duration);
 
@@ -225,7 +229,7 @@ export function chromeTraceToSwimlane(
 
   if (!Number.isFinite(minTime) || eventSeq === 0) {
     throw new Error(
-      '[profiling-report] chromeTraceToSwimlane: no complete interval events (X with ts+dur, or i with ts and positive dur) in trace',
+      '[profiling-report] chromeTraceToSwimlane: no paintable events (complete X, positive-dur ph:i, or instant ph:i) in trace',
     );
   }
 
@@ -335,9 +339,12 @@ export function nestParents(events: SwimEvent[]): Int32Array {
 }
 
 /**
- * Innermost event whose inclusive `[startTime, startTime+duration]` contains `timestamp`.
- * Events must be sorted startTime asc, longest duration first on ties. Walks the
- * enclosing-parent chain from the last start ≤ ts so a gap does not scan the whole prefix.
+ * Innermost positive-duration event whose inclusive range contains `timestamp`.
+ * A duration-0 event matches only when no positive-duration event contains it.
+ * Events must be sorted startTime asc, longest duration first on ties.
+ * A tick that starts exactly at `timestamp` is skipped before the parent walk:
+ * `nestParents` treats an interval that ends there as a sibling, so the chain
+ * would otherwise miss that interval.
  */
 function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Array): number {
   let lo = 0;
@@ -347,11 +354,23 @@ function findEventIndex(events: SwimEvent[], timestamp: number, parent: Int32Arr
     if (events[mid]!.startTime <= timestamp) lo = mid + 1;
     else hi = mid;
   }
-  for (let i = lo - 1; i >= 0; i = parent[i]!) {
+  let start = lo - 1;
+  let tick = -1;
+  while (
+    start >= 0 &&
+    events[start]!.duration === 0 &&
+    events[start]!.startTime === timestamp
+  ) {
+    if (tick < 0) tick = start;
+    start--;
+  }
+  for (let i = start; i >= 0; i = parent[i]!) {
     const event = events[i]!;
+    // `>` is not the negation of `<=` when duration is NaN (both are false).
+    if (!(event.duration > 0)) continue;
     if (timestamp <= event.startTime + event.duration) return i;
   }
-  return -1;
+  return tick;
 }
 
 function ensureDeps(event: SwimEvent): EventDependencies {

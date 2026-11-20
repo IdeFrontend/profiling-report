@@ -1,7 +1,13 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
 import { buildFolderSummaryEvents, isFolderNode, walkVisibleRows } from '../domain/swimTree';
-import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import {
+  maxRR,
+  minRR,
+  rrSwitchThreshold,
+  rrToDevicePx,
+  thinEventAlternateFactor,
+} from './shaders';
 
 export const LANE_HEIGHT = 22;
 export const LANE_PAD_Y = 3;
@@ -1691,6 +1697,149 @@ export function measureRangeExactEdgeMarks(
   );
 }
 
+/** Floor dim for multi-hit CSS columns (PR-RENDER-066). */
+export const TICK_DENSITY_MIN_DIM = 0.35;
+/** Count at which `tickDensityDim` saturates to 1. */
+export const TICK_DENSITY_CAP = 16;
+/** Relative soft-scale for `tickCountSimilarity` (PR-RENDER-066). */
+export const TICK_COUNT_SIM_SIGMA = 0.35;
+/** Odd-in-run / odd device-column stipple (shared with WebGL thin-event FS). */
+export const TICK_ALTERNATE_FACTOR = thinEventAlternateFactor;
+/**
+ * Max empty CSS columns between occupied bins that still join one alternate group.
+ * Gap 1 keeps nearby mid-zoom ticks stippling; larger gaps reset so true isolates stay solid.
+ */
+export const TICK_ALTERNATE_MAX_GAP = 1;
+
+/**
+ * Continuous count → dim for multi-hit columns (count 1 → minDim, cap → 1).
+ * Single-tick columns use `dim = 1` in `assignTickDensityDims`.
+ */
+export function tickDensityDim(count: number): number {
+  const c = Math.max(0, count);
+  if (c <= 0) return 0;
+  const t = Math.log(c) / Math.log(TICK_DENSITY_CAP);
+  return TICK_DENSITY_MIN_DIM + (1 - TICK_DENSITY_MIN_DIM) * Math.min(1, Math.max(0, t));
+}
+
+/**
+ * Similarity of two column counts in `[0, 1]`: 1 when equal, →0 as the relative gap grows.
+ * Uses `|Δ| / max(a,b,1)` so 8 vs 9 stays closer than 1 vs 2.
+ */
+export function tickCountSimilarity(a: number, b: number): number {
+  const denom = TICK_COUNT_SIM_SIGMA * Math.max(a, b, 1);
+  return Math.exp(-Math.abs(a - b) / denom);
+}
+
+export interface TickDensityBin {
+  col: number;
+  count: number;
+  t0: number;
+  t1: number;
+}
+
+/**
+ * Bin tick timestamps into CSS-pixel-wide columns on a zoom-only time grid (PR-RENDER-066).
+ * `dt = span / W` depends on zoom + width, not pan. Bin edges sit at `k * dt` (absolute), so
+ * horizontal offset only changes which bins are visible — counts / dims stay pan-stable.
+ * Empty columns are omitted. `col` is the world bin index (for alternate adjacency).
+ */
+export function binTicksByCssColumn(
+  times: readonly number[],
+  viewStart: number,
+  viewEnd: number,
+  widthCss: number,
+): TickDensityBin[] {
+  const W = Math.max(1, Math.floor(widthCss));
+  const span = Math.max(Number.EPSILON, viewEnd - viewStart);
+  const dt = span / W;
+  // Near-view origin keeps large absolute timestamps well-conditioned.
+  const firstCol = Math.floor(viewStart / dt);
+  const grid0 = firstCol * dt;
+  // View may span W or W+1 world bins when viewStart is not on the grid.
+  // Last bin that starts inside the view. An on-grid viewEnd (zoom-to-fit,
+  // minTime 0) is an integer column count; subtracting EPSILON does not move
+  // it once viewEnd's ulp exceeds EPSILON, and that phantom column paints at
+  // x == width. 1e-6 column is far above float error and far below one column.
+  const endUnits = viewEnd / dt;
+  const endRounded = Math.round(endUnits);
+  const lastCol =
+    Math.abs(endUnits - endRounded) < 1e-6 ? endRounded - 1 : Math.floor(endUnits);
+  const n = Math.max(1, lastCol - firstCol + 1);
+  const counts = new Int32Array(n);
+  for (const t of times) {
+    // viewEnd is inclusive: zoom-to-fit sets it to maxTime, which is a duration-0 tick.
+    if (!(t >= viewStart) || t > viewEnd) continue;
+    let local = Math.floor((t - grid0) / dt);
+    if (local < 0) local = 0;
+    else if (local >= n) local = n - 1;
+    counts[local]!++;
+  }
+  const out: TickDensityBin[] = [];
+  for (let i = 0; i < n; i++) {
+    const count = counts[i]!;
+    if (count === 0) continue;
+    const col = firstCol + i;
+    out.push({ col, count, t0: col * dt, t1: (col + 1) * dt });
+  }
+  return out;
+}
+
+export interface TickDensityMark extends TickDensityBin {
+  dim: number;
+}
+
+/**
+ * Assign paint dims (PR-RENDER-066): per-column brightness (count 1 → 1, else log dim), then
+ * similarity-weighted alternate on odd steps of a **gap-tolerant** nearby group
+ * (`emptyCols <= TICK_ALTERNATE_MAX_GAP`). No shared ink budget — dense plateaus stay visible;
+ * nearby ticks keep stippling longer through mid-zoom. WebGL paints all density marks additive
+ * (columns do not overlap); search discrete ticks stay source-over.
+ */
+export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
+  const out: TickDensityMark[] = [];
+  let i = 0;
+  while (i < bins.length) {
+    let j = i + 1;
+    while (
+      j < bins.length &&
+      bins[j]!.col - bins[j - 1]!.col - 1 <= TICK_ALTERNATE_MAX_GAP
+    ) {
+      j += 1;
+    }
+    let prevCount = 0;
+    for (let k = i; k < j; k++) {
+      const bin = bins[k]!;
+      const base = bin.count <= 1 ? 1 : tickDensityDim(bin.count);
+      let dim = base;
+      const runStep = k - i;
+      if (runStep > 0 && runStep % 2 === 1) {
+        const sim = tickCountSimilarity(bin.count, prevCount);
+        dim = base * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim);
+      }
+      out.push({ col: bin.col, count: bin.count, t0: bin.t0, t1: bin.t1, dim });
+      prevCount = bin.count;
+    }
+    i = j;
+  }
+  return out;
+}
+
+/** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */
+export function nextFloat32Up(x: number): number {
+  const f = Math.fround(x);
+  if (!Number.isFinite(f)) return f;
+  // ±0: step to the smallest positive float32.
+  if (f === 0) return Math.fround(Math.pow(2, -149));
+  const buf = new ArrayBuffer(4);
+  const view = new DataView(buf);
+  view.setFloat32(0, f, true);
+  let bits = view.getUint32(0, true);
+  bits = f > 0 ? bits + 1 : bits - 1;
+  view.setUint32(0, bits, true);
+  return view.getFloat32(0, true);
+}
+
 /** Encode [start,end] relative to base for float32 VBOs; keep end > start after fround. */
 export function encodeIntervalPair(
   start: number,
@@ -1700,9 +1849,19 @@ export function encodeIntervalPair(
   const f0 = Math.fround(start - base);
   let f1 = Math.fround(start + duration - base);
   if (!(f1 > f0)) {
-    // Float32 collapsed a short/large-magnitude interval — nudge end by ≥1ns (rel).
-    f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));
-    if (!(f1 > f0)) f1 = f0 + 1;
+    if (duration === 0) {
+      // Instant tick: next float32 while that step is sub-nanosecond. A ≥1 ns
+      // nudge overlaps ~0.6 ns ICACHE ph:i into one slab (#205). From 2^23 ns
+      // the float32 ulp itself is ≥1 ns, so leave the pair degenerate and let
+      // the vertex shader expand floor==ceil to one device column.
+      const step = nextFloat32Up(f0);
+      const width = step - f0;
+      f1 = width > 0 && width < 1 ? step : f0;
+    } else {
+      // Float32 collapsed a short/large-magnitude interval — nudge end by ≥1ns (rel).
+      f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));
+      if (!(f1 > f0)) f1 = f0 + 1;
+    }
   }
   return [f0, f1];
 }

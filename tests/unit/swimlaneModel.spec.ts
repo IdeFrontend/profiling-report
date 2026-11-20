@@ -102,19 +102,137 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
     expect(model.minTime).toBe(1000);
   });
 
-  it('PR-SWIM-005: rejects traces with no complete interval events', () => {
-    expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no complete interval events/);
-    // Instant `ph:i` without dur / with zero dur is not an interval (#207 / #205).
-    expect(() =>
-      chromeTraceToSwimlane({
-        traceEvents: [{ ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 10 }],
-      }),
-    ).toThrow(/no complete interval events/);
-    expect(() =>
-      chromeTraceToSwimlane({
-        traceEvents: [{ ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 10, dur: 0 }],
-      }),
-    ).toThrow(/no complete interval events/);
+  it('PR-SWIM-005: rejects traces with no paintable events', () => {
+    expect(() => chromeTraceToSwimlane({ traceEvents: [] })).toThrow(/no paintable events/);
+  });
+
+  it('PR-SWIM-018: instant ph:i becomes a duration-0 event (#205)', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'M', name: 'thread_name', pid: 1, tid: 'ICACHE_READ', args: { name: 'ICACHE_READ' } },
+        { ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 'ICACHE_READ', ts: 12.5 },
+        { ph: 'i', name: 'ICACHE_MISS', pid: 1, tid: 'ICACHE_READ', ts: 14, dur: 0 },
+        // Positive dur on ph:i is an interval bar (#207 / PR-SWIM-017).
+        { ph: 'i', name: 'POS_DUR', pid: 1, tid: 'ICACHE_READ', ts: 15, dur: 3 },
+        { ph: 'X', name: 'ICACHE REFILL', pid: 1, tid: 'ICACHE_READ', ts: 20, dur: 0 },
+      ],
+    });
+    const events = model.processes[0]!.threads[0]!.events;
+    expect(events).toHaveLength(4);
+    expect(events[0]).toEqual(
+      expect.objectContaining({ name: 'ICACHE_HIT', startTime: 12_500, duration: 0 }),
+    );
+    expect(events[1]).toEqual(
+      expect.objectContaining({ name: 'ICACHE_MISS', startTime: 14_000, duration: 0 }),
+    );
+    expect(events[2]).toEqual(
+      expect.objectContaining({ name: 'POS_DUR', startTime: 15_000, duration: 3_000 }),
+    );
+    expect(events[3]).toEqual(
+      expect.objectContaining({ name: 'ICACHE REFILL', startTime: 20_000, duration: 0 }),
+    );
+
+    // Instant-only traces are paintable (no complete X required).
+    const ticksOnly = chromeTraceToSwimlane({
+      traceEvents: [{ ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 1 }],
+    });
+    expect(ticksOnly.processes[0]!.threads[0]!.events).toEqual([
+      expect.objectContaining({ name: 'ICACHE_HIT', startTime: 1000, duration: 0 }),
+    ]);
+
+    // Non-finite / negative ts/dur must not paint, and must not poison minTime for a valid X.
+    const kept = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'i', name: 'bad-dur', pid: 1, tid: 1, ts: 1, dur: Number.NaN },
+        { ph: 'i', name: 'bad-ts', pid: 1, tid: 1, ts: Number.NaN },
+        { ph: 'X', name: 'neg-dur', pid: 1, tid: 1, ts: 2, dur: -1 },
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 10, dur: 5 },
+      ],
+    });
+    expect(kept.processes[0]!.threads[0]!.events.map((e) => e.name)).toEqual(['op']);
+    expect(kept.minTime).toBe(10_000);
+  });
+
+  it('PR-SWIM-018: s/f at a duration-0 timestamp stays on the enclosing interval', () => {
+    const model = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'i', name: 'ICACHE_HIT', pid: 1, tid: 1, ts: 50 },
+        { ph: 'X', name: 'refill', pid: 1, tid: 1, ts: 80, dur: 0 },
+        { ph: 'X', name: 'other', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 'X', name: 'other2', pid: 1, tid: 2, ts: 220, dur: 10 },
+        { ph: 's', id: 'hit', pid: 1, tid: 1, ts: 50 },
+        { ph: 'f', id: 'hit', pid: 1, tid: 2, ts: 205 },
+        { ph: 's', id: 'refill', pid: 1, tid: 1, ts: 80 },
+        { ph: 'f', id: 'refill', pid: 1, tid: 2, ts: 225 },
+      ],
+    });
+    const src = model.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    const dst = model.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+    expect(src.events.map((e) => e.name)).toEqual(['op', 'ICACHE_HIT', 'refill']);
+    expect(src.events[0]!.dependencies?.successors).toEqual([
+      { tid: 't-1-2', index: 0 },
+      { tid: 't-1-2', index: 1 },
+    ]);
+    expect(src.events[1]!.dependencies).toBeUndefined();
+    expect(src.events[2]!.dependencies).toBeUndefined();
+    expect(dst.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+    expect(dst.events[1]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+
+    const bare = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'i', name: 'tick', pid: 1, tid: 1, ts: 50 },
+        { ph: 'X', name: 'other', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 's', id: 'f', pid: 1, tid: 1, ts: 50 },
+        { ph: 'f', id: 'f', pid: 1, tid: 2, ts: 205 },
+      ],
+    });
+    const tickThread = bare.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    const other = bare.processes[0]!.threads.find((t) => t.id === 't-1-2')!;
+    expect(tickThread.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(other.events[0]!.dependencies?.predecessors).toEqual([{ tid: 't-1-1', index: 0 }]);
+
+    // A tick on an interval's inclusive end is a nest sibling. The edge stays
+    // on that interval, and on the inner one when an outer slice also contains it.
+    function flowAtEnd(events: object[]) {
+      const traced = chromeTraceToSwimlane({
+        traceEvents: [
+          ...events,
+          { ph: 'X', name: 'dst', pid: 1, tid: 2, ts: 200, dur: 10 },
+          { ph: 's', id: 'end', pid: 1, tid: 1, ts: 50 },
+          { ph: 'f', id: 'end', pid: 1, tid: 2, ts: 205 },
+        ],
+      });
+      const srcThread = traced.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+      return srcThread.events.find((e) => e.dependencies?.successors?.length)?.name;
+    }
+    expect(
+      flowAtEnd([
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 50 },
+        { ph: 'i', name: 'tick', pid: 1, tid: 1, ts: 50 },
+      ]),
+    ).toBe('op');
+    expect(
+      flowAtEnd([
+        { ph: 'X', name: 'outer', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'X', name: 'inner', pid: 1, tid: 1, ts: 10, dur: 40 },
+        { ph: 'i', name: 'tick', pid: 1, tid: 1, ts: 50 },
+      ]),
+    ).toBe('inner');
+
+    const nanDur = chromeTraceToSwimlane({
+      traceEvents: [
+        { ph: 'X', name: 'op', pid: 1, tid: 1, ts: 0, dur: 100 },
+        { ph: 'X', name: 'bad', pid: 1, tid: 1, ts: 50, dur: Number.NaN },
+        { ph: 'X', name: 'dst', pid: 1, tid: 2, ts: 200, dur: 10 },
+        { ph: 's', id: 'nan', pid: 1, tid: 1, ts: 50 },
+        { ph: 'f', id: 'nan', pid: 1, tid: 2, ts: 205 },
+      ],
+    });
+    const nanSrc = nanDur.processes[0]!.threads.find((t) => t.id === 't-1-1')!;
+    expect(nanSrc.events.map((e) => e.name)).toEqual(['op']);
+    expect(nanSrc.events[0]!.dependencies?.successors).toEqual([{ tid: 't-1-2', index: 0 }]);
+    expect(Number.isFinite(nanDur.maxTime)).toBe(true);
   });
 
   it('PR-SWIM-017: ph:i with positive finite dur becomes an interval bar (#207)', () => {
@@ -123,8 +241,6 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
         { ph: 'M', name: 'process_name', pid: 20, args: { name: 'AIV0_RVECLP' } },
         { ph: 'M', name: 'thread_name', pid: 20, tid: 1, args: { name: 'SLOT00' } },
         { ph: 'i', name: 'RV_VLOOPv2', pid: 20, tid: 1, ts: 12.5, dur: 0.006 },
-        // Zero-dur `ph:i` on the same thread stays excluded (owned by #205).
-        { ph: 'i', name: 'ICACHE_HIT', pid: 20, tid: 1, ts: 20, dur: 0 },
       ],
     });
     const thread = model.processes[0]!.threads[0]!;
@@ -152,7 +268,7 @@ describe('PR-SWIM: Chrome Trace → SwimlaneModel', () => {
       chromeTraceToSwimlane({
         traceEvents: [{ ph: 'i', name: 'inf', pid: 1, tid: 1, ts: 4, dur: Number.POSITIVE_INFINITY }],
       }),
-    ).toThrow(/no complete interval events/);
+    ).toThrow(/no paintable events/);
   });
 
   it('PR-SWIM-017: s/f inside ph:i binds that interval, not the enclosing X', () => {
