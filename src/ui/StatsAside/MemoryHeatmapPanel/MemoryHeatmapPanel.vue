@@ -46,8 +46,6 @@ const HEAT_HOVER_GROW_PX = 4;
 /** Fixed brush width on the Access Count legend (percent of strip). */
 const LEGEND_BRUSH_WIDTH_PCT = 10;
 const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
-/** Fade 0 / max tick labels as the brush window edge enters this % of the strip. */
-const LEGEND_END_FADE_ZONE_PCT = 12;
 /** Mute / occupancy dim fade on brush enter/leave (cells + legend). */
 const LEGEND_DIM_MS = 200;
 /** Painted track width. Access Count sits above the bar; 0 / max sit outside its ends. */
@@ -801,20 +799,6 @@ function legendOccStyle(band: { leftPct: number; widthPct: number }): CSSPropert
   };
 }
 
-/** Opacity for the `0` end label — fades as the brush window approaches the left edge. */
-const legendMinTickOpacity = computed(() => {
-  const brush = legendBrush.value;
-  if (!brush) return 1;
-  return Math.min(1, Math.max(0, brush.loPct / LEGEND_END_FADE_ZONE_PCT));
-});
-
-/** Opacity for the max end label — fades as the brush window approaches the right edge. */
-const legendMaxTickOpacity = computed(() => {
-  const brush = legendBrush.value;
-  if (!brush) return 1;
-  return Math.min(1, Math.max(0, (100 - brush.hiPct) / LEGEND_END_FADE_ZONE_PCT));
-});
-
 watch(
   activeView,
   (view) => {
@@ -963,12 +947,10 @@ watch(
             <span
               class="pr-heat__legend-tick pr-heat__legend-tick--min"
               data-testid="heat-legend-tick-min"
-              :style="{ opacity: legendMinTickOpacity }"
             >0</span>
             <span
               class="pr-heat__legend-tick pr-heat__legend-tick--max"
               data-testid="heat-legend-tick-max"
-              :style="{ opacity: legendMaxTickOpacity }"
             >{{ legendMaxLabel }}</span>
           </div>
         </div>
@@ -1182,13 +1164,13 @@ watch(
   flex: none;
   align-items: center;
   justify-content: center;
-  /* 36px above holds the match tip clear of the Access Count title. */
-  padding: 36px 0 12px;
+  /* Room for the match tip, which may overlap the Access Count title. */
+  padding: 24px 0 12px;
 }
 
 /* Extra top pad only when the multi-view pill sits above Access Count. */
 .pr-heat__view-bar + .pr-heat__legend {
-  padding-top: 52px;
+  padding-top: 40px;
 }
 
 .pr-heat__legend-strip {
@@ -1206,7 +1188,7 @@ watch(
 .pr-heat__legend-title {
   margin: 0;
   color: #b3b3b3;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1;
   font-weight: 600;
   text-align: center;
@@ -1292,8 +1274,8 @@ watch(
 /* Match-count tip — same chrome as `.pr-heat-cell-tip` / EventTooltip. */
 .pr-heat__legend-brush-match {
   position: absolute;
-  /* Clear the 10px title + 4px strip gap + 3px brush inset, plus a 4px gap. */
-  bottom: calc(100% + 21px);
+  /* Close to the brush — may overlap the Access Count title above the bar. */
+  bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   box-sizing: border-box;
@@ -1336,7 +1318,6 @@ watch(
   line-height: 1;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
-  transition: opacity 80ms linear;
 }
 
 .pr-heat__legend-tick--min {
