@@ -192,6 +192,8 @@ describe('MemoryHeatmapPanel', () => {
     const wrapper = mountPanel({ selectedUnit: 'l1' });
     expect(wrapper.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBe('true');
     expect(wrapper.find('[data-testid="heat-view-select"]').exists()).toBe(false);
+    // Pack still has core 0 and core 1 — L1 title keeps the Core prefix (#198 / R2).
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 0 · AIC L1');
   });
 
   it('PR-HEAT-010: repeats the selected view name under the grid', () => {
@@ -199,7 +201,7 @@ describe('MemoryHeatmapPanel', () => {
     expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 0 · AIV0 UB');
   });
 
-  it('PR-HEAT-010b: single-core packs omit the Core id prefix', () => {
+  it('PR-HEAT-010b: single-core packs omit the Core id prefix', async () => {
     const single: MemoryHeatmapModel = {
       units: [
         {
@@ -213,6 +215,16 @@ describe('MemoryHeatmapPanel', () => {
               totalBytes: 256,
               usedBytes: 32,
               freeBytes: 224,
+            }),
+            // Same coreId, two owners — selector required, Core prefix forbidden (#198 / R2).
+            view({
+              coreId: 0,
+              ownerName: 'AIV1',
+              memoryName: 'UB',
+              blocks: blocks(8, 2),
+              totalBytes: 256,
+              usedBytes: 64,
+              freeBytes: 192,
             }),
           ],
         },
@@ -235,8 +247,44 @@ describe('MemoryHeatmapPanel', () => {
     const ub = mountPanel({ model: single, selectedUnit: 'ub' });
     expect(ub.get('[data-testid="heat-unit-name"]').text()).toBe('AIV0 UB');
     expect(ub.get('[data-testid="heat-unit-name"]').text()).not.toContain('Core');
+    expect(ub.get('[data-testid="heat-view-bar"]').attributes('data-empty')).toBeUndefined();
+    await ub.get('[data-testid="heat-view-select"]').trigger('click');
+    const items = [
+      ...document.querySelectorAll('[data-testid="heat-view-select-menu"] [role="option"]'),
+    ].map((el) => el.textContent?.trim());
+    expect(items).toEqual(['AIV0 UB', 'AIV1 UB']);
     const l1 = mountPanel({ model: single, selectedUnit: 'l1' });
     expect(l1.get('[data-testid="heat-unit-name"]').text()).toBe('AIC L1');
+  });
+
+  it('PR-HEAT-010c: multi-core no-owner under-grid title matches viewOptionLabel', () => {
+    const noOwner: MemoryHeatmapModel = {
+      units: [
+        {
+          id: 'ub',
+          views: [
+            view({
+              coreId: 0,
+              memoryName: 'UB',
+              blocks: blocks(8, 1),
+              totalBytes: 256,
+              usedBytes: 32,
+              freeBytes: 224,
+            }),
+            view({
+              coreId: 1,
+              memoryName: 'UB',
+              blocks: blocks(8, 2),
+              totalBytes: 256,
+              usedBytes: 64,
+              freeBytes: 192,
+            }),
+          ],
+        },
+      ],
+    };
+    const wrapper = mountPanel({ model: noOwner, selectedUnit: 'ub' });
+    expect(wrapper.get('[data-testid="heat-unit-name"]').text()).toBe('Core 0 · UB');
   });
 
   it('PR-HEAT-005: blanks a selected unit the model has no source for', () => {

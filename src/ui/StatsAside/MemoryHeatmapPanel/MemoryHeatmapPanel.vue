@@ -124,11 +124,14 @@ function viewOptionLabel(view: MemoryHeatmapView): string {
   return isMultiCore.value ? `Core ${view.coreId} · ${base}` : base;
 }
 
-/** Under-grid title: same as the view option label when known, else the diagram's tab words. */
+/**
+ * Under-grid title: same as the view option label when the owner is known, or on multi-core
+ * packs even without an owner (`Core N · UB`). Diagram tab words only for single-core, no-owner.
+ */
 const unitName = computed(() => {
   const view = activeView.value;
   if (!view || !props.selectedUnit) return '';
-  if (view.ownerName) return viewOptionLabel(view);
+  if (view.ownerName || isMultiCore.value) return viewOptionLabel(view);
   return t(UNIT_NAME_KEY[props.selectedUnit], props.locale);
 });
 
