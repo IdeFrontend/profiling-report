@@ -121,8 +121,10 @@ describe('MemoryHeatmapPanel', () => {
     const wrapper = mountPanel();
     await nextTick(); // canvas paint after mount
     const grid = wrapper.get('[data-testid="heat-grid"]');
-    expect(grid.find('[data-testid="heat-canvas"]').exists()).toBe(true);
-    expect(grid.find('[data-testid="heat-canvas-bright"]').exists()).toBe(true);
+    const board = grid.get('[data-testid="heat-board"]');
+    expect(board.find('[data-testid="heat-canvas"]').exists()).toBe(true);
+    expect(board.find('[data-testid="heat-mute-veil"]').exists()).toBe(true);
+    expect(board.find('[data-testid="heat-canvas-bright"]').exists()).toBe(true);
     expect(grid.findAll('.pr-heat__cell')).toHaveLength(0);
     // a11y still reports used/total from the view (416 blocks, 20 with data).
     expect(grid.attributes('aria-label')).toBe('20 / 416 个块已用');
