@@ -32,8 +32,11 @@ export {
   readEmulateManifest,
   memoryUtilDisplayValue,
   memoryUtilToOverviewPercent,
+  unitUtilDisplayValue,
   memoryUtilCounterThreadsFromTrace,
+  unitUtilCounterThreadsFromTrace,
   mergeMemoryUtilCounterTracks,
+  mergeUnitUtilCounterTracks,
 } from './adaptEmulate';
 export { topologyFromArchDiagramMetrics } from './emulateMemoryTopology';
 export { memoryHeatmapFromTexts } from './emulateMemoryHeatmap';
