@@ -549,15 +549,16 @@ function paintBaseCanvas(geom: LatticePaintGeom) {
   paintLayer(baseCanvasEl.value, geom, { fills: cellFillColors });
 }
 
-/**
- * Mute veil lattice — same cell geometry as base; gaps stay clear so board
- * `#303f5e` grid lines remain visible under the fade.
- */
+/** Solid mute veil — one fill over the board (no per-cell grid). */
 function paintVeilCanvas(geom: LatticePaintGeom) {
-  paintLayer(veilCanvasEl.value, geom, {
-    fills: [],
-    uniformFill: HEAT_MUTE_FILL,
-  });
+  const canvas = veilCanvasEl.value;
+  if (!canvas) return;
+  const ctx = syncCanvasBacking(canvas, geom);
+  if (!ctx) return;
+  ctx.setTransform(geom.dpr, 0, 0, geom.dpr, 0, 0);
+  ctx.clearRect(0, 0, geom.innerW, geom.innerH);
+  ctx.fillStyle = HEAT_MUTE_FILL;
+  ctx.fillRect(0, 0, geom.innerW, geom.innerH);
 }
 
 /** Clear + paint bright canvas from `cellBrightBits` (in-range cells only). */
@@ -1004,10 +1005,7 @@ watch(
                 class="pr-heat__canvas pr-heat__canvas--base"
                 data-testid="heat-canvas"
               />
-              <!--
-                Mute veil lattice — same cell geometry; gaps clear so board grid lines show.
-                Sole heatmap element that animates opacity on enter/leave.
-              -->
+              <!-- Solid mute veil — sole heatmap element that animates opacity on enter/leave. -->
               <canvas
                 ref="veilCanvasEl"
                 class="pr-heat__canvas pr-heat__mute-veil"
@@ -1403,7 +1401,7 @@ watch(
   z-index: 2;
 }
 
-/* Mute veil lattice canvas — sole heatmap enter/leave opacity animation. */
+/* Solid mute veil canvas — sole heatmap enter/leave opacity animation. */
 .pr-heat__mute-veil {
   z-index: 1;
   opacity: 0;

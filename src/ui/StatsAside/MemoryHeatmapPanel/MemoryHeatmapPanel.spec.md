@@ -64,7 +64,7 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | Active tab indicator | `#ffffff`, `2px` tall, the label + 4px wide (the frame's 15px bar under an 11.5px `L1`), `12px` under the label and `12px` above the strip's rule (sketch ~12.5px) |
 | Tab strip rule | `#333333` `1px` across the panel's content width |
 | Tab strip rhythm | label-to-label ink `26px` (the frame's `106px` at 4×), so the labels sit apart rather than as boxed chips |
-| Legend | centred in the column; **Access Count** title, one continuous Free→Used blue strip `8px` tall (`#AFC6FE` → `#3D64AD`) + `0` / max-access-count labels (fade near brush); 10% hover brush (may overhang 0/max; 22px hit + ±5% side pads; coerced `0–0` / `max–max` at outer pads) with range label under the window + match-count tip above (only when ≥1 cell); instant 10% brush chrome; brush-active Canvas veil lattice + bright Canvas in-range layer; occupancy dim (200ms mute overlay + ≥3px blue bands) |
+| Legend | centred in the column; **Access Count** title, one continuous Free→Used blue strip `8px` tall (`#AFC6FE` → `#3D64AD`) + `0` / max-access-count labels (fade near brush); 10% hover brush (may overhang 0/max; 22px hit + ±5% side pads; coerced `0–0` / `max–max` at outer pads) with range label under the window + match-count tip above (only when ≥1 cell); instant 10% brush chrome; brush-active solid Canvas veil + bright Canvas in-range layer; occupancy dim (200ms mute overlay + ≥3px blue bands) |
 | Legend offsets | strip ~`47.5px` under the strip's rule; legend bottom pad `12px` into the view-bar band |
 | View-bar | always reserved (`min-height` = Source pill `28px`); multi-view UB mounts `SourcePillSelect` |
 | Unit name under the grid | active view (`{owner} {MemoryName}`), `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid |
@@ -75,7 +75,7 @@ Shipped block order: tab strip → rule → legend → **reserved view-bar** (mu
 | Hovered cell | single overlay zoomed tile (+4px/side, centered, same fill + `2px` `#303f5e` stroke matching board gaps); seams owned by hit-test; sticky until grid leave / other cell |
 | Grid frame | `2px` `#6e798d` border around the board, `5px` radius (sketch ~20px at 4×), one `2px` gap of inset inside it; cells clip to the radius |
 | Grid board (the lattice the gaps cut) | `#303f5e` |
-| Grid cell | Canvas 2D rounded rect (`1px` radius), `2px` gap; base + mute-veil lattice + bright canvases (veil gaps keep board `#303f5e` lines) |
+| Grid cell | Canvas 2D rounded rect (`1px` radius), `2px` gap; base + solid mute veil + bright canvases |
 | Grid size | square cell = `min(width-fit, height-fit)` against the body (`100cq*` minus the title/metric footer **and** 8px frame); cols/rows from Layout `Width`×`Height` |
 | Short column | lattice resizes to fit; no body scrollbar (PR-HEAT-011). Spare height falls **below** the metric |
 | Fullscreen ground | overlay `#1a1a1a`; diagram `.pr-topo` stays transparent. This panel and the fullscreen zoom pill both paint `#262626` |
@@ -105,7 +105,7 @@ Board/frame greys stay from `v930-sim/memory-topology-fullscreen` (`#303F5E` boa
 - **2026-11-20** — #194 / PR #225: base / mute-veil / bright canvases share one board box + cached `--pr-heat-cell` geom so brush highlights do not jump.
 - **2026-11-20** — #194 / PR #225: heat board fills the frame via CSS `inset` (no stale JS size); paint + hover share measured cellW/cellH so the lattice fills the border and the zoom overlay tracks cells.
 - **2026-11-20** — #194 / PR #225: base / mute-veil / bright canvases share one board box + cached measured geom so brush highlights do not jump (do not parse `--pr-heat-cell` — custom props stay as `min(calc(cq*))`).
-- **2026-11-20** — #194 / PR #225: mute veil is a Canvas lattice (board grid lines show in gaps); legend brush match-count tip above the window when ≥1 cell is highlighted.
+- **2026-11-20** — #194 / PR #225: mute veil is a solid Canvas fill (no per-cell grid); legend brush match-count tip above the window when ≥1 cell is highlighted.
 - **2026-11-20** — #194 / PR #225: lattice cells on Canvas 2D (base + bright) under/over the mute veil; DOM hover overlay + tip + brush chrome unchanged.
 - **2026-11-19** — #200: Free→Used blue continuous fill (`#AFC6FE` → `#3D64AD`) + Access Count legend strip (replaces SA HSL ramp and binary Used/Free swatches).
 - **2026-11-19** — #200: SA HSL gray→green→yellow→red fill + single `%` tick legend strip (replaces blue Low/High; superseded by Free→Used blue ramp).
