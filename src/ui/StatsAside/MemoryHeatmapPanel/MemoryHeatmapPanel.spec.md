@@ -102,6 +102,7 @@ Board/frame greys stay from `v930-sim/memory-topology-fullscreen` (`#303F5E` boa
 - **2026-11-18** — Heat view `SourcePillSelect` menu scrolls when many cores are listed (`max-height` / `overflow-y: auto`).
 - **2026-11-19** — #200: SA HSL gray→green→yellow→red fill + single `%` tick legend strip (replaces blue Low/High).
 - **2026-11-20** — #194 / PR #225: lattice cells on Canvas 2D (base + bright) under/over the CSS mute veil; DOM hover overlay + tip + brush chrome unchanged.
+- **2026-11-20** — #194 / PR #225: base / mute-veil / bright canvases share one board box + cached `--pr-heat-cell` geom so brush highlights do not jump.
 - **2026-11-20** — #194 / PR #225: mute veil is a Canvas lattice (board grid lines show in gaps); legend brush match-count tip above the window when ≥1 cell is highlighted.
 - **2026-11-20** — #194 / PR #225: lattice cells on Canvas 2D (base + bright) under/over the mute veil; DOM hover overlay + tip + brush chrome unchanged.
 - **2026-11-19** — #200: Free→Used blue continuous fill (`#AFC6FE` → `#3D64AD`) + Access Count legend strip (replaces SA HSL ramp and binary Used/Free swatches).
