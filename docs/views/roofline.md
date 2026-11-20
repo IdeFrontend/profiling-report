@@ -80,7 +80,7 @@ Producer (`BIPROF_OPTS='--roofline'`) persists analyzer tables and packs them in
 |---------------|-------|-----------------|--------|
 | gate | [`AnalysisState.csv`](../formats/emulate/AnalysisState.csv.md) | Latest `AnalysisName = roofline` with `AnalysisPassed = 1` | Required when AnalysisState packed |
 | points | [`RooflinePoints.csv`](../formats/emulate/RooflinePoints.csv.md) | `ArithmeticIntensity` → `intensity`; `PerformanceGFlops / 1000` → `performance` (TOps/s); label `{shortFn} - {SIMD\|SIMT\|SIMT-OUT\|L0\|CUBE-OUT}`; color by mode heuristic (SIMD→`aiv-fp16`, SIMT→`aiv-bp16`, CUBE→`aic-int16-fp16`) | **Required to show** |
-| series | [`RooflineComputePeaks.csv`](../formats/emulate/RooflineComputePeaks.csv.md) × [`RooflineBandwidthPeaks.csv`](../formats/emulate/RooflineBandwidthPeaks.csv.md) | Per-`Unit` cross-product (HTML all-on roofs). `PeakGFlops / 1000` → `peakComputeTops`; `PeakGBs` → `peakBandwidthGBs`. `SIMD-UB` solid; other memory levels dashed. AIC `tf32_hf32` → `aic-tf32-hf32` | Required when shown |
+| series | [`RooflineComputePeaks.csv`](../formats/emulate/RooflineComputePeaks.csv.md) × [`RooflineBandwidthPeaks.csv`](../formats/emulate/RooflineBandwidthPeaks.csv.md) | Per-`Unit` cross-product (HTML all-on roofs). `PeakGFlops / 1000` → `peakComputeTops`; `PeakGBs` → `peakBandwidthGBs`. `SIMD-UB` solid; other memory levels dashed. AIC `tf32_hf32` → `aic-tf32-hf32`; AIC `fp32` → `aic-fp32` (not `aic-int32-fp32`) | Required when shown |
 | fallback | [`roofline.json`](../formats/emulate/roofline.json.md) | Debug export only when the Roofline CSVs are absent | Optional |
 | mix labels | — | Empty (no ArithmeticUtilization dtype ratios) | Optional omitted |
 
