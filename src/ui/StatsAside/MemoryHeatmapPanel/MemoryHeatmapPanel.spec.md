@@ -64,7 +64,7 @@ Shipped block order: tab strip → rule → **view-bar** (multi-view pill only, 
 | Tab strip rule | `#333333` `1px` across the panel's content width |
 | Tab strip rhythm | label-to-label ink `26px` (the frame's `106px` at 4×), so the labels sit apart rather than as boxed chips |
 | Legend | **Access Count** `10px` above a centred **180px** Free→Used blue strip `8px` tall (`#AFC6FE` → `#3D64AD`); `0` / max at the bar borders (same Y as the strip, fade near brush); 10% hover brush (may overhang 0/max; 22px hit + ±5% side pads; coerced `0–0` / `max–max` at outer pads) with range label under the window + match-count tip above (only when ≥1 cell); instant 10% brush chrome; brush-active solid Canvas veil + bright Canvas in-range layer; occupancy dim (200ms mute overlay + ≥3px blue bands) |
-| Legend offsets | `12px` pad above/below when no view-bar; `28px` top pad when the multi-view pill sits above |
+| Legend offsets | `36px` pad above the title (room for the match tip) and `12px` below when no view-bar; `52px` top pad when the multi-view pill sits above |
 | View-bar | multi-view only under the tab rule (`min-height` = Source pill `28px` + `16px` top margin); omitted on single-view tabs; sits **above** the Access Count legend |
 | Unit name under the grid | active view (`{owner} {MemoryName}`), `19px`/`22px` line-height `#e7e7e7`, `600`, centred `31px` under the grid |
 | Metric caption | `#b3b3b3`, `12px`/`15px` line-height, centred `13px` under the unit name — `Total: {n} / Used: {n} / Free: {n}` ([DATA-51](../../../../docs/context/decisions/DATA.md)); omitted when Total unknown |

@@ -50,7 +50,7 @@ const LEGEND_BRUSH_HALF_PCT = LEGEND_BRUSH_WIDTH_PCT / 2;
 const LEGEND_END_FADE_ZONE_PCT = 12;
 /** Mute / occupancy dim fade on brush enter/leave (cells + legend). */
 const LEGEND_DIM_MS = 200;
-/** Painted track + ticks column width (centred; title sits between 0 / max). */
+/** Painted track width. Access Count sits above the bar; 0 / max sit outside its ends. */
 const LEGEND_STRIP_PX = 180;
 /** Mute veil cell fill — gaps stay clear so board `#303f5e` grid lines show through. */
 const HEAT_MUTE_FILL = '#2C2C2C';
@@ -1182,13 +1182,13 @@ watch(
   flex: none;
   align-items: center;
   justify-content: center;
-  /* Under the tab rule when the view selector is hidden. */
-  padding: 12px 0;
+  /* 36px above holds the match tip clear of the Access Count title. */
+  padding: 36px 0 12px;
 }
 
 /* Extra top pad only when the multi-view pill sits above Access Count. */
 .pr-heat__view-bar + .pr-heat__legend {
-  padding-top: 28px;
+  padding-top: 52px;
 }
 
 .pr-heat__legend-strip {
@@ -1292,7 +1292,8 @@ watch(
 /* Match-count tip — same chrome as `.pr-heat-cell-tip` / EventTooltip. */
 .pr-heat__legend-brush-match {
   position: absolute;
-  bottom: calc(100% + 6px);
+  /* Clear the 10px title + 4px strip gap + 3px brush inset, plus a 4px gap. */
+  bottom: calc(100% + 21px);
   left: 50%;
   transform: translateX(-50%);
   box-sizing: border-box;
