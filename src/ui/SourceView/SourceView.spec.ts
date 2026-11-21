@@ -1392,7 +1392,7 @@ describe('SourceView', () => {
     missingEn.unmount();
   });
 
-  it('keeps caret and search when resolveSourceFile overlays same-shaped model', async () => {
+  it('keeps caret and search when a source-text overlay swaps the same-shaped model', async () => {
     const base = mockSourceCorrelation();
     const missing = {
       ...base,
@@ -1424,7 +1424,7 @@ describe('SourceView', () => {
         },
       ],
     };
-    // Same session: resolve overlay only — keep UI state even though file ids match.
+    // Same session: text overlay only — keep UI state even though file ids match.
     await wrapper.setProps({ model: filled, session: 1 });
     await wrapper.vm.$nextTick();
     expect((wrapper.get('[data-testid="source-search"]').element as HTMLInputElement).value).toBe(
@@ -1444,5 +1444,106 @@ describe('SourceView', () => {
       wrapper.find('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').exists(),
     ).toBe(false);
     wrapper.unmount();
+  });
+
+  it('PR-SOURCE-030: placeholder shows the resolve drop zone; real text does not', async () => {
+    const base = mockSourceCorrelation();
+    const missing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          path: '/home/build/gather_2d.asc',
+          text: '// missing source embed: /home/build/gather_2d.asc\n',
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model: missing } });
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="source-resolve-browse"]').text()).toBe(
+      t('sourceResolveChooseFile'),
+    );
+    wrapper.unmount();
+
+    const real = mount(SourceView, { props: { model: { ...base, mock: false } } });
+    expect(real.find('[data-testid="source-resolve-drop"]').exists()).toBe(false);
+    real.unmount();
+  });
+
+  it('PR-SOURCE-031: dropping a source file emits its file id and text', async () => {
+    const base = mockSourceCorrelation();
+    const missing = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          path: '/home/build/gather_2d.asc',
+          text: '// missing source embed: /home/build/gather_2d.asc\n',
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model: missing } });
+    const file = new File(['extern "C" void dropped_source() {}\n'], 'gather_2d.asc', {
+      type: 'text/plain',
+    });
+
+    await wrapper.get('[data-testid="source-resolve-drop"]').trigger('drop', {
+      dataTransfer: { files: [file] },
+    });
+    await flushPromises();
+
+    expect(wrapper.emitted('source-text')).toEqual([
+      [{ fileId: missing.files[0]!.id, text: 'extern "C" void dropped_source() {}\n' }],
+    ]);
+    // The model is unchanged here, so the drop zone stays until the parent overlays text.
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(true);
+
+    const unreadable = new File(['nope'], 'gather_2d.asc', { type: 'text/plain' });
+    vi.spyOn(unreadable, 'text').mockRejectedValue(new Error('unreadable'));
+    await wrapper.get('[data-testid="source-resolve-drop"]').trigger('drop', {
+      dataTransfer: { files: [unreadable] },
+    });
+    await flushPromises();
+    expect(wrapper.emitted('source-text')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="source-resolve-drop"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-032: Sudu boot failure shows WebGL-off message and logs the reason', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    vi.mocked(newEditor).mockImplementationOnce(() => {
+      throw new Error('WebGL is not enabled');
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const base = mockSourceCorrelation();
+    const model = {
+      ...base,
+      mock: false as const,
+      files: [
+        {
+          ...base.files[0]!,
+          text: 'extern "C" void kernel() {\n  // note\n}\n',
+          path: '/home/build/gather_2d.asc',
+          language: 'ascend-c',
+        },
+      ],
+    };
+    try {
+      const wrapper = mount(SourceView, { props: { model } });
+      await flushPromises();
+      const fallback = wrapper.get('[data-testid="sudu-fallback"]');
+      expect(fallback.text()).toBe(t('sourceEditorWebglOff'));
+      expect(fallback.text()).not.toContain('kernel');
+      expect(fallback.text()).not.toContain('WebGL is not enabled');
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[profiling-report] Sudu editor fallback',
+        'WebGL is not enabled',
+      );
+      wrapper.unmount();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

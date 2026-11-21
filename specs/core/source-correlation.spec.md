@@ -38,6 +38,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 - Optional PC→source sites from `symbolizer.json`; `Line <= 0` is treated as unmapped ([DATA-54](../../docs/context/questions/DATA.md)).
 - Source text from a payload whose basename matches the symbolizer `FileName` (e.g. `gather_2d.asc`). Each distinct basename is its own file, in first-seen order; that file's id is the basename used in `asmToSource` hits.
 - When that pack text is absent, adapt still emits the file with a `// missing source embed: …` placeholder sized to the grown metrics line count and keeps mapped stall / instr / occupancy rollups so a host `resolveSourceFile` can fill the editor later without dropping them ([#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
+- A VS Code webview host may be asked for that text through the bridge when `ProfilingReport` **environment** is `'vscode'` (PR-SOURCE scope); the request/response protocol lives in [MSTT_INTEGRATION.md](../../docs/architecture/MSTT_INTEGRATION.md).
 
 **Real path — emulate ELF CSVs.** When payloads include non-empty `SourceInstructions.csv` **or** `AsmMetrics.csv` with `PC` + instruction text, `adaptSourceCorrelation` builds a real model via `adaptEmulateSourceCorrelation` (`mock: false`, [DATA-53](../../docs/context/decisions/DATA.md)):
 
@@ -75,6 +76,8 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 15. **PR-SRC-015** — IPCAsmMetrics / hints alone do not light the gate.
 16. **PR-SRC-016** — `adaptSourceCorrelation` dispatches emulate ELF packs.
 17. **PR-SRC-017** — `adaptEmulate` with ELF attaches `sourceCorrelation` + `'sourceTab'`.
+18. **PR-SRC-018** — VS Code bridge posts the exact request, resolves matching text, ignores mismatches, and times out to null.
+19. **PR-SRC-019** — `source-file-updated` messages forward valid payloads to the subscriber, ignore malformed ones silently, and stop after unsubscribe.
 
 ## Dependencies
 
@@ -83,6 +86,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 ## Changelog
 
 - **2026-11-17** — Emulate ELF Source path (`adaptEmulateSourceCorrelation`, DATA-53): PR-SRC-012…017.
+- **2026-11-13** — VS Code webview bridge asks the host for missing source text when `environment` is `'vscode'` (`PR-SRC-018`).
 - **2026-11-11** — Sampling Stall accepts both producer schemas (`PcSampling`/`address`, `pc_sampling`/`pc_offset`); partial counters, invalid addresses, and missing columns degrade with warnings (`PR-SRC-011`, [#212](https://github.com/IdeFrontend/profiling-report/pull/212)).
 - **2026-10-28** — Missing `.asc` embed keeps metrics-aligned placeholder and stall rollups (`PR-SRC-010`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
 - **2026-10-24** — Optional `pc_sampling` columns `Instructions_Executed` and `Warp_Occupancy` fill those Source / SASS metrics. Packs without the columns stay at 0.

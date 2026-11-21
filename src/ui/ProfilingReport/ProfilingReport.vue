@@ -11,6 +11,10 @@ import {
   type SourceFrameTarget,
 } from '../../adapters/sourceCorrelation/resolveSourceFrame';
 import {
+  applyResolvedSourceText,
+  fileNeedsSourceResolve,
+} from '../../adapters/sourceCorrelation/resolveSourceFile';
+import {
   applyWindow,
   clearMeasure,
   clearSelection,
@@ -108,6 +112,7 @@ import {
   type GutterMetric,
 } from '../../domain/gutterMetrics';
 import { resolveEnvironmentBehavior } from '../environments';
+import { requestSourceFile, onSourceFileUpdate } from '../vscodeSourceFile';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import {
   DEFAULT_HTML_EXPORT_TEMPLATE_URL,
@@ -431,6 +436,12 @@ watch(archMetricMode, (mode) => {
 
 /** Environment-routed behavior for host-dependent actions (extensible map in `environments.ts`). */
 const environmentBehavior = computed(() => resolveEnvironmentBehavior(props.environment));
+/** Effective source resolver: explicit host hook first, else the VS Code webview bridge. */
+const hostResolveSourceFile = computed<ResolveSourceFile | undefined>(
+  () =>
+    props.resolveSourceFile ??
+    (props.environment === 'vscode' ? requestSourceFile : undefined),
+);
 const viewportTimeScaleUnit = computed<TimeScaleUnit>(() =>
   resolveTimeUnitFromVisibleRange(viewState.value.endTime - viewState.value.startTime),
 );
@@ -1031,16 +1042,92 @@ let sourceLoadGen = 0;
 /** Bumps when starting a resolve pass so stale host replies do not overwrite. */
 let sourceResolveGen = 0;
 
+/** Current correlation including drop / host text already overlaid. */
+function currentSourceCorrelation(): SourceCorrelationModel | null {
+  return (
+    resolvedSourceCorrelation.value ??
+    (props.reportModel ?? internalReport.value)?.sourceCorrelation ??
+    null
+  );
+}
+
+function basenameOf(path: string): string {
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1] || path;
+}
+
+/** Overlay one file's text so it survives SourceView unmounting on tab switch. */
+function applySourceText(fileId: string, text: string) {
+  const sc = currentSourceCorrelation();
+  if (!sc) return;
+  let changed = false;
+  const files = sc.files.map((file) => {
+    if (file.id !== fileId) return file;
+    changed = true;
+    return applyResolvedSourceText(file, text);
+  });
+  if (!changed) return;
+  resolvedSourceCorrelation.value = { ...sc, files };
+}
+
+/** Host pushed fresh source text: match by full path or basename, then overlay. */
+function onHostSourceFileUpdate(update: { fileName: string; basename: string; text: string }) {
+  const sc = currentSourceCorrelation();
+  if (!sc) return;
+  const matching = sc.files.filter(
+    (file) => file.path === update.fileName || basenameOf(file.path) === update.basename,
+  );
+  if (matching.length === 0) {
+    console.debug('[profiling-report] source update unmatched', update.basename);
+  } else {
+    console.debug('[profiling-report] source update applied', update.basename, matching.length);
+  }
+  for (const file of matching) applySourceText(file.id, update.text);
+}
+
+/**
+ * Host text from a fill that started on `snapshot` lands only on files that
+ * are still placeholders. A drop or `source-file-updated` during the await
+ * changes `live` without bumping `sourceResolveGen`; copying `resolved` over
+ * it would drop that text when a sibling file made `resolved` a new model.
+ */
+function mergeInFlightSourceFill(
+  snapshot: SourceCorrelationModel,
+  resolved: SourceCorrelationModel,
+  live: SourceCorrelationModel,
+): SourceCorrelationModel {
+  const resolvedById = new Map(resolved.files.map((file) => [file.id, file]));
+  const snapshotText = new Map(snapshot.files.map((file) => [file.id, file.text]));
+  const files = live.files.map((file) => {
+    const before = snapshotText.get(file.id);
+    if (before !== undefined && file.text !== before) return file;
+    if (!fileNeedsSourceResolve(file)) return file;
+    return resolvedById.get(file.id) ?? file;
+  });
+  return { ...live, files };
+}
+
 async function fillMissingSourceFiles(
   reportModel: ReportViewModel | null | undefined,
   resolveGen: number,
 ) {
-  const sc = reportModel?.sourceCorrelation;
-  if (!sc || sc.mock || !props.resolveSourceFile) return;
-  const next = await resolveMissingSourceFiles(sc, props.resolveSourceFile);
+  // Start from the live overlay so earlier drops / host updates are kept.
+  const sc = resolvedSourceCorrelation.value ?? reportModel?.sourceCorrelation;
+  const resolve = hostResolveSourceFile.value;
+  if (!sc || sc.mock || !resolve) return;
+  const next = await resolveMissingSourceFiles(sc, resolve);
   if (resolveGen !== sourceResolveGen) return;
   if (next === sc) return;
-  resolvedSourceCorrelation.value = next;
+  const live = currentSourceCorrelation();
+  resolvedSourceCorrelation.value =
+    live && live !== sc ? mergeInFlightSourceFill(sc, next, live) : next;
+}
+
+function refillMissingSource() {
+  const rm = props.source ? internalReport.value : props.reportModel;
+  if (!rm?.sourceCorrelation) return;
+  const resolveGen = ++sourceResolveGen;
+  void fillMissingSourceFiles(rm, resolveGen);
 }
 
 async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
@@ -1130,18 +1217,24 @@ watch(
   { immediate: true },
 );
 
-// Hosts often attach the webview bridge after first paint — re-run only when the
-// hook appears (falsy → truthy). Do not key on function identity: an inline
-// arrow each parent render would cancel in-flight fills and re-hit the host
-// for every still-placeholder file on the base model.
+// Hosts often attach the hook after first paint. Watch the explicit prop and
+// the vscode environment as separate edges: a single "prop or bridge" boolean
+// stays true once the bridge is selected, so a later resolveSourceFile never
+// runs. A new function identity does not re-run (inline arrows each render).
+// Bumping sourceResolveGen drops an in-flight bridge reply.
 watch(
-  () => !!props.resolveSourceFile,
-  (present, wasPresent) => {
-    if (!present || wasPresent) return;
-    const rm = props.source ? internalReport.value : props.reportModel;
-    if (!rm?.sourceCorrelation) return;
-    const resolveGen = ++sourceResolveGen;
-    void fillMissingSourceFiles(rm, resolveGen);
+  () => props.resolveSourceFile,
+  (resolve, prev) => {
+    if (!resolve || prev) return;
+    refillMissingSource();
+  },
+);
+
+watch(
+  () => props.environment === 'vscode',
+  (isVscode, was) => {
+    if (!isVscode || was || props.resolveSourceFile) return;
+    refillMissingSource();
   },
 );
 
@@ -1179,7 +1272,10 @@ watch(showAside, () => {
   applyLayoutFit();
 });
 
+let unsubscribeSourceFileUpdate: (() => void) | undefined;
+
 onMounted(() => {
+  unsubscribeSourceFileUpdate = onSourceFileUpdate(onHostSourceFileUpdate);
   window.addEventListener('keydown', onRootKeydown);
   if (props.source) return;
   if (props.swimlaneModel || props.reportModel) {
@@ -1192,6 +1288,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  unsubscribeSourceFileUpdate?.();
   cancelViewWindowAnim();
   cancelCollapseAnim();
   collapseAnim.value = null;
@@ -2019,6 +2116,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :sudu-worker-url="suduWorkerUrl"
           :user-guide-url="userGuideUrl"
           @open-user-guide="emit('open-user-guide', $event)"
+          @source-text="applySourceText($event.fileId, $event.text)"
         />
         <TimelineView
           v-if="showTimelineSurface"

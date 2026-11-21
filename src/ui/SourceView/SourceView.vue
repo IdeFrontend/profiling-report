@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SourceFrameTarget } from '../../adapters/sourceCorrelation/resolveSourceFrame';
+import { fileNeedsSourceResolve } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
 import PrIcon from '../PrIcon.vue';
@@ -36,8 +37,8 @@ const props = withDefaults(
     model: SourceCorrelationModel;
     /**
      * Report-boundary generation from ProfilingReport. Bumps on load / operator /
-     * host model swap — not on `resolveSourceFile` text fill — so search resets
-     * across operators while same-shaped resolve overlays keep UI state.
+     * host model swap — not on a source-text overlay fill — so search resets
+     * across operators while same-shaped overlays keep UI state.
      */
     session?: number;
     /** One-shot Source caret from a task-detail frame. Applied once per file and line. */
@@ -57,6 +58,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'open-user-guide': [url: string];
+  'source-text': [payload: { fileId: string; text: string }];
 }>();
 
 type PaneApi = {
@@ -77,6 +79,8 @@ const sourceLine = ref<number | null>(null);
 const asmLine = ref<number | null>(null);
 const sourcePane = ref<PaneApi | null>(null);
 const asmPane = ref<PaneApi | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const dragActive = ref(false);
 
 const searchQuery = ref('');
 /** Shared Link Views state — both pane toggles stay in sync. */
@@ -122,8 +126,8 @@ function applyFocus() {
   const focus = props.focus;
   const key = focusKey(focus);
   // Host cleared the frame caret (fresh load / operator switch). Do this even
-  // when the model keeps the same file ids — resolveSourceFile's same-shape
-  // preserve must not leave a stale current row.
+  // when the model keeps the same file ids — the same-shape overlay preserve
+  // must not leave a stale current row.
   if (!focus || !key) {
     if (appliedFocusKey) clearFocusCaret();
     return;
@@ -140,7 +144,7 @@ watch(
   ([m], prev) => {
     const prevModel = prev?.[0];
     const prevSession = prev?.[1];
-    // Same session + same file ids: resolveSourceFile filled Ascend C text —
+    // Same session + same file ids: a source-text overlay filled Ascend C text —
     // keep caret, search, and file selection. A new session (operator / load /
     // host report swap) always resets, even when basenames still match.
     const sameSession = prevSession === props.session;
@@ -204,9 +208,51 @@ function onSourceFileChange(fileId: string) {
   scrollToFileMatch();
 }
 
-const sourceFile = computed<SourceFileModel | null>(() => {
-  return props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null;
+const sourceFile = computed<SourceFileModel | null>(
+  () => props.model.files.find((f) => f.id === selectedFileId.value) ?? props.model.files[0] ?? null,
+);
+
+/** Placeholder overlay only while the selected file still has no embedded text. */
+const showResolveOverlay = computed(() => {
+  const file = sourceFile.value;
+  return file != null && fileNeedsSourceResolve(file);
 });
+
+async function applyLocalFile(file: File) {
+  const source = sourceFile.value;
+  if (!source || !fileNeedsSourceResolve(source)) return;
+  const fileId = source.id;
+  try {
+    const text = await file.text();
+    if (sourceFile.value?.id !== fileId) return;
+    emit('source-text', { fileId, text });
+  } catch {
+    // Unreadable file: keep the placeholder.
+  }
+}
+
+function openFilePicker() {
+  fileInput.value?.click();
+}
+
+async function onFilePicked(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (file) await applyLocalFile(file);
+}
+
+async function onDrop(event: DragEvent) {
+  dragActive.value = false;
+  const file = event.dataTransfer?.files?.[0];
+  if (file) await applyLocalFile(file);
+}
+
+function onDragLeave(event: DragEvent) {
+  const zone = event.currentTarget as HTMLElement | null;
+  const next = event.relatedTarget as Node | null;
+  if (!zone || !next || !zone.contains(next)) dragActive.value = false;
+}
 
 /** Scroll the shared listing to the first instruction of the selected file. */
 function scrollToFileMatch() {
@@ -768,6 +814,41 @@ onBeforeUnmount(() => {
           :editor-ratio="0.62"
           @update:current-line="onSourceLine"
         />
+        <div
+          v-if="showResolveOverlay"
+          class="pr-source-view__resolve"
+          :class="{ 'pr-source-view__resolve--over': dragActive }"
+          data-testid="source-resolve-drop"
+          role="region"
+          :aria-label="t('sourceResolveDropAria', locale)"
+          @dragover.prevent
+          @dragenter.prevent="dragActive = true"
+          @dragleave="onDragLeave"
+          @drop.prevent="onDrop"
+        >
+          <p class="pr-source-view__resolve-hint">
+            {{ t('sourceResolveDropHint', locale) }}
+          </p>
+          <div class="pr-source-view__resolve-actions">
+            <button
+              type="button"
+              class="pr-source-view__resolve-btn"
+              data-testid="source-resolve-browse"
+              @click="openFilePicker"
+            >
+              {{ t('sourceResolveChooseFile', locale) }}
+            </button>
+          </div>
+          <input
+            ref="fileInput"
+            class="pr-source-view__resolve-input"
+            data-testid="source-resolve-input"
+            type="file"
+            accept=".asc,.c,.cc,.cpp,.cxx,.h,.hpp,.txt,text/plain"
+            :aria-label="t('sourceResolveInputAria', locale)"
+            @change="onFilePicked"
+          >
+        </div>
       </div>
       <div
         class="pr-source-view__pane"
@@ -907,6 +988,8 @@ onBeforeUnmount(() => {
   padding: 5px 10px;
   background: var(--pr-src-bg-deep);
   min-width: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .pr-source-view__pane-bar-lead,
@@ -996,6 +1079,7 @@ onBeforeUnmount(() => {
   flex: 1 1 50%;
   min-width: 0;
   min-height: 0;
+  position: relative;
 }
 
 .pr-source-view__pane-body {
@@ -1010,6 +1094,69 @@ onBeforeUnmount(() => {
 
 .pr-source-view__pane--selected .pr-source-view__pane-body {
   border-color: var(--pr-src-accent, #3078f0);
+}
+
+/* Missing-embed overlay: absolute over the Source pane body, below the pane bar. */
+.pr-source-view__resolve {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 16px 16px;
+  border: 2px dashed var(--pr-src-border, #333333);
+  border-radius: 6px;
+  background: var(--pr-src-bg-body, #1a1a1a);
+  color: var(--pr-src-label, #b3b3b3);
+  font-family: var(--pr-src-ui-font);
+  font-size: 12px;
+  text-align: center;
+}
+
+.pr-source-view__resolve--over {
+  border-color: var(--pr-src-accent, #3078f0);
+  background: color-mix(in srgb, var(--pr-src-accent, #3078f0) 12%, var(--pr-src-bg-body, #1a1a1a));
+}
+
+.pr-source-view__resolve-hint {
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.pr-source-view__resolve-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pr-source-view__resolve-btn {
+  height: var(--pr-src-control-h, 28px);
+  padding: 0 12px;
+  border: 1px solid var(--pr-src-border, #333333);
+  border-radius: var(--pr-src-control-radius, 6px);
+  background: var(--pr-src-bg-control, #363636);
+  color: var(--pr-src-text, #c8c8c8);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pr-source-view__resolve-btn:hover {
+  border-color: var(--pr-src-accent, #3078f0);
+}
+
+.pr-source-view__resolve-btn:focus-visible {
+  outline: 2px solid var(--pr-src-accent, #3078f0);
+  outline-offset: 2px;
+}
+
+.pr-source-view__resolve-input {
+  display: none;
 }
 
 .pr-source-view__asm-empty {

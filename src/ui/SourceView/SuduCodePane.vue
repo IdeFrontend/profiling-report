@@ -125,6 +125,13 @@ const ready = ref(false);
 const loadError = ref<string | null>(null);
 /** Hide editor + metrics together until Sudu has real geometry. The host stays laid out so boot can measure. */
 const showLoading = computed(() => !ready.value && loadError.value == null);
+/** User-facing boot failure copy; raw reason stays on console only. */
+const fallbackMessage = computed(() => {
+  if (!loadError.value) return '';
+  return /webgl/i.test(loadError.value)
+    ? t('sourceEditorWebglOff')
+    : t('sourceEditorLoadFailed');
+});
 
 type EditorView = Awaited<ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newEditor']>>;
 type TextModel = ReturnType<Awaited<ReturnType<typeof loadSuduApi>>['newTextModel']>;
@@ -338,6 +345,7 @@ async function boot() {
     waitForGeom();
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e);
+    console.error('[profiling-report] Sudu editor fallback', loadError.value);
     ready.value = true; // show fallback
   }
 }
@@ -859,11 +867,14 @@ defineExpose({
           @pointerdown="onEditorPointerDown"
           @contextmenu.capture.prevent.stop="onEditorContextMenu"
         >
-          <pre
+          <div
             v-if="loadError"
             class="pr-sudu-pane__fallback"
             data-testid="sudu-fallback"
-          >{{ file.text }}</pre>
+            role="alert"
+          >
+            {{ fallbackMessage }}
+          </div>
         </div>
         <div class="pr-sudu-pane__splitter" />
         <div class="pr-sudu-pane__table">
@@ -1149,13 +1160,17 @@ defineExpose({
 }
 
 .pr-sudu-pane__fallback {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
-  padding: 8px;
+  padding: 16px;
   height: 100%;
-  overflow: auto;
-  color: #d0d0d0;
-  font-size: 12px;
-  white-space: pre;
+  color: #a0a0a0;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 </style>
