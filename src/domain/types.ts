@@ -697,3 +697,49 @@ export interface SwimlaneRenderer {
   hitTest(x: number, y: number): string | null;
   dispose(): void;
 }
+
+/** A saved comparison report (对比基线) — host-owned list, the library only renders and selects. */
+export interface Baseline {
+  /** Opaque identity, unique per host list and stable while the entry stays;
+   *  hosts mint ids with the barrel's `newBaselineId`. */
+  id: string;
+  name: string;
+  /** Host-meaningful identity (absolute path / URI). The library never opens
+   *  it; browser hosts fabricate a display pseudo-path. */
+  path: string;
+  /**
+   * The baseline's operator records, in pack order (MSTT: the pack's
+   * operators; bundled web hosts fill demo values on the host side). The
+   * aside Operator dropdown lists them by `id`; absent = the dropdown offers
+   * only Not selected.
+   */
+  operators?: ReportOperator[];
+  /**
+   * Pick timestamp in epoch ms (a host mtime or the pick moment). Drives the
+   * derived display title (`baselineDisplayTitle`). Only a REAL positive
+   * instant counts: `0` is the unknown-mtime sentinel, NaN/negative are
+   * broken — all three fall to the embedded OPPROF stamp instead of
+   * shadowing it.
+   */
+  pickedAt?: number;
+}
+
+/** What the host file dialog resolved after the picker + press; `null` = cancelled. */
+export interface BaselinePick {
+  path: string;
+  /** Display name; the root falls back to the path basename when omitted. */
+  name?: string;
+  /** File mtime (epoch ms) — the derived title's timestamp; defaults to the pick moment. */
+  pickedAt?: number;
+}
+
+/**
+ * The selected baseline's adapted pack, supplied by the host: it adapts the
+ * baseline bytes itself via the public `loadReportSource` and tags the result
+ * with the baseline id it belongs to. The root ignores a payload whose id does
+ * not match the current selection. The library never reads the filesystem.
+ */
+export interface BaselineReportData {
+  baselineId: string;
+  report: AdaptedReport;
+}
