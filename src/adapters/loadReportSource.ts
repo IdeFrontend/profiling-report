@@ -6,6 +6,7 @@ import { isNestedNpuArchive, isNpuRep, npuArchiveStem, parseNpuRep } from './par
 import { isNestedNpuArchive160, isNpuRep160, parseNpuRep160 } from './parseNpuRep160';
 import { hasDependencies } from '../domain/dependencies';
 import type { AdaptedReport, ReportOperator } from '../domain/types';
+import { shortOperatorName } from '../domain/operatorName';
 
 /** Dispatch leaf payloads to compute (`adaptPayloads`) or emulate (`adaptEmulate`). */
 function adaptLeafPayloads(payloads: Record<string, Uint8Array>): AdaptedReport {
@@ -84,8 +85,32 @@ function adaptNpuRepLike(
     const leaf = parse(parsed.payloads[entry.name]);
     operatorReports[entry.name] = adaptLeafPayloads(leaf.payloads);
   }
+  // Selector shows the pack's first operator row; the archive stem is the fallback.
+  for (const op of operators) {
+    op.label =
+      shortOperatorName(operatorReports[op.id].reportModel.operatorRows?.[0]?.opName) ?? op.label;
+  }
+  // Distinct packs can share a first-row OpName; suffix only the colliding labels.
+  const labelCounts = new Map<string, number>();
+  for (const op of operators) labelCounts.set(op.label, (labelCounts.get(op.label) ?? 0) + 1);
+  for (const op of operators) {
+    if ((labelCounts.get(op.label) ?? 0) > 1) op.label += ` (${npuArchiveStem(op.id) || op.id})`;
+  }
 
   const selectedOperatorId = operators[0].id;
+  // 概览 lists every operator in the pack, on every operator's report model so
+  // switching the OP selector keeps the same table.
+  const operatorRows = operators.flatMap((op) =>
+    (operatorReports[op.id].reportModel.operatorRows ?? []).map((row) => ({
+      ...row,
+      sourceOperatorId: op.id,
+    })),
+  );
+  if (operatorRows.length > 0) {
+    for (const report of Object.values(operatorReports)) {
+      report.reportModel = { ...report.reportModel, operatorRows };
+    }
+  }
   return {
     ...operatorReports[selectedOperatorId],
     operators,

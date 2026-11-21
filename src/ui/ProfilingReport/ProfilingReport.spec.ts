@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
+import OperatorOverview from '../OperatorOverview/OperatorOverview.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import * as adapters from '../../adapters';
@@ -1392,18 +1393,19 @@ describe('ProfilingReport scaffold', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="op-selector"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op1');
+    // Trigger shows the selected pack's first operator row, not the archive stem.
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('add_custom (op1)');
     expect(wrapper.vm.selectedOperatorId).toBe('op1.npu.rep');
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
     const items = wrapper.findAll('[data-testid="op-item"]');
     expect(items).toHaveLength(2);
-    expect(items.map((i) => i.text())).toEqual(['op1', 'op2']);
+    expect(items.map((i) => i.text())).toEqual(['add_custom (op1)', 'add_custom (op2)']);
     expect(items[0].attributes('aria-selected')).toBe('true');
     await items[1].trigger('click');
 
     expect(wrapper.vm.selectedOperatorId).toBe('op2.npu.rep');
-    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('op2');
+    expect(wrapper.find('[data-testid="op-selector-label"]').text()).toBe('add_custom (op2)');
     expect(wrapper.find('[data-testid="profiling-report"]').exists()).toBe(true);
 
     await wrapper.find('[data-testid="op-selector"] button').trigger('click');
@@ -1831,6 +1833,121 @@ describe('ProfilingReport scaffold', () => {
       await flushPromises();
       expect(wrapper.find('[data-testid="timeline-trace-selector"]').exists()).toBe(false);
       expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  /** Two packs share one stamped row list, like loadReportSource's flattened rows. */
+  async function mountMultiPackOverview() {
+    const { vi } = await import('vitest');
+    const adapters = await import('../../adapters');
+    const swim = { processes: [], minTime: 0, maxTime: 1 };
+    const operatorRows = [
+      {
+        opName: 'alpha-op',
+        opType: 'vector',
+        taskDurationUs: 1,
+        blockDim: 1,
+        gridSize: 1,
+        blockSize: 1,
+        sourceOperatorId: 'a.npu.rep',
+      },
+      {
+        opName: 'beta-op',
+        opType: 'vector',
+        taskDurationUs: 2,
+        blockDim: 1,
+        gridSize: 1,
+        blockSize: 1,
+        sourceOperatorId: 'b.npu.rep',
+      },
+    ];
+    const reportA = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'alpha-op', taskDurationUs: 1 },
+      operatorRows,
+    };
+    const reportB = {
+      ...emptyReportViewModel(),
+      summary: { opName: 'beta-op', taskDurationUs: 2 },
+      operatorRows,
+    };
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockReturnValue({
+      swimlaneModel: swim,
+      reportModel: reportA,
+      capabilities: [],
+      operators: [
+        { id: 'a.npu.rep', label: 'alpha-op' },
+        { id: 'b.npu.rep', label: 'beta-op' },
+      ],
+      operatorReports: {
+        'a.npu.rep': { swimlaneModel: swim, reportModel: reportA, capabilities: [] },
+        'b.npu.rep': { swimlaneModel: swim, reportModel: reportB, capabilities: [] },
+      },
+      selectedOperatorId: 'a.npu.rep',
+    });
+    const wrapper = mount(ProfilingReport, { props: { source: new ArrayBuffer(8) } });
+    await flushPromises();
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    await nextTick();
+    return { wrapper, spy };
+  }
+
+  it('PR-ROOT-005e: Overview row selection and OP selector stay in sync', async () => {
+    const { wrapper, spy } = await mountMultiPackOverview();
+    try {
+      const overview = wrapper.find('[data-testid="operator-overview"]');
+      const rows = overview.findAll('tbody tr');
+      expect(rows).toHaveLength(2);
+
+      await rows[1].trigger('click');
+      await nextTick();
+      expect(wrapper.vm.selectedOperatorId).toBe('b.npu.rep');
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      expect(wrapper.findAll('[data-testid="op-item"]')[1].attributes('aria-selected')).toBe('true');
+
+      await wrapper.findAll('[data-testid="op-item"]')[0].trigger('click');
+      await nextTick();
+      expect(wrapper.vm.selectedOperatorId).toBe('a.npu.rep');
+      const selected = wrapper.findAll('[data-testid="operator-overview"] tbody tr[aria-selected="true"]');
+      expect(selected).toHaveLength(1);
+      expect(selected[0].text()).toContain('alpha-op');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('PR-ROOT-005f: clicking the Overview operator name switches to the timeline tab', async () => {
+    const { wrapper, spy } = await mountMultiPackOverview();
+    try {
+      await wrapper.find('button.pr-operator-overview__op-name').trigger('click');
+      await nextTick();
+      expect(wrapper.find('[data-testid="tab-timeline"]').classes()).toContain(
+        'pr-tabs__tab--active',
+      );
+      expect(wrapper.find('[data-testid="operator-overview"]').exists()).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("PR-ROOT-005g: OP selector label equals the selected pack's first Overview OpName", async () => {
+    const { wrapper, spy } = await mountMultiPackOverview();
+    try {
+      const label = () => wrapper.find('[data-testid="op-selector-label"]').text();
+      const opNames = () =>
+        wrapper.findAll('button.pr-operator-overview__op-name').map((button) => button.text());
+
+      expect(label()).toBe('alpha-op');
+      expect(label()).toBe(opNames()[0]);
+
+      await wrapper.find('[data-testid="op-selector"] button').trigger('click');
+      await wrapper.findAll('[data-testid="op-item"]')[1].trigger('click');
+      await nextTick();
+      expect(wrapper.vm.selectedOperatorId).toBe('b.npu.rep');
+      expect(label()).toBe('beta-op');
+      expect(label()).toBe(opNames()[1]);
     } finally {
       spy.mockRestore();
     }
@@ -2513,6 +2630,219 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.vm.viewState.startTime).toBe(120);
     expect(wrapper.vm.viewState.endTime).toBe(480);
     wrapper.unmount();
+  });
+
+  it('PR-ROOT-035: 概览 tab is first; 时间线 stays default; 概览 mounts the overview', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'overview-tab',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          operatorRows: [
+            {
+              opName: 'gather_2d_custom',
+              opType: 'vector',
+              taskDurationUs: 0.73,
+              blockDim: 40,
+              gridSize: 85.25,
+              blockSize: 32,
+            },
+            {
+              opName: 'matmul_leakyrelu',
+              opType: 'cube',
+              taskDurationUs: 12.5,
+              blockDim: 24,
+              gridSize: 100,
+              blockSize: 16,
+            },
+          ],
+          pipeOccupancy: [{ id: 'cube', label: 'Cube', ratio: 0.2, colorKey: 'cube', side: 'cube' }],
+        },
+      },
+    });
+
+    const tabs = wrapper.findAll('.pr-tabs__tab');
+    expect(tabs[0].attributes('data-testid')).toBe('tab-overview');
+    expect(wrapper.find('[data-testid="tab-timeline"]').classes()).toContain(
+      'pr-tabs__tab--active',
+    );
+    expect(wrapper.find('[data-testid="tab-overview"]').classes()).not.toContain(
+      'pr-tabs__tab--active',
+    );
+    expect(wrapper.find('[data-testid="operator-overview"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-detail"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-cache"]').exists()).toBe(false);
+
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    await nextTick();
+    expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
+    const overview = wrapper.find('[data-testid="operator-overview"]');
+    expect(overview.exists()).toBe(true);
+    expect(overview.text()).toContain('gather_2d_custom');
+    expect(overview.text()).toContain('低利用率');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-035: 概览 tab is hidden for models without operator rows', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: { swimlaneModel: depsModel(), reportModel: emptyReportViewModel() },
+    });
+
+    expect(wrapper.find('[data-testid="tab-overview"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-timeline"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-035: a single operator row still renders the 概览 tab first and mounts the overview', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          operatorRows: [{ opName: 'gather_2d_custom', opType: 'vector', taskDurationUs: 0.73 }],
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="tab-overview"]').exists()).toBe(true);
+    expect(wrapper.findAll('.pr-tabs__tab')[0].attributes('data-testid')).toBe('tab-overview');
+
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="operator-overview"]').exists()).toBe(true);
+    expect(wrapper.findComponent(TimelineView).exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-038: a failed load while 概览 is active keeps the tab strip on 时间线', async () => {
+    const spy = vi.spyOn(adapters, 'loadReportSource').mockImplementation(() => {
+      throw new Error('corrupt bytes');
+    });
+    try {
+      const wrapper = mount(ProfilingReport, {
+        props: {
+          swimlaneModel: depsModel(),
+          reportModel: {
+            ...emptyReportViewModel(),
+            operatorRows: [
+              { opName: 'gather_2d_custom', opType: 'vector', taskDurationUs: 0.73 },
+              { opName: 'matmul_leakyrelu', opType: 'cube', taskDurationUs: 12.5 },
+            ],
+          },
+        },
+      });
+      await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+      await nextTick();
+      expect(wrapper.find('[data-testid="operator-overview"]').exists()).toBe(true);
+
+      await wrapper.setProps({ source: new Uint8Array([1, 2, 3]) });
+      await flushPromises();
+      await nextTick();
+
+      expect(wrapper.find('[data-testid="load-error"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="report-tabs"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="tab-timeline"]').classes()).toContain(
+        'pr-tabs__tab--active',
+      );
+      wrapper.unmount();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('PR-ROOT-039: W/S/A/D and Shift+P ignore the hidden timeline while 概览 is active', async () => {
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          operatorRows: [
+            { opName: 'gather_2d_custom', opType: 'vector', taskDurationUs: 0.73 },
+            { opName: 'matmul_leakyrelu', opType: 'cube', taskDurationUs: 12.5 },
+          ],
+        },
+      },
+    });
+
+    wrapper.findComponent(TimelineView).vm.$emit('hover-lane', 't-0');
+    await nextTick();
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    await nextTick();
+    const before = { ...wrapper.vm.viewState };
+
+    for (const key of ['w', 'a', 's', 'd']) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key }));
+    }
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true }));
+    await nextTick();
+
+    expect(wrapper.vm.viewState.startTime).toBe(before.startTime);
+    expect(wrapper.vm.viewState.endTime).toBe(before.endTime);
+    expect(wrapper.vm.viewState.pinnedLaneIds).toEqual(before.pinnedLaneIds);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-037: forwards overview optimize to the host', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'overview-optimize',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          operatorRows: [
+            { opName: 'gather_2d_custom', opType: 'vector', taskDurationUs: 0.73 },
+            { opName: 'matmul_leakyrelu', opType: 'cube', taskDurationUs: 12.5 },
+          ],
+        },
+      },
+    });
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    await nextTick();
+    const button = wrapper.findAll('button').find((b) => b.text() === '执行优化');
+    expect(button).toBeDefined();
+    await button!.trigger('click');
+    expect(wrapper.emitted('optimize')).toHaveLength(1);
+
+    wrapper.findComponent(OperatorOverview).vm.$emit('optimize', { opName: 'gather_2d_custom' });
+    await nextTick();
+    expect(wrapper.emitted('optimize')?.at(-1)).toEqual([{ opName: 'gather_2d_custom' }]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-036: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
+    const adapterLoaded = mount(ProfilingReport, {
+      props: { title: 'gather_2d.npu-rep', source: loadOutRepBuffer() },
+    });
+    await flushPromises();
+
+    expect(adapterLoaded.get('.pr-tabs__brand').text()).toBe('add_custom');
+    adapterLoaded.unmount();
+
+    const signature = 'void gather_2d_custom<float, unsigned int>(float*, unsigned int*)';
+    const withSignature = mount(ProfilingReport, {
+      props: {
+        title: 'gather_2d.npu-rep',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          summary: { ...emptyReportViewModel().summary, opName: signature },
+        },
+      },
+    });
+    expect(withSignature.get('.pr-tabs__brand').text()).toBe('gather_2d_custom');
+    withSignature.unmount();
+
+    const withoutOpName = mount(ProfilingReport, {
+      props: {
+        title: 'gather_2d.npu-rep',
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+      },
+    });
+    expect(withoutOpName.get('.pr-tabs__brand').text()).toBe('gather_2d.npu-rep');
+    withoutOpName.unmount();
   });
 
   it('PR-ROOT-029: a Parameter frame opens Source at its line, or line 1', async () => {

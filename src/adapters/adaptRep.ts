@@ -13,6 +13,7 @@ import type {
   PerformanceHintItem,
   PipeOccupancyItem,
   ReportCapability,
+  ReportOperatorRow,
   ReportViewModel,
   SummaryCategory,
   SummaryMetrics,
@@ -142,8 +143,14 @@ function collectCsvTables(
   return { tables, texts };
 }
 
+/** Producers write `NA` (or blank) for a missing cell: both are absent, never data. */
+function isAbsentValue(raw: string | undefined): boolean {
+  const v = raw?.trim();
+  return !v || v === 'NA';
+}
+
 function parseNumber(raw: string | undefined): number | undefined {
-  if (raw == null || raw === '' || raw === 'NA') return undefined;
+  if (isAbsentValue(raw)) return undefined;
   const n = Number(raw);
   return Number.isFinite(n) ? n : undefined;
 }
@@ -186,9 +193,7 @@ function durationBreakdownFromOpInfo(
 }
 
 function optionalText(raw: string | undefined): string | undefined {
-  const v = raw?.trim();
-  if (!v || v === 'NA') return undefined;
-  return v;
+  return isAbsentValue(raw) ? undefined : raw!.trim();
 }
 
 function meanFamily(rows: Record<string, string>[], columns: readonly string[]): number | undefined {
@@ -493,23 +498,66 @@ function summaryFromOpBasicInfo(payload?: Uint8Array): SummaryMetrics {
   const row = rows[0];
   if (!row) return {};
   return {
-    opName: row['Op Name'] || undefined,
-    opType: row['Op Type'] || undefined,
+    opName: firstDefined(row, 'Op Name'),
+    opType: firstDefined(row, 'Op Type'),
     taskDurationUs: parseNumber(row['Task Duration(us)']),
     currentFreq: parseNumber(row['Current Freq']),
     ratedFreq: parseNumber(row['Rated Freq']),
     pid: optionalText(row['Pid']) ?? optionalText(row['PID']),
     blockDim: optionalDim(row['Block Dim']),
-    mixBlockDim: optionalDim(row['Mix Block Dim']),
+    mixBlockDim: optionalMixBlockDim(row['Mix Block Dim']),
   };
+}
+
+/** Column spelling aliases on `OpBasicInfo`: first present value wins; `NA` falls through. */
+function firstDefined(row: Record<string, string>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const v = row[key];
+    if (!isAbsentValue(v)) return v;
+  }
+  return undefined;
+}
+
+/** Every `OpBasicInfo.csv` row → one 概览 row (summary keeps rows[0]). */
+function operatorRowsFromOpBasicInfo(payload?: Uint8Array): ReportOperatorRow[] {
+  if (!payload) return [];
+  const { rows } = parseCsv(decodeUtf8(payload));
+  return rows.map((row) => ({
+    opName: firstDefined(row, 'Op Name'),
+    opType: firstDefined(row, 'Op Type'),
+    taskDurationUs: parseNumber(row['Task Duration(us)']),
+    blockDim: optionalDim(row['Block Dim']),
+    mixBlockDim: optionalMixBlockDim(firstDefined(row, 'Mix Block Dim', 'MixBlockDim')),
+    demangledName: demangledOrSignature(row),
+    gridSize: optionalDim(firstDefined(row, 'Grid Size', 'Grid Dim')),
+    blockSize: optionalDim(firstDefined(row, 'Block Size', 'Block Num')),
+  }));
+}
+
+/** Some packs put the full signature in `Op Name` and omit the demangled column. */
+function demangledOrSignature(row: Record<string, string>): string | undefined {
+  const demangled = firstDefined(row, 'Demangled Name', 'DemangledName');
+  if (demangled) return demangled;
+  return signatureFromName(row['Op Name']);
+}
+
+/** A raw name is a signature when it carries a parameter list. */
+function signatureFromName(name: string | undefined): string | undefined {
+  return name?.includes('(') ? name : undefined;
 }
 
 /** OpBasicInfo dim column: omit blank / NA. */
 function optionalDim(raw: string | undefined): string | number | undefined {
-  const v = raw?.trim();
-  if (!v || v === 'NA') return undefined;
+  if (isAbsentValue(raw)) return undefined;
+  const v = raw!.trim();
   const n = Number(v);
   return Number.isFinite(n) ? n : v;
+}
+
+/** MIX blocks are never zero blocks, so a numeric 0 means "not a MIX operator". */
+function optionalMixBlockDim(raw: string | undefined): string | number | undefined {
+  const v = optionalDim(raw);
+  return v === 0 ? undefined : v;
 }
 
 /**
@@ -544,7 +592,7 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
       ratedFreq: num(obj['Rated Freq']),
       pid: text(obj['Pid']),
       blockDim: num(obj['Block Dim']) ?? text(obj['Block Dim']),
-      mixBlockDim: num(obj['Mix Block Dim']) ?? text(obj['Mix Block Dim']),
+      mixBlockDim: optionalMixBlockDim(text(obj['Mix Block Dim'])),
       // Derived compute / bandwidth / utilization (absent when the producer did not emit them).
       aicFlops: num(obj['aic_flops']),
       aivFlops: num(obj['aiv_flops']),
@@ -949,7 +997,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   // drop jsonl metrics when both embeds exist).
   const fromCsv = summaryFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
   const fromJsonl = summaryFromSummaryJsonl(summaryJsonl);
-  const hasCsvIdentity = Object.keys(fromCsv).length > 0;
+  const hasCsvIdentity = fromCsv.opName != null || fromCsv.opType != null;
   // Card total prefers OpBasicInfo. 计算时间 is the remainder of that total so the
   // three bar segments sum to the number on the card. No total → no breakdown.
   const taskDurationUs =
@@ -988,8 +1036,25 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
       payloadByName(payloads, ['HardwareInfo.jsonl', 'hardwareinfo.jsonl']),
       summary,
     );
+  const csvOperatorRows = operatorRowsFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
+  const operatorRows =
+    csvOperatorRows.some((row) => row.opName != null || row.opType != null)
+      ? csvOperatorRows
+      : summary.opName || summary.opType || summary.taskDurationUs != null
+        ? [
+            {
+              opName: summary.opName,
+              opType: summary.opType,
+              demangledName: signatureFromName(summary.opName),
+              taskDurationUs: summary.taskDurationUs,
+              blockDim: summary.blockDim,
+              mixBlockDim: summary.mixBlockDim,
+            },
+          ]
+        : [];
   return {
     summary,
+    ...(operatorRows.length > 0 ? { operatorRows } : {}),
     pipeOccupancy: (() => {
       // DATA-19 / DATA-28 / DATA-29 `All` scope: summary.jsonl `PipeUtilization` wins when present
       // (compute aggregate). Emulate production uses adaptEmulate; this cascade mainly serves

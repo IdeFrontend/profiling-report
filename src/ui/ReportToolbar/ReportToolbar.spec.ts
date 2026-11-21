@@ -22,25 +22,45 @@ describe('ReportToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['test query']]);
   });
 
-  it('PR-TOOLBAR-026: 源码 gated by sourceTabEnabled; 详情 / 缓存 absent', async () => {
-    const wrapper = mount(ReportToolbar, { props: defaultProps });
+  it('PR-TOOLBAR-026: 概览 first, 时间线 default, 源码 gated; 详情 / 缓存 absent', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: { ...defaultProps, overviewTabEnabled: true },
+    });
+    const tabs = wrapper.findAll('.pr-tabs__tab');
+    expect(tabs[0].attributes('data-testid')).toBe('tab-overview');
+
     const timeline = wrapper.find('[data-testid="tab-timeline"]');
     expect(timeline.exists()).toBe(true);
     expect(timeline.attributes('disabled')).toBeUndefined();
     expect(timeline.classes()).toContain('pr-tabs__tab--active');
+    expect(wrapper.find('[data-testid="tab-overview"]').classes()).not.toContain(
+      'pr-tabs__tab--active',
+    );
 
     expect(wrapper.find('[data-testid="tab-source"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="tab-detail"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="tab-cache"]').exists()).toBe(false);
 
+    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
+    expect(wrapper.emitted('update:activeTab')).toEqual([['overview']]);
+
     await wrapper.setProps({ sourceTabEnabled: true, activeTab: 'timeline' });
     expect(wrapper.find('[data-testid="tab-source"]').attributes('disabled')).toBeUndefined();
     await wrapper.find('[data-testid="tab-source"]').trigger('click');
-    expect(wrapper.emitted('update:activeTab')).toEqual([['source']]);
+    expect(wrapper.emitted('update:activeTab')).toEqual([['overview'], ['source']]);
 
     await wrapper.setProps({ activeTab: 'source' });
     expect(wrapper.find('[data-testid="search-input"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="zoom-pill"]').exists()).toBe(false);
+  });
+
+  it('PR-TOOLBAR-031: 概览 is gated by overviewTabEnabled (default hidden)', async () => {
+    const wrapper = mount(ReportToolbar, { props: defaultProps });
+    expect(wrapper.find('[data-testid="tab-overview"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="tab-timeline"]').exists()).toBe(true);
+
+    await wrapper.setProps({ overviewTabEnabled: true });
+    expect(wrapper.find('[data-testid="tab-overview"]').exists()).toBe(true);
   });
 
   it('PR-TOOLBAR-025: clear × emits empty searchQuery; inset focus ring is not clipped', async () => {
@@ -507,6 +527,13 @@ describe('ReportToolbar', () => {
     });
     expect(single.find('[data-testid="op-selector"]').exists()).toBe(false);
     expect(single.find('.pr-tabs__brand').exists()).toBe(true);
+    expect(single.find('.pr-tabs__brand').attributes('title')).toBe(single.find('.pr-tabs__brand').text());
+
+    const longTitle = 'Long Report Name That The 200px Brand Box Clips Mid Word';
+    const clipped = mount(ReportToolbar, {
+      props: { ...defaultProps, title: longTitle, operators: [{ id: 'op1', label: 'op1' }] },
+    });
+    expect(clipped.find('.pr-tabs__brand').attributes('title')).toBe(longTitle);
 
     const none = mount(ReportToolbar, { props: defaultProps });
     expect(none.find('[data-testid="op-selector"]').exists()).toBe(false);

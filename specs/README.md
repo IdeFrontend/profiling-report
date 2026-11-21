@@ -25,6 +25,7 @@ This directory contains behavioral specifications for all modules in the profili
 | [swimlane-model](./core/swimlane-model.spec.md) | `PR-SWIM-*` | MVP | `src/domain/types.ts` | `tests/unit/swimlaneModel.spec.ts` |
 | [format-time](./core/format-time.spec.md) | `PR-TIME-*` | MVP | `src/domain/formatTime.ts` | `tests/unit/formatTime.spec.ts` |
 | [view-state](./core/view-state.spec.md) | `PR-VIEW-*` | MVP | `src/domain/viewState.ts` | `tests/unit/viewState.spec.ts` |
+| [operator-name](./core/operator-name.spec.md) | `PR-OPN-*` | MVP | `src/domain/operatorName.ts` | `tests/unit/operatorName.spec.ts` |
 | [swimlane-renderer](./core/swimlane-renderer.spec.md) | `PR-RENDER-*` | MVP | `src/swimlane/CanvasSwimlaneRenderer.ts` | `tests/unit/canvasRenderer.spec.ts` |
 | [stress-swimlane](./core/stress-swimlane.spec.md) | `PR-STRESS-*` | Dev | `src/domain/generateStressSwimlane.ts` | `tests/unit/generateStressSwimlane.spec.ts` |
 | [load-report-source](./core/load-report-source.spec.md) | `PR-JSON-*` | MVP | `src/adapters/loadReportSource.ts` | `tests/unit/loadReportSource.spec.ts` |

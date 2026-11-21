@@ -415,10 +415,26 @@ export interface PerformanceHintItem {
   origin: 'instruction' | 'sourceLine' | 'kernel';
 }
 
+/** One row of the 概览 operator table (`OpBasicInfo.csv`, every row). */
+export interface ReportOperatorRow {
+  opName?: string;
+  opType?: string;
+  taskDurationUs?: number;
+  blockDim?: string | number;
+  mixBlockDim?: string | number;
+  demangledName?: string;
+  gridSize?: string | number;
+  blockSize?: string | number;
+  /** `ReportOperator.id` of the nested pack this row came from; absent for a leaf pack. */
+  sourceOperatorId?: string;
+}
+
 export interface ReportViewModel {
   summary: SummaryMetrics;
   pipeOccupancy: PipeOccupancyItem[];
   overviewSeries: OverviewSeries[];
+  /** `OpBasicInfo.csv` rows across the operator pack; omit when none. */
+  operatorRows?: ReportOperatorRow[];
   /** Compute-load tabs: PipeUtilization | ArithmeticUtilization | ResourceConflictRatio. */
   computeTables: CsvTableModel[];
   /** Memory tabs: Memory.csv | L2Cache | MemoryL0 | MemoryUB. */
@@ -559,7 +575,8 @@ export interface ParsedRep {
 export interface ReportOperator {
   /** Stable id — nested FileInfo name (e.g. `op1.npu.rep`); unique in the pack. */
   id: string;
-  /** Display label in the top-left OP selector (archive stem, e.g. `op1`). */
+  /** Display label in the top-left OP selector: short name of the pack's first
+   * operator row (`add_custom`), falling back to the archive stem (`op1`). */
   label: string;
 }
 
