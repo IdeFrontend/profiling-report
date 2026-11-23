@@ -10,6 +10,10 @@ export const LANE_COLOR_HEX = {
   mte3: '#A44830',
   fixp: '#586C0C',
   scalar: '#1A743E',
+  /** Instruction-cache read ticks (Chrome Trace `ICACHE_READ` lane). */
+  'icache-read': '#3D64AD',
+  /** Instruction-cache slot ticks (Chrome Trace `ICACHE_SLOT` lane). */
+  'icache-slot': '#6B5B9A',
   default: '#606060',
 } as const;
 
@@ -33,6 +37,9 @@ export function laneColorKey(name: string): LaneColorKey {
   if (n.includes('FIX')) return 'fixp';
   if (n.includes('PIPE_V') || n.includes('VEC')) return 'vector';
   if (n.includes('CUBE')) return 'cube';
+  // ICACHE_* before any broader cache token; READ/SLOT are distinct lanes (#205).
+  if (n.includes('ICACHE_READ')) return 'icache-read';
+  if (n.includes('ICACHE_SLOT')) return 'icache-slot';
   return 'default';
 }
 

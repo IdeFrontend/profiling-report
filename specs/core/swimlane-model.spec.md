@@ -49,9 +49,9 @@ interface SwimEvent    {
 
 ## Behavior
 
-**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete interval events by process ID and thread ID: classic `ph: 'X'` with `ts`+`dur`, and emulate `ph: 'i'` that carry a **positive** finite `dur` (#207 — RVECLP/RVECSU). Instant `ph:i` with missing or zero `dur` are not intervals here (see #205). Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — DATA-35: do not invent Card/Core nesting from AIV pipe names.
+**Chrome Trace conversion.** `chromeTraceToSwimlane` groups complete interval events by process ID and thread ID: classic `ph: 'X'` with a finite `ts` and **non-negative** finite `dur`, emulate `ph: 'i'` with a **positive** finite `dur` (#207 — RVECLP/RVECSU), and instant `ph: 'i'` with a finite `ts` and missing or zero `dur` as **duration 0** (#205 — ICACHE_HIT; WebGL encodes a next-float32 tick pair while the step is under 1 ns, else a degenerate pair, and paints on the **same additive mesh** as durables with per-pipe count-hit — PR-RENDER-064 / PR-RENDER-065). A non-finite `ts`/`dur`, or negative `X` `dur`, is not paintable. Each event becomes a `SwimEvent` with `id`, `name`, `startTime`, `duration`. Optional `cat` and `args` are preserved for tooltip enrichment. Events without `tid`/`pid` are assigned to default process/thread 0. Output is **flat** (no `children`) — DATA-35: do not invent Card/Core nesting from AIV pipe names.
 
-**Async dependencies.** `ph: 's'` / `ph: 'f'` events are not intervals. They pair by process and trace `id`: each id's starts and finishes are ordered by timestamp and zipped (`start.ts <= finish.ts`); leftover unpaired endpoints are dropped. File order does not matter — a finish that appears before its start still pairs. Recycled ids after a flow closes, and the same id used in two processes, each keep their own edge. Unpaired starts, extra finishes, or `start.ts > finish.ts` are dropped. After interval events are sorted per thread, each pair finds the **innermost** complete interval (`ph:X`, or `ph:i` with positive finite `dur`) on the start thread whose `[startTime, startTime+duration]` contains `start.ts` (enclosing-parent chain from the last start ≤ ts), and the innermost complete interval on the finish thread that contains `finish.ts`. Those two events are linked: parent `successors` ← child `{ tid: SwimThread.id, index }`, child `predecessors` ← parent. The two intervals may overlap (`pred.end > succ.start`) — that is valid; dependency curves still run pred-right → succ-left. Same-event pairs (both endpoints resolve to one slice) are dropped — no self-loop. Duplicate refs are not stored. Events with no edges omit `dependencies`. s/f timestamps use the same ns conversion as interval events.
+**Async dependencies.** `ph: 's'` / `ph: 'f'` events are not intervals. They pair by process and trace `id`: each id's starts and finishes are ordered by timestamp and zipped (`start.ts <= finish.ts`); leftover unpaired endpoints are dropped. File order does not matter — a finish that appears before its start still pairs. Recycled ids after a flow closes, and the same id used in two processes, each keep their own edge. Unpaired starts, extra finishes, or `start.ts > finish.ts` are dropped. After events are sorted per thread, each pair finds the **innermost positive-duration** event (`ph:X`, or `ph:i` with positive finite `dur`) on the start thread whose `[startTime, startTime+duration]` contains `start.ts` (enclosing-parent chain from the last start ≤ ts), and the innermost positive-duration event on the finish thread that contains `finish.ts`. A duration-0 event (instant `ph:i`, or `ph:X` with `dur: 0`) is the target only when no positive-duration event contains that timestamp, including an interval whose inclusive end equals the tick. Those two events are linked: parent `successors` ← child `{ tid: SwimThread.id, index }`, child `predecessors` ← parent. The two intervals may overlap (`pred.end > succ.start`) — that is valid; dependency curves still run pred-right → succ-left. Same-event pairs (both endpoints resolve to one slice) are dropped — no self-loop. Duplicate refs are not stored. Events with no edges omit `dependencies`. s/f timestamps use the same ns conversion as interval events.
 
 **Ordering.** Processes and threads ordered by first event start time. Within each thread, events are sorted by `startTime` ascending, with equal-`startTime` ties broken by longest `duration` first (enclosing parent before nested child). `chromeTraceToSwimlane` and multi-row layout (`assignEventRows` / `PR-RENDER-042`) use that same comparator — so viewer sub-rows reproduce the nesting the converter already derived for `nestParents` / `PR-SWIM-009`. `rebuildLayout` does **not** re-sort leaf events: it trusts this order for `eventsByLane` / WebGL gap math and throws if a leaf's events are out of order (adapters always sort; host-built `swimlaneModel` props must too). Processes/threads with no events are excluded.
 
@@ -59,7 +59,7 @@ interface SwimEvent    {
 
 **`minTime` as display origin.** `minTime` is the earliest painted event timestamp and the shared UI display origin (PyPTO / Perfetto Timecode default): viewport/zoom-to-fit span `[minTime, maxTime]`, and axis / cursor / tooltip / detail start·end labels subtract `minTime` so the left edge and earliest event read as `0`. Model timestamps stay absolute producer ns; only the formatting layer subtracts. `minTime` also drives thread utilization spans and WebGL `timeBase` (float32 precision).
 
-**Error on empty.** If the trace contains no complete interval events (`X` with `ts`+`dur`, or `i` with `ts` and positive `dur`), `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
+**Error on empty.** If the trace contains no paintable events (no complete X, no positive-`dur` `ph:i` per PR-SWIM-017, and no qualifying instant `ph:i` per PR-SWIM-018), `chromeTraceToSwimlane` throws. This prevents the swimlane from rendering with zero events — an empty model would produce a confusing blank canvas.
 
 **Nested helpers.** Layout / selection walk `children` recursively (`filterCollapsedTree`, `collectLeafEvents`, visible folder/leaf rows).
 
@@ -69,7 +69,7 @@ interface SwimEvent    {
 1. **PR-SWIM-002**: Default CTEF µs timestamps convert to ns for internal representation.
 1. **PR-SWIM-003**: displayTimeUnit metadata preserved (display-only, timestamps unchanged).
 1. **PR-SWIM-004**: CTEF array format and process_name metadata handled correctly.
-1. **PR-SWIM-005**: Rejects traces with no complete interval events (throws).
+1. **PR-SWIM-005**: Rejects traces with no paintable events — no complete X, no positive-`dur` `ph:i`, and no qualifying instant `ph:i` (throws).
 1. **PR-SWIM-006**: s/f pairs link EventRefs across threads.
 1. **PR-SWIM-007**: Unmatched, inverted, or miss timestamps yield no edge.
 1. **PR-SWIM-008**: Index is post-sort; duplicate edges unique; omit empty deps.
@@ -81,11 +81,12 @@ interface SwimEvent    {
 1. **PR-SWIM-014**: A collapsed folder in the collapse-filtered tree exposes `summaryEvents` (disjoint union of descendant leaf intervals, each carrying `taskCount` = merged task count; a single-event union also keeps the leaf `name`, source `laneName`, and `sourceEvent`; a multi-event union keeps `sourceEvents` = the merged leaves); an expanded folder omits `summaryEvents`.
 1. **PR-SWIM-015**: Producer `nestCardTree: true` is recorded in `metadata`; absent → no nest flag (adaptRep does not invent Card nesting).
 1. **PR-SWIM-016**: `findEventInModel` indexes leaf `events` and collapsed-folder `summaryEvents` once per model identity, then looks up by id in O(1).
-1. **PR-SWIM-017**: Emulate `ph:i` with positive finite `dur` becomes an interval bar and counts toward derived utilization (#207); `ph:i` with missing/zero `dur` does not.
+1. **PR-SWIM-017**: Emulate `ph:i` with positive finite `dur` becomes an interval bar and counts toward derived utilization (#207); missing/zero `dur` is PR-SWIM-018 instead.
+1. **PR-SWIM-018**: Instant `ph:i` (finite `ts`, no/zero `dur`) becomes a duration-0 event (#205); s/f stays on the enclosing interval.
 
 ## Edge Cases
 
-- Only B/E events (no X) → throws. Single event → one process/thread/event, minTime = maxTime (handled upstream by bounds clamp).
+- Only B/E events (no X / no positive-`dur` `ph:i` / no instant `ph:i`) → throws. Instant-only `ph:i` and positive-`dur`-only `ph:i` are each paintable. Single event → one process/thread/event, minTime = maxTime (handled upstream by bounds clamp).
 - s/f with no matching interval, missing id/ts, or finish before start → ignored. Nested overlapping X (call stack): innermost containing interval, not the enclosing parent — including equal-`startTime` parent/child (Chrome may write the shorter child first; the converter reorders longest-duration first before nesting). Touching slices that only share an endpoint are siblings (not nested). Flow in idle time between nested slices binds the enclosing slice. Both endpoints in the same interval → no edge. Distinct overlapping X slices (long parent, shorter worker) stay linked; `pred.end` may exceed `succ.start`. Recycled `id` after a flow closes → one edge per s/f pair, not last-wins. Finish written before its start in the file still pairs when `s.ts <= f.ts`.
 
 ## Dependencies
@@ -97,7 +98,11 @@ interface SwimEvent    {
 DATA-35 — Lane hierarchy; use producer thread_name as-is; nesting only via explicit `children`.
 
 ## Changelog
+- **2026-11-20** — #205: swimlane-model paint wording aligned with PR-RENDER-064 (additive + count-hit; not source-over).
+- **2026-11-18** — #205: duration-0 encode is next-float32 not ≥1 ns (PR-RENDER-065); model still emits duration 0. (Earlier same-day note said source-over `tickChunks`; superseded by unified additive mesh.)
+- **2026-11-18** — PR-SWIM-018: non-finite `ts`/`dur` dropped; s/f at a duration-0 timestamp stays on the positive-duration interval that contains it, including that interval's inclusive end.
 - **2026-11-16** — #207 / PR-SWIM-017: `ph:i` + positive finite `dur` kept as interval bars (RVECLP/RVECSU); contributes to derived util. s/f binds the innermost such interval. Non-finite `dur` is not a bar.
+- **2026-11-16** — #205 / PR-SWIM-018: instant `ph:i` (ICACHE hit/miss) kept as duration-0 events for min-tick paint.
 - **2026-09-22** — `findEventInModel` is a one-walk-per-model index (`PR-SWIM-016`).
 - **2026-09-13** — Multi-event summary bars carry `sourceEvents` for multi-select-on-expand (`PR-SWIM-014`).
 - **2026-09-08** — Ordering: converter and multi-row layout share `startTime` asc / longest-`duration` first; `rebuildLayout` trusts that order (no defensive re-sort) and throws if a leaf is out of order. Document `sample.lite.rep` as a demo-only exclusivity exception.

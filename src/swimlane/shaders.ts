@@ -26,6 +26,14 @@ export const extendTargetSizeCss = 1;
 export const extendMargin1Css = 2;
 export const extendMargin2Css = 4;
 
+/**
+ * Odd stripe multiplier for thin-event count-hit stipple (matches Canvas
+ * `TICK_ALTERNATE_FACTOR` in layout.ts). Long dense fills zebra instead of a solid bar.
+ * Stripes are pan-stable `floor(floor(t/dt) / uStipplePeriod)` with period ≈ 1 CSS px
+ * (`round(dpr)` device columns) so zoom-out packs stay readable on retina.
+ */
+export const thinEventAlternateFactor = 0.4;
+
 /** Scale a CSS-px corner/width value to integer device px: `* dpr`, then round `((x+0.5)|0)`. */
 export function rrToDevicePx(cssPx: number, dpr: number): number {
   return (cssPx * dpr + 0.5) | 0;
@@ -37,13 +45,17 @@ precision highp float;
 uniform vec4 uSizePos;
 uniform vec2 uResolution;
 uniform vec3 uExtendParameters; // xyz = targetSize, margin1, margin2, all in device px (CSS px × dpr); targetSize 0 disables
+uniform float uStipplePeriod; // device columns per zebra stripe (≈ round(dpr) = 1 CSS px)
 
 in vec2 aPos;
 in vec2 aTex;
 in vec2 aData; // x = distance to prev event end, y = distance to next event start (event coords)
+in float aHit; // collapsed same-x tick count; generic 1 when the attrib array is off
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
+out float vStippleAlt; // pan-stable odd/even CSS-px stripe factor for count-hit zebra
+out float vHit;
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -82,9 +94,35 @@ void main() {
   float extendedR = rPx + extend;
 
   float screenY = glToPixelY(pos.y);
-  // Extend this vertex's edge to the pixel bound of the EXTENDED event (sudu).
-  float screenX = mix(floor(extendedL), ceil(extendedR), aTex.y);
+  // Wide events: snap edges to pixel bounds (sudu AA). Sub-pixel / zero-width ticks:
+  // continuous center±0.5 — floor/ceil under fractional pan makes neighbors gap or
+  // double-cover at different phases (zebra flicker). Isolates that thin-extend to
+  // ≥1 device px take the snapped path and stay full bright in the FS.
+  float extW = extendedR - extendedL;
+  float screenL;
+  float screenR;
+  if (extW < 1.0) {
+    float c = (extendedL + extendedR) * 0.5;
+    screenL = c - 0.5;
+    screenR = c + 0.5;
+  } else {
+    screenL = floor(extendedL);
+    screenR = ceil(extendedR);
+    if (screenR <= screenL) screenR = screenL + 1.0;
+  }
+  float screenX = mix(screenL, screenR, aTex.y);
   pos.x = pixelToGlX(screenX);
+
+  // Pan-stable stipple: world column from unextended event center (aPos times are
+  // timeBase-relative; sx = 2/span so span = 2/sx). Group by uStipplePeriod (~1 CSS px)
+  // so dense zoom-out packs keep visible zebra on high-dpr; same event keeps odd/even
+  // under horizontal pan; zoom changes dt and may reflow (acceptable).
+  float span = 2.0 / uSizePos.x;
+  float dt = span / max(uResolution.x, 1.0);
+  float worldCol = floor(((lX + rX) * 0.5) / dt);
+  float stripe = floor(worldCol / max(uStipplePeriod, 1.0));
+  vStippleAlt = mod(stripe, 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
+  vHit = aHit;
 
   vScreenPos = vec2(screenX, screenY);
   vLrScreen = vec2(extendedL, extendedR);
@@ -99,9 +137,13 @@ uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 uniform vec3 uRR; // xy = min/max painted radii (device px, rounded in JS); z = exact switch threshold × dpr
 uniform float uSrcOver; // 1.0 = premultiplied source-over (summary bars); 0.0 = additive (events)
+uniform float uUseCountMetric; // 1.0 = per-pipe count-hit; 0.0 = length AA (durable-majority pipes)
+uniform float uDensityCap; // zoom-adaptive saturation count for thin count-path (median→1)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
+in float vStippleAlt;
+in float vHit;
 out vec4 outColor;
 
 float sdRoundBox(vec2 p, vec2 halfSize, float r) {
@@ -131,16 +173,36 @@ void main() {
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
   float rrShape = clamp(0.5 - dist, 0.0, 1.0);
-  // for wide events horizontal event coverage equals to round-rect-coverage on edges 
-  // for very thin events round-rect-coverage provide brighter inaccurate results
-  // using min
-  float cov = min(hCoverage, rrShape);
+  // Per-pipe metric (uUseCountMetric): durable-majority pipes use length AA; tick-majority /
+  // tie pipes use count-hit so dense zero-width interiors accumulate by event count. Count hits
+  // when hCoverage > 0 or the event center lies in this device column (L≈R still paints).
+  // A hit is a full stipple unit: the zero-width SDF is ~0 and would drop the 1 px quad.
+  // Zebra only for non-extended hits (rawW < 1): isolates that thin-extend to ≥1 device px stay
+  // full bright (durable parity); dense pack interiors use pan-stable vStippleAlt / uDensityCap
+  // so stacked additive hits approach full when N ≈ zoom-adaptive median cap.
+  // Same-x float32 stacks are one quad (vHit); clamp so a late-trace clump cannot add past 1.
+  float cov;
+  if (uUseCountMetric < 0.5) {
+    cov = min(hCoverage, rrShape);
+  } else {
+    float center = (l + r) * 0.5;
+    bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) <= 0.5;
+    if (hit) {
+      // Extended isolates: full bright. Muted src-over base: full cov (even gray, no /cap).
+      // Resting additive thin: stack * stipple / zoom-adaptive cap, clamped to 1.
+      cov = rawW >= 1.0 || uSrcOver > 0.5
+        ? 1.0
+        : min(1.0, vHit * vStippleAlt / max(uDensityCap, 1.0));
+    } else {
+      cov = 0.0;
+    }
+  }
   // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
   // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage
   // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars)
-  // alpha carries cov for premultiplied source-over so the exact fill color lands without
-  // adding onto the lane background beneath it.
-  outColor = vec4(uColor.xyz * cov, mix(1.0, cov, uSrcOver));
+  // alpha is uColor.a * cov. uColor.a is the search / collapse dim (Canvas density dims stay
+  // on the 2D path; WebGL has no per-quad density attribute).
+  outColor = vec4(uColor.xyz * cov, mix(1.0, uColor.a * cov, uSrcOver));
 }
 `;
 

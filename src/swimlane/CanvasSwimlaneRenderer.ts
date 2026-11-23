@@ -26,6 +26,7 @@ import {
   collapseFoldsFromLayout,
   EMPTY_LAYOUT,
   eventPaintRect,
+  snapEventRect,
   IDLE_COLLAPSE,
   sameCollapseAnim,
   LANE_FILL,
@@ -48,6 +49,11 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_LABEL_COLOR,
+  assignTickDensityDims,
+  binTicksByCssColumn,
+  buildTickDensityCap,
+  sampleTickDensityCap,
+  type TickDensityCap,
   type CollapseAnimState,
   type CollapseTransform,
   type LaidOutEvent,
@@ -554,6 +560,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private paintSummaries: readonly LaidOutEvent[] = [];
   /** Skip per-link Canvas strokes while lane-scroll is easing (fills and labels still paint). */
   private liveScroll = false;
+  /** Per-lane density cap from setModel. Render only log-lerps it (PR-RENDER-064). */
+  private laneDensityCaps: (TickDensityCap | null)[] = [];
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -582,7 +590,27 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.collapse = IDLE_COLLAPSE;
     this.hitLayout = this.baseLayout;
     this.paintSummaries = [];
+    this.rebuildTickDensityCaps();
     this.refreshDepCache();
+  }
+
+  /** Occupied-column median and median gap. Fixed until the next setModel. */
+  private rebuildTickDensityCaps(): void {
+    this.laneDensityCaps = this.baseLayout.lanes.map((_, i) => {
+      const laneEvts = this.baseLayout.eventsByLane[i] ?? [];
+      const times: number[] = [];
+      let tickMin = Infinity;
+      let tickMax = -Infinity;
+      for (const item of laneEvts) {
+        if (item.summary || item.event.duration !== 0) continue;
+        const t = item.event.startTime;
+        times.push(t);
+        if (t < tickMin) tickMin = t;
+        if (t > tickMax) tickMax = t;
+      }
+      if (times.length === 0 || !Number.isFinite(tickMin) || !Number.isFinite(tickMax)) return null;
+      return buildTickDensityCap(times, tickMin, tickMax);
+    });
   }
 
   setCollapsedIds(ids: readonly string[]): void {
@@ -781,6 +809,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       fill: string;
     }[] = [];
 
+    const widthCss = this.width / Math.max(dpr, Number.EPSILON);
+
     for (let i = 0; i < this.layout.lanes.length; i++) {
       const lane = this.layout.lanes[i]!;
       if (lane.counter) continue;
@@ -793,12 +823,62 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         this.view.endTime,
         this.layout.maxLeafDuration,
       );
+
+      // Per sub-row: full-height CSS-column density marks for duration-0 ticks (PR-RENDER-066).
+      // Search and selection keep ticks discrete so dim / mute stay per event.
+      const densityRowIds = new Set<number>();
+      if (!hasSearch && !hasSelection && !hasMulti) {
+        // Zoom-adaptive saturation from the setModel cap (not a per-paint gap sort).
+        const cap = this.laneDensityCaps[i];
+        const densCap = cap != null ? sampleTickDensityCap(cap, span / widthCss) : 1;
+        const ticksByRow = new Map<number, number[]>();
+        for (let j = lo; j < hi; j++) {
+          const item = laneEvts[j]!;
+          if (item.summary || item.event.duration !== 0) continue;
+          const list = ticksByRow.get(item.rowIndex) ?? [];
+          list.push(item.event.startTime);
+          ticksByRow.set(item.rowIndex, list);
+        }
+        for (const [rowIndex, times] of ticksByRow) {
+          const marks = assignTickDensityDims(
+            binTicksByCssColumn(times, this.view.startTime, this.view.endTime, widthCss),
+            densCap,
+          );
+          if (marks.length === 0) continue;
+          densityRowIds.add(rowIndex);
+          const sample = laneEvts.find((e) => !e.summary && e.rowIndex === rowIndex)!;
+          const metrics = eventBlockMetrics(
+            collapseShiftY(sample.y, this.collapse),
+            this.view.scrollY,
+          );
+          const bandY = metrics.y * dpr;
+          const bandH = metrics.h * dpr;
+          if (bandY + bandH < 0 || bandY > this.height) continue;
+          const laneA = collapseAlpha(sample.y, this.collapse);
+          const fill = eventFill(sample.color, 'normal');
+          // Full CSS column, no event-gap inset: a 1px column would shift or dash.
+          for (const m of marks) {
+            const x = ((m.t0 - this.view.startTime) / span) * this.width;
+            const w = Math.max(1, ((m.t1 - m.t0) / span) * this.width);
+            const fr = { ...snapEventRect(x, bandY, w, bandH), r: 0 };
+            ctx.globalAlpha = m.dim * laneA;
+            ctx.fillStyle = fill;
+            roundRectPath(ctx, fr.x, fr.y, fr.w, fr.h, fr.r);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+
       for (let j = lo; j < hi; j++) {
         const item = laneEvts[j]!;
         const ev = item.event;
         if (ev.startTime + ev.duration < this.view.startTime || ev.startTime > this.view.endTime) {
           continue;
         }
+        // Density marks already painted this row's duration-0 ticks.
+        if (!item.summary && ev.duration === 0 && densityRowIds.has(item.rowIndex)) continue;
+
         const x = ((ev.startTime - this.view.startTime) / span) * this.width;
         const w = Math.max(2, (ev.duration / span) * this.width);
         const metrics = eventBlockMetrics(collapseShiftY(item.y, this.collapse), this.view.scrollY);
@@ -918,6 +998,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.collapsedIds = [];
     this.summaryCache.clear();
     this.paintSummaries = [];
+    this.laneDensityCaps = [];
     this.neighborIds = new Set();
     this.multiIds = new Set();
     this.multiIdsList = null;

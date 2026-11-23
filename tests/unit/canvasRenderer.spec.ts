@@ -4,6 +4,7 @@ import {
   contentHeightFromLayout,
   contentHeightFromModel,
   encodeIntervalPair,
+  nextFloat32Up,
   EVENT_MARGIN,
   eventEmphasis,
   isKeepBright,
@@ -29,12 +30,32 @@ import {
   summaryFolderId,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  TICK_ALTERNATE_FACTOR,
+  TICK_ALTERNATE_MAX_GAP,
+  TICK_DENSITY_MIN_DIM,
+  assignTickDensityDims,
+  binTicksByCssColumn,
+  buildTickDensityCap,
+  sampleTickDensityCap,
+  tickCountSimilarity,
+  tickDensityDim,
 } from '../../src/swimlane/layout';
 import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
-import { compositeLabelBackdrop, WebGlSwimlaneRenderer } from '../../src/swimlane/WebGlSwimlaneRenderer';
-import { maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from '../../src/swimlane/shaders';
+import {
+  collapseSameXTicks,
+  compositeLabelBackdrop,
+  laneUsesCountMetric,
+  WebGlSwimlaneRenderer,
+} from '../../src/swimlane/WebGlSwimlaneRenderer';
+import {
+  maxRR,
+  minRR,
+  rrSwitchThreshold,
+  rrToDevicePx,
+  thinEventAlternateFactor,
+} from '../../src/swimlane/shaders';
 import type { SwimEvent, SwimlaneModel, SwimlaneRenderer } from '../../src/domain/types';
 
 /** Brace-match a class method so a reorder cannot yield an empty slice that vacuously passes. */
@@ -1370,6 +1391,302 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(
       /createChunk\(gl, pairs, off, count, \(i\) => indices\[off \+ i\]!\)/,
     );
+  });
+
+  it('PR-RENDER-064: duration-0 events share the additive interval mesh (#205)', async () => {
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).not.toMatch(/partitionIntervalTickIndices/);
+    expect(webglSrc).not.toMatch(/tickChunks/);
+    expect(webglSrc).not.toMatch(/drawTickChunks/);
+    expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
+    // One createChunksFromPairs path for all events (including duration-0).
+    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs, collapsed\?\.hits\)/);
+    expect(webglSrc).toMatch(/uUseCountMetric/);
+    expect(webglSrc).toMatch(/laneUsesCountMetric/);
+    // Summary + muted count-metric: source-over. Resting count-metric: additive /cap.
+    expect(webglSrc).toMatch(
+      /srcOverBase = !!\(meshes\.summary \|\| \(meshes\.useCountMetric && mute\)\)/,
+    );
+    expect(webglSrc).toMatch(/sampleTickDensityCap/);
+    expect(webglSrc).toMatch(/buildTickDensityCap/);
+    expect(webglSrc).toMatch(/dtDevice/);
+
+    // Per-pipe metric: durable-majority → length; tick-majority / tie → count.
+    const durable = (n: number, d = 10) =>
+      Array.from({ length: n }, () => ({
+        event: { duration: d },
+        summary: false as const,
+      }));
+    const ticks = (n: number) =>
+      Array.from({ length: n }, () => ({
+        event: { duration: 0 },
+        summary: false as const,
+      }));
+    expect(laneUsesCountMetric([...durable(3), ...ticks(1)])).toBe(false);
+    expect(laneUsesCountMetric([...durable(1), ...ticks(3)])).toBe(true);
+    expect(laneUsesCountMetric([...durable(2), ...ticks(2)])).toBe(true);
+    expect(laneUsesCountMetric(ticks(1))).toBe(true);
+    expect(laneUsesCountMetric(durable(1))).toBe(false);
+    // Summary bars do not tip the tally.
+    expect(
+      laneUsesCountMetric([
+        ...durable(2),
+        ...ticks(1),
+        { event: { duration: 0 }, summary: true },
+        { event: { duration: 0 }, summary: true },
+      ]),
+    ).toBe(false);
+
+    const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
+    expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
+    expect(shaderSrc).not.toMatch(/\baDim\b/);
+    expect(shaderSrc).not.toMatch(/\bvDim\b/);
+    // Per-pipe count-hit (center-in-column); zebra only for non-extended hits.
+    expect(shaderSrc).toMatch(/uUseCountMetric/);
+    expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
+    expect(shaderSrc).toMatch(/uDensityCap/);
+    expect(shaderSrc).toMatch(/min\(1\.0, vHit \* vStippleAlt \/ max\(uDensityCap, 1\.0\)\)/);
+    expect(shaderSrc).toMatch(/in float aHit/);
+    expect(webglSrc).toMatch(/bindAttribLocation\(program, 3, 'aHit'\)/);
+    expect(webglSrc).toMatch(/vertexAttrib1f\(3, 1\)/);
+    expect(webglSrc).toMatch(/collapseSameXTicks/);
+    expect(shaderSrc).toMatch(/rawW >= 1\.0 \|\| uSrcOver > 0\.5/);
+    // Pan-stable CSS-px stripes (not screen x) — same event keeps odd/even under pan;
+    // period ≈ round(dpr) keeps zebra readable when every device column is filled.
+    expect(shaderSrc).toMatch(/vStippleAlt/);
+    expect(shaderSrc).toMatch(/uStipplePeriod/);
+    expect(shaderSrc).toMatch(/floor\(\(\(lX \+ rX\) \* 0\.5\) \/ dt\)/);
+    expect(shaderSrc).toMatch(/floor\(worldCol \/ max\(uStipplePeriod, 1\.0\)\)/);
+    expect(shaderSrc).not.toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
+    // Sub-pixel ticks: continuous center±0.5 (no floor/ceil thrash under fractional pan).
+    expect(shaderSrc).toMatch(/if \(extW < 1\.0\)/);
+    expect(shaderSrc).toMatch(/screenL = c - 0\.5/);
+    expect(shaderSrc).toMatch(/screenR = c \+ 0\.5/);
+    expect(shaderSrc).toMatch(/if \(screenR <= screenL\) screenR = screenL \+ 1\.0/);
+    expect(webglSrc).toMatch(/uStipplePeriod/);
+    expect(webglSrc).toMatch(/Math\.max\(1, Math\.round\(dpr\)\)/);
+    expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
+    expect(thinEventAlternateFactor).toBe(0.4);
+
+    // 2-point zoom-adaptive density cap: wide median ↔ cap=1 at median gap.
+    // ~10 events per ref column at W=1024 over [0,100] (gap 0.01, dtWide≈0.0977).
+    const dense = Array.from({ length: 10_001 }, (_, i) => i * 0.01);
+    const densCap = buildTickDensityCap(dense, 0, 100);
+    expect(densCap.dtOne).toBeCloseTo(0.01, 5);
+    expect(densCap.capWide).toBeGreaterThan(1);
+    expect(sampleTickDensityCap(densCap, densCap.dtWide)).toBeCloseTo(densCap.capWide, 5);
+    expect(sampleTickDensityCap(densCap, densCap.dtOne)).toBe(1);
+    const midDt = Math.exp(0.5 * (Math.log(densCap.dtWide) + Math.log(densCap.dtOne)));
+    const midCap = sampleTickDensityCap(densCap, midDt);
+    expect(midCap).toBeGreaterThan(1);
+    expect(midCap).toBeLessThan(densCap.capWide);
+    // Wider than the 1024-column anchor: cap keeps growing (a frozen capWide clips white).
+    const wideDt = densCap.dtWide * 4;
+    const wideCap = sampleTickDensityCap(densCap, wideDt);
+    const logWide = Math.log(densCap.dtWide);
+    const logOne = Math.log(densCap.dtOne);
+    const wideT = (logWide - Math.log(wideDt)) / (logWide - logOne);
+    expect(wideCap).toBeCloseTo(Math.exp((1 - wideT) * Math.log(densCap.capWide)), 5);
+    expect(wideCap).toBeGreaterThan(densCap.capWide * 2);
+    expect(tickDensityDim(8, 1)).toBe(1);
+    expect(tickDensityDim(8, 2)).toBe(1);
+  });
+
+  it('PR-RENDER-065: duration-0 ticks do not merge into continuous time coverage (#205)', async () => {
+    // Sub-ns ICACHE spacing (~0.606ns). A ≥1ns encode pair overlaps neighbors into one slab.
+    const spacing = 0.606;
+    const starts = Array.from({ length: 40 }, (_, i) => 4300 + i * spacing);
+    const pairs = starts.map((t) => encodeIntervalPair(t, 0, 0));
+    for (const [a, b] of pairs) {
+      expect(b).toBeGreaterThan(a);
+      // Next-float32 only — nowhere near 1ns, so neighbors stay disjoint in time.
+      expect(b - a).toBeLessThan(spacing);
+      expect(b).toBe(nextFloat32Up(a));
+    }
+    // Encoded union must not cover the whole cluster (would paint as one gray bar).
+    let covered = 0;
+    let cursor = -Infinity;
+    for (const [a, b] of pairs) {
+      if (b <= cursor) continue;
+      covered += b - Math.max(a, cursor);
+      cursor = b;
+    }
+    const span = starts[starts.length - 1]! - starts[0]!;
+    expect(covered).toBeLessThan(span * 0.05);
+
+    // From 2^23 ns the float32 ulp is ≥1 ns. Next-up pairs would overlap
+    // 0.606 ns ticks into a slab; those pairs stay degenerate instead.
+    const far = Array.from({ length: 40 }, (_, i) => 10_000_000 + i * spacing);
+    for (const t of far) {
+      const [a, b] = encodeIntervalPair(t, 0, 0);
+      expect(b).toBe(a);
+    }
+
+    // Positive-duration collapse path is unchanged (≥1ns nudge when float32 merges ends).
+    const base = 1_000_000_000;
+    const [, posEnd] = encodeIntervalPair(base + 100, 1, base);
+    const [posStart] = encodeIntervalPair(base + 100, 1, base);
+    expect(posEnd - posStart).toBeGreaterThanOrEqual(1);
+
+    // Same encoded x collapses to one quad; the hit count is the stack. Distinct x stays 1.
+    const farPairs = far.flatMap((t) => encodeIntervalPair(t, 0, 0));
+    const stacked = collapseSameXTicks(farPairs);
+    expect(stacked.hits.reduce((sum, hit) => sum + hit, 0)).toBe(far.length);
+    expect(stacked.pairs.length / 2).toBeLessThan(far.length);
+    expect(stacked.hits.some((hit) => hit > 1)).toBe(true);
+    const nearPairs = starts.flatMap((t) => encodeIntervalPair(t, 0, 0));
+    const distinct = collapseSameXTicks(nearPairs);
+    expect(distinct.pairs).toEqual(nearPairs);
+    expect(distinct.hits.every((hit) => hit === 1)).toBe(true);
+    expect(collapseSameXTicks([0, 10, 10, 20])).toEqual({ pairs: [0, 10, 10, 20], hits: [1, 1] });
+    expect(collapseSameXTicks([5, 5, 5, 5, 6, 6])).toEqual({ pairs: [5, 5, 6, 6], hits: [2, 1] });
+  });
+
+  it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
+    expect(TICK_ALTERNATE_MAX_GAP).toBe(1);
+    // Multi-hit curve: count 1 → minDim (assign maps count 1 → dim 1); cap → 1.
+    expect(tickDensityDim(1)).toBeCloseTo(TICK_DENSITY_MIN_DIM, 5);
+    expect(tickDensityDim(2)).toBeGreaterThan(TICK_DENSITY_MIN_DIM);
+    expect(tickDensityDim(2)).toBeLessThan(1);
+    expect(tickDensityDim(16)).toBeCloseTo(1, 5);
+    expect(tickDensityDim(8)).toBeGreaterThan(tickDensityDim(4));
+    expect(tickDensityDim(32)).toBe(1);
+
+    expect(tickCountSimilarity(9, 9)).toBeCloseTo(1, 5);
+    expect(tickCountSimilarity(9, 8)).toBeGreaterThan(0.7);
+    expect(tickCountSimilarity(9, 2)).toBeLessThan(0.15);
+
+    // Four ticks in two CSS columns of a 2px-wide view (viewStart=0 → world cols 0,1).
+    const bins = binTicksByCssColumn([0.1, 0.2, 0.6, 0.7], 0, 1, 2);
+    expect(bins).toHaveLength(2);
+    expect(bins[0]).toMatchObject({ col: 0, count: 2, t0: 0, t1: 0.5 });
+    expect(bins[1]).toMatchObject({ col: 1, count: 2, t0: 0.5, t1: 1 });
+    // viewEnd is inclusive and lands in the last overlapping column, not a
+    // column that starts at viewEnd (that quad paints at x == width).
+    const endTick = binTicksByCssColumn([10, 100], 0, 100, 10);
+    expect(endTick.reduce((sum, bin) => sum + bin.count, 0)).toBe(2);
+    expect(endTick[endTick.length - 1]).toMatchObject({ col: 9, t0: 90, t1: 100 });
+    expect(binTicksByCssColumn([100], 0, 100, 10)).toEqual([
+      expect.objectContaining({ col: 9, count: 1, t0: 90, t1: 100 }),
+    ]);
+    expect(binTicksByCssColumn([100.1], 0, 100, 10)).toEqual([]);
+
+    // Same dt + same in-window ticks → identical bins under horizontal pan (PR-RENDER-066).
+    const panTimes = [5.05, 5.15, 5.25, 5.85, 5.95];
+    const panA = binTicksByCssColumn(panTimes, 5.0, 6.0, 10);
+    const panB = binTicksByCssColumn(panTimes, 5.03, 6.03, 10);
+    expect(panA).toEqual(panB);
+    expect(assignTickDensityDims(panA)).toEqual(assignTickDensityDims(panB));
+
+    // Per-column dim + alternate (no ink budget washout).
+    const equalPlateau = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 1, count: 9, t0: 1, t1: 2 },
+      { col: 2, count: 9, t0: 2, t1: 3 },
+    ]);
+    const base9 = tickDensityDim(9);
+    expect(equalPlateau[0]!.dim).toBeCloseTo(base9, 5);
+    expect(equalPlateau[1]!.dim).toBeCloseTo(base9 * TICK_ALTERNATE_FACTOR, 5);
+    expect(equalPlateau[2]!.dim).toBeCloseTo(base9, 5);
+
+    const nearCounts = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 1, count: 8, t0: 1, t1: 2 },
+    ]);
+    const base8 = tickDensityDim(8);
+    const sim98 = tickCountSimilarity(8, 9);
+    expect(nearCounts[0]!.dim).toBeCloseTo(base9, 5);
+    expect(nearCounts[1]!.dim).toBeCloseTo(base8 * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim98), 5);
+
+    const farCounts = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 1, count: 2, t0: 1, t1: 2 },
+    ]);
+    const base2 = tickDensityDim(2);
+    const sim92 = tickCountSimilarity(2, 9);
+    expect(farCounts[0]!.dim).toBeCloseTo(base9, 5);
+    expect(farCounts[1]!.dim).toBeCloseTo(base2 * (1 - (1 - TICK_ALTERNATE_FACTOR) * sim92), 5);
+
+    // Gap of 1 empty col still joins the alternate group.
+    const nearGap = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 2, count: 9, t0: 2, t1: 3 },
+    ]);
+    expect(nearGap[0]!.dim).toBeCloseTo(base9, 5);
+    expect(nearGap[1]!.dim).toBeCloseTo(base9 * TICK_ALTERNATE_FACTOR, 5);
+
+    // Gap of 2 empty cols resets — both stay at base (no striping).
+    const farGap = assignTickDensityDims([
+      { col: 0, count: 9, t0: 0, t1: 1 },
+      { col: 3, count: 9, t0: 3, t1: 4 },
+    ]);
+    expect(farGap[0]!.dim).toBeCloseTo(base9, 5);
+    expect(farGap[1]!.dim).toBeCloseTo(base9, 5);
+
+    // Adjacent / gap-1 singles stipple at full base brightness (visible, not 1/N).
+    const adjacentSingles = assignTickDensityDims([
+      { col: 0, count: 1, t0: 0, t1: 1 },
+      { col: 1, count: 1, t0: 1, t1: 2 },
+      { col: 2, count: 1, t0: 2, t1: 3 },
+    ]);
+    expect(adjacentSingles[0]!.dim).toBe(1);
+    expect(adjacentSingles[1]!.dim).toBeCloseTo(TICK_ALTERNATE_FACTOR, 5);
+    expect(adjacentSingles[2]!.dim).toBe(1);
+
+    const gap1Singles = assignTickDensityDims([
+      { col: 0, count: 1, t0: 0, t1: 1 },
+      { col: 2, count: 1, t0: 2, t1: 3 },
+    ]);
+    expect(gap1Singles[0]!.dim).toBe(1);
+    expect(gap1Singles[1]!.dim).toBeCloseTo(TICK_ALTERNATE_FACTOR, 5);
+
+    const lone = assignTickDensityDims([{ col: 5, count: 1, t0: 5, t1: 6 }]);
+    expect(lone[0]!.dim).toBe(1);
+
+    // Wide plateau stays bright (no ink-budget washout).
+    const wide = assignTickDensityDims(
+      Array.from({ length: 16 }, (_, i) => ({ col: i, count: 1, t0: i, t1: i + 1 })),
+    );
+    expect(wide.every((m) => m.dim >= TICK_ALTERNATE_FACTOR - 1e-6)).toBe(true);
+    expect(wide.filter((_, i) => i % 2 === 0).every((m) => m.dim === 1)).toBe(true);
+
+    const denseLeft = Array.from({ length: 8 }, (_, i) => i * 0.05);
+    const sparseRight = [0.9];
+    const marks = assignTickDensityDims(
+      binTicksByCssColumn([...denseLeft, ...sparseRight], 0, 1, 5),
+    );
+    expect(marks.length).toBeGreaterThan(0);
+    expect(marks.some((m) => m.count >= 2)).toBe(true);
+    expect(marks.some((m) => m.count === 1 && m.dim === 1)).toBe(true);
+
+    // WebGL: single additive mesh (no tickChunks / density VBO rebuild).
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/createChunksFromPairs\(gl, pairs, collapsed\?\.hits\)/);
+    expect(webglSrc).not.toMatch(/tickChunks/);
+    expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
+    expect(webglSrc).not.toMatch(/createDensityChunksFromMarks/);
+    expect(webglSrc).not.toMatch(/assignTickDensityDims/);
+    expect(webglSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
+    expect(webglSrc).not.toMatch(/tickDensityChunks/);
+    expect(webglSrc).not.toMatch(/partitionTickLodByRuns/);
+
+    const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(canvasSrc).toMatch(/assignTickDensityDims/);
+    expect(canvasSrc).toMatch(/buildTickDensityCap/);
+    expect(canvasSrc).toMatch(/sampleTickDensityCap/);
+    const canvasClass = canvasSrc.slice(canvasSrc.indexOf('export class CanvasSwimlaneRenderer'));
+    expect(classMethodBody(canvasClass, 'setModel')).toMatch(/rebuildTickDensityCaps/);
+    expect(classMethodBody(canvasClass, 'rebuildTickDensityCaps')).toMatch(/buildTickDensityCap/);
+    expect(classMethodBody(canvasClass, 'render')).not.toMatch(/buildTickDensityCap/);
+    expect(canvasSrc).toMatch(/!hasSearch && !hasSelection && !hasMulti/);
+    const densityMarks = canvasSrc.match(/for \(const m of marks\) \{[\s\S]*?\n {10}\}/)?.[0];
+    expect(densityMarks).toMatch(/snapEventRect/);
+    expect(densityMarks).not.toMatch(/eventPaintRect/);
+    expect(canvasSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
+    expect(canvasSrc).not.toMatch(/partitionTickLodByRuns/);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {

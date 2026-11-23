@@ -50,6 +50,9 @@ const title = computed(() => {
   }
   return name;
 });
+
+/** Instant ticks (`duration === 0`) show a bare formatted time instead of Start/Dur/End. */
+const isInstantTick = computed(() => props.event.duration === 0);
 </script>
 
 <template>
@@ -68,15 +71,22 @@ const title = computed(() => {
     >
       {{ event.laneName }}
     </div>
-    <div>
-      {{ t('start', locale) }}:
-      {{ formatDisplayTimeAuto(event.startTime, timeOrigin, startEndOpts) }}
-    </div>
-    <div>{{ t('dur', locale) }}: {{ formatTimeAuto(event.duration, durationOpts) }}</div>
-    <div>
-      {{ t('end', locale) }}:
-      {{ formatDisplayTimeAuto(event.startTime + event.duration, timeOrigin, startEndOpts) }}
-    </div>
+    <template v-if="isInstantTick">
+      <div data-testid="event-tooltip-timestamp">
+        {{ formatDisplayTimeAuto(event.startTime, timeOrigin, startEndOpts) }}
+      </div>
+    </template>
+    <template v-else>
+      <div>
+        {{ t('start', locale) }}:
+        {{ formatDisplayTimeAuto(event.startTime, timeOrigin, startEndOpts) }}
+      </div>
+      <div>{{ t('dur', locale) }}: {{ formatTimeAuto(event.duration, durationOpts) }}</div>
+      <div>
+        {{ t('end', locale) }}:
+        {{ formatDisplayTimeAuto(event.startTime + event.duration, timeOrigin, startEndOpts) }}
+      </div>
+    </template>
   </div>
 </template>
 
