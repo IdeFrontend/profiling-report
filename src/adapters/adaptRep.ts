@@ -580,7 +580,7 @@ function summaryFromSummaryJsonl(payload?: Uint8Array): SummaryMetrics {
     const text = (v: unknown): string | undefined => {
       if (v == null) return undefined;
       const s = String(v).trim();
-      return s === '' ? undefined : s;
+      return isAbsentValue(s) ? undefined : s;
     };
     const num = finiteJsonNumber;
 

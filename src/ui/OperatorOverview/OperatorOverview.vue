@@ -256,7 +256,10 @@ watch(
     sortKey.value = null;
     sortDirection.value = null;
     closeFilter();
-    selectedRow.value = rows[0] != null ? toRaw(rows[0]) : null;
+    const id = props.selectedOperatorId;
+    const match = id == null ? undefined : rows.find((row) => row.sourceOperatorId === id);
+    const next = match ?? rows[0];
+    selectedRow.value = next != null ? toRaw(next) : null;
   },
 );
 
@@ -310,13 +313,15 @@ function openOperatorTimeline(row: ReportOperatorRow) {
   emit('openTimeline');
 }
 
-/** Repoint the highlighted row when the host changes packs. */
+/** Repoint the highlighted row when the host changes packs. A filtered-out pack clears the highlight. */
 watch(
   () => props.selectedOperatorId,
   (id) => {
     if (id == null) return;
     const match = props.rows.find((row) => row.sourceOperatorId === id);
-    if (match != null) selectedRow.value = toRaw(match);
+    if (match == null) return;
+    const visible = visibleRows.value.some((row) => toRaw(row) === toRaw(match));
+    selectedRow.value = visible ? toRaw(match) : null;
   },
   { immediate: true },
 );
@@ -324,6 +329,17 @@ watch(
 /** Roving tabindex: the selected row is the tab stop, else the first visible row. */
 function isTabStop(row: ReportOperatorRow, index: number): boolean {
   return isSelectedRow(row) || (selectedRow.value == null && index === 0);
+}
+
+/**
+ * Enter/Space select the row. The OpName button owns those keys itself, so a
+ * press that starts there must keep the browser's button activation.
+ */
+function onRowActivate(event: KeyboardEvent, row: ReportOperatorRow) {
+  const target = event.target;
+  if (target instanceof Element && target.closest('.pr-operator-overview__op-name')) return;
+  event.preventDefault();
+  selectRow(row);
 }
 
 /** Arrow/Home/End move the selection and keep DOM focus on the active row. */
@@ -492,8 +508,8 @@ function duration(value: number | undefined): string {
             role="row"
             :tabindex="isTabStop(row, index) ? 0 : -1"
             @click="selectRow(row)"
-            @keydown.enter.prevent="selectRow(row)"
-            @keydown.space.prevent="selectRow(row)"
+            @keydown.enter="onRowActivate($event, row)"
+            @keydown.space="onRowActivate($event, row)"
           >
             <td role="gridcell">
               {{ index + 1 }}

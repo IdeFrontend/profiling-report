@@ -1092,6 +1092,22 @@ describe('PR-VM: report view-models (interim)', () => {
         mixBlockDim: 4,
       },
     ]);
+
+    const naIdentity = adaptPayloads({
+      'Summary.jsonl': encoder.encode(
+        JSON.stringify({
+          category: 'OpInfoSummary',
+          'Op Name': 'NA',
+          'Op Type': 'NA',
+          'Task Duration(us)': 0.5,
+          Pid: 'NA',
+        }) + '\n',
+      ),
+    });
+    expect(naIdentity.reportModel.summary.opName).toBeUndefined();
+    expect(naIdentity.reportModel.summary.opType).toBeUndefined();
+    expect(naIdentity.reportModel.summary.pid).toBeUndefined();
+    expect(naIdentity.reportModel.operatorRows).toEqual([{ taskDurationUs: 0.5 }]);
   });
 
   it('PR-VM-028: NA is absent, so the OpBasicInfo alias cascade falls through', () => {

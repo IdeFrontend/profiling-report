@@ -415,7 +415,20 @@ describe('OperatorOverview', () => {
     expect(wrapper.findAll('tbody tr')[0].attributes('aria-selected')).toBe('true');
     expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('false');
     expect(document.body.querySelector('.pr-operator-overview__filter-popover')).toBeNull();
+
+    const kept = mount(OperatorOverview, {
+      props: { rows, selectedOperatorId: 'op2.npu.rep' },
+    });
+    const swapped: ReportOperatorRow[] = [
+      { ...rows[0], opName: 'first_pack' },
+      { ...rows[1], opName: 'kept_pack' },
+    ];
+    await kept.setProps({ rows: swapped });
+    expect(kept.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
+    expect(kept.findAll('tbody tr')[1].text()).toContain('kept_pack');
+    expect(kept.findAll('tbody tr')[0].attributes('aria-selected')).toBe('false');
     wrapper.unmount();
+    kept.unmount();
   });
 
   it('PR-OVW-022: column widths total 100% with or without MixBlockDim', () => {
@@ -592,6 +605,18 @@ describe('OperatorOverview', () => {
     expect(wrapper.emitted('openTimeline')).toHaveLength(1);
     expect(wrapper.emitted('update:selectedOperatorId')).toEqual([['op2.npu.rep']]);
     expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
+
+    // Space/Enter on the name button stay with the button; the row does not cancel them.
+    for (const key of [' ', 'Enter']) {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      buttons[1].element.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+    const rowSpace = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    wrapper.findAll('tbody tr')[0].element.dispatchEvent(rowSpace);
+    expect(rowSpace.defaultPrevented).toBe(true);
+    await nextTick();
+    expect(wrapper.findAll('tbody tr')[0].attributes('aria-selected')).toBe('true');
   });
 
   it('PR-OVW-031: selectedOperatorId highlights the first row of that pack', async () => {
@@ -606,6 +631,26 @@ describe('OperatorOverview', () => {
     // Unknown pack leaves the highlight untouched.
     await wrapper.setProps({ selectedOperatorId: 'missing.npu.rep' });
     expect(wrapper.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
+
+    // A pack hidden by the filter is not highlighted, and 执行优化 does not emit it.
+    await wrapper.setProps({ selectedOperatorId: 'op2.npu.rep', locale: 'zh-CN' });
+    await wrapper.findAll('thead th')[1].find('button').trigger('click');
+    const popover = new DOMWrapper(
+      document.body.querySelector('.pr-operator-overview__filter-popover') as HTMLElement,
+    );
+    await popover.findAll('input[type="checkbox"]')[1].setValue(true);
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1);
+    expect(wrapper.findAll('tbody tr')[0].text()).toContain('gather_2d_custom');
+    await wrapper.setProps({ selectedOperatorId: 'op1.npu.rep' });
+    expect(wrapper.find('[aria-selected="true"]').exists()).toBe(true);
+    await wrapper.setProps({ selectedOperatorId: 'op2.npu.rep' });
+    expect(wrapper.find('[aria-selected="true"]').exists()).toBe(false);
+    expect(wrapper.find('tbody tr').attributes('tabindex')).toBe('0');
+    const optimize = wrapper.findAll('button').find((button) => button.text() === '执行优化');
+    expect(optimize?.attributes('disabled')).toBeDefined();
+    await optimize!.trigger('click');
+    expect(wrapper.emitted('optimize')).toBeUndefined();
+    wrapper.unmount();
   });
 
   it('PR-OVW-032: mount with selectedOperatorId highlights that pack, not the first row', () => {
