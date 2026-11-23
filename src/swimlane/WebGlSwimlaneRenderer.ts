@@ -831,9 +831,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           gl.uniform1f(swim.uUseCountMetric, meshes.useCountMetric ? 1 : 0);
         }
 
-        // Summary bars composite source-over so their exact fill lands without adding onto
-        // the lane background (additive would lighten #2c2c2c to #4b4b4b over #1f1f1f).
-        if (meshes.summary) {
+        // Summary bars and count-metric tick pipes use source-over: additive would stack the
+        // same RGB N times toward white (and mute toward white). Durable length-AA stays additive.
+        const srcOverBase = !!(meshes.summary || meshes.useCountMetric);
+        if (srcOverBase) {
           gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
         }
@@ -858,18 +859,22 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           drawChunks(row.chunks, baseRgb, 1);
           if (row.brightChunks || row.liftChunks) {
             // Src-over so keep-bright fills replace the muted bar (additive would double).
-            gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-            if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
+            if (!srcOverBase) {
+              gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+              if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
+            }
             if (row.brightChunks) drawChunks(row.brightChunks, meshes.color, 1);
             if (row.liftChunks) {
               drawChunks(row.liftChunks, hexToRgb(eventFill(lane.color, 'selected')), 1);
             }
-            gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
-            if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
+            if (!srcOverBase) {
+              gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
+              if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
+            }
           }
         }
 
-        if (meshes.summary) {
+        if (srcOverBase) {
           gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
           if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
         }

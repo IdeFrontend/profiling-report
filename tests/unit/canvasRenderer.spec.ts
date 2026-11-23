@@ -1401,6 +1401,10 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
     expect(webglSrc).toMatch(/uUseCountMetric/);
     expect(webglSrc).toMatch(/laneUsesCountMetric/);
+    // Count-metric bases composite source-over (resting + mute) — not additive white.
+    expect(webglSrc).toMatch(
+      /srcOverBase = !!\(meshes\.summary \|\| meshes\.useCountMetric\)/,
+    );
 
     // Per-pipe metric: durable-majority → length; tick-majority / tie → count.
     const durable = (n: number, d = 10) =>
