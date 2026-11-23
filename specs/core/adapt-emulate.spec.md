@@ -57,6 +57,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 17. **PR-ASIM-016** — Unit-util `ph:C` → CounterTrack leaf with shipped `Utilization (%)` (no ×100); empty shells omitted.
 18. **PR-ASIM-017** — Queue-util `ph:C` (PUSHQ and other pipes) → CounterTracks with depth auto-Y; empty shells omitted.
 19. **PR-ASIM-018** — Standalone `adaptChromeTrace` merges the same `ph:C` CounterTracks (DATA-57).
+20. **PR-ASIM-019** — `Roofline*.csv` (or `roofline.json` fallback) → `reportModel.roofline` + capability when AnalysisState allows (DATA-57a).
 
 ## Edge Cases
 
@@ -74,9 +75,8 @@ DATA-48 — Product-final ArchDiagramMetrics → Architecture Diagram slot map (
 
 Emulate Source follow-ons (stalls / IPC / richer metrics / tick→ns / SASS label): interim [DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e), [UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a).
 
-19. **PR-ASIM-019** — `Roofline*.csv` (or `roofline.json` fallback) → `reportModel.roofline` + capability when AnalysisState allows (DATA-57a).
-
 ## Changelog
+- **2026-11-23** — PR-ASIM-019 Roofline AC registered (was orphan under Open after stack rebase onto master).
 - **2026-11-20** — DATA-57 generic `ph:C` CounterTracks; PR-ASIM-015…018 (standalone + emulate; multi-arg leaves; memory util one KB-Y chart; no util-specific readers).
 - **2026-11-20** — PR-ASIM-017: queue-util CT counters → swim CounterTracks with depth auto-Y (#206 / DATA-57).
 - **2026-11-20** — PR-ASIM-016: unit-util CT counters → swim CounterTracks (#209 / DATA-57).
