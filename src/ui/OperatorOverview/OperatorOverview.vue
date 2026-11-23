@@ -715,7 +715,6 @@ function duration(value: number | undefined): string {
 
 .pr-operator-overview__table {
   width: 100%;
-  min-width: 720px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;

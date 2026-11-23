@@ -1017,12 +1017,36 @@ describe('PR-VM: report view-models (interim)', () => {
         ['Op Name,Op Type,Task Duration(us)', 'NA,NA,0.5', ', ,0.6'].join('\n'),
       ),
     });
-    // No CSV row yields an identity, so the identity-less CSV rows are not used. With no
-    // Summary.jsonl to fall back to, the CSV duration is dropped too: no table row exists.
-    expect(absentIdentity.reportModel.operatorRows).toBeUndefined();
+    // Blank / NA clears the name cells. The rows and the row-0 duration stay.
+    const nameless = (taskDurationUs: number, opName?: string, opType?: string) => ({
+      opName,
+      opType,
+      taskDurationUs,
+      blockDim: undefined,
+      mixBlockDim: undefined,
+      demangledName: undefined,
+      gridSize: undefined,
+      blockSize: undefined,
+    });
+    expect(absentIdentity.reportModel.operatorRows).toEqual([
+      nameless(0.5),
+      nameless(0.6),
+    ]);
     expect(absentIdentity.reportModel.summary.opName).toBeUndefined();
     expect(absentIdentity.reportModel.summary.opType).toBeUndefined();
-    expect(absentIdentity.reportModel.summary.taskDurationUs).toBeUndefined();
+    expect(absentIdentity.reportModel.summary.taskDurationUs).toBe(0.5);
+
+    const namedAfterNa = adaptPayloads({
+      'OpBasicInfo.csv': encoder.encode(
+        ['Op Name,Op Type,Task Duration(us)', 'NA,NA,9.5', 'gather,vector,1.2'].join('\n'),
+      ),
+    });
+    expect(namedAfterNa.reportModel.summary.opName).toBeUndefined();
+    expect(namedAfterNa.reportModel.summary.taskDurationUs).toBe(9.5);
+    expect(namedAfterNa.reportModel.operatorRows).toEqual([
+      nameless(9.5),
+      nameless(1.2, 'gather', 'vector'),
+    ]);
 
     const single = adaptPayloads({
       'Summary.jsonl': encoder.encode(
@@ -1066,7 +1090,7 @@ describe('PR-VM: report view-models (interim)', () => {
     ]);
   });
 
-  it('PR-VM-028b: an NA-only OpBasicInfo row falls back to the OpInfoSummary identity', () => {
+  it('PR-VM-028b: an NA OpBasicInfo row keeps its duration and takes the OpInfoSummary name', () => {
     const encoder = new TextEncoder();
     const adapted = adaptPayloads({
       'OpBasicInfo.csv': encoder.encode('Op Name,Op Type,Task Duration(us)\nNA,NA,0.5\n'),
@@ -1082,14 +1106,20 @@ describe('PR-VM: report view-models (interim)', () => {
       ),
     });
     expect(adapted.reportModel.summary.opName).toBe('gather_2d_custom');
-    expect(adapted.reportModel.summary.taskDurationUs).toBe(0.73);
+    expect(adapted.reportModel.summary.opType).toBe('vector');
+    expect(adapted.reportModel.summary.taskDurationUs).toBe(0.5);
+    expect(adapted.reportModel.summary.blockDim).toBe(40);
+    expect(adapted.reportModel.summary.mixBlockDim).toBe(4);
     expect(adapted.reportModel.operatorRows).toEqual([
       {
-        opName: 'gather_2d_custom',
-        opType: 'vector',
-        taskDurationUs: 0.73,
-        blockDim: 40,
-        mixBlockDim: 4,
+        opName: undefined,
+        opType: undefined,
+        taskDurationUs: 0.5,
+        blockDim: undefined,
+        mixBlockDim: undefined,
+        demangledName: undefined,
+        gridSize: undefined,
+        blockSize: undefined,
       },
     ]);
 

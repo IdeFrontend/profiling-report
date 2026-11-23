@@ -992,19 +992,22 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   const bandwidthCards = summaryJsonl
     ? bandwidthCardsFromSummary(summaryJsonl)
     : bandwidthCardsFromMemory(payloadByName(payloads, ['Memory.csv']));
-  // Identity prefers OpBasicInfo.csv when present; Product derived FLOPS / BW /
-  // parallel util always overlay from Summary.jsonl OpInfoSummary (review: do not
-  // drop jsonl metrics when both embeds exist).
+  // Present OpBasicInfo fields win per field. Derived FLOPS / BW / parallel util
+  // always overlay from Summary.jsonl OpInfoSummary.
   const fromCsv = summaryFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
   const fromJsonl = summaryFromSummaryJsonl(summaryJsonl);
-  const hasCsvIdentity = fromCsv.opName != null || fromCsv.opType != null;
-  // Card total prefers OpBasicInfo. 计算时间 is the remainder of that total so the
-  // three bar segments sum to the number on the card. No total → no breakdown.
-  const taskDurationUs =
-    (hasCsvIdentity ? fromCsv.taskDurationUs : undefined) ?? fromJsonl.taskDurationUs;
+  // Present CSV fields win per field. An absent name must not wipe a jsonl name,
+  // and a finite CSV duration still wins when that name is blank / NA (PR-VM-026).
+  const taskDurationUs = fromCsv.taskDurationUs ?? fromJsonl.taskDurationUs;
   const summary = summaryWithHardwareCoreCount(
     {
-      ...(hasCsvIdentity ? fromCsv : fromJsonl),
+      opName: fromCsv.opName ?? fromJsonl.opName,
+      opType: fromCsv.opType ?? fromJsonl.opType,
+      currentFreq: fromCsv.currentFreq ?? fromJsonl.currentFreq,
+      ratedFreq: fromCsv.ratedFreq ?? fromJsonl.ratedFreq,
+      pid: fromCsv.pid ?? fromJsonl.pid,
+      blockDim: fromCsv.blockDim ?? fromJsonl.blockDim,
+      mixBlockDim: fromCsv.mixBlockDim ?? fromJsonl.mixBlockDim,
       ...(taskDurationUs != null ? { taskDurationUs } : {}),
       durationBreakdown:
         taskDurationUs == null
@@ -1038,7 +1041,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     );
   const csvOperatorRows = operatorRowsFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
   const operatorRows =
-    csvOperatorRows.some((row) => row.opName != null || row.opType != null)
+    csvOperatorRows.length > 0
       ? csvOperatorRows
       : summary.opName || summary.opType || summary.taskDurationUs != null
         ? [
