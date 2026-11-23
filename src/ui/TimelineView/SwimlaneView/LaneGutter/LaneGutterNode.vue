@@ -195,7 +195,12 @@ onBeforeUnmount(() => {
     type="button"
     class="pr-gutter__lane pr-gutter__lane--folder"
     :class="{ 'pr-gutter__lane--lane-hover': laneExternallyHovered }"
-    :style="{ paddingLeft: pad }"
+    :style="{
+      paddingLeft: pad,
+      height: rowHeightPx,
+      flex: `0 0 ${rowHeightPx}`,
+      minHeight: rowHeightPx,
+    }"
     :data-testid="`gutter-folder-${lane.id}`"
     :aria-expanded="!isCollapsed"
     @click="emit('toggle', lane.id)"
