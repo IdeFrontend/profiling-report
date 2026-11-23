@@ -103,7 +103,7 @@ Stacking: pinned strip sits above the scrolling lane body and below Card strips 
 45. **PR-SWIMVIEW-045** — Hovering the visible scrollbar cancels auto-hide until pointer leave.
 46. **PR-SWIMVIEW-046** — Scrollbar appearing under a parked pointer cancels auto-hide; moving away without leave resumes hide.
 47. **PR-SWIMVIEW-047** — Card strip name `title` only while truncated.
-48. **PR-SWIMVIEW-048** — Hovering a CounterTrack lane hosts `CounterHoverTip` (Teleport → body) with the lane name as tip header and OverviewCharts tip layout (label left / value right): a Time row with the sample timestamp, then one row per numeric `ph:C` arg; markers are a white empty outline at the step-after sample, a series-colored hold disc (white ring) at pointer x / same `v`, and a white hold link when apart (8px / 10px active, OverviewCharts value-dot sizes); tip chrome uses unscoped/inline fixed positioning so teleported nodes stay visible; tip flips/clamps inside the viewport so bottom/side edges are not cropped.
+48. **PR-SWIMVIEW-048** — Hovering a CounterTrack lane hosts `CounterHoverTip` (Teleport → body) with the lane name as tip header and OverviewCharts tip layout (label left / value right): a Time row with the sample timestamp, then one row per numeric `ph:C` arg; markers are a white empty outline at the step-after sample, an opaque series-colored hold disc fitting the outline hole (no ring) at pointer x / same `v`, and a white hold link between outer edges when apart (8px / 10px active outline); tip chrome uses unscoped/inline fixed positioning so teleported nodes stay visible; tip flips/clamps inside the viewport so bottom/side edges are not cropped.
 
 
 ## Visual

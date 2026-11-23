@@ -41,6 +41,8 @@ import {
 } from '../../placeFixedTip';
 import {
   COUNTER_MARKER_WHITE,
+  counterHoldLinkSegment,
+  counterMarkerHoldPx,
   counterMarkerRingPx,
   counterMarkerSizePx,
 } from '../../counterHoverMarkers';
@@ -500,13 +502,14 @@ const counterMarkerRenders = computed((): CounterMarkerRender[] => {
 
 function counterHoldLinkStyle(m: CounterMarkerRender) {
   if (!m.linkVisible) return null;
-  const left = Math.min(m.sampleClientX, m.holdClientX);
-  const width = Math.abs(m.holdClientX - m.sampleClientX);
+  // Stem between outer edges — not through the sample hole / hold disc.
+  const seg = counterHoldLinkSegment(m.sampleClientX, m.holdClientX, m.emphasized);
+  if (!seg) return null;
   return {
     position: 'fixed' as const,
-    left: `${left}px`,
+    left: `${seg.left}px`,
     top: `${m.sampleClientY}px`,
-    width: `${width}px`,
+    width: `${seg.width}px`,
     height: '0px',
     borderTop: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
     transform: 'translateY(-50%)',
@@ -1367,9 +1370,9 @@ defineExpose({
             left: `${m.holdClientX}px`,
             top: `${m.holdClientY}px`,
             background: m.color,
-            border: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
-            width: `${counterMarkerSizePx(m.emphasized)}px`,
-            height: `${counterMarkerSizePx(m.emphasized)}px`,
+            border: 'none',
+            width: `${counterMarkerHoldPx(m.emphasized)}px`,
+            height: `${counterMarkerHoldPx(m.emphasized)}px`,
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',

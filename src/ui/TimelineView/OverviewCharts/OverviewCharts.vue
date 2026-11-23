@@ -19,8 +19,9 @@ import {
 } from './stepPath';
 import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_H, OVERVIEW_Y_MAX } from './overviewLayout';
 import {
-  COUNTER_MARKER_LINK_GAP_PX,
   COUNTER_MARKER_WHITE,
+  counterHoldLinkSegment,
+  counterMarkerHoldPx,
   counterMarkerRingPx,
   counterMarkerSizePx,
 } from '../../counterHoverMarkers';
@@ -402,20 +403,21 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     const sampleRatio = Math.min(1, Math.max(0, (pt.t - x0.value) / span));
     const sampleX = rect.left + sampleRatio * rect.width;
     const holdX = rect.left + xRatio * rect.width;
-    const linkVisible = Math.abs(holdX - sampleX) >= COUNTER_MARKER_LINK_GAP_PX;
+    const active = tr.id === hoverSeriesId.value;
+    const seg = counterHoldLinkSegment(sampleX, holdX, active);
     out.push({
       id: tr.id,
       color: tr.color,
-      active: tr.id === hoverSeriesId.value,
+      active,
       sampleLeft: `${sampleX}px`,
       sampleTop: top,
       holdLeft: `${holdX}px`,
       holdTop: top,
-      link: linkVisible
+      link: seg
         ? {
-            left: `${Math.min(sampleX, holdX)}px`,
+            left: `${seg.left}px`,
             top,
-            width: `${Math.abs(holdX - sampleX)}px`,
+            width: `${seg.width}px`,
           }
         : null,
     });
@@ -624,9 +626,9 @@ const markerSets = computed((): OverviewMarkerSet[] => {
             left: m.holdLeft,
             top: m.holdTop,
             background: m.color,
-            border: `${counterMarkerRingPx(m.active)}px solid ${COUNTER_MARKER_WHITE}`,
-            width: `${counterMarkerSizePx(m.active)}px`,
-            height: `${counterMarkerSizePx(m.active)}px`,
+            border: 'none',
+            width: `${counterMarkerHoldPx(m.active)}px`,
+            height: `${counterMarkerHoldPx(m.active)}px`,
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',

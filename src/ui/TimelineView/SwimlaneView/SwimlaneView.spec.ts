@@ -3104,8 +3104,8 @@ describe('SwimlaneView', () => {
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
 
-      // Sample (white outline) + hold (series fill + white ring) + white hold link.
-      // Active sizes match OverviewCharts value-dot (10px / 2px ring).
+      // Sample (white outline 10px) + hold (opaque series disc = inner hole 6px, no ring)
+      // + white link from sample outer edge → hold outer edge (not through centers).
       const sample = document.querySelector(
         '[data-testid="counter-hover-sample"]',
       ) as HTMLElement | null;
@@ -3118,16 +3118,17 @@ describe('SwimlaneView', () => {
       expect(hold).not.toBeNull();
       expect(hold!.style.left).toBe('150px');
       expect(hold!.style.background.toLowerCase()).toMatch(/#e7434a|rgb\(231,\s*67,\s*74\)/i);
-      expect(hold!.style.border).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
+      expect(hold!.style.border).toMatch(/^(none|$)/i);
       expect(hold!.style.position).toBe('fixed');
-      expect(hold!.style.width).toBe('10px');
-      expect(hold!.style.height).toBe('10px');
+      expect(hold!.style.width).toBe('6px');
+      expect(hold!.style.height).toBe('6px');
       const link = document.querySelector(
         '[data-testid="counter-hover-link"]',
       ) as HTMLElement | null;
       expect(link).not.toBeNull();
-      expect(link!.style.left).toBe('100px');
-      expect(link!.style.width).toBe('50px');
+      // Centers 100→150; sampleR=5, holdR=3 → left=105, width=42.
+      expect(link!.style.left).toBe('105px');
+      expect(link!.style.width).toBe('42px');
       expect(link!.style.borderTop).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
 
       // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
