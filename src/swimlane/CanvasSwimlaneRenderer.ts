@@ -452,6 +452,7 @@ export class SwimlaneOverlayPainter {
       this.height,
       dpr,
       this.collapse,
+      this.collapsedIds,
     );
     if (!this.drawEventLabels) {
       this.paintLiftedLeaves(ctx);
@@ -786,6 +787,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       this.height,
       dpr,
       this.collapse,
+      this.collapsedIds,
     );
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);

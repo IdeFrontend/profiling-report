@@ -1,6 +1,11 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
-import { buildFolderSummaryEvents, isFolderNode, walkVisibleRows } from '../domain/swimTree';
+import {
+  buildFolderSummaryEvents,
+  findThreadById,
+  isFolderNode,
+  walkVisibleRows,
+} from '../domain/swimTree';
 import {
   maxRR,
   minRR,
@@ -120,13 +125,27 @@ export function flatLaneHeight(lane: {
   return (lane.rowCount ?? 1) * LANE_HEIGHT;
 }
 
-/** True when a CounterTrack folder is rest-collapsed (overlay band, no child rows). */
+/** True when a thread is a multi-series CounterTrack folder (has `counterSeries`). */
+export function isCounterSeriesFolder(thread: SwimThread): boolean {
+  return isFolderNode(thread) && (thread.counterSeries?.length ?? 0) > 0;
+}
+
+/**
+ * True when a CounterTrack folder is rest-collapsed for the filterCollapsedTree path
+ * (`children: []`). Folds-based collapse keeps children on the thread — use
+ * `promoteCollapsedCounterFolders` / `collapsedIds` there instead.
+ */
 export function isCollapsedCounterFolder(thread: SwimThread): boolean {
-  return (
-    isFolderNode(thread) &&
-    (thread.counterSeries?.length ?? 0) > 0 &&
-    (thread.children?.length ?? 0) === 0
-  );
+  return isCounterSeriesFolder(thread) && (thread.children?.length ?? 0) === 0;
+}
+
+/**
+ * Extra px a rest-collapsed multi-series CounterTrack folder keeps beyond
+ * `LANE_HEIGHT` so the overlay band is `COUNTER_LANE_HEIGHT` (fold shift leaves
+ * this gap instead of closing the full child span).
+ */
+export function counterFolderCollapseKeepExtra(thread: SwimThread | undefined): number {
+  return thread && isCounterSeriesFolder(thread) ? COUNTER_LANE_HEIGHT - LANE_HEIGHT : 0;
 }
 
 /** Model-thread band height before layout (counter vs folder vs multi-row leaf). */
@@ -287,7 +306,9 @@ function pruneNestedFolds(folds: CollapseFold[]): CollapseFold[] {
 }
 
 function foldsFromSpans(
-  spanOf: (id: string) => { top: number; foldY: number; subtreeEnd: number } | null,
+  spanOf: (
+    id: string,
+  ) => { top: number; foldY: number; subtreeEnd: number; keepExtra?: number } | null,
   collapsedIds: readonly string[],
   anim: CollapseAnimState | null,
 ): CollapseTransform {
@@ -299,13 +320,16 @@ function foldsFromSpans(
     if (!span) continue;
     const hidden = span.subtreeEnd - span.foldY;
     if (hidden <= 0) continue;
+    const keep = Math.max(0, span.keepExtra ?? 0);
     folds.push({
       groupId: id,
       foldY: span.foldY,
       groupTop: span.top,
       subtreeEnd: span.subtreeEnd,
       visible: 0,
-      shift: hidden,
+      // CounterSeries folders keep COUNTER_LANE_HEIGHT − LANE_HEIGHT so the
+      // overlay band matches the gutter (26px), not the expanded folder (22px).
+      shift: Math.max(0, hidden - keep),
     });
   }
   if (animLive) {
@@ -335,7 +359,12 @@ export function collapseFoldsFromLayout(
   collapsedIds: readonly string[],
   anim: CollapseAnimState | null,
 ): CollapseTransform {
-  return foldsFromSpans((id) => groupSubtreeSpan(layout, id), collapsedIds, anim);
+  return foldsFromSpans((id) => {
+    const span = groupSubtreeSpan(layout, id);
+    if (!span) return null;
+    const lane = layout.lanesByTid.get(id) ?? layout.lanes.find((l) => l.thread.id === id);
+    return { ...span, keepExtra: counterFolderCollapseKeepExtra(lane?.thread) };
+  }, collapsedIds, anim);
 }
 
 /** Build the collapse transform for `state` only (or IDLE when settled / group absent). */
@@ -402,7 +431,12 @@ export function collapseTransformFromModel(
 ): CollapseTransform {
   if (!model) return IDLE_COLLAPSE;
   const geo = modelGeometry(model);
-  return foldsFromSpans((id) => groupSubtreeFromGeo(geo, id), collapsedIds, anim);
+  return foldsFromSpans((id) => {
+    const span = groupSubtreeFromGeo(geo, id);
+    if (!span) return null;
+    const thread = findThreadById(model, id);
+    return { ...span, keepExtra: counterFolderCollapseKeepExtra(thread ?? undefined) };
+  }, collapsedIds, anim);
 }
 
 /** Sum of fold gap-closes — subtract from expanded content height for the visual sizer. */
@@ -577,6 +611,8 @@ export function restFolderSummaries(
     if (laneIndex < 0) continue;
     const lane = layout.lanes[laneIndex]!;
     if (!lane.folder) continue;
+    // Multi-series CounterTrack folders paint counterSeries overlay — no interval ghosts.
+    if (isCounterSeriesFolder(lane.thread)) continue;
     let summaries = cache.get(id);
     if (!summaries) {
       summaries = buildFolderSummaryEvents(lane.thread);
@@ -674,6 +710,41 @@ export function applyCollapseFolds(
   };
 }
 
+/**
+ * Mark rest-collapsed multi-series CounterTrack folders as `counter` bands so
+ * hit-test / hover use `COUNTER_LANE_HEIGHT` and `emitCounterHover` sees them.
+ * Skips the in-flight tween group (children still partially visible).
+ */
+export function promoteCollapsedCounterFolders(
+  layout: SwimlaneLayout,
+  collapsedIds: readonly string[],
+  anim: CollapseAnimState | null = null,
+): SwimlaneLayout {
+  if (collapsedIds.length === 0) return layout;
+  const set = new Set(collapsedIds);
+  const animatingId =
+    anim && anim.hiddenHeight > 0 && anim.visible < 1 ? anim.groupId : null;
+  let changed = false;
+  const lanes = layout.lanes.map((l) => {
+    if (!l.folder || l.counter || !set.has(l.thread.id)) return l;
+    if (!isCounterSeriesFolder(l.thread)) return l;
+    if (l.thread.id === animatingId) return l;
+    changed = true;
+    return {
+      ...l,
+      counter: true,
+      height: COUNTER_LANE_HEIGHT,
+      color: l.thread.counterSeries![0]!.colorHex ?? l.color,
+    };
+  });
+  if (!changed) return layout;
+  return {
+    ...layout,
+    lanes,
+    lanesByTid: new Map(lanes.map((l) => [l.thread.id, l])),
+  };
+}
+
 /** Renderer hot path: folds + extras + hit layout, no event clone. */
 export function collapsePaintState(
   layout: SwimlaneLayout,
@@ -683,7 +754,11 @@ export function collapsePaintState(
 ): { collapse: CollapseTransform; hitLayout: SwimlaneLayout } {
   const collapse = collapseFoldsFromLayout(layout, collapsedIds, anim);
   const extras = collectCollapseSummaries(layout, collapsedIds, anim, cache, collapse);
-  return { collapse, hitLayout: applyCollapseFolds(layout, collapse, extras) };
+  const folded = applyCollapseFolds(layout, collapse, extras);
+  return {
+    collapse,
+    hitLayout: promoteCollapsedCounterFolders(folded, collapsedIds, anim),
+  };
 }
 
 /**

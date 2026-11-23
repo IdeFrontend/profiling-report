@@ -5,9 +5,13 @@
 import type { SwimCounterSeries, SwimlaneViewWindow } from '../domain/types';
 import { stepAfterVertices } from '../ui/TimelineView/OverviewCharts/stepPath';
 import {
+  COUNTER_LANE_HEIGHT,
   flatLaneHeight,
   LANE_PAD_Y,
   collapseShiftY,
+  collapseAlpha,
+  isCollapsedCounterFolder,
+  isCounterSeriesFolder,
   type FlatLane,
   type CollapseTransform,
 } from './layout';
@@ -63,7 +67,9 @@ function paintOneSeries(
 /**
  * Paint counter step-after charts for visible counter lanes into an already-scaled
  * device-pixel canvas context (`width`/`height` are device px).
- * Collapsed multi-series folders paint every entry in `thread.counterSeries`.
+ * Collapsed multi-series folders paint every entry in `thread.counterSeries`
+ * (shared Y); expanded folders are chevron-only — children paint as leaves.
+ * Skips fold-hidden lanes (`collapseAlpha === 0`).
  */
 export function paintCounterLanes(
   ctx: CanvasRenderingContext2D,
@@ -73,19 +79,42 @@ export function paintCounterLanes(
   height: number,
   dpr: number,
   collapse: CollapseTransform,
+  collapsedIds: readonly string[] = [],
 ): void {
   const pad = LANE_PAD_Y * dpr;
+  const collapsed = collapsedIds.length > 0 ? new Set(collapsedIds) : null;
   for (const lane of lanes) {
-    if (!lane.counter) continue;
+    if (collapseAlpha(lane.y, collapse) <= 0) continue;
+
+    // Rest-collapsed multi-series overlay only (not mid expand/collapse tween).
+    let multiOverlay =
+      isCounterSeriesFolder(lane.thread) &&
+      (isCollapsedCounterFolder(lane.thread) || !!collapsed?.has(lane.thread.id));
+    if (multiOverlay && collapsed?.has(lane.thread.id)) {
+      for (const f of collapse.folds) {
+        if (f.groupId === lane.thread.id && f.visible > 0) {
+          multiOverlay = false;
+          break;
+        }
+      }
+    }
+
+    if (!lane.counter && !multiOverlay) continue;
+    // Expanded multi-series folder: chevron only (even if wrongly flagged counter).
+    if (lane.folder && isCounterSeriesFolder(lane.thread) && !multiOverlay) continue;
+
     const yCss = collapseShiftY(lane.y, collapse) - view.scrollY;
     const y0 = yCss * dpr;
-    const laneH = flatLaneHeight(lane) * dpr;
+    // Rest-collapsed multi-series overlay uses the taller counter band even when
+    // the expanded-layout folder row is still LANE_HEIGHT.
+    const bandCss = multiOverlay ? COUNTER_LANE_HEIGHT : flatLaneHeight(lane);
+    const laneH = bandCss * dpr;
     if (y0 + laneH < 0 || y0 > height) continue;
     const plotTop = y0 + pad;
     const plotH = Math.max(1, laneH - pad * 2);
 
-    const multi = lane.thread.counterSeries;
-    if (multi && multi.length > 0) {
+    if (multiOverlay) {
+      const multi = lane.thread.counterSeries!;
       let yMax = 0;
       for (const s of multi) {
         if (s.yMax > yMax) yMax = s.yMax;

@@ -29,6 +29,7 @@ import {
   findHoverGap,
   findLaidOutEvent,
   IDLE_COLLAPSE,
+  COUNTER_LANE_HEIGHT,
   flatLaneHeight,
   LANE_HEIGHT,
   LANE_PAD_Y,
@@ -268,11 +269,18 @@ function emitCounterHover(
   const view = paintView();
   // paintView().scrollY already subtracts contentTopPad — same space as lane paint/hit.
   const hit = laneAtContentY(backend.getLayout(), localY + view.scrollY);
-  if (!hit?.lane.counter) {
+  const thread = hit?.lane.thread;
+  // Leaf CounterTrack (`lane.counter`) or multi-series folder overlay (`counterSeries`).
+  // Folds-based collapse keeps children on the folder thread; promotion sets `lane.counter`,
+  // but accept `counterSeries` alone so hover still works if promotion lags.
+  if (
+    !hit ||
+    !thread ||
+    (!hit.lane.counter && !(thread.counterSeries && thread.counterSeries.length > 0))
+  ) {
     clearCounterHover();
     return;
   }
-  const thread = hit.lane.thread;
   const layout = backend.getLayout();
   /** Collapsed overlay, or expanded siblings under the same CounterTrack folder. */
   type SeriesHit = {
@@ -287,7 +295,8 @@ function emitCounterHover(
   if (thread.counterSeries && thread.counterSeries.length > 0) {
     const yCss = hit.lane.y - view.scrollY;
     const plotTop = yCss + LANE_PAD_Y;
-    const plotH = Math.max(1, flatLaneHeight(hit.lane) - LANE_PAD_Y * 2);
+    const bandH = hit.lane.height ?? COUNTER_LANE_HEIGHT;
+    const plotH = Math.max(1, bandH - LANE_PAD_Y * 2);
     let sharedYMax = 0;
     for (const s of thread.counterSeries) {
       if (s.yMax > sharedYMax) sharedYMax = s.yMax;
