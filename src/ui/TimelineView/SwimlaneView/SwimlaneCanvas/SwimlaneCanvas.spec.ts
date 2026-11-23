@@ -2318,6 +2318,12 @@ describe('SwimlaneCanvas', () => {
   });
 
   it('PR-CANVAS-130: Ctrl chorded on a pending press pans and does not restore the gap line', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
     const { wrapper, canvas } = await mountWithGapModel();
     const y = await gapLaneY(wrapper);
     await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
@@ -2339,6 +2345,18 @@ describe('SwimlaneCanvas', () => {
 
     await wrapper.setProps({ view: { startTime: 50, endTime: 1050, scrollY: 0 } });
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+
+    // Lane-scroll settle during the pan must not put the gap or the event tooltip back.
+    // x=140 is the free gap; x=60 sits on eA (px 40..80).
+    await canvas.trigger('wheel', { clientX: 140, clientY: y, deltaX: 0, deltaY: 40 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    await canvas.trigger('wheel', { clientX: 60, clientY: y, deltaX: 0, deltaY: 40 });
+    expect(wrapper.emitted('hover')!.at(-1)![0]).toBeNull();
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+
+    // Up within 4px of pointerdown would be a click without the chord. The flag swallows select.
+    await canvas.trigger('pointerup', { clientX: 142, clientY: y, pointerId: 1, ctrlKey: true });
+    expect(wrapper.emitted('select')).toBeFalsy();
     wrapper.unmount();
   });
 

@@ -781,7 +781,8 @@ function refreshHoverGapAtLastPointer(): void {
     measurePressActive ||
     lastHoverLocalX == null ||
     lastHoverLocalY == null ||
-    // Ctrl/Cmd pan already cleared the gap; a view echo must not draw it again.
+    // `dragging` is set on Ctrl/Cmd pointerdown, before the first move clears the
+    // gap. A view echo during that gesture must not draw it.
     dragging
   ) {
     hoverGap.value = null;
@@ -3422,6 +3423,13 @@ function recalcPointerHover(): void {
   const x = lastHoverLocalX;
   const y = lastHoverLocalY;
   if (x == null || y == null) return;
+  if (dragging) {
+    // Pan already dropped the gap and the event tooltip. Scroll settle must not put them back.
+    hoverGap.value = null;
+    applyHoverLift(null);
+    emit('hover', null, lastPointerClientX, lastPointerClientY);
+    return;
+  }
   const w = Math.max(1, syncTrackWidth());
   const mag = magnetizeLocal(x, y);
   const ev = eventAtPointer(x, y, mag.eventId);
