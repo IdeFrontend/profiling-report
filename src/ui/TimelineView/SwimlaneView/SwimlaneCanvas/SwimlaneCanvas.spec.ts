@@ -2353,6 +2353,8 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('wheel', { clientX: 60, clientY: y, deltaX: 0, deltaY: 40 });
     expect(wrapper.emitted('hover')!.at(-1)![0]).toBeNull();
     expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    expect(wrapper.emitted('cursor')!.at(-1)![0]).not.toBeNull();
+    expect(wrapper.emitted('lane-hover')!.at(-1)![0]).toBe('t-1');
 
     // Up within 4px of pointerdown would be a click without the chord. The flag swallows select.
     await canvas.trigger('pointerup', { clientX: 142, clientY: y, pointerId: 1, ctrlKey: true });

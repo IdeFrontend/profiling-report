@@ -3424,10 +3424,15 @@ function recalcPointerHover(): void {
   const y = lastHoverLocalY;
   if (x == null || y == null) return;
   if (dragging) {
-    // Pan already dropped the gap and the event tooltip. Scroll settle must not put them back.
+    // Pan already dropped the gap and the event tooltip. Scroll settle must not put
+    // them back, but it still restores the time cursor and lane highlight that
+    // invalidateScrollHover cleared — the same pair a pan move keeps live.
+    const mag = magnetizeLocal(x, y);
     hoverGap.value = null;
     applyHoverLift(null);
+    emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
     emit('hover', null, lastPointerClientX, lastPointerClientY);
+    emitLaneHover(y);
     return;
   }
   const w = Math.max(1, syncTrackWidth());
