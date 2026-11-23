@@ -317,17 +317,28 @@ export function formatCounterArgValue(key: string, value: number): string {
   return text;
 }
 
-/** Tip rows for a counter sample — one row per numeric arg on the point. */
+/**
+ * Tip rows for a counter sample.
+ * - Default / collapsed multi overlay: one row per numeric arg on the point.
+ * - `onlySeries: true` (expanded leaf): only the hovered series key — sibling
+ *   args stay on `values` for paint but must not appear in the tip.
+ */
 export function counterTipRows(
   point: Pick<SwimCounterPoint, 'v' | 'values'>,
   seriesKey: string,
+  opts?: { onlySeries?: boolean },
 ): { label: string; value: string }[] {
   const values = point.values;
   if (values && Object.keys(values).length > 0) {
-    return Object.entries(values).map(([label, v]) => ({
-      label,
-      value: formatCounterArgValue(label, v),
-    }));
+    const entries = opts?.onlySeries
+      ? Object.entries(values).filter(([label]) => label === seriesKey)
+      : Object.entries(values);
+    if (entries.length > 0) {
+      return entries.map(([label, v]) => ({
+        label,
+        value: formatCounterArgValue(label, v),
+      }));
+    }
   }
   return [{ label: seriesKey, value: formatCounterArgValue(seriesKey, point.v) }];
 }

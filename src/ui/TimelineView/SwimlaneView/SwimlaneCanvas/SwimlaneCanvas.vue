@@ -187,8 +187,9 @@ export type CounterHoverPayload = {
   /** Tip swatch / chart color for the active series. */
   color: string;
   /**
-   * Tip row label to emphasize (OverviewCharts `is-active` parity) — arg key of the
-   * hovered series on a multi-arg sample. Omit when a single tip row covers it.
+   * Tip row label to emphasize (OverviewCharts `is-active` parity) — set only for
+   * collapsed multi-series tips with multiple arg rows. Omit on expanded / single
+   * leaf (one row; no bold needed).
    */
   activeRowLabel?: string;
   /** All series markers (collapsed multi-series overlay only); omit for single leaf. */
@@ -405,7 +406,10 @@ function emitCounterHover(
   const active = built[activeIdx]!;
   // Tip header: ph:C folder name on collapsed overlay; leaf name when expanded.
   const tipName = thread.name;
-  const rows = counterTipRows(active.pt, active.label);
+  // Collapsed multi overlay (`built.length > 1`): all arg rows + bold active.
+  // Expanded / single leaf: only this series' row, no bold (nothing to contrast).
+  const multiSeriesTip = built.length > 1;
+  const rows = counterTipRows(active.pt, active.label, { onlySeries: !multiSeriesTip });
   const origin = props.model?.minTime ?? 0;
   const sampleTimeLabel = formatDisplayTimeAuto(active.pt.t, origin, {
     nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
@@ -423,7 +427,7 @@ function emitCounterHover(
     emphasized: i === activeIdx,
   }));
   const valuesKey = active.pt.values ? JSON.stringify(active.pt.values) : '';
-  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${active.sampleVisible}|${activeIdx}|${built.length}`;
+  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${active.sampleVisible}|${activeIdx}|${built.length}|${multiSeriesTip}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
@@ -440,8 +444,8 @@ function emitCounterHover(
     sampleVisible: active.sampleVisible,
     sampleTimeLabel,
     color: active.color,
-    activeRowLabel: active.label,
-    markers: built.length > 1 ? markers : undefined,
+    activeRowLabel: multiSeriesTip ? active.label : undefined,
+    markers: multiSeriesTip ? markers : undefined,
   };
   emit('counter-hover', payload);
 }

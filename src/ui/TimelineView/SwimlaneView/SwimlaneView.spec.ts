@@ -3094,13 +3094,13 @@ describe('SwimlaneView', () => {
       expect((timeRow!.textContent ?? '').length).toBeGreaterThan(4);
       const rowEls = [...tip!.querySelectorAll('[data-testid="counter-hover-row"]')];
       const rows = rowEls.map((el) => el.textContent ?? '');
+      // Single leaf: only the hovered series (sibling args on `values` omitted).
+      expect(rowEls).toHaveLength(1);
       expect(rows[0]).toMatch(/Utilization \(%\)/);
       expect(rows[0]).toMatch(/2%/);
-      expect(rows[1]).toMatch(/Using Bytes \(KB\)/);
-      expect(rows[1]).toMatch(/0\.05 KB/);
-      // Single-leaf tip still marks the series arg key as active (OverviewCharts parity).
-      expect(rowEls[0]!.classList.contains('is-active')).toBe(true);
-      expect(rowEls[0]!.querySelector('.pr-counter-hover-tip__swatch')).toBeTruthy();
+      // No bold/swatch — nothing to contrast when the tip has one series row.
+      expect(rowEls[0]!.classList.contains('is-active')).toBe(false);
+      expect(rowEls[0]!.querySelector('.pr-counter-hover-tip__swatch')).toBeNull();
       // Inline fixed positioning so Teleport→body stays visible without waiting on CSS.
       expect(tip!.style.position).toBe('fixed');
       expect(tip!.style.left).toBe('162px');

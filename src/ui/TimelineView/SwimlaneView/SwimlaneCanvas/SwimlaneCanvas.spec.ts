@@ -6017,15 +6017,14 @@ describe('SwimlaneCanvas', () => {
     expect(tip).toMatchObject({
       name: 'Utilization (%)',
       value: 2,
-      rows: [
-        { label: 'Utilization (%)', value: '2%' },
-        { label: 'Using Bytes (KB)', value: '0.05 KB' },
-      ],
+      // Single leaf: only this series' arg (sibling keys on `values` stay out of the tip).
+      rows: [{ label: 'Utilization (%)', value: '2%' }],
       color: '#E7434A',
       dotClientX: 150,
       sampleClientX: 100,
       linkVisible: true,
     });
+    expect(tip!.activeRowLabel).toBeUndefined();
     expect(tip!.sampleTimeLabel.length).toBeGreaterThan(0);
     expect(tip!.dotClientY).toBeGreaterThan(40);
     expect(tip!.dotClientY).toBeLessThan(40 + COUNTER_LANE_HEIGHT);
@@ -6056,10 +6055,7 @@ describe('SwimlaneCanvas', () => {
     expect(tip2).toMatchObject({
       name: 'Utilization (%)',
       value: 3,
-      rows: [
-        { label: 'Utilization (%)', value: '3%' },
-        { label: 'Using Bytes (KB)', value: '0.04 KB' },
-      ],
+      rows: [{ label: 'Utilization (%)', value: '3%' }],
       sampleClientX: 200,
       linkVisible: true,
     });
@@ -6262,12 +6258,15 @@ describe('SwimlaneCanvas', () => {
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       name: string;
+      rows: { label: string; value: string }[];
       activeRowLabel?: string;
       markers?: unknown[];
     } | null;
     expect(tip).not.toBeNull();
     expect(tip!.name).toBe('Utilization (%)');
-    expect(tip!.activeRowLabel).toBe('Utilization (%)');
+    // Expanded leaf: only this series' value; no bold active chrome.
+    expect(tip!.rows).toEqual([{ label: 'Utilization (%)', value: '2%' }]);
+    expect(tip!.activeRowLabel).toBeUndefined();
     // Expanded: no multi-series markers — only the hovered leaf.
     expect(tip!.markers).toBeUndefined();
 
@@ -6336,10 +6335,7 @@ describe('SwimlaneCanvas', () => {
     expect(tip).toMatchObject({
       name: 'Utilization (%)',
       value: 2,
-      rows: [
-        { label: 'Utilization (%)', value: '2%' },
-        { label: 'Using Bytes (KB)', value: '0.05 KB' },
-      ],
+      rows: [{ label: 'Utilization (%)', value: '2%' }],
     });
     wrapper.unmount();
   });
