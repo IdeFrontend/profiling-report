@@ -53,6 +53,7 @@ import {
   binTicksByCssColumn,
   buildTickDensityCap,
   sampleTickDensityCap,
+  type TickDensityCap,
   type CollapseAnimState,
   type CollapseTransform,
   type LaidOutEvent,
@@ -559,6 +560,8 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
   private paintSummaries: readonly LaidOutEvent[] = [];
   /** Skip per-link Canvas strokes while lane-scroll is easing (fills and labels still paint). */
   private liveScroll = false;
+  /** Per-lane density cap from setModel. Render only log-lerps it (PR-RENDER-064). */
+  private laneDensityCaps: (TickDensityCap | null)[] = [];
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -587,7 +590,27 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.collapse = IDLE_COLLAPSE;
     this.hitLayout = this.baseLayout;
     this.paintSummaries = [];
+    this.rebuildTickDensityCaps();
     this.refreshDepCache();
+  }
+
+  /** Occupied-column median and median gap. Fixed until the next setModel. */
+  private rebuildTickDensityCaps(): void {
+    this.laneDensityCaps = this.baseLayout.lanes.map((_, i) => {
+      const laneEvts = this.baseLayout.eventsByLane[i] ?? [];
+      const times: number[] = [];
+      let tickMin = Infinity;
+      let tickMax = -Infinity;
+      for (const item of laneEvts) {
+        if (item.summary || item.event.duration !== 0) continue;
+        const t = item.event.startTime;
+        times.push(t);
+        if (t < tickMin) tickMin = t;
+        if (t > tickMax) tickMax = t;
+      }
+      if (times.length === 0 || !Number.isFinite(tickMin) || !Number.isFinite(tickMax)) return null;
+      return buildTickDensityCap(times, tickMin, tickMax);
+    });
   }
 
   setCollapsedIds(ids: readonly string[]): void {
@@ -805,21 +828,9 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       // Search and selection keep ticks discrete so dim / mute stay per event.
       const densityRowIds = new Set<number>();
       if (!hasSearch && !hasSelection && !hasMulti) {
-        // Zoom-adaptive saturation from all lane ticks (not just the view window).
-        const allTickTimes: number[] = [];
-        let tickMin = Infinity;
-        let tickMax = -Infinity;
-        for (const item of laneEvts) {
-          if (item.summary || item.event.duration !== 0) continue;
-          const t = item.event.startTime;
-          allTickTimes.push(t);
-          if (t < tickMin) tickMin = t;
-          if (t > tickMax) tickMax = t;
-        }
-        const densCap =
-          allTickTimes.length > 0 && Number.isFinite(tickMin) && Number.isFinite(tickMax)
-            ? sampleTickDensityCap(buildTickDensityCap(allTickTimes, tickMin, tickMax), span / widthCss)
-            : 1;
+        // Zoom-adaptive saturation from the setModel cap (not a per-paint gap sort).
+        const cap = this.laneDensityCaps[i];
+        const densCap = cap != null ? sampleTickDensityCap(cap, span / widthCss) : 1;
         const ticksByRow = new Map<number, number[]>();
         for (let j = lo; j < hi; j++) {
           const item = laneEvts[j]!;
@@ -987,6 +998,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     this.collapsedIds = [];
     this.summaryCache.clear();
     this.paintSummaries = [];
+    this.laneDensityCaps = [];
     this.neighborIds = new Set();
     this.multiIds = new Set();
     this.multiIdsList = null;

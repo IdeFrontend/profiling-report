@@ -1777,15 +1777,18 @@ export function buildTickDensityCap(
   return { dtWide, capWide, dtOne };
 }
 
-/** Log-lerp saturation count for column width `dt` (device or CSS — match the paint column). */
+/**
+ * Log-lerp saturation count for column width `dt` (device or CSS — match the paint column).
+ * `dt <= dtOne` stays 1. Columns wider than `dtWide` keep extrapolating: a frozen `capWide`
+ * lets a burst drawn in fewer than 1024 pixels add past full and clip white.
+ */
 export function sampleTickDensityCap(cap: TickDensityCap, dt: number): number {
   if (!(dt > 0) || !(cap.capWide > 1) || !(cap.dtOne < cap.dtWide)) return 1;
-  if (dt >= cap.dtWide) return cap.capWide;
   if (dt <= cap.dtOne) return 1;
   const logWide = Math.log(cap.dtWide);
   const logOne = Math.log(cap.dtOne);
   const t = (logWide - Math.log(dt)) / (logWide - logOne);
-  return Math.exp((1 - Math.min(1, Math.max(0, t))) * Math.log(cap.capWide));
+  return Math.exp((1 - Math.min(1, t)) * Math.log(cap.capWide));
 }
 
 /**

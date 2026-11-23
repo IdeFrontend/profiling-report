@@ -183,6 +183,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
   gl.bindAttribLocation(program, 0, 'aPos');
   if (vsSrc.includes('aTex')) gl.bindAttribLocation(program, 1, 'aTex');
   if (vsSrc.includes('aData')) gl.bindAttribLocation(program, 2, 'aData');
+  if (vsSrc.includes('aHit')) gl.bindAttribLocation(program, 3, 'aHit');
   gl.linkProgram(program);
   gl.deleteShader(vs);
   gl.deleteShader(fs);
@@ -261,7 +262,10 @@ function linkTextProgram(gl: WebGL2RenderingContext, fsSrc: string): TextProgram
   return { program, uSizePos, uColor, uBgColor, uTextPow, sDiffuse };
 }
 
-/** Sudu setVbSquareWithGaps: 6 floats/vertex — adds gapPrev,gapNext per vertex (aData). */
+/**
+ * Sudu setVbSquareWithGaps: 6 floats/vertex — adds gapPrev,gapNext per vertex (aData).
+ * `stacked` writes a 7th float (`aHit`) so one quad can carry a same-x tick count.
+ */
 export function setVbSquareWithGaps(
   p: number,
   x0: number,
@@ -269,32 +273,53 @@ export function setVbSquareWithGaps(
   gapPrev: number,
   gapNext: number,
   vb: Float32Array,
+  hit = 1,
+  stacked = false,
 ): void {
-  // x1,-1, x0,1, gapPrev,gapNext | x1,1, x0,1, gapPrev,gapNext | x0,-1, x1,0, gapPrev,gapNext | x0,1, x1,0, gapPrev,gapNext
-  vb[p] = x1;
-  vb[p + 1] = -1;
-  vb[p + 2] = x0;
-  vb[p + 3] = 1;
-  vb[p + 4] = gapPrev;
-  vb[p + 5] = gapNext;
-  vb[p + 6] = x1;
-  vb[p + 7] = 1;
-  vb[p + 8] = x0;
-  vb[p + 9] = 1;
-  vb[p + 10] = gapPrev;
-  vb[p + 11] = gapNext;
-  vb[p + 12] = x0;
-  vb[p + 13] = -1;
-  vb[p + 14] = x1;
-  vb[p + 15] = 0;
-  vb[p + 16] = gapPrev;
-  vb[p + 17] = gapNext;
-  vb[p + 18] = x0;
-  vb[p + 19] = 1;
-  vb[p + 20] = x1;
-  vb[p + 21] = 0;
-  vb[p + 22] = gapPrev;
-  vb[p + 23] = gapNext;
+  const s = stacked ? 7 : 6;
+  const write = (vertex: number, x: number, y: number, texX: number, texY: number) => {
+    const o = p + vertex * s;
+    vb[o] = x;
+    vb[o + 1] = y;
+    vb[o + 2] = texX;
+    vb[o + 3] = texY;
+    vb[o + 4] = gapPrev;
+    vb[o + 5] = gapNext;
+    if (stacked) vb[o + 6] = hit;
+  };
+  // x1,-1, x0,1 | x1,1, x0,1 | x0,-1, x1,0 | x0,1, x1,0
+  write(0, x1, -1, x0, 1);
+  write(1, x1, 1, x0, 1);
+  write(2, x0, -1, x1, 0);
+  write(3, x0, 1, x1, 0);
+}
+
+/**
+ * Merge consecutive degenerate pairs that share one float32 x into one quad.
+ * Positive-width intervals stay separate. `hits[i]` is how many events that quad stands for.
+ * ponytail: consecutive equals only. A non-degenerate pair between two same-x ticks keeps both.
+ */
+export function collapseSameXTicks(pairs: readonly number[]): { pairs: number[]; hits: number[] } {
+  const outPairs: number[] = [];
+  const hits: number[] = [];
+  const n = pairs.length / 2;
+  for (let i = 0; i < n; i++) {
+    const a = pairs[i * 2]!;
+    const b = pairs[i * 2 + 1]!;
+    const prev = hits.length - 1;
+    if (
+      prev >= 0 &&
+      a === b &&
+      a === outPairs[prev * 2] &&
+      outPairs[prev * 2] === outPairs[prev * 2 + 1]
+    ) {
+      hits[prev] = hits[prev]! + 1;
+      continue;
+    }
+    outPairs.push(a, b);
+    hits.push(1);
+  }
+  return { pairs: outPairs, hits };
 }
 
 /**
@@ -302,7 +327,8 @@ export function setVbSquareWithGaps(
  * relative to timeBase), starting at pair offset `off`. Gaps are read straight from `pairs` via
  * the global index (`eventGapPrev` / `eventGapNext`) — no per-chunk copy or gap array is made,
  * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
- * (pos, uv, data) enables branchless extension in the vertex shader.
+ * (pos, uv, data) enables branchless extension in the vertex shader. A same-x tick stack adds
+ * a 7th float (`aHit`); other quads leave that attrib disabled (generic value 1).
  *
  */
 function createChunk(
@@ -311,19 +337,24 @@ function createChunk(
   off: number,
   pairCount: number,
   indexAt: (i: number) => number = (i) => off + i,
+  hits?: number[],
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
-  const vb = new Float32Array(numSquares * 24);
+  const stacked = hits != null;
+  const floatsPerVert = stacked ? 7 : 6;
+  const vb = new Float32Array(numSquares * floatsPerVert * 4);
   const ib = new Uint16Array(numSquares * 6);
   for (let i = 0; i < numSquares; i++) {
     const gi = indexAt(i);
     setVbSquareWithGaps(
-      i * 24,
+      i * floatsPerVert * 4,
       pairs[gi * 2]!,
       pairs[gi * 2 + 1]!,
       eventGapPrev(pairs, gi),
       eventGapNext(pairs, gi),
       vb,
+      stacked ? hits[gi]! : 1,
+      stacked,
     );
     const n = i * 4;
     const p = i * 6;
@@ -343,12 +374,17 @@ function createChunk(
   gl.bindVertexArray(vao);
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
   gl.bufferData(gl.ARRAY_BUFFER, vb, gl.STATIC_DRAW);
+  const strideBytes = floatsPerVert * 4;
   gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, strideBytes, 0);
   gl.enableVertexAttribArray(1);
-  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8);
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, strideBytes, 8);
   gl.enableVertexAttribArray(2);
-  gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 24, 16);
+  gl.vertexAttribPointer(2, 2, gl.FLOAT, false, strideBytes, 16);
+  if (stacked) {
+    gl.enableVertexAttribArray(3);
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, strideBytes, 24);
+  }
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
@@ -391,12 +427,17 @@ export function eventGapNext(pairs: number[], gi: number): number {
  * neighbors across the chunk split — `gapPrev` back and `gapNext` forward — with no per-chunk
  * copies or gap arrays.
  */
-function createChunksFromPairs(gl: WebGL2RenderingContext, pairs: number[]): MeshChunk[] {
+function createChunksFromPairs(
+  gl: WebGL2RenderingContext,
+  pairs: number[],
+  hits?: number[],
+): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const totalPairs = pairs.length / 2;
+  const stacked = hits != null && hits.some((h) => h > 1);
   for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
-    chunks.push(createChunk(gl, pairs, off, count));
+    chunks.push(createChunk(gl, pairs, off, count, (i) => off + i, stacked ? hits : undefined));
   }
   return chunks;
 }
@@ -779,6 +820,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
     gl.useProgram(swim.program);
+    // Disabled aHit reads the generic value (initial 0 would drop every unstacked tick).
+    gl.vertexAttrib1f(3, 1);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
     // Extension params are CSS px (shaders.extendTargetSizeCss/extendMargin1Css/extendMargin2Css),
     // converted to device px (× dpr) so they track the browser's dpr; unless the uniform was
@@ -1142,28 +1185,34 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     }
 
     this.laneMeshes = this.layout.lanes.map((lane: FlatLane, idx: number) => {
-      const rows: SubRowMesh[] = [];
+      const rowEvents: LaidOutEvent[][] = [];
       const allEvents: LaidOutEvent[] = [];
       for (let r = 0; r < lane.rowCount; r++) {
         // layout.events is startTime-ordered per lane; grouping preserves that within a sub-row.
         const events = byRow.get(`${idx}:${r}`) ?? [];
+        rowEvents.push(events);
         allEvents.push(...events);
-        const pairs: number[] = [];
-        for (const item of events) {
-          const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-          pairs.push(a, b);
-        }
-        rows.push({
-          y: lane.y + r * LANE_HEIGHT,
-          chunks: createChunksFromPairs(gl, pairs),
-          emphasisLayers: null,
-          brightChunks: null,
-          liftChunks: null,
-        });
       }
       // Folder lanes carry only summary bars — paint the whole mesh in the summary gray.
       const summary = allEvents.length > 0 && allEvents.every((e) => e.summary);
       const useCountMetric = summary ? false : laneUsesCountMetric(allEvents);
+      const rows: SubRowMesh[] = rowEvents.map((events, r) => {
+        const raw: number[] = [];
+        for (const item of events) {
+          const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
+          raw.push(a, b);
+        }
+        // Same-x degenerate ticks are one quad; length-AA pipes keep one quad per event.
+        const collapsed = useCountMetric ? collapseSameXTicks(raw) : null;
+        const pairs = collapsed?.pairs ?? raw;
+        return {
+          y: lane.y + r * LANE_HEIGHT,
+          chunks: createChunksFromPairs(gl, pairs, collapsed?.hits),
+          emphasisLayers: null,
+          brightChunks: null,
+          liftChunks: null,
+        };
+      });
       let densityCap: TickDensityCap | null = null;
       if (useCountMetric) {
         const tickTimes: number[] = [];
@@ -1268,11 +1317,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
             ? null
             : [...byKey.values()]
                 .sort((a, b) => a.dim - b.dim)
-                .map(({ rgb, dim, pairs }) => ({
-                  rgb,
-                  dim,
-                  chunks: createChunksFromPairs(gl, pairs),
-                }));
+                .map(({ rgb, dim, pairs }) => {
+                  const collapsed = meshes.useCountMetric ? collapseSameXTicks(pairs) : null;
+                  return {
+                    rgb,
+                    dim,
+                    chunks: createChunksFromPairs(gl, collapsed?.pairs ?? pairs, collapsed?.hits),
+                  };
+                });
       }
     }
   }

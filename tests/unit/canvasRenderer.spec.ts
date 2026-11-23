@@ -44,6 +44,7 @@ import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import {
+  collapseSameXTicks,
   compositeLabelBackdrop,
   laneUsesCountMetric,
   WebGlSwimlaneRenderer,
@@ -1400,7 +1401,7 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).not.toMatch(/drawTickChunks/);
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
     // One createChunksFromPairs path for all events (including duration-0).
-    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
+    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs, collapsed\?\.hits\)/);
     expect(webglSrc).toMatch(/uUseCountMetric/);
     expect(webglSrc).toMatch(/laneUsesCountMetric/);
     // Summary + muted count-metric: source-over. Resting count-metric: additive /cap.
@@ -1445,7 +1446,11 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(shaderSrc).toMatch(/uUseCountMetric/);
     expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
     expect(shaderSrc).toMatch(/uDensityCap/);
-    expect(shaderSrc).toMatch(/vStippleAlt \/ max\(uDensityCap, 1\.0\)/);
+    expect(shaderSrc).toMatch(/min\(1\.0, vHit \* vStippleAlt \/ max\(uDensityCap, 1\.0\)\)/);
+    expect(shaderSrc).toMatch(/in float aHit/);
+    expect(webglSrc).toMatch(/bindAttribLocation\(program, 3, 'aHit'\)/);
+    expect(webglSrc).toMatch(/vertexAttrib1f\(3, 1\)/);
+    expect(webglSrc).toMatch(/collapseSameXTicks/);
     expect(shaderSrc).toMatch(/rawW >= 1\.0 \|\| uSrcOver > 0\.5/);
     // Pan-stable CSS-px stripes (not screen x) — same event keeps odd/even under pan;
     // period ≈ round(dpr) keeps zebra readable when every device column is filled.
@@ -1476,6 +1481,14 @@ describe('PR-RENDER: lane chrome color', () => {
     const midCap = sampleTickDensityCap(densCap, midDt);
     expect(midCap).toBeGreaterThan(1);
     expect(midCap).toBeLessThan(densCap.capWide);
+    // Wider than the 1024-column anchor: cap keeps growing (a frozen capWide clips white).
+    const wideDt = densCap.dtWide * 4;
+    const wideCap = sampleTickDensityCap(densCap, wideDt);
+    const logWide = Math.log(densCap.dtWide);
+    const logOne = Math.log(densCap.dtOne);
+    const wideT = (logWide - Math.log(wideDt)) / (logWide - logOne);
+    expect(wideCap).toBeCloseTo(Math.exp((1 - wideT) * Math.log(densCap.capWide)), 5);
+    expect(wideCap).toBeGreaterThan(densCap.capWide * 2);
     expect(tickDensityDim(8, 1)).toBe(1);
     expect(tickDensityDim(8, 2)).toBe(1);
   });
@@ -1515,6 +1528,19 @@ describe('PR-RENDER: lane chrome color', () => {
     const [, posEnd] = encodeIntervalPair(base + 100, 1, base);
     const [posStart] = encodeIntervalPair(base + 100, 1, base);
     expect(posEnd - posStart).toBeGreaterThanOrEqual(1);
+
+    // Same encoded x collapses to one quad; the hit count is the stack. Distinct x stays 1.
+    const farPairs = far.flatMap((t) => encodeIntervalPair(t, 0, 0));
+    const stacked = collapseSameXTicks(farPairs);
+    expect(stacked.hits.reduce((sum, hit) => sum + hit, 0)).toBe(far.length);
+    expect(stacked.pairs.length / 2).toBeLessThan(far.length);
+    expect(stacked.hits.some((hit) => hit > 1)).toBe(true);
+    const nearPairs = starts.flatMap((t) => encodeIntervalPair(t, 0, 0));
+    const distinct = collapseSameXTicks(nearPairs);
+    expect(distinct.pairs).toEqual(nearPairs);
+    expect(distinct.hits.every((hit) => hit === 1)).toBe(true);
+    expect(collapseSameXTicks([0, 10, 10, 20])).toEqual({ pairs: [0, 10, 10, 20], hits: [1, 1] });
+    expect(collapseSameXTicks([5, 5, 5, 5, 6, 6])).toEqual({ pairs: [5, 5, 6, 6], hits: [2, 1] });
   });
 
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
@@ -1637,7 +1663,7 @@ describe('PR-RENDER: lane chrome color', () => {
     // WebGL: single additive mesh (no tickChunks / density VBO rebuild).
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
+    expect(webglSrc).toMatch(/createChunksFromPairs\(gl, pairs, collapsed\?\.hits\)/);
     expect(webglSrc).not.toMatch(/tickChunks/);
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
     expect(webglSrc).not.toMatch(/createDensityChunksFromMarks/);
@@ -1651,6 +1677,10 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(canvasSrc).toMatch(/assignTickDensityDims/);
     expect(canvasSrc).toMatch(/buildTickDensityCap/);
     expect(canvasSrc).toMatch(/sampleTickDensityCap/);
+    const canvasClass = canvasSrc.slice(canvasSrc.indexOf('export class CanvasSwimlaneRenderer'));
+    expect(classMethodBody(canvasClass, 'setModel')).toMatch(/rebuildTickDensityCaps/);
+    expect(classMethodBody(canvasClass, 'rebuildTickDensityCaps')).toMatch(/buildTickDensityCap/);
+    expect(classMethodBody(canvasClass, 'render')).not.toMatch(/buildTickDensityCap/);
     expect(canvasSrc).toMatch(/!hasSearch && !hasSelection && !hasMulti/);
     const densityMarks = canvasSrc.match(/for \(const m of marks\) \{[\s\S]*?\n {10}\}/)?.[0];
     expect(densityMarks).toMatch(/snapEventRect/);

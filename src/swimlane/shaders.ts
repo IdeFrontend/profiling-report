@@ -50,10 +50,12 @@ uniform float uStipplePeriod; // device columns per zebra stripe (≈ round(dpr)
 in vec2 aPos;
 in vec2 aTex;
 in vec2 aData; // x = distance to prev event end, y = distance to next event start (event coords)
+in float aHit; // collapsed same-x tick count; generic 1 when the attrib array is off
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
 out float vStippleAlt; // pan-stable odd/even CSS-px stripe factor for count-hit zebra
+out float vHit;
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -120,6 +122,7 @@ void main() {
   float worldCol = floor(((lX + rX) * 0.5) / dt);
   float stripe = floor(worldCol / max(uStipplePeriod, 1.0));
   vStippleAlt = mod(stripe, 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
+  vHit = aHit;
 
   vScreenPos = vec2(screenX, screenY);
   vLrScreen = vec2(extendedL, extendedR);
@@ -140,6 +143,7 @@ uniform float uDensityCap; // zoom-adaptive saturation count for thin count-path
 in vec2 vScreenPos;
 in vec2 vLrScreen;
 in float vStippleAlt;
+in float vHit;
 out vec4 outColor;
 
 float sdRoundBox(vec2 p, vec2 halfSize, float r) {
@@ -176,6 +180,7 @@ void main() {
   // Zebra only for non-extended hits (rawW < 1): isolates that thin-extend to ≥1 device px stay
   // full bright (durable parity); dense pack interiors use pan-stable vStippleAlt / uDensityCap
   // so stacked additive hits approach full when N ≈ zoom-adaptive median cap.
+  // Same-x float32 stacks are one quad (vHit); clamp so a late-trace clump cannot add past 1.
   float cov;
   if (uUseCountMetric < 0.5) {
     cov = min(hCoverage, rrShape);
@@ -184,10 +189,10 @@ void main() {
     bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) <= 0.5;
     if (hit) {
       // Extended isolates: full bright. Muted src-over base: full cov (even gray, no /cap).
-      // Resting additive thin: stipple / zoom-adaptive cap so N≈cap → full.
+      // Resting additive thin: stack * stipple / zoom-adaptive cap, clamped to 1.
       cov = rawW >= 1.0 || uSrcOver > 0.5
         ? 1.0
-        : vStippleAlt / max(uDensityCap, 1.0);
+        : min(1.0, vHit * vStippleAlt / max(uDensityCap, 1.0));
     } else {
       cov = 0.0;
     }
