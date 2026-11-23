@@ -39,6 +39,12 @@ import {
   COUNTER_HOVER_TIP_EST_W,
   placeFixedTip,
 } from '../../placeFixedTip';
+import {
+  COUNTER_MARKER_HOLD_PX,
+  COUNTER_MARKER_RING_PX,
+  COUNTER_MARKER_SAMPLE_PX,
+  COUNTER_MARKER_WHITE,
+} from '../../counterHoverMarkers';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
@@ -467,7 +473,7 @@ const counterHoldLinkStyle = computed(() => {
     top: `${y}px`,
     width: `${width}px`,
     height: '0px',
-    borderTop: `1.5px solid ${p.color}`,
+    borderTop: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
     transform: 'translateY(-50%)',
     pointerEvents: 'none' as const,
     zIndex: 998,
@@ -1302,9 +1308,10 @@ defineExpose({
           position: 'fixed',
           left: `${counterHover.sampleClientX}px`,
           top: `${counterHover.sampleClientY}px`,
-          background: counterHover.color,
-          width: '8px',
-          height: '8px',
+          background: 'transparent',
+          border: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
+          width: `${COUNTER_MARKER_SAMPLE_PX}px`,
+          height: `${COUNTER_MARKER_SAMPLE_PX}px`,
           borderRadius: '50%',
           transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
@@ -1320,10 +1327,10 @@ defineExpose({
           position: 'fixed',
           left: `${counterHover.dotClientX}px`,
           top: `${counterHover.dotClientY}px`,
-          background: 'transparent',
-          border: `2px solid ${counterHover.color}`,
-          width: '8px',
-          height: '8px',
+          background: COUNTER_MARKER_WHITE,
+          border: 'none',
+          width: `${COUNTER_MARKER_HOLD_PX}px`,
+          height: `${COUNTER_MARKER_HOLD_PX}px`,
           borderRadius: '50%',
           transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
@@ -1630,7 +1637,6 @@ defineExpose({
 -->
 <style>
 .pr-counter-hover-dot--sample {
-  border: 1.5px solid #fff;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 

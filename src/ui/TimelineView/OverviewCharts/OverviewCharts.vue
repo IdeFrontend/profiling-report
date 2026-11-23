@@ -13,10 +13,18 @@ import {
 import {
   areaPathFromVertices,
   stepAfterVertices,
+  stepPointAt,
   stepValueAt,
   strokePathFromVertices,
 } from './stepPath';
 import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_H, OVERVIEW_Y_MAX } from './overviewLayout';
+import {
+  COUNTER_MARKER_HOLD_PX,
+  COUNTER_MARKER_LINK_GAP_PX,
+  COUNTER_MARKER_RING_PX,
+  COUNTER_MARKER_SAMPLE_PX,
+  COUNTER_MARKER_WHITE,
+} from '../../counterHoverMarkers';
 
 const props = withDefaults(
   defineProps<{
@@ -366,31 +374,49 @@ function dotTopPercent(value: number): number {
   return (1 - Math.min(OVERVIEW_Y_MAX, Math.max(0, value)) / OVERVIEW_Y_MAX) * 100;
 }
 
-type ValueDot = {
+type OverviewMarkerSet = {
   id: string;
   active: boolean;
-  style: { left: string; top: string; background: string };
+  sampleLeft: string;
+  sampleTop: string;
+  holdLeft: string;
+  holdTop: string;
+  link: { left: string; top: string; width: string } | null;
 };
 
-/** Fixed-position dots for every track (avoids transform clipping). */
-const valueDots = computed((): ValueDot[] => {
+/** Fixed-position sample outline + hold fill + white link per track. */
+const markerSets = computed((): OverviewMarkerSet[] => {
   const xRatio = hoverXRatio.value;
-  if (hoverSeriesId.value == null || xRatio == null) return [];
+  const time = hoverTimeNs.value;
+  if (hoverSeriesId.value == null || xRatio == null || time == null) return [];
   const rects = paintRectsById.value;
-  const out: ValueDot[] = [];
-  for (const row of tipRows.value) {
-    if (row.value == null) continue;
-    const rect = rects[row.id];
+  const span = Math.max(1, x1.value - x0.value);
+  const out: OverviewMarkerSet[] = [];
+  for (const tr of tracks.value) {
+    const pt = stepPointAt(tr.points, time);
+    if (!pt) continue;
+    const rect = rects[tr.id];
     if (!rect || rect.width <= 0 || rect.height <= 0) continue;
-    const yPct = dotTopPercent(row.value) / 100;
+    const yPct = dotTopPercent(pt.v) / 100;
+    const top = `${rect.top + yPct * rect.height}px`;
+    const sampleRatio = Math.min(1, Math.max(0, (pt.t - x0.value) / span));
+    const sampleX = rect.left + sampleRatio * rect.width;
+    const holdX = rect.left + xRatio * rect.width;
+    const linkVisible = Math.abs(holdX - sampleX) >= COUNTER_MARKER_LINK_GAP_PX;
     out.push({
-      id: row.id,
-      active: row.id === hoverSeriesId.value,
-      style: {
-        left: `${rect.left + xRatio * rect.width}px`,
-        top: `${rect.top + yPct * rect.height}px`,
-        background: row.color,
-      },
+      id: tr.id,
+      active: tr.id === hoverSeriesId.value,
+      sampleLeft: `${sampleX}px`,
+      sampleTop: top,
+      holdLeft: `${holdX}px`,
+      holdTop: top,
+      link: linkVisible
+        ? {
+            left: `${Math.min(sampleX, holdX)}px`,
+            top,
+            width: `${Math.abs(holdX - sampleX)}px`,
+          }
+        : null,
     });
   }
   return out;
@@ -543,15 +569,71 @@ const valueDots = computed((): ValueDot[] => {
         </div>
       </div>
       <!-- Fixed outside the transformed overview stack so v≈0 is not clipped. -->
-      <div
-        v-for="dot in valueDots"
-        :key="dot.id"
-        class="pr-overview-value-dot"
-        :class="{ 'is-active': dot.active }"
-        data-testid="overview-value-dot"
-        :data-series-id="dot.id"
-        :style="dot.style"
-      />
+      <template
+        v-for="m in markerSets"
+        :key="m.id"
+      >
+        <div
+          v-if="m.link"
+          class="pr-overview-hover-link"
+          :class="{ 'is-active': m.active }"
+          data-testid="overview-hover-link"
+          :data-series-id="m.id"
+          :style="{
+            position: 'fixed',
+            left: m.link.left,
+            top: m.link.top,
+            width: m.link.width,
+            height: '0px',
+            borderTop: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+            zIndex: 998,
+            opacity: m.active ? 1 : 0.55,
+          }"
+        />
+        <div
+          class="pr-overview-value-dot pr-overview-value-dot--sample"
+          :class="{ 'is-active': m.active }"
+          data-testid="overview-hover-sample"
+          :data-series-id="m.id"
+          :style="{
+            position: 'fixed',
+            left: m.sampleLeft,
+            top: m.sampleTop,
+            background: 'transparent',
+            border: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
+            width: `${m.active ? COUNTER_MARKER_SAMPLE_PX + 2 : COUNTER_MARKER_SAMPLE_PX}px`,
+            height: `${m.active ? COUNTER_MARKER_SAMPLE_PX + 2 : COUNTER_MARKER_SAMPLE_PX}px`,
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 999,
+            boxSizing: 'border-box',
+            opacity: m.active ? 1 : 0.55,
+          }"
+        />
+        <div
+          class="pr-overview-value-dot pr-overview-value-dot--hold"
+          :class="{ 'is-active': m.active }"
+          data-testid="overview-value-dot"
+          :data-series-id="m.id"
+          :style="{
+            position: 'fixed',
+            left: m.holdLeft,
+            top: m.holdTop,
+            background: COUNTER_MARKER_WHITE,
+            width: `${m.active ? COUNTER_MARKER_HOLD_PX + 2 : COUNTER_MARKER_HOLD_PX}px`,
+            height: `${m.active ? COUNTER_MARKER_HOLD_PX + 2 : COUNTER_MARKER_HOLD_PX}px`,
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 999,
+            boxSizing: 'border-box',
+            opacity: m.active ? 1 : 0.55,
+          }"
+        />
+      </template>
     </Teleport>
   </div>
 </template>
@@ -802,24 +884,16 @@ const valueDots = computed((): ValueDot[] => {
   font-weight: 700;
 }
 
-/* Teleported value-dot — fixed so overview translateY / parent overflow cannot crop it. */
+/* Teleported markers — fixed so overview translateY / parent overflow cannot crop them. */
 .pr-overview-value-dot {
-  position: fixed;
-  z-index: 19;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid #fff;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  box-sizing: border-box;
 }
 
 .pr-overview-value-dot.is-active {
-  width: 10px;
-  height: 10px;
-  border-width: 2px;
-  z-index: 20;
+  z-index: 1000;
+}
+
+.pr-overview-hover-link {
+  pointer-events: none;
 }
 </style>

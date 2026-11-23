@@ -43,8 +43,8 @@ import {
   type HoverGap,
   type MarqueeRect,
 } from '../../../../swimlane/layout';
-import { stepPointAt } from '../../OverviewCharts/stepPath';
 import { counterTipRows } from '../../../../adapters/counterTracksEmulate';
+import { counterMarkerLocalGeometry } from '../../../counterHoverMarkers';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -264,21 +264,30 @@ function emitCounterHover(
     clearCounterHover();
     return;
   }
-  const pt = stepPointAt(series.points, timeAtX(localX));
-  if (!pt) {
-    clearCounterHover();
-    return;
-  }
   // hitLayout.y is already collapse-shifted — same CSS space as paintCounterLanes.
   const yCss = hit.lane.y - view.scrollY;
   const plotTop = yCss + LANE_PAD_Y;
   const plotH = Math.max(1, flatLaneHeight(hit.lane) - LANE_PAD_Y * 2);
   const yMax = series.yMax > 0 ? series.yMax : 1;
-  const clamped = Math.min(yMax, Math.max(0, pt.v));
-  const localDotY = plotTop + plotH * (1 - clamped / yMax);
   const w = syncTrackWidth();
-  const localSampleX = Math.min(w, Math.max(0, xAtTime(pt.t)));
-  const linkVisible = Math.abs(localX - localSampleX) >= 2;
+  const geo = counterMarkerLocalGeometry({
+    points: series.points,
+    cursorTime: timeAtX(localX),
+    cursorLocalX: localX,
+    xAtTime,
+    yAtValue: (v) => {
+      const clamped = Math.min(yMax, Math.max(0, v));
+      return plotTop + plotH * (1 - clamped / yMax);
+    },
+    clampSampleX: (x) => Math.min(w, Math.max(0, x)),
+  });
+  if (!geo) {
+    clearCounterHover();
+    return;
+  }
+  const { sampleLocalX, localY: localDotY, linkVisible } = geo;
+  // Geometry helper types `pt` as base StepPoint; series points carry tip `values`.
+  const pt = geo.pt as (typeof series.points)[number];
   const color = series.colorHex ?? hit.lane.color;
   const name = hit.lane.thread.name;
   const rows = counterTipRows(pt, name);
@@ -287,7 +296,7 @@ function emitCounterHover(
     nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
   });
   const valuesKey = pt.values ? JSON.stringify(pt.values) : '';
-  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${valuesKey}|${clientX}|${clientY}|${localDotY}|${localSampleX}|${linkVisible}`;
+  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${valuesKey}|${clientX}|${clientY}|${localDotY}|${sampleLocalX}|${linkVisible}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
@@ -300,13 +309,21 @@ function emitCounterHover(
     dotClientX: clientX,
     dotClientY: clientY - localY + localDotY,
     // Real sample: sample time x (clamped), same held value y.
-    sampleClientX: clientX - localX + localSampleX,
+    sampleClientX: clientX - localX + sampleLocalX,
     sampleClientY: clientY - localY + localDotY,
     linkVisible,
     sampleTimeLabel,
     color,
   };
   emit('counter-hover', payload);
+}
+
+/** Recompute counter tip/markers after zoom/pan/scroll without a pointer move. */
+function refreshCounterHoverAtLastPointer(): void {
+  const x = lastHoverLocalX;
+  const y = lastHoverLocalY;
+  if (x == null || y == null) return;
+  emitCounterHover(x, y, lastPointerClientX, lastPointerClientY, null);
 }
 
 watch(
@@ -1390,6 +1407,7 @@ watch(
     if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
     refreshHoverGapAtLastPointer();
+    refreshCounterHoverAtLastPointer();
   },
 );
 
@@ -3473,6 +3491,7 @@ function recalcPointerHover(): void {
   updateHoverGap(x, y, w);
   emit('hover', ev, lastPointerClientX, lastPointerClientY);
   emitLaneHover(y);
+  refreshCounterHoverAtLastPointer();
 }
 
 /** Exponential catch-up (~Chrome/Edge wheel smoothing). New deltas retarget without restarting. */

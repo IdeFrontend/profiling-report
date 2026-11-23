@@ -3104,17 +3104,19 @@ describe('SwimlaneView', () => {
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
 
-      // Sample (filled) + cursor-hold (hollow) + hold link.
+      // Sample (white outline) + hold (white fill) + white hold link.
       const sample = document.querySelector(
         '[data-testid="counter-hover-sample"]',
       ) as HTMLElement | null;
       expect(sample).not.toBeNull();
       expect(sample!.style.left).toBe('100px');
-      expect(sample!.style.background.toLowerCase()).toMatch(/#e7434a|231,\s*67,\s*74/);
+      expect(sample!.style.background).toMatch(/transparent/i);
+      expect(sample!.style.border).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
+      expect(sample!.style.width).toBe('11px');
       const hold = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
       expect(hold).not.toBeNull();
       expect(hold!.style.left).toBe('150px');
-      expect(hold!.style.background).toMatch(/transparent/i);
+      expect(hold!.style.background.toLowerCase()).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/);
       expect(hold!.style.position).toBe('fixed');
       expect(hold!.style.width).toBe('8px');
       expect(hold!.style.height).toBe('8px');
@@ -3124,6 +3126,7 @@ describe('SwimlaneView', () => {
       expect(link).not.toBeNull();
       expect(link!.style.left).toBe('100px');
       expect(link!.style.width).toBe('50px');
+      expect(link!.style.borderTop).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
 
       // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
       Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
