@@ -780,7 +780,9 @@ function refreshHoverGapAtLastPointer(): void {
     measureCreatePending ||
     measurePressActive ||
     lastHoverLocalX == null ||
-    lastHoverLocalY == null
+    lastHoverLocalY == null ||
+    // Ctrl/Cmd pan already cleared the gap; a view echo must not draw it again.
+    dragging
   ) {
     hoverGap.value = null;
     return;
@@ -2054,7 +2056,19 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.
   // Clear them (and force an unsnapped cursor) only once the drag crosses 4px.
   unbindMarqueeDrag = bindWindowPointerDrag({
-    onMove: onMarqueeDragMove,
+    onMove: (clientX, clientY, e) => {
+      // Ctrl/Cmd chorded after pointerdown, before the 4px gate: this press is a pan.
+      // Capture runs before the canvas listener, which then emits `pan` once.
+      if (marqueePending && (e.ctrlKey || e.metaKey)) {
+        // Arm pan before endMarquee: its scroll-y emit can flush the view watcher.
+        ctrlClickPending = true;
+        dragging = true;
+        hoverGap.value = null;
+        endMarquee();
+        return;
+      }
+      onMarqueeDragMove(clientX, clientY);
+    },
     onEnd: onMarqueeDragEnd,
   });
 }

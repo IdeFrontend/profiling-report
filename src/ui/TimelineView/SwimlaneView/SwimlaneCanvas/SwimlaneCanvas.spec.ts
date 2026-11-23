@@ -2317,6 +2317,31 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-130: Ctrl chorded on a pending press pans and does not restore the gap line', async () => {
+    const { wrapper, canvas } = await mountWithGapModel();
+    const y = await gapLaneY(wrapper);
+    await canvas.trigger('pointermove', { clientX: 140, clientY: y, pointerId: 1 });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(true);
+
+    // Button down first (no Ctrl) — still a pending marquee. Ctrl on the move must pan.
+    await canvas.trigger('pointerdown', { clientX: 140, clientY: y, pointerId: 1 });
+    await canvas.trigger('pointermove', {
+      clientX: 200,
+      clientY: y,
+      pointerId: 1,
+      ctrlKey: true,
+      buttons: 1,
+    });
+    expect(wrapper.emitted('pan')).toBeTruthy();
+    expect(wrapper.emitted('multi-select-span')).toBeFalsy();
+    expect(wrapper.find('[data-testid="marquee-rect"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+
+    await wrapper.setProps({ view: { startTime: 50, endTime: 1050, scrollY: 0 } });
+    expect(wrapper.find('[data-testid="gap-measure"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-096: Ctrl+click within the click threshold does not select or clear multi-selection', async () => {
     const { wrapper, canvas } = await mountForMarquee();
     await wrapper.setProps({ multiSelectedIds: ['e1'] });
