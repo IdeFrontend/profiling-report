@@ -59,6 +59,8 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/v930/compute-
 | `mov` / `transfer` | `#B868F8` | Purple blocks (e.g. `MOV_OUT_TO_L1_*`) |
 | `mov-muted` | `#6058A8` | Darker purple variant |
 | `cube-lane` | `#3860A8` | Blue cube/instruction bands on timeline |
+| `icache-read` | `#3D64AD` | Chrome Trace `ICACHE_READ` lane (instruction-cache read ticks; same slate as heatmap “used”) |
+| `icache-slot` | `#6B5B9A` | Chrome Trace `ICACHE_SLOT` lane (indigo-mauve sibling; distinct from mov purple) |
 | `aten` / `mixed` | striped blue/green | Aten-style labels — prefer `cube-lane` + `scalar` stripe in renderer |
 
 ## Swim CounterTracks (emulate Trace util)
@@ -96,6 +98,8 @@ The five are applied directly in [`MemoryHeatmapPanel`](../../src/ui/StatsAside/
   --pr-color-mte3: #a44830;
   --pr-color-fixp: #586c0c;
   --pr-color-scalar: #1a743e;
+  --pr-color-icache-read: #3d64ad;
+  --pr-color-icache-slot: #6b5b9a;
   --pr-color-mov: #b868f8;
   --pr-color-overview-cube: #3078f0;
   --pr-color-duration-bar: #5ec8d8;

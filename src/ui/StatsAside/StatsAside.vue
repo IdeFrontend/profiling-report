@@ -91,6 +91,8 @@ const COLOR: Record<string, string> = {
   mte3: 'var(--pr-color-mte3)',
   fixp: 'var(--pr-color-fixp)',
   scalar: 'var(--pr-color-scalar)',
+  'icache-read': 'var(--pr-color-icache-read)',
+  'icache-slot': 'var(--pr-color-icache-slot)',
   default: 'var(--pr-color-default)',
 };
 

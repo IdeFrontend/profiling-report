@@ -129,6 +129,17 @@ describe('laneColorKey', () => {
     expect(laneColorKey('AIV0/PIPE_V/status')).toBe('vector');
     expect(laneColorKey('AIV0/PIPE_S/status')).toBe('scalar');
   });
+
+  it('maps ICACHE_READ / ICACHE_SLOT lanes (not CACHEMISS)', () => {
+    expect(laneColorKey('ICACHE_READ')).toBe('icache-read');
+    expect(laneColorKey('ICACHE_SLOT')).toBe('icache-slot');
+    expect(laneColorKey('Core0.Cube/ICACHE_READ')).toBe('icache-read');
+    expect(laneColorKey('Core0.Cube/ICACHE_SLOT')).toBe('icache-slot');
+    expect(LANE_COLOR_HEX['icache-read']).toBe('#3D64AD');
+    expect(LANE_COLOR_HEX['icache-slot']).toBe('#6B5B9A');
+    // CACHEMISS must stay default — substring must not collide with ICACHE_*.
+    expect(laneColorKey('Core0.Cube/CACHEMISS')).toBe('default');
+  });
 });
 
 describe('overviewStrokeHex', () => {
