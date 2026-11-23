@@ -164,12 +164,12 @@ export type CounterHoverMarker = {
 
 /** CounterTrack lane hover tip payload (generic `ph:C` arg rows). */
 export type CounterHoverPayload = {
-  /** Pipe / lane name — tip header (EventTooltip uses event name the same way). */
+  /** Lane / folder name (kept for tests / consumers; tip UI no longer shows a title). */
   name: string;
   /** Primary series value (Y at step-after hold). */
   value: number;
-  /** Tip rows from numeric args on the sample (label = arg key). */
-  rows: { label: string; value: string }[];
+  /** Tip rows from numeric args on the sample (label = arg key; color on multi-series). */
+  rows: { label: string; value: string; color?: string }[];
   clientX: number;
   clientY: number;
   /** Cursor-hold marker — pointer x, held value y (active series). */
@@ -406,10 +406,16 @@ function emitCounterHover(
   const active = built[activeIdx]!;
   // Tip header: ph:C folder name on collapsed overlay; leaf name when expanded.
   const tipName = thread.name;
-  // Collapsed multi overlay (`built.length > 1`): all arg rows + bold active.
-  // Expanded / single leaf: only this series' row, no bold (nothing to contrast).
+  // Collapsed multi overlay (`built.length > 1`): all arg rows + per-row swatch + bold active.
+  // Expanded / single leaf: only this series' row, no bold / no swatches.
   const multiSeriesTip = built.length > 1;
-  const rows = counterTipRows(active.pt, active.label, { onlySeries: !multiSeriesTip });
+  const colorByLabel = new Map(built.map((b) => [b.label, b.color] as const));
+  const rows = counterTipRows(active.pt, active.label, { onlySeries: !multiSeriesTip }).map(
+    (r) =>
+      multiSeriesTip
+        ? { ...r, color: colorByLabel.get(r.label) ?? active.color }
+        : r,
+  );
   const origin = props.model?.minTime ?? 0;
   const sampleTimeLabel = formatDisplayTimeAuto(active.pt.t, origin, {
     nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),

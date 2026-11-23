@@ -6155,6 +6155,7 @@ describe('SwimlaneCanvas', () => {
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       name: string;
       value: number;
+      rows: { label: string; value: string; color?: string }[];
       activeRowLabel?: string;
       markers?: { seriesId: string; linkVisible: boolean; emphasized: boolean }[];
       sampleClientX: number;
@@ -6173,6 +6174,9 @@ describe('SwimlaneCanvas', () => {
     expect(tip!.markers!.some((m) => m.emphasized)).toBe(true);
     expect(tip!.activeRowLabel).toMatch(/Utilization|Using Bytes/);
     expect(tip!.color.length).toBeGreaterThan(0);
+    // Multi-series tip: every arg row carries a legend swatch color (OverviewCharts parity).
+    expect(tip!.rows).toHaveLength(2);
+    expect(tip!.rows.every((r) => !!r.color)).toBe(true);
 
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
     expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();

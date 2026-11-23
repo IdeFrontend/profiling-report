@@ -1333,11 +1333,9 @@ defineExpose({
     <Teleport to="body">
       <CounterHoverTip
         v-if="counterHover"
-        :name="counterHover.name"
         :rows="counterHover.rows"
         :sample-time-label="counterHover.sampleTimeLabel"
         :active-label="counterHover.activeRowLabel"
-        :active-color="counterHover.color"
         :style-pos="counterTipStyle"
       />
       <template

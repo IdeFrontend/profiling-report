@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue';
+import { computed } from 'vue';
 
-export type CounterTipRow = { label: string; value: string };
+export type CounterTipRow = {
+  label: string;
+  value: string;
+  /** Series swatch — set on every row for multi-series tips (OverviewCharts parity). */
+  color?: string;
+};
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
-    /** Pipe / lane / process name — tip header (parity with EventTooltip event name). */
-    name: string;
     /** One row per numeric `ph:C` arg on the sample (data-driven; no domain parsers). */
     rows: CounterTipRow[];
     stylePos: CSSProperties;
@@ -14,39 +18,30 @@ withDefaults(
     sampleTimeLabel?: string | null;
     /**
      * Arg-key label of the hovered series — that tip row gets OverviewCharts
-     * `is-active` chrome (bold + color swatch).
+     * `is-active` bold (swatches stay on every series row).
      */
     activeLabel?: string | null;
-    /** Swatch fill for the active tip row. */
-    activeColor?: string | null;
   }>(),
-  { sampleTimeLabel: null, activeLabel: null, activeColor: null },
+  { sampleTimeLabel: null, activeLabel: null },
 );
+
+/** Multi-series chrome when any row carries a legend color (OverviewCharts parity). */
+const keyed = computed(() => props.rows.some((r) => !!r.color));
 </script>
 
 <template>
   <div
     class="pr-tooltip pr-counter-hover-tip"
-    :class="{ 'pr-counter-hover-tip--keyed': !!activeLabel }"
+    :class="{ 'pr-counter-hover-tip--keyed': keyed }"
     data-testid="counter-hover-tooltip"
     :style="stylePos"
   >
-    <div
-      class="pr-counter-hover-tip__title"
-      data-testid="counter-hover-name"
-    >
-      {{ name }}
-    </div>
+    <!-- No title — lane/folder name duplicates the series row(s). -->
     <div
       v-if="sampleTimeLabel"
-      class="pr-counter-hover-tip__row"
+      class="pr-counter-hover-tip__time"
       data-testid="counter-hover-time"
     >
-      <span
-        v-if="activeLabel"
-        class="pr-counter-hover-tip__swatch pr-counter-hover-tip__swatch--spacer"
-        aria-hidden="true"
-      />
       <span class="pr-counter-hover-tip__name">Sample Time</span>
       <span class="pr-counter-hover-tip__value">{{ sampleTimeLabel }}</span>
     </div>
@@ -59,14 +54,9 @@ withDefaults(
       :data-active="activeLabel != null && row.label === activeLabel ? 'true' : undefined"
     >
       <span
-        v-if="activeLabel != null && row.label === activeLabel"
+        v-if="keyed"
         class="pr-counter-hover-tip__swatch"
-        :style="{ background: activeColor || '#fff' }"
-      />
-      <span
-        v-else-if="activeLabel"
-        class="pr-counter-hover-tip__swatch pr-counter-hover-tip__swatch--spacer"
-        aria-hidden="true"
+        :style="{ background: row.color || '#fff' }"
       />
       <span class="pr-counter-hover-tip__name">{{ row.label }}</span>
       <span class="pr-counter-hover-tip__value">{{ row.value }}</span>
@@ -100,12 +90,12 @@ withDefaults(
   animation: pr-counter-tip-in 120ms ease;
 }
 
-.pr-counter-hover-tip__title {
-  font-weight: 600;
-  color: #e8e8e8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/** Sample Time — flush left (no swatch column indent); OverviewCharts parity. */
+.pr-counter-hover-tip__time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
 }
 
 .pr-counter-hover-tip__row {
@@ -125,10 +115,6 @@ withDefaults(
   height: 8px;
   border-radius: 50%;
   flex: 0 0 auto;
-}
-
-.pr-counter-hover-tip__swatch--spacer {
-  visibility: hidden;
 }
 
 .pr-counter-hover-tip__name {

@@ -3085,9 +3085,8 @@ describe('SwimlaneView', () => {
 
       const tip = document.querySelector('[data-testid="counter-hover-tooltip"]') as HTMLElement | null;
       expect(tip).not.toBeNull();
-      expect(tip!.querySelector('[data-testid="counter-hover-name"]')!.textContent).toBe(
-        'Utilization (%)',
-      );
+      // No title — series name lives in the value row only.
+      expect(tip!.querySelector('[data-testid="counter-hover-name"]')).toBeNull();
       const timeRow = tip!.querySelector('[data-testid="counter-hover-time"]');
       expect(timeRow).not.toBeNull();
       expect(timeRow!.textContent).toMatch(/Sample Time/);
@@ -3161,20 +3160,29 @@ describe('SwimlaneView', () => {
     it('PR-SWIMVIEW-048: KB / percent tip values cap at 2 decimal places', () => {
       const tip = mount(CounterHoverTip, {
         props: {
-          name: 'Utilization (%)',
           sampleTimeLabel: '5 µs',
+          activeLabel: 'Utilization (%)',
           rows: [
-            { label: 'Utilization (%)', value: '12.35%' },
-            { label: 'Using Bytes (KB)', value: '12.35 KB' },
+            { label: 'Utilization (%)', value: '12.35%', color: '#3D64AD' },
+            { label: 'Using Bytes (KB)', value: '12.35 KB', color: '#5A7EC4' },
           ],
           stylePos: { position: 'fixed', left: '0px', top: '0px' },
         },
       });
-      expect(tip.get('[data-testid="counter-hover-name"]').text()).toBe('Utilization (%)');
+      expect(tip.find('[data-testid="counter-hover-name"]').exists()).toBe(false);
       expect(tip.get('[data-testid="counter-hover-time"]').text()).toMatch(/Sample Time\s*5 µs/);
       const rows = tip.findAll('[data-testid="counter-hover-row"]');
       expect(rows[0]!.text()).toMatch(/Utilization \(%\)\s*12\.35%/);
       expect(rows[1]!.text()).toMatch(/Using Bytes \(KB\)\s*12\.35 KB/);
+      // Multi-series: swatch on every row; bold only on active.
+      expect(rows[0]!.find('.pr-counter-hover-tip__swatch').attributes('style')).toMatch(
+        /#3D64AD|rgb\(61,\s*100,\s*173\)/i,
+      );
+      expect(rows[1]!.find('.pr-counter-hover-tip__swatch').attributes('style')).toMatch(
+        /#5A7EC4|rgb\(90,\s*126,\s*196\)/i,
+      );
+      expect(rows[0]!.classes()).toContain('is-active');
+      expect(rows[1]!.classes()).not.toContain('is-active');
       tip.unmount();
     });
   });

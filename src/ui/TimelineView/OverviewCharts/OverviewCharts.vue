@@ -587,13 +587,9 @@ const markerSets = computed((): OverviewMarkerSet[] => {
       >
         <div
           v-if="sampleTimeLabel"
-          class="pr-overview-value-tip__row"
+          class="pr-overview-value-tip__time"
           data-testid="overview-sample-time"
         >
-          <span
-            class="pr-overview-value-tip__swatch pr-overview-value-tip__swatch--spacer"
-            aria-hidden="true"
-          />
           <span class="pr-overview-value-tip__name">Sample Time</span>
           <span class="pr-overview-value-tip__value">{{ sampleTimeLabel }}</span>
         </div>
@@ -901,6 +897,14 @@ const markerSets = computed((): OverviewMarkerSet[] => {
   gap: 4px;
 }
 
+/** Sample Time — flush left (no swatch column indent); CounterHoverTip parity. */
+.pr-overview-value-tip__time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
 .pr-overview-value-tip__row {
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr) auto;
@@ -913,10 +917,6 @@ const markerSets = computed((): OverviewMarkerSet[] => {
   height: 8px;
   border-radius: 50%;
   flex: 0 0 auto;
-}
-
-.pr-overview-value-tip__swatch--spacer {
-  visibility: hidden;
 }
 
 .pr-overview-value-tip__name {
