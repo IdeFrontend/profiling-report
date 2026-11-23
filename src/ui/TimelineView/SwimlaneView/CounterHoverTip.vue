@@ -10,7 +10,7 @@ withDefaults(
     /** One row per numeric `ph:C` arg on the sample (data-driven; no domain parsers). */
     rows: CounterTipRow[];
     stylePos: CSSProperties;
-    /** Formatted sample time (relative to swim origin); shown as a Time row above args. */
+    /** Formatted sample time (relative to swim origin); shown as a Sample Time row above args. */
     sampleTimeLabel?: string | null;
     /**
      * Arg-key label of the hovered series — that tip row gets OverviewCharts
@@ -47,7 +47,7 @@ withDefaults(
         class="pr-counter-hover-tip__swatch pr-counter-hover-tip__swatch--spacer"
         aria-hidden="true"
       />
-      <span class="pr-counter-hover-tip__name">Time</span>
+      <span class="pr-counter-hover-tip__name">Sample Time</span>
       <span class="pr-counter-hover-tip__value">{{ sampleTimeLabel }}</span>
     </div>
     <div

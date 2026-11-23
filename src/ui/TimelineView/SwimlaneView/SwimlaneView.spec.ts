@@ -3090,7 +3090,7 @@ describe('SwimlaneView', () => {
       );
       const timeRow = tip!.querySelector('[data-testid="counter-hover-time"]');
       expect(timeRow).not.toBeNull();
-      expect(timeRow!.textContent).toMatch(/Time/);
+      expect(timeRow!.textContent).toMatch(/Sample Time/);
       expect((timeRow!.textContent ?? '').length).toBeGreaterThan(4);
       const rowEls = [...tip!.querySelectorAll('[data-testid="counter-hover-row"]')];
       const rows = rowEls.map((el) => el.textContent ?? '');
@@ -3171,7 +3171,7 @@ describe('SwimlaneView', () => {
         },
       });
       expect(tip.get('[data-testid="counter-hover-name"]').text()).toBe('Utilization (%)');
-      expect(tip.get('[data-testid="counter-hover-time"]').text()).toMatch(/Time\s*5 µs/);
+      expect(tip.get('[data-testid="counter-hover-time"]').text()).toMatch(/Sample Time\s*5 µs/);
       const rows = tip.findAll('[data-testid="counter-hover-row"]');
       expect(rows[0]!.text()).toMatch(/Utilization \(%\)\s*12\.35%/);
       expect(rows[1]!.text()).toMatch(/Using Bytes \(KB\)\s*12\.35 KB/);

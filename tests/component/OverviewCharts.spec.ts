@@ -167,6 +167,11 @@ describe('OverviewCharts', () => {
 
     const tip = document.querySelector('[data-testid="overview-value-tooltip"]') as HTMLElement | null;
     expect(tip).toBeTruthy();
+    // Hovered CUBE step-after sample at t=1000 (cursor mid-window).
+    const sampleTime = tip!.querySelector('[data-testid="overview-sample-time"]');
+    expect(sampleTime).toBeTruthy();
+    expect(sampleTime!.textContent).toMatch(/Sample Time/);
+    expect(sampleTime!.textContent).toMatch(/1(\.0+)?\s*µs|1000\s*ns/);
     expect(tip!.textContent).toContain('CUBE');
     expect(tip!.textContent).toContain('VECTOR');
     // CUBE at t=1000 → 50; VECTOR still holds v=10 until t=2000.

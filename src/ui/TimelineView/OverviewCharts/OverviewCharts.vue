@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { overviewSeriesStroke } from '../../../domain/laneColors';
 import type { OverviewSeries } from '../../../domain/types';
+import { formatDisplayTimeAuto, nsPerPxForTrack } from '../../../domain/formatTime';
 import { t } from '../../../i18n';
 import Chevron from '../../Chevron.vue';
 import PinIcon from '../../PinIcon.vue';
@@ -32,6 +33,11 @@ const props = withDefaults(
     /** Visible swimlane window (canonical ns). */
     startTime: number;
     endTime: number;
+    /**
+     * Report time origin (`SwimlaneModel.minTime`) for Sample Time tip formatting.
+     * Display times are relative to this origin (CounterTrack tip parity).
+     */
+    timeOrigin?: number;
     /** Match TimelineView / Swimlane gutter column width. */
     gutterWidth?: number;
     locale?: string;
@@ -55,6 +61,7 @@ const props = withDefaults(
     collapseHiddenHeight?: number;
   }>(),
   {
+    timeOrigin: 0,
     gutterWidth: 280,
     locale: 'zh-CN',
     pinnedOverviewIds: () => [],
@@ -366,6 +373,25 @@ const tipRows = computed((): TipRow[] => {
   }));
 });
 
+/**
+ * Sample Time for the hovered series' step-after sample (`pt.t`), not the cursor
+ * scrub time — CounterHoverTip parity.
+ */
+const sampleTimeLabel = computed((): string | null => {
+  const id = hoverSeriesId.value;
+  const time = hoverTimeNs.value;
+  if (id == null || time == null) return null;
+  const tr = tracks.value.find((t) => t.id === id);
+  if (!tr) return null;
+  const pt = stepPointAt(tr.points, time);
+  if (!pt) return null;
+  const rect = paintRectsById.value[id];
+  const w = rect && rect.width > 0 ? rect.width : 1;
+  return formatDisplayTimeAuto(pt.t, props.timeOrigin, {
+    nsPerPx: nsPerPxForTrack(x1.value - x0.value, w),
+  });
+});
+
 const showTip = computed(
   () => hoverSeriesId.value != null && tipRows.value.some((r) => r.value != null),
 );
@@ -559,6 +585,18 @@ const markerSets = computed((): OverviewMarkerSet[] => {
         data-testid="overview-value-tooltip"
         :style="tipPos"
       >
+        <div
+          v-if="sampleTimeLabel"
+          class="pr-overview-value-tip__row"
+          data-testid="overview-sample-time"
+        >
+          <span
+            class="pr-overview-value-tip__swatch pr-overview-value-tip__swatch--spacer"
+            aria-hidden="true"
+          />
+          <span class="pr-overview-value-tip__name">Sample Time</span>
+          <span class="pr-overview-value-tip__value">{{ sampleTimeLabel }}</span>
+        </div>
         <div
           v-for="row in tipRows"
           :key="row.id"
@@ -875,6 +913,10 @@ const markerSets = computed((): OverviewMarkerSet[] => {
   height: 8px;
   border-radius: 50%;
   flex: 0 0 auto;
+}
+
+.pr-overview-value-tip__swatch--spacer {
+  visibility: hidden;
 }
 
 .pr-overview-value-tip__name {

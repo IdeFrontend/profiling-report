@@ -182,7 +182,7 @@ export type CounterHoverPayload = {
   linkVisible: boolean;
   /** False when the active sample is off the visible track — paint hold only. */
   sampleVisible: boolean;
-  /** Formatted sample time (relative to model.minTime) for the tip Time row. */
+  /** Formatted sample time (relative to model.minTime) for the tip Sample Time row. */
   sampleTimeLabel: string;
   /** Tip swatch / chart color for the active series. */
   color: string;
