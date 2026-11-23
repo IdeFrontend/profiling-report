@@ -1151,6 +1151,11 @@ describe('SourceView', () => {
     const original = vi.mocked(newEditor).getMockImplementation();
     let dpr = 1;
     let lineHeight = 18;
+    // Past the pre-commit max (row 18px) and inside the post-commit max (row 20px).
+    const lineCount = 200;
+    const viewportPx = 360;
+    const vScroll = 3400 * 1.25;
+    const setVScrollPos = vi.fn();
     vi.mocked(newEditor).mockImplementationOnce((args) => {
       const ed = (original?.(args) ?? {}) as Record<string, unknown>;
       return {
@@ -1158,6 +1163,8 @@ describe('SourceView', () => {
         getDevicePixelRatio: () => dpr,
         getLineHeight: () => lineHeight,
         getFontSize: () => 12 * dpr,
+        getVScrollPos: () => vScroll,
+        setVScrollPos,
       } as ReturnType<typeof newEditor>;
     });
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
@@ -1167,17 +1174,37 @@ describe('SourceView', () => {
       const rowHeight = () => parseFloat(pane.style.getPropertyValue('--pr-src-row-h'));
       expect(rowHeight()).toBe(18);
 
+      const scroll = wrapper.get('[data-testid="source-metrics-scroll"]').element;
+      let scrollTop = 0;
+      const maxFor = (rowH: number) => Math.max(0, lineCount * rowH - viewportPx);
+      Object.defineProperty(scroll, 'scrollTop', {
+        configurable: true,
+        get: () => scrollTop,
+        set: (v: number) => {
+          const max = maxFor(rowHeight());
+          const next = Math.min(Math.max(0, v), max);
+          if (next === scrollTop) return;
+          scrollTop = next;
+          queueMicrotask(() => scroll.dispatchEvent(new Event('scroll')));
+        },
+      });
+
       dpr = 1.25;
-      lineHeight = 22;
+      lineHeight = 25;
+      setVScrollPos.mockClear();
       window.dispatchEvent(new Event('resize'));
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
       await wrapper.vm.$nextTick();
-      expect(rowHeight()).toBeCloseTo(22 / 1.25, 5);
+      expect(rowHeight()).toBeCloseTo(25 / 1.25, 5);
       const metricsRow = wrapper.findAll('[data-testid="source-metrics"]')[0]!.find('tr[data-line="1"]');
       expect(parseFloat(metricsRow.attributes('style')?.match(/height:\s*([0-9.]+)px/)?.[1] ?? '')).toBeCloseTo(
-        22 / 1.25,
+        25 / 1.25,
         5,
       );
+      expect(scrollTop).toBeCloseTo(vScroll / dpr, 5);
+      expect(scrollTop).toBeGreaterThan(maxFor(18));
+      expect(scrollTop).toBeLessThanOrEqual(maxFor(rowHeight()));
+      expect(setVScrollPos).not.toHaveBeenCalled();
     } finally {
       if (original) vi.mocked(newEditor).mockImplementation(original);
       wrapper.unmount();

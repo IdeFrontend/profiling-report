@@ -406,7 +406,12 @@ function scheduleGeomRefresh() {
   geomFrame = requestAnimationFrame(() => {
     geomFrame = 0;
     if (disposed || !readGeom()) return;
-    applyEditorScrollToTable();
+    // Vue commits the new row box in a microtask. scrollTop written here
+    // clamps against the previous scrollHeight and the echo consumes the guard.
+    void nextTick(() => {
+      if (disposed) return;
+      applyEditorScrollToTable();
+    });
   });
 }
 
