@@ -26,7 +26,7 @@ export const MEMORY_TOPOLOGY_NODE_DEFS: Omit<MemoryTopologyModel['nodes'][number
   { id: 'aic_scalar', label: 'Scalar' },
   { id: 'ub', label: 'UB' },
   { id: 'vec', label: 'Vec' },
-  { id: 'simt', label: 'SIMT' },
+  { id: 'simt', label: 'SIMT cache' },
   { id: 'simd', label: 'SIMD' },
   { id: 'aiv_scalar', label: 'Scalar' },
 ];
