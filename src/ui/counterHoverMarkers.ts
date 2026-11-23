@@ -74,12 +74,21 @@ export type CounterMarkerLocal = {
   holdLocalX: number;
   localY: number;
   linkVisible: boolean;
+  /**
+   * False when the real sample sits outside the visible track.
+   * Callers must not paint the outline / stem into the gutter — hold-only.
+   */
+  sampleVisible: boolean;
 };
 
 /**
  * Step-after sample + hold geometry in lane-local CSS pixels.
  * `xAtTime` / `yAtValue` map canonical ns / value into the plot.
  * `linkVisible` uses active-sized edge gap so emphasized chrome does not leave a stub.
+ *
+ * Prefer `trackW` over `clampSampleX`: clamping a left-of-view sample to x=0 stuck the
+ * outline on the track/gutter seam and drew a stem across the titles. Off-track samples
+ * hide the outline + stem and keep the hold disc only.
  */
 export function counterMarkerLocalGeometry(input: {
   points: readonly StepPoint[];
@@ -87,15 +96,23 @@ export function counterMarkerLocalGeometry(input: {
   cursorLocalX: number;
   xAtTime: (t: number) => number;
   yAtValue: (v: number) => number;
-  /** Clamp sample x into the plot (e.g. `[0, trackW]`). */
+  /** Inclusive track width in CSS px; sample outside `[0, trackW]` → hold-only. */
+  trackW?: number;
+  /** @deprecated Prefer `trackW` (hide outside). Clamps sample x into the plot. */
   clampSampleX?: (x: number) => number;
 }): CounterMarkerLocal | null {
   const pt = stepPointAt(input.points, input.cursorTime);
   if (!pt) return null;
   let sampleLocalX = input.xAtTime(pt.t);
-  if (input.clampSampleX) sampleLocalX = input.clampSampleX(sampleLocalX);
+  let sampleVisible = true;
+  if (input.trackW != null) {
+    sampleVisible = sampleLocalX >= 0 && sampleLocalX <= input.trackW;
+  } else if (input.clampSampleX) {
+    sampleLocalX = input.clampSampleX(sampleLocalX);
+  }
   const holdLocalX = input.cursorLocalX;
   const localY = input.yAtValue(pt.v);
-  const linkVisible = counterHoldLinkSegment(sampleLocalX, holdLocalX, true) != null;
-  return { pt, sampleLocalX, holdLocalX, localY, linkVisible };
+  const linkVisible =
+    sampleVisible && counterHoldLinkSegment(sampleLocalX, holdLocalX, true) != null;
+  return { pt, sampleLocalX, holdLocalX, localY, linkVisible, sampleVisible };
 }

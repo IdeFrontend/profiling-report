@@ -467,6 +467,7 @@ type CounterMarkerRender = {
   holdClientX: number;
   holdClientY: number;
   linkVisible: boolean;
+  sampleVisible: boolean;
   emphasized: boolean;
 };
 
@@ -483,6 +484,7 @@ const counterMarkerRenders = computed((): CounterMarkerRender[] => {
       holdClientX: m.holdClientX,
       holdClientY: m.holdClientY,
       linkVisible: m.linkVisible,
+      sampleVisible: m.sampleVisible,
       emphasized: m.emphasized,
     }));
   }
@@ -495,13 +497,14 @@ const counterMarkerRenders = computed((): CounterMarkerRender[] => {
       holdClientX: p.dotClientX,
       holdClientY: p.dotClientY,
       linkVisible: p.linkVisible,
+      sampleVisible: p.sampleVisible,
       emphasized: true,
     },
   ];
 });
 
 function counterHoldLinkStyle(m: CounterMarkerRender) {
-  if (!m.linkVisible) return null;
+  if (!m.sampleVisible || !m.linkVisible) return null;
   // Stem between outer edges — not through the sample hole / hold disc.
   const seg = counterHoldLinkSegment(m.sampleClientX, m.holdClientX, m.emphasized);
   if (!seg) return null;
@@ -1346,6 +1349,7 @@ defineExpose({
           :style="counterHoldLinkStyle(m)!"
         />
         <div
+          v-if="m.sampleVisible"
           class="pr-counter-hover-dot pr-counter-hover-dot--sample"
           data-testid="counter-hover-sample"
           :style="{

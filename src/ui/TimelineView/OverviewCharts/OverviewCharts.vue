@@ -378,6 +378,7 @@ type OverviewMarkerSet = {
   id: string;
   color: string;
   active: boolean;
+  sampleVisible: boolean;
   sampleLeft: string;
   sampleTop: string;
   holdLeft: string;
@@ -400,15 +401,19 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     if (!rect || rect.width <= 0 || rect.height <= 0) continue;
     const yPct = dotTopPercent(pt.v) / 100;
     const top = `${rect.top + yPct * rect.height}px`;
-    const sampleRatio = Math.min(1, Math.max(0, (pt.t - x0.value) / span));
-    const sampleX = rect.left + sampleRatio * rect.width;
+    // Off-track sample → hold-only (no clamp-to-edge stem into gutter / off chart).
+    const sampleRatio = (pt.t - x0.value) / span;
+    const sampleVisible = sampleRatio >= 0 && sampleRatio <= 1;
     const holdX = rect.left + xRatio * rect.width;
+    const sampleX = sampleVisible ? rect.left + sampleRatio * rect.width : holdX;
     const active = tr.id === hoverSeriesId.value;
-    const seg = counterHoldLinkSegment(sampleX, holdX, active);
+    const seg =
+      sampleVisible ? counterHoldLinkSegment(sampleX, holdX, active) : null;
     out.push({
       id: tr.id,
       color: tr.color,
       active,
+      sampleVisible,
       sampleLeft: `${sampleX}px`,
       sampleTop: top,
       holdLeft: `${holdX}px`,
@@ -596,6 +601,7 @@ const markerSets = computed((): OverviewMarkerSet[] => {
           }"
         />
         <div
+          v-if="m.sampleVisible"
           class="pr-overview-value-dot pr-overview-value-dot--sample"
           :class="{ 'is-active': m.active }"
           data-testid="overview-hover-sample"

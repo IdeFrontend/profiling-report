@@ -157,6 +157,8 @@ export type CounterHoverMarker = {
   holdClientX: number;
   holdClientY: number;
   linkVisible: boolean;
+  /** False when the sample is off the visible track — hold disc only (no gutter bleed). */
+  sampleVisible: boolean;
   emphasized: boolean;
 };
 
@@ -173,11 +175,13 @@ export type CounterHoverPayload = {
   /** Cursor-hold marker — pointer x, held value y (active series). */
   dotClientX: number;
   dotClientY: number;
-  /** Real sample marker — sample time x (clamped into track), held value y (active). */
+  /** Real sample marker — sample time x (on-track only), held value y (active). */
   sampleClientX: number;
   sampleClientY: number;
   /** True when active sample and cursor markers are far enough apart to draw a hold link. */
   linkVisible: boolean;
+  /** False when the active sample is off the visible track — paint hold only. */
+  sampleVisible: boolean;
   /** Formatted sample time (relative to model.minTime) for the tip Time row. */
   sampleTimeLabel: string;
   /** Tip swatch / chart color for the active series. */
@@ -345,7 +349,6 @@ function emitCounterHover(
   }
   const w = syncTrackWidth();
   const cursorTime = timeAtX(localX);
-  const clampSampleX = (x: number) => Math.min(w, Math.max(0, x));
 
   type Built = {
     id: string;
@@ -355,6 +358,7 @@ function emitCounterHover(
     sampleLocalX: number;
     localDotY: number;
     linkVisible: boolean;
+    sampleVisible: boolean;
   };
   const built: Built[] = [];
   for (const hitSeries of seriesHits) {
@@ -367,7 +371,7 @@ function emitCounterHover(
         const clamped = Math.min(hitSeries.yMax, Math.max(0, v));
         return hitSeries.plotTop + hitSeries.plotH * (1 - clamped / hitSeries.yMax);
       },
-      clampSampleX,
+      trackW: w,
     });
     if (!geo) continue;
     built.push({
@@ -378,6 +382,7 @@ function emitCounterHover(
       sampleLocalX: geo.sampleLocalX,
       localDotY: geo.localY,
       linkVisible: geo.linkVisible,
+      sampleVisible: geo.sampleVisible,
     });
   }
   if (built.length === 0) {
@@ -408,15 +413,17 @@ function emitCounterHover(
   const markers: CounterHoverMarker[] = built.map((b, i) => ({
     seriesId: b.id,
     color: b.color,
-    sampleClientX: clientX - localX + b.sampleLocalX,
+    // Off-track sample: park coords on the hold so a stale render cannot bleed into the gutter.
+    sampleClientX: b.sampleVisible ? clientX - localX + b.sampleLocalX : clientX,
     sampleClientY: clientY - localY + b.localDotY,
     holdClientX: clientX,
     holdClientY: clientY - localY + b.localDotY,
     linkVisible: b.linkVisible,
+    sampleVisible: b.sampleVisible,
     emphasized: i === activeIdx,
   }));
   const valuesKey = active.pt.values ? JSON.stringify(active.pt.values) : '';
-  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${activeIdx}|${built.length}`;
+  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${active.sampleVisible}|${activeIdx}|${built.length}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
@@ -427,9 +434,10 @@ function emitCounterHover(
     clientY,
     dotClientX: clientX,
     dotClientY: clientY - localY + active.localDotY,
-    sampleClientX: clientX - localX + active.sampleLocalX,
+    sampleClientX: active.sampleVisible ? clientX - localX + active.sampleLocalX : clientX,
     sampleClientY: clientY - localY + active.localDotY,
     linkVisible: active.linkVisible,
+    sampleVisible: active.sampleVisible,
     sampleTimeLabel,
     color: active.color,
     activeRowLabel: active.label,
@@ -438,8 +446,17 @@ function emitCounterHover(
   emit('counter-hover', payload);
 }
 
-/** Recompute counter tip/markers after zoom/pan/scroll without a pointer move. */
+/**
+ * Recompute counter tip/markers after zoom/pan/scroll without a pointer move.
+ * Skip while Ctrl/Cmd-drag pan or live marquee owns the press — those paths clear
+ * hover, and a view watch must not resurrect markers from stale localX (that floated
+ * the sample/stem over the gutter titles during Ctrl+Alt drag).
+ */
 function refreshCounterHoverAtLastPointer(): void {
+  if (dragging || (marqueePressActive && !marqueePending)) {
+    clearCounterHover();
+    return;
+  }
   const x = lastHoverLocalX;
   const y = lastHoverLocalY;
   if (x == null || y == null) return;
@@ -3116,6 +3133,8 @@ function onPointerMove(e: PointerEvent): void {
   // Skip getBoundingClientRect — dock preview emits force sync reflow mid-drag.
   if (marqueePressActive && !marqueePending) {
     lastPointerClientY = e.clientY;
+    lastHoverLocalX = null;
+    lastHoverLocalY = null;
     emit('hover', null, e.clientX, e.clientY);
     clearCounterHover();
     return;
@@ -3131,6 +3150,10 @@ function onPointerMove(e: PointerEvent): void {
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 
   if (dragging) {
+    // Drop lastHover so a view watch after `pan` cannot resurrect fixed markers from a
+    // stale localX/clientX pair (gutter bleed / floating stem during Ctrl(+Alt) drag).
+    lastHoverLocalX = null;
+    lastHoverLocalY = null;
     // Trusted move with no buttons held means a lost pointerup — recover instead of
     // panning indefinitely (same recovery `bindWindowPointerDrag` gives every other gesture).
     if (e.isTrusted && e.buttons === 0) {
@@ -3193,6 +3216,8 @@ function onPointerMove(e: PointerEvent): void {
     // Keep normal event hover (tooltip); only the gap overlay stays suppressed.
     {
       const ev = eventAtPointer(x, y, mag.eventId);
+      lastHoverLocalX = x;
+      lastHoverLocalY = y;
       emit('hover', ev, e.clientX, e.clientY);
       emitCounterHover(x, y, e.clientX, e.clientY, ev);
     }
