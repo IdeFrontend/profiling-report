@@ -416,28 +416,31 @@ function onViewportChange(event: Event) {
   closeFilter();
 }
 
-watch(openFilter, async (open) => {
-  if (open != null) {
-    document.addEventListener('click', onDocumentClick);
-    document.addEventListener('keydown', onDocumentKeydown);
-    window.addEventListener('scroll', onViewportChange, true);
-    window.addEventListener('resize', onViewportChange);
-    await nextTick();
-    popoverRef.value?.querySelector<HTMLElement>('input[type="checkbox"]')?.focus();
-  } else {
-    document.removeEventListener('click', onDocumentClick);
-    document.removeEventListener('keydown', onDocumentKeydown);
-    window.removeEventListener('scroll', onViewportChange, true);
-    window.removeEventListener('resize', onViewportChange);
-  }
-});
+function addFilterListeners() {
+  document.addEventListener('click', onDocumentClick);
+  document.addEventListener('keydown', onDocumentKeydown);
+  window.addEventListener('scroll', onViewportChange, true);
+  window.addEventListener('resize', onViewportChange);
+}
 
-onBeforeUnmount(() => {
+function removeFilterListeners() {
   document.removeEventListener('click', onDocumentClick);
   document.removeEventListener('keydown', onDocumentKeydown);
   window.removeEventListener('scroll', onViewportChange, true);
   window.removeEventListener('resize', onViewportChange);
+}
+
+watch(openFilter, async (open, previous) => {
+  const wasOpen = previous != null;
+  const isOpen = open != null;
+  if (isOpen && !wasOpen) addFilterListeners();
+  else if (!isOpen && wasOpen) removeFilterListeners();
+  if (!isOpen) return;
+  await nextTick();
+  popoverRef.value?.querySelector<HTMLElement>('input[type="checkbox"]')?.focus();
 });
+
+onBeforeUnmount(removeFilterListeners);
 
 function cell(value: string | number | undefined): string {
   return value == null ? '' : String(value);

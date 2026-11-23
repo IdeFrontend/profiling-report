@@ -1137,6 +1137,22 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(naIdentity.reportModel.summary.opName).toBeUndefined();
     expect(naIdentity.reportModel.summary.opType).toBeUndefined();
     expect(naIdentity.reportModel.summary.pid).toBeUndefined();
+
+    const mixOnly = adaptPayloads({
+      'Summary.jsonl': encoder.encode(
+        JSON.stringify({ category: 'OpInfoSummary', 'Mix Block Dim': 2 }) + '\n',
+      ),
+    });
+    expect(mixOnly.reportModel.operatorRows).toEqual([
+      {
+        opName: undefined,
+        opType: undefined,
+        demangledName: undefined,
+        taskDurationUs: undefined,
+        blockDim: undefined,
+        mixBlockDim: 2,
+      },
+    ]);
     expect(naIdentity.reportModel.operatorRows).toEqual([{ taskDurationUs: 0.5 }]);
   });
 

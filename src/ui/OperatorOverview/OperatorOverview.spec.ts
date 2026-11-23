@@ -498,7 +498,18 @@ describe('OperatorOverview', () => {
     expect(windowEscapes).toBe(0);
     expect(document.body.querySelector('.pr-operator-overview__filter-popover')).toBeNull();
     expect(document.activeElement).toBe(filterButton.element);
+
+    await filterButton.trigger('click');
+    await wrapper.findAll('thead th')[2].find('button').trigger('click');
     wrapper.unmount();
+    let afterUnmount = 0;
+    const onWindowAfter = () => {
+      afterUnmount += 1;
+    };
+    window.addEventListener('keydown', onWindowAfter);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    window.removeEventListener('keydown', onWindowAfter);
+    expect(afterUnmount).toBe(1);
   });
 
   it('PR-OVW-025: funnel controls the popover through aria-controls', async () => {

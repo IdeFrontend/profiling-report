@@ -1040,21 +1040,25 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
       summary,
     );
   const csvOperatorRows = operatorRowsFromOpBasicInfo(payloadByName(payloads, ['OpBasicInfo.csv']));
-  const operatorRows =
-    csvOperatorRows.length > 0
-      ? csvOperatorRows
-      : summary.opName || summary.opType || summary.taskDurationUs != null
-        ? [
-            {
-              opName: summary.opName,
-              opType: summary.opType,
-              demangledName: signatureFromName(summary.opName),
-              taskDurationUs: summary.taskDurationUs,
-              blockDim: summary.blockDim,
-              mixBlockDim: summary.mixBlockDim,
-            },
-          ]
-        : [];
+  const summaryHasRow = summary.opName != null
+    || summary.opType != null
+    || summary.taskDurationUs != null
+    || summary.blockDim != null
+    || summary.mixBlockDim != null;
+  const operatorRows = csvOperatorRows.length > 0
+    ? csvOperatorRows
+    : summaryHasRow
+      ? [
+          {
+            opName: summary.opName,
+            opType: summary.opType,
+            demangledName: signatureFromName(summary.opName),
+            taskDurationUs: summary.taskDurationUs,
+            blockDim: summary.blockDim,
+            mixBlockDim: summary.mixBlockDim,
+          },
+        ]
+      : [];
   return {
     summary,
     ...(operatorRows.length > 0 ? { operatorRows } : {}),

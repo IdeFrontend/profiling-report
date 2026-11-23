@@ -101,7 +101,7 @@ DATA-8, DATA-19, DATA-25, DATA-28, DATA-29, DATA-33, DATA-33d, DATA-33f, DATA-39
 DATA-37 — Product-final roofline (axes / roof lines / tabs remain open; compute formula given but no chart-axis spec).
 
 ## Changelog
-- **2026-11-23** — PR-VM-028: `OpInfoSummary` blank and `NA` text fields stay absent, matching OpBasicInfo. A CSV data row is always listed; a finite CSV duration wins even when the name is `NA`, and absent CSV fields fall through to OpInfoSummary.
+- **2026-11-23** — PR-VM-028: `OpInfoSummary` blank and `NA` text fields stay absent, matching OpBasicInfo. A CSV data row is always listed; a finite CSV duration wins even when the name is `NA`, and absent CSV fields fall through to OpInfoSummary. `Block Dim` or `Mix Block Dim` alone still synthesizes the fallback row.
 - **2026-11-18** — Empty Chrome Trace throws when there is no complete interval (`X` with `ts`+`dur`, or `i` with positive `dur`), matching PR-SWIM-017.
 - **2026-11-18** — PR-VM-028: colliding multi-pack `ReportOperator.label` values gain a ` (stem)` suffix; unique labels stay plain.
 - **2026-11-18** — PR-VM-028: multi-pack `ReportOperator.label` is the short name of the pack's first operator row (archive-stem fallback).
