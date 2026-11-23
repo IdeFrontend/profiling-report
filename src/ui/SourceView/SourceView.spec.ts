@@ -1157,7 +1157,7 @@ describe('SourceView', () => {
     const vScroll = 3400 * 1.25;
     const setVScrollPos = vi.fn();
     vi.mocked(newEditor).mockImplementationOnce((args) => {
-      const ed = (original?.(args) ?? {}) as Record<string, unknown>;
+      const ed = (original?.(args) ?? {}) as unknown as Record<string, unknown>;
       return {
         ...ed,
         getDevicePixelRatio: () => dpr,
@@ -1165,7 +1165,7 @@ describe('SourceView', () => {
         getFontSize: () => 12 * dpr,
         getVScrollPos: () => vScroll,
         setVScrollPos,
-      } as ReturnType<typeof newEditor>;
+      } as unknown as ReturnType<typeof newEditor>;
     });
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
     try {
