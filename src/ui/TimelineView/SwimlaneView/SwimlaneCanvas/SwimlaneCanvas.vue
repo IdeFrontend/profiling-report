@@ -150,6 +150,8 @@ const freezeBackingStore = computed(
 /** One series' sample + hold marker set (Teleport → body). */
 export type CounterHoverMarker = {
   seriesId: string;
+  /** Series stroke/fill color — hold disc fill (white ring stays separate). */
+  color: string;
   sampleClientX: number;
   sampleClientY: number;
   holdClientX: number;
@@ -421,6 +423,7 @@ function emitCounterHover(
   });
   const markers: CounterHoverMarker[] = built.map((b, i) => ({
     seriesId: b.id,
+    color: b.color,
     sampleClientX: clientX - localX + b.sampleLocalX,
     sampleClientY: clientY - localY + b.localDotY,
     holdClientX: clientX,

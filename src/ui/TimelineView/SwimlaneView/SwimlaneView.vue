@@ -40,10 +40,9 @@ import {
   placeFixedTip,
 } from '../../placeFixedTip';
 import {
-  COUNTER_MARKER_HOLD_PX,
-  COUNTER_MARKER_RING_PX,
-  COUNTER_MARKER_SAMPLE_PX,
   COUNTER_MARKER_WHITE,
+  counterMarkerRingPx,
+  counterMarkerSizePx,
 } from '../../counterHoverMarkers';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
@@ -460,6 +459,7 @@ const counterTipStyle = computed(() => {
 
 type CounterMarkerRender = {
   key: string;
+  color: string;
   sampleClientX: number;
   sampleClientY: number;
   holdClientX: number;
@@ -475,6 +475,7 @@ const counterMarkerRenders = computed((): CounterMarkerRender[] => {
   if (p.markers && p.markers.length > 0) {
     return p.markers.map((m) => ({
       key: m.seriesId,
+      color: m.color,
       sampleClientX: m.sampleClientX,
       sampleClientY: m.sampleClientY,
       holdClientX: m.holdClientX,
@@ -486,6 +487,7 @@ const counterMarkerRenders = computed((): CounterMarkerRender[] => {
   return [
     {
       key: 'active',
+      color: p.color,
       sampleClientX: p.sampleClientX,
       sampleClientY: p.sampleClientY,
       holdClientX: p.dotClientX,
@@ -506,7 +508,7 @@ function counterHoldLinkStyle(m: CounterMarkerRender) {
     top: `${m.sampleClientY}px`,
     width: `${width}px`,
     height: '0px',
-    borderTop: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
+    borderTop: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
     transform: 'translateY(-50%)',
     pointerEvents: 'none' as const,
     zIndex: 998,
@@ -1346,17 +1348,9 @@ defineExpose({
             left: `${m.sampleClientX}px`,
             top: `${m.sampleClientY}px`,
             background: 'transparent',
-            border: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
-            width: `${
-              counterMarkerRenders.length > 1 && m.emphasized
-                ? COUNTER_MARKER_SAMPLE_PX + 2
-                : COUNTER_MARKER_SAMPLE_PX
-            }px`,
-            height: `${
-              counterMarkerRenders.length > 1 && m.emphasized
-                ? COUNTER_MARKER_SAMPLE_PX + 2
-                : COUNTER_MARKER_SAMPLE_PX
-            }px`,
+            border: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
+            width: `${counterMarkerSizePx(m.emphasized)}px`,
+            height: `${counterMarkerSizePx(m.emphasized)}px`,
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
@@ -1372,18 +1366,10 @@ defineExpose({
             position: 'fixed',
             left: `${m.holdClientX}px`,
             top: `${m.holdClientY}px`,
-            background: COUNTER_MARKER_WHITE,
-            border: 'none',
-            width: `${
-              counterMarkerRenders.length > 1 && m.emphasized
-                ? COUNTER_MARKER_HOLD_PX + 2
-                : COUNTER_MARKER_HOLD_PX
-            }px`,
-            height: `${
-              counterMarkerRenders.length > 1 && m.emphasized
-                ? COUNTER_MARKER_HOLD_PX + 2
-                : COUNTER_MARKER_HOLD_PX
-            }px`,
+            background: m.color,
+            border: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
+            width: `${counterMarkerSizePx(m.emphasized)}px`,
+            height: `${counterMarkerSizePx(m.emphasized)}px`,
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',

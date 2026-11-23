@@ -3104,7 +3104,8 @@ describe('SwimlaneView', () => {
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
 
-      // Sample (white outline) + hold (white fill) + white hold link.
+      // Sample (white outline) + hold (series fill + white ring) + white hold link.
+      // Active sizes match OverviewCharts value-dot (10px / 2px ring).
       const sample = document.querySelector(
         '[data-testid="counter-hover-sample"]',
       ) as HTMLElement | null;
@@ -3112,14 +3113,15 @@ describe('SwimlaneView', () => {
       expect(sample!.style.left).toBe('100px');
       expect(sample!.style.background).toMatch(/transparent/i);
       expect(sample!.style.border).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
-      expect(sample!.style.width).toBe('11px');
+      expect(sample!.style.width).toBe('10px');
       const hold = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
       expect(hold).not.toBeNull();
       expect(hold!.style.left).toBe('150px');
-      expect(hold!.style.background.toLowerCase()).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/);
+      expect(hold!.style.background.toLowerCase()).toMatch(/#e7434a|rgb\(231,\s*67,\s*74\)/i);
+      expect(hold!.style.border).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
       expect(hold!.style.position).toBe('fixed');
-      expect(hold!.style.width).toBe('8px');
-      expect(hold!.style.height).toBe('8px');
+      expect(hold!.style.width).toBe('10px');
+      expect(hold!.style.height).toBe('10px');
       const link = document.querySelector(
         '[data-testid="counter-hover-link"]',
       ) as HTMLElement | null;

@@ -19,11 +19,10 @@ import {
 } from './stepPath';
 import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_H, OVERVIEW_Y_MAX } from './overviewLayout';
 import {
-  COUNTER_MARKER_HOLD_PX,
   COUNTER_MARKER_LINK_GAP_PX,
-  COUNTER_MARKER_RING_PX,
-  COUNTER_MARKER_SAMPLE_PX,
   COUNTER_MARKER_WHITE,
+  counterMarkerRingPx,
+  counterMarkerSizePx,
 } from '../../counterHoverMarkers';
 
 const props = withDefaults(
@@ -376,6 +375,7 @@ function dotTopPercent(value: number): number {
 
 type OverviewMarkerSet = {
   id: string;
+  color: string;
   active: boolean;
   sampleLeft: string;
   sampleTop: string;
@@ -384,7 +384,7 @@ type OverviewMarkerSet = {
   link: { left: string; top: string; width: string } | null;
 };
 
-/** Fixed-position sample outline + hold fill + white link per track. */
+/** Fixed-position sample outline + series-colored hold + white link per track. */
 const markerSets = computed((): OverviewMarkerSet[] => {
   const xRatio = hoverXRatio.value;
   const time = hoverTimeNs.value;
@@ -405,6 +405,7 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     const linkVisible = Math.abs(holdX - sampleX) >= COUNTER_MARKER_LINK_GAP_PX;
     out.push({
       id: tr.id,
+      color: tr.color,
       active: tr.id === hoverSeriesId.value,
       sampleLeft: `${sampleX}px`,
       sampleTop: top,
@@ -585,7 +586,7 @@ const markerSets = computed((): OverviewMarkerSet[] => {
             top: m.link.top,
             width: m.link.width,
             height: '0px',
-            borderTop: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
+            borderTop: `${counterMarkerRingPx(m.active)}px solid ${COUNTER_MARKER_WHITE}`,
             transform: 'translateY(-50%)',
             pointerEvents: 'none',
             zIndex: 998,
@@ -602,9 +603,9 @@ const markerSets = computed((): OverviewMarkerSet[] => {
             left: m.sampleLeft,
             top: m.sampleTop,
             background: 'transparent',
-            border: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
-            width: `${m.active ? COUNTER_MARKER_SAMPLE_PX + 2 : COUNTER_MARKER_SAMPLE_PX}px`,
-            height: `${m.active ? COUNTER_MARKER_SAMPLE_PX + 2 : COUNTER_MARKER_SAMPLE_PX}px`,
+            border: `${counterMarkerRingPx(m.active)}px solid ${COUNTER_MARKER_WHITE}`,
+            width: `${counterMarkerSizePx(m.active)}px`,
+            height: `${counterMarkerSizePx(m.active)}px`,
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
@@ -622,9 +623,10 @@ const markerSets = computed((): OverviewMarkerSet[] => {
             position: 'fixed',
             left: m.holdLeft,
             top: m.holdTop,
-            background: COUNTER_MARKER_WHITE,
-            width: `${m.active ? COUNTER_MARKER_HOLD_PX + 2 : COUNTER_MARKER_HOLD_PX}px`,
-            height: `${m.active ? COUNTER_MARKER_HOLD_PX + 2 : COUNTER_MARKER_HOLD_PX}px`,
+            background: m.color,
+            border: `${counterMarkerRingPx(m.active)}px solid ${COUNTER_MARKER_WHITE}`,
+            width: `${counterMarkerSizePx(m.active)}px`,
+            height: `${counterMarkerSizePx(m.active)}px`,
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
