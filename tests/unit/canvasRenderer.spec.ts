@@ -1447,6 +1447,10 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(shaderSrc).toMatch(/floor\(\(\(lX \+ rX\) \* 0\.5\) \/ dt\)/);
     expect(shaderSrc).toMatch(/floor\(worldCol \/ max\(uStipplePeriod, 1\.0\)\)/);
     expect(shaderSrc).not.toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
+    // Sub-pixel ticks: continuous center±0.5 (no floor/ceil thrash under fractional pan).
+    expect(shaderSrc).toMatch(/if \(extW < 1\.0\)/);
+    expect(shaderSrc).toMatch(/screenL = c - 0\.5/);
+    expect(shaderSrc).toMatch(/screenR = c \+ 0\.5/);
     expect(shaderSrc).toMatch(/if \(screenR <= screenL\) screenR = screenL \+ 1\.0/);
     expect(webglSrc).toMatch(/uStipplePeriod/);
     expect(webglSrc).toMatch(/Math\.max\(1, Math\.round\(dpr\)\)/);

@@ -92,12 +92,22 @@ void main() {
   float extendedR = rPx + extend;
 
   float screenY = glToPixelY(pos.y);
-  // Extend this vertex's edge to the pixel bound of the EXTENDED event (sudu).
-  // Zero-width L≈R that lands on an integer device edge would otherwise get
-  // floor==ceil (degenerate quad); bump to 1 device column so count-hit FS can run.
-  float screenL = floor(extendedL);
-  float screenR = ceil(extendedR);
-  if (screenR <= screenL) screenR = screenL + 1.0;
+  // Wide events: snap edges to pixel bounds (sudu AA). Sub-pixel / zero-width ticks:
+  // continuous center±0.5 — floor/ceil under fractional pan makes neighbors gap or
+  // double-cover at different phases (zebra flicker). Isolates that thin-extend to
+  // ≥1 device px take the snapped path and stay full bright in the FS.
+  float extW = extendedR - extendedL;
+  float screenL;
+  float screenR;
+  if (extW < 1.0) {
+    float c = (extendedL + extendedR) * 0.5;
+    screenL = c - 0.5;
+    screenR = c + 0.5;
+  } else {
+    screenL = floor(extendedL);
+    screenR = ceil(extendedR);
+    if (screenR <= screenL) screenR = screenL + 1.0;
+  }
   float screenX = mix(screenL, screenR, aTex.y);
   pos.x = pixelToGlX(screenX);
 
