@@ -960,11 +960,26 @@ describe('npu-rep / loadReportSource profile routing', () => {
     );
     expect(counterProcs.length).toBeGreaterThanOrEqual(1);
     expect(
-      counterProcs.some((p) => /UTILIZATION/i.test(p.name) && p.threads.some((t) => t.counter)),
+      counterProcs.some(
+        (p) =>
+          /UTILIZATION/i.test(p.name) &&
+          p.threads.some(
+            (t) => t.counter || (t.counterSeries?.length ?? 0) > 0 || t.children?.some((c) => c.counter),
+          ),
+      ),
     ).toBe(true);
-    expect(counterProcs.every((p) => p.threads.every((t) => (t.counter?.points.length ?? 0) > 0))).toBe(
-      true,
-    );
+    // Leaf has `counter`; multi-series folder has `counterSeries` + child leaves.
+    const hasPoints = (t: (typeof counterProcs)[number]['threads'][number]): boolean => {
+      if ((t.counter?.points.length ?? 0) > 0) return true;
+      if ((t.counterSeries?.length ?? 0) > 0) {
+        return t.counterSeries!.every((s) => s.points.length > 0);
+      }
+      if (t.children?.length) {
+        return t.children.every((c) => (c.counter?.points.length ?? 0) > 0);
+      }
+      return false;
+    };
+    expect(counterProcs.every((p) => p.threads.every(hasPoints))).toBe(true);
     expect(adapted.reportModel.profile).toBe('emulate');
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);
