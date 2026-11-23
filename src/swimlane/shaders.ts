@@ -27,11 +27,12 @@ export const extendMargin1Css = 2;
 export const extendMargin2Css = 4;
 
 /**
- * Odd world-column multiplier for thin-event count-hit stipple (matches Canvas
- * `TICK_ALTERNATE_FACTOR` in layout.ts). Long dense additive fills zebra instead of a solid bar.
- * Columns are pan-stable `floor(t / dt)` with `dt = span / deviceWidth` (same idea as Canvas `k·dt`).
+ * Odd stripe multiplier for thin-event count-hit stipple (matches Canvas
+ * `TICK_ALTERNATE_FACTOR` in layout.ts). Long dense fills zebra instead of a solid bar.
+ * Stripes are pan-stable `floor(floor(t/dt) / uStipplePeriod)` with period ≈ 1 CSS px
+ * (`round(dpr)` device columns) so zoom-out packs stay readable on retina.
  */
-export const thinEventAlternateFactor = 0.6;
+export const thinEventAlternateFactor = 0.4;
 
 /** Scale a CSS-px corner/width value to integer device px: `* dpr`, then round `((x+0.5)|0)`. */
 export function rrToDevicePx(cssPx: number, dpr: number): number {
@@ -44,6 +45,7 @@ precision highp float;
 uniform vec4 uSizePos;
 uniform vec2 uResolution;
 uniform vec3 uExtendParameters; // xyz = targetSize, margin1, margin2, all in device px (CSS px × dpr); targetSize 0 disables
+uniform float uStipplePeriod; // device columns per zebra stripe (≈ round(dpr) = 1 CSS px)
 
 in vec2 aPos;
 in vec2 aTex;
@@ -51,7 +53,7 @@ in vec2 aData; // x = distance to prev event end, y = distance to next event sta
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
-out float vStippleAlt; // pan-stable odd/even world-column factor for count-hit zebra
+out float vStippleAlt; // pan-stable odd/even CSS-px stripe factor for count-hit zebra
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -100,12 +102,14 @@ void main() {
   pos.x = pixelToGlX(screenX);
 
   // Pan-stable stipple: world column from unextended event center (aPos times are
-  // timeBase-relative; sx = 2/span so span = 2/sx). Same event keeps the same odd/even
+  // timeBase-relative; sx = 2/span so span = 2/sx). Group by uStipplePeriod (~1 CSS px)
+  // so dense zoom-out packs keep visible zebra on high-dpr; same event keeps odd/even
   // under horizontal pan; zoom changes dt and may reflow (acceptable).
   float span = 2.0 / uSizePos.x;
   float dt = span / max(uResolution.x, 1.0);
   float worldCol = floor(((lX + rX) * 0.5) / dt);
-  vStippleAlt = mod(worldCol, 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
+  float stripe = floor(worldCol / max(uStipplePeriod, 1.0));
+  vStippleAlt = mod(stripe, 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
 
   vScreenPos = vec2(screenX, screenY);
   vLrScreen = vec2(extendedL, extendedR);

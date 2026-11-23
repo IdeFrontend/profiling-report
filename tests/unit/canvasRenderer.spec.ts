@@ -1440,12 +1440,18 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(shaderSrc).toMatch(/uUseCountMetric/);
     expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
     expect(shaderSrc).toMatch(/rawW < 1\.0 \? vStippleAlt : 1\.0/);
-    // Pan-stable world column (not screen x) — same event keeps odd/even under pan.
+    // Pan-stable CSS-px stripes (not screen x) — same event keeps odd/even under pan;
+    // period ≈ round(dpr) keeps zebra readable when every device column is filled.
     expect(shaderSrc).toMatch(/vStippleAlt/);
+    expect(shaderSrc).toMatch(/uStipplePeriod/);
     expect(shaderSrc).toMatch(/floor\(\(\(lX \+ rX\) \* 0\.5\) \/ dt\)/);
+    expect(shaderSrc).toMatch(/floor\(worldCol \/ max\(uStipplePeriod, 1\.0\)\)/);
     expect(shaderSrc).not.toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
     expect(shaderSrc).toMatch(/if \(screenR <= screenL\) screenR = screenL \+ 1\.0/);
+    expect(webglSrc).toMatch(/uStipplePeriod/);
+    expect(webglSrc).toMatch(/Math\.max\(1, Math\.round\(dpr\)\)/);
     expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
+    expect(thinEventAlternateFactor).toBe(0.4);
   });
 
   it('PR-RENDER-065: duration-0 ticks do not merge into continuous time coverage (#205)', async () => {

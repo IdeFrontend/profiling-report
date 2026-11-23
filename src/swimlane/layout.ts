@@ -1703,7 +1703,7 @@ export const TICK_DENSITY_MIN_DIM = 0.35;
 export const TICK_DENSITY_CAP = 16;
 /** Relative soft-scale for `tickCountSimilarity` (PR-RENDER-066). */
 export const TICK_COUNT_SIM_SIGMA = 0.35;
-/** Odd-in-run / odd device-column stipple (shared with WebGL thin-event FS). */
+/** Odd-in-run / odd CSS-column stipple (shared with WebGL thin-event FS). */
 export const TICK_ALTERNATE_FACTOR = thinEventAlternateFactor;
 /**
  * Max empty CSS columns between occupied bins that still join one alternate group.

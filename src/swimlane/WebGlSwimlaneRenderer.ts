@@ -63,6 +63,7 @@ interface GlProgram {
   uExtendParameters: WebGLUniformLocation | null;
   uSrcOver: WebGLUniformLocation | null;
   uUseCountMetric: WebGLUniformLocation | null;
+  uStipplePeriod: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -199,6 +200,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uExtendParameters: gl.getUniformLocation(program, 'uExtendParameters'),
     uSrcOver: gl.getUniformLocation(program, 'uSrcOver'),
     uUseCountMetric: gl.getUniformLocation(program, 'uUseCountMetric'),
+    uStipplePeriod: gl.getUniformLocation(program, 'uStipplePeriod'),
   };
 }
 
@@ -793,6 +795,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       );
     if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
     if (swim.uUseCountMetric) gl.uniform1f(swim.uUseCountMetric, 0);
+    // One CSS-px zebra stripe (round(dpr) device columns) so dense zoom-out packs stay readable.
+    if (swim.uStipplePeriod) gl.uniform1f(swim.uStipplePeriod, Math.max(1, Math.round(dpr)));
 
     const muteRest =
       this.searchQuery.length === 0 && (this.selectedId != null || this.multiIds.size > 0);
