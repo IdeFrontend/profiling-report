@@ -731,6 +731,7 @@ describe('StatsAside', () => {
   it('PR-STATS-038: single emulate core keeps bars with opType AIC/AIV (UI-54)', async () => {
     // After UI-54 drops unresolved cores, a pack may have only side aic (or only aiv0).
     // Must not fall through to knownSide (aic→cube / aiv→vector) and blank the list.
+    // #196: single side shows a plain label naming Cube / Vector 0 (not a chooser/chip).
     const aicOnly = [
       { id: 'scalar', label: 'Scalar', ratio: 0.505, colorKey: 'scalar', side: 'aic' as const },
       { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
@@ -745,6 +746,22 @@ describe('StatsAside', () => {
     });
     await aic.get('[data-testid="pipe-occupancy"]');
     expect(aic.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
+    const aicLabel = aic.get('[data-testid="pipe-side-label"]');
+    expect(aicLabel.classes()).toContain('pr-pipe-side-label');
+    expect(aicLabel.classes()).not.toContain('pr-pipe-toggle');
+    expect(aic.find('.pr-pipe-toggle__btn').exists()).toBe(false);
+    // Accessible name is the visible core, not the toggle's "PIPE side" group label.
+    expect(aicLabel.attributes('role')).toBeUndefined();
+    expect(aicLabel.attributes('aria-label')).toBeUndefined();
+    expect(aicLabel.text()).toBe('Cube');
+    expect(aic.get('[data-testid="pipe-side-aic"]').text()).toBe('Cube');
+    const sideSrc = (await import('./StatsAside.vue?raw')).default as string;
+    const sideRule =
+      new RegExp(`\\.pr-pipe-side-label\\s*\\{([^}]*)\\}`).exec(sideSrc)?.[1] ?? '';
+    expect(sideRule).toContain('font-weight: 600');
+    expect(sideRule).toContain('color: #ffffff');
+    expect(sideRule).not.toMatch(/\bbackground\b/);
+    expect(sideRule).not.toMatch(/\bborder\b/);
     let rows = aic.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
     expect(rows).toContain('51');
@@ -764,10 +781,50 @@ describe('StatsAside', () => {
     });
     await aiv.get('[data-testid="pipe-occupancy"]');
     expect(aiv.find('[data-testid="pipe-side-toggle"]').exists()).toBe(false);
+    const aivLabel = aiv.get('[data-testid="pipe-side-label"]');
+    expect(aivLabel.classes()).toContain('pr-pipe-side-label');
+    expect(aivLabel.classes()).not.toContain('pr-pipe-toggle');
+    expect(aiv.find('.pr-pipe-toggle__btn').exists()).toBe(false);
+    expect(aivLabel.attributes('role')).toBeUndefined();
+    expect(aivLabel.attributes('aria-label')).toBeUndefined();
+    expect(aivLabel.text()).toBe('Vector 0');
+    expect(aiv.get('[data-testid="pipe-side-aiv0"]').text()).toBe('Vector 0');
     rows = aiv.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
     expect(rows).toContain('48');
     expect(rows).toContain('19');
+  });
+
+  it('PR-STATS-038b: AIC + one AIV uses Cube|Vector labels (#196)', async () => {
+    const pipes = [
+      { id: 'scalar', label: 'Scalar', ratio: 0.505, colorKey: 'scalar', side: 'aic' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.0, colorKey: 'mte3', side: 'aic' as const },
+      { id: 'scalar', label: 'Scalar', ratio: 0.484, colorKey: 'scalar', side: 'aiv0' as const },
+      { id: 'mte3', label: 'MTE3', ratio: 0.1856, colorKey: 'mte3', side: 'aiv0' as const },
+    ];
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: pipes,
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="pipe-occupancy"]');
+    expect(wrapper.find('[data-testid="pipe-side-label"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="pipe-side-toggle"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="pipe-side-aic"]').text()).toBe('Cube');
+    expect(wrapper.get('[data-testid="pipe-side-aiv0"]').text()).toBe('Vector');
+    expect(wrapper.find('[data-testid="pipe-side-aiv1"]').exists()).toBe(false);
+
+    let rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('51');
+    expect(rows).not.toContain('19');
+
+    await wrapper.get('[data-testid="pipe-side-aiv0"]').trigger('click');
+    rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
+    expect(rows).toContain('19');
+    expect(rows).not.toContain('51');
   });
 
   it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {
