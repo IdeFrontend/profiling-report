@@ -313,15 +313,24 @@ function openOperatorTimeline(row: ReportOperatorRow) {
   emit('openTimeline');
 }
 
-/** Repoint the highlighted row when the host changes packs. A filtered-out pack clears the highlight. */
+/**
+ * Repoint the highlight when the host changes packs. A row the user just
+ * activated in this pack stays put; otherwise the first visible row of the
+ * pack is used. A pack with no visible row clears the highlight.
+ */
 watch(
   () => props.selectedOperatorId,
   (id) => {
     if (id == null) return;
-    const match = props.rows.find((row) => row.sourceOperatorId === id);
-    if (match == null) return;
-    const visible = visibleRows.value.some((row) => toRaw(row) === toRaw(match));
-    selectedRow.value = visible ? toRaw(match) : null;
+    const current = selectedRow.value;
+    if (
+      current != null
+      && current.sourceOperatorId === id
+      && visibleRows.value.some((row) => toRaw(row) === current)
+    ) return;
+    if (!props.rows.some((row) => row.sourceOperatorId === id)) return;
+    const match = visibleRows.value.find((row) => row.sourceOperatorId === id);
+    selectedRow.value = match != null ? toRaw(match) : null;
   },
   { immediate: true },
 );

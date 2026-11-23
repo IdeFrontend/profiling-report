@@ -651,6 +651,39 @@ describe('OperatorOverview', () => {
     await optimize!.trigger('click');
     expect(wrapper.emitted('optimize')).toBeUndefined();
     wrapper.unmount();
+
+    // A later row of the pack stays highlighted when the host echoes the id.
+    const packRows: ReportOperatorRow[] = [
+      { ...rows[0], opName: 'first_a', sourceOperatorId: 'op1.npu.rep' },
+      { ...rows[1], opName: 'second_a', sourceOperatorId: 'op1.npu.rep' },
+      { opName: 'other_b', opType: 'cube', taskDurationUs: 1, sourceOperatorId: 'op2.npu.rep' },
+    ];
+    const multi = mount(OperatorOverview, {
+      props: { rows: packRows, selectedOperatorId: 'op2.npu.rep', locale: 'zh-CN' },
+    });
+    await multi.findAll('tbody tr')[1].trigger('click');
+    expect(multi.emitted('update:selectedOperatorId')).toEqual([['op1.npu.rep']]);
+    await multi.setProps({ selectedOperatorId: 'op1.npu.rep' });
+    expect(multi.findAll('tbody tr')[1].attributes('aria-selected')).toBe('true');
+    expect(multi.findAll('tbody tr')[0].attributes('aria-selected')).toBe('false');
+
+    await multi.findAll('thead th')[1].find('button').trigger('click');
+    const namePopover = new DOMWrapper(
+      document.body.querySelector('.pr-operator-overview__filter-popover') as HTMLElement,
+    );
+    const secondOnly = namePopover.findAll('.pr-operator-overview__filter-option')
+      .find((option) => option.text() === 'second_a');
+    await secondOnly!.find('input').setValue(true);
+    expect(multi.findAll('tbody tr')).toHaveLength(1);
+    await multi.find('tbody tr').trigger('click');
+    await multi.setProps({ selectedOperatorId: 'op2.npu.rep' });
+    await multi.setProps({ selectedOperatorId: 'op1.npu.rep' });
+    expect(multi.find('tbody tr').attributes('aria-selected')).toBe('true');
+    expect(multi.find('tbody tr').text()).toContain('second_a');
+    const secondOptimize = multi.findAll('button').find((button) => button.text() === '执行优化');
+    await secondOptimize!.trigger('click');
+    expect(multi.emitted('optimize')).toEqual([[{ opName: 'second_a' }]]);
+    multi.unmount();
   });
 
   it('PR-OVW-032: mount with selectedOperatorId highlights that pack, not the first row', () => {
