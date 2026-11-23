@@ -6,8 +6,8 @@
 | **Panel / component** | `RooflinePanel` → `src/ui/StatsAside/RooflinePanel/` |
 | **Capability** | `roofline` |
 | **Phase** | M2 |
-| **Unification** | `gap` (emulate — same panel, different mapper) |
-| **Sept 30 (emulate)** | **hide** |
+| **Unification** | `adapt-mapper` (emulate — same panel, Roofline* CSV mapper) |
+| **Sept 30 (emulate)** | **in** when Roofline points exist; gate on AnalysisState only when that CSV is packed (failed `roofline` row → omit; absent AnalysisState still adapts; `roofline.json` fallback) ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)) |
 
 ## Sketches
 
@@ -65,7 +65,7 @@ Code: `rooflineFromRows` / `buildRooflineViewModel` in `src/adapters/roofline.ts
 
 ### Legend (UI)
 
-At the top of the raised card (**no** duplicate in-card **Roofline** title — the aside `h4` is enough), left-aligned with **TOps/s**. One CSS grid for both rows so the nth AIV / AIC swatches share a vertical edge (e.g. AIV bp16 with AIC int32 fp32). Group heads `#c4c4c4`, series labels `#8a8a8a`. Op-mix (`Vec_FP32 (…%)`, …) shares the **TOps/s** alphabetic baseline above the plot — not inside the plot well. Roofs use the same series colors (`2px`; **AIV** roofs dashed, **AIC** roofs solid — both slope + plateau). Marker shapes follow the product stats sketch: **circles** for measured points off the roofs; **filled rounded-square** knees on each ridge (`8×8`, `rx=2`, series color, same as legend). Legend hover (experimental) thickens that roof and dims the others.
+At the top of the raised card (**no** duplicate in-card **Roofline** title — the aside `h4` is enough), left-aligned with **TOps/s**. One CSS grid for both rows so the nth AIV / AIC swatches share a vertical edge (e.g. AIV bf16 with AIC int32 fp32). Group heads `#c4c4c4`, series labels `#8a8a8a`. Op-mix (`Vec_FP32 (…%)`, …) shares the **TOps/s** alphabetic baseline above the plot — not inside the plot well. Roofs use the same series colors (`2px`; **AIV** roofs dashed, **AIC** roofs solid — both slope + plateau). Marker shapes follow the product stats sketch: **circles** for measured points off the roofs; **filled rounded-square** knees on each ridge (`8×8`, `rx=2`, series color, same as legend). Legend hover (experimental) thickens that roof and dims the others.
 
 | Group | Series (colors) |
 | --- | --- |
@@ -74,11 +74,21 @@ At the top of the raised card (**no** duplicate in-card **Roofline** title — t
 
 ## Emulate fill
 
+Producer (`BIPROF_OPTS='--roofline'`) persists analyzer tables and packs them into `.npu-rep`. The viewer **does not** re-derive I/P from ExecutedInstructions / VectorUtilizations ([DATA-45](../context/decisions/interim/DATA.md#data-45)). Contract: npu-simulator `roofline_data_format.md` (architecture `v100`).
+
 | Adapted field | Embed | Columns / notes | Status |
 |---------------|-------|-----------------|--------|
-| `roofline` | [`ArchDiagramMetrics.csv`](../formats/emulate/ArchDiagramMetrics.csv.md) + [`ExecutedInstructions.csv`](../formats/emulate/ExecutedInstructions.csv.md) + [`VectorUtilizations.csv`](../formats/emulate/VectorUtilizations.csv.md) ± ELF | New mapper required | `gap` → hide Sept 30 |
+| gate | [`AnalysisState.csv`](../formats/emulate/AnalysisState.csv.md) | Latest `AnalysisName = roofline` with `AnalysisPassed = 1` | Required when AnalysisState packed |
+| points | [`RooflinePoints.csv`](../formats/emulate/RooflinePoints.csv.md) | `ArithmeticIntensity` → `intensity`; `PerformanceGFlops / 1000` → `performance` (TOps/s); label `{shortFn} - {SIMD\|SIMT\|SIMT-OUT\|L0\|CUBE-OUT}`; color by mode heuristic (SIMD→`aiv-fp16`, SIMT→`aiv-bp16`, CUBE→`aic-int16-fp16`) | **Required to show** |
+| series | [`RooflineComputePeaks.csv`](../formats/emulate/RooflineComputePeaks.csv.md) × [`RooflineBandwidthPeaks.csv`](../formats/emulate/RooflineBandwidthPeaks.csv.md) | Per-`Unit` cross-product (HTML all-on roofs). `PeakGFlops / 1000` → `peakComputeTops`; `PeakGBs` → `peakBandwidthGBs`. `SIMD-UB` solid; other memory levels dashed. AIC `tf32_hf32` → `aic-tf32-hf32`; AIC `fp32` → `aic-fp32` (not `aic-int32-fp32`) | Required when shown |
+| fallback | [`roofline.json`](../formats/emulate/roofline.json.md) | Debug export only when the Roofline CSVs are absent | Optional |
+| mix labels | — | Empty (no ArithmeticUtilization dtype ratios) | Optional omitted |
+
+Code: `rooflineFromEmulatePayloads` in `src/adapters/rooflineEmulate.ts` ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)).
+
+Memory-level map (CSV → debug / HTML bw key): `SIMD-UB`→SIMD/`peakBandwidthSIMD`; `SIMT-UB`→SIMT; `SIMT-OUT`→SIMT-OUT; `CUBE-L0`→L0; `CUBE-OUT`→CUBE-OUT.
 
 ## Related
 
 - Spec: [RooflinePanel.spec.md](../../src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md)
-- Product: npu-compute §11.8 / docx §11.2.4
+- Product: npu-compute §11.8 / docx §11.2.4; emulate [DATA-57a](../context/decisions/interim/DATA.md#data-57a)

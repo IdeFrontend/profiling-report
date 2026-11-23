@@ -26,11 +26,13 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Swim CounterTracks (#208 / [DATA-57](../../docs/context/decisions/DATA.md)).** When the Trace carries populated memory-utilization counter pipes (`<AIC|AIV0|AIV1>_<UB|L0A|L0B|L0C|L1>_UTILIZATION` with `ph:C` `memory_utilization`), append a **Memory utilization** process of CounterTrack leaves via `mergeMemoryUtilCounterTracks` ([UI-61](../../docs/context/decisions/UI.md)). `args["Utilization (%)"]` → point `v` (0..1 fractions ×100; values in (1, 100] stay as percent); optional finite `args["Using Bytes (KB)"]` → point `abs`; same-`ts` multi-`C` keeps **last** (whole sample); series `colorHex` `#E7434A`; empty util processes are skipped. Do **not** mirror Trace util pipes into `reportModel.overviewSeries` — 统计分析 stays Sampling-only ([DATA-32](../../docs/context/decisions/DATA.md) / [DATA-39](../../docs/context/decisions/DATA.md)).
 
-**Omit gap panels.** Do not populate `roofline` or `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards. Do not invent overview series from PipeUtilization ratios or Trace util pipes.
+**Roofline (DATA-57a).** When `AnalysisState` says `roofline` passed (or AnalysisState is absent) and `RooflinePoints` + compute/bandwidth peaks are packed, fill `reportModel.roofline` via `rooflineFromEmulatePayloads` (GOPS→TOps/s; per-unit dtype×bandwidth roofs matching producer HTML). `roofline.json` is fallback when CSVs are absent. Do **not** invent points from ExecutedInstructions / VectorUtilizations ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
+
+**Omit gap panels.** Do not populate `hardwareDetails` from invented compute CSVs. Do not invent FLOPS/BW summary cards. Do not invent overview series from PipeUtilization ratios or Trace util pipes.
 
 **Source | SASS (DATA-53).** `adaptEmulate` calls `adaptSourceCorrelation`. When ELF `SourceInstructions` / `AsmMetrics` gate passes, attach `sourceCorrelation` (`mock: false`) and advertise **`sourceTab`**. Assembly-only (no SourceFiles) is allowed. Gelu-without-ELF and IPCAsmMetrics-only packs omit the tab ([UI-37](../../docs/context/decisions/UI.md)).
 
-**Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`; **`memoryHeatmap`** when a heat unit is drawable; **`sourceTab`** when a real (non-mock) Source model attaches. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载). Do not set `roofline` until a dedicated mapper exists.
+**Capabilities.** `dependencies` when present; **`archDiagram`** when ArchDiagramMetrics yields drawable `memoryTopology`; **`memoryHeatmap`** when a heat unit is drawable; **`sourceTab`** when a real (non-mock) Source model attaches; **`roofline`** when emulate points exist. Do not set `memoryDiagram` for emulate (that flag is compute Asc 内存负载).
 
 **Errors.** Corrupt marker or unparseable PipeTrace → throw. Missing PipeTrace or optional analytics embeds → omit fields / null swimlane, do not throw.
 
@@ -52,6 +54,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 14. **PR-ASIM-013** — ELF SourceInstructions / AsmMetrics → `sourceCorrelation.mock === false` and capability **`sourceTab`**.
 15. **PR-ASIM-014** — Without ELF Source* / AsmMetrics (IPC-only / gelu-shaped) → omit `sourceCorrelation` and `'sourceTab'`.
 16. **PR-ASIM-015** — Trace `ph:C` on `AIV0_UB_UTILIZATION` (etc.) → one swim CounterTrack leaf per populated pipe under **Memory utilization**; fraction util scaled to percent; optional `Using Bytes (KB)` → `abs`; same-`ts` keeps last (incl. abs); `colorHex` `#E7434A`; metadata-only util pids omitted; `overviewSeries` stays `[]`; no memory-util counters → no counter process (#208 / DATA-57).
+17. **PR-ASIM-016** — Passing `Roofline*.csv` (+ AnalysisState) → non-empty `roofline` + capability `roofline`; GOPS→TOps/s; dtype×bandwidth series include `aic-tf32-hf32`; AIC `fp32` maps to `aic-fp32` (not `aic-int32-fp32`) and sorts after `tf32_hf32`; failed AnalysisState omits; JSON fallback when CSVs absent ([DATA-57a](../../docs/context/decisions/interim/DATA.md#data-57a)).
 
 ## Edge Cases
 
@@ -84,3 +87,4 @@ Emulate Source follow-ons (stalls / IPC / richer metrics / tick→ns / SASS labe
 - **2026-09-17** — PR-ASIM-007: multi-core native tracing reports merged with remapped pids.
 - **2026-09-18** — DATA-47: no summary cards / meta for emulate; drop KernelInfo → summary map.
 - **2026-09-22** — M4 performance-hints join (PR-ASIM-009…012): `HintMessages` / `HintTypes` / `InstructionHints` / `KernelHints` / `SourceLineHints` → `performanceHints` + capability `performanceHints`.
+- **2026-11-17** — Emulate Roofline from `Roofline*.csv` / `roofline.json` (PR-ASIM-016 / DATA-57a).

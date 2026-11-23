@@ -571,6 +571,8 @@ const tooltipText = computed(() => {
   max-width: 100%;
   font-size: 12px;
   line-height: 1.2;
+  /* Emulate dtype×bandwidth roofs can exceed ~7 series (DATA-57a). */
+  overflow-x: auto;
 }
 
 .pr-roofline__leg-head {
@@ -585,6 +587,7 @@ const tooltipText = computed(() => {
   color: #8a8a8a;
   white-space: nowrap;
   cursor: pointer;
+  max-width: 100%;
 }
 
 .pr-roofline__leg-item--lit {

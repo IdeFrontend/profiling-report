@@ -46,7 +46,7 @@ Row counts are data rows (header excluded). Object names match the manifest; lin
 | [`UnitsUsageMetrics`](UnitsUsageMetrics.csv.md) | table | 924 | Sub-core / warp usage |
 | [`UnitUtilization`](UnitUtilization.csv.md) | table | 736 | Unit util time series |
 | [`PredicateRegValues`](PredicateRegValues.csv.md) | table | 640 | Predicate registers |
-| [`VectorUtilizations`](VectorUtilizations.csv.md) | table | 480 | Roofline-style vector util |
+| [`VectorUtilizations`](VectorUtilizations.csv.md) | table | 480 | Producer upstream for Roofline analyzer (viewer uses `Roofline*.csv`) |
 | [`VfPMUViewPerSubcore`](VfPMUViewPerSubcore.csv.md) | view | 430 | PMU by subcore |
 | [`SprWriteEvents`](SprWriteEvents.csv.md) | table | 350 | SPR writes |
 | [`SIMDSamplingStats`](SIMDSamplingStats.csv.md) | table | 256 | SIMD stall samples |
@@ -104,9 +104,9 @@ Row counts are CSV data rows. `HintMessages`, `InstructionHints`, `KernelHints`,
 | [`AiCoreOccupancy`](AiCoreOccupancy.csv.md) | view | 3 | **yes** | AICore utilization overlay (out of scope) |
 | [`PipesUtilization`](PipesUtilization.csv.md) | table | 24 | **yes** | PIPE occupancy / CSV tab |
 | [`PipeUtilizationHist`](PipeUtilizationHist.csv.md) | view | 24 | **yes** | Util hist |
-| [`Functions`](Functions.csv.md) | table | 0 | no (empty) | Roofline VF names (ELF) |
-| [`VectorUtilizations`](VectorUtilizations.csv.md) | table | 480 | yes | Roofline |
-| [`SourceInstructions`](SourceInstructions.csv.md) | table | 0 | no (empty) | Roofline / source join |
+| [`Functions`](Functions.csv.md) | table | 0 | no (empty) | ELF VF names (analyzer input) |
+| [`VectorUtilizations`](VectorUtilizations.csv.md) | table | 480 | yes | Analyzer input (viewer: `Roofline*.csv`) |
+| [`SourceInstructions`](SourceInstructions.csv.md) | table | 0 | no (empty) | Source / analyzer join |
 | [`VfIPC`](VfIPC.csv.md) | table | 32 | yes | SIMD/SIMT VF IPC |
 | [`VfSimtIPC`](VfSimtIPC.csv.md) | table | 0 | no (empty) | needs SIMT IPC path |
 | Call* / [`CallGraph`](CallGraph.csv.md) … | table | 0 | no (empty) | Call stacks (ELF) |
@@ -140,6 +140,7 @@ Four performance-hint tables are packed **despite** manifest `row_count` 0 / `fi
 | [`TraceBubbles`](TraceBubbles.csv.md) / [`TraceBubbleSummary`](TraceBubbleSummary.csv.md) | `--bubble` |
 | [`VfSimtIPC`](VfSimtIPC.csv.md)* / [`VfSimtInvocations`](VfSimtInvocations.csv.md) | SIMT IPC path |
 | Call* | Call stacks (ELF) |
+| [`RooflinePoints`](RooflinePoints.csv.md) / [`RooflineComputePeaks`](RooflineComputePeaks.csv.md) / [`RooflineBandwidthPeaks`](RooflineBandwidthPeaks.csv.md) / [`RooflineMetadata`](RooflineMetadata.csv.md) | `--roofline`; absent from the committed [`gelu.npu-rep`](../../../data/gelu.npu-rep) fixture (`PR-ASIM-009`), but present on other gelu packs (e.g. gelu_2x128) and [`data/simt_gather_1d_roofline.npu-rep`](../../../data/simt_gather_1d_roofline.npu-rep) ([DATA-57a](../../context/decisions/interim/DATA.md#data-57a)) |
 | [`MemoryUtilizationStates`](MemoryUtilizationStates.csv.md) | `--memory-utilization` |
 | [`DCacheHitMissEvents`](DCacheHitMissEvents.csv.md) | quantitative indices |
 | [`QueueFullEvents`](QueueFullEvents.csv.md) / [`QueueFullStalls`](QueueFullStalls.csv.md) | not triggered on gelu |

@@ -555,8 +555,161 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(kernel.sourceLineId).toBeUndefined();
     expect(kernel.typeName).toBe('shared_bank_conflicts');
   });
-});
 
+  it('PR-ASIM-016: Roofline*.csv → roofline + capability; AnalysisState gate; JSON fallback (DATA-57a)', () => {
+    const analysisOk = 'AnalysisName,AnalysisPassed\nroofline,1\n';
+    const analysisFail = 'AnalysisName,AnalysisPassed\nroofline,0\n';
+    const points = [
+      'FunctionPC,FunctionSize,FunctionName,ExecutionMode,Unit,MemoryLevel,ExecutionCount,DurationTicks,FpOperations,IntegerOperations,TotalOperations,ProcessedBytes,ArithmeticIntensity,ThroughputGBs,PerformanceGFlops',
+      '6344,504,OnlineSoftmax.vector.thread,SIMD,AIV,SIMD-UB,2,1844,82944,0,82944,132096,0.627906976744186,110.0811161860468,69.12070086100613',
+      '0,2604,flash_attn_lite,CUBE,AIC,CUBE-L0,1,6968,8388608,0,8388608,229376,36.57142857142857,50.58525076689868,1849.9748851894374',
+    ].join('\n');
+    const compute = [
+      'Unit,DataType,PeakGFlops',
+      'AIV,fp16,54000.0',
+      'AIV,bf16,27000.0',
+      'AIV,fp32,13500.0',
+      'AIC,fp16_bf16,432000.0',
+      'AIC,tf32_hf32,216000.0',
+      'AIC,fp32,26000.0',
+      'AIC,int8_fp8,864000.0',
+    ].join('\n');
+    const bandwidth = [
+      'Unit,MemoryLevel,PeakGBs',
+      'AIV,SIMD-UB,50353.92',
+      'AIV,SIMT-UB,12588.8',
+      'AIV,SIMT-OUT,1638.4',
+      'AIC,CUBE-L0,50353.92',
+      'AIC,CUBE-OUT,1638.4',
+    ].join('\n');
+
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(minimalTraceUs()),
+      'AnalysisState.csv': enc.encode(analysisOk),
+      'RooflinePoints.csv': enc.encode(points),
+      'RooflineComputePeaks.csv': enc.encode(compute),
+      'RooflineBandwidthPeaks.csv': enc.encode(bandwidth),
+    });
+    expect(adapted.capabilities).toContain('roofline');
+    const roof = adapted.reportModel.roofline!;
+    expect(roof.points).toHaveLength(2);
+    const simd = roof.points.find((p) => p.id.includes('SIMD-UB'))!;
+    expect(simd.intensity).toBeCloseTo(0.627906976744186, 10);
+    expect(simd.performance).toBeCloseTo(69.12070086100613 / 1000, 12);
+    expect(simd.seriesId).toBe('aiv-fp16-simd');
+    expect(simd.label).toBe('OnlineSoftmax.vector.thread - SIMD');
+    const cube = roof.points.find((p) => p.id.includes('CUBE-L0'))!;
+    expect(cube.performance).toBeCloseTo(1849.9748851894374 / 1000, 12);
+    expect(cube.seriesId).toBe('aic-int16-fp16-l0');
+    expect(roof.series.some((s) => s.id === simd.seriesId)).toBe(true);
+    expect(roof.series.some((s) => s.id === cube.seriesId)).toBe(true);
+    // 3 AIV dtypes × 3 bw + 4 AIC × 2 bw = 17
+    expect(roof.series).toHaveLength(17);
+    expect(roof.series.some((s) => s.id.startsWith('aic-tf32-hf32'))).toBe(true);
+    expect(roof.series.some((s) => s.id.startsWith('aic-int32-fp32'))).toBe(false);
+    expect(roof.series.find((s) => s.id === 'aic-fp32-l0')!.label).toBe('AIC fp32 · L0');
+    const aicIds = roof.series.filter((s) => s.group === 'aic').map((s) => s.id);
+    expect(aicIds.indexOf('aic-tf32-hf32-l0')).toBeLessThan(aicIds.indexOf('aic-fp32-l0'));
+    expect(aicIds.indexOf('aic-fp32-l0')).toBeLessThan(aicIds.indexOf('aic-int8-fp8-l0'));
+    const aivFp16Simd = roof.series.find((s) => s.id === 'aiv-fp16-simd')!;
+    expect(aivFp16Simd.peakComputeTops).toBeCloseTo(54, 10);
+    expect(aivFp16Simd.slopeStyle).toBe('solid');
+    const aivFp16Simt = roof.series.find((s) => s.id === 'aiv-fp16-simt')!;
+    expect(aivFp16Simt.slopeStyle).toBe('dashed');
+
+    const jsonKernels = JSON.stringify({
+      architecture: {
+        AIV: {
+          vector_fp16: {
+            peakFlops: 54000,
+            peakBandwidthSIMD: 50353.92,
+            peakBandwidthSIMT: 12588.8,
+            peakBandwidthSIMT_OUT: 1638.4,
+          },
+        },
+        AIC: {
+          // Insertion order is not the legend order. Sort must use AIC:fp32
+          // (stripped cube_ prefix), not AIC:cube_fp32.
+          cube_fp32: {
+            peakFlops: 26000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+          cube_int8_fp8: {
+            peakFlops: 864000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+          cube_fp16_bf16: {
+            peakFlops: 432000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+          cube_tf32_hf32: {
+            peakFlops: 216000,
+            peakBandwidthL0: 50353.92,
+            peakBandwidthCUBE_OUT: 1638.4,
+          },
+        },
+      },
+      kernels: {
+        'gather - SIMT': {
+          pc: 584,
+          unit: 'AIV',
+          label: 'SIMT',
+          arithmetic_intensity: 1.375,
+          // Deliberately different from CSV Softmax Y so precedence is observable.
+          performance: 999.0,
+        },
+      },
+    });
+
+    const failed = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'AnalysisState.csv': enc.encode(analysisFail),
+      'RooflinePoints.csv': enc.encode(points),
+      'RooflineComputePeaks.csv': enc.encode(compute),
+      'RooflineBandwidthPeaks.csv': enc.encode(bandwidth),
+      'roofline.json': enc.encode(jsonKernels),
+    });
+    expect(failed.reportModel.roofline).toBeUndefined();
+    expect(failed.capabilities).not.toContain('roofline');
+
+    const csvWins = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'AnalysisState.csv': enc.encode(analysisOk),
+      'RooflinePoints.csv': enc.encode(points),
+      'RooflineComputePeaks.csv': enc.encode(compute),
+      'RooflineBandwidthPeaks.csv': enc.encode(bandwidth),
+      'roofline.json': enc.encode(jsonKernels),
+    });
+    expect(csvWins.capabilities).toContain('roofline');
+    expect(csvWins.reportModel.roofline!.points).toHaveLength(2);
+    expect(
+      csvWins.reportModel.roofline!.points.find((p) => p.id.includes('SIMD-UB'))!.performance,
+    ).toBeCloseTo(69.12070086100613 / 1000, 12);
+
+    const jsonOnly = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'roofline.json': enc.encode(jsonKernels),
+    });
+    expect(jsonOnly.capabilities).toContain('roofline');
+    const jsonRoof = jsonOnly.reportModel.roofline!;
+    expect(jsonRoof.points[0]!.performance).toBeCloseTo(999 / 1000, 12);
+    expect(jsonRoof.series.filter((s) => s.group === 'aic').map((s) => s.id)).toEqual([
+      'aic-int16-fp16-l0',
+      'aic-int16-fp16-cube-out',
+      'aic-tf32-hf32-l0',
+      'aic-tf32-hf32-cube-out',
+      'aic-fp32-l0',
+      'aic-fp32-cube-out',
+      'aic-int8-fp8-l0',
+      'aic-int8-fp8-cube-out',
+    ]);
+    expect(jsonRoof.series.find((s) => s.id === 'aic-fp32-l0')!.label).toBe('AIC fp32 · L0');
+  });
+});
 describe('npu-rep / loadReportSource profile routing', () => {
   it('PR-NPU-012: manifest.json leaf classified as emulate; compute CSVs not required', () => {
     const adapted = loadReportSource(packEmulateLeaf());

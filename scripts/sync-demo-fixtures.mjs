@@ -48,6 +48,7 @@ const copies = [
   ['data/gelu.npu-rep', 'gelu.npu-rep'],
   ['data/gather_2d.npu-rep', 'gather_2d.npu-rep'],
   ['data/roofline_multi.npu-rep', 'roofline_multi.npu-rep'],
+  ['data/simt_gather_1d_roofline.npu-rep', 'simt_gather_1d_roofline.npu-rep'],
 ]
 
 for (const [from, name] of copies) {
