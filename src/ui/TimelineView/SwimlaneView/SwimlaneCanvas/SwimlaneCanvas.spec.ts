@@ -6013,6 +6013,7 @@ describe('SwimlaneCanvas', () => {
       sampleClientY: number;
       linkVisible: boolean;
       sampleTimeLabel: string;
+      activeRowLabel?: string;
     } | null;
     expect(tip).toMatchObject({
       name: 'Utilization (%)',
