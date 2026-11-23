@@ -39,12 +39,15 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_EVENT_FILL,
+  buildTickDensityCap,
+  sampleTickDensityCap,
   snapEventRect,
   type CollapseAnimState,
   type CollapseTransform,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
+  type TickDensityCap,
 } from './layout';
 import { eventFill, labelColorOn } from '../domain/laneColors';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint, glLinkTime, type DependencyLink } from './dependencyLinks';
@@ -64,6 +67,7 @@ interface GlProgram {
   uSrcOver: WebGLUniformLocation | null;
   uUseCountMetric: WebGLUniformLocation | null;
   uStipplePeriod: WebGLUniformLocation | null;
+  uDensityCap: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -135,6 +139,8 @@ interface LaneMeshes {
    * false → length AA (more durables than duration-0).
    */
   useCountMetric: boolean;
+  /** Zoom-adaptive thin-tick saturation (null when not count-metric). */
+  densityCap: TickDensityCap | null;
 }
 
 /**
@@ -201,6 +207,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uSrcOver: gl.getUniformLocation(program, 'uSrcOver'),
     uUseCountMetric: gl.getUniformLocation(program, 'uUseCountMetric'),
     uStipplePeriod: gl.getUniformLocation(program, 'uStipplePeriod'),
+    uDensityCap: gl.getUniformLocation(program, 'uDensityCap'),
   };
 }
 
@@ -795,6 +802,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       );
     if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
     if (swim.uUseCountMetric) gl.uniform1f(swim.uUseCountMetric, 0);
+    if (swim.uDensityCap) gl.uniform1f(swim.uDensityCap, 1);
     // One CSS-px zebra stripe (round(dpr) device columns) so dense zoom-out packs stay readable.
     if (swim.uStipplePeriod) gl.uniform1f(swim.uStipplePeriod, Math.max(1, Math.round(dpr)));
 
@@ -803,6 +811,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
+    // Column dt for density cap: device columns (matches WebGL paint).
+    const dtDevice = span / Math.max(devW, 1);
     // aPos times are relative to timeBase (see encodeIntervalPair).
     const sx = 2 / span;
     const px = -1 + (2 * (this.timeBase - this.view.startTime)) / span;
@@ -834,10 +844,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         if (swim.uUseCountMetric) {
           gl.uniform1f(swim.uUseCountMetric, meshes.useCountMetric ? 1 : 0);
         }
+        if (swim.uDensityCap) {
+          const dens =
+            meshes.densityCap != null ? sampleTickDensityCap(meshes.densityCap, dtDevice) : 1;
+          gl.uniform1f(swim.uDensityCap, dens);
+        }
 
-        // Summary bars and count-metric tick pipes use source-over: additive would stack the
-        // same RGB N times toward white (and mute toward white). Durable length-AA stays additive.
-        const srcOverBase = !!(meshes.summary || meshes.useCountMetric);
+        // Summary always source-over. Count-metric resting: additive so N hits ≈ N/cap.
+        // Selection mute for count-metric: source-over muted gray (no additive-white mute).
+        const mute = muteRest && !meshes.summary;
+        const srcOverBase = !!(meshes.summary || (meshes.useCountMetric && mute));
         if (srcOverBase) {
           gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
@@ -858,7 +874,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
             drawChunks(layer.chunks, layer.rgb, layer.dim);
           }
         } else {
-          const mute = muteRest && !meshes.summary;
           const baseRgb = mute ? mutedRgb : meshes.color;
           drawChunks(row.chunks, baseRgb, 1);
           if (row.brightChunks || row.liftChunks) {
@@ -1148,11 +1163,30 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
       // Folder lanes carry only summary bars — paint the whole mesh in the summary gray.
       const summary = allEvents.length > 0 && allEvents.every((e) => e.summary);
+      const useCountMetric = summary ? false : laneUsesCountMetric(allEvents);
+      let densityCap: TickDensityCap | null = null;
+      if (useCountMetric) {
+        const tickTimes: number[] = [];
+        let tMin = Infinity;
+        let tMax = -Infinity;
+        for (const item of allEvents) {
+          if (item.summary || item.event.duration !== 0) continue;
+          const t = item.event.startTime;
+          tickTimes.push(t);
+          if (t < tMin) tMin = t;
+          if (t > tMax) tMax = t;
+        }
+        // Lane events are startTime-ordered; tickTimes preserves that.
+        if (tickTimes.length > 0 && Number.isFinite(tMin) && Number.isFinite(tMax)) {
+          densityCap = buildTickDensityCap(tickTimes, tMin, tMax);
+        }
+      }
       return {
         color: hexToRgb(summary ? SUMMARY_EVENT_FILL : lane.color),
         rows,
         summary,
-        useCountMetric: summary ? false : laneUsesCountMetric(allEvents),
+        useCountMetric,
+        densityCap,
       };
     });
     this.rebuildEmphasisSplit();

@@ -35,6 +35,8 @@ import {
   TICK_DENSITY_MIN_DIM,
   assignTickDensityDims,
   binTicksByCssColumn,
+  buildTickDensityCap,
+  sampleTickDensityCap,
   tickCountSimilarity,
   tickDensityDim,
 } from '../../src/swimlane/layout';
@@ -1401,10 +1403,13 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
     expect(webglSrc).toMatch(/uUseCountMetric/);
     expect(webglSrc).toMatch(/laneUsesCountMetric/);
-    // Count-metric bases composite source-over (resting + mute) — not additive white.
+    // Summary + muted count-metric: source-over. Resting count-metric: additive /cap.
     expect(webglSrc).toMatch(
-      /srcOverBase = !!\(meshes\.summary \|\| meshes\.useCountMetric\)/,
+      /srcOverBase = !!\(meshes\.summary \|\| \(meshes\.useCountMetric && mute\)\)/,
     );
+    expect(webglSrc).toMatch(/sampleTickDensityCap/);
+    expect(webglSrc).toMatch(/buildTickDensityCap/);
+    expect(webglSrc).toMatch(/dtDevice/);
 
     // Per-pipe metric: durable-majority → length; tick-majority / tie → count.
     const durable = (n: number, d = 10) =>
@@ -1439,7 +1444,9 @@ describe('PR-RENDER: lane chrome color', () => {
     // Per-pipe count-hit (center-in-column); zebra only for non-extended hits.
     expect(shaderSrc).toMatch(/uUseCountMetric/);
     expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
-    expect(shaderSrc).toMatch(/rawW < 1\.0 \? vStippleAlt : 1\.0/);
+    expect(shaderSrc).toMatch(/uDensityCap/);
+    expect(shaderSrc).toMatch(/vStippleAlt \/ max\(uDensityCap, 1\.0\)/);
+    expect(shaderSrc).toMatch(/rawW >= 1\.0 \|\| uSrcOver > 0\.5/);
     // Pan-stable CSS-px stripes (not screen x) — same event keeps odd/even under pan;
     // period ≈ round(dpr) keeps zebra readable when every device column is filled.
     expect(shaderSrc).toMatch(/vStippleAlt/);
@@ -1456,6 +1463,21 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(webglSrc).toMatch(/Math\.max\(1, Math\.round\(dpr\)\)/);
     expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
     expect(thinEventAlternateFactor).toBe(0.4);
+
+    // 2-point zoom-adaptive density cap: wide median ↔ cap=1 at median gap.
+    // ~10 events per ref column at W=1024 over [0,100] (gap 0.01, dtWide≈0.0977).
+    const dense = Array.from({ length: 10_001 }, (_, i) => i * 0.01);
+    const densCap = buildTickDensityCap(dense, 0, 100);
+    expect(densCap.dtOne).toBeCloseTo(0.01, 5);
+    expect(densCap.capWide).toBeGreaterThan(1);
+    expect(sampleTickDensityCap(densCap, densCap.dtWide)).toBeCloseTo(densCap.capWide, 5);
+    expect(sampleTickDensityCap(densCap, densCap.dtOne)).toBe(1);
+    const midDt = Math.exp(0.5 * (Math.log(densCap.dtWide) + Math.log(densCap.dtOne)));
+    const midCap = sampleTickDensityCap(densCap, midDt);
+    expect(midCap).toBeGreaterThan(1);
+    expect(midCap).toBeLessThan(densCap.capWide);
+    expect(tickDensityDim(8, 1)).toBe(1);
+    expect(tickDensityDim(8, 2)).toBe(1);
   });
 
   it('PR-RENDER-065: duration-0 ticks do not merge into continuous time coverage (#205)', async () => {
@@ -1627,6 +1649,8 @@ describe('PR-RENDER: lane chrome color', () => {
     const canvasSrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(canvasSrc).toMatch(/assignTickDensityDims/);
+    expect(canvasSrc).toMatch(/buildTickDensityCap/);
+    expect(canvasSrc).toMatch(/sampleTickDensityCap/);
     expect(canvasSrc).toMatch(/!hasSearch && !hasSelection && !hasMulti/);
     const densityMarks = canvasSrc.match(/for \(const m of marks\) \{[\s\S]*?\n {10}\}/)?.[0];
     expect(densityMarks).toMatch(/snapEventRect/);

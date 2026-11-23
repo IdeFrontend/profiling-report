@@ -1699,8 +1699,13 @@ export function measureRangeExactEdgeMarks(
 
 /** Floor dim for multi-hit CSS columns (PR-RENDER-066). */
 export const TICK_DENSITY_MIN_DIM = 0.35;
-/** Count at which `tickDensityDim` saturates to 1. */
+/**
+ * Fallback saturation count for `tickDensityDim` when no zoom-adaptive cap is supplied
+ * (tests / legacy). Runtime Canvas/WebGL prefer `sampleTickDensityCap`.
+ */
 export const TICK_DENSITY_CAP = 16;
+/** Reference CSS columns over the pipe’s full span for the wide-zoom median anchor. */
+export const TICK_DENSITY_CAP_REF_WIDTH = 1024;
 /** Relative soft-scale for `tickCountSimilarity` (PR-RENDER-066). */
 export const TICK_COUNT_SIM_SIGMA = 0.35;
 /** Odd-in-run / odd CSS-column stipple (shared with WebGL thin-event FS). */
@@ -1714,12 +1719,73 @@ export const TICK_ALTERNATE_MAX_GAP = 1;
 /**
  * Continuous count → dim for multi-hit columns (count 1 → minDim, cap → 1).
  * Single-tick columns use `dim = 1` in `assignTickDensityDims`.
+ * `cap <= 1` → full bright for any positive count (avoids log(1)).
  */
-export function tickDensityDim(count: number): number {
+export function tickDensityDim(count: number, cap: number = TICK_DENSITY_CAP): number {
   const c = Math.max(0, count);
   if (c <= 0) return 0;
-  const t = Math.log(c) / Math.log(TICK_DENSITY_CAP);
+  if (!(cap > 1)) return 1;
+  const t = Math.log(c) / Math.log(cap);
   return TICK_DENSITY_MIN_DIM + (1 - TICK_DENSITY_MIN_DIM) * Math.min(1, Math.max(0, t));
+}
+
+/** Two-point zoom-adaptive density saturation (PR-RENDER-064 / 066). */
+export interface TickDensityCap {
+  dtWide: number;
+  capWide: number;
+  dtOne: number;
+}
+
+function medianSorted(sorted: number[]): number {
+  const n = sorted.length;
+  if (n === 0) return 1;
+  const mid = n >> 1;
+  return n % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) * 0.5;
+}
+
+/**
+ * Build a 2-point density cap for a pipe’s duration-0 times (start-sorted).
+ * Wide: median occupied-bin count at `dt = (tMax−tMin) / TICK_DENSITY_CAP_REF_WIDTH`.
+ * Unit: median consecutive gap → cap 1 when column width ≈ typical spacing.
+ */
+export function buildTickDensityCap(
+  times: readonly number[],
+  tMin: number,
+  tMax: number,
+): TickDensityCap {
+  const span = Math.max(Number.EPSILON, tMax - tMin);
+  const dtWide = span / TICK_DENSITY_CAP_REF_WIDTH;
+  if (times.length < 2) {
+    return { dtWide, capWide: 1, dtOne: dtWide };
+  }
+
+  const bins = binTicksByCssColumn(times, tMin, tMax, TICK_DENSITY_CAP_REF_WIDTH);
+  const counts = bins.map((b) => b.count).sort((a, b) => a - b);
+  const capWide = Math.max(1, medianSorted(counts));
+
+  const gaps: number[] = [];
+  for (let i = 1; i < times.length; i++) {
+    const g = times[i]! - times[i - 1]!;
+    if (g > 0 && Number.isFinite(g)) gaps.push(g);
+  }
+  gaps.sort((a, b) => a - b);
+  const dtOne = gaps.length > 0 ? Math.max(Number.EPSILON, medianSorted(gaps)) : dtWide;
+
+  if (!(dtOne < dtWide) || !(capWide > 1)) {
+    return { dtWide, capWide: 1, dtOne: dtWide };
+  }
+  return { dtWide, capWide, dtOne };
+}
+
+/** Log-lerp saturation count for column width `dt` (device or CSS — match the paint column). */
+export function sampleTickDensityCap(cap: TickDensityCap, dt: number): number {
+  if (!(dt > 0) || !(cap.capWide > 1) || !(cap.dtOne < cap.dtWide)) return 1;
+  if (dt >= cap.dtWide) return cap.capWide;
+  if (dt <= cap.dtOne) return 1;
+  const logWide = Math.log(cap.dtWide);
+  const logOne = Math.log(cap.dtOne);
+  const t = (logWide - Math.log(dt)) / (logWide - logOne);
+  return Math.exp((1 - Math.min(1, Math.max(0, t))) * Math.log(cap.capWide));
 }
 
 /**
@@ -1795,8 +1861,12 @@ export interface TickDensityMark extends TickDensityBin {
  * (`emptyCols <= TICK_ALTERNATE_MAX_GAP`). No shared ink budget — dense plateaus stay visible;
  * nearby ticks keep stippling longer through mid-zoom. WebGL paints all density marks additive
  * (columns do not overlap); search discrete ticks stay source-over.
+ * `cap` is the zoom-adaptive saturation count (`sampleTickDensityCap`); default fixed 16.
  */
-export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDensityMark[] {
+export function assignTickDensityDims(
+  bins: readonly TickDensityBin[],
+  cap: number = TICK_DENSITY_CAP,
+): TickDensityMark[] {
   const out: TickDensityMark[] = [];
   let i = 0;
   while (i < bins.length) {
@@ -1810,7 +1880,7 @@ export function assignTickDensityDims(bins: readonly TickDensityBin[]): TickDens
     let prevCount = 0;
     for (let k = i; k < j; k++) {
       const bin = bins[k]!;
-      const base = bin.count <= 1 ? 1 : tickDensityDim(bin.count);
+      const base = bin.count <= 1 ? 1 : tickDensityDim(bin.count, cap);
       let dim = base;
       const runStep = k - i;
       if (runStep > 0 && runStep % 2 === 1) {

@@ -135,6 +135,7 @@ uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 uniform vec3 uRR; // xy = min/max painted radii (device px, rounded in JS); z = exact switch threshold × dpr
 uniform float uSrcOver; // 1.0 = premultiplied source-over (summary bars); 0.0 = additive (events)
 uniform float uUseCountMetric; // 1.0 = per-pipe count-hit; 0.0 = length AA (durable-majority pipes)
+uniform float uDensityCap; // zoom-adaptive saturation count for thin count-path (median→1)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
@@ -173,7 +174,8 @@ void main() {
   // when hCoverage > 0 or the event center lies in this device column (L≈R still paints).
   // A hit is a full stipple unit: the zero-width SDF is ~0 and would drop the 1 px quad.
   // Zebra only for non-extended hits (rawW < 1): isolates that thin-extend to ≥1 device px stay
-  // full bright (durable parity); dense pack interiors use pan-stable vStippleAlt.
+  // full bright (durable parity); dense pack interiors use pan-stable vStippleAlt / uDensityCap
+  // so stacked additive hits approach full when N ≈ zoom-adaptive median cap.
   float cov;
   if (uUseCountMetric < 0.5) {
     cov = min(hCoverage, rrShape);
@@ -181,7 +183,11 @@ void main() {
     float center = (l + r) * 0.5;
     bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) <= 0.5;
     if (hit) {
-      cov = rawW < 1.0 ? vStippleAlt : 1.0;
+      // Extended isolates: full bright. Muted src-over base: full cov (even gray, no /cap).
+      // Resting additive thin: stipple / zoom-adaptive cap so N≈cap → full.
+      cov = rawW >= 1.0 || uSrcOver > 0.5
+        ? 1.0
+        : vStippleAlt / max(uDensityCap, 1.0);
     } else {
       cov = 0.0;
     }

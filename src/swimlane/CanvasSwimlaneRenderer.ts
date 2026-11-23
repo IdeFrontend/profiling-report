@@ -51,6 +51,8 @@ import {
   SUMMARY_LABEL_COLOR,
   assignTickDensityDims,
   binTicksByCssColumn,
+  buildTickDensityCap,
+  sampleTickDensityCap,
   type CollapseAnimState,
   type CollapseTransform,
   type LaidOutEvent,
@@ -803,6 +805,21 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       // Search and selection keep ticks discrete so dim / mute stay per event.
       const densityRowIds = new Set<number>();
       if (!hasSearch && !hasSelection && !hasMulti) {
+        // Zoom-adaptive saturation from all lane ticks (not just the view window).
+        const allTickTimes: number[] = [];
+        let tickMin = Infinity;
+        let tickMax = -Infinity;
+        for (const item of laneEvts) {
+          if (item.summary || item.event.duration !== 0) continue;
+          const t = item.event.startTime;
+          allTickTimes.push(t);
+          if (t < tickMin) tickMin = t;
+          if (t > tickMax) tickMax = t;
+        }
+        const densCap =
+          allTickTimes.length > 0 && Number.isFinite(tickMin) && Number.isFinite(tickMax)
+            ? sampleTickDensityCap(buildTickDensityCap(allTickTimes, tickMin, tickMax), span / widthCss)
+            : 1;
         const ticksByRow = new Map<number, number[]>();
         for (let j = lo; j < hi; j++) {
           const item = laneEvts[j]!;
@@ -814,6 +831,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
         for (const [rowIndex, times] of ticksByRow) {
           const marks = assignTickDensityDims(
             binTicksByCssColumn(times, this.view.startTime, this.view.endTime, widthCss),
+            densCap,
           );
           if (marks.length === 0) continue;
           densityRowIds.add(rowIndex);
