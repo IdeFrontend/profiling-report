@@ -1381,8 +1381,6 @@ const detailTestId = computed(() => {
               v-else-if="pipeSideLabel"
               class="pr-pipe-side-label"
               data-testid="pipe-side-label"
-              role="status"
-              :aria-label="t('pipeSide', locale)"
               :data-side="pipeSideLabel"
             >
               <span :data-testid="`pipe-side-${pipeSideLabel}`">{{ PIPE_SIDE_LABEL[pipeSideLabel] }}</span>

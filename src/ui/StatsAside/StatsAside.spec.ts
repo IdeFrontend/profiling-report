@@ -750,7 +750,18 @@ describe('StatsAside', () => {
     expect(aicLabel.classes()).toContain('pr-pipe-side-label');
     expect(aicLabel.classes()).not.toContain('pr-pipe-toggle');
     expect(aic.find('.pr-pipe-toggle__btn').exists()).toBe(false);
+    // Accessible name is the visible core, not the toggle's "PIPE side" group label.
+    expect(aicLabel.attributes('role')).toBeUndefined();
+    expect(aicLabel.attributes('aria-label')).toBeUndefined();
+    expect(aicLabel.text()).toBe('Cube');
     expect(aic.get('[data-testid="pipe-side-aic"]').text()).toBe('Cube');
+    const sideSrc = (await import('./StatsAside.vue?raw')).default as string;
+    const sideRule =
+      new RegExp(`\\.pr-pipe-side-label\\s*\\{([^}]*)\\}`).exec(sideSrc)?.[1] ?? '';
+    expect(sideRule).toContain('font-weight: 600');
+    expect(sideRule).toContain('color: #ffffff');
+    expect(sideRule).not.toMatch(/\bbackground\b/);
+    expect(sideRule).not.toMatch(/\bborder\b/);
     let rows = aic.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
     expect(rows).toContain('51');
@@ -774,6 +785,9 @@ describe('StatsAside', () => {
     expect(aivLabel.classes()).toContain('pr-pipe-side-label');
     expect(aivLabel.classes()).not.toContain('pr-pipe-toggle');
     expect(aiv.find('.pr-pipe-toggle__btn').exists()).toBe(false);
+    expect(aivLabel.attributes('role')).toBeUndefined();
+    expect(aivLabel.attributes('aria-label')).toBeUndefined();
+    expect(aivLabel.text()).toBe('Vector 0');
     expect(aiv.get('[data-testid="pipe-side-aiv0"]').text()).toBe('Vector 0');
     rows = aiv.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
