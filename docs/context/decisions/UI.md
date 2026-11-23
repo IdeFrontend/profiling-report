@@ -213,7 +213,7 @@ Format and statuses: [README.md](README.md).
 
 ## UI-61
 
-- **Resolved:** 2026-11-17 (revised 2026-11-20 — tip rows, colors, memory one-chart, 26px counter lanes)
+- **Resolved:** 2026-11-17 (revised 2026-11-23 — tip rows, colors, memory one-chart, 26px counter lanes, sample + cursor-hold markers)
 - **Was:** Product chat lock for Trace util CounterTracks ([#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206))
 - **Question:** How should swim CounterTrack lanes look and behave relative to Chrome CounterTrack / OverviewCharts / #181?
 - **Decision:**
@@ -224,7 +224,7 @@ Format and statuses: [README.md](README.md).
   5. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.
   6. **Not #181:** these are counter tracks, not variable-height instruction bars.
   7. **Color:** `colorForCounterProcess(process_name)` → `SwimCounterSeries.colorHex` (same hex for every leaf under the process). Memory util → heatmap used blue `#3D64AD`; PUSHQ → vector; unit util → scalar; MTE/CUBE/FIXP queues → matching durable-pipe `LANE_COLOR_HEX`; else `colorForThread`. No Trace `cname`. See [COLOR_TOKENS](../../ui/COLOR_TOKENS.md) § Swim CounterTracks.
-  8. **Hover tip:** on a CounterTrack lane, raised tip (`--pr-surface-raised`) with OverviewCharts layout (label left / value right): **one row per numeric arg** on the sample (`values`), label = arg key; light key-based format (`%` / `KB` hints, ≤2 decimals). Sample via step-after hold; value-dot on the hold at pointer x. Clear when leaving the lane or when an interval `EventTooltip` wins.
+  8. **Hover tip:** on a CounterTrack lane, raised tip (`--pr-surface-raised`) with OverviewCharts layout (label left / value right): a **Time** row with the real sample timestamp (relative to swim origin), then **one row per numeric arg** on the sample (`values`), label = arg key; light key-based format (`%` / `KB` hints, ≤2 decimals). Sample via step-after hold. Markers: **filled sample dot** at `(pt.t, v)` + **hollow cursor ring** at pointer x / same `v`, with a horizontal hold link between them when they are apart. Clear when leaving the lane or when an interval `EventTooltip` wins.
   9. **Lane height:** CounterTrack leaves use **`COUNTER_LANE_HEIGHT` = 26px**; interval / folder lanes stay **`LANE_HEIGHT` = 22px**.
 - **Specs:** [timeline](../../views/timeline.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [DATA-57](./DATA.md), [OverviewCharts.spec.md](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md) (Sampling-only)
-- **Source:** Product answers 2026-11-17 (1B placement, auto-Y, full path first, counter tracks not #181); revised 2026-11-20 for generic `ph:C` tips, pipe-kinship colors, memory one-chart, 26px counter lanes.
+- **Source:** Product answers 2026-11-17 (1B placement, auto-Y, full path first, counter tracks not #181); revised 2026-11-20 for generic `ph:C` tips, pipe-kinship colors, memory one-chart, 26px counter lanes; revised 2026-11-23 for sample + cursor-hold hover markers and tip Time row.

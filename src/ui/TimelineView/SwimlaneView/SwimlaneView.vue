@@ -452,6 +452,29 @@ const counterTipStyle = computed(() => {
   };
 });
 
+/** Horizontal hold segment from real sample → cursor (fixed Teleport→body). */
+const counterHoldLinkStyle = computed(() => {
+  const p = counterHover.value;
+  if (!p?.linkVisible) return null;
+  const x0 = p.sampleClientX;
+  const x1 = p.dotClientX;
+  const y = p.sampleClientY;
+  const left = Math.min(x0, x1);
+  const width = Math.abs(x1 - x0);
+  return {
+    position: 'fixed' as const,
+    left: `${left}px`,
+    top: `${y}px`,
+    width: `${width}px`,
+    height: '0px',
+    borderTop: `1.5px solid ${p.color}`,
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none' as const,
+    zIndex: 998,
+    boxSizing: 'border-box' as const,
+  };
+});
+
 /** Card header Y from the same row walk as the canvas, shifted by rest + in-flight folds. */
 const cardHeaders = computed(() => {
   const fold = collapseTransformFromModel(
@@ -1262,17 +1285,43 @@ defineExpose({
         v-if="counterHover"
         :name="counterHover.name"
         :rows="counterHover.rows"
+        :sample-time-label="counterHover.sampleTimeLabel"
         :style-pos="counterTipStyle"
       />
       <div
+        v-if="counterHoldLinkStyle"
+        class="pr-counter-hover-link"
+        data-testid="counter-hover-link"
+        :style="counterHoldLinkStyle"
+      />
+      <div
         v-if="counterHover"
-        class="pr-counter-hover-dot"
+        class="pr-counter-hover-dot pr-counter-hover-dot--sample"
+        data-testid="counter-hover-sample"
+        :style="{
+          position: 'fixed',
+          left: `${counterHover.sampleClientX}px`,
+          top: `${counterHover.sampleClientY}px`,
+          background: counterHover.color,
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          zIndex: 999,
+          boxSizing: 'border-box',
+        }"
+      />
+      <div
+        v-if="counterHover"
+        class="pr-counter-hover-dot pr-counter-hover-dot--hold"
         data-testid="counter-hover-dot"
         :style="{
           position: 'fixed',
           left: `${counterHover.dotClientX}px`,
           top: `${counterHover.dotClientY}px`,
-          background: counterHover.color,
+          background: 'transparent',
+          border: `2px solid ${counterHover.color}`,
           width: '8px',
           height: '8px',
           borderRadius: '50%',
@@ -1580,8 +1629,16 @@ defineExpose({
   is also inlined on the node so the marker stays visible if CSS is late/absent.
 -->
 <style>
-.pr-counter-hover-dot {
+.pr-counter-hover-dot--sample {
   border: 1.5px solid #fff;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.pr-counter-hover-dot--hold {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.pr-counter-hover-link {
+  pointer-events: none;
 }
 </style>

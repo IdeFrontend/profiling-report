@@ -3088,6 +3088,10 @@ describe('SwimlaneView', () => {
       expect(tip!.querySelector('[data-testid="counter-hover-name"]')!.textContent).toBe(
         'Utilization (%)',
       );
+      const timeRow = tip!.querySelector('[data-testid="counter-hover-time"]');
+      expect(timeRow).not.toBeNull();
+      expect(timeRow!.textContent).toMatch(/Time/);
+      expect((timeRow!.textContent ?? '').length).toBeGreaterThan(4);
       const rows = [...tip!.querySelectorAll('[data-testid="counter-hover-row"]')].map(
         (el) => el.textContent ?? '',
       );
@@ -3100,15 +3104,26 @@ describe('SwimlaneView', () => {
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
 
-      // Value-dot circle on the step-after hold (OverviewCharts parity).
-      const dot = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
-      expect(dot).not.toBeNull();
-      expect(dot!.style.left).toBe('150px');
-      expect(dot!.style.background.toLowerCase()).toMatch(/#e7434a|231,\s*67,\s*74/);
-      // Inline geometry so Teleport→body stays visible without waiting on CSS.
-      expect(dot!.style.position).toBe('fixed');
-      expect(dot!.style.width).toBe('8px');
-      expect(dot!.style.height).toBe('8px');
+      // Sample (filled) + cursor-hold (hollow) + hold link.
+      const sample = document.querySelector(
+        '[data-testid="counter-hover-sample"]',
+      ) as HTMLElement | null;
+      expect(sample).not.toBeNull();
+      expect(sample!.style.left).toBe('100px');
+      expect(sample!.style.background.toLowerCase()).toMatch(/#e7434a|231,\s*67,\s*74/);
+      const hold = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
+      expect(hold).not.toBeNull();
+      expect(hold!.style.left).toBe('150px');
+      expect(hold!.style.background).toMatch(/transparent/i);
+      expect(hold!.style.position).toBe('fixed');
+      expect(hold!.style.width).toBe('8px');
+      expect(hold!.style.height).toBe('8px');
+      const link = document.querySelector(
+        '[data-testid="counter-hover-link"]',
+      ) as HTMLElement | null;
+      expect(link).not.toBeNull();
+      expect(link!.style.left).toBe('100px');
+      expect(link!.style.width).toBe('50px');
 
       // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
       Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
@@ -3130,6 +3145,8 @@ describe('SwimlaneView', () => {
       await nextTick();
       expect(document.querySelector('[data-testid="counter-hover-tooltip"]')).toBeNull();
       expect(document.querySelector('[data-testid="counter-hover-dot"]')).toBeNull();
+      expect(document.querySelector('[data-testid="counter-hover-sample"]')).toBeNull();
+      expect(document.querySelector('[data-testid="counter-hover-link"]')).toBeNull();
       wrapper.unmount();
     });
 
@@ -3137,6 +3154,7 @@ describe('SwimlaneView', () => {
       const tip = mount(CounterHoverTip, {
         props: {
           name: 'Utilization (%)',
+          sampleTimeLabel: '5 µs',
           rows: [
             { label: 'Utilization (%)', value: '12.35%' },
             { label: 'Using Bytes (KB)', value: '12.35 KB' },
@@ -3145,6 +3163,7 @@ describe('SwimlaneView', () => {
         },
       });
       expect(tip.get('[data-testid="counter-hover-name"]').text()).toBe('Utilization (%)');
+      expect(tip.get('[data-testid="counter-hover-time"]').text()).toMatch(/Time\s*5 µs/);
       const rows = tip.findAll('[data-testid="counter-hover-row"]');
       expect(rows[0]!.text()).toMatch(/Utilization \(%\)\s*12\.35%/);
       expect(rows[1]!.text()).toMatch(/Using Bytes \(KB\)\s*12\.35 KB/);

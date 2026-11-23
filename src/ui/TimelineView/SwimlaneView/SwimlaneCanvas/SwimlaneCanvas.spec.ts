@@ -6001,7 +6001,7 @@ describe('SwimlaneCanvas', () => {
 
     // Header 40px + mid of counter lane (COUNTER_LANE_HEIGHT) → y ≈ 53.
     const y = 40 + COUNTER_LANE_HEIGHT / 2;
-    // t=7500 ns → still holds first sample; x = 7500/20000 * 400 = 150.
+    // t=7500 ns → still holds first sample (t=5000 → x=100); x = 7500/20000 * 400 = 150.
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       value: number;
@@ -6009,6 +6009,10 @@ describe('SwimlaneCanvas', () => {
       color: string;
       dotClientX: number;
       dotClientY: number;
+      sampleClientX: number;
+      sampleClientY: number;
+      linkVisible: boolean;
+      sampleTimeLabel: string;
     } | null;
     expect(tip).toMatchObject({
       name: 'Utilization (%)',
@@ -6019,9 +6023,26 @@ describe('SwimlaneCanvas', () => {
       ],
       color: '#E7434A',
       dotClientX: 150,
+      sampleClientX: 100,
+      linkVisible: true,
     });
+    expect(tip!.sampleTimeLabel.length).toBeGreaterThan(0);
     expect(tip!.dotClientY).toBeGreaterThan(40);
     expect(tip!.dotClientY).toBeLessThan(40 + COUNTER_LANE_HEIGHT);
+    expect(tip!.sampleClientY).toBe(tip!.dotClientY);
+
+    // Pointer exactly on the sample (t=5000 → x=100): hold link hidden.
+    await canvas.trigger('pointermove', { clientX: 100, clientY: y, pointerId: 1 });
+    const tipOnSample = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      linkVisible: boolean;
+      sampleClientX: number;
+      dotClientX: number;
+    } | null;
+    expect(tipOnSample).toMatchObject({
+      sampleClientX: 100,
+      dotClientX: 100,
+      linkVisible: false,
+    });
 
     // After second sample (t=10000 → x=200): keep-last values.
     await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1 });
@@ -6029,6 +6050,8 @@ describe('SwimlaneCanvas', () => {
       name: string;
       value: number;
       rows: { label: string; value: string }[];
+      sampleClientX: number;
+      linkVisible: boolean;
     } | null;
     expect(tip2).toMatchObject({
       name: 'Utilization (%)',
@@ -6037,6 +6060,8 @@ describe('SwimlaneCanvas', () => {
         { label: 'Utilization (%)', value: '3%' },
         { label: 'Using Bytes (KB)', value: '0.04 KB' },
       ],
+      sampleClientX: 200,
+      linkVisible: true,
     });
 
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });

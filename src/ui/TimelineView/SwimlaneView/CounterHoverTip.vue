@@ -3,13 +3,18 @@ import type { CSSProperties } from 'vue';
 
 export type CounterTipRow = { label: string; value: string };
 
-defineProps<{
-  /** Pipe / lane / process name — tip header (parity with EventTooltip event name). */
-  name: string;
-  /** One row per numeric `ph:C` arg on the sample (data-driven; no domain parsers). */
-  rows: CounterTipRow[];
-  stylePos: CSSProperties;
-}>();
+withDefaults(
+  defineProps<{
+    /** Pipe / lane / process name — tip header (parity with EventTooltip event name). */
+    name: string;
+    /** One row per numeric `ph:C` arg on the sample (data-driven; no domain parsers). */
+    rows: CounterTipRow[];
+    stylePos: CSSProperties;
+    /** Formatted sample time (relative to swim origin); shown as a Time row above args. */
+    sampleTimeLabel?: string | null;
+  }>(),
+  { sampleTimeLabel: null },
+);
 </script>
 
 <template>
@@ -23,6 +28,14 @@ defineProps<{
       data-testid="counter-hover-name"
     >
       {{ name }}
+    </div>
+    <div
+      v-if="sampleTimeLabel"
+      class="pr-counter-hover-tip__row"
+      data-testid="counter-hover-time"
+    >
+      <span class="pr-counter-hover-tip__name">Time</span>
+      <span class="pr-counter-hover-tip__value">{{ sampleTimeLabel }}</span>
     </div>
     <div
       v-for="(row, i) in rows"

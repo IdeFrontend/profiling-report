@@ -11,7 +11,11 @@ import {
   type SwimlaneViewWindow,
 } from '../../../../domain/types';
 import { normalizeMeasureRange, panBy, zoomAt } from '../../../../domain/viewState';
-import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
+import {
+  formatDisplayTimeAuto,
+  formatTimeAuto,
+  nsPerPxForTrack,
+} from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
   collapseShiftY,
@@ -152,10 +156,17 @@ export type CounterHoverPayload = {
   rows: { label: string; value: string }[];
   clientX: number;
   clientY: number;
-  /** Value-dot fixed position (OverviewCharts parity) — cursor x, step-after value y. */
+  /** Cursor-hold marker — pointer x, held value y. */
   dotClientX: number;
   dotClientY: number;
-  /** Stroke/fill color for the value-dot. */
+  /** Real sample marker — sample time x (clamped into track), held value y. */
+  sampleClientX: number;
+  sampleClientY: number;
+  /** True when sample and cursor markers are far enough apart to draw a hold link. */
+  linkVisible: boolean;
+  /** Formatted sample time (relative to model.minTime) for the tip Time row. */
+  sampleTimeLabel: string;
+  /** Stroke/fill color for markers / hold link. */
   color: string;
 };
 
@@ -232,6 +243,7 @@ function clearCounterHover(): void {
  * Tip a CounterTrack lane under the pointer.
  * Counter lanes win over interval `eventUnder` (magnet/hit bleed must not suppress
  * the util tip). Samples step-after hold via `stepPointAt` (same semantics as paint).
+ * Marks both the real sample and the cursor hold, with a link between them.
  */
 function emitCounterHover(
   localX: number,
@@ -264,11 +276,18 @@ function emitCounterHover(
   const yMax = series.yMax > 0 ? series.yMax : 1;
   const clamped = Math.min(yMax, Math.max(0, pt.v));
   const localDotY = plotTop + plotH * (1 - clamped / yMax);
+  const w = syncTrackWidth();
+  const localSampleX = Math.min(w, Math.max(0, xAtTime(pt.t)));
+  const linkVisible = Math.abs(localX - localSampleX) >= 2;
   const color = series.colorHex ?? hit.lane.color;
   const name = hit.lane.thread.name;
   const rows = counterTipRows(pt, name);
+  const origin = props.model?.minTime ?? 0;
+  const sampleTimeLabel = formatDisplayTimeAuto(pt.t, origin, {
+    nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
+  });
   const valuesKey = pt.values ? JSON.stringify(pt.values) : '';
-  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${valuesKey}|${clientX}|${clientY}|${localDotY}`;
+  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${valuesKey}|${clientX}|${clientY}|${localDotY}|${localSampleX}|${linkVisible}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
@@ -277,9 +296,14 @@ function emitCounterHover(
     rows,
     clientX,
     clientY,
-    // Follow pointer x (step-after hold); Y sits on the painted value.
+    // Cursor hold: pointer x, held value y.
     dotClientX: clientX,
     dotClientY: clientY - localY + localDotY,
+    // Real sample: sample time x (clamped), same held value y.
+    sampleClientX: clientX - localX + localSampleX,
+    sampleClientY: clientY - localY + localDotY,
+    linkVisible,
+    sampleTimeLabel,
     color,
   };
   emit('counter-hover', payload);
