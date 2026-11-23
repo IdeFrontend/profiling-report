@@ -182,7 +182,12 @@ export type CounterHoverPayload = {
   sampleTimeLabel: string;
   /** Tip swatch / chart color for the active series. */
   color: string;
-  /** All series markers (multi-series overlay / expanded siblings); omit for single. */
+  /**
+   * Tip row label to emphasize (OverviewCharts `is-active` parity) — arg key of the
+   * hovered series on a multi-arg sample. Omit when a single tip row covers it.
+   */
+  activeRowLabel?: string;
+  /** All series markers (collapsed multi-series overlay only); omit for single leaf. */
   markers?: CounterHoverMarker[];
 };
 
@@ -283,10 +288,11 @@ function emitCounterHover(
     clearCounterHover();
     return;
   }
-  const layout = backend.getLayout();
-  /** Collapsed overlay, or expanded siblings under the same CounterTrack folder. */
+  /** Collapsed multi-series overlay, or a single expanded CounterTrack leaf. */
   type SeriesHit = {
     id: string;
+    /** Tip-row label for this series (arg key / child name). */
+    label: string;
     series: NonNullable<typeof thread.counter>;
     plotTop: number;
     plotH: number;
@@ -295,6 +301,7 @@ function emitCounterHover(
   };
   const seriesHits: SeriesHit[] = [];
   if (thread.counterSeries && thread.counterSeries.length > 0) {
+    // Collapsed multi-series overlay: markers on every series; tip highlights nearest.
     const yCss = hit.lane.y - view.scrollY;
     const plotTop = yCss + LANE_PAD_Y;
     const bandH = hit.lane.height ?? COUNTER_LANE_HEIGHT;
@@ -308,6 +315,7 @@ function emitCounterHover(
       const s = thread.counterSeries[i]!;
       seriesHits.push({
         id: `${thread.id}#${i}`,
+        label: thread.children?.[i]?.name ?? thread.name,
         series: s,
         plotTop,
         plotH,
@@ -316,35 +324,20 @@ function emitCounterHover(
       });
     }
   } else if (thread.counter) {
-    // Expanded child: include sibling counter leaves under the same parent folder.
-    let parentFolder: (typeof layout.lanes)[number]['thread'] | null = null;
-    for (const lane of layout.lanes) {
-      const kids = lane.thread.children;
-      if (!kids?.some((c) => c.id === thread.id)) continue;
-      if ((lane.thread.counterSeries?.length ?? 0) > 0 || kids.some((c) => c.counter)) {
-        parentFolder = lane.thread;
-        break;
-      }
-    }
-    const siblingThreads =
-      parentFolder?.children?.filter((c) => c.counter) ??
-      (thread.counter ? [thread] : []);
-    for (const sib of siblingThreads) {
-      const sibLane = layout.lanes.find((l) => l.thread.id === sib.id);
-      if (!sibLane?.counter || !sib.counter) continue;
-      const yCss = sibLane.y - view.scrollY;
-      const plotTop = yCss + LANE_PAD_Y;
-      const plotH = Math.max(1, flatLaneHeight(sibLane) - LANE_PAD_Y * 2);
-      const yMax = sib.counter.yMax > 0 ? sib.counter.yMax : 1;
-      seriesHits.push({
-        id: sib.id,
-        series: sib.counter,
-        plotTop,
-        plotH,
-        yMax,
-        laneColor: sib.counter.colorHex ?? sibLane.color,
-      });
-    }
+    // Expanded leaf: only this lane (no sibling multi-markers).
+    const yCss = hit.lane.y - view.scrollY;
+    const plotTop = yCss + LANE_PAD_Y;
+    const plotH = Math.max(1, flatLaneHeight(hit.lane) - LANE_PAD_Y * 2);
+    const yMax = thread.counter.yMax > 0 ? thread.counter.yMax : 1;
+    seriesHits.push({
+      id: thread.id,
+      label: thread.name,
+      series: thread.counter,
+      plotTop,
+      plotH,
+      yMax,
+      laneColor: thread.counter.colorHex ?? hit.lane.color,
+    });
   }
   if (seriesHits.length === 0) {
     clearCounterHover();
@@ -356,6 +349,7 @@ function emitCounterHover(
 
   type Built = {
     id: string;
+    label: string;
     color: string;
     pt: SeriesHit['series']['points'][number];
     sampleLocalX: number;
@@ -378,6 +372,7 @@ function emitCounterHover(
     if (!geo) continue;
     built.push({
       id: hitSeries.id,
+      label: hitSeries.label,
       color: hitSeries.laneColor,
       pt: geo.pt as Built['pt'],
       sampleLocalX: geo.sampleLocalX,
@@ -390,33 +385,22 @@ function emitCounterHover(
     return;
   }
 
-  // Active: hovered child id, else nearest hold Y on collapsed overlay.
-  let activeIdx = built.findIndex((b) => b.id === thread.id);
-  if (activeIdx < 0) {
-    activeIdx = 0;
-    if (built.length > 1) {
-      let best = Infinity;
-      for (let i = 0; i < built.length; i++) {
-        const d = Math.abs(built[i]!.localDotY - localY);
-        if (d < best) {
-          best = d;
-          activeIdx = i;
-        }
+  // Active: nearest hold Y on collapsed overlay; single leaf is always index 0.
+  let activeIdx = 0;
+  if (built.length > 1) {
+    let best = Infinity;
+    for (let i = 0; i < built.length; i++) {
+      const d = Math.abs(built[i]!.localDotY - localY);
+      if (d < best) {
+        best = d;
+        activeIdx = i;
       }
     }
   }
   const active = built[activeIdx]!;
-  // Tip header: ph:C lane name (folder) when multi; otherwise the leaf name.
-  let tipName = thread.name;
-  if (!(thread.counterSeries && thread.counterSeries.length > 0) && built.length > 1) {
-    for (const lane of layout.lanes) {
-      if (lane.thread.children?.some((c) => c.id === thread.id)) {
-        tipName = lane.thread.name;
-        break;
-      }
-    }
-  }
-  const rows = counterTipRows(active.pt, tipName);
+  // Tip header: ph:C folder name on collapsed overlay; leaf name when expanded.
+  const tipName = thread.name;
+  const rows = counterTipRows(active.pt, active.label);
   const origin = props.model?.minTime ?? 0;
   const sampleTimeLabel = formatDisplayTimeAuto(active.pt.t, origin, {
     nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
@@ -432,7 +416,7 @@ function emitCounterHover(
     emphasized: i === activeIdx,
   }));
   const valuesKey = active.pt.values ? JSON.stringify(active.pt.values) : '';
-  const key = `${thread.id}|${tipName}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${activeIdx}|${built.length}`;
+  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${activeIdx}|${built.length}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
@@ -448,6 +432,7 @@ function emitCounterHover(
     linkVisible: active.linkVisible,
     sampleTimeLabel,
     color: active.color,
+    activeRowLabel: active.label,
     markers: built.length > 1 ? markers : undefined,
   };
   emit('counter-hover', payload);

@@ -12,14 +12,22 @@ withDefaults(
     stylePos: CSSProperties;
     /** Formatted sample time (relative to swim origin); shown as a Time row above args. */
     sampleTimeLabel?: string | null;
+    /**
+     * Arg-key label of the hovered series — that tip row gets OverviewCharts
+     * `is-active` chrome (bold + color swatch).
+     */
+    activeLabel?: string | null;
+    /** Swatch fill for the active tip row. */
+    activeColor?: string | null;
   }>(),
-  { sampleTimeLabel: null },
+  { sampleTimeLabel: null, activeLabel: null, activeColor: null },
 );
 </script>
 
 <template>
   <div
     class="pr-tooltip pr-counter-hover-tip"
+    :class="{ 'pr-counter-hover-tip--keyed': !!activeLabel }"
     data-testid="counter-hover-tooltip"
     :style="stylePos"
   >
@@ -34,6 +42,11 @@ withDefaults(
       class="pr-counter-hover-tip__row"
       data-testid="counter-hover-time"
     >
+      <span
+        v-if="activeLabel"
+        class="pr-counter-hover-tip__swatch pr-counter-hover-tip__swatch--spacer"
+        aria-hidden="true"
+      />
       <span class="pr-counter-hover-tip__name">Time</span>
       <span class="pr-counter-hover-tip__value">{{ sampleTimeLabel }}</span>
     </div>
@@ -41,8 +54,20 @@ withDefaults(
       v-for="(row, i) in rows"
       :key="`${row.label}-${i}`"
       class="pr-counter-hover-tip__row"
+      :class="{ 'is-active': activeLabel != null && row.label === activeLabel }"
       data-testid="counter-hover-row"
+      :data-active="activeLabel != null && row.label === activeLabel ? 'true' : undefined"
     >
+      <span
+        v-if="activeLabel != null && row.label === activeLabel"
+        class="pr-counter-hover-tip__swatch"
+        :style="{ background: activeColor || '#fff' }"
+      />
+      <span
+        v-else-if="activeLabel"
+        class="pr-counter-hover-tip__swatch pr-counter-hover-tip__swatch--spacer"
+        aria-hidden="true"
+      />
       <span class="pr-counter-hover-tip__name">{{ row.label }}</span>
       <span class="pr-counter-hover-tip__value">{{ row.value }}</span>
     </div>
@@ -90,6 +115,22 @@ withDefaults(
   gap: 12px;
 }
 
+.pr-counter-hover-tip--keyed .pr-counter-hover-tip__row {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.pr-counter-hover-tip__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.pr-counter-hover-tip__swatch--spacer {
+  visibility: hidden;
+}
+
 .pr-counter-hover-tip__name {
   min-width: 0;
   overflow: hidden;
@@ -101,6 +142,11 @@ withDefaults(
   font-variant-numeric: tabular-nums;
   color: #e8e8e8;
   white-space: nowrap;
+}
+
+.pr-counter-hover-tip__row.is-active {
+  color: #e8e8e8;
+  font-weight: 700;
 }
 
 @keyframes pr-counter-tip-in {

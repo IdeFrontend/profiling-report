@@ -6158,6 +6158,7 @@ describe('SwimlaneCanvas', () => {
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       name: string;
       value: number;
+      activeRowLabel?: string;
       markers?: { seriesId: string; linkVisible: boolean; emphasized: boolean }[];
       sampleClientX: number;
       dotClientX: number;
@@ -6173,10 +6174,103 @@ describe('SwimlaneCanvas', () => {
     });
     expect(tip!.markers).toHaveLength(2);
     expect(tip!.markers!.some((m) => m.emphasized)).toBe(true);
+    expect(tip!.activeRowLabel).toMatch(/Utilization|Using Bytes/);
     expect(tip!.color.length).toBeGreaterThan(0);
 
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
     expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-129: expanded multi-series CounterTrack hovers only the leaf under the pointer', async () => {
+    const folderId = 'counter-22-memory_utilization';
+    const pct = {
+      points: [
+        {
+          t: 5_000,
+          v: 2,
+          values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+        },
+      ],
+      yMax: 3,
+      colorHex: '#3D64AD',
+    };
+    const kb = {
+      points: [
+        { t: 5_000, v: 0.05, values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 } },
+      ],
+      yMax: 0.05,
+      colorHex: '#5A7EC4',
+    };
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-22',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
+          threads: [
+            {
+              id: folderId,
+              name: 'memory_utilization',
+              events: [],
+              counterSeries: [pct, kb],
+              children: [
+                {
+                  id: `${folderId}-Utilization (%)`,
+                  name: 'Utilization (%)',
+                  events: [],
+                  counter: pct,
+                },
+                {
+                  id: `${folderId}-Using Bytes (KB)`,
+                  name: 'Using Bytes (KB)',
+                  events: [],
+                  counter: kb,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        collapsedIds: [],
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel }, collapsedIds: [] });
+    await fireAllDeviceRo();
+
+    // Header 40 + folder 22 + mid of first child counter lane (26).
+    const y = 40 + LANE_HEIGHT + COUNTER_LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      name: string;
+      activeRowLabel?: string;
+      markers?: unknown[];
+    } | null;
+    expect(tip).not.toBeNull();
+    expect(tip!.name).toBe('Utilization (%)');
+    expect(tip!.activeRowLabel).toBe('Utilization (%)');
+    // Expanded: no multi-series markers — only the hovered leaf.
+    expect(tip!.markers).toBeUndefined();
+
     wrapper.unmount();
   });
 

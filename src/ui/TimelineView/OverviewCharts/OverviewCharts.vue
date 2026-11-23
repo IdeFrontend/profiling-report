@@ -889,8 +889,13 @@ const markerSets = computed((): OverviewMarkerSet[] => {
 }
 
 /* Teleported markers — fixed so overview translateY / parent overflow cannot crop them. */
-.pr-overview-value-dot {
+.pr-overview-value-dot--sample {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.pr-overview-value-dot--hold {
+  /* White 1px ring around the opaque series-colored hold disc. */
+  box-shadow: 0 0 0 1px #fff;
 }
 
 .pr-overview-value-dot.is-active {

@@ -1331,6 +1331,8 @@ defineExpose({
         :name="counterHover.name"
         :rows="counterHover.rows"
         :sample-time-label="counterHover.sampleTimeLabel"
+        :active-label="counterHover.activeRowLabel"
+        :active-color="counterHover.color"
         :style-pos="counterTipStyle"
       />
       <template
@@ -1685,7 +1687,8 @@ defineExpose({
 }
 
 .pr-counter-hover-dot--hold {
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  /* White 1px ring around the opaque series-colored hold disc. */
+  box-shadow: 0 0 0 1px #fff;
 }
 
 .pr-counter-hover-link {
