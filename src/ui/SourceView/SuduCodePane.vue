@@ -369,6 +369,18 @@ function bindTableScroll() {
   tableScrollEl.value?.addEventListener('scroll', onTableScroll);
 }
 
+/** Copy the editor's device-pixel scroll onto the metrics scroller. */
+function applyEditorScrollToTable() {
+  if (!editor || !(geom.value.dpr > 0)) return;
+  const scroll = tableScrollEl.value;
+  if (!scroll) return;
+  const target = cssScrollFromDevice(editor.getVScrollPos(), geom.value.dpr);
+  if (Math.abs(scroll.scrollTop - target) < 0.5) return;
+  scroll.scrollTop = target;
+  // Arm only when a scroll event will follow. An unchanged scrollTop does not.
+  mirroredScrollTop = scroll.scrollTop;
+}
+
 /** Editor may have scrolled before geometry or the table scroller existed. */
 function syncTableToCaret() {
   if (!editor || !(geom.value.dpr > 0)) return;
@@ -380,13 +392,22 @@ function syncTableToCaret() {
   } finally {
     ignoreCaret = false;
   }
-  const scroll = tableScrollEl.value;
-  if (!scroll) return;
-  const target = cssScrollFromDevice(editor.getVScrollPos(), geom.value.dpr);
-  if (Math.abs(scroll.scrollTop - target) < 0.5) return;
-  scroll.scrollTop = target;
-  // Arm only when a scroll event will follow. An unchanged scrollTop does not.
-  mirroredScrollTop = scroll.scrollTop;
+  applyEditorScrollToTable();
+}
+
+/**
+ * Sudu recomputes device-pixel line height on window resize (zoom / DPR).
+ * Read after that handler: rAF runs once every resize listener has returned.
+ */
+let geomFrame = 0;
+
+function scheduleGeomRefresh() {
+  if (geomFrame) return;
+  geomFrame = requestAnimationFrame(() => {
+    geomFrame = 0;
+    if (disposed || !readGeom()) return;
+    applyEditorScrollToTable();
+  });
 }
 
 function waitForGeom() {
@@ -729,6 +750,7 @@ watch(
 );
 
 onMounted(() => {
+  window.addEventListener('resize', scheduleGeomRefresh);
   void boot().then(() => {
     bindTableScroll();
   });
@@ -736,6 +758,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   disposed = true;
+  window.removeEventListener('resize', scheduleGeomRefresh);
+  if (geomFrame) cancelAnimationFrame(geomFrame);
+  geomFrame = 0;
   ignoreCaret = false;
   paintedSearchRanges = [];
   closeCopyMenu();

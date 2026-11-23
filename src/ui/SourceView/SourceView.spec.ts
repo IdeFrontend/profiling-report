@@ -1146,6 +1146,44 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
+  it('PR-SOURCE-029: device pixel ratio change refreshes metrics row height', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    const original = vi.mocked(newEditor).getMockImplementation();
+    let dpr = 1;
+    let lineHeight = 18;
+    vi.mocked(newEditor).mockImplementationOnce((args) => {
+      const ed = (original?.(args) ?? {}) as Record<string, unknown>;
+      return {
+        ...ed,
+        getDevicePixelRatio: () => dpr,
+        getLineHeight: () => lineHeight,
+        getFontSize: () => 12 * dpr,
+      } as ReturnType<typeof newEditor>;
+    });
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
+    try {
+      await flushPromises();
+      const pane = wrapper.get('[data-testid="sudu-code-pane"]').element as HTMLElement;
+      const rowHeight = () => parseFloat(pane.style.getPropertyValue('--pr-src-row-h'));
+      expect(rowHeight()).toBe(18);
+
+      dpr = 1.25;
+      lineHeight = 22;
+      window.dispatchEvent(new Event('resize'));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      await wrapper.vm.$nextTick();
+      expect(rowHeight()).toBeCloseTo(22 / 1.25, 5);
+      const metricsRow = wrapper.findAll('[data-testid="source-metrics"]')[0]!.find('tr[data-line="1"]');
+      expect(parseFloat(metricsRow.attributes('style')?.match(/height:\s*([0-9.]+)px/)?.[1] ?? '')).toBeCloseTo(
+        22 / 1.25,
+        5,
+      );
+    } finally {
+      if (original) vi.mocked(newEditor).mockImplementation(original);
+      wrapper.unmount();
+    }
+  });
+
   it('PR-SOURCE-023: left pane hides columns until the editor geometry is ready', async () => {
     const { newEditor } = await import('@sudu-ide/code-review');
     const original = vi.mocked(newEditor).getMockImplementation();
