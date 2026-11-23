@@ -556,6 +556,10 @@ function lanesWithBars(
     if (bar) lane.bar = bar;
     if (t.children !== undefined) {
       lane.children = lanesWithBars(t.children, bars);
+      if ((t.counterSeries?.length ?? 0) > 0) {
+        lane.counterFolder = true;
+        if (t.counterSeries![0]?.colorHex) lane.color = t.counterSeries![0]!.colorHex;
+      }
     } else if (t.counter) {
       lane.counter = true;
       lane.height = COUNTER_LANE_HEIGHT;

@@ -213,18 +213,19 @@ Format and statuses: [README.md](README.md).
 
 ## UI-61
 
-- **Resolved:** 2026-11-17 (revised 2026-11-23 — tip rows, colors, memory one-chart, 26px counter lanes, sample + cursor-hold markers)
+- **Resolved:** 2026-11-17 (revised 2026-11-23 — Chrome hierarchy, multi-series folders, white dual markers)
 - **Was:** Product chat lock for Trace util CounterTracks ([#208](https://github.com/IdeFrontend/profiling-report/issues/208) / [#209](https://github.com/IdeFrontend/profiling-report/issues/209) / [#206](https://github.com/IdeFrontend/profiling-report/issues/206))
 - **Question:** How should swim CounterTrack lanes look and behave relative to Chrome CounterTrack / OverviewCharts / #181?
 - **Decision:**
   1. **Placement:** Chrome-like **inline CounterTrack lanes** in the swim hierarchy (one Card per counter pid / `process_name`), not the 统计分析 OverviewCharts block.
   2. **Shape:** step-after area + stroke; hold the last sample across gaps until the next point.
   3. **Y scale:** **per-track auto** from that track’s samples (`yMax`); not the shared overview 0–100 domain. Memory util Y = **Using Bytes (KB)** when present ([DATA-57](./DATA.md)).
-  4. **Labels:** process Card = CTEF `process_name`; leaf = numeric **arg key** (one leaf per series; memory util with KB → single `Using Bytes (KB)` leaf).
-  5. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.
-  6. **Not #181:** these are counter tracks, not variable-height instruction bars.
-  7. **Color:** `colorForCounterProcess(process_name)` → `SwimCounterSeries.colorHex` (same hex for every leaf under the process). Memory util → heatmap used blue `#3D64AD`; PUSHQ → vector; unit util → scalar; MTE/CUBE/FIXP queues → matching durable-pipe `LANE_COLOR_HEX`; else `colorForThread`. No Trace `cname`. See [COLOR_TOKENS](../../ui/COLOR_TOKENS.md) § Swim CounterTracks.
-  8. **Hover tip:** on a CounterTrack lane, raised tip (`--pr-surface-raised`) with OverviewCharts layout (label left / value right): a **Time** row with the real sample timestamp (relative to swim origin), then **one row per numeric arg** on the sample (`values`), label = arg key; light key-based format (`%` / `KB` hints, ≤2 decimals). Sample via step-after hold. Markers: **filled sample dot** at `(pt.t, v)` + **hollow cursor ring** at pointer x / same `v`, with a horizontal hold link between them when they are apart. Clear when leaving the lane or when an interval `EventTooltip` wins.
-  9. **Lane height:** CounterTrack leaves use **`COUNTER_LANE_HEIGHT` = 26px**; interval / folder lanes stay **`LANE_HEIGHT` = 22px**.
+  4. **Labels:** Card = CTEF `process_name`; lane = `ph:C` / `thread_name`; series = numeric **arg keys** (children when N>1).
+  5. **Multi-series:** Collapsed folder paints all series overlaid (shared Y); expand → chevron-only folder + one child chart per arg (overlay gone). Multi folders **default-collapsed**.
+  6. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.
+  7. **Not #181:** these are counter tracks, not variable-height instruction bars.
+  8. **Color:** `colorForCounterProcess(process_name)` base; multi-series siblings get L-lifted variants (`counterSeriesColor`). Memory util → `#3D64AD`; PUSHQ → vector; unit util → scalar; MTE/CUBE/FIXP queues → durable-pipe hues; else `colorForThread`. No Trace `cname`.
+  9. **Hover tip / markers:** Shared tip (Time + arg rows). Markers: **white empty outline** at step-after sample + **white filled** hold at pointer x / same `v` + **white** hold link (center slides out of the outline). Multi: markers on every series; emphasize hovered. Recompute on zoom/view change. OverviewCharts uses the same dual-marker chrome. Clear when leaving the lane or when an interval `EventTooltip` wins.
+  10. **Lane height:** CounterTrack leaves and **collapsed** counter folders use **`COUNTER_LANE_HEIGHT` = 26px**; expanded counter folders and interval lanes stay **`LANE_HEIGHT` = 22px**.
 - **Specs:** [timeline](../../views/timeline.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [DATA-57](./DATA.md), [OverviewCharts.spec.md](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md) (Sampling-only)
-- **Source:** Product answers 2026-11-17 (1B placement, auto-Y, full path first, counter tracks not #181); revised 2026-11-20 for generic `ph:C` tips, pipe-kinship colors, memory one-chart, 26px counter lanes; revised 2026-11-23 for sample + cursor-hold hover markers and tip Time row.
+- **Source:** Product answers 2026-11-17; revised 2026-11-20 (generic tips/colors/26px); revised 2026-11-23 (Chrome hierarchy, memory multi-series, white dual markers, Overview parity).

@@ -211,6 +211,28 @@ export function overviewStrokeHex(baseHex: string): string {
 }
 
 /**
+ * Distinct stroke for the i-th series under one CounterTrack process
+ * (collapsed multi-series overlay). Index 0 = base; later indices lift L.
+ */
+export function counterSeriesColor(baseHex: string, seriesIndex: number): string {
+  if (seriesIndex <= 0) return baseHex;
+  const key = `${baseHex}|counter-series|${seriesIndex}`;
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit;
+  const base = hexToOklch(baseHex);
+  let out = baseHex;
+  if (base) {
+    out = oklchToHex({
+      L: Math.min(1, base.L + OVERVIEW_STROKE_LIFT_L * seriesIndex),
+      C: base.C,
+      h: base.h,
+    });
+  }
+  memo.set(key, out);
+  return out;
+}
+
+/**
  * Stroke hex for an overview series id/label (`CUBE`, `VECTOR`, `通信`, …).
  * Fill uses the same colour at ~0.45 opacity.
  * Cube and 通信 need dedicated accents; every other pipe name goes through `laneColorKey`.

@@ -269,23 +269,28 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(procs).toHaveLength(1);
     expect(procs[0]!.id).toBe('p-counter-22');
     expect(procs[0]!.name).toBe('AIV0_UB_UTILIZATION (memory_utilization)');
-    // Memory util collapses % + KB into one KB-Y leaf; tip still has both via `values`.
-    expect(procs[0]!.threads.map((t) => t.name)).toEqual(['Using Bytes (KB)']);
-    const utilLeaf = procs[0]!.threads[0]!;
-    expect(utilLeaf.counter?.points).toEqual([
+    // Chrome hierarchy: lane = ph:C name; args = child series (folder when N>1).
+    expect(procs[0]!.threads.map((t) => t.name)).toEqual(['memory_utilization']);
+    const track = procs[0]!.threads[0]!;
+    expect(track.children?.map((c) => c.name)).toEqual([
+      'Utilization (%)',
+      'Using Bytes (KB)',
+    ]);
+    expect(track.counterSeries).toHaveLength(2);
+    expect(track.counterSeries![0]!.points).toEqual([
       {
         t: 5_000,
-        v: 0.05,
+        v: 0.02,
         values: { 'Utilization (%)': 0.02, 'Using Bytes (KB)': 0.05 },
       },
       {
         t: 10_000,
-        v: 0.04,
+        v: 0.03,
         values: { 'Utilization (%)': 0.03, 'Using Bytes (KB)': 0.04 },
       },
     ]);
-    expect(utilLeaf.counter?.yMax).toBe(0.05);
-    expect(utilLeaf.counter?.colorHex).toBe(MEMORY_UTIL_COUNTER_COLOR);
+    expect(track.counterSeries![1]!.points.map((p) => p.v)).toEqual([0.05, 0.04]);
+    expect(track.counterSeries![0]!.colorHex).toBe(MEMORY_UTIL_COUNTER_COLOR);
 
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
@@ -293,7 +298,10 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     });
     expect(adapted.reportModel.overviewSeries).toEqual([]);
     const counterProc = adapted.swimlaneModel?.processes.find((p) => p.id === 'p-counter-22');
-    expect(counterProc?.threads.map((t) => t.name)).toEqual(['Using Bytes (KB)']);
+    expect(counterProc?.threads.map((t) => t.name)).toEqual(['memory_utilization']);
+    expect(adapted.swimlaneModel?.metadata?.defaultCollapsedIds).toContain(
+      'counter-22-memory_utilization',
+    );
   });
 
   it('PR-ASIM-016: unit-util ph:C → CounterTrack leaf under process (no fraction×100)', () => {
@@ -341,7 +349,7 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     const procs = counterProcessesFromTrace(trace);
     expect(procs).toHaveLength(1);
     expect(procs[0]!.id).toBe('p-counter-10');
-    expect(procs[0]!.threads.map((t) => t.name)).toEqual(['Utilization (%)']);
+    expect(procs[0]!.threads.map((t) => t.name)).toEqual(['unit_utilization']);
     expect(procs[0]!.threads[0]!.counter?.points).toEqual([
       { t: 1_000, v: 40, values: { 'Utilization (%)': 40 } },
       { t: 2_000, v: 80, values: { 'Utilization (%)': 80 } },
@@ -429,6 +437,11 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
 
     const procs = counterProcessesFromTrace(trace);
     expect(procs.map((p) => p.id)).toEqual(['p-counter-30', 'p-counter-31', 'p-counter-40']);
+    expect(procs.map((p) => p.threads[0]!.name)).toEqual([
+      'issue_queue_utilization',
+      'exec_queue_utilization',
+      'exec_queue_utilization',
+    ]);
     expect(procs[0]!.threads[0]!.counter?.yMax).toBe(10);
     expect(procs[1]!.threads[0]!.counter?.yMax).toBe(2);
     expect(procs[2]!.threads[0]!.counter?.yMax).toBe(4);
@@ -477,9 +490,14 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(adapted.reportModel.overviewSeries).toEqual([]);
     expect(adapted.swimlaneModel).not.toBeNull();
     const counterProc = adapted.swimlaneModel!.processes.find((p) => p.id === 'p-counter-22');
-    expect(counterProc?.threads.map((t) => t.name)).toEqual(['Using Bytes (KB)']);
-    expect(counterProc?.threads[0]?.counter?.points[0]?.v).toBe(1.25);
-    expect(counterProc?.threads[0]?.counter?.points[0]?.values).toEqual({
+    expect(counterProc?.threads.map((t) => t.name)).toEqual(['memory_utilization']);
+    const track = counterProc!.threads[0]!;
+    expect(track.children?.map((c) => c.name)).toEqual([
+      'Utilization (%)',
+      'Using Bytes (KB)',
+    ]);
+    expect(track.counterSeries![1]!.points[0]?.v).toBe(1.25);
+    expect(track.counterSeries![0]!.points[0]?.values).toEqual({
       'Utilization (%)': 0.5,
       'Using Bytes (KB)': 1.25,
     });

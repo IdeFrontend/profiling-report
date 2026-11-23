@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { laneCategoryLabel, t } from '../../../../i18n';
-import { flatLaneHeight, type CollapseAnimState } from '../../../../swimlane/layout';
+import {
+  COUNTER_LANE_HEIGHT,
+  flatLaneHeight,
+  type CollapseAnimState,
+} from '../../../../swimlane/layout';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
 import type { GutterBarDisplay, GutterLane } from './gutterTypes';
@@ -52,8 +56,13 @@ const laneExternallyHovered = computed(
 );
 /** Leaf/folder share the same indent; pin is absolute at gutter left. */
 const pad = computed(() => `${24 + props.depth * 14}px`);
-/** Multi-row leaf / CounterTrack band; folders/spacer leaves stay LANE_HEIGHT. */
-const rowHeightPx = computed(() => `${flatLaneHeight(props.lane)}px`);
+/** Multi-row leaf / CounterTrack band; collapsed counter folders use COUNTER_LANE_HEIGHT. */
+const rowHeightPx = computed(() => {
+  if (props.lane.counterFolder && isCollapsed.value) {
+    return `${COUNTER_LANE_HEIGHT}px`;
+  }
+  return `${flatLaneHeight(props.lane)}px`;
+});
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
 const isThinUtil = computed(() => !(isFolder.value || props.depth === 0));
 const utilSizeClass = computed(() =>

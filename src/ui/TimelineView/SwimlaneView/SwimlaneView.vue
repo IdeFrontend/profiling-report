@@ -458,19 +458,52 @@ const counterTipStyle = computed(() => {
   };
 });
 
-/** Horizontal hold segment from real sample → cursor (fixed Teleport→body). */
-const counterHoldLinkStyle = computed(() => {
+type CounterMarkerRender = {
+  key: string;
+  sampleClientX: number;
+  sampleClientY: number;
+  holdClientX: number;
+  holdClientY: number;
+  linkVisible: boolean;
+  emphasized: boolean;
+};
+
+/** One marker set per series (multi) or the active single-series pair. */
+const counterMarkerRenders = computed((): CounterMarkerRender[] => {
   const p = counterHover.value;
-  if (!p?.linkVisible) return null;
-  const x0 = p.sampleClientX;
-  const x1 = p.dotClientX;
-  const y = p.sampleClientY;
-  const left = Math.min(x0, x1);
-  const width = Math.abs(x1 - x0);
+  if (!p) return [];
+  if (p.markers && p.markers.length > 0) {
+    return p.markers.map((m) => ({
+      key: m.seriesId,
+      sampleClientX: m.sampleClientX,
+      sampleClientY: m.sampleClientY,
+      holdClientX: m.holdClientX,
+      holdClientY: m.holdClientY,
+      linkVisible: m.linkVisible,
+      emphasized: m.emphasized,
+    }));
+  }
+  return [
+    {
+      key: 'active',
+      sampleClientX: p.sampleClientX,
+      sampleClientY: p.sampleClientY,
+      holdClientX: p.dotClientX,
+      holdClientY: p.dotClientY,
+      linkVisible: p.linkVisible,
+      emphasized: true,
+    },
+  ];
+});
+
+function counterHoldLinkStyle(m: CounterMarkerRender) {
+  if (!m.linkVisible) return null;
+  const left = Math.min(m.sampleClientX, m.holdClientX);
+  const width = Math.abs(m.holdClientX - m.sampleClientX);
   return {
     position: 'fixed' as const,
     left: `${left}px`,
-    top: `${y}px`,
+    top: `${m.sampleClientY}px`,
     width: `${width}px`,
     height: '0px',
     borderTop: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
@@ -478,8 +511,9 @@ const counterHoldLinkStyle = computed(() => {
     pointerEvents: 'none' as const,
     zIndex: 998,
     boxSizing: 'border-box' as const,
+    opacity: m.emphasized ? 1 : 0.55,
   };
-});
+}
 
 /** Card header Y from the same row walk as the canvas, shifted by rest + in-flight folds. */
 const cardHeaders = computed(() => {
@@ -1294,50 +1328,71 @@ defineExpose({
         :sample-time-label="counterHover.sampleTimeLabel"
         :style-pos="counterTipStyle"
       />
-      <div
-        v-if="counterHoldLinkStyle"
-        class="pr-counter-hover-link"
-        data-testid="counter-hover-link"
-        :style="counterHoldLinkStyle"
-      />
-      <div
-        v-if="counterHover"
-        class="pr-counter-hover-dot pr-counter-hover-dot--sample"
-        data-testid="counter-hover-sample"
-        :style="{
-          position: 'fixed',
-          left: `${counterHover.sampleClientX}px`,
-          top: `${counterHover.sampleClientY}px`,
-          background: 'transparent',
-          border: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
-          width: `${COUNTER_MARKER_SAMPLE_PX}px`,
-          height: `${COUNTER_MARKER_SAMPLE_PX}px`,
-          borderRadius: '50%',
-          transform: 'translate(-50%, -50%)',
-          pointerEvents: 'none',
-          zIndex: 999,
-          boxSizing: 'border-box',
-        }"
-      />
-      <div
-        v-if="counterHover"
-        class="pr-counter-hover-dot pr-counter-hover-dot--hold"
-        data-testid="counter-hover-dot"
-        :style="{
-          position: 'fixed',
-          left: `${counterHover.dotClientX}px`,
-          top: `${counterHover.dotClientY}px`,
-          background: COUNTER_MARKER_WHITE,
-          border: 'none',
-          width: `${COUNTER_MARKER_HOLD_PX}px`,
-          height: `${COUNTER_MARKER_HOLD_PX}px`,
-          borderRadius: '50%',
-          transform: 'translate(-50%, -50%)',
-          pointerEvents: 'none',
-          zIndex: 999,
-          boxSizing: 'border-box',
-        }"
-      />
+      <template
+        v-for="m in counterMarkerRenders"
+        :key="m.key"
+      >
+        <div
+          v-if="counterHoldLinkStyle(m)"
+          class="pr-counter-hover-link"
+          data-testid="counter-hover-link"
+          :style="counterHoldLinkStyle(m)!"
+        />
+        <div
+          class="pr-counter-hover-dot pr-counter-hover-dot--sample"
+          data-testid="counter-hover-sample"
+          :style="{
+            position: 'fixed',
+            left: `${m.sampleClientX}px`,
+            top: `${m.sampleClientY}px`,
+            background: 'transparent',
+            border: `${COUNTER_MARKER_RING_PX}px solid ${COUNTER_MARKER_WHITE}`,
+            width: `${
+              counterMarkerRenders.length > 1 && m.emphasized
+                ? COUNTER_MARKER_SAMPLE_PX + 2
+                : COUNTER_MARKER_SAMPLE_PX
+            }px`,
+            height: `${
+              counterMarkerRenders.length > 1 && m.emphasized
+                ? COUNTER_MARKER_SAMPLE_PX + 2
+                : COUNTER_MARKER_SAMPLE_PX
+            }px`,
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 999,
+            boxSizing: 'border-box',
+            opacity: counterMarkerRenders.length > 1 && !m.emphasized ? 0.55 : 1,
+          }"
+        />
+        <div
+          class="pr-counter-hover-dot pr-counter-hover-dot--hold"
+          data-testid="counter-hover-dot"
+          :style="{
+            position: 'fixed',
+            left: `${m.holdClientX}px`,
+            top: `${m.holdClientY}px`,
+            background: COUNTER_MARKER_WHITE,
+            border: 'none',
+            width: `${
+              counterMarkerRenders.length > 1 && m.emphasized
+                ? COUNTER_MARKER_HOLD_PX + 2
+                : COUNTER_MARKER_HOLD_PX
+            }px`,
+            height: `${
+              counterMarkerRenders.length > 1 && m.emphasized
+                ? COUNTER_MARKER_HOLD_PX + 2
+                : COUNTER_MARKER_HOLD_PX
+            }px`,
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 999,
+            boxSizing: 'border-box',
+            opacity: counterMarkerRenders.length > 1 && !m.emphasized ? 0.55 : 1,
+          }"
+        />
+      </template>
     </Teleport>
   </div>
 </template>

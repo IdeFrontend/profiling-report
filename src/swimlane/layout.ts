@@ -120,9 +120,19 @@ export function flatLaneHeight(lane: {
   return (lane.rowCount ?? 1) * LANE_HEIGHT;
 }
 
+/** True when a CounterTrack folder is rest-collapsed (overlay band, no child rows). */
+export function isCollapsedCounterFolder(thread: SwimThread): boolean {
+  return (
+    isFolderNode(thread) &&
+    (thread.counterSeries?.length ?? 0) > 0 &&
+    (thread.children?.length ?? 0) === 0
+  );
+}
+
 /** Model-thread band height before layout (counter vs folder vs multi-row leaf). */
 export function threadBandHeight(thread: SwimThread): number {
   if (thread.counter) return COUNTER_LANE_HEIGHT;
+  if (isCollapsedCounterFolder(thread)) return COUNTER_LANE_HEIGHT;
   if (isFolderNode(thread)) return LANE_HEIGHT;
   return leafRowCount(thread) * LANE_HEIGHT;
 }
@@ -687,7 +697,12 @@ function visibleLaneRowHeight(model: SwimlaneModel, collapsedIds: readonly strin
   const walk = (nodes: SwimThread[]): void => {
     for (const n of nodes) {
       // Historical: multi-row interval leaves still count as one LANE_HEIGHT here.
-      h += n.counter ? COUNTER_LANE_HEIGHT : LANE_HEIGHT;
+      // Collapsed multi-series CounterTrack folders use the taller counter band.
+      const counterFolderCollapsed =
+        isFolderNode(n) &&
+        collapsed.has(n.id) &&
+        (n.counterSeries?.length ?? 0) > 0;
+      h += n.counter || counterFolderCollapsed ? COUNTER_LANE_HEIGHT : LANE_HEIGHT;
       if (isFolderNode(n) && !collapsed.has(n.id)) walk(n.children ?? []);
     }
   };
@@ -972,30 +987,46 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     const thread = row.thread;
     const color = colorForThread(thread.name);
     if (row.kind === 'folder') {
-      const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth, rowCount: 1 };
+      const collapsedCounter = isCollapsedCounterFolder(thread);
+      const lane: FlatLane = {
+        thread,
+        y,
+        color: collapsedCounter
+          ? (thread.counterSeries![0]!.colorHex ?? color)
+          : color,
+        folder: true,
+        depth: row.depth,
+        rowCount: 1,
+        ...(collapsedCounter
+          ? { counter: true, height: COUNTER_LANE_HEIGHT }
+          : {}),
+      };
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
       const laneEvents: LaidOutEvent[] = [];
       // Collapsed folders carry gray summary bars (disjoint union of descendants).
-      const summaries = [...(thread.summaryEvents ?? [])].sort(
-        (a, b) => a.startTime - b.startTime,
-      );
-      for (const ev of summaries) {
-        const item: LaidOutEvent = {
-          id: ev.id,
-          event: ev,
-          laneIndex: lanes.length - 1,
-          y,
-          rowIndex: 0,
-          color: SUMMARY_EVENT_FILL,
-          summary: true,
-        };
-        events.push(item);
-        eventsById.set(ev.id, item);
-        laneEvents.push(item);
+      // CounterTrack folders use counterSeries paint instead — skip interval summaries.
+      if (!collapsedCounter) {
+        const summaries = [...(thread.summaryEvents ?? [])].sort(
+          (a, b) => a.startTime - b.startTime,
+        );
+        for (const ev of summaries) {
+          const item: LaidOutEvent = {
+            id: ev.id,
+            event: ev,
+            laneIndex: lanes.length - 1,
+            y,
+            rowIndex: 0,
+            color: SUMMARY_EVENT_FILL,
+            summary: true,
+          };
+          events.push(item);
+          eventsById.set(ev.id, item);
+          laneEvents.push(item);
+        }
       }
       eventsByLane.push(laneEvents);
-      y += LANE_HEIGHT;
+      y += collapsedCounter ? COUNTER_LANE_HEIGHT : LANE_HEIGHT;
       continue;
     }
     if (thread.counter) {

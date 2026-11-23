@@ -83,6 +83,11 @@ export interface SwimThread {
    * chart in the lane band. Built from Chrome Trace `ph:C` counters.
    */
   counter?: SwimCounterSeries;
+  /**
+   * Collapsed multi-series CounterTrack folder: overlay paint for every arg series.
+   * Present with non-empty `children` (one leaf per arg key). Ignored when expanded.
+   */
+  counterSeries?: SwimCounterSeries[];
 }
 
 export interface SwimProcess {

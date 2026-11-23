@@ -24,7 +24,7 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 
 **Memory Utilization Heatmap (biprof §11.2.3.2).** Fill `memoryHeatmap` from `MemoryHeatmapLayout` + `MemoryHeatmapCells` (+ optional `CoreTypes`) via `memoryHeatmapFromTexts` and advertise **`memoryHeatmap`** ([PR-VM-025](./view-models.spec.md), [DATA-50](../../docs/context/decisions/DATA.md) / [DATA-51](../../docs/context/decisions/DATA.md)). No UbRw fallback. Omit when no view is drawable.
 
-**Swim CounterTracks ([DATA-57](../../docs/context/decisions/DATA.md) / [UI-61](../../docs/context/decisions/UI.md)).** Append CounterTrack Cards from every Trace **`ph:C`** with numeric `args` via `mergeCounterTracksFromTrace` (one process per pid, one leaf per arg key; memory util with `Using Bytes (KB)` collapses to one KB-Y leaf whose tip still lists util % + KB; skip empty shells; same-`ts` multi-`C` keeps **last**; no Trace→`overviewSeries` — 统计分析 stays Sampling-only ([DATA-32](../../docs/context/decisions/DATA.md) / [DATA-39](../../docs/context/decisions/DATA.md))). Standalone CTEF JSON uses the same merge in `adaptChromeTrace`.
+**Swim CounterTracks ([DATA-57](../../docs/context/decisions/DATA.md) / [UI-61](../../docs/context/decisions/UI.md)).** Append CounterTrack Cards from every Trace **`ph:C`** with numeric `args` via `mergeCounterTracksFromTrace` (Card = `process_name`, lane = `ph:C` name, args = series; folder + `counterSeries` when N>1, default-collapsed; memory `%`+KB same multi-series; skip empty shells; same-`ts` keeps **last** per series; no Trace→`overviewSeries` — 统计分析 stays Sampling-only ([DATA-32](../../docs/context/decisions/DATA.md) / [DATA-39](../../docs/context/decisions/DATA.md))). Standalone CTEF JSON uses the same merge in `adaptChromeTrace`.
 
 **Roofline (DATA-57a).** When `AnalysisState` says `roofline` passed (or AnalysisState is absent) and `RooflinePoints` + compute/bandwidth peaks are packed, fill `reportModel.roofline` via `rooflineFromEmulatePayloads` (GOPS→TOps/s; per-unit dtype×bandwidth roofs matching producer HTML). `roofline.json` is fallback when CSVs are absent. Do **not** invent points from ExecutedInstructions / VectorUtilizations ([DATA-45](../../docs/context/decisions/interim/DATA.md#data-45)).
 
@@ -53,9 +53,9 @@ adaptEmulate(payloads: Record<string, Uint8Array>): AdaptedReport
 13. **PR-ASIM-012** — `SourceLineHints` without `SourceLines` → raw `sourceLineId`, no invented line numbers; `KernelHints` rows have no pc/sourceLineId; `PC` kept as exact decimal string.
 14. **PR-ASIM-013** — ELF SourceInstructions / AsmMetrics → `sourceCorrelation.mock === false` and capability **`sourceTab`**.
 15. **PR-ASIM-014** — Without ELF Source* / AsmMetrics (IPC-only / gelu-shaped) → omit `sourceCorrelation` and `'sourceTab'`.
-16. **PR-ASIM-015** — Trace `ph:C` with multi-arg samples → one process per pid; memory util with KB → one `Using Bytes (KB)` leaf (`v` = KB, `values` has both keys); same-`ts` keeps last; empty shells omitted; `overviewSeries` stays `[]` (DATA-57).
-17. **PR-ASIM-016** — Unit-util `ph:C` → CounterTrack leaf with shipped `Utilization (%)` (no ×100); empty shells omitted.
-18. **PR-ASIM-017** — Queue-util `ph:C` (PUSHQ and other pipes) → CounterTracks with depth auto-Y; empty shells omitted.
+16. **PR-ASIM-015** — Trace `ph:C` with multi-arg samples → one process per pid; memory util → `memory_utilization` folder with `%` + KB children + `counterSeries`; default-collapsed; same-`ts` keeps last per series; empty shells omitted; `overviewSeries` stays `[]` (DATA-57).
+17. **PR-ASIM-016** — Unit-util `ph:C` → CounterTrack leaf named `unit_utilization` (arg in tip; no ×100); empty shells omitted.
+18. **PR-ASIM-017** — Queue-util `ph:C` (PUSHQ and other pipes) → CounterTracks named by `ph:C` name with depth auto-Y; empty shells omitted.
 19. **PR-ASIM-018** — Standalone `adaptChromeTrace` merges the same `ph:C` CounterTracks (DATA-57).
 20. **PR-ASIM-019** — `Roofline*.csv` (or `roofline.json` fallback) → `reportModel.roofline` + capability when AnalysisState allows (DATA-57a).
 

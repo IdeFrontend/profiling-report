@@ -146,6 +146,17 @@ const freezeBackingStore = computed(
   () => props.freezeBackingStore === true || asideTrackAnimating?.value === true,
 );
 
+/** One series' sample + hold marker set (Teleport → body). */
+export type CounterHoverMarker = {
+  seriesId: string;
+  sampleClientX: number;
+  sampleClientY: number;
+  holdClientX: number;
+  holdClientY: number;
+  linkVisible: boolean;
+  emphasized: boolean;
+};
+
 /** CounterTrack lane hover tip payload (generic `ph:C` arg rows). */
 export type CounterHoverPayload = {
   /** Pipe / lane name — tip header (EventTooltip uses event name the same way). */
@@ -156,18 +167,20 @@ export type CounterHoverPayload = {
   rows: { label: string; value: string }[];
   clientX: number;
   clientY: number;
-  /** Cursor-hold marker — pointer x, held value y. */
+  /** Cursor-hold marker — pointer x, held value y (active series). */
   dotClientX: number;
   dotClientY: number;
-  /** Real sample marker — sample time x (clamped into track), held value y. */
+  /** Real sample marker — sample time x (clamped into track), held value y (active). */
   sampleClientX: number;
   sampleClientY: number;
-  /** True when sample and cursor markers are far enough apart to draw a hold link. */
+  /** True when active sample and cursor markers are far enough apart to draw a hold link. */
   linkVisible: boolean;
   /** Formatted sample time (relative to model.minTime) for the tip Time row. */
   sampleTimeLabel: string;
-  /** Stroke/fill color for markers / hold link. */
+  /** Tip swatch / chart color for the active series. */
   color: string;
+  /** All series markers (multi-series overlay / expanded siblings); omit for single. */
+  markers?: CounterHoverMarker[];
 };
 
 const emit = defineEmits<{
@@ -259,61 +272,171 @@ function emitCounterHover(
     clearCounterHover();
     return;
   }
-  const series = hit.lane.thread.counter;
-  if (!series || series.points.length === 0) {
+  const thread = hit.lane.thread;
+  const layout = backend.getLayout();
+  /** Collapsed overlay, or expanded siblings under the same CounterTrack folder. */
+  type SeriesHit = {
+    id: string;
+    series: NonNullable<typeof thread.counter>;
+    plotTop: number;
+    plotH: number;
+    yMax: number;
+    laneColor: string;
+  };
+  const seriesHits: SeriesHit[] = [];
+  if (thread.counterSeries && thread.counterSeries.length > 0) {
+    const yCss = hit.lane.y - view.scrollY;
+    const plotTop = yCss + LANE_PAD_Y;
+    const plotH = Math.max(1, flatLaneHeight(hit.lane) - LANE_PAD_Y * 2);
+    let sharedYMax = 0;
+    for (const s of thread.counterSeries) {
+      if (s.yMax > sharedYMax) sharedYMax = s.yMax;
+    }
+    if (sharedYMax <= 0) sharedYMax = 1;
+    for (let i = 0; i < thread.counterSeries.length; i++) {
+      const s = thread.counterSeries[i]!;
+      seriesHits.push({
+        id: `${thread.id}#${i}`,
+        series: s,
+        plotTop,
+        plotH,
+        yMax: sharedYMax,
+        laneColor: s.colorHex ?? hit.lane.color,
+      });
+    }
+  } else if (thread.counter) {
+    // Expanded child: include sibling counter leaves under the same parent folder.
+    let parentFolder: (typeof layout.lanes)[number]['thread'] | null = null;
+    for (const lane of layout.lanes) {
+      const kids = lane.thread.children;
+      if (!kids?.some((c) => c.id === thread.id)) continue;
+      if ((lane.thread.counterSeries?.length ?? 0) > 0 || kids.some((c) => c.counter)) {
+        parentFolder = lane.thread;
+        break;
+      }
+    }
+    const siblingThreads =
+      parentFolder?.children?.filter((c) => c.counter) ??
+      (thread.counter ? [thread] : []);
+    for (const sib of siblingThreads) {
+      const sibLane = layout.lanes.find((l) => l.thread.id === sib.id);
+      if (!sibLane?.counter || !sib.counter) continue;
+      const yCss = sibLane.y - view.scrollY;
+      const plotTop = yCss + LANE_PAD_Y;
+      const plotH = Math.max(1, flatLaneHeight(sibLane) - LANE_PAD_Y * 2);
+      const yMax = sib.counter.yMax > 0 ? sib.counter.yMax : 1;
+      seriesHits.push({
+        id: sib.id,
+        series: sib.counter,
+        plotTop,
+        plotH,
+        yMax,
+        laneColor: sib.counter.colorHex ?? sibLane.color,
+      });
+    }
+  }
+  if (seriesHits.length === 0) {
     clearCounterHover();
     return;
   }
-  // hitLayout.y is already collapse-shifted — same CSS space as paintCounterLanes.
-  const yCss = hit.lane.y - view.scrollY;
-  const plotTop = yCss + LANE_PAD_Y;
-  const plotH = Math.max(1, flatLaneHeight(hit.lane) - LANE_PAD_Y * 2);
-  const yMax = series.yMax > 0 ? series.yMax : 1;
   const w = syncTrackWidth();
-  const geo = counterMarkerLocalGeometry({
-    points: series.points,
-    cursorTime: timeAtX(localX),
-    cursorLocalX: localX,
-    xAtTime,
-    yAtValue: (v) => {
-      const clamped = Math.min(yMax, Math.max(0, v));
-      return plotTop + plotH * (1 - clamped / yMax);
-    },
-    clampSampleX: (x) => Math.min(w, Math.max(0, x)),
-  });
-  if (!geo) {
+  const cursorTime = timeAtX(localX);
+  const clampSampleX = (x: number) => Math.min(w, Math.max(0, x));
+
+  type Built = {
+    id: string;
+    color: string;
+    pt: SeriesHit['series']['points'][number];
+    sampleLocalX: number;
+    localDotY: number;
+    linkVisible: boolean;
+  };
+  const built: Built[] = [];
+  for (const hitSeries of seriesHits) {
+    const geo = counterMarkerLocalGeometry({
+      points: hitSeries.series.points,
+      cursorTime,
+      cursorLocalX: localX,
+      xAtTime,
+      yAtValue: (v) => {
+        const clamped = Math.min(hitSeries.yMax, Math.max(0, v));
+        return hitSeries.plotTop + hitSeries.plotH * (1 - clamped / hitSeries.yMax);
+      },
+      clampSampleX,
+    });
+    if (!geo) continue;
+    built.push({
+      id: hitSeries.id,
+      color: hitSeries.laneColor,
+      pt: geo.pt as Built['pt'],
+      sampleLocalX: geo.sampleLocalX,
+      localDotY: geo.localY,
+      linkVisible: geo.linkVisible,
+    });
+  }
+  if (built.length === 0) {
     clearCounterHover();
     return;
   }
-  const { sampleLocalX, localY: localDotY, linkVisible } = geo;
-  // Geometry helper types `pt` as base StepPoint; series points carry tip `values`.
-  const pt = geo.pt as (typeof series.points)[number];
-  const color = series.colorHex ?? hit.lane.color;
-  const name = hit.lane.thread.name;
-  const rows = counterTipRows(pt, name);
+
+  // Active: hovered child id, else nearest hold Y on collapsed overlay.
+  let activeIdx = built.findIndex((b) => b.id === thread.id);
+  if (activeIdx < 0) {
+    activeIdx = 0;
+    if (built.length > 1) {
+      let best = Infinity;
+      for (let i = 0; i < built.length; i++) {
+        const d = Math.abs(built[i]!.localDotY - localY);
+        if (d < best) {
+          best = d;
+          activeIdx = i;
+        }
+      }
+    }
+  }
+  const active = built[activeIdx]!;
+  // Tip header: ph:C lane name (folder) when multi; otherwise the leaf name.
+  let tipName = thread.name;
+  if (!(thread.counterSeries && thread.counterSeries.length > 0) && built.length > 1) {
+    for (const lane of layout.lanes) {
+      if (lane.thread.children?.some((c) => c.id === thread.id)) {
+        tipName = lane.thread.name;
+        break;
+      }
+    }
+  }
+  const rows = counterTipRows(active.pt, tipName);
   const origin = props.model?.minTime ?? 0;
-  const sampleTimeLabel = formatDisplayTimeAuto(pt.t, origin, {
+  const sampleTimeLabel = formatDisplayTimeAuto(active.pt.t, origin, {
     nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
   });
-  const valuesKey = pt.values ? JSON.stringify(pt.values) : '';
-  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${valuesKey}|${clientX}|${clientY}|${localDotY}|${sampleLocalX}|${linkVisible}`;
+  const markers: CounterHoverMarker[] = built.map((b, i) => ({
+    seriesId: b.id,
+    sampleClientX: clientX - localX + b.sampleLocalX,
+    sampleClientY: clientY - localY + b.localDotY,
+    holdClientX: clientX,
+    holdClientY: clientY - localY + b.localDotY,
+    linkVisible: b.linkVisible,
+    emphasized: i === activeIdx,
+  }));
+  const valuesKey = active.pt.values ? JSON.stringify(active.pt.values) : '';
+  const key = `${thread.id}|${tipName}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${activeIdx}|${built.length}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
   const payload: CounterHoverPayload = {
-    name,
-    value: pt.v,
+    name: tipName,
+    value: active.pt.v,
     rows,
     clientX,
     clientY,
-    // Cursor hold: pointer x, held value y.
     dotClientX: clientX,
-    dotClientY: clientY - localY + localDotY,
-    // Real sample: sample time x (clamped), same held value y.
-    sampleClientX: clientX - localX + sampleLocalX,
-    sampleClientY: clientY - localY + localDotY,
-    linkVisible,
+    dotClientY: clientY - localY + active.localDotY,
+    sampleClientX: clientX - localX + active.sampleLocalX,
+    sampleClientY: clientY - localY + active.localDotY,
+    linkVisible: active.linkVisible,
     sampleTimeLabel,
-    color,
+    color: active.color,
+    markers: built.length > 1 ? markers : undefined,
   };
   emit('counter-hover', payload);
 }
