@@ -45,11 +45,7 @@ import {
   type MarqueeRect,
 } from '../../../../swimlane/layout';
 import { counterTipRows } from '../../../../adapters/counterTracksEmulate';
-import {
-  clipCounterMarkerClientY,
-  counterMarkerLocalGeometry,
-  counterMarkerSizePx,
-} from '../../../counterHoverMarkers';
+import { counterMarkerLocalGeometry } from '../../../counterHoverMarkers';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -161,7 +157,7 @@ export type CounterHoverMarker = {
   holdClientX: number;
   holdClientY: number;
   linkVisible: boolean;
-  /** False when the sample is off the visible track — hold disc only (no gutter bleed). */
+  /** True when any pixel of the outline intersects the track (partial edge OK). */
   sampleVisible: boolean;
   emphasized: boolean;
 };
@@ -179,13 +175,15 @@ export type CounterHoverPayload = {
   /** Cursor-hold marker — pointer x, held value y (active series). */
   dotClientX: number;
   dotClientY: number;
-  /** Real sample marker — sample time x (on-track only), held value y (active). */
+  /** Real sample marker — true sample time x (may lie outside the track; clip overlay). */
   sampleClientX: number;
   sampleClientY: number;
   /** True when active sample and cursor markers are far enough apart to draw a hold link. */
   linkVisible: boolean;
-  /** False when the active sample is off the visible track — paint hold only. */
+  /** True when any pixel of the active outline intersects the track. */
   sampleVisible: boolean;
+  /** Canvas viewport box — SwimlaneView clips markers with overflow:hidden here. */
+  clipRect: { left: number; top: number; width: number; height: number };
   /** Formatted sample time (relative to model.minTime) for the tip Sample Time row. */
   sampleTimeLabel: string;
   /** Tip swatch / chart color for the active series. */
@@ -424,35 +422,36 @@ function emitCounterHover(
   const sampleTimeLabel = formatDisplayTimeAuto(active.pt.t, origin, {
     nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
   });
-  // Teleport→body ignores CSS overflow; clip Y into the canvas so markers never
-  // paint over the timeline header or past the swim bottom (partially scrolled lanes).
-  const canvasBox = (activeCanvas() ?? wrapRef.value)?.getBoundingClientRect();
-  const clipY = (y: number, emphasized: boolean): number =>
-    canvasBox
-      ? clipCounterMarkerClientY(y, canvasBox, counterMarkerSizePx(emphasized))
-      : y;
+  // True sample/hold client coords; SwimlaneView clips with an overflow:hidden
+  // overlay on the canvas rect so off-track samples render partially at the edge.
+  const canvasEl = activeCanvas() ?? wrapRef.value;
+  const box = canvasEl?.getBoundingClientRect();
+  const clipRect = {
+    left: box?.left ?? 0,
+    top: box?.top ?? 0,
+    width: Math.max(1, box?.width ?? w),
+    height: Math.max(1, box?.height ?? 1),
+  };
   const markers: CounterHoverMarker[] = built.map((b, i) => {
     const emphasized = i === activeIdx;
     const rawY = clientY - localY + b.localDotY;
-    const clippedY = clipY(rawY, emphasized);
     return {
       seriesId: b.id,
       color: b.color,
-      // In-range: true sample x. Off-track: stem clips to the track edge (no coerced circle).
       sampleClientX: clientX - localX + b.sampleLocalX,
-      sampleClientY: clippedY,
+      sampleClientY: rawY,
       holdClientX: clientX,
-      holdClientY: clippedY,
+      holdClientY: rawY,
       linkVisible: b.linkVisible,
       sampleVisible: b.sampleVisible,
       emphasized,
     };
   });
   const valuesKey = active.pt.values ? JSON.stringify(active.pt.values) : '';
-  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${active.sampleVisible}|${activeIdx}|${built.length}|${multiSeriesTip}`;
+  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${active.sampleVisible}|${activeIdx}|${built.length}|${multiSeriesTip}|${clipRect.left}|${clipRect.width}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
-  const activeY = clipY(clientY - localY + active.localDotY, true);
+  const activeY = clientY - localY + active.localDotY;
   const payload: CounterHoverPayload = {
     name: tipName,
     value: active.pt.v,
@@ -465,6 +464,7 @@ function emitCounterHover(
     sampleClientY: activeY,
     linkVisible: active.linkVisible,
     sampleVisible: active.sampleVisible,
+    clipRect,
     sampleTimeLabel,
     color: active.color,
     activeRowLabel: multiSeriesTip ? active.label : undefined,

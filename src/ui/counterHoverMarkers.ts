@@ -5,6 +5,9 @@
  * Sample = white empty outline (8px / 10px active, ring 1.5 / 2).
  * Hold = opaque series-colored disc that fits the outline's inner hole (no ring).
  * Link = white stem between outer edges (not through centers).
+ *
+ * Off-track samples keep their true x; callers clip with overflow:hidden so the
+ * outline can render partially at the edge and the stem reaches the border.
  */
 
 import { stepPointAt, type StepPoint } from './TimelineView/OverviewCharts/stepPath';
@@ -68,41 +71,52 @@ export function counterHoldLinkSegment(
   return { left: x0 + rLeft, width };
 }
 
+/** True when any pixel of the sample outline intersects `[0, trackW]`. */
+export function counterSampleIntersectsTrack(
+  sampleLocalX: number,
+  trackW: number,
+  active: boolean,
+): boolean {
+  const r = counterMarkerSampleOuterRadiusPx(active);
+  return sampleLocalX + r >= 0 && sampleLocalX - r <= trackW;
+}
+
 export type CounterMarkerLocal = {
   pt: StepPoint;
-  /**
-   * X for the sample outline when `sampleVisible`, else the stem’s clipped track-edge
-   * endpoint (do not paint a coerced outline on the border).
-   */
+  /** True sample x in lane-local CSS px (may lie outside the track). */
   sampleLocalX: number;
   holdLocalX: number;
   localY: number;
   linkVisible: boolean;
-  /** False when the true sample center sits outside the visible track — clip, don’t coerce. */
+  /** True when any pixel of the outline intersects the track (partial edge OK). */
   sampleVisible: boolean;
 };
 
-/**
- * Clamp a teleported marker's client Y into the canvas/track rect so the disc
- * cannot paint over the timeline header or past the swim bottom.
- */
-export function clipCounterMarkerClientY(
-  clientY: number,
-  canvasRect: { top: number; bottom: number },
-  markerPx: number,
-): number {
-  const half = markerPx / 2;
-  return Math.min(canvasRect.bottom - half, Math.max(canvasRect.top + half, clientY));
+export type CounterMarkerClipRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+/** Fixed overlay that clips teleported markers to the track/canvas. */
+export function counterMarkerClipBoxStyle(clip: CounterMarkerClipRect): Record<string, string> {
+  return {
+    position: 'fixed',
+    left: `${clip.left}px`,
+    top: `${clip.top}px`,
+    width: `${clip.width}px`,
+    height: `${clip.height}px`,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    zIndex: '998',
+  };
 }
 
 /**
  * Step-after sample + hold geometry in lane-local CSS pixels.
- * `xAtTime` / `yAtValue` map canonical ns / value into the plot.
- * `linkVisible` uses active-sized edge gap so emphasized chrome does not leave a stub.
- *
- * When `trackW` is set: keep the true sample x for visibility; if it lies outside
- * `[0, trackW]`, hide the outline (`sampleVisible: false`) and clip only the stem
- * endpoint to the track edge — never coerce the circle onto the border.
+ * Keeps the true sample x — callers clip with an overflow:hidden track overlay so
+ * the outline can render partially at the edge and the stem reaches the border.
  */
 export function counterMarkerLocalGeometry(input: {
   points: readonly StepPoint[];
@@ -110,24 +124,20 @@ export function counterMarkerLocalGeometry(input: {
   cursorLocalX: number;
   xAtTime: (t: number) => number;
   yAtValue: (v: number) => number;
-  /** Inclusive track width in CSS px; sample outside `[0, trackW]` → hide outline, clip stem. */
+  /** Inclusive track width in CSS px — used for intersection / sampleVisible. */
   trackW?: number;
-  /** @deprecated Prefer `trackW`. Clamps sample x into the plot. */
+  /** @deprecated Prefer overflow clip. Clamps sample x into the plot. */
   clampSampleX?: (x: number) => number;
 }): CounterMarkerLocal | null {
   const pt = stepPointAt(input.points, input.cursorTime);
   if (!pt) return null;
-  const rawSampleX = input.xAtTime(pt.t);
+  let sampleLocalX = input.xAtTime(pt.t);
   const holdLocalX = input.cursorLocalX;
-  let sampleLocalX = rawSampleX;
   let sampleVisible = true;
   if (input.trackW != null) {
-    sampleVisible = rawSampleX >= 0 && rawSampleX <= input.trackW;
-    // Stem clips to the track; outline is not moved onto the border when off-track.
-    const clipped = Math.min(input.trackW, Math.max(0, rawSampleX));
-    sampleLocalX = sampleVisible ? rawSampleX : Math.min(clipped, holdLocalX);
+    sampleVisible = counterSampleIntersectsTrack(sampleLocalX, input.trackW, true);
   } else if (input.clampSampleX) {
-    sampleLocalX = input.clampSampleX(rawSampleX);
+    sampleLocalX = input.clampSampleX(sampleLocalX);
   }
   const localY = input.yAtValue(pt.v);
   const linkVisible = counterHoldLinkSegment(sampleLocalX, holdLocalX, true) != null;

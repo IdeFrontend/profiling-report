@@ -42,6 +42,7 @@ import {
 import {
   COUNTER_MARKER_WHITE,
   counterHoldLinkSegment,
+  counterMarkerClipBoxStyle,
   counterMarkerHoldPx,
   counterMarkerRingPx,
   counterMarkerSizePx,
@@ -503,24 +504,54 @@ const counterMarkerRenders = computed((): CounterMarkerRender[] => {
   ];
 });
 
-function counterHoldLinkStyle(m: CounterMarkerRender) {
-  // Stem may remain when the sample outline is clipped off-track (edge endpoint only).
+function counterHoldLinkStyle(
+  m: CounterMarkerRender,
+  clip: { left: number; top: number },
+) {
   if (!m.linkVisible) return null;
-  // Stem between outer edges — not through the sample hole / hold disc.
-  const seg = counterHoldLinkSegment(m.sampleClientX, m.holdClientX, m.emphasized);
+  // Stem in clip-box local coords — overflow:hidden cuts it at the track edge.
+  const seg = counterHoldLinkSegment(
+    m.sampleClientX - clip.left,
+    m.holdClientX - clip.left,
+    m.emphasized,
+  );
   if (!seg) return null;
   return {
-    position: 'fixed' as const,
+    position: 'absolute' as const,
     left: `${seg.left}px`,
-    top: `${m.sampleClientY}px`,
+    top: `${m.sampleClientY - clip.top}px`,
     width: `${seg.width}px`,
     height: '0px',
     borderTop: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
     transform: 'translateY(-50%)',
     pointerEvents: 'none' as const,
-    zIndex: 998,
     boxSizing: 'border-box' as const,
     opacity: m.emphasized ? 1 : 0.55,
+  };
+}
+
+function counterMarkerDotStyle(
+  m: CounterMarkerRender,
+  clip: { left: number; top: number },
+  kind: 'sample' | 'hold',
+) {
+  const emphasized = m.emphasized;
+  const isSample = kind === 'sample';
+  return {
+    position: 'absolute' as const,
+    left: `${(isSample ? m.sampleClientX : m.holdClientX) - clip.left}px`,
+    top: `${(isSample ? m.sampleClientY : m.holdClientY) - clip.top}px`,
+    background: isSample ? 'transparent' : m.color,
+    border: isSample
+      ? `${counterMarkerRingPx(emphasized)}px solid ${COUNTER_MARKER_WHITE}`
+      : 'none',
+    width: `${(isSample ? counterMarkerSizePx : counterMarkerHoldPx)(emphasized)}px`,
+    height: `${(isSample ? counterMarkerSizePx : counterMarkerHoldPx)(emphasized)}px`,
+    borderRadius: '50%',
+    transform: 'translate(-50%, -50%)',
+    pointerEvents: 'none' as const,
+    boxSizing: 'border-box' as const,
+    opacity: counterMarkerRenders.value.length > 1 && !emphasized ? 0.55 : 1,
   };
 }
 
@@ -1339,56 +1370,35 @@ defineExpose({
         :active-label="counterHover.activeRowLabel"
         :style-pos="counterTipStyle"
       />
-      <template
-        v-for="m in counterMarkerRenders"
-        :key="m.key"
+      <div
+        v-if="counterHover && counterMarkerRenders.length > 0"
+        class="pr-counter-hover-clip"
+        data-testid="counter-hover-clip"
+        :style="counterMarkerClipBoxStyle(counterHover.clipRect)"
       >
-        <div
-          v-if="counterHoldLinkStyle(m)"
-          class="pr-counter-hover-link"
-          data-testid="counter-hover-link"
-          :style="counterHoldLinkStyle(m)!"
-        />
-        <div
-          v-if="m.sampleVisible"
-          class="pr-counter-hover-dot pr-counter-hover-dot--sample"
-          data-testid="counter-hover-sample"
-          :style="{
-            position: 'fixed',
-            left: `${m.sampleClientX}px`,
-            top: `${m.sampleClientY}px`,
-            background: 'transparent',
-            border: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
-            width: `${counterMarkerSizePx(m.emphasized)}px`,
-            height: `${counterMarkerSizePx(m.emphasized)}px`,
-            borderRadius: '50%',
-            transform: 'translate(-50%, -50%)',
-            pointerEvents: 'none',
-            zIndex: 999,
-            boxSizing: 'border-box',
-            opacity: counterMarkerRenders.length > 1 && !m.emphasized ? 0.55 : 1,
-          }"
-        />
-        <div
-          class="pr-counter-hover-dot pr-counter-hover-dot--hold"
-          data-testid="counter-hover-dot"
-          :style="{
-            position: 'fixed',
-            left: `${m.holdClientX}px`,
-            top: `${m.holdClientY}px`,
-            background: m.color,
-            border: 'none',
-            width: `${counterMarkerHoldPx(m.emphasized)}px`,
-            height: `${counterMarkerHoldPx(m.emphasized)}px`,
-            borderRadius: '50%',
-            transform: 'translate(-50%, -50%)',
-            pointerEvents: 'none',
-            zIndex: 999,
-            boxSizing: 'border-box',
-            opacity: counterMarkerRenders.length > 1 && !m.emphasized ? 0.55 : 1,
-          }"
-        />
-      </template>
+        <template
+          v-for="m in counterMarkerRenders"
+          :key="m.key"
+        >
+          <div
+            v-if="counterHoldLinkStyle(m, counterHover.clipRect)"
+            class="pr-counter-hover-link"
+            data-testid="counter-hover-link"
+            :style="counterHoldLinkStyle(m, counterHover.clipRect)!"
+          />
+          <div
+            v-if="m.sampleVisible"
+            class="pr-counter-hover-dot pr-counter-hover-dot--sample"
+            data-testid="counter-hover-sample"
+            :style="counterMarkerDotStyle(m, counterHover.clipRect, 'sample')"
+          />
+          <div
+            class="pr-counter-hover-dot pr-counter-hover-dot--hold"
+            data-testid="counter-hover-dot"
+            :style="counterMarkerDotStyle(m, counterHover.clipRect, 'hold')"
+          />
+        </template>
+      </div>
     </Teleport>
   </div>
 </template>

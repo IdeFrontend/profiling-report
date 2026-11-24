@@ -59,6 +59,7 @@ function cleanupTeleport(): void {
   document.querySelectorAll('[data-testid="overview-value-dot"]').forEach((n) => n.remove());
   document.querySelectorAll('[data-testid="overview-hover-sample"]').forEach((n) => n.remove());
   document.querySelectorAll('[data-testid="overview-hover-link"]').forEach((n) => n.remove());
+  document.querySelectorAll('[data-testid="overview-hover-clip"]').forEach((n) => n.remove());
   document.querySelectorAll('[data-testid="overview-value-tooltip"]').forEach((n) => n.remove());
 }
 
@@ -195,10 +196,11 @@ describe('OverviewCharts', () => {
     expect(cubeDot.classList.contains('is-active')).toBe(true);
     expect(vectorDot.classList.contains('is-active')).toBe(false);
     // CUBE v=50 on 0–100 → mid of paint at top 0; VECTOR v=10 → near bottom of paint at top 40.
+    // Positions are local to each paint clip box (mock paint left=0 / top=0|40).
     expect(cubeDot.style.left).toBe('500px');
     expect(cubeDot.style.top).toBe('8px');
     expect(vectorDot.style.left).toBe('500px');
-    expect(vectorDot.style.top).toBe(`${40 + (1 - 10 / 100) * 16}px`);
+    expect(vectorDot.style.top).toBe(`${(1 - 10 / 100) * 16}px`);
 
     wrap.unmount();
     cleanupTeleport();
@@ -227,18 +229,20 @@ describe('OverviewCharts', () => {
     await col.trigger('pointermove', { clientX: 300, clientY: 208 });
     const dot = document.querySelector('[data-testid="overview-value-dot"]') as HTMLElement | null;
     expect(dot).toBeTruthy();
-    // Center on the stroke at v=0 → bottom of the 16px paint (top + height).
-    expect(dot!.style.left).toBe('300px');
-    expect(dot!.style.top).toBe('216px');
-    // Must not be a descendant of the overview root (would be clipped by translateY).
+    // Paint-local: hold at xRatio mid of 400px paint (client 300 → local 200);
+    // v=0 → bottom of the 16px paint.
+    expect(dot!.style.left).toBe('200px');
+    expect(dot!.style.top).toBe('16px');
+    // Clip box is teleported (not under the overview transform).
     expect(wrap.element.contains(dot)).toBe(false);
     wrap.unmount();
     cleanupTeleport();
   });
 
-  it('PR-OV-006: off-track sample hides outline; stem clips to chart edge', async () => {
-    // CUBE sample at t=1000 is left of view [1500, 3500] — do not coerce the
-    // outline onto the left border; hide it and clip only the stem to the edge.
+  it('PR-OV-006: off-track sample uses true x inside overflow clip', async () => {
+    // CUBE sample at t=1000 is left of view [1500, 3500] — keep true (negative)
+    // local x inside a paint clip box so the stem reaches the edge and a near-edge
+    // sample can render partially (no coerced border circle).
     cleanupTeleport();
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 1500, endTime: 3500 },
@@ -252,6 +256,9 @@ describe('OverviewCharts', () => {
     // ~20% → time 1900 so both series still hold pre-window pts.
     await col.trigger('pointermove', { clientX: 280, clientY: 8 });
 
+    const clips = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-hover-clip"]'),
+    ];
     const samples = [
       ...document.querySelectorAll<HTMLElement>('[data-testid="overview-hover-sample"]'),
     ];
@@ -261,17 +268,18 @@ describe('OverviewCharts', () => {
     const holds = [
       ...document.querySelectorAll<HTMLElement>('[data-testid="overview-value-dot"]'),
     ];
+    expect(clips.length).toBe(2);
+    expect(clips[0]!.style.overflow).toBe('hidden');
+    // Fully outside → no sample outline node; stem still present (clipped to edge).
     expect(samples.length).toBe(0);
     expect(links.length).toBe(2);
     expect(holds.length).toBe(2);
 
     const cubeHold = holds.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
     const cubeLink = links.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
-    const holdX = Number.parseFloat(cubeHold.style.left);
-    const linkLeft = Number.parseFloat(cubeLink.style.left);
-    expect(holdX).toBeCloseTo(280, 0);
-    expect(linkLeft).toBeGreaterThanOrEqual(200);
-    expect(linkLeft).toBeLessThan(holdX);
+    // Positions are paint-local (clip origin at paint left).
+    expect(Number.parseFloat(cubeHold.style.left)).toBeCloseTo(80, 0);
+    expect(Number.parseFloat(cubeLink.style.left)).toBeLessThan(0);
     expect(Number.parseFloat(cubeLink.style.width)).toBeGreaterThan(2);
 
     wrap.unmount();
@@ -307,6 +315,7 @@ describe('OverviewCharts', () => {
     ) as HTMLElement | null;
     expect(cubeSample).toBeTruthy();
     expect(cubeHold).toBeTruthy();
+    // Paint-local coords (clip left=0).
     const sampleX = Number.parseFloat(cubeSample!.style.left);
     const holdX = Number.parseFloat(cubeHold!.style.left);
     expect(holdX).toBeCloseTo(900, 0);

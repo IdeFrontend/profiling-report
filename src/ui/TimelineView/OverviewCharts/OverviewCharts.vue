@@ -22,9 +22,11 @@ import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_
 import {
   COUNTER_MARKER_WHITE,
   counterHoldLinkSegment,
+  counterMarkerClipBoxStyle,
   counterMarkerHoldPx,
   counterMarkerRingPx,
   counterMarkerSizePx,
+  counterSampleIntersectsTrack,
 } from '../../counterHoverMarkers';
 
 const props = withDefaults(
@@ -428,6 +430,9 @@ type OverviewMarkerSet = {
   color: string;
   active: boolean;
   sampleVisible: boolean;
+  /** Paint box — overflow:hidden clip so off-track samples render partially. */
+  clip: { left: number; top: number; width: number; height: number };
+  /** Positions relative to `clip` origin. */
   sampleLeft: string;
   sampleTop: string;
   holdLeft: string;
@@ -435,7 +440,7 @@ type OverviewMarkerSet = {
   link: { left: string; top: string; width: string } | null;
 };
 
-/** Fixed-position sample outline + series-colored hold + white link per track. */
+/** Sample outline + series-colored hold + white link per track (clipped to paint). */
 const markerSets = computed((): OverviewMarkerSet[] => {
   const xRatio = hoverXRatio.value;
   const time = hoverTimeNs.value;
@@ -449,28 +454,27 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     const rect = rects[tr.id];
     if (!rect || rect.width <= 0 || rect.height <= 0) continue;
     const yPct = dotTopPercent(pt.v) / 100;
-    const top = `${rect.top + yPct * rect.height}px`;
-    // Off-track: hide the outline (do not coerce onto the border); clip only the stem.
+    const localY = yPct * rect.height;
     const active = tr.id === hoverSeriesId.value;
-    const holdX = rect.left + xRatio * rect.width;
-    const rawSampleX = rect.left + ((pt.t - x0.value) / span) * rect.width;
-    const sampleVisible = rawSampleX >= rect.left && rawSampleX <= rect.left + rect.width;
-    const clipped = Math.min(rect.left + rect.width, Math.max(rect.left, rawSampleX));
-    const sampleX = sampleVisible ? rawSampleX : Math.min(clipped, holdX);
-    const seg = counterHoldLinkSegment(sampleX, holdX, active);
+    // True sample x in paint-local coords (may be <0 or >width — overflow clips).
+    const sampleLocalX = ((pt.t - x0.value) / span) * rect.width;
+    const holdLocalX = xRatio * rect.width;
+    const sampleVisible = counterSampleIntersectsTrack(sampleLocalX, rect.width, active);
+    const seg = counterHoldLinkSegment(sampleLocalX, holdLocalX, active);
     out.push({
       id: tr.id,
       color: tr.color,
       active,
       sampleVisible,
-      sampleLeft: `${sampleX}px`,
-      sampleTop: top,
-      holdLeft: `${holdX}px`,
-      holdTop: top,
+      clip: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      sampleLeft: `${sampleLocalX}px`,
+      sampleTop: `${localY}px`,
+      holdLeft: `${holdLocalX}px`,
+      holdTop: `${localY}px`,
       link: seg
         ? {
             left: `${seg.left}px`,
-            top,
+            top: `${localY}px`,
             width: `${seg.width}px`,
           }
         : null,
@@ -633,10 +637,14 @@ const markerSets = computed((): OverviewMarkerSet[] => {
           }}</span>
         </div>
       </div>
-      <!-- Fixed outside the transformed overview stack so v≈0 is not clipped. -->
-      <template
+      <!-- Fixed clip boxes so off-track samples render partially at the paint edge. -->
+      <div
         v-for="m in markerSets"
         :key="m.id"
+        class="pr-overview-hover-clip"
+        data-testid="overview-hover-clip"
+        :data-series-id="m.id"
+        :style="counterMarkerClipBoxStyle(m.clip)"
       >
         <div
           v-if="m.link"
@@ -645,7 +653,7 @@ const markerSets = computed((): OverviewMarkerSet[] => {
           data-testid="overview-hover-link"
           :data-series-id="m.id"
           :style="{
-            position: 'fixed',
+            position: 'absolute',
             left: m.link.left,
             top: m.link.top,
             width: m.link.width,
@@ -653,7 +661,6 @@ const markerSets = computed((): OverviewMarkerSet[] => {
             borderTop: `${counterMarkerRingPx(m.active)}px solid ${COUNTER_MARKER_WHITE}`,
             transform: 'translateY(-50%)',
             pointerEvents: 'none',
-            zIndex: 998,
             opacity: m.active ? 1 : 0.55,
           }"
         />
@@ -664,7 +671,7 @@ const markerSets = computed((): OverviewMarkerSet[] => {
           data-testid="overview-hover-sample"
           :data-series-id="m.id"
           :style="{
-            position: 'fixed',
+            position: 'absolute',
             left: m.sampleLeft,
             top: m.sampleTop,
             background: 'transparent',
@@ -674,7 +681,6 @@ const markerSets = computed((): OverviewMarkerSet[] => {
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
-            zIndex: 999,
             boxSizing: 'border-box',
             opacity: m.active ? 1 : 0.55,
           }"
@@ -685,7 +691,7 @@ const markerSets = computed((): OverviewMarkerSet[] => {
           data-testid="overview-value-dot"
           :data-series-id="m.id"
           :style="{
-            position: 'fixed',
+            position: 'absolute',
             left: m.holdLeft,
             top: m.holdTop,
             background: m.color,
@@ -695,12 +701,11 @@ const markerSets = computed((): OverviewMarkerSet[] => {
             borderRadius: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
-            zIndex: 999,
             boxSizing: 'border-box',
             opacity: m.active ? 1 : 0.55,
           }"
         />
-      </template>
+      </div>
     </Teleport>
   </div>
 </template>
