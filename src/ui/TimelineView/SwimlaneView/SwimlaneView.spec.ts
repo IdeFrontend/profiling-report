@@ -3105,12 +3105,21 @@ describe('SwimlaneView', () => {
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
 
+      // Clip box is fixed+overflow:hidden; dots/link are absolute inside it so
+      // off-track samples can render partially at the track edge.
+      const clip = document.querySelector(
+        '[data-testid="counter-hover-clip"]',
+      ) as HTMLElement | null;
+      expect(clip).not.toBeNull();
+      expect(clip!.style.position).toBe('fixed');
+      expect(clip!.style.overflow).toBe('hidden');
       // Sample (white outline 10px) + hold (opaque series disc = inner hole 6px, no ring)
       // + white link from sample outer edge → hold outer edge (not through centers).
       const sample = document.querySelector(
         '[data-testid="counter-hover-sample"]',
       ) as HTMLElement | null;
       expect(sample).not.toBeNull();
+      expect(sample!.style.position).toBe('absolute');
       expect(sample!.style.left).toBe('100px');
       expect(sample!.style.background).toMatch(/transparent/i);
       expect(sample!.style.border).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
@@ -3120,7 +3129,7 @@ describe('SwimlaneView', () => {
       expect(hold!.style.left).toBe('150px');
       expect(hold!.style.background.toLowerCase()).toMatch(/#e7434a|rgb\(231,\s*67,\s*74\)/i);
       expect(hold!.style.border).toMatch(/^(none|$)/i);
-      expect(hold!.style.position).toBe('fixed');
+      expect(hold!.style.position).toBe('absolute');
       expect(hold!.style.width).toBe('6px');
       expect(hold!.style.height).toBe('6px');
       const link = document.querySelector(
@@ -3128,6 +3137,7 @@ describe('SwimlaneView', () => {
       ) as HTMLElement | null;
       expect(link).not.toBeNull();
       // Centers 100→150; sampleR=5, holdR=3 → left=105, width=42.
+      expect(link!.style.position).toBe('absolute');
       expect(link!.style.left).toBe('105px');
       expect(link!.style.width).toBe('42px');
       expect(link!.style.borderTop).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
