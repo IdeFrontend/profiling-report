@@ -605,13 +605,17 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(short.y - long.y).toBe(LANE_HEIGHT);
     const leaf = layout.lanes.find((l) => !l.folder)!;
     expect(leaf.rowCount * LANE_HEIGHT).toBe(2 * LANE_HEIGHT);
-    // The lane background uses flatLaneHeight (interval = rowCount×LANE_HEIGHT; counter = 26).
+    // Lane fill uses laneChromeHeight (collapsed multi-series folder → 26px; else flatLaneHeight).
     return Promise.all([
       import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'),
       import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'),
     ]).then(([canvasSrc, webglSrc]) => {
-      expect((canvasSrc as { default: string }).default).toMatch(/flatLaneHeight\(lane\) \* dpr/);
-      expect((webglSrc as { default: string }).default).toMatch(/flatLaneHeight\(lane\) \* dpr/);
+      expect((canvasSrc as { default: string }).default).toMatch(
+        /laneChromeHeight\([^)]*\) \* dpr/,
+      );
+      expect((webglSrc as { default: string }).default).toMatch(
+        /laneChromeHeight\([^)]*\) \* dpr/,
+      );
     });
   });
 
