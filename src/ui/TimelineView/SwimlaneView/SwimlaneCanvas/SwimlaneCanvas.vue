@@ -438,7 +438,7 @@ function emitCounterHover(
     return {
       seriesId: b.id,
       color: b.color,
-      // sampleLocalX is already clamped into [0, trackW] — no gutter bleed.
+      // In-range: true sample x. Off-track: stem clips to the track edge (no coerced circle).
       sampleClientX: clientX - localX + b.sampleLocalX,
       sampleClientY: clippedY,
       holdClientX: clientX,

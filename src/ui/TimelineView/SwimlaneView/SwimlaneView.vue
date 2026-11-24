@@ -504,7 +504,8 @@ const counterMarkerRenders = computed((): CounterMarkerRender[] => {
 });
 
 function counterHoldLinkStyle(m: CounterMarkerRender) {
-  if (!m.sampleVisible || !m.linkVisible) return null;
+  // Stem may remain when the sample outline is clipped off-track (edge endpoint only).
+  if (!m.linkVisible) return null;
   // Stem between outer edges — not through the sample hole / hold disc.
   const seg = counterHoldLinkSegment(m.sampleClientX, m.holdClientX, m.emphasized);
   if (!seg) return null;

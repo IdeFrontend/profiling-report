@@ -6447,9 +6447,9 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-129: off-track sample clamps outline+stem to track edge', async () => {
-    // Sample at t=5000 is left of view [10000, 30000] — clamp outline to x=0 so
-    // the stem ends at the track edge (never paints into the gutter / titles).
+  it('PR-CANVAS-129: off-track sample hides outline; stem clips to track edge', async () => {
+    // Sample at t=5000 is left of view [10000, 30000] — do not coerce the outline
+    // onto x=0; hide it and clip only the stem to the track edge.
     const counterModel = {
       minTime: 0,
       maxTime: 40_000,
@@ -6506,13 +6506,11 @@ describe('SwimlaneCanvas', () => {
     } | null;
     expect(tip).toMatchObject({
       value: 40,
-      sampleVisible: true,
+      sampleVisible: false,
       linkVisible: true,
+      sampleClientX: 0,
       dotClientX: 200,
     });
-    // Sample center is inset by active outline radius so the ring stays inside the track.
-    expect(tip!.sampleClientX).toBeGreaterThan(0);
-    expect(tip!.sampleClientX).toBeLessThan(200);
     expect(tip!.sampleClientY).toBeGreaterThanOrEqual(0);
     expect(tip!.sampleClientY).toBeLessThanOrEqual(120);
     wrapper.unmount();

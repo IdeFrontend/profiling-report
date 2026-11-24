@@ -236,9 +236,9 @@ describe('OverviewCharts', () => {
     cleanupTeleport();
   });
 
-  it('PR-OV-006: off-track sample clamps outline + stem into the chart (left edge)', async () => {
-    // CUBE sample at t=1000 is left of view [1500, 3500] while cursor holds that
-    // step — keep outline at the left inset and draw the stem to the hold.
+  it('PR-OV-006: off-track sample hides outline; stem clips to chart edge', async () => {
+    // CUBE sample at t=1000 is left of view [1500, 3500] — do not coerce the
+    // outline onto the left border; hide it and clip only the stem to the edge.
     cleanupTeleport();
     const wrap = mount(OverviewCharts, {
       props: { series, startTime: 1500, endTime: 3500 },
@@ -249,8 +249,7 @@ describe('OverviewCharts', () => {
       VECTOR: { left: 200, top: 40, width: 400, height: 16 },
     });
     const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
-    // 25% → time 2000; at t=1999 CUBE holds t=1000, but exactly at 2000 the new
-    // sample lands — use ~20% (time 1900) so both series still hold pre-window pts.
+    // ~20% → time 1900 so both series still hold pre-window pts.
     await col.trigger('pointermove', { clientX: 280, clientY: 8 });
 
     const samples = [
@@ -262,17 +261,17 @@ describe('OverviewCharts', () => {
     const holds = [
       ...document.querySelectorAll<HTMLElement>('[data-testid="overview-value-dot"]'),
     ];
-    expect(samples.length).toBe(2);
+    expect(samples.length).toBe(0);
     expect(links.length).toBe(2);
     expect(holds.length).toBe(2);
 
-    const cubeSample = samples.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
     const cubeHold = holds.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
     const cubeLink = links.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
-    const sampleX = Number.parseFloat(cubeSample.style.left);
     const holdX = Number.parseFloat(cubeHold.style.left);
-    expect(sampleX).toBeGreaterThanOrEqual(200);
-    expect(sampleX).toBeLessThan(holdX);
+    const linkLeft = Number.parseFloat(cubeLink.style.left);
+    expect(holdX).toBeCloseTo(280, 0);
+    expect(linkLeft).toBeGreaterThanOrEqual(200);
+    expect(linkLeft).toBeLessThan(holdX);
     expect(Number.parseFloat(cubeLink.style.width)).toBeGreaterThan(2);
 
     wrap.unmount();

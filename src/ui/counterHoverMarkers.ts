@@ -70,14 +70,15 @@ export function counterHoldLinkSegment(
 
 export type CounterMarkerLocal = {
   pt: StepPoint;
+  /**
+   * X for the sample outline when `sampleVisible`, else the stem’s clipped track-edge
+   * endpoint (do not paint a coerced outline on the border).
+   */
   sampleLocalX: number;
   holdLocalX: number;
   localY: number;
   linkVisible: boolean;
-  /**
-   * Always true when geometry exists — sample outline + stem stay on, clamped into
-   * the track so they never paint into the gutter / off the plot.
-   */
+  /** False when the true sample center sits outside the visible track — clip, don’t coerce. */
   sampleVisible: boolean;
 };
 
@@ -99,9 +100,9 @@ export function clipCounterMarkerClientY(
  * `xAtTime` / `yAtValue` map canonical ns / value into the plot.
  * `linkVisible` uses active-sized edge gap so emphasized chrome does not leave a stub.
  *
- * When `trackW` is set, clamp the sample center into `[r, trackW - r]` (active sample
- * radius) so the outline + stem stay fully inside the track during pan/zoom — never
- * hanging into the gutter or past the right edge.
+ * When `trackW` is set: keep the true sample x for visibility; if it lies outside
+ * `[0, trackW]`, hide the outline (`sampleVisible: false`) and clip only the stem
+ * endpoint to the track edge — never coerce the circle onto the border.
  */
 export function counterMarkerLocalGeometry(input: {
   points: readonly StepPoint[];
@@ -109,26 +110,26 @@ export function counterMarkerLocalGeometry(input: {
   cursorLocalX: number;
   xAtTime: (t: number) => number;
   yAtValue: (v: number) => number;
-  /** Inclusive track width in CSS px; sample center clamped into `[r, trackW - r]`. */
+  /** Inclusive track width in CSS px; sample outside `[0, trackW]` → hide outline, clip stem. */
   trackW?: number;
   /** @deprecated Prefer `trackW`. Clamps sample x into the plot. */
   clampSampleX?: (x: number) => number;
 }): CounterMarkerLocal | null {
   const pt = stepPointAt(input.points, input.cursorTime);
   if (!pt) return null;
-  let sampleLocalX = input.xAtTime(pt.t);
+  const rawSampleX = input.xAtTime(pt.t);
   const holdLocalX = input.cursorLocalX;
+  let sampleLocalX = rawSampleX;
+  let sampleVisible = true;
   if (input.trackW != null) {
-    const r = counterMarkerSampleOuterRadiusPx(true);
-    const max = Math.max(r, input.trackW - r);
-    sampleLocalX = Math.min(max, Math.max(r, sampleLocalX));
-    // Step-after: sample time ≤ cursor — never place the outline to the right of hold
-    // (inset clamp near the left edge can otherwise push sample past a left-edge hold).
-    sampleLocalX = Math.min(sampleLocalX, holdLocalX);
+    sampleVisible = rawSampleX >= 0 && rawSampleX <= input.trackW;
+    // Stem clips to the track; outline is not moved onto the border when off-track.
+    const clipped = Math.min(input.trackW, Math.max(0, rawSampleX));
+    sampleLocalX = sampleVisible ? rawSampleX : Math.min(clipped, holdLocalX);
   } else if (input.clampSampleX) {
-    sampleLocalX = input.clampSampleX(sampleLocalX);
+    sampleLocalX = input.clampSampleX(rawSampleX);
   }
   const localY = input.yAtValue(pt.v);
   const linkVisible = counterHoldLinkSegment(sampleLocalX, holdLocalX, true) != null;
-  return { pt, sampleLocalX, holdLocalX, localY, linkVisible, sampleVisible: true };
+  return { pt, sampleLocalX, holdLocalX, localY, linkVisible, sampleVisible };
 }

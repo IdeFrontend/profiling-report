@@ -24,7 +24,6 @@ import {
   counterHoldLinkSegment,
   counterMarkerHoldPx,
   counterMarkerRingPx,
-  counterMarkerSampleOuterRadiusPx,
   counterMarkerSizePx,
 } from '../../counterHoverMarkers';
 
@@ -451,23 +450,19 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     if (!rect || rect.width <= 0 || rect.height <= 0) continue;
     const yPct = dotTopPercent(pt.v) / 100;
     const top = `${rect.top + yPct * rect.height}px`;
-    // Clamp off-track samples into the paint box so outline + stem stay visible
-    // (fully inside — center inset by sample radius, never past the plot edge).
+    // Off-track: hide the outline (do not coerce onto the border); clip only the stem.
     const active = tr.id === hoverSeriesId.value;
-    const sampleR = counterMarkerSampleOuterRadiusPx(active);
     const holdX = rect.left + xRatio * rect.width;
     const rawSampleX = rect.left + ((pt.t - x0.value) / span) * rect.width;
-    const minX = rect.left + sampleR;
-    const maxX = rect.left + Math.max(sampleR, rect.width - sampleR);
-    // Inset clamp into the paint box; never place the sample to the right of the
-    // hold (step-after invariant: pt.t <= cursor time).
-    const sampleX = Math.min(holdX, Math.max(minX, Math.min(maxX, rawSampleX)));
+    const sampleVisible = rawSampleX >= rect.left && rawSampleX <= rect.left + rect.width;
+    const clipped = Math.min(rect.left + rect.width, Math.max(rect.left, rawSampleX));
+    const sampleX = sampleVisible ? rawSampleX : Math.min(clipped, holdX);
     const seg = counterHoldLinkSegment(sampleX, holdX, active);
     out.push({
       id: tr.id,
       color: tr.color,
       active,
-      sampleVisible: true,
+      sampleVisible,
       sampleLeft: `${sampleX}px`,
       sampleTop: top,
       holdLeft: `${holdX}px`,
