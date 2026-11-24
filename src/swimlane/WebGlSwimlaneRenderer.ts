@@ -274,7 +274,7 @@ function linkTextProgram(gl: WebGL2RenderingContext, fsSrc: string): TextProgram
 
 /**
  * Sudu setVbSquareWithGaps: 6 floats/vertex — adds gapPrev,gapNext per vertex (aData).
- * `stacked` writes a 7th float (`aHit`) so one quad can carry a same-x tick count.
+ * [exp] count-hit revert: the 7th `aHit` float is gone; always 6 floats.
  */
 export function setVbSquareWithGaps(
   p: number,
@@ -283,10 +283,9 @@ export function setVbSquareWithGaps(
   gapPrev: number,
   gapNext: number,
   vb: Float32Array,
-  hit = 1,
-  stacked = false,
 ): void {
-  const s = stacked ? 7 : 6;
+  // [exp] count-hit revert: 6-float vertex only (no `aHit` 7th float).
+  const s = 6;
   const write = (vertex: number, x: number, y: number, texX: number, texY: number) => {
     const o = p + vertex * s;
     vb[o] = x;
@@ -295,7 +294,6 @@ export function setVbSquareWithGaps(
     vb[o + 3] = texY;
     vb[o + 4] = gapPrev;
     vb[o + 5] = gapNext;
-    if (stacked) vb[o + 6] = hit;
   };
   // x1,-1, x0,1 | x1,1, x0,1 | x0,-1, x1,0 | x0,1, x1,0
   write(0, x1, -1, x0, 1);
@@ -337,8 +335,8 @@ export function collapseSameXTicks(pairs: readonly number[]): { pairs: number[];
  * relative to timeBase), starting at pair offset `off`. Gaps are read straight from `pairs` via
  * the global index (`eventGapPrev` / `eventGapNext`) — no per-chunk copy or gap array is made,
  * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
- * (pos, uv, data) enables branchless extension in the vertex shader. A same-x tick stack adds
- * a 7th float (`aHit`); other quads leave that attrib disabled (generic value 1).
+ * (pos, uv, data) enables branchless extension in the vertex shader.
+ * [exp] count-hit revert: no `aHit` 7th float.
  *
  */
 function createChunk(
@@ -347,11 +345,10 @@ function createChunk(
   off: number,
   pairCount: number,
   indexAt: (i: number) => number = (i) => off + i,
-  hits?: number[],
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
-  const stacked = hits != null;
-  const floatsPerVert = stacked ? 7 : 6;
+  // [exp] count-hit revert: always 6 floats per vertex (pos, uv, data).
+  const floatsPerVert = 6;
   const vb = new Float32Array(numSquares * floatsPerVert * 4);
   const ib = new Uint16Array(numSquares * 6);
   for (let i = 0; i < numSquares; i++) {
@@ -363,8 +360,6 @@ function createChunk(
       eventGapPrev(pairs, gi),
       eventGapNext(pairs, gi),
       vb,
-      stacked ? hits[gi]! : 1,
-      stacked,
     );
     const n = i * 4;
     const p = i * 6;
@@ -391,10 +386,6 @@ function createChunk(
   gl.vertexAttribPointer(1, 2, gl.FLOAT, false, strideBytes, 8);
   gl.enableVertexAttribArray(2);
   gl.vertexAttribPointer(2, 2, gl.FLOAT, false, strideBytes, 16);
-  if (stacked) {
-    gl.enableVertexAttribArray(3);
-    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, strideBytes, 24);
-  }
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
@@ -447,14 +438,12 @@ export function eventGapNext(pairs: number[], gi: number): number {
 function createChunksFromPairs(
   gl: WebGL2RenderingContext,
   pairs: number[],
-  hits?: number[],
 ): MeshChunk[] {
   const chunks: MeshChunk[] = [];
   const totalPairs = pairs.length / 2;
-  const stacked = hits != null && hits.some((h) => h > 1);
   for (let off = 0; off < totalPairs; off += MAX_QUADS_PER_MESH) {
     const count = Math.min(MAX_QUADS_PER_MESH, totalPairs - off);
-    chunks.push(createChunk(gl, pairs, off, count, (i) => off + i, stacked ? hits : undefined));
+    chunks.push(createChunk(gl, pairs, off, count, (i) => off + i));
   }
   return chunks;
 }
@@ -883,8 +872,6 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
     gl.useProgram(swim.program);
-    // Disabled aHit reads the generic value (initial 0 would drop every unstacked tick).
-    gl.vertexAttrib1f(3, 1);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
     // Extension params are CSS px (shaders.extendTargetSizeCss/extendMargin1Css/extendMargin2Css),
     // converted to device px (× dpr) so they track the browser's dpr; unless the uniform was
@@ -1284,12 +1271,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           raw.push(a, b);
         }
         // Same-x degenerate ticks are one quad; length-AA pipes keep one quad per event.
+        // [exp] count-hit revert: collapse stays (fewer quads), no `aHit` payload.
         const collapsed = useCountMetric ? collapseSameXTicks(raw) : null;
         const pairs = collapsed?.pairs ?? raw;
         return {
           y: lane.y + r * LANE_HEIGHT,
           quadStarts: encodedQuadStarts(pairs),
-          chunks: createChunksFromPairs(gl, pairs, collapsed?.hits),
+          chunks: createChunksFromPairs(gl, pairs),
           emphasisLayers: null,
           brightChunks: null,
           liftChunks: null,
@@ -1404,7 +1392,8 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
                   return {
                     rgb,
                     dim,
-                    chunks: createChunksFromPairs(gl, collapsed?.pairs ?? pairs, collapsed?.hits),
+                    // [exp] count-hit revert: no `aHit` payload.
+                    chunks: createChunksFromPairs(gl, collapsed?.pairs ?? pairs),
                   };
                 });
       }
