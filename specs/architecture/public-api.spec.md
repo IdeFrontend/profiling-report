@@ -4,7 +4,7 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 
 ## Behavior
 
-**Barrel exports (`import { X } from '@huawei/profiling-report'`).** `ProfilingReport` (Vue component), format loaders (`parseRep`, `adaptRep`, `loadReportSource`, `adaptChromeTrace`, `chromeTraceToSwimlane`), library identity (`LIBRARY_NAME`), dependency-depth helpers (`DEFAULT_DEPENDENCY_DEPTH`, `MAX_DEPENDENCY_DEPTH`, `normalizeDependencyDepth`), user-guide default URL (`DEFAULT_USER_GUIDE_URL`), HTML export helpers (`stitchHtmlReport`, `htmlExportFileName`, `DEFAULT_HTML_EXPORT_TEMPLATE_URL`). All domain types re-exported via `export type *`.
+**Barrel exports (`import { X } from '@huawei/profiling-report'`).** `ProfilingReport` (Vue component), format loaders (`parseRep`, `adaptRep`, `loadReportSource`, `adaptChromeTrace`, `chromeTraceToSwimlane`), library identity (`LIBRARY_NAME`), dependency-depth helpers (`DEFAULT_DEPENDENCY_DEPTH`, `MAX_DEPENDENCY_DEPTH`, `normalizeDependencyDepth`), baseline id generator (`newBaselineId`), user-guide default URL (`DEFAULT_USER_GUIDE_URL`), HTML export helpers (`stitchHtmlReport`, `htmlExportFileName`, `DEFAULT_HTML_EXPORT_TEMPLATE_URL`). All domain types re-exported via `export type *`.
 
 **Deep imports** (available for local development and tests — public consumers import from `'@huawei/profiling-report'` only). Domain helpers: `formatTime`, `formatDisplayTime`, `formatDisplayTimeParts`, `formatAxisTime`, `formatCursorTime` (`src/domain/formatTime`), `t`, `resolveLocale` (`src/i18n`), `computeThreadUtilization`, `coveredLength`, `withDerivedUtilizations` (`src/domain/utilization`), `colorForThread`, `colorVarForLaneName`, `laneColorKey` (`src/domain/laneColors`), `createViewState`, `zoomToFitWindow`, `zoomAt`, `panBy`, `applyWindow` (`src/domain/viewState`). Renderer: `CanvasSwimlaneRenderer`, `LANE_GROUP_HEADER_HEIGHT`=28, `LANE_HEIGHT`=22 (`src/swimlane/CanvasSwimlaneRenderer`). Not available via `@huawei/profiling-report` imports — the `exports` map restricts JS to the barrel entry (plus the named host assets below).
 
@@ -26,6 +26,7 @@ Library public API surface consumed as `@huawei/profiling-report`. Vue is peer d
 *Architecture contracts — verified by integration tests and typecheck.*
 
 ## Changelog
+- **2026-11-24** — Re-export `newBaselineId` from the barrel (baseline comparison model); `baselineDisplayTitle` and `metricDiff` stay deep imports.
 - **2026-11-19** — Document `perform-optimization` (`{ report_path, op_name }`, stats aside title-row 执行优化 pill) beside `optimize` and cross-link the two distinct 执行优化 surfaces.
 - **2026-11-13** — `optimize` added to the host-facing events: 概览 (Overview) 执行优化 emits `{ opName: string }` with the highlighted operator row's OpName.
 - **2026-09-25** — `open-performance-hints-in-problems` added to the host-facing events and the `environment` prop documented: the title-row 性能分析 trigger routes to the host Problems view on `'vscode'`, to the internal dock on `'browser'`/omitted ([environments.ts](../../src/ui/environments.ts)).
