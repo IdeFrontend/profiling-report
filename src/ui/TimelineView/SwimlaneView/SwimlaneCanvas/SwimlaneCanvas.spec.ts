@@ -6508,9 +6508,11 @@ describe('SwimlaneCanvas', () => {
       value: 40,
       sampleVisible: true,
       linkVisible: true,
-      sampleClientX: 0,
       dotClientX: 200,
     });
+    // Sample center is inset by active outline radius so the ring stays inside the track.
+    expect(tip!.sampleClientX).toBeGreaterThan(0);
+    expect(tip!.sampleClientX).toBeLessThan(200);
     expect(tip!.sampleClientY).toBeGreaterThanOrEqual(0);
     expect(tip!.sampleClientY).toBeLessThanOrEqual(120);
     wrapper.unmount();

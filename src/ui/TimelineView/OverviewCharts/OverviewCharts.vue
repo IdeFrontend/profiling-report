@@ -24,6 +24,7 @@ import {
   counterHoldLinkSegment,
   counterMarkerHoldPx,
   counterMarkerRingPx,
+  counterMarkerSampleOuterRadiusPx,
   counterMarkerSizePx,
 } from '../../counterHoverMarkers';
 
@@ -311,6 +312,22 @@ function clearTipOnly() {
   paintRectsById.value = {};
 }
 
+/**
+ * Hold follows the pointer (stable xRatio). On zoom/pan the window moves under the
+ * pointer — re-derive absolute hover time so sample outline + stem stay on the
+ * step-after point for the time under the cursor (never a stale time that can place
+ * the sample to the right of the hold).
+ */
+watch(
+  [() => props.startTime, () => props.endTime],
+  () => {
+    const ratio = hoverXRatio.value;
+    if (ratio == null || hoverSeriesId.value == null) return;
+    const span = Math.max(1, x1.value - x0.value);
+    hoverTimeNs.value = x0.value + ratio * span;
+  },
+);
+
 function onChartPointerLeave(e: PointerEvent) {
   if (dragging.value) return;
   const next = e.relatedTarget as Element | null;
@@ -427,12 +444,15 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     if (!rect || rect.width <= 0 || rect.height <= 0) continue;
     const yPct = dotTopPercent(pt.v) / 100;
     const top = `${rect.top + yPct * rect.height}px`;
-    // Clamp off-track samples to the chart edge so outline + stem stay visible
-    // during pan without painting past the plot.
-    const sampleRatio = Math.min(1, Math.max(0, (pt.t - x0.value) / span));
-    const holdX = rect.left + xRatio * rect.width;
-    const sampleX = rect.left + sampleRatio * rect.width;
+    // Clamp off-track samples into the paint box so outline + stem stay visible
+    // (fully inside — center inset by sample radius, never past the plot edge).
     const active = tr.id === hoverSeriesId.value;
+    const sampleR = counterMarkerSampleOuterRadiusPx(active);
+    const rawSampleX = rect.left + ((pt.t - x0.value) / span) * rect.width;
+    const minX = rect.left + sampleR;
+    const maxX = rect.left + Math.max(sampleR, rect.width - sampleR);
+    const sampleX = Math.min(maxX, Math.max(minX, rawSampleX));
+    const holdX = rect.left + xRatio * rect.width;
     const seg = counterHoldLinkSegment(sampleX, holdX, active);
     out.push({
       id: tr.id,

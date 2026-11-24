@@ -99,8 +99,9 @@ export function clipCounterMarkerClientY(
  * `xAtTime` / `yAtValue` map canonical ns / value into the plot.
  * `linkVisible` uses active-sized edge gap so emphasized chrome does not leave a stub.
  *
- * When `trackW` is set, clamp `sampleLocalX` into `[0, trackW]` so the outline + stem
- * stay visible at the track edge during pan (never stretch into the gutter).
+ * When `trackW` is set, clamp the sample center into `[r, trackW - r]` (active sample
+ * radius) so the outline + stem stay fully inside the track during pan/zoom — never
+ * hanging into the gutter or past the right edge.
  */
 export function counterMarkerLocalGeometry(input: {
   points: readonly StepPoint[];
@@ -108,7 +109,7 @@ export function counterMarkerLocalGeometry(input: {
   cursorLocalX: number;
   xAtTime: (t: number) => number;
   yAtValue: (v: number) => number;
-  /** Inclusive track width in CSS px; sample x is clamped into `[0, trackW]`. */
+  /** Inclusive track width in CSS px; sample center clamped into `[r, trackW - r]`. */
   trackW?: number;
   /** @deprecated Prefer `trackW`. Clamps sample x into the plot. */
   clampSampleX?: (x: number) => number;
@@ -117,7 +118,9 @@ export function counterMarkerLocalGeometry(input: {
   if (!pt) return null;
   let sampleLocalX = input.xAtTime(pt.t);
   if (input.trackW != null) {
-    sampleLocalX = Math.min(input.trackW, Math.max(0, sampleLocalX));
+    const r = counterMarkerSampleOuterRadiusPx(true);
+    const max = Math.max(r, input.trackW - r);
+    sampleLocalX = Math.min(max, Math.max(r, sampleLocalX));
   } else if (input.clampSampleX) {
     sampleLocalX = input.clampSampleX(sampleLocalX);
   }

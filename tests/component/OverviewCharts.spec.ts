@@ -57,6 +57,8 @@ function mockTrackPaints(
 
 function cleanupTeleport(): void {
   document.querySelectorAll('[data-testid="overview-value-dot"]').forEach((n) => n.remove());
+  document.querySelectorAll('[data-testid="overview-hover-sample"]').forEach((n) => n.remove());
+  document.querySelectorAll('[data-testid="overview-hover-link"]').forEach((n) => n.remove());
   document.querySelectorAll('[data-testid="overview-value-tooltip"]').forEach((n) => n.remove());
 }
 
@@ -230,6 +232,87 @@ describe('OverviewCharts', () => {
     expect(dot!.style.top).toBe('216px');
     // Must not be a descendant of the overview root (would be clipped by translateY).
     expect(wrap.element.contains(dot)).toBe(false);
+    wrap.unmount();
+    cleanupTeleport();
+  });
+
+  it('PR-OV-006: off-track sample clamps outline + stem into the chart (left edge)', async () => {
+    // CUBE sample at t=1000 is left of view [1500, 3500] while cursor holds that
+    // step — keep outline at the left inset and draw the stem to the hold.
+    cleanupTeleport();
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 1500, endTime: 3500 },
+      attachTo: document.body,
+    });
+    mockTrackPaints(wrap, {
+      CUBE: { left: 200, top: 0, width: 400, height: 16 },
+      VECTOR: { left: 200, top: 40, width: 400, height: 16 },
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    // 25% → time 2000; at t=1999 CUBE holds t=1000, but exactly at 2000 the new
+    // sample lands — use ~20% (time 1900) so both series still hold pre-window pts.
+    await col.trigger('pointermove', { clientX: 280, clientY: 8 });
+
+    const samples = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-hover-sample"]'),
+    ];
+    const links = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-hover-link"]'),
+    ];
+    const holds = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-value-dot"]'),
+    ];
+    expect(samples.length).toBe(2);
+    expect(links.length).toBe(2);
+    expect(holds.length).toBe(2);
+
+    const cubeSample = samples.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
+    const cubeHold = holds.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
+    const cubeLink = links.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
+    const sampleX = Number.parseFloat(cubeSample.style.left);
+    const holdX = Number.parseFloat(cubeHold.style.left);
+    expect(sampleX).toBeGreaterThanOrEqual(200);
+    expect(sampleX).toBeLessThan(holdX);
+    expect(Number.parseFloat(cubeLink.style.width)).toBeGreaterThan(2);
+
+    wrap.unmount();
+    cleanupTeleport();
+  });
+
+  it('PR-OV-006: zoom resyncs hover time so sample stays left of hold', async () => {
+    // Stale absolute hoverTimeNs after zoom can map the sample to the right of the
+    // pointer-stable hold; re-derive time from xRatio on window change.
+    cleanupTeleport();
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 2000 },
+      attachTo: document.body,
+    });
+    mockTrackPaints(wrap, {
+      CUBE: { left: 0, top: 0, width: 1000, height: 16 },
+      VECTOR: { left: 0, top: 40, width: 1000, height: 16 },
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    // Pointer at 90% → time 1800; CUBE sample at t=1000 (v=50) until t=2000.
+    await col.trigger('pointermove', { clientX: 900, clientY: 8 });
+
+    await wrap.setProps({ startTime: 0, endTime: 500 });
+    await wrap.vm.$nextTick();
+
+    const cubeSample = document.querySelector(
+      '[data-testid="overview-hover-sample"][data-series-id="CUBE"]',
+    ) as HTMLElement | null;
+    const cubeHold = document.querySelector(
+      '[data-testid="overview-value-dot"][data-series-id="CUBE"]',
+    ) as HTMLElement | null;
+    expect(cubeSample).toBeTruthy();
+    expect(cubeHold).toBeTruthy();
+    const sampleX = Number.parseFloat(cubeSample!.style.left);
+    const holdX = Number.parseFloat(cubeHold!.style.left);
+    // Hold stays at 90% (900px). Resynced time under pointer is 450 — CUBE still
+    // holds the t=0 sample (v=0) until t=1000, clamped to the left inset (< hold).
+    expect(holdX).toBeCloseTo(900, 0);
+    expect(sampleX).toBeLessThan(holdX);
+
     wrap.unmount();
     cleanupTeleport();
   });
