@@ -204,7 +204,6 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'open-performance-hints-in-problems': [];
   'export-html': [{ fileName: string }];
-  optimize: [{ opName: string }];
 }>();
 
 /** Shallow: avoid deep-proxying every swim event (collapse/expand was ~2s on op2). */
@@ -1883,11 +1882,6 @@ const emitPerformOptimization = cooldown(
   CANNBOT_EMIT_COOLDOWN_MS,
 );
 
-function onOverviewOptimize(payload: { opName: string }) {
-  emitPerformOptimization(payload.opName);
-  emit('optimize', payload);
-}
-
 const emitOpenCannwork = cooldown(
   () => emit('open-cannwork'),
   CANNBOT_EMIT_COOLDOWN_MS,
@@ -2049,7 +2043,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :selected-operator-id="selectedOperatorId ?? undefined"
           @update:selected-operator-id="onOperatorChange"
           @open-timeline="onActiveTab('timeline')"
-          @optimize="onOverviewOptimize"
+          @optimize="emitPerformOptimization($event.opName)"
         />
         <SourceView
           v-if="showSource && report?.sourceCorrelation"

@@ -2784,7 +2784,6 @@ describe('ProfilingReport scaffold', () => {
   });
 
   it('PR-ROOT-037: Overview and stats aside share the Optimize action', async () => {
-    vi.useFakeTimers();
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'overview-optimize',
@@ -2801,27 +2800,37 @@ describe('ProfilingReport scaffold', () => {
         },
       },
     });
-    await wrapper.get('[data-testid="tab-overview"]').trigger('click');
-    await wrapper.findAll('tbody tr')[1].trigger('click');
-    const button = wrapper.findAll('button').find((b) => b.text() === 'Optimize');
-    expect(button).toBeDefined();
-    await button!.trigger('click');
-    expect(wrapper.emitted('optimize')).toEqual([[{ opName: 'matmul_leakyrelu' }]]);
-    expect(wrapper.emitted('perform-optimization')).toEqual([
-      [{ report_path: '/reports/overview.npu-rep', op_name: 'matmul_leakyrelu' }],
-    ]);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      await wrapper.get('[data-testid="tab-overview"]').trigger('click');
+      await wrapper.findAll('tbody tr')[1].trigger('click');
+      const overviewButton = wrapper.get('[data-testid="overview-optimize-trigger"]');
+      await overviewButton.trigger('click');
+      expect(wrapper.emitted('optimize')).toBeUndefined();
+      expect(wrapper.emitted('perform-optimization')).toEqual([
+        [{ report_path: '/reports/overview.npu-rep', op_name: 'matmul_leakyrelu' }],
+      ]);
 
-    await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
-    const statsButton = wrapper.get('[data-testid="perform-optimization-trigger"]');
-    expect(statsButton.text()).toBe('Optimize');
-    await statsButton.trigger('click');
-    expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
-    vi.advanceTimersByTime(1000);
-    await statsButton.trigger('click');
-    expect(wrapper.emitted('perform-optimization')?.[1]).toEqual([
-      { report_path: '/reports/overview.npu-rep', op_name: 'gather_2d_custom' },
-    ]);
-    wrapper.unmount();
+      vi.advanceTimersByTime(500);
+      await overviewButton.trigger('click');
+      expect(wrapper.emitted('optimize')).toBeUndefined();
+      expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+
+      await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
+      const statsButton = wrapper.get('[data-testid="perform-optimization-trigger"]');
+      vi.advanceTimersByTime(499);
+      await statsButton.trigger('click');
+      expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+
+      vi.advanceTimersByTime(1);
+      await statsButton.trigger('click');
+      expect(wrapper.emitted('perform-optimization')?.[1]).toEqual([
+        { report_path: '/reports/overview.npu-rep', op_name: 'gather_2d_custom' },
+      ]);
+    } finally {
+      vi.useRealTimers();
+      wrapper.unmount();
+    }
   });
 
   it('PR-ROOT-036: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
