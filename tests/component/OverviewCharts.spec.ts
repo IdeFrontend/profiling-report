@@ -280,11 +280,11 @@ describe('OverviewCharts', () => {
   });
 
   it('PR-OV-006: zoom resyncs hover time so sample stays left of hold', async () => {
-    // Stale absolute hoverTimeNs after zoom can map the sample to the right of the
-    // pointer-stable hold; re-derive time from xRatio on window change.
+    // Absolute hover time must track xRatio × window — a stale absolute time after
+    // zoom maps the sample to the right of the pointer-stable hold.
     cleanupTeleport();
     const wrap = mount(OverviewCharts, {
-      props: { series, startTime: 0, endTime: 2000 },
+      props: { series, startTime: 0, endTime: 10_000 },
       attachTo: document.body,
     });
     mockTrackPaints(wrap, {
@@ -292,9 +292,11 @@ describe('OverviewCharts', () => {
       VECTOR: { left: 0, top: 40, width: 1000, height: 16 },
     });
     const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
-    // Pointer at 90% → time 1800; CUBE sample at t=1000 (v=50) until t=2000.
+    // Pointer at 90% → time 9000; CUBE holds t=2000 (last point ≤ 9000).
     await col.trigger('pointermove', { clientX: 900, clientY: 8 });
 
+    // Zoom into early window [0, 500]: time under pointer becomes 450. Stale
+    // absolute time 9000 would clamp sample to the right edge (past the hold).
     await wrap.setProps({ startTime: 0, endTime: 500 });
     await wrap.vm.$nextTick();
 
@@ -308,10 +310,12 @@ describe('OverviewCharts', () => {
     expect(cubeHold).toBeTruthy();
     const sampleX = Number.parseFloat(cubeSample!.style.left);
     const holdX = Number.parseFloat(cubeHold!.style.left);
-    // Hold stays at 90% (900px). Resynced time under pointer is 450 — CUBE still
-    // holds the t=0 sample (v=0) until t=1000, clamped to the left inset (< hold).
     expect(holdX).toBeCloseTo(900, 0);
     expect(sampleX).toBeLessThan(holdX);
+    // Re-emits cursor with the time under the pointer in the new window.
+    const cursor = wrap.emitted('cursor')?.at(-1)?.[0] as { time: number; xRatio: number };
+    expect(cursor.xRatio).toBeCloseTo(0.9, 5);
+    expect(cursor.time).toBeCloseTo(450, 5);
 
     wrap.unmount();
     cleanupTeleport();

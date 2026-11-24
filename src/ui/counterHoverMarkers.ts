@@ -117,14 +117,17 @@ export function counterMarkerLocalGeometry(input: {
   const pt = stepPointAt(input.points, input.cursorTime);
   if (!pt) return null;
   let sampleLocalX = input.xAtTime(pt.t);
+  const holdLocalX = input.cursorLocalX;
   if (input.trackW != null) {
     const r = counterMarkerSampleOuterRadiusPx(true);
     const max = Math.max(r, input.trackW - r);
     sampleLocalX = Math.min(max, Math.max(r, sampleLocalX));
+    // Step-after: sample time ≤ cursor — never place the outline to the right of hold
+    // (inset clamp near the left edge can otherwise push sample past a left-edge hold).
+    sampleLocalX = Math.min(sampleLocalX, holdLocalX);
   } else if (input.clampSampleX) {
     sampleLocalX = input.clampSampleX(sampleLocalX);
   }
-  const holdLocalX = input.cursorLocalX;
   const localY = input.yAtValue(pt.v);
   const linkVisible = counterHoldLinkSegment(sampleLocalX, holdLocalX, true) != null;
   return { pt, sampleLocalX, holdLocalX, localY, linkVisible, sampleVisible: true };

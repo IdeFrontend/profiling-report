@@ -94,8 +94,6 @@ const pinned = computed(() => new Set(props.pinnedOverviewIds ?? []));
 const isStrip = computed(() => props.variant === 'strip');
 const pinHoverId = ref<string | null>(null);
 const hoverSeriesId = ref<string | null>(null);
-/** Local ns under chart pointer — tip/dot without waiting for parent echo. */
-const hoverTimeNs = ref<number | null>(null);
 /** Local x ratio for the value dot (full 24px lane hit target, not parent echo). */
 const hoverXRatio = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
@@ -205,6 +203,17 @@ const x1 = computed(() => {
   return span > 0 ? props.endTime : props.startTime + 1;
 });
 
+/**
+ * Absolute ns under the pointer — always derived from xRatio × current window so
+ * zoom/pan cannot leave a stale absolute time that places the sample outline to
+ * the right of the hold.
+ */
+const hoverTimeNs = computed((): number | null => {
+  const ratio = hoverXRatio.value;
+  if (ratio == null) return null;
+  return x0.value + ratio * Math.max(1, x1.value - x0.value);
+});
+
 const tracks = computed(() => {
   const xSpan = x1.value - x0.value;
   const toX = (t: number) => ((t - x0.value) / xSpan) * VIEW_W;
@@ -239,7 +248,6 @@ function updateChartHover(seriesId: string, e: PointerEvent) {
   const el = e.currentTarget as HTMLElement;
   const { time, xRatio } = timeAtClientX(e.clientX, el);
   hoverSeriesId.value = seriesId;
-  hoverTimeNs.value = time;
   hoverXRatio.value = xRatio;
   tipPos.value = { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` };
   const root = el.closest('.pr-overview-charts');
@@ -307,24 +315,23 @@ function onChartPointerUp(e: PointerEvent) {
 
 function clearTipOnly() {
   hoverSeriesId.value = null;
-  hoverTimeNs.value = null;
   hoverXRatio.value = null;
   paintRectsById.value = {};
 }
 
 /**
- * Hold follows the pointer (stable xRatio). On zoom/pan the window moves under the
- * pointer — re-derive absolute hover time so sample outline + stem stay on the
- * step-after point for the time under the cursor (never a stale time that can place
- * the sample to the right of the hold).
+ * Hold follows the pointer (stable xRatio); hoverTimeNs is derived from that × window.
+ * On zoom/pan re-emit cursor so the parent playhead label matches the new time under
+ * the pointer (markers/tip already recompute via the derived time).
  */
 watch(
   [() => props.startTime, () => props.endTime],
   () => {
     const ratio = hoverXRatio.value;
     if (ratio == null || hoverSeriesId.value == null) return;
-    const span = Math.max(1, x1.value - x0.value);
-    hoverTimeNs.value = x0.value + ratio * span;
+    const time = hoverTimeNs.value;
+    if (time == null) return;
+    emit('cursor', { time, xRatio: ratio, snapped: false });
   },
 );
 
@@ -448,11 +455,13 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     // (fully inside — center inset by sample radius, never past the plot edge).
     const active = tr.id === hoverSeriesId.value;
     const sampleR = counterMarkerSampleOuterRadiusPx(active);
+    const holdX = rect.left + xRatio * rect.width;
     const rawSampleX = rect.left + ((pt.t - x0.value) / span) * rect.width;
     const minX = rect.left + sampleR;
     const maxX = rect.left + Math.max(sampleR, rect.width - sampleR);
-    const sampleX = Math.min(maxX, Math.max(minX, rawSampleX));
-    const holdX = rect.left + xRatio * rect.width;
+    // Inset clamp into the paint box; never place the sample to the right of the
+    // hold (step-after invariant: pt.t <= cursor time).
+    const sampleX = Math.min(holdX, Math.max(minX, Math.min(maxX, rawSampleX)));
     const seg = counterHoldLinkSegment(sampleX, holdX, active);
     out.push({
       id: tr.id,
