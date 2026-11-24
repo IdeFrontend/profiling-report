@@ -655,7 +655,7 @@ function duration(value: number | undefined): string {
             stroke="none"
           />
         </svg>
-        <span>{{ t('overviewExecuteOptimization', locale) }}</span>
+        <span>{{ t('performOptimization', locale) }}</span>
       </button>
     </div>
 

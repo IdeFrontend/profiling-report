@@ -1876,12 +1876,17 @@ const emitCannbotView = cooldown(
 );
 
 const emitPerformOptimization = cooldown(
-  () => emit('perform-optimization', {
+  (opName?: string) => emit('perform-optimization', {
     report_path: props.reportMeta?.path ?? '',
-    op_name: report.value?.summary.opName ?? '',
+    op_name: opName ?? report.value?.summary.opName ?? '',
   }),
   CANNBOT_EMIT_COOLDOWN_MS,
 );
+
+function onOverviewOptimize(payload: { opName: string }) {
+  emitPerformOptimization(payload.opName);
+  emit('optimize', payload);
+}
 
 const emitOpenCannwork = cooldown(
   () => emit('open-cannwork'),
@@ -2044,7 +2049,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :selected-operator-id="selectedOperatorId ?? undefined"
           @update:selected-operator-id="onOperatorChange"
           @open-timeline="onActiveTab('timeline')"
-          @optimize="emit('optimize', $event)"
+          @optimize="onOverviewOptimize"
         />
         <SourceView
           v-if="showSource && report?.sourceCorrelation"
