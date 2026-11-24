@@ -780,7 +780,10 @@ function refreshHoverGapAtLastPointer(): void {
     measureCreatePending ||
     measurePressActive ||
     lastHoverLocalX == null ||
-    lastHoverLocalY == null
+    lastHoverLocalY == null ||
+    // `dragging` is set on Ctrl/Cmd pointerdown, before the first move clears the
+    // gap. A view echo during that gesture must not draw it.
+    dragging
   ) {
     hoverGap.value = null;
     return;
@@ -2054,7 +2057,19 @@ function beginMarquee(localX: number, localY: number, shiftKey: boolean): void {
   // Pending press is visually a no-op: keep lane-row hover and hover-gap Δt overlay.
   // Clear them (and force an unsnapped cursor) only once the drag crosses 4px.
   unbindMarqueeDrag = bindWindowPointerDrag({
-    onMove: onMarqueeDragMove,
+    onMove: (clientX, clientY, e) => {
+      // Ctrl/Cmd chorded after pointerdown, before the 4px gate: this press is a pan.
+      // Capture runs before the canvas listener, which then emits `pan` once.
+      if (marqueePending && (e.ctrlKey || e.metaKey)) {
+        // Arm pan before endMarquee: its scroll-y emit can flush the view watcher.
+        ctrlClickPending = true;
+        dragging = true;
+        hoverGap.value = null;
+        endMarquee();
+        return;
+      }
+      onMarqueeDragMove(clientX, clientY);
+    },
     onEnd: onMarqueeDragEnd,
   });
 }
@@ -3408,6 +3423,18 @@ function recalcPointerHover(): void {
   const x = lastHoverLocalX;
   const y = lastHoverLocalY;
   if (x == null || y == null) return;
+  if (dragging) {
+    // Pan already dropped the gap and the event tooltip. Scroll settle must not put
+    // them back, but it still restores the time cursor and lane highlight that
+    // invalidateScrollHover cleared — the same pair a pan move keeps live.
+    const mag = magnetizeLocal(x, y);
+    hoverGap.value = null;
+    applyHoverLift(null);
+    emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
+    emit('hover', null, lastPointerClientX, lastPointerClientY);
+    emitLaneHover(y);
+    return;
+  }
   const w = Math.max(1, syncTrackWidth());
   const mag = magnetizeLocal(x, y);
   const ev = eventAtPointer(x, y, mag.eventId);
