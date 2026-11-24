@@ -373,7 +373,6 @@ async function onRowKeydown(event: KeyboardEvent) {
 /** The action is only meaningful when the highlighted row carries an op name. */
 const optimizeEnabled = computed(() => !!selectedRow.value?.opName);
 
-/** Host contract: the optimize event carries the highlighted row's raw op name. */
 function optimizeSelected() {
   const opName = selectedRow.value?.opName;
   if (opName == null) return;
@@ -629,6 +628,7 @@ function duration(value: number | undefined): string {
       <button
         type="button"
         class="pr-operator-overview__action"
+        data-testid="overview-optimize-trigger"
         :disabled="!optimizeEnabled"
         @click="optimizeSelected"
       >
@@ -655,7 +655,7 @@ function duration(value: number | undefined): string {
             stroke="none"
           />
         </svg>
-        <span>{{ t('overviewExecuteOptimization', locale) }}</span>
+        <span>{{ t('performOptimization', locale) }}</span>
       </button>
     </div>
 

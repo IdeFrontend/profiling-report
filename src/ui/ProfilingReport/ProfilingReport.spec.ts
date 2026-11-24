@@ -4,7 +4,6 @@ import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
-import OperatorOverview from '../OperatorOverview/OperatorOverview.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import * as adapters from '../../adapters';
@@ -2784,13 +2783,16 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-037: forwards overview optimize to the host', async () => {
+  it('PR-ROOT-037: Overview and stats aside share the Optimize action', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'overview-optimize',
+        locale: 'en',
+        reportMeta: { path: '/reports/overview.npu-rep' },
         swimlaneModel: depsModel(),
         reportModel: {
           ...emptyReportViewModel(),
+          summary: { opName: 'gather_2d_custom', taskDurationUs: 0.73 },
           operatorRows: [
             { opName: 'gather_2d_custom', opType: 'vector', taskDurationUs: 0.73 },
             { opName: 'matmul_leakyrelu', opType: 'cube', taskDurationUs: 12.5 },
@@ -2798,17 +2800,37 @@ describe('ProfilingReport scaffold', () => {
         },
       },
     });
-    await wrapper.find('[data-testid="tab-overview"]').trigger('click');
-    await nextTick();
-    const button = wrapper.findAll('button').find((b) => b.text() === '执行优化');
-    expect(button).toBeDefined();
-    await button!.trigger('click');
-    expect(wrapper.emitted('optimize')).toHaveLength(1);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      await wrapper.get('[data-testid="tab-overview"]').trigger('click');
+      await wrapper.findAll('tbody tr')[1].trigger('click');
+      const overviewButton = wrapper.get('[data-testid="overview-optimize-trigger"]');
+      await overviewButton.trigger('click');
+      expect(wrapper.emitted('optimize')).toBeUndefined();
+      expect(wrapper.emitted('perform-optimization')).toEqual([
+        [{ report_path: '/reports/overview.npu-rep', op_name: 'matmul_leakyrelu' }],
+      ]);
 
-    wrapper.findComponent(OperatorOverview).vm.$emit('optimize', { opName: 'gather_2d_custom' });
-    await nextTick();
-    expect(wrapper.emitted('optimize')?.at(-1)).toEqual([{ opName: 'gather_2d_custom' }]);
-    wrapper.unmount();
+      vi.advanceTimersByTime(500);
+      await overviewButton.trigger('click');
+      expect(wrapper.emitted('optimize')).toBeUndefined();
+      expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+
+      await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
+      const statsButton = wrapper.get('[data-testid="perform-optimization-trigger"]');
+      vi.advanceTimersByTime(499);
+      await statsButton.trigger('click');
+      expect(wrapper.emitted('perform-optimization')).toHaveLength(1);
+
+      vi.advanceTimersByTime(1);
+      await statsButton.trigger('click');
+      expect(wrapper.emitted('perform-optimization')?.[1]).toEqual([
+        { report_path: '/reports/overview.npu-rep', op_name: 'gather_2d_custom' },
+      ]);
+    } finally {
+      vi.useRealTimers();
+      wrapper.unmount();
+    }
   });
 
   it('PR-ROOT-036: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
