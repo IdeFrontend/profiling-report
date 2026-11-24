@@ -6345,10 +6345,9 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-129: Ctrl(+Alt) pan does not resurrect counter markers from stale localX', async () => {
-    // Regression: clearCounterHover during pan, then view watch called
-    // refreshCounterHoverAtLastPointer with stale lastHoverLocalX → fixed sample/stem
-    // floated over gutter titles (repro: Ctrl+Alt + mouse drag).
+  it('PR-CANVAS-129: Ctrl(+Alt) pan keeps counter markers (clamped, live pointer)', async () => {
+    // Sample outline + stem stay on during pan; lastHover tracks the live pointer so
+    // a view watch refreshes geometry instead of clearing or floating into the gutter.
     const counterModel = {
       minTime: 0,
       maxTime: 20_000,
@@ -6418,20 +6417,39 @@ describe('SwimlaneCanvas', () => {
       isTrusted: true,
     });
     expect(wrapper.emitted('pan')?.length).toBeGreaterThan(0);
-    expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
+    const tipDuringPan = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      sampleVisible: boolean;
+      sampleClientX: number;
+      sampleClientY: number;
+      linkVisible: boolean;
+    } | null;
+    expect(tipDuringPan).toMatchObject({ sampleVisible: true });
+    expect(tipDuringPan!.sampleClientX).toBeGreaterThanOrEqual(0);
+    expect(tipDuringPan!.sampleClientX).toBeLessThanOrEqual(400);
+    expect(tipDuringPan!.sampleClientY).toBeGreaterThanOrEqual(0);
+    expect(tipDuringPan!.sampleClientY).toBeLessThanOrEqual(120);
 
-    // Parent applies pan → view watch must not resurrect markers.
+    // Parent applies pan → view watch refreshes from live lastHover (still visible).
     await wrapper.setProps({
       view: { startTime: 2_000, endTime: 22_000, scrollY: 0 },
     });
     await nextTick();
-    expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
+    const tipAfterView = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      sampleVisible: boolean;
+      sampleClientX: number;
+      sampleClientY: number;
+    } | null;
+    expect(tipAfterView).toMatchObject({ sampleVisible: true });
+    expect(tipAfterView!.sampleClientX).toBeGreaterThanOrEqual(0);
+    expect(tipAfterView!.sampleClientX).toBeLessThanOrEqual(400);
+    expect(tipAfterView!.sampleClientY).toBeGreaterThanOrEqual(0);
+    expect(tipAfterView!.sampleClientY).toBeLessThanOrEqual(120);
     wrapper.unmount();
   });
 
-  it('PR-CANVAS-129: off-track sample hides outline+stem (hold-only, no gutter clamp)', async () => {
-    // Sample at t=5000 is left of view [10000, 30000] — do not clamp outline to x=0
-    // (that painted over lane titles with a long stem).
+  it('PR-CANVAS-129: off-track sample clamps outline+stem to track edge', async () => {
+    // Sample at t=5000 is left of view [10000, 30000] — clamp outline to x=0 so
+    // the stem ends at the track edge (never paints into the gutter / titles).
     const counterModel = {
       minTime: 0,
       maxTime: 40_000,
@@ -6483,15 +6501,18 @@ describe('SwimlaneCanvas', () => {
       sampleVisible: boolean;
       linkVisible: boolean;
       sampleClientX: number;
+      sampleClientY: number;
       dotClientX: number;
     } | null;
     expect(tip).toMatchObject({
       value: 40,
-      sampleVisible: false,
-      linkVisible: false,
-      sampleClientX: 200,
+      sampleVisible: true,
+      linkVisible: true,
+      sampleClientX: 0,
       dotClientX: 200,
     });
+    expect(tip!.sampleClientY).toBeGreaterThanOrEqual(0);
+    expect(tip!.sampleClientY).toBeLessThanOrEqual(120);
     wrapper.unmount();
   });
 });

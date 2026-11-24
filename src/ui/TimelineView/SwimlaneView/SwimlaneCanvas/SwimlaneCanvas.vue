@@ -45,7 +45,11 @@ import {
   type MarqueeRect,
 } from '../../../../swimlane/layout';
 import { counterTipRows } from '../../../../adapters/counterTracksEmulate';
-import { counterMarkerLocalGeometry } from '../../../counterHoverMarkers';
+import {
+  clipCounterMarkerClientY,
+  counterMarkerLocalGeometry,
+  counterMarkerSizePx,
+} from '../../../counterHoverMarkers';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -420,22 +424,35 @@ function emitCounterHover(
   const sampleTimeLabel = formatDisplayTimeAuto(active.pt.t, origin, {
     nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
   });
-  const markers: CounterHoverMarker[] = built.map((b, i) => ({
-    seriesId: b.id,
-    color: b.color,
-    // Off-track sample: park coords on the hold so a stale render cannot bleed into the gutter.
-    sampleClientX: b.sampleVisible ? clientX - localX + b.sampleLocalX : clientX,
-    sampleClientY: clientY - localY + b.localDotY,
-    holdClientX: clientX,
-    holdClientY: clientY - localY + b.localDotY,
-    linkVisible: b.linkVisible,
-    sampleVisible: b.sampleVisible,
-    emphasized: i === activeIdx,
-  }));
+  // Teleport→body ignores CSS overflow; clip Y into the canvas so markers never
+  // paint over the timeline header or past the swim bottom (partially scrolled lanes).
+  const canvasBox = (activeCanvas() ?? wrapRef.value)?.getBoundingClientRect();
+  const clipY = (y: number, emphasized: boolean): number =>
+    canvasBox
+      ? clipCounterMarkerClientY(y, canvasBox, counterMarkerSizePx(emphasized))
+      : y;
+  const markers: CounterHoverMarker[] = built.map((b, i) => {
+    const emphasized = i === activeIdx;
+    const rawY = clientY - localY + b.localDotY;
+    const clippedY = clipY(rawY, emphasized);
+    return {
+      seriesId: b.id,
+      color: b.color,
+      // sampleLocalX is already clamped into [0, trackW] — no gutter bleed.
+      sampleClientX: clientX - localX + b.sampleLocalX,
+      sampleClientY: clippedY,
+      holdClientX: clientX,
+      holdClientY: clippedY,
+      linkVisible: b.linkVisible,
+      sampleVisible: b.sampleVisible,
+      emphasized,
+    };
+  });
   const valuesKey = active.pt.values ? JSON.stringify(active.pt.values) : '';
   const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${active.sampleVisible}|${activeIdx}|${built.length}|${multiSeriesTip}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
+  const activeY = clipY(clientY - localY + active.localDotY, true);
   const payload: CounterHoverPayload = {
     name: tipName,
     value: active.pt.v,
@@ -443,9 +460,9 @@ function emitCounterHover(
     clientX,
     clientY,
     dotClientX: clientX,
-    dotClientY: clientY - localY + active.localDotY,
-    sampleClientX: active.sampleVisible ? clientX - localX + active.sampleLocalX : clientX,
-    sampleClientY: clientY - localY + active.localDotY,
+    dotClientY: activeY,
+    sampleClientX: clientX - localX + active.sampleLocalX,
+    sampleClientY: activeY,
     linkVisible: active.linkVisible,
     sampleVisible: active.sampleVisible,
     sampleTimeLabel,
@@ -458,12 +475,12 @@ function emitCounterHover(
 
 /**
  * Recompute counter tip/markers after zoom/pan/scroll without a pointer move.
- * Skip while Ctrl/Cmd-drag pan or live marquee owns the press — those paths clear
- * hover, and a view watch must not resurrect markers from stale localX (that floated
- * the sample/stem over the gutter titles during Ctrl+Alt drag).
+ * Live marquee (non-pending) clears hover; Ctrl/Cmd-drag pan keeps lastHover live
+ * and refreshes so the sample outline + stem track the shifting window (clamped
+ * into the track — never gutter / timeline-header bleed).
  */
 function refreshCounterHoverAtLastPointer(): void {
-  if (dragging || (marqueePressActive && !marqueePending)) {
+  if (marqueePressActive && !marqueePending) {
     clearCounterHover();
     return;
   }
@@ -3160,14 +3177,12 @@ function onPointerMove(e: PointerEvent): void {
   emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
 
   if (dragging) {
-    // Drop lastHover so a view watch after `pan` cannot resurrect fixed markers from a
-    // stale localX/clientX pair (gutter bleed / floating stem during Ctrl(+Alt) drag).
-    lastHoverLocalX = null;
-    lastHoverLocalY = null;
     // Trusted move with no buttons held means a lost pointerup — recover instead of
     // panning indefinitely (same recovery `bindWindowPointerDrag` gives every other gesture).
     if (e.isTrusted && e.buttons === 0) {
       dragging = false;
+      lastHoverLocalX = x;
+      lastHoverLocalY = y;
       emit('hover', null, e.clientX, e.clientY);
       clearCounterHover();
       emitLaneHover(y);
@@ -3176,6 +3191,8 @@ function onPointerMove(e: PointerEvent): void {
     // Measure create is driven by window listeners (release over Card strips still ends).
     if (measureGestureActive || measureCreatePending || measurePressActive) {
       hoverGap.value = null;
+      lastHoverLocalX = null;
+      lastHoverLocalY = null;
       emit('hover', null, e.clientX, e.clientY);
       clearCounterHover();
       emitLaneHover(null);
@@ -3186,8 +3203,11 @@ function onPointerMove(e: PointerEvent): void {
     lastX = e.clientX;
     emit('pan', -(dx / w) * span);
     hoverGap.value = null;
+    // Keep sample outline + stem live during pan; geometry clamps into the track.
+    lastHoverLocalX = x;
+    lastHoverLocalY = y;
     emit('hover', null, e.clientX, e.clientY);
-    clearCounterHover();
+    emitCounterHover(x, y, e.clientX, e.clientY, null);
     emitLaneHover(y);
     return;
   }

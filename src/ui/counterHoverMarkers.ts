@@ -75,20 +75,32 @@ export type CounterMarkerLocal = {
   localY: number;
   linkVisible: boolean;
   /**
-   * False when the real sample sits outside the visible track.
-   * Callers must not paint the outline / stem into the gutter — hold-only.
+   * Always true when geometry exists — sample outline + stem stay on, clamped into
+   * the track so they never paint into the gutter / off the plot.
    */
   sampleVisible: boolean;
 };
+
+/**
+ * Clamp a teleported marker's client Y into the canvas/track rect so the disc
+ * cannot paint over the timeline header or past the swim bottom.
+ */
+export function clipCounterMarkerClientY(
+  clientY: number,
+  canvasRect: { top: number; bottom: number },
+  markerPx: number,
+): number {
+  const half = markerPx / 2;
+  return Math.min(canvasRect.bottom - half, Math.max(canvasRect.top + half, clientY));
+}
 
 /**
  * Step-after sample + hold geometry in lane-local CSS pixels.
  * `xAtTime` / `yAtValue` map canonical ns / value into the plot.
  * `linkVisible` uses active-sized edge gap so emphasized chrome does not leave a stub.
  *
- * Prefer `trackW` over `clampSampleX`: clamping a left-of-view sample to x=0 stuck the
- * outline on the track/gutter seam and drew a stem across the titles. Off-track samples
- * hide the outline + stem and keep the hold disc only.
+ * When `trackW` is set, clamp `sampleLocalX` into `[0, trackW]` so the outline + stem
+ * stay visible at the track edge during pan (never stretch into the gutter).
  */
 export function counterMarkerLocalGeometry(input: {
   points: readonly StepPoint[];
@@ -96,23 +108,21 @@ export function counterMarkerLocalGeometry(input: {
   cursorLocalX: number;
   xAtTime: (t: number) => number;
   yAtValue: (v: number) => number;
-  /** Inclusive track width in CSS px; sample outside `[0, trackW]` → hold-only. */
+  /** Inclusive track width in CSS px; sample x is clamped into `[0, trackW]`. */
   trackW?: number;
-  /** @deprecated Prefer `trackW` (hide outside). Clamps sample x into the plot. */
+  /** @deprecated Prefer `trackW`. Clamps sample x into the plot. */
   clampSampleX?: (x: number) => number;
 }): CounterMarkerLocal | null {
   const pt = stepPointAt(input.points, input.cursorTime);
   if (!pt) return null;
   let sampleLocalX = input.xAtTime(pt.t);
-  let sampleVisible = true;
   if (input.trackW != null) {
-    sampleVisible = sampleLocalX >= 0 && sampleLocalX <= input.trackW;
+    sampleLocalX = Math.min(input.trackW, Math.max(0, sampleLocalX));
   } else if (input.clampSampleX) {
     sampleLocalX = input.clampSampleX(sampleLocalX);
   }
   const holdLocalX = input.cursorLocalX;
   const localY = input.yAtValue(pt.v);
-  const linkVisible =
-    sampleVisible && counterHoldLinkSegment(sampleLocalX, holdLocalX, true) != null;
-  return { pt, sampleLocalX, holdLocalX, localY, linkVisible, sampleVisible };
+  const linkVisible = counterHoldLinkSegment(sampleLocalX, holdLocalX, true) != null;
+  return { pt, sampleLocalX, holdLocalX, localY, linkVisible, sampleVisible: true };
 }

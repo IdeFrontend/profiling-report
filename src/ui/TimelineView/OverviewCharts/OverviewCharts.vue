@@ -427,19 +427,18 @@ const markerSets = computed((): OverviewMarkerSet[] => {
     if (!rect || rect.width <= 0 || rect.height <= 0) continue;
     const yPct = dotTopPercent(pt.v) / 100;
     const top = `${rect.top + yPct * rect.height}px`;
-    // Off-track sample → hold-only (no clamp-to-edge stem into gutter / off chart).
-    const sampleRatio = (pt.t - x0.value) / span;
-    const sampleVisible = sampleRatio >= 0 && sampleRatio <= 1;
+    // Clamp off-track samples to the chart edge so outline + stem stay visible
+    // during pan without painting past the plot.
+    const sampleRatio = Math.min(1, Math.max(0, (pt.t - x0.value) / span));
     const holdX = rect.left + xRatio * rect.width;
-    const sampleX = sampleVisible ? rect.left + sampleRatio * rect.width : holdX;
+    const sampleX = rect.left + sampleRatio * rect.width;
     const active = tr.id === hoverSeriesId.value;
-    const seg =
-      sampleVisible ? counterHoldLinkSegment(sampleX, holdX, active) : null;
+    const seg = counterHoldLinkSegment(sampleX, holdX, active);
     out.push({
       id: tr.id,
       color: tr.color,
       active,
-      sampleVisible,
+      sampleVisible: true,
       sampleLeft: `${sampleX}px`,
       sampleTop: top,
       holdLeft: `${holdX}px`,
