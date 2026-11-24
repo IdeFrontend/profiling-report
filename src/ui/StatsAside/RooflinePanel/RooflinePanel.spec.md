@@ -35,7 +35,7 @@ Emulate packs may pass many dtype×bandwidth series ([DATA-57a](../../../../docs
 
 ## Visual
 
-Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Cross-check raised card + under-roof wash against [`v930/detail-strip-raised`](../../../../docs/ui/source/v930/detail-strip-raised.jpeg). Tabs in the crop are **omitted** (DATA-37f).
+Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/provenance.yaml`](./visual/provenance.yaml). Cross-check raised card + under-roof wash against [`v930/detail-strip-raised`](../../../../docs/ui/source/930/ClickFloatingBottomBar/screenshot.png). Tabs in the crop are **omitted** (DATA-37f).
 
 | Token | Value |
 |-------|--------|

@@ -11,7 +11,7 @@
 
 ## Sketches
 
-![Compute load / PIPE bars](../ui/source/v930/compute-load.jpeg)
+![Compute load / PIPE bars](../ui/source/930/ComputeLoadAnalysis/screenshot.png)
 
 **Component crops:** ![PIPE bars](../../src/ui/StatsAside/PipeOccupancyPanel/visual/pipe-bars.png) · ![Cube/Vector toggle](../../src/ui/StatsAside/PipeOccupancyPanel/visual/cube-vector-toggle.png)
 
@@ -86,9 +86,9 @@ In-bar absolute (DATA-18, [DATA-33f](../context/decisions/interim/DATA.md)): mea
 
 ### Details / CSV tabs（计算负载分析详情）— §11.2.5.1
 
-![Pipe details](../ui/source/v930/compute-load-detail.jpeg)
+![Pipe details](../ui/source/930/ComputeLoadAnalysisDetails/screenshot.png)
 
-Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/v930/compute-load-detail.jpeg)):
+Detail surface uses **tabs** ([`v930/compute-load-detail`](../ui/source/930/ComputeLoadAnalysisDetails/screenshot.png)):
 
 | Tab | Source CSV |
 | --- | --- |

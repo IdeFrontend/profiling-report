@@ -11,7 +11,7 @@
 
 ## Sketches
 
-![Hardware details](../ui/source/v930/hardware-more-detail.jpeg)
+![Hardware details](../ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png)
 
 ## Purpose
 

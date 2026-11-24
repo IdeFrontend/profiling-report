@@ -95,7 +95,7 @@ defineProps<{ name: PrIconName }>();
   mask-image: url('./icons/keyboard.svg');
 }
 
-/* Source-tab glyphs: alpha masks sampled from docs/ui/source/v930-source/source-correlation.jpeg */
+/* Source-tab glyphs: alpha masks sampled from docs/ui/source/930-legacy/v930-source/source-correlation.jpeg */
 .pr-icon--list {
   -webkit-mask-image: url('./icons/list.png');
   mask-image: url('./icons/list.png');

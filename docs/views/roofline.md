@@ -11,7 +11,9 @@
 
 ## Sketches
 
-![Product Roofline card](../ui/source/v930/roofline-card-2026-10-15.png)
+![Product Roofline card](../ui/source/930-legacy/v930/roofline-card-2026-10-15.png)
+
+**1130 export (Roofline / Throughput tab states; tabs remain omitted in code, DATA-37f):** ![Roofline and Throughput](../ui/source/1130/RooflineThroughput/screenshot.png)
 
 **Component crop:** ![Roofline](../../src/ui/StatsAside/RooflinePanel/visual/roofline.png)
 

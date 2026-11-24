@@ -184,11 +184,11 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 - [buffer-links](./visual/buffer-links.png) — historical dual-AIV crop from `v930/change-log` (#5; DATA-27 evidence, not current chrome)
 - [zoom-bar](./visual/zoom-bar.png) — the bar on its `#313131` strip, stacked aside, from `v930-sim/memory-topology-zoom`
 - [fullscreen-bar](./visual/fullscreen-bar.png) — the same bar under the diagram column in the fullscreen overlay (left of heat; no 全屏 control, no strip), from `v930-sim/memory-topology-fullscreen`
-- [v930-chrome/memory-topology](../../../../docs/ui/source/v930-chrome/memory-topology.svg) — design-source batch copy
-- [change-log](../../../../docs/ui/source/v930/change-log.jpeg) — full frame (historical)
-- [report-stats-scrolled](../../../../docs/ui/source/v930/report-stats-scrolled.jpeg) — historical dual-AIV dump / aside shell
-- [memory-topology-zoom](../../../../docs/ui/source/v930-sim/memory-topology-zoom.jpeg) — full frame, 缩放+全屏
-- [memory-topology-fullscreen](../../../../docs/ui/source/v930-sim/memory-topology-fullscreen.jpeg) — full frame, 全屏
+- [v930-chrome/memory-topology](../../../../docs/ui/source/930/MemoryLoadAnalysisZoomFullscreen/screenshot.png) — design-source batch copy
+- [change-log](../../../../docs/ui/source/930/ChangeLog/screenshot.png) — full frame (historical)
+- [report-stats-scrolled](../../../../docs/ui/source/930/MemoryLoadAnalysisZoomFullscreenFromStats/screenshot.png) — historical dual-AIV dump / aside shell
+- [memory-topology-zoom](../../../../docs/ui/source/930/MemoryLoadAnalysisZoomFullscreen/screenshot.png) — full frame, 缩放+全屏
+- [memory-topology-fullscreen](../../../../docs/ui/source/930-legacy/v930-sim/memory-topology-fullscreen.jpeg) — full frame, 全屏
 
 ## Dependencies
 

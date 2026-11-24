@@ -36,7 +36,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 **OP selector (multi-operator packs).** Rendered at the far left of the tab strip (replacing the brand) when `operators` has more than one entry. Sketch ([`visual/op-selector.png`](./visual/op-selector.png), [`visual/op-selector-open.png`](./visual/op-selector-open.png)): **text + thin chevron only** — no pill fill, no vertical divider. Trigger label shows the **selected operator** display name — the short OpName of that pack's first row, falling back to the archive stem (e.g. `add_custom` / `matmul_mock`), and appending ` (stem)` when two packs shorten to the same name; menu lists all operators. Chevron points down when closed, up when open. Selecting a menu item emits `update:selectedOperatorId` and closes the menu (re-selecting the active id does not emit). Keyboard: ArrowDown/Enter/Space open; Escape closes; ArrowUp/Down move; Enter/Space select. With zero or one operator, the static brand (`title` / OP算子) is shown instead.
 
-**Timeline-trace selector (流水视图显示).** A **bars + focus-reticle** icon button (`pipeline-view` / `icons/pipeline-view.svg`, matching [`1130/pipeline-display-filter`](../../../docs/ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg)) sits **immediately before measure** (`data-testid="timeline-trace-selector"`) and opens a radio menu of present §11.14 catalog embeds ([`visual/timeline-trace-selector.png`](./visual/timeline-trace-selector.png)). Shown only when `timelineTraces.length > 1`. Selecting a row emits `update:selectedTimelineTraceId` and closes (re-selecting the active id does not emit). Keyboard matches the OP menu: ArrowDown/Enter/Space open and focus the checked row; ArrowUp/Down move; Enter/Space select and return focus to the trigger; Escape closes, restores focus, and does not reach handlers outside the menu. Leaving the Timeline tab closes the menu and drops those document listeners. Dismiss also via outside pointerdown or a second press of the trigger. Unmatched kinds (e.g. `stat`) are omitted from the list.
+**Timeline-trace selector (流水视图显示).** A **bars + focus-reticle** icon button (`pipeline-view` / `icons/pipeline-view.svg`, matching [`1130/pipeline-display-filter`](../../../docs/ui/source/1130/PipelineDisplayFilter/screenshot.png)) sits **immediately before measure** (`data-testid="timeline-trace-selector"`) and opens a radio menu of present §11.14 catalog embeds ([`visual/timeline-trace-selector.png`](./visual/timeline-trace-selector.png)). Shown only when `timelineTraces.length > 1`. Selecting a row emits `update:selectedTimelineTraceId` and closes (re-selecting the active id does not emit). Keyboard matches the OP menu: ArrowDown/Enter/Space open and focus the checked row; ArrowUp/Down move; Enter/Space select and return focus to the trigger; Escape closes, restores focus, and does not reach handlers outside the menu. Leaving the Timeline tab closes the menu and drops those document listeners. Dismiss also via outside pointerdown or a second press of the trigger. Unmatched kinds (e.g. `stat`) are omitted from the list.
 
 **Secondary tabs ([UI-37](../../../docs/context/decisions/UI.md)).** **时间线** is always selectable. **源码** is in the strip only when `sourceTabEnabled` (real Source model); otherwise the control is absent. **详情** and **缓存** are not in the chrome.
 
@@ -46,7 +46,7 @@ The toolbar emits user intent, not computed results. **zoom-in**, **zoom-out**, 
 
 ## Visual
 
-Source band ~y=400–472 in [`source/v930/entry.jpeg`](../../../docs/ui/source/v930/entry.jpeg) (device px @ dump resolution). Control height **~28–29 px** CSS. Chrome strip is **min-height 60px** on one row; when tabs + toolbar no longer fit side-by-side the **whole** `.pr-toolbar` (search, zoom, actions) wraps to a second row together and the corner wash stretches with the taller chrome. If the second row is still too narrow, trailing icon actions crop (`overflow-x: clip`) while search and zoom stay visible; cropped trailing controls are marked `inert` so they leave the tab order.
+Source band ~y=400–472 in [`source/930/EntryPoint/screenshot.png`](../../../docs/ui/source/930/EntryPoint/screenshot.png) (device px @ dump resolution). Control height **~28–29 px** CSS. Chrome strip is **min-height 60px** on one row; when tabs + toolbar no longer fit side-by-side the **whole** `.pr-toolbar` (search, zoom, actions) wraps to a second row together and the corner wash stretches with the taller chrome. If the second row is still too narrow, trailing icon actions crop (`overflow-x: clip`) while search and zoom stay visible; cropped trailing controls are marked `inert` so they leave the tab order.
 
 Lives in the **main** column only (above the timeline), not spanning the StatsAside — see [ReportLayout](../ReportLayout/ReportLayout.spec.md).
 
@@ -63,7 +63,7 @@ Lives in the **main** column only (above the timeline), not spanning the StatsAs
 
 ### OP selector (`visual/op-selector.png`, `visual/op-selector-open.png`)
 
-Source: [`v930/entry`](../../../docs/ui/source/v930/entry.jpeg) (closed), [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg) (open). Context: [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png).
+Source: [`v930/entry`](../../../docs/ui/source/930/EntryPoint/screenshot.png) (closed), [`v930/hardware-more-detail`](../../../docs/ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png) (open). Context: [`visual/op-selector-tabs.png`](./visual/op-selector-tabs.png).
 
 | Token | Value |
 |-------|--------|
@@ -125,7 +125,7 @@ Sketch shows **seven** action icons (fit, measure, chart, flag, deps, layers, he
 
 ### Display control popover
 
-Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/v930/hardware-more-detail.jpeg), [`visual/display-control.png`](./visual/display-control.png).
+Source / crop: [`v930/hardware-more-detail`](../../../docs/ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png), [`visual/display-control.png`](./visual/display-control.png).
 
 | Token | Value |
 |-------|--------|
@@ -232,10 +232,10 @@ Composite of search + zoom + actions at chrome height for layout spacing.
 - [op-selector-tabs](./visual/op-selector-tabs.png) — OP + 时间线 context + chrome gradient from `v930/entry`
 - [op-selector-open](./visual/op-selector-open.png) — open menu from `v930/hardware-more-detail`
 - [timeline-trace-selector](./visual/timeline-trace-selector.png) — 流水视图显示 trigger + radio menu from `1130/pipeline-display-filter`
-- [v930 entry](../../../docs/ui/source/v930/entry.jpeg) — full layout context
-- [hardware-more-detail](../../../docs/ui/source/v930/hardware-more-detail.jpeg) — 显示控制 popover + layers trigger + open OP menu
-- [task-measure-mode](../../../docs/ui/source/v930/task-measure-mode.jpeg) — measure mode active
-- [pipeline-display-filter](../../../docs/ui/source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg) — full-frame 流水显示筛选 mockup
+- [v930 entry](../../../docs/ui/source/930/EntryPoint/screenshot.png) — full layout context
+- [hardware-more-detail](../../../docs/ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png) — 显示控制 popover + layers trigger + open OP menu
+- [task-measure-mode](../../../docs/ui/source/930/TaskTimeMeasurementMode/screenshot.png) — measure mode active
+- [pipeline-display-filter](../../../docs/ui/source/1130/PipelineDisplayFilter/screenshot.png) — full-frame 流水显示筛选 mockup
 
 ## Changelog
 - **2026-11-18** — Brand carries a native `title` with the full report name so clipped text stays readable (`PR-TOOLBAR-014`). The selector label is the pack's first-row short `OpBasicInfo` opName, with ` (stem)` appended when two packs shorten to the same name.

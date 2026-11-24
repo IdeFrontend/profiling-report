@@ -96,7 +96,7 @@ function checkDecisionLinks() {
 }
 
 // ---- Check 2: cited ids resolve ----
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist']);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.claude', '.worktrees', 'playwright-report', 'test-results']);
 const SCAN_EXTS = /\.(md|mdc|ts|vue|mjs|py|tsx)$/;
 
 function walk(dir, acc) {

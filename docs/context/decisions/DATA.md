@@ -445,7 +445,7 @@ Format and statuses: [README.md](README.md).
   5. **Tabs 内存单元 / 通路 / 搬运:** **Omit** (single chart; multi-series legend replaces tabs).
   6. **Capability:** Adapter derives `roofline` when points exist; host `capabilities` overrides wholesale.
 - **Specs:** [roofline](../../views/roofline.md), [view-models](../../../specs/core/view-models.spec.md) PR-VM-009, [RooflinePanel.spec.md](../../../src/ui/StatsAside/RooflinePanel/RooflinePanel.spec.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)
-- **Source:** Product npu-compute §11.8 + screenshot `docs/ui/source/v930/roofline-card-2026-10-15.png` (2026-10-15). Supersedes interim DATA-37a…f and aliases DATA-11…DATA-17.
+- **Source:** Product npu-compute §11.8 + screenshot `docs/ui/source/930-legacy/v930/roofline-card-2026-10-15.png` (2026-10-15). Supersedes interim DATA-37a…f and aliases DATA-11…DATA-17.
 
 ---
 
