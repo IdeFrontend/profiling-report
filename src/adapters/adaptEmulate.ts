@@ -462,6 +462,16 @@ export function adaptEmulate(
   // UI-37: 源码 only when a real Source pack adapted (no mock fallback).
   if (reportModel.sourceCorrelation) capabilities.push('sourceTab');
 
+  // mergeCounterTracksFromTrace returns a new model. The catalog map still
+  // holds the pre-merge object, and the trace selector installs that object.
+  const timelineTraceModels =
+    catalog && swimlaneModel
+      ? {
+          ...catalog.timelineTraceModels,
+          [catalog.selectedTimelineTraceId]: swimlaneModel,
+        }
+      : catalog?.timelineTraceModels;
+
   return {
     swimlaneModel,
     reportModel,
@@ -470,7 +480,7 @@ export function adaptEmulate(
       ? {
           timelineTraces: catalog.timelineTraces,
           selectedTimelineTraceId: catalog.selectedTimelineTraceId,
-          timelineTraceModels: catalog.timelineTraceModels,
+          timelineTraceModels,
         }
       : {}),
   };

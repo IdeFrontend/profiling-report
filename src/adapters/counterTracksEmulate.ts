@@ -86,9 +86,16 @@ export function numericCounterArgs(
   const out: Record<string, number> = {};
   if (!args) return out;
   for (const [key, raw] of Object.entries(args)) {
-    const n = typeof raw === 'number' ? raw : Number(raw);
-    if (!Number.isFinite(n)) continue;
-    out[key] = n;
+    // Number(null) and Number("") are 0. Only real numbers and numeric strings.
+    if (typeof raw === 'number') {
+      if (Number.isFinite(raw)) out[key] = raw;
+      continue;
+    }
+    if (typeof raw !== 'string') continue;
+    const text = raw.trim();
+    if (text === '') continue;
+    const n = Number(text);
+    if (Number.isFinite(n)) out[key] = n;
   }
   return out;
 }

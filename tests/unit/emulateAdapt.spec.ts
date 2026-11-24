@@ -17,6 +17,7 @@ import {
 import {
   counterProcessesFromTrace,
   formatCounterArgValue,
+  numericCounterArgs,
 } from '../../src/adapters/counterTracksEmulate';
 import { LANE_COLOR_HEX, MEMORY_UTIL_COUNTER_COLOR } from '../../src/domain/laneColors';
 import { buildCannbotPayload } from '../../src/domain/cannbot';
@@ -214,6 +215,9 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(formatCounterArgValue('Utilization (%)', 0.02)).toBe('0.02%');
     expect(formatCounterArgValue('Using Bytes (KB)', 0.05)).toBe('0.05 KB');
     expect(formatCounterArgValue('Issue Queue Utilization', 10)).toBe('10');
+    expect(
+      numericCounterArgs({ a: null, b: '', c: ' ', d: '0.5', e: 1, f: 'nope', g: true }),
+    ).toEqual({ d: 0.5, e: 1 });
 
     const trace = {
       traceEvents: [
@@ -295,8 +299,20 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(JSON.stringify(trace)),
+      // Second catalog embed so the trace selector can leave pipe trace and come back.
+      'Communication.json': enc.encode(
+        JSON.stringify({
+          traceEvents: [{ ph: 'X', name: 'comm', pid: 1, tid: 1, ts: 0, dur: 1 }],
+        }),
+      ),
     });
     expect(adapted.reportModel.overviewSeries).toEqual([]);
+    expect(adapted.selectedTimelineTraceId).toBe('pipeTrace');
+    // Selector installs timelineTraceModels[id]; it must be the merged model.
+    expect(adapted.timelineTraceModels?.pipeTrace).toBe(adapted.swimlaneModel);
+    expect(
+      adapted.timelineTraceModels?.communication?.processes.some((p) => p.id === 'p-counter-22'),
+    ).toBe(false);
     const counterProc = adapted.swimlaneModel?.processes.find((p) => p.id === 'p-counter-22');
     expect(counterProc?.threads.map((t) => t.name)).toEqual(['memory_utilization']);
     expect(adapted.swimlaneModel?.metadata?.defaultCollapsedIds).toContain(
