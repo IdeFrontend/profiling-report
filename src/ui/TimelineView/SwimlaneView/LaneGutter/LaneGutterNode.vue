@@ -4,6 +4,7 @@ import { laneCategoryLabel, t } from '../../../../i18n';
 import {
   COUNTER_LANE_HEIGHT,
   flatLaneHeight,
+  LANE_HEIGHT,
   type CollapseAnimState,
 } from '../../../../swimlane/layout';
 import Chevron from '../../../Chevron.vue';
@@ -58,6 +59,11 @@ const laneExternallyHovered = computed(
 const pad = computed(() => `${24 + props.depth * 14}px`);
 /** Multi-row leaf / CounterTrack band; collapsed counter folders use COUNTER_LANE_HEIGHT. */
 const rowHeightPx = computed(() => {
+  const anim = props.collapseAnim;
+  const keep = props.lane.counterFolder ? COUNTER_LANE_HEIGHT - LANE_HEIGHT : 0;
+  if (keep > 0 && anim && anim.groupId === props.lane.id && anim.hiddenHeight > 0) {
+    return `${LANE_HEIGHT + keep * (1 - anim.visible)}px`;
+  }
   if (props.lane.counterFolder && isCollapsed.value) {
     return `${COUNTER_LANE_HEIGHT}px`;
   }
@@ -177,8 +183,11 @@ const midlineStyle = computed(() =>
 function collapseStyle(id: string): Record<string, string> | undefined {
   const anim = props.collapseAnim;
   if (!anim || anim.groupId !== id || anim.hiddenHeight <= 0) return undefined;
+  // hiddenHeight already drops the counter-folder keep (26 − 22). Put that
+  // 4px back so the open frame of the tween is the real child span.
+  const keep = props.lane.counterFolder && props.lane.id === id ? COUNTER_LANE_HEIGHT - LANE_HEIGHT : 0;
   return {
-    height: `${Math.max(0, anim.hiddenHeight * anim.visible)}px`,
+    height: `${Math.max(0, (anim.hiddenHeight + keep) * anim.visible)}px`,
     opacity: `${Math.max(0, Math.min(1, anim.visible))}`,
     overflow: 'hidden',
   };

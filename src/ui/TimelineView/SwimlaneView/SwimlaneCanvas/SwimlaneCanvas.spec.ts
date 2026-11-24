@@ -6190,6 +6190,19 @@ describe('SwimlaneCanvas', () => {
     expect(hovers.at(-2)![0]).toBeNull();
     expect(hovers.at(-1)![0]).toMatchObject({ name: 'memory_utilization' });
 
+    // Ctrl-drag still owns the press. A wheel that lane-scrolls must put the tip back.
+    await canvas.trigger('pointerdown', {
+      button: 0,
+      clientX: 150,
+      clientY: y,
+      pointerId: 1,
+      ctrlKey: true,
+    });
+    await canvas.trigger('wheel', { clientX: 150, clientY: y, deltaX: 0, deltaY: 40 });
+    const duringPan = wrapper.emitted('counter-hover')!;
+    expect(duringPan.at(-2)![0]).toBeNull();
+    expect(duringPan.at(-1)![0]).toMatchObject({ name: 'memory_utilization' });
+
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
     expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
     wrapper.unmount();

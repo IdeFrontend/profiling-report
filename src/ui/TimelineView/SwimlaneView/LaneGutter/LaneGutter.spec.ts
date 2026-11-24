@@ -686,6 +686,23 @@ describe('LaneGutter', () => {
     const l1Folder = collapsed.get('[data-testid="gutter-folder-counter-l1-memory_utilization"]');
     expect(l1Folder.attributes('style')).toContain('height: 26px');
 
+    // Mid collapse: row grows 22 → 26, and the child wrap keeps the 4px keep.
+    const tween = mount(LaneGutter, {
+      props: {
+        groups: counterGroups,
+        collapseAnim: {
+          groupId: 'counter-ub-memory_utilization',
+          visible: 0.5,
+          hiddenHeight: 48,
+        },
+      },
+    });
+    const tweenFolder = tween.get('[data-testid="gutter-folder-counter-ub-memory_utilization"]');
+    expect(tweenFolder.attributes('style')).toContain('height: 24px');
+    const tweenWrap = tween.get('[data-testid="gutter-collapse-counter-ub-memory_utilization"]');
+    expect(tweenWrap.attributes('style')).toContain('height: 26px');
+    tween.unmount();
+
     // Card above collapsed: only spacers + two 26px counter folders remain.
     expect(collapsed.find('[data-testid="gutter-lane-leaf-above"]').exists()).toBe(false);
     expect(collapsed.find('[data-testid="gutter-group-p-above"]').exists()).toBe(true);

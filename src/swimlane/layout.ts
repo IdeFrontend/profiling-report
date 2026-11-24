@@ -286,7 +286,15 @@ export function laneChromeHeight(
   collapsedIds: readonly string[] | null | undefined,
   collapse: CollapseTransform = IDLE_COLLAPSE,
 ): number {
-  if (counterFolderPaintsOverlay(lane.thread, collapsedIds, collapse)) return COUNTER_LANE_HEIGHT;
+  const keep = counterFolderCollapseKeepExtra(lane.thread);
+  if (keep > 0) {
+    // The tween's hiddenHeight already omits this keep. Grow the folder band
+    // from LANE_HEIGHT to COUNTER_LANE_HEIGHT as visible goes 1 → 0 so the
+    // 4px is in the row, not a gap under a 22px divider.
+    const fold = collapse.folds.find((f) => f.groupId === lane.thread.id);
+    if (fold) return LANE_HEIGHT + keep * (1 - fold.visible);
+    if (counterFolderPaintsOverlay(lane.thread, collapsedIds, collapse)) return COUNTER_LANE_HEIGHT;
+  }
   return flatLaneHeight(lane);
 }
 

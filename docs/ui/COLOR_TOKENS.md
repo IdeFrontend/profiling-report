@@ -65,7 +65,7 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/930/ComputeLo
 
 ## Swim CounterTracks (Trace `ph:C`)
 
-Stroke/fill from CTEF **`process_name`** via `colorForCounterProcess` ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)). All leaves under one process share one hex. Paint alpha **0.45** (`counterLanePaint` `FILL_ALPHA`). Memory util with KB is **one** CounterTrack (Y = Using Bytes; tip still lists util % + KB).
+Stroke/fill from CTEF **`process_name`** via `colorForCounterProcess` ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)). Series 0 uses that hex; later series in a multi-series folder are L-lifted (`counterSeriesColor`). Paint alpha **0.45** (`counterLanePaint` `FILL_ALPHA`). A collapsed multi-series folder, including memory util `%` and KB, paints every series on one shared max; each expanded child uses its own `yMax`.
 
 | Source | Hex | Rule |
 |--------|-----|------|

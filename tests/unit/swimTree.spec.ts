@@ -238,7 +238,9 @@ describe('swimTree + nested layout', () => {
     expect(counterFolderPaintsOverlay(folder, [], IDLE_COLLAPSE)).toBe(false);
     expect(laneChromeHeight(folderLane, [], IDLE_COLLAPSE)).toBe(LANE_HEIGHT);
     expect(counterFolderPaintsOverlay(folder, ['folder'], opening)).toBe(false);
-    expect(laneChromeHeight(folderLane, ['folder'], opening)).toBe(LANE_HEIGHT);
+    expect(laneChromeHeight(folderLane, ['folder'], opening)).toBe(
+      LANE_HEIGHT + (COUNTER_LANE_HEIGHT - LANE_HEIGHT) * 0.5,
+    );
     expect(contentHeightFromModel({
       minTime: 0,
       maxTime: 1000,
