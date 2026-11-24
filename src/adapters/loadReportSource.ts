@@ -1,6 +1,7 @@
 import { adaptPayloads, adaptRep, emptyReportViewModel } from './adaptRep';
 import { adaptEmulate, readEmulateManifest } from './adaptEmulate';
 import { chromeTraceToSwimlane } from './chromeTraceToSwimlane';
+import { mergeCounterTracksFromTrace } from './counterTracksEmulate';
 import { parseRep } from './parseRep';
 import { isNestedNpuArchive, isNpuRep, npuArchiveStem, parseNpuRep } from './parseNpuRep';
 import { isNestedNpuArchive160, isNpuRep160, parseNpuRep160 } from './parseNpuRep160';
@@ -27,7 +28,7 @@ function looksLikeCannRep(bytes: Uint8Array): boolean {
 
 /** Chrome Trace object or CTEF JSON document → AdaptedReport (no CSV aside). */
 export function adaptChromeTrace(trace: unknown): AdaptedReport {
-  const swimlaneModel = chromeTraceToSwimlane(trace);
+  const swimlaneModel = mergeCounterTracksFromTrace(chromeTraceToSwimlane(trace), trace);
   return {
     swimlaneModel,
     reportModel: emptyReportViewModel(),

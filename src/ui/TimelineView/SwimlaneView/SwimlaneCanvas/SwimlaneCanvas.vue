@@ -7,11 +7,16 @@ import {
   type DependencyMode,
   type MeasureRange,
   type SwimEvent,
+  type SwimThread,
   type SwimlaneModel,
   type SwimlaneViewWindow,
 } from '../../../../domain/types';
 import { normalizeMeasureRange, panBy, zoomAt } from '../../../../domain/viewState';
-import { formatTimeAuto, nsPerPxForTrack } from '../../../../domain/formatTime';
+import {
+  formatDisplayTimeAuto,
+  formatTimeAuto,
+  nsPerPxForTrack,
+} from '../../../../domain/formatTime';
 import { WebGlSwimlaneRenderer } from '../../../../swimlane/WebGlSwimlaneRenderer';
 import {
   collapseShiftY,
@@ -25,6 +30,9 @@ import {
   findHoverGap,
   findLaidOutEvent,
   IDLE_COLLAPSE,
+  COUNTER_LANE_HEIGHT,
+  counterFolderPaintsOverlay,
+  flatLaneHeight,
   LANE_HEIGHT,
   LANE_PAD_Y,
   laneAtContentY,
@@ -38,7 +46,8 @@ import {
   type HoverGap,
   type MarqueeRect,
 } from '../../../../swimlane/layout';
-import { stepPointAt } from '../../OverviewCharts/stepPath';
+import { counterTipRows } from '../../../../adapters/counterTracksEmulate';
+import { counterMarkerLocalGeometry } from '../../../counterHoverMarkers';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../../../swimlane/CanvasSwimlaneRenderer';
 import {
   bindWindowPointerDrag,
@@ -140,19 +149,55 @@ const freezeBackingStore = computed(
   () => props.freezeBackingStore === true || asideTrackAnimating?.value === true,
 );
 
-/** CounterTrack lane hover tip payload (memory util % + optional Using KB). */
+/** One series' sample + hold marker set (Teleport → body). */
+export type CounterHoverMarker = {
+  seriesId: string;
+  /** Series stroke/fill color — hold disc fill (white ring stays separate). */
+  color: string;
+  sampleClientX: number;
+  sampleClientY: number;
+  holdClientX: number;
+  holdClientY: number;
+  linkVisible: boolean;
+  /** True when any pixel of the outline intersects the track (partial edge OK). */
+  sampleVisible: boolean;
+  emphasized: boolean;
+};
+
+/** CounterTrack lane hover tip payload (generic `ph:C` arg rows). */
 export type CounterHoverPayload = {
-  /** Pipe / lane name — tip header (EventTooltip uses event name the same way). */
+  /** Lane / folder name (kept for tests / consumers; tip UI no longer shows a title). */
   name: string;
-  utilization: number;
-  usingKb?: number;
+  /** Primary series value (Y at step-after hold). */
+  value: number;
+  /** Tip rows from numeric args on the sample (label = arg key; color on multi-series). */
+  rows: { label: string; value: string; color?: string }[];
   clientX: number;
   clientY: number;
-  /** Value-dot fixed position (OverviewCharts parity) — cursor x, step-after value y. */
+  /** Cursor-hold marker — pointer x, held value y (active series). */
   dotClientX: number;
   dotClientY: number;
-  /** Stroke/fill color for the value-dot. */
+  /** Real sample marker — true sample time x (may lie outside the track; clip overlay). */
+  sampleClientX: number;
+  sampleClientY: number;
+  /** True when active sample and cursor markers are far enough apart to draw a hold link. */
+  linkVisible: boolean;
+  /** True when any pixel of the active outline intersects the track. */
+  sampleVisible: boolean;
+  /** Canvas viewport box — SwimlaneView clips markers with overflow:hidden here. */
+  clipRect: { left: number; top: number; width: number; height: number };
+  /** Formatted sample time (relative to model.minTime) for the tip Sample Time row. */
+  sampleTimeLabel: string;
+  /** Tip swatch / chart color for the active series. */
   color: string;
+  /**
+   * Tip row label to emphasize (OverviewCharts `is-active` parity) — set only for
+   * collapsed multi-series tips with multiple arg rows. Omit on expanded / single
+   * leaf (one row; no bold needed).
+   */
+  activeRowLabel?: string;
+  /** All series markers (collapsed multi-series overlay only); omit for single leaf. */
+  markers?: CounterHoverMarker[];
 };
 
 const emit = defineEmits<{
@@ -169,7 +214,7 @@ const emit = defineEmits<{
   /** Lane under pointer Y — gutter header highlight (not pin). */
   'lane-hover': [laneId: string | null];
   /**
-   * CounterTrack value tip — step-after util % (+ abs KB when present). Null when
+   * CounterTrack value tip — step-after hold + numeric arg rows. Null when
    * leaving the lane or when an interval event tip wins.
    */
   'counter-hover': [payload: CounterHoverPayload | null];
@@ -224,10 +269,18 @@ function clearCounterHover(): void {
   emit('counter-hover', null);
 }
 
+/** Collapsed overlay only. A visible expand tween still shows the child charts. */
+function counterHoverOverlay(thread: SwimThread): boolean {
+  const anim = props.collapseAnim;
+  if (anim && anim.groupId === thread.id && anim.visible > 0) return false;
+  return counterFolderPaintsOverlay(thread, props.collapsedIds, IDLE_COLLAPSE);
+}
+
 /**
  * Tip a CounterTrack lane under the pointer.
  * Counter lanes win over interval `eventUnder` (magnet/hit bleed must not suppress
  * the util tip). Samples step-after hold via `stepPointAt` (same semantics as paint).
+ * Marks both the real sample and the cursor hold, with a link between them.
  */
 function emitCounterHover(
   localX: number,
@@ -239,44 +292,219 @@ function emitCounterHover(
   const view = paintView();
   // paintView().scrollY already subtracts contentTopPad — same space as lane paint/hit.
   const hit = laneAtContentY(backend.getLayout(), localY + view.scrollY);
-  if (!hit?.lane.counter) {
+  const thread = hit?.lane.thread;
+  // Leaf (`thread.counter`) or a collapsed multi-series overlay. An expanded folder
+  // still carries `counterSeries` for its children; that row is chevron-only.
+  if (!hit || !thread) {
     clearCounterHover();
     return;
   }
-  const series = hit.lane.thread.counter;
-  if (!series || series.points.length === 0) {
+  /** Collapsed multi-series overlay, or a single expanded CounterTrack leaf. */
+  type SeriesHit = {
+    id: string;
+    /** Tip-row label for this series (arg key / child name). */
+    label: string;
+    series: NonNullable<typeof thread.counter>;
+    plotTop: number;
+    plotH: number;
+    yMax: number;
+    laneColor: string;
+  };
+  const seriesHits: SeriesHit[] = [];
+  const overlaySeries =
+    thread.counterSeries &&
+    thread.counterSeries.length > 0 &&
+    counterHoverOverlay(thread)
+      ? thread.counterSeries
+      : null;
+  if (overlaySeries) {
+    // Collapsed multi-series overlay: markers on every series; tip highlights nearest.
+    const yCss = hit.lane.y - view.scrollY;
+    const plotTop = yCss + LANE_PAD_Y;
+    const bandH = hit.lane.height ?? COUNTER_LANE_HEIGHT;
+    const plotH = Math.max(1, bandH - LANE_PAD_Y * 2);
+    let sharedYMax = 0;
+    for (const s of overlaySeries) {
+      if (s.yMax > sharedYMax) sharedYMax = s.yMax;
+    }
+    if (sharedYMax <= 0) sharedYMax = 1;
+    for (let i = 0; i < overlaySeries.length; i++) {
+      const s = overlaySeries[i]!;
+      seriesHits.push({
+        id: `${thread.id}#${i}`,
+        label: thread.children?.[i]?.name ?? thread.name,
+        series: s,
+        plotTop,
+        plotH,
+        yMax: sharedYMax,
+        laneColor: s.colorHex ?? hit.lane.color,
+      });
+    }
+  } else if (thread.counter) {
+    // Expanded leaf: only this lane (no sibling multi-markers).
+    const yCss = hit.lane.y - view.scrollY;
+    const plotTop = yCss + LANE_PAD_Y;
+    const plotH = Math.max(1, flatLaneHeight(hit.lane) - LANE_PAD_Y * 2);
+    const yMax = thread.counter.yMax > 0 ? thread.counter.yMax : 1;
+    seriesHits.push({
+      id: thread.id,
+      label: thread.name,
+      series: thread.counter,
+      plotTop,
+      plotH,
+      yMax,
+      laneColor: thread.counter.colorHex ?? hit.lane.color,
+    });
+  }
+  if (seriesHits.length === 0) {
     clearCounterHover();
     return;
   }
-  const pt = stepPointAt(series.points, timeAtX(localX));
-  if (!pt) {
+  const w = syncTrackWidth();
+  const cursorTime = timeAtX(localX);
+
+  type Built = {
+    id: string;
+    label: string;
+    color: string;
+    pt: SeriesHit['series']['points'][number];
+    sampleLocalX: number;
+    localDotY: number;
+    linkVisible: boolean;
+    sampleVisible: boolean;
+  };
+  const built: Built[] = [];
+  for (const hitSeries of seriesHits) {
+    const geo = counterMarkerLocalGeometry({
+      points: hitSeries.series.points,
+      cursorTime,
+      cursorLocalX: localX,
+      xAtTime,
+      yAtValue: (v) => {
+        const clamped = Math.min(hitSeries.yMax, Math.max(0, v));
+        return hitSeries.plotTop + hitSeries.plotH * (1 - clamped / hitSeries.yMax);
+      },
+      trackW: w,
+    });
+    if (!geo) continue;
+    built.push({
+      id: hitSeries.id,
+      label: hitSeries.label,
+      color: hitSeries.laneColor,
+      pt: geo.pt as Built['pt'],
+      sampleLocalX: geo.sampleLocalX,
+      localDotY: geo.localY,
+      linkVisible: geo.linkVisible,
+      sampleVisible: geo.sampleVisible,
+    });
+  }
+  if (built.length === 0) {
     clearCounterHover();
     return;
   }
-  // hitLayout.y is already collapse-shifted — same CSS space as paintCounterLanes.
-  const yCss = hit.lane.y - view.scrollY;
-  const plotTop = yCss + LANE_PAD_Y;
-  const plotH = Math.max(1, LANE_HEIGHT - LANE_PAD_Y * 2);
-  const yMax = series.yMax > 0 ? series.yMax : 1;
-  const clamped = Math.min(yMax, Math.max(0, pt.v));
-  const localDotY = plotTop + plotH * (1 - clamped / yMax);
-  const color = series.colorHex ?? hit.lane.color;
-  const name = hit.lane.thread.name;
-  const key = `${hit.lane.thread.id}|${name}|${pt.t}|${pt.v}|${pt.abs ?? ''}|${clientX}|${clientY}|${localDotY}`;
+
+  // Active: nearest hold Y on collapsed overlay; single leaf is always index 0.
+  let activeIdx = 0;
+  if (built.length > 1) {
+    let best = Infinity;
+    for (let i = 0; i < built.length; i++) {
+      const d = Math.abs(built[i]!.localDotY - localY);
+      if (d < best) {
+        best = d;
+        activeIdx = i;
+      }
+    }
+  }
+  const active = built[activeIdx]!;
+  // Tip header: ph:C folder name on collapsed overlay; leaf name when expanded.
+  const tipName = thread.name;
+  // Collapsed multi overlay (`built.length > 1`): all arg rows + per-row swatch + bold active.
+  // Expanded / single leaf: only this series' row, no bold / no swatches.
+  const multiSeriesTip = built.length > 1;
+  const colorByLabel = new Map(built.map((b) => [b.label, b.color] as const));
+  // N=1 lanes are named with the ph:C name, while `values` keys are arg names.
+  // onlySeries would then miss and fall back to a unitless lane-name row.
+  const labelIsArgKey =
+    !!active.pt.values &&
+    Object.prototype.hasOwnProperty.call(active.pt.values, active.label);
+  const rows = counterTipRows(active.pt, active.label, {
+    onlySeries: !multiSeriesTip && labelIsArgKey,
+  }).map(
+    (r) =>
+      multiSeriesTip
+        ? { ...r, color: colorByLabel.get(r.label) ?? active.color }
+        : r,
+  );
+  const origin = props.model?.minTime ?? 0;
+  const sampleTimeLabel = formatDisplayTimeAuto(active.pt.t, origin, {
+    nsPerPx: nsPerPxForTrack(view.endTime - view.startTime, w),
+  });
+  // True sample/hold client coords; SwimlaneView clips with an overflow:hidden
+  // overlay on the canvas rect so off-track samples render partially at the edge.
+  const canvasEl = activeCanvas() ?? wrapRef.value;
+  const box = canvasEl?.getBoundingClientRect();
+  const clipRect = {
+    left: box?.left ?? 0,
+    top: box?.top ?? 0,
+    width: Math.max(1, box?.width ?? w),
+    height: Math.max(1, box?.height ?? 1),
+  };
+  const markers: CounterHoverMarker[] = built.map((b, i) => {
+    const emphasized = i === activeIdx;
+    const rawY = clientY - localY + b.localDotY;
+    return {
+      seriesId: b.id,
+      color: b.color,
+      sampleClientX: clientX - localX + b.sampleLocalX,
+      sampleClientY: rawY,
+      holdClientX: clientX,
+      holdClientY: rawY,
+      linkVisible: b.linkVisible,
+      sampleVisible: b.sampleVisible,
+      emphasized,
+    };
+  });
+  const valuesKey = active.pt.values ? JSON.stringify(active.pt.values) : '';
+  const key = `${thread.id}|${tipName}|${active.label}|${active.pt.t}|${active.pt.v}|${valuesKey}|${clientX}|${clientY}|${active.localDotY}|${active.sampleLocalX}|${active.linkVisible}|${active.sampleVisible}|${activeIdx}|${built.length}|${multiSeriesTip}|${clipRect.left}|${clipRect.width}`;
   if (key === lastCounterHoverKey) return;
   lastCounterHoverKey = key;
+  const activeY = clientY - localY + active.localDotY;
   const payload: CounterHoverPayload = {
-    name,
-    utilization: pt.v,
+    name: tipName,
+    value: active.pt.v,
+    rows,
     clientX,
     clientY,
-    // Follow pointer x (step-after hold); Y sits on the painted value.
     dotClientX: clientX,
-    dotClientY: clientY - localY + localDotY,
-    color,
+    dotClientY: activeY,
+    sampleClientX: clientX - localX + active.sampleLocalX,
+    sampleClientY: activeY,
+    linkVisible: active.linkVisible,
+    sampleVisible: active.sampleVisible,
+    clipRect,
+    sampleTimeLabel,
+    color: active.color,
+    activeRowLabel: multiSeriesTip ? active.label : undefined,
+    markers: multiSeriesTip ? markers : undefined,
   };
-  if (pt.abs != null) payload.usingKb = pt.abs;
   emit('counter-hover', payload);
+}
+
+/**
+ * Recompute counter tip/markers after zoom/pan/scroll without a pointer move.
+ * Live marquee (non-pending) clears hover; Ctrl/Cmd-drag pan keeps lastHover live
+ * and refreshes so the sample outline + stem track the shifting window (clamped
+ * into the track — never gutter / timeline-header bleed).
+ */
+function refreshCounterHoverAtLastPointer(): void {
+  if (marqueePressActive && !marqueePending) {
+    clearCounterHover();
+    return;
+  }
+  const x = lastHoverLocalX;
+  const y = lastHoverLocalY;
+  if (x == null || y == null) return;
+  emitCounterHover(x, y, lastPointerClientX, lastPointerClientY, null);
 }
 
 watch(
@@ -1360,6 +1588,7 @@ watch(
     if (altMeasure.pinned) clearAltMeasure();
     refreshSnapExactEdgeMarks();
     refreshHoverGapAtLastPointer();
+    refreshCounterHoverAtLastPointer();
   },
 );
 
@@ -2948,6 +3177,8 @@ function onPointerMove(e: PointerEvent): void {
   // Skip getBoundingClientRect — dock preview emits force sync reflow mid-drag.
   if (marqueePressActive && !marqueePending) {
     lastPointerClientY = e.clientY;
+    lastHoverLocalX = null;
+    lastHoverLocalY = null;
     emit('hover', null, e.clientX, e.clientY);
     clearCounterHover();
     return;
@@ -2967,6 +3198,8 @@ function onPointerMove(e: PointerEvent): void {
     // panning indefinitely (same recovery `bindWindowPointerDrag` gives every other gesture).
     if (e.isTrusted && e.buttons === 0) {
       dragging = false;
+      lastHoverLocalX = x;
+      lastHoverLocalY = y;
       emit('hover', null, e.clientX, e.clientY);
       clearCounterHover();
       emitLaneHover(y);
@@ -2975,6 +3208,8 @@ function onPointerMove(e: PointerEvent): void {
     // Measure create is driven by window listeners (release over Card strips still ends).
     if (measureGestureActive || measureCreatePending || measurePressActive) {
       hoverGap.value = null;
+      lastHoverLocalX = null;
+      lastHoverLocalY = null;
       emit('hover', null, e.clientX, e.clientY);
       clearCounterHover();
       emitLaneHover(null);
@@ -2985,8 +3220,11 @@ function onPointerMove(e: PointerEvent): void {
     lastX = e.clientX;
     emit('pan', -(dx / w) * span);
     hoverGap.value = null;
+    // Keep sample outline + stem live during pan; geometry clamps into the track.
+    lastHoverLocalX = x;
+    lastHoverLocalY = y;
     emit('hover', null, e.clientX, e.clientY);
-    clearCounterHover();
+    emitCounterHover(x, y, e.clientX, e.clientY, null);
     emitLaneHover(y);
     return;
   }
@@ -3025,6 +3263,8 @@ function onPointerMove(e: PointerEvent): void {
     // Keep normal event hover (tooltip); only the gap overlay stays suppressed.
     {
       const ev = eventAtPointer(x, y, mag.eventId);
+      lastHoverLocalX = x;
+      lastHoverLocalY = y;
       emit('hover', ev, e.clientX, e.clientY);
       emitCounterHover(x, y, e.clientX, e.clientY, ev);
     }
@@ -3399,9 +3639,9 @@ function applyHoverLift(hoveredId: string | null): void {
 }
 
 /**
- * Drop the default-mode hover chrome (magnet caret + snap bars, event hover, lane tint)
- * when lane scrolling starts — the event under the pointer moves, so a stale magnet or
- * hover would keep highlighting the wrong block for the whole scroll.
+ * Drop the default-mode hover chrome (magnet caret + snap bars, event hover, lane tint,
+ * counter markers) when lane scrolling starts — the row under the pointer moves, so a
+ * stale magnet or stem would keep highlighting the pre-scroll position.
  */
 function invalidateScrollHover(): void {
   if (props.measureMode) return;
@@ -3411,6 +3651,7 @@ function invalidateScrollHover(): void {
   emit('cursor', null);
   emit('hover', null, 0, 0);
   emitLaneHover(null);
+  clearCounterHover();
 }
 
 /**
@@ -3425,14 +3666,15 @@ function recalcPointerHover(): void {
   if (x == null || y == null) return;
   if (dragging) {
     // Pan already dropped the gap and the event tooltip. Scroll settle must not put
-    // them back, but it still restores the time cursor and lane highlight that
-    // invalidateScrollHover cleared — the same pair a pan move keeps live.
+    // them back, but it still restores the time cursor, lane highlight, and counter
+    // markers that invalidateScrollHover cleared — the same set a pan move keeps live.
     const mag = magnetizeLocal(x, y);
     hoverGap.value = null;
     applyHoverLift(null);
     emit('cursor', { time: mag.time, xRatio: mag.xRatio, snapped: mag.eventId != null });
     emit('hover', null, lastPointerClientX, lastPointerClientY);
     emitLaneHover(y);
+    refreshCounterHoverAtLastPointer();
     return;
   }
   const w = Math.max(1, syncTrackWidth());
@@ -3443,6 +3685,7 @@ function recalcPointerHover(): void {
   updateHoverGap(x, y, w);
   emit('hover', ev, lastPointerClientX, lastPointerClientY);
   emitLaneHover(y);
+  refreshCounterHoverAtLastPointer();
 }
 
 /** Exponential catch-up (~Chrome/Edge wheel smoothing). New deltas retarget without restarting. */

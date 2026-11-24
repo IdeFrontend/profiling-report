@@ -63,13 +63,19 @@ Sampled primarily from PIPE bars in [`v930/compute-load`](./source/930/ComputeLo
 | `icache-slot` | `#6B5B9A` | Chrome Trace `ICACHE_SLOT` lane (indigo-mauve sibling; distinct from mov purple) |
 | `aten` / `mixed` | striped blue/green | Aten-style labels — prefer `cube-lane` + `scalar` stripe in renderer |
 
-## Swim CounterTracks (emulate Trace util)
+## Swim CounterTracks (Trace `ph:C`)
 
-| Token / constant | Hex | Role |
-|------------------|-----|------|
-| `MEMORY_UTIL_COUNTER_COLOR` | `#E7434A` | Memory util CounterTrack stroke + fill base ([UI-61](../context/decisions/UI.md) / [#208](https://github.com/IdeFrontend/profiling-report/issues/208)); same hue as gutter low-util `rgba(231,67,74,…)` |
+Stroke/fill from CTEF **`process_name`** via `colorForCounterProcess` ([UI-61](../context/decisions/UI.md) / [DATA-57](../context/decisions/DATA.md)). Series 0 uses that hex; later series in a multi-series folder are L-lifted (`counterSeriesColor`). Paint alpha **0.45** (`counterLanePaint` `FILL_ALPHA`). A collapsed multi-series folder, including memory util `%` and KB, paints every series on one shared max; each expanded child uses its own `yMax`.
 
-Fill uses the same colour at **alpha 0.45** (`counterLanePaint` `FILL_ALPHA`, OverviewCharts parity). Set via `SwimCounterSeries.colorHex` on the memory-util adapter path — unit/queue CounterTracks keep `colorForThread` until their slices.
+| Source | Hex | Rule |
+|--------|-----|------|
+| Memory util (`*_UB/L0A/L0B/L0C/L1_UTILIZATION`) | `#3D64AD` | Same as heatmap `HEAT_BLOCK_WITH_DATA` (`MEMORY_UTIL_COUNTER_COLOR`) |
+| PUSHQ queues (`*_PUSHQ_*`) | `#007464` | vector (SIMD kinship) |
+| Unit util (`*_UNIT_UTILIZATION`) | `#1A743E` | scalar |
+| Pipe-tied queues (`*_MTE1/2/3_*`, `*_CUBE_*`, `*_FIXP_*`, …) | matching `LANE_COLOR_HEX` | `colorForThread(process_name)` |
+| Unknown | `#606060` | default |
+
+No Trace `cname` mapping. Arg-key leaf names are not used for color.
 
 <a id="heatmap"></a>
 

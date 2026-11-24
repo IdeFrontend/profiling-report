@@ -15,7 +15,7 @@ import {
   LANE_GROUP_HEADER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_GROUP_HEADER_HOVER,
-  LANE_HEIGHT,
+  flatLaneHeight,
   layoutHeaders,
   visualContentHeight,
   type CollapseAnimState,
@@ -39,6 +39,14 @@ import {
   COUNTER_HOVER_TIP_EST_W,
   placeFixedTip,
 } from '../../placeFixedTip';
+import {
+  COUNTER_MARKER_WHITE,
+  counterHoldLinkSegment,
+  counterMarkerClipBoxStyle,
+  counterMarkerHoldPx,
+  counterMarkerRingPx,
+  counterMarkerSizePx,
+} from '../../counterHoverMarkers';
 import Chevron from '../../Chevron.vue';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import OverviewCharts from '../OverviewCharts/OverviewCharts.vue';
@@ -389,7 +397,7 @@ const altMeasureCrossBridge = computed(() => {
   };
 });
 const pinnedStripHeight = computed(() =>
-  pinnedRows.value.reduce((h, row) => h + (row.lane.rowCount ?? 1) * LANE_HEIGHT, 0),
+  pinnedRows.value.reduce((h, row) => h + flatLaneHeight(row.lane), 0),
 );
 /** Sticky overview strip height (N × OVERVIEW_LANE_H) — drives enter/leave CSS tween. */
 const pinnedOverviewHeight = computed(
@@ -451,6 +459,101 @@ const counterTipStyle = computed(() => {
     top: `${top}px`,
   };
 });
+
+type CounterMarkerRender = {
+  key: string;
+  color: string;
+  sampleClientX: number;
+  sampleClientY: number;
+  holdClientX: number;
+  holdClientY: number;
+  linkVisible: boolean;
+  sampleVisible: boolean;
+  emphasized: boolean;
+};
+
+/** One marker set per series (multi) or the active single-series pair. */
+const counterMarkerRenders = computed((): CounterMarkerRender[] => {
+  const p = counterHover.value;
+  if (!p) return [];
+  if (p.markers && p.markers.length > 0) {
+    return p.markers.map((m) => ({
+      key: m.seriesId,
+      color: m.color,
+      sampleClientX: m.sampleClientX,
+      sampleClientY: m.sampleClientY,
+      holdClientX: m.holdClientX,
+      holdClientY: m.holdClientY,
+      linkVisible: m.linkVisible,
+      sampleVisible: m.sampleVisible,
+      emphasized: m.emphasized,
+    }));
+  }
+  return [
+    {
+      key: 'active',
+      color: p.color,
+      sampleClientX: p.sampleClientX,
+      sampleClientY: p.sampleClientY,
+      holdClientX: p.dotClientX,
+      holdClientY: p.dotClientY,
+      linkVisible: p.linkVisible,
+      sampleVisible: p.sampleVisible,
+      emphasized: true,
+    },
+  ];
+});
+
+function counterHoldLinkStyle(
+  m: CounterMarkerRender,
+  clip: { left: number; top: number },
+) {
+  if (!m.linkVisible) return null;
+  // Stem in clip-box local coords — overflow:hidden cuts it at the track edge.
+  const seg = counterHoldLinkSegment(
+    m.sampleClientX - clip.left,
+    m.holdClientX - clip.left,
+    m.emphasized,
+  );
+  if (!seg) return null;
+  return {
+    position: 'absolute' as const,
+    left: `${seg.left}px`,
+    top: `${m.sampleClientY - clip.top}px`,
+    width: `${seg.width}px`,
+    height: '0px',
+    borderTop: `${counterMarkerRingPx(m.emphasized)}px solid ${COUNTER_MARKER_WHITE}`,
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none' as const,
+    boxSizing: 'border-box' as const,
+    opacity: m.emphasized ? 1 : 0.55,
+  };
+}
+
+function counterMarkerDotStyle(
+  m: CounterMarkerRender,
+  clip: { left: number; top: number },
+  kind: 'sample' | 'hold',
+) {
+  const emphasized = m.emphasized;
+  const isSample = kind === 'sample';
+  return {
+    position: 'absolute' as const,
+    left: `${(isSample ? m.sampleClientX : m.holdClientX) - clip.left}px`,
+    top: `${(isSample ? m.sampleClientY : m.holdClientY) - clip.top}px`,
+    background: isSample ? 'transparent' : m.color,
+    border: isSample
+      ? `${counterMarkerRingPx(emphasized)}px solid ${COUNTER_MARKER_WHITE}`
+      : 'none',
+    width: `${(isSample ? counterMarkerSizePx : counterMarkerHoldPx)(emphasized)}px`,
+    height: `${(isSample ? counterMarkerSizePx : counterMarkerHoldPx)(emphasized)}px`,
+    borderRadius: '50%',
+    transform: 'translate(-50%, -50%)',
+    pointerEvents: 'none' as const,
+    boxSizing: 'border-box' as const,
+    opacity: counterMarkerRenders.value.length > 1 && !emphasized ? 0.55 : 1,
+  };
+}
 
 /** Card header Y from the same row walk as the canvas, shifted by rest + in-flight folds. */
 const cardHeaders = computed(() => {
@@ -995,6 +1098,7 @@ defineExpose({
           :pinned-overview-ids="pinnedOverviewIds"
           :start-time="view.startTime"
           :end-time="view.endTime"
+          :time-origin="model?.minTime ?? 0"
           :gutter-width="localGutterWidth"
           :locale="locale"
           :measure-mode="measureMode"
@@ -1088,6 +1192,7 @@ defineExpose({
         :pinned-overview-ids="pinnedOverviewIds"
         :start-time="view.startTime"
         :end-time="view.endTime"
+        :time-origin="model?.minTime ?? 0"
         :gutter-width="localGutterWidth"
         :locale="locale"
         :measure-mode="measureMode"
@@ -1260,22 +1365,40 @@ defineExpose({
     <Teleport to="body">
       <CounterHoverTip
         v-if="counterHover"
-        :name="counterHover.name"
-        :utilization="counterHover.utilization"
-        :using-kb="counterHover.usingKb"
+        :rows="counterHover.rows"
+        :sample-time-label="counterHover.sampleTimeLabel"
+        :active-label="counterHover.activeRowLabel"
         :style-pos="counterTipStyle"
-        :locale="locale"
       />
       <div
-        v-if="counterHover"
-        class="pr-counter-hover-dot"
-        data-testid="counter-hover-dot"
-        :style="{
-          left: `${counterHover.dotClientX}px`,
-          top: `${counterHover.dotClientY}px`,
-          background: counterHover.color,
-        }"
-      />
+        v-if="counterHover && counterMarkerRenders.length > 0"
+        class="pr-counter-hover-clip"
+        data-testid="counter-hover-clip"
+        :style="counterMarkerClipBoxStyle(counterHover.clipRect)"
+      >
+        <template
+          v-for="m in counterMarkerRenders"
+          :key="m.key"
+        >
+          <div
+            v-if="counterHoldLinkStyle(m, counterHover.clipRect)"
+            class="pr-counter-hover-link"
+            data-testid="counter-hover-link"
+            :style="counterHoldLinkStyle(m, counterHover.clipRect)!"
+          />
+          <div
+            v-if="m.sampleVisible"
+            class="pr-counter-hover-dot pr-counter-hover-dot--sample"
+            data-testid="counter-hover-sample"
+            :style="counterMarkerDotStyle(m, counterHover.clipRect, 'sample')"
+          />
+          <div
+            class="pr-counter-hover-dot pr-counter-hover-dot--hold"
+            data-testid="counter-hover-dot"
+            :style="counterMarkerDotStyle(m, counterHover.clipRect, 'hold')"
+          />
+        </template>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -1566,5 +1689,24 @@ defineExpose({
 
 .pr-stack-cursor--snapped {
   background: #4c4c4c;
+}
+</style>
+
+<!--
+  Unscoped chrome for Teleport → body (OverviewCharts value-dot parity). Geometry
+  is also inlined on the node so the marker stays visible if CSS is late/absent.
+-->
+<style>
+.pr-counter-hover-dot--sample {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.pr-counter-hover-dot--hold {
+  /* White 1px ring around the opaque series-colored hold disc. */
+  box-shadow: 0 0 0 1px #fff;
+}
+
+.pr-counter-hover-link {
+  pointer-events: none;
 }
 </style>

@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  adaptChromeTrace,
   adaptEmulate,
   isEmulateLeaf,
   loadReportSource,
@@ -14,10 +15,11 @@ import {
   pipeOccupancyFromPipesUtilization,
 } from '../../src/index';
 import {
-  memoryUtilToOverviewPercent,
-  memoryUtilCounterThreadsFromTrace,
-  memoryUtilDisplayValue,
+  counterProcessesFromTrace,
+  formatCounterArgValue,
+  numericCounterArgs,
 } from '../../src/adapters/counterTracksEmulate';
+import { LANE_COLOR_HEX, MEMORY_UTIL_COUNTER_COLOR } from '../../src/domain/laneColors';
 import { buildCannbotPayload } from '../../src/domain/cannbot';
 import {
   NPU160_TYPE_CSV,
@@ -209,10 +211,13 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(adapted.reportModel.overviewSeries).toEqual([]);
   });
 
-  it('PR-ASIM-015: memory-util ph:C pipes → swim CounterTracks (#208)', () => {
-    expect(memoryUtilDisplayValue(0.02)).toBeCloseTo(2);
-    expect(memoryUtilToOverviewPercent(25)).toBe(25);
-    expect(memoryUtilDisplayValue(-1)).toBeNull();
+  it('PR-ASIM-015: Trace ph:C → generic CounterTracks (multi-arg + same-ts keep last)', () => {
+    expect(formatCounterArgValue('Utilization (%)', 0.02)).toBe('0.02%');
+    expect(formatCounterArgValue('Using Bytes (KB)', 0.05)).toBe('0.05 KB');
+    expect(formatCounterArgValue('Issue Queue Utilization', 10)).toBe('10');
+    expect(
+      numericCounterArgs({ a: null, b: '', c: ' ', d: '0.5', e: 1, f: 'nope', g: true }),
+    ).toEqual({ d: 0.5, e: 1 });
 
     const trace = {
       traceEvents: [
@@ -259,37 +264,259 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
           ts: 10.0,
           args: { 'Utilization (%)': 0.03, 'Using Bytes (KB)': 0.04 },
         },
-        // Empty AIV1_UB pipe: process_name only — must not create a track.
-        { ph: 'C', name: 'unit_utilization', pid: 1, tid: 0, ts: 1, args: { 'Utilization (%)': 50 } },
+        // Empty AIV1_UB shell: process_name only — must not create a track.
         { ph: 'X', name: 'work', pid: 1, tid: 1, ts: 0, dur: 20 },
       ],
     };
 
-    const threads = memoryUtilCounterThreadsFromTrace(trace);
-    expect(threads).toHaveLength(1);
-    expect(threads[0]!.name).toBe('AIV0_UB_UTILIZATION');
-    expect(threads[0]!.counter?.points).toEqual([
-      { t: 5_000, v: 2, abs: 0.05 },
-      { t: 10_000, v: 3, abs: 0.04 },
+    const procs = counterProcessesFromTrace(trace);
+    expect(procs).toHaveLength(1);
+    expect(procs[0]!.id).toBe('p-counter-22');
+    expect(procs[0]!.name).toBe('AIV0_UB_UTILIZATION (memory_utilization)');
+    // Chrome hierarchy: lane = ph:C name; args = child series (folder when N>1).
+    expect(procs[0]!.threads.map((t) => t.name)).toEqual(['memory_utilization']);
+    const track = procs[0]!.threads[0]!;
+    expect(track.children?.map((c) => c.name)).toEqual([
+      'Utilization (%)',
+      'Using Bytes (KB)',
     ]);
-    expect(threads[0]!.counter?.yMax).toBe(3);
-    expect(threads[0]!.counter?.colorHex).toBe('#E7434A');
+    expect(track.counterSeries).toHaveLength(2);
+    expect(track.counterSeries![0]!.points).toEqual([
+      {
+        t: 5_000,
+        v: 0.02,
+        values: { 'Utilization (%)': 0.02, 'Using Bytes (KB)': 0.05 },
+      },
+      {
+        t: 10_000,
+        v: 0.03,
+        values: { 'Utilization (%)': 0.03, 'Using Bytes (KB)': 0.04 },
+      },
+    ]);
+    expect(track.counterSeries![1]!.points.map((p) => p.v)).toEqual([0.05, 0.04]);
+    expect(track.counterSeries![0]!.colorHex).toBe(MEMORY_UTIL_COUNTER_COLOR);
+
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(JSON.stringify(trace)),
+      // Second catalog embed so the trace selector can leave pipe trace and come back.
+      'Communication.json': enc.encode(
+        JSON.stringify({
+          traceEvents: [{ ph: 'X', name: 'comm', pid: 1, tid: 1, ts: 0, dur: 1 }],
+        }),
+      ),
+    });
+    expect(adapted.reportModel.overviewSeries).toEqual([]);
+    expect(adapted.selectedTimelineTraceId).toBe('pipeTrace');
+    // Selector installs timelineTraceModels[id]; it must be the merged model.
+    expect(adapted.timelineTraceModels?.pipeTrace).toBe(adapted.swimlaneModel);
+    expect(
+      adapted.timelineTraceModels?.communication?.processes.some((p) => p.id === 'p-counter-22'),
+    ).toBe(false);
+    const counterProc = adapted.swimlaneModel?.processes.find((p) => p.id === 'p-counter-22');
+    expect(counterProc?.threads.map((t) => t.name)).toEqual(['memory_utilization']);
+    expect(adapted.swimlaneModel?.metadata?.defaultCollapsedIds).toContain(
+      'counter-22-memory_utilization',
+    );
+  });
+
+  it('PR-ASIM-016: unit-util ph:C → CounterTrack leaf under process (no fraction×100)', () => {
+    const trace = {
+      traceEvents: [
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 10,
+          args: { name: 'AIV0_UNIT_UTILIZATION (unit_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 11,
+          args: { name: 'AIV1_UNIT_UTILIZATION (unit_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 1,
+          args: { name: 'AIV0_SCALAR (scalar_instr)' },
+        },
+        {
+          ph: 'C',
+          name: 'unit_utilization',
+          pid: 10,
+          tid: 0,
+          ts: 1.0,
+          args: { 'Utilization (%)': 40 },
+        },
+        {
+          ph: 'C',
+          name: 'unit_utilization',
+          pid: 10,
+          tid: 0,
+          ts: 2.0,
+          args: { 'Utilization (%)': 80 },
+        },
+        // Empty AIV1_UNIT shell — no track.
+        { ph: 'X', name: 'work', pid: 1, tid: 1, ts: 0, dur: 20 },
+      ],
+    };
+
+    const procs = counterProcessesFromTrace(trace);
+    expect(procs).toHaveLength(1);
+    expect(procs[0]!.id).toBe('p-counter-10');
+    expect(procs[0]!.threads.map((t) => t.name)).toEqual(['unit_utilization']);
+    expect(procs[0]!.threads[0]!.counter?.points).toEqual([
+      { t: 1_000, v: 40, values: { 'Utilization (%)': 40 } },
+      { t: 2_000, v: 80, values: { 'Utilization (%)': 80 } },
+    ]);
+    expect(procs[0]!.threads[0]!.counter?.yMax).toBe(80);
+    expect(procs[0]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.scalar);
 
     const adapted = adaptEmulate({
       'manifest.json': enc.encode(emulateManifest()),
       'PipeTrace.json': enc.encode(JSON.stringify(trace)),
     });
-    expect(adapted.reportModel.overviewSeries).toEqual([]);
-    const counterProc = adapted.swimlaneModel?.processes.find(
-      (p) => p.id === 'p-counter-memory-util',
-    );
-    expect(counterProc?.name).toBe('Memory utilization');
-    expect(counterProc?.threads.map((t) => t.name)).toEqual(['AIV0_UB_UTILIZATION']);
-    expect(counterProc?.threads[0]?.counter?.points).toEqual([
-      { t: 5_000, v: 2, abs: 0.05 },
-      { t: 10_000, v: 3, abs: 0.04 },
+    expect(adapted.swimlaneModel?.processes.some((p) => p.id === 'p-counter-10')).toBe(true);
+    expect(adapted.swimlaneModel?.processes.some((p) => p.id === 'p-counter-11')).toBe(false);
+  });
+
+  it('PR-ASIM-017: queue-util ph:C → CounterTracks with depth Y (incl. non-PUSHQ)', () => {
+    const trace = {
+      traceEvents: [
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 30,
+          args: { name: 'AIV0_PUSHQ_ISSUE_QUEUE_UTILIZATION (issue_queue_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 31,
+          args: { name: 'AIV0_PUSHQ_EXEC_QUEUE_UTILIZATION (exec_queue_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 40,
+          args: { name: 'AIC_MTE2_EXEC_QUEUE_UTILIZATION (mte2_post)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 32,
+          args: { name: 'AIV1_PUSHQ_ISSUE_QUEUE_UTILIZATION (issue_queue_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 1,
+          args: { name: 'AIV0_SCALAR (scalar_instr)' },
+        },
+        {
+          ph: 'C',
+          name: 'issue_queue_utilization',
+          pid: 30,
+          tid: 0,
+          ts: 1.0,
+          args: { 'Issue Queue Utilization': 3 },
+        },
+        {
+          ph: 'C',
+          name: 'issue_queue_utilization',
+          pid: 30,
+          tid: 0,
+          ts: 2.0,
+          args: { 'Issue Queue Utilization': 10 },
+        },
+        {
+          ph: 'C',
+          name: 'exec_queue_utilization',
+          pid: 31,
+          tid: 0,
+          ts: 1.5,
+          args: { 'Exec Queue Utilization': 2 },
+        },
+        {
+          ph: 'C',
+          name: 'exec_queue_utilization',
+          pid: 40,
+          tid: 0,
+          ts: 1.0,
+          args: { 'Exec Queue Utilization': 4 },
+        },
+        // Empty AIV1 shell — no track.
+        { ph: 'X', name: 'work', pid: 1, tid: 1, ts: 0, dur: 20 },
+      ],
+    };
+
+    const procs = counterProcessesFromTrace(trace);
+    expect(procs.map((p) => p.id)).toEqual(['p-counter-30', 'p-counter-31', 'p-counter-40']);
+    expect(procs.map((p) => p.threads[0]!.name)).toEqual([
+      'issue_queue_utilization',
+      'exec_queue_utilization',
+      'exec_queue_utilization',
     ]);
-    expect(counterProc?.threads[0]?.counter?.colorHex).toBe('#E7434A');
+    expect(procs[0]!.threads[0]!.counter?.yMax).toBe(10);
+    expect(procs[1]!.threads[0]!.counter?.yMax).toBe(2);
+    expect(procs[2]!.threads[0]!.counter?.yMax).toBe(4);
+    expect(procs[0]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.vector); // PUSHQ
+    expect(procs[1]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.vector); // PUSHQ
+    expect(procs[2]!.threads[0]!.counter?.colorHex).toBe(LANE_COLOR_HEX.mte2);
+
+    const adapted = adaptEmulate({
+      'manifest.json': enc.encode(emulateManifest()),
+      'PipeTrace.json': enc.encode(JSON.stringify(trace)),
+    });
+    expect(adapted.swimlaneModel?.processes.filter((p) => p.id.startsWith('p-counter-')).map((p) => p.id)).toEqual([
+      'p-counter-30',
+      'p-counter-31',
+      'p-counter-40',
+    ]);
+  });
+
+  it('PR-ASIM-018: adaptChromeTrace standalone JSON also merges ph:C CounterTracks', () => {
+    const trace = {
+      traceEvents: [
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 22,
+          args: { name: 'AIV0_UB_UTILIZATION (memory_utilization)' },
+        },
+        {
+          ph: 'M',
+          name: 'process_name',
+          pid: 1,
+          args: { name: 'AIV0_SCALAR (scalar_instr)' },
+        },
+        {
+          ph: 'C',
+          name: 'memory_utilization',
+          pid: 22,
+          tid: 0,
+          ts: 5.0,
+          args: { 'Utilization (%)': 0.5, 'Using Bytes (KB)': 1.25 },
+        },
+        { ph: 'X', name: 'work', pid: 1, tid: 1, ts: 0, dur: 20 },
+      ],
+    };
+    const adapted = adaptChromeTrace(trace);
+    expect(adapted.reportModel.overviewSeries).toEqual([]);
+    expect(adapted.swimlaneModel).not.toBeNull();
+    const counterProc = adapted.swimlaneModel!.processes.find((p) => p.id === 'p-counter-22');
+    expect(counterProc?.threads.map((t) => t.name)).toEqual(['memory_utilization']);
+    const track = counterProc!.threads[0]!;
+    expect(track.children?.map((c) => c.name)).toEqual([
+      'Utilization (%)',
+      'Using Bytes (KB)',
+    ]);
+    expect(track.counterSeries![1]!.points[0]?.v).toBe(1.25);
+    expect(track.counterSeries![0]!.points[0]?.values).toEqual({
+      'Utilization (%)': 0.5,
+      'Using Bytes (KB)': 1.25,
+    });
   });
 
   it('PR-ASIM-005: emulate leaves summary empty (no KernelInfo → cards; DATA-47)', () => {
@@ -555,8 +782,33 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     expect(kernel.sourceLineId).toBeUndefined();
     expect(kernel.typeName).toBe('shared_bank_conflicts');
   });
+});
 
-  it('PR-ASIM-016: Roofline*.csv → roofline + capability; AnalysisState gate; JSON fallback (DATA-57a)', () => {
+describe('npu-rep / loadReportSource profile routing', () => {
+  it('PR-NPU-012: manifest.json leaf classified as emulate; compute CSVs not required', () => {
+    const adapted = loadReportSource(packEmulateLeaf());
+    expect(adapted.swimlaneModel).not.toBeNull();
+    expect(adapted.reportModel.summary).toEqual({});
+  });
+
+  it('PR-JSON-004: loadReportSource routes emulate leaf to adaptEmulate path', () => {
+    const adapted = loadReportSource(
+      packEmulateLeaf([
+        {
+          name: 'KernelInfo.csv',
+          type: NPU160_TYPE_CSV,
+          data: enc.encode('KernelInfoAttr,KernelInfoVal\nOp Name,routed\n'),
+        },
+      ]),
+    );
+    expect(adapted.reportModel.profile).toBe('emulate');
+    // DATA-47: KernelInfo does not populate summary chrome
+    expect(adapted.reportModel.summary).toEqual({});
+    // Would not come from compute OpBasicInfo path
+    expect(adapted.reportModel.pipeOccupancy).toEqual([]);
+  });
+
+  it('PR-ASIM-019: Roofline*.csv → roofline + capability; AnalysisState gate; JSON fallback (DATA-57a)', () => {
     const analysisOk = 'AnalysisName,AnalysisPassed\nroofline,1\n';
     const analysisFail = 'AnalysisName,AnalysisPassed\nroofline,0\n';
     const points = [
@@ -709,30 +961,6 @@ describe('adapt-emulate (PR-ASIM-*)', () => {
     ]);
     expect(jsonRoof.series.find((s) => s.id === 'aic-fp32-l0')!.label).toBe('AIC fp32 · L0');
   });
-});
-describe('npu-rep / loadReportSource profile routing', () => {
-  it('PR-NPU-012: manifest.json leaf classified as emulate; compute CSVs not required', () => {
-    const adapted = loadReportSource(packEmulateLeaf());
-    expect(adapted.swimlaneModel).not.toBeNull();
-    expect(adapted.reportModel.summary).toEqual({});
-  });
-
-  it('PR-JSON-004: loadReportSource routes emulate leaf to adaptEmulate path', () => {
-    const adapted = loadReportSource(
-      packEmulateLeaf([
-        {
-          name: 'KernelInfo.csv',
-          type: NPU160_TYPE_CSV,
-          data: enc.encode('KernelInfoAttr,KernelInfoVal\nOp Name,routed\n'),
-        },
-      ]),
-    );
-    expect(adapted.reportModel.profile).toBe('emulate');
-    // DATA-47: KernelInfo does not populate summary chrome
-    expect(adapted.reportModel.summary).toEqual({});
-    // Would not come from compute OpBasicInfo path
-    expect(adapted.reportModel.pipeOccupancy).toEqual([]);
-  });
 
   it('PR-ASIM-009: gelu.npu-rep opens as emulate with swimlane + PIPE + ArchDiagram + 53 performance hints (no summary chrome)', () => {
     const bytes = new Uint8Array(
@@ -742,11 +970,32 @@ describe('npu-rep / loadReportSource profile routing', () => {
     expect(adapted.swimlaneModel).not.toBeNull();
     expect(adapted.swimlaneModel!.processes.length).toBeGreaterThan(0);
     expect(adapted.swimlaneModel!.maxTime).toBeGreaterThan(adapted.swimlaneModel!.minTime);
-    // #208 / DATA-57: gelu Trace packs populated mem util pipes → CounterTrack card.
-    const memUtil = adapted.swimlaneModel!.processes.find((p) => p.id === 'p-counter-memory-util');
-    expect(memUtil?.name).toBe('Memory utilization');
-    expect(memUtil?.threads.length).toBeGreaterThanOrEqual(1);
-    expect(memUtil?.threads.every((t) => (t.counter?.points.length ?? 0) > 0)).toBe(true);
+    // DATA-57: gelu Trace packs populated ph:C util pipes → CounterTrack processes.
+    const counterProcs = adapted.swimlaneModel!.processes.filter((p) =>
+      p.id.startsWith('p-counter-'),
+    );
+    expect(counterProcs.length).toBeGreaterThanOrEqual(1);
+    expect(
+      counterProcs.some(
+        (p) =>
+          /UTILIZATION/i.test(p.name) &&
+          p.threads.some(
+            (t) => t.counter || (t.counterSeries?.length ?? 0) > 0 || t.children?.some((c) => c.counter),
+          ),
+      ),
+    ).toBe(true);
+    // Leaf has `counter`; multi-series folder has `counterSeries` + child leaves.
+    const hasPoints = (t: (typeof counterProcs)[number]['threads'][number]): boolean => {
+      if ((t.counter?.points.length ?? 0) > 0) return true;
+      if ((t.counterSeries?.length ?? 0) > 0) {
+        return t.counterSeries!.every((s) => s.points.length > 0);
+      }
+      if (t.children?.length) {
+        return t.children.every((c) => (c.counter?.points.length ?? 0) > 0);
+      }
+      return false;
+    };
+    expect(counterProcs.every((p) => p.threads.every(hasPoints))).toBe(true);
     expect(adapted.reportModel.profile).toBe('emulate');
     expect(adapted.reportModel.summary).toEqual({});
     expect(adapted.reportModel.pipeOccupancy.length).toBeGreaterThan(0);

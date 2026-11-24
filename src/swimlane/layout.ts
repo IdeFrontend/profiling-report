@@ -1,6 +1,11 @@
 import type { SwimEvent, SwimlaneModel, SwimlaneViewWindow, SwimThread } from '../domain/types';
 import { colorForThread } from '../domain/laneColors';
-import { buildFolderSummaryEvents, isFolderNode, walkVisibleRows } from '../domain/swimTree';
+import {
+  buildFolderSummaryEvents,
+  findThreadById,
+  isFolderNode,
+  walkVisibleRows,
+} from '../domain/swimTree';
 import {
   maxRR,
   minRR,
@@ -10,6 +15,8 @@ import {
 } from './shaders';
 
 export const LANE_HEIGHT = 22;
+/** CounterTrack leaf band height (taller than interval lanes for readable step charts). */
+export const COUNTER_LANE_HEIGHT = 26;
 export const LANE_PAD_Y = 3;
 /** Matches `.pr-gutter__group` height so canvas lanes align with gutter labels. */
 export const LANE_GROUP_HEADER_HEIGHT = 40;
@@ -98,8 +105,55 @@ export interface FlatLane {
   depth: number;
   /** Sub-rows for a leaf with overlapping events; 1 for folders and spacer leaves. */
   rowCount: number;
+  /**
+   * Explicit band height in px. Counter lanes set `COUNTER_LANE_HEIGHT`; omit for
+   * interval/folder rows (`rowCount * LANE_HEIGHT`).
+   */
+  height?: number;
   /** 0..1 opacity during a collapse/expand tween (default 1, fully opaque). */
   alpha?: number;
+}
+
+/** Laid-out lane band height (counter vs interval). */
+export function flatLaneHeight(lane: {
+  height?: number;
+  rowCount?: number;
+  counter?: boolean;
+}): number {
+  if (lane.height != null) return lane.height;
+  if (lane.counter) return COUNTER_LANE_HEIGHT;
+  return (lane.rowCount ?? 1) * LANE_HEIGHT;
+}
+
+/** True when a thread is a multi-series CounterTrack folder (has `counterSeries`). */
+export function isCounterSeriesFolder(thread: SwimThread): boolean {
+  return isFolderNode(thread) && (thread.counterSeries?.length ?? 0) > 0;
+}
+
+/**
+ * True when a CounterTrack folder is rest-collapsed for the filterCollapsedTree path
+ * (`children: []`). Folds-based collapse keeps children on the thread — use
+ * `promoteCollapsedCounterFolders` / `collapsedIds` there instead.
+ */
+export function isCollapsedCounterFolder(thread: SwimThread): boolean {
+  return isCounterSeriesFolder(thread) && (thread.children?.length ?? 0) === 0;
+}
+
+/**
+ * Extra px a rest-collapsed multi-series CounterTrack folder keeps beyond
+ * `LANE_HEIGHT` so the overlay band is `COUNTER_LANE_HEIGHT` (fold shift leaves
+ * this gap instead of closing the full child span).
+ */
+export function counterFolderCollapseKeepExtra(thread: SwimThread | undefined): number {
+  return thread && isCounterSeriesFolder(thread) ? COUNTER_LANE_HEIGHT - LANE_HEIGHT : 0;
+}
+
+/** Model-thread band height before layout (counter vs folder vs multi-row leaf). */
+export function threadBandHeight(thread: SwimThread): number {
+  if (thread.counter) return COUNTER_LANE_HEIGHT;
+  if (isCollapsedCounterFolder(thread)) return COUNTER_LANE_HEIGHT;
+  if (isFolderNode(thread)) return LANE_HEIGHT;
+  return leafRowCount(thread) * LANE_HEIGHT;
 }
 
 /**
@@ -147,7 +201,7 @@ export function groupEdges(
   const header = layout.headers.find((h) => h.id === groupId);
   if (header) return { top: header.y, foldY: header.y + LANE_GROUP_HEADER_HEIGHT };
   const lane = layout.lanes.find((l) => l.thread.id === groupId);
-  if (lane) return { top: lane.y, foldY: lane.y + lane.rowCount * LANE_HEIGHT };
+  if (lane) return { top: lane.y, foldY: lane.y + flatLaneHeight(lane) };
   return null;
 }
 
@@ -196,6 +250,54 @@ export const IDLE_COLLAPSE: CollapseTransform = {
   folds: [],
 };
 
+/**
+ * True when a multi-series folder paints the collapsed overlay on its own row.
+ * False while that folder's expand tween still shows children (`fold.visible > 0`).
+ * Folds-based collapse keeps `children`, so rest-collapsed is `collapsedIds`, not
+ * an empty child list.
+ */
+export function counterFolderPaintsOverlay(
+  thread: SwimThread,
+  collapsedIds: readonly string[] | null | undefined,
+  collapse: CollapseTransform = IDLE_COLLAPSE,
+): boolean {
+  if (!isCounterSeriesFolder(thread)) return false;
+  const collapsed = collapsedIds?.includes(thread.id) ?? false;
+  if (!isCollapsedCounterFolder(thread) && !collapsed) return false;
+  if (!collapsed) return true;
+  for (const f of collapse.folds) {
+    if (f.groupId === thread.id && f.visible > 0) return false;
+  }
+  return true;
+}
+
+/**
+ * Lane fill / divider height. A rest-collapsed multi-series folder paints a
+ * `COUNTER_LANE_HEIGHT` overlay on a row the expanded layout still sizes at
+ * `LANE_HEIGHT` (the extra 4px is `counterFolderCollapseKeepExtra`).
+ */
+export function laneChromeHeight(
+  lane: {
+    height?: number;
+    rowCount?: number;
+    counter?: boolean;
+    thread: SwimThread;
+  },
+  collapsedIds: readonly string[] | null | undefined,
+  collapse: CollapseTransform = IDLE_COLLAPSE,
+): number {
+  const keep = counterFolderCollapseKeepExtra(lane.thread);
+  if (keep > 0) {
+    // The tween's hiddenHeight already omits this keep. Grow the folder band
+    // from LANE_HEIGHT to COUNTER_LANE_HEIGHT as visible goes 1 → 0 so the
+    // 4px is in the row, not a gap under a 22px divider.
+    const fold = collapse.folds.find((f) => f.groupId === lane.thread.id);
+    if (fold) return LANE_HEIGHT + keep * (1 - fold.visible);
+    if (counterFolderPaintsOverlay(lane.thread, collapsedIds, collapse)) return COUNTER_LANE_HEIGHT;
+  }
+  return flatLaneHeight(lane);
+}
+
 /** Content-space Y span of a Card/folder's descendant rows on the expanded layout. */
 export function groupSubtreeSpan(
   layout: SwimlaneLayout,
@@ -220,7 +322,7 @@ export function groupSubtreeSpan(
     for (let i = li + 1; i < layout.lanes.length; i++) {
       const l = layout.lanes[i]!;
       if (l.depth <= folder.depth) break;
-      end = l.y + l.rowCount * LANE_HEIGHT;
+      end = l.y + flatLaneHeight(l);
     }
   }
   return { top: edges.top, foldY: edges.foldY, subtreeEnd: end };
@@ -252,7 +354,9 @@ function pruneNestedFolds(folds: CollapseFold[]): CollapseFold[] {
 }
 
 function foldsFromSpans(
-  spanOf: (id: string) => { top: number; foldY: number; subtreeEnd: number } | null,
+  spanOf: (
+    id: string,
+  ) => { top: number; foldY: number; subtreeEnd: number; keepExtra?: number } | null,
   collapsedIds: readonly string[],
   anim: CollapseAnimState | null,
 ): CollapseTransform {
@@ -264,13 +368,16 @@ function foldsFromSpans(
     if (!span) continue;
     const hidden = span.subtreeEnd - span.foldY;
     if (hidden <= 0) continue;
+    const keep = Math.max(0, span.keepExtra ?? 0);
     folds.push({
       groupId: id,
       foldY: span.foldY,
       groupTop: span.top,
       subtreeEnd: span.subtreeEnd,
       visible: 0,
-      shift: hidden,
+      // CounterSeries folders keep COUNTER_LANE_HEIGHT − LANE_HEIGHT so the
+      // overlay band matches the gutter (26px), not the expanded folder (22px).
+      shift: Math.max(0, hidden - keep),
     });
   }
   if (animLive) {
@@ -300,7 +407,12 @@ export function collapseFoldsFromLayout(
   collapsedIds: readonly string[],
   anim: CollapseAnimState | null,
 ): CollapseTransform {
-  return foldsFromSpans((id) => groupSubtreeSpan(layout, id), collapsedIds, anim);
+  return foldsFromSpans((id) => {
+    const span = groupSubtreeSpan(layout, id);
+    if (!span) return null;
+    const lane = layout.lanesByTid.get(id) ?? layout.lanes.find((l) => l.thread.id === id);
+    return { ...span, keepExtra: counterFolderCollapseKeepExtra(lane?.thread) };
+  }, collapsedIds, anim);
 }
 
 /** Build the collapse transform for `state` only (or IDLE when settled / group absent). */
@@ -330,7 +442,7 @@ function modelGeometry(model: SwimlaneModel): { rows: GeoRow[]; height: number }
       y += LANE_GROUP_HEADER_HEIGHT;
       continue;
     }
-    const h = (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
+    const h = row.kind === 'folder' ? LANE_HEIGHT : threadBandHeight(row.thread);
     rows.push({ id: row.thread.id, y, h, kind: row.kind, depth: row.depth });
     y += h;
   }
@@ -367,7 +479,12 @@ export function collapseTransformFromModel(
 ): CollapseTransform {
   if (!model) return IDLE_COLLAPSE;
   const geo = modelGeometry(model);
-  return foldsFromSpans((id) => groupSubtreeFromGeo(geo, id), collapsedIds, anim);
+  return foldsFromSpans((id) => {
+    const span = groupSubtreeFromGeo(geo, id);
+    if (!span) return null;
+    const thread = findThreadById(model, id);
+    return { ...span, keepExtra: counterFolderCollapseKeepExtra(thread ?? undefined) };
+  }, collapsedIds, anim);
 }
 
 /** Sum of fold gap-closes — subtract from expanded content height for the visual sizer. */
@@ -542,6 +659,8 @@ export function restFolderSummaries(
     if (laneIndex < 0) continue;
     const lane = layout.lanes[laneIndex]!;
     if (!lane.folder) continue;
+    // Multi-series CounterTrack folders paint counterSeries overlay — no interval ghosts.
+    if (isCounterSeriesFolder(lane.thread)) continue;
     let summaries = cache.get(id);
     if (!summaries) {
       summaries = buildFolderSummaryEvents(lane.thread);
@@ -639,6 +758,41 @@ export function applyCollapseFolds(
   };
 }
 
+/**
+ * Mark rest-collapsed multi-series CounterTrack folders as `counter` bands so
+ * hit-test / hover use `COUNTER_LANE_HEIGHT` and `emitCounterHover` sees them.
+ * Skips the in-flight tween group (children still partially visible).
+ */
+export function promoteCollapsedCounterFolders(
+  layout: SwimlaneLayout,
+  collapsedIds: readonly string[],
+  anim: CollapseAnimState | null = null,
+): SwimlaneLayout {
+  if (collapsedIds.length === 0) return layout;
+  const set = new Set(collapsedIds);
+  const animatingId =
+    anim && anim.hiddenHeight > 0 && anim.visible < 1 ? anim.groupId : null;
+  let changed = false;
+  const lanes = layout.lanes.map((l) => {
+    if (!l.folder || l.counter || !set.has(l.thread.id)) return l;
+    if (!isCounterSeriesFolder(l.thread)) return l;
+    if (l.thread.id === animatingId) return l;
+    changed = true;
+    return {
+      ...l,
+      counter: true,
+      height: COUNTER_LANE_HEIGHT,
+      color: l.thread.counterSeries![0]!.colorHex ?? l.color,
+    };
+  });
+  if (!changed) return layout;
+  return {
+    ...layout,
+    lanes,
+    lanesByTid: new Map(lanes.map((l) => [l.thread.id, l])),
+  };
+}
+
 /** Renderer hot path: folds + extras + hit layout, no event clone. */
 export function collapsePaintState(
   layout: SwimlaneLayout,
@@ -648,7 +802,11 @@ export function collapsePaintState(
 ): { collapse: CollapseTransform; hitLayout: SwimlaneLayout } {
   const collapse = collapseFoldsFromLayout(layout, collapsedIds, anim);
   const extras = collectCollapseSummaries(layout, collapsedIds, anim, cache, collapse);
-  return { collapse, hitLayout: applyCollapseFolds(layout, collapse, extras) };
+  const folded = applyCollapseFolds(layout, collapse, extras);
+  return {
+    collapse,
+    hitLayout: promoteCollapsedCounterFolders(folded, collapsedIds, anim),
+  };
 }
 
 /**
@@ -661,7 +819,13 @@ function visibleLaneRowHeight(model: SwimlaneModel, collapsedIds: readonly strin
   let h = 0;
   const walk = (nodes: SwimThread[]): void => {
     for (const n of nodes) {
-      h += LANE_HEIGHT;
+      // Historical: multi-row interval leaves still count as one LANE_HEIGHT here.
+      // Collapsed multi-series CounterTrack folders use the taller counter band.
+      const counterFolderCollapsed =
+        isFolderNode(n) &&
+        collapsed.has(n.id) &&
+        (n.counterSeries?.length ?? 0) > 0;
+      h += n.counter || counterFolderCollapsed ? COUNTER_LANE_HEIGHT : LANE_HEIGHT;
       if (isFolderNode(n) && !collapsed.has(n.id)) walk(n.children ?? []);
     }
   };
@@ -855,7 +1019,7 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
     bottom = Math.max(bottom, h.y + LANE_GROUP_HEADER_HEIGHT);
   }
   for (const l of layout.lanes) {
-    bottom = Math.max(bottom, l.y + l.rowCount * LANE_HEIGHT);
+    bottom = Math.max(bottom, l.y + flatLaneHeight(l));
   }
   return bottom;
 }
@@ -872,7 +1036,8 @@ export function contentHeightFromModel(model: SwimlaneModel | null): number {
     }
     // Folders are always one band (`rebuildLayout` hardcodes `rowCount: 1`); do not use
     // `leafRowCount` here — a folder that somehow carried events would desync DOM Card strips.
-    h += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
+    // Counter leaves use COUNTER_LANE_HEIGHT via `threadBandHeight`.
+    h += row.kind === 'folder' ? LANE_HEIGHT : threadBandHeight(row.thread);
   }
   return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
 }
@@ -903,8 +1068,10 @@ export function layoutHeaders(model: SwimlaneModel | null): GroupHeader[] {
     if (row.kind === 'header') {
       headers.push({ id: row.process.id, name: row.process.name, y });
       y += LANE_GROUP_HEADER_HEIGHT;
+    } else if (row.kind === 'folder') {
+      y += LANE_HEIGHT;
     } else {
-      y += (row.kind === 'folder' ? 1 : leafRowCount(row.thread)) * LANE_HEIGHT;
+      y += threadBandHeight(row.thread);
     }
   }
   return headers;
@@ -943,30 +1110,46 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
     const thread = row.thread;
     const color = colorForThread(thread.name);
     if (row.kind === 'folder') {
-      const lane: FlatLane = { thread, y, color, folder: true, depth: row.depth, rowCount: 1 };
+      const collapsedCounter = isCollapsedCounterFolder(thread);
+      const lane: FlatLane = {
+        thread,
+        y,
+        color: collapsedCounter
+          ? (thread.counterSeries![0]!.colorHex ?? color)
+          : color,
+        folder: true,
+        depth: row.depth,
+        rowCount: 1,
+        ...(collapsedCounter
+          ? { counter: true, height: COUNTER_LANE_HEIGHT }
+          : {}),
+      };
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
       const laneEvents: LaidOutEvent[] = [];
       // Collapsed folders carry gray summary bars (disjoint union of descendants).
-      const summaries = [...(thread.summaryEvents ?? [])].sort(
-        (a, b) => a.startTime - b.startTime,
-      );
-      for (const ev of summaries) {
-        const item: LaidOutEvent = {
-          id: ev.id,
-          event: ev,
-          laneIndex: lanes.length - 1,
-          y,
-          rowIndex: 0,
-          color: SUMMARY_EVENT_FILL,
-          summary: true,
-        };
-        events.push(item);
-        eventsById.set(ev.id, item);
-        laneEvents.push(item);
+      // CounterTrack folders use counterSeries paint instead — skip interval summaries.
+      if (!collapsedCounter) {
+        const summaries = [...(thread.summaryEvents ?? [])].sort(
+          (a, b) => a.startTime - b.startTime,
+        );
+        for (const ev of summaries) {
+          const item: LaidOutEvent = {
+            id: ev.id,
+            event: ev,
+            laneIndex: lanes.length - 1,
+            y,
+            rowIndex: 0,
+            color: SUMMARY_EVENT_FILL,
+            summary: true,
+          };
+          events.push(item);
+          eventsById.set(ev.id, item);
+          laneEvents.push(item);
+        }
       }
       eventsByLane.push(laneEvents);
-      y += LANE_HEIGHT;
+      y += collapsedCounter ? COUNTER_LANE_HEIGHT : LANE_HEIGHT;
       continue;
     }
     if (thread.counter) {
@@ -977,11 +1160,12 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
         depth: row.depth,
         rowCount: 1,
         counter: true,
+        height: COUNTER_LANE_HEIGHT,
       };
       lanes.push(lane);
       lanesByTid.set(thread.id, lane);
       eventsByLane.push([]);
-      y += LANE_HEIGHT;
+      y += COUNTER_LANE_HEIGHT;
       continue;
     }
     const rowCount = leafRowCount(thread);
@@ -1164,7 +1348,7 @@ export function laneAtContentY(
   for (let i = 0; i < layout.lanes.length; i++) {
     const l = layout.lanes[i]!;
     if (l.alpha === 0) continue;
-    if (!(contentY >= l.y && contentY < l.y + l.rowCount * LANE_HEIGHT)) continue;
+    if (!(contentY >= l.y && contentY < l.y + flatLaneHeight(l))) continue;
     if (l.folder) {
       folder = l;
       folderIndex = i;
@@ -1265,7 +1449,7 @@ export function eventsIntersectingRect(
     if ((lane.alpha ?? 1) <= 0) continue;
     if (lane.folder) continue;
     const laneTop = lane.y - view.scrollY;
-    const laneH = lane.rowCount * LANE_HEIGHT;
+    const laneH = flatLaneHeight(lane);
     if (laneTop + laneH < top - 1 || laneTop > bottom + 1) continue;
     const laneEvts = layout.eventsByLane[i];
     if (!laneEvts?.length) continue;

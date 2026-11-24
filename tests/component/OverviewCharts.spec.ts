@@ -57,6 +57,9 @@ function mockTrackPaints(
 
 function cleanupTeleport(): void {
   document.querySelectorAll('[data-testid="overview-value-dot"]').forEach((n) => n.remove());
+  document.querySelectorAll('[data-testid="overview-hover-sample"]').forEach((n) => n.remove());
+  document.querySelectorAll('[data-testid="overview-hover-link"]').forEach((n) => n.remove());
+  document.querySelectorAll('[data-testid="overview-hover-clip"]').forEach((n) => n.remove());
   document.querySelectorAll('[data-testid="overview-value-tooltip"]').forEach((n) => n.remove());
 }
 
@@ -167,6 +170,11 @@ describe('OverviewCharts', () => {
 
     const tip = document.querySelector('[data-testid="overview-value-tooltip"]') as HTMLElement | null;
     expect(tip).toBeTruthy();
+    // Hovered CUBE step-after sample at t=1000 (cursor mid-window).
+    const sampleTime = tip!.querySelector('[data-testid="overview-sample-time"]');
+    expect(sampleTime).toBeTruthy();
+    expect(sampleTime!.textContent).toMatch(/Sample Time/);
+    expect(sampleTime!.textContent).toMatch(/1(\.0+)?\s*µs|1000\s*ns/);
     expect(tip!.textContent).toContain('CUBE');
     expect(tip!.textContent).toContain('VECTOR');
     // CUBE at t=1000 → 50; VECTOR still holds v=10 until t=2000.
@@ -188,10 +196,11 @@ describe('OverviewCharts', () => {
     expect(cubeDot.classList.contains('is-active')).toBe(true);
     expect(vectorDot.classList.contains('is-active')).toBe(false);
     // CUBE v=50 on 0–100 → mid of paint at top 0; VECTOR v=10 → near bottom of paint at top 40.
+    // Positions are local to each paint clip box (mock paint left=0 / top=0|40).
     expect(cubeDot.style.left).toBe('500px');
     expect(cubeDot.style.top).toBe('8px');
     expect(vectorDot.style.left).toBe('500px');
-    expect(vectorDot.style.top).toBe(`${40 + (1 - 10 / 100) * 16}px`);
+    expect(vectorDot.style.top).toBe(`${(1 - 10 / 100) * 16}px`);
 
     wrap.unmount();
     cleanupTeleport();
@@ -220,11 +229,102 @@ describe('OverviewCharts', () => {
     await col.trigger('pointermove', { clientX: 300, clientY: 208 });
     const dot = document.querySelector('[data-testid="overview-value-dot"]') as HTMLElement | null;
     expect(dot).toBeTruthy();
-    // Center on the stroke at v=0 → bottom of the 16px paint (top + height).
-    expect(dot!.style.left).toBe('300px');
-    expect(dot!.style.top).toBe('216px');
-    // Must not be a descendant of the overview root (would be clipped by translateY).
+    // Paint-local: hold at xRatio mid of 400px paint (client 300 → local 200);
+    // v=0 → bottom of the 16px paint.
+    expect(dot!.style.left).toBe('200px');
+    expect(dot!.style.top).toBe('16px');
+    // Clip box is teleported (not under the overview transform).
     expect(wrap.element.contains(dot)).toBe(false);
+    wrap.unmount();
+    cleanupTeleport();
+  });
+
+  it('PR-OV-006: off-track sample uses true x inside overflow clip', async () => {
+    // CUBE sample at t=1000 is left of view [1500, 3500] — keep true (negative)
+    // local x inside a paint clip box so the stem reaches the edge and a near-edge
+    // sample can render partially (no coerced border circle).
+    cleanupTeleport();
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 1500, endTime: 3500 },
+      attachTo: document.body,
+    });
+    mockTrackPaints(wrap, {
+      CUBE: { left: 200, top: 0, width: 400, height: 16 },
+      VECTOR: { left: 200, top: 40, width: 400, height: 16 },
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    // ~20% → time 1900 so both series still hold pre-window pts.
+    await col.trigger('pointermove', { clientX: 280, clientY: 8 });
+
+    const clips = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-hover-clip"]'),
+    ];
+    const samples = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-hover-sample"]'),
+    ];
+    const links = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-hover-link"]'),
+    ];
+    const holds = [
+      ...document.querySelectorAll<HTMLElement>('[data-testid="overview-value-dot"]'),
+    ];
+    expect(clips.length).toBe(2);
+    expect(clips[0]!.style.overflow).toBe('hidden');
+    // Fully outside → no sample outline node; stem still present (clipped to edge).
+    expect(samples.length).toBe(0);
+    expect(links.length).toBe(2);
+    expect(holds.length).toBe(2);
+
+    const cubeHold = holds.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
+    const cubeLink = links.find((d) => d.getAttribute('data-series-id') === 'CUBE')!;
+    // Positions are paint-local (clip origin at paint left).
+    expect(Number.parseFloat(cubeHold.style.left)).toBeCloseTo(80, 0);
+    expect(Number.parseFloat(cubeLink.style.left)).toBeLessThan(0);
+    expect(Number.parseFloat(cubeLink.style.width)).toBeGreaterThan(2);
+
+    wrap.unmount();
+    cleanupTeleport();
+  });
+
+  it('PR-OV-006: zoom resyncs hover time so sample stays left of hold', async () => {
+    // Absolute hover time must track xRatio × window — a stale absolute time after
+    // zoom maps the sample to the right of the pointer-stable hold.
+    cleanupTeleport();
+    const wrap = mount(OverviewCharts, {
+      props: { series, startTime: 0, endTime: 10_000 },
+      attachTo: document.body,
+    });
+    mockTrackPaints(wrap, {
+      CUBE: { left: 0, top: 0, width: 1000, height: 16 },
+      VECTOR: { left: 0, top: 40, width: 1000, height: 16 },
+    });
+    const col = wrap.get('[data-series-id="CUBE"] [data-testid="overview-chart-col"]');
+    // Pointer at 90% → time 9000; CUBE holds t=2000 (last point ≤ 9000).
+    await col.trigger('pointermove', { clientX: 900, clientY: 8 });
+
+    // Zoom into early window [0, 500]: time under pointer becomes 450. Stale
+    // absolute time 9000 would clamp sample to the right edge (past the hold).
+    await wrap.setProps({ startTime: 0, endTime: 500 });
+    await wrap.vm.$nextTick();
+
+    const cubeSample = document.querySelector(
+      '[data-testid="overview-hover-sample"][data-series-id="CUBE"]',
+    ) as HTMLElement | null;
+    const cubeHold = document.querySelector(
+      '[data-testid="overview-value-dot"][data-series-id="CUBE"]',
+    ) as HTMLElement | null;
+    expect(cubeSample).toBeTruthy();
+    expect(cubeHold).toBeTruthy();
+    // Paint-local coords (clip left=0).
+    const sampleX = Number.parseFloat(cubeSample!.style.left);
+    const holdX = Number.parseFloat(cubeHold!.style.left);
+    expect(holdX).toBeCloseTo(900, 0);
+    expect(sampleX).toBeLessThan(holdX);
+    // Re-emits cursor with the time under the pointer in the new window.
+    const cursor = wrap.emitted('cursor')?.at(-1)?.[0] as { time: number; xRatio: number };
+    expect(cursor.xRatio).toBeCloseTo(0.9, 5);
+    expect(cursor.time).toBeCloseTo(450, 5);
+
     wrap.unmount();
     cleanupTeleport();
   });

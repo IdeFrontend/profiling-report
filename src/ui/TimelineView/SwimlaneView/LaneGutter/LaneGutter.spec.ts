@@ -609,4 +609,124 @@ describe('LaneGutter', () => {
     rest.unmount();
     wrapper.unmount();
   });
+
+  it('PR-GUTTER-019: collapsed counterFolder row is COUNTER_LANE_HEIGHT (26px)', async () => {
+    // Regression: folder button ignored rowHeightPx → stayed CSS 22px while canvas
+    // folds kept 26px, so Card headers below overlapped.
+    const counterGroups = [
+      {
+        id: 'p-above',
+        name: 'Above',
+        lanes: [{ id: 'leaf-above', name: 'Leaf', color: '#888' }],
+      },
+      {
+        id: 'p-ub',
+        name: 'AIV0_UB_UTILIZATION (memory_utilization)',
+        lanes: [
+          {
+            id: 'counter-ub-memory_utilization',
+            name: 'memory_utilization',
+            color: '#3D64AD',
+            counterFolder: true,
+            children: [
+              {
+                id: 'counter-ub-pct',
+                name: 'Utilization (%)',
+                color: '#3D64AD',
+                counter: true,
+                height: 26,
+              },
+              {
+                id: 'counter-ub-kb',
+                name: 'Using Bytes (KB)',
+                color: '#5A7EC4',
+                counter: true,
+                height: 26,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'p-l1',
+        name: 'AIV0_L1_UTILIZATION (memory_utilization)',
+        lanes: [
+          {
+            id: 'counter-l1-memory_utilization',
+            name: 'memory_utilization',
+            color: '#3D64AD',
+            counterFolder: true,
+            children: [
+              {
+                id: 'counter-l1-pct',
+                name: 'Utilization (%)',
+                color: '#3D64AD',
+                counter: true,
+                height: 26,
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const collapsed = mount(LaneGutter, {
+      props: {
+        groups: counterGroups,
+        collapsedIds: [
+          'p-above',
+          'counter-ub-memory_utilization',
+          'counter-l1-memory_utilization',
+        ],
+      },
+    });
+    const ubFolder = collapsed.get('[data-testid="gutter-folder-counter-ub-memory_utilization"]');
+    expect(ubFolder.attributes('style')).toContain('height: 26px');
+    expect(ubFolder.attributes('style')).toContain('min-height: 26px');
+    const l1Folder = collapsed.get('[data-testid="gutter-folder-counter-l1-memory_utilization"]');
+    expect(l1Folder.attributes('style')).toContain('height: 26px');
+
+    // Mid collapse: row grows 22 → 26, and the child wrap keeps the 4px keep.
+    const tween = mount(LaneGutter, {
+      props: {
+        groups: counterGroups,
+        collapseAnim: {
+          groupId: 'counter-ub-memory_utilization',
+          visible: 0.5,
+          hiddenHeight: 48,
+        },
+      },
+    });
+    const tweenFolder = tween.get('[data-testid="gutter-folder-counter-ub-memory_utilization"]');
+    expect(tweenFolder.attributes('style')).toContain('height: 24px');
+    const tweenWrap = tween.get('[data-testid="gutter-collapse-counter-ub-memory_utilization"]');
+    expect(tweenWrap.attributes('style')).toContain('height: 26px');
+    tween.unmount();
+
+    // Card above collapsed: only spacers + two 26px counter folders remain.
+    expect(collapsed.find('[data-testid="gutter-lane-leaf-above"]').exists()).toBe(false);
+    expect(collapsed.find('[data-testid="gutter-group-p-above"]').exists()).toBe(true);
+    expect(collapsed.find('[data-testid="gutter-group-p-ub"]').exists()).toBe(true);
+    expect(collapsed.find('[data-testid="gutter-group-p-l1"]').exists()).toBe(true);
+    // Cumulative lane rows below the first spacer: 26 + 26 (no overlap / undercount).
+    const folderStyles = collapsed
+      .findAll('[data-testid^="gutter-folder-counter-"]')
+      .map((n) => n.attributes('style') ?? '');
+    expect(folderStyles).toHaveLength(2);
+    expect(folderStyles.every((s) => s.includes('height: 26px'))).toBe(true);
+    collapsed.unmount();
+
+    const expanded = mount(LaneGutter, {
+      props: {
+        groups: counterGroups,
+        collapsedIds: [],
+      },
+    });
+    const expandedFolder = expanded.get(
+      '[data-testid="gutter-folder-counter-ub-memory_utilization"]',
+    );
+    expect(expandedFolder.attributes('style')).toContain('height: 22px');
+    expect(expanded.find('[data-testid="gutter-lane-counter-ub-pct"]').exists()).toBe(true);
+    expanded.unmount();
+  });
 });

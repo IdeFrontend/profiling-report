@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { CanvasSwimlaneRenderer } from '../../../../swimlane/CanvasSwimlaneRenderer';
-import { LANE_HEIGHT } from '../../../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT, LANE_HEIGHT } from '../../../../swimlane/layout';
 import { ALT_MEASURE_FIND_EVENT_KEY } from '../altMeasureShared';
 import type { SwimEvent } from '../../../../domain/types';
 import SwimlaneCanvas from './SwimlaneCanvas.vue';
@@ -5943,23 +5943,31 @@ describe('SwimlaneCanvas', () => {
     wrapper2.unmount();
   });
 
-  it('PR-CANVAS-129: counter lane hover emits util % + Using KB (step-after)', async () => {
+  it('PR-CANVAS-129: counter lane hover emits value + arg rows (step-after)', async () => {
     const counterModel = {
       minTime: 0,
       maxTime: 20_000,
       processes: [
         {
-          id: 'p-counter-memory-util',
-          name: 'Memory utilization',
+          id: 'p-counter-22',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
           threads: [
             {
-              id: 'counter-AIV0_UB_UTILIZATION',
-              name: 'AIV0_UB_UTILIZATION',
+              id: 'counter-22-Utilization (%)',
+              name: 'Utilization (%)',
               events: [],
               counter: {
                 points: [
-                  { t: 5_000, v: 2, abs: 0.05 },
-                  { t: 10_000, v: 3, abs: 0.04 },
+                  {
+                    t: 5_000,
+                    v: 2,
+                    values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                  },
+                  {
+                    t: 10_000,
+                    v: 3,
+                    values: { 'Utilization (%)': 3, 'Using Bytes (KB)': 0.04 },
+                  },
                 ],
                 yMax: 3,
                 colorHex: '#E7434A',
@@ -5991,38 +5999,368 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ model: { ...counterModel } });
     await fireAllDeviceRo();
 
-    // Header 40px + mid of counter lane (22px) → y ≈ 51.
-    const y = 40 + LANE_HEIGHT / 2;
-    // t=7500 ns → still holds first sample (v=2, abs=0.05); x = 7500/20000 * 400 = 150.
+    // Header 40px + mid of counter lane (COUNTER_LANE_HEIGHT) → y ≈ 53.
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
+    // t=7500 ns → still holds first sample (t=5000 → x=100); x = 7500/20000 * 400 = 150.
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
-      utilization: number;
-      usingKb?: number;
+      value: number;
+      rows: { label: string; value: string }[];
       color: string;
       dotClientX: number;
       dotClientY: number;
+      sampleClientX: number;
+      sampleClientY: number;
+      linkVisible: boolean;
+      sampleTimeLabel: string;
+      activeRowLabel?: string;
     } | null;
     expect(tip).toMatchObject({
-      name: 'AIV0_UB_UTILIZATION',
-      utilization: 2,
-      usingKb: 0.05,
+      name: 'Utilization (%)',
+      value: 2,
+      // Single leaf: only this series' arg (sibling keys on `values` stay out of the tip).
+      rows: [{ label: 'Utilization (%)', value: '2%' }],
       color: '#E7434A',
       dotClientX: 150,
+      sampleClientX: 100,
+      linkVisible: true,
     });
+    expect(tip!.activeRowLabel).toBeUndefined();
+    expect(tip!.sampleTimeLabel.length).toBeGreaterThan(0);
     expect(tip!.dotClientY).toBeGreaterThan(40);
-    expect(tip!.dotClientY).toBeLessThan(40 + LANE_HEIGHT);
+    expect(tip!.dotClientY).toBeLessThan(40 + COUNTER_LANE_HEIGHT);
+    expect(tip!.sampleClientY).toBe(tip!.dotClientY);
 
-    // After second sample (t=10000 → x=200): keep-last abs 0.04.
+    // Pointer exactly on the sample (t=5000 → x=100): hold link hidden.
+    await canvas.trigger('pointermove', { clientX: 100, clientY: y, pointerId: 1 });
+    const tipOnSample = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      linkVisible: boolean;
+      sampleClientX: number;
+      dotClientX: number;
+    } | null;
+    expect(tipOnSample).toMatchObject({
+      sampleClientX: 100,
+      dotClientX: 100,
+      linkVisible: false,
+    });
+
+    // After second sample (t=10000 → x=200): keep-last values.
     await canvas.trigger('pointermove', { clientX: 220, clientY: y, pointerId: 1 });
     const tip2 = wrapper.emitted('counter-hover')!.at(-1)![0] as {
       name: string;
-      utilization: number;
-      usingKb?: number;
+      value: number;
+      rows: { label: string; value: string }[];
+      sampleClientX: number;
+      linkVisible: boolean;
     } | null;
-    expect(tip2).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 3, usingKb: 0.04 });
+    expect(tip2).toMatchObject({
+      name: 'Utilization (%)',
+      value: 3,
+      rows: [{ label: 'Utilization (%)', value: '3%' }],
+      sampleClientX: 200,
+      linkVisible: true,
+    });
 
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
     expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-129: single-arg lane tip uses the arg key, not the ph:C name', async () => {
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-10',
+          name: 'AIV0_UNIT_UTILIZATION (unit_utilization)',
+          threads: [
+            {
+              id: 'counter-10-unit_utilization',
+              name: 'unit_utilization',
+              events: [],
+              counter: {
+                points: [
+                  { t: 5_000, v: 40, values: { 'Utilization (%)': 40 } },
+                ],
+                yMax: 80,
+                colorHex: '#1A743E',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel } });
+    await fireAllDeviceRo();
+
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toMatchObject({
+      name: 'unit_utilization',
+      rows: [{ label: 'Utilization (%)', value: '40%' }],
+    });
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-129: collapsed multi-series CounterTrack folder emits tip + markers', async () => {
+    // Regression: folds-based collapse kept children on the folder thread, so the
+    // folder lane lacked `counter` and emitCounterHover bailed — no tip/markers.
+    const folderId = 'counter-22-memory_utilization';
+    const pct = {
+      points: [
+        {
+          t: 5_000,
+          v: 2,
+          values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+        },
+        {
+          t: 10_000,
+          v: 3,
+          values: { 'Utilization (%)': 3, 'Using Bytes (KB)': 0.04 },
+        },
+      ],
+      yMax: 3,
+      colorHex: '#3D64AD',
+    };
+    const kb = {
+      points: [
+        { t: 5_000, v: 0.05, values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 } },
+        { t: 10_000, v: 0.04, values: { 'Utilization (%)': 3, 'Using Bytes (KB)': 0.04 } },
+      ],
+      yMax: 0.05,
+      colorHex: '#5A7EC4',
+    };
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-22',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
+          threads: [
+            {
+              id: folderId,
+              name: 'memory_utilization',
+              events: [],
+              counterSeries: [pct, kb],
+              children: [
+                {
+                  id: `${folderId}-Utilization (%)`,
+                  name: 'Utilization (%)',
+                  events: [],
+                  counter: pct,
+                },
+                {
+                  id: `${folderId}-Using Bytes (KB)`,
+                  name: 'Using Bytes (KB)',
+                  events: [],
+                  counter: kb,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      metadata: { defaultCollapsedIds: [folderId] },
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        collapsedIds: [folderId],
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel }, collapsedIds: [folderId] });
+    await fireAllDeviceRo();
+
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      name: string;
+      value: number;
+      rows: { label: string; value: string; color?: string }[];
+      activeRowLabel?: string;
+      markers?: { seriesId: string; linkVisible: boolean; emphasized: boolean }[];
+      sampleClientX: number;
+      dotClientX: number;
+      linkVisible: boolean;
+      color: string;
+    } | null;
+    expect(tip).not.toBeNull();
+    expect(tip).toMatchObject({
+      name: 'memory_utilization',
+      sampleClientX: 100,
+      dotClientX: 150,
+      linkVisible: true,
+    });
+    expect(tip!.markers).toHaveLength(2);
+    expect(tip!.markers!.some((m) => m.emphasized)).toBe(true);
+    expect(tip!.activeRowLabel).toMatch(/Utilization|Using Bytes/);
+    expect(tip!.color.length).toBeGreaterThan(0);
+    // Multi-series tip: every arg row carries a legend swatch color (OverviewCharts parity).
+    expect(tip!.rows).toHaveLength(2);
+    expect(tip!.rows.every((r) => !!r.color)).toBe(true);
+
+    // Lane scroll drops the stem immediately; settle puts it back on the row under the pointer.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    await canvas.trigger('wheel', { clientX: 150, clientY: y, deltaX: 0, deltaY: 40 });
+    const hovers = wrapper.emitted('counter-hover')!;
+    expect(hovers.at(-2)![0]).toBeNull();
+    expect(hovers.at(-1)![0]).toMatchObject({ name: 'memory_utilization' });
+
+    // Ctrl-drag still owns the press. A wheel that lane-scrolls must put the tip back.
+    await canvas.trigger('pointerdown', {
+      button: 0,
+      clientX: 150,
+      clientY: y,
+      pointerId: 1,
+      ctrlKey: true,
+    });
+    await canvas.trigger('wheel', { clientX: 150, clientY: y, deltaX: 0, deltaY: 40 });
+    const duringPan = wrapper.emitted('counter-hover')!;
+    expect(duringPan.at(-2)![0]).toBeNull();
+    expect(duringPan.at(-1)![0]).toMatchObject({ name: 'memory_utilization' });
+
+    await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
+    expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-129: expanded multi-series CounterTrack hovers only the leaf under the pointer', async () => {
+    const folderId = 'counter-22-memory_utilization';
+    const pct = {
+      points: [
+        {
+          t: 5_000,
+          v: 2,
+          values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+        },
+      ],
+      yMax: 3,
+      colorHex: '#3D64AD',
+    };
+    const kb = {
+      points: [
+        { t: 5_000, v: 0.05, values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 } },
+      ],
+      yMax: 0.05,
+      colorHex: '#5A7EC4',
+    };
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-22',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
+          threads: [
+            {
+              id: folderId,
+              name: 'memory_utilization',
+              events: [],
+              counterSeries: [pct, kb],
+              children: [
+                {
+                  id: `${folderId}-Utilization (%)`,
+                  name: 'Utilization (%)',
+                  events: [],
+                  counter: pct,
+                },
+                {
+                  id: `${folderId}-Using Bytes (KB)`,
+                  name: 'Using Bytes (KB)',
+                  events: [],
+                  counter: kb,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        collapsedIds: [],
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel }, collapsedIds: [] });
+    await fireAllDeviceRo();
+
+    // Expanded folder row is chevron-only — no overlay tip on the parent band.
+    const folderY = 40 + LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: folderY, pointerId: 1 });
+    expect(wrapper.emitted('counter-hover') ?? []).toHaveLength(0);
+
+    // Header 40 + folder 22 + mid of first child counter lane (26).
+    const y = 40 + LANE_HEIGHT + COUNTER_LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      name: string;
+      rows: { label: string; value: string }[];
+      activeRowLabel?: string;
+      markers?: unknown[];
+    } | null;
+    expect(tip).not.toBeNull();
+    expect(tip!.name).toBe('Utilization (%)');
+    // Expanded leaf: only this series' value; no bold active chrome.
+    expect(tip!.rows).toEqual([{ label: 'Utilization (%)', value: '2%' }]);
+    expect(tip!.activeRowLabel).toBeUndefined();
+    // Expanded: no multi-series markers — only the hovered leaf.
+    expect(tip!.markers).toBeUndefined();
+
     wrapper.unmount();
   });
 
@@ -6034,15 +6372,21 @@ describe('SwimlaneCanvas', () => {
       maxTime: 20_000,
       processes: [
         {
-          id: 'p-counter-memory-util',
-          name: 'Memory utilization',
+          id: 'p-counter-22',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
           threads: [
             {
-              id: 'counter-AIV0_UB_UTILIZATION',
-              name: 'AIV0_UB_UTILIZATION',
+              id: 'counter-22-Utilization (%)',
+              name: 'Utilization (%)',
               events: [],
               counter: {
-                points: [{ t: 5_000, v: 2, abs: 0.05 }],
+                points: [
+                  {
+                    t: 5_000,
+                    v: 2,
+                    values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                  },
+                ],
                 yMax: 3,
                 colorHex: '#E7434A',
               },
@@ -6073,13 +6417,189 @@ describe('SwimlaneCanvas', () => {
     await wrapper.setProps({ model: { ...counterModel } });
     await fireAllDeviceRo();
 
-    const y = 40 + LANE_HEIGHT / 2;
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
     await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
     const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
-      utilization: number;
-      usingKb?: number;
+      value: number;
+      rows: { label: string; value: string }[];
     } | null;
-    expect(tip).toMatchObject({ name: 'AIV0_UB_UTILIZATION', utilization: 2, usingKb: 0.05 });
+    expect(tip).toMatchObject({
+      name: 'Utilization (%)',
+      value: 2,
+      rows: [{ label: 'Utilization (%)', value: '2%' }],
+    });
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-129: Ctrl(+Alt) pan keeps counter markers (clamped, live pointer)', async () => {
+    // Sample outline + stem stay on during pan; lastHover tracks the live pointer so
+    // a view watch refreshes geometry instead of clearing or floating into the gutter.
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-pan',
+          name: 'unit_utilization',
+          threads: [
+            {
+              id: 'counter-unit',
+              name: 'Utilization (%)',
+              events: [],
+              counter: {
+                points: [
+                  { t: 5_000, v: 33.33, values: { 'Utilization (%)': 33.33 } },
+                  { t: 10_000, v: 50, values: { 'Utilization (%)': 50 } },
+                ],
+                yMax: 100,
+                colorHex: '#3D64AD',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel } });
+    await fireAllDeviceRo();
+
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 200, clientY: y, pointerId: 1 });
+    expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeTruthy();
+
+    await canvas.trigger('pointerdown', {
+      clientX: 200,
+      clientY: y,
+      pointerId: 1,
+      button: 0,
+      ctrlKey: true,
+      altKey: true,
+    });
+    await canvas.trigger('pointermove', {
+      clientX: 160,
+      clientY: y,
+      pointerId: 1,
+      buttons: 1,
+      ctrlKey: true,
+      altKey: true,
+      isTrusted: true,
+    });
+    expect(wrapper.emitted('pan')?.length).toBeGreaterThan(0);
+    const tipDuringPan = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      sampleVisible: boolean;
+      sampleClientX: number;
+      sampleClientY: number;
+      linkVisible: boolean;
+    } | null;
+    expect(tipDuringPan).toMatchObject({ sampleVisible: true });
+    expect(tipDuringPan!.sampleClientX).toBeGreaterThanOrEqual(0);
+    expect(tipDuringPan!.sampleClientX).toBeLessThanOrEqual(400);
+    expect(tipDuringPan!.sampleClientY).toBeGreaterThanOrEqual(0);
+    expect(tipDuringPan!.sampleClientY).toBeLessThanOrEqual(120);
+
+    // Parent applies pan → view watch refreshes from live lastHover (still visible).
+    await wrapper.setProps({
+      view: { startTime: 2_000, endTime: 22_000, scrollY: 0 },
+    });
+    await nextTick();
+    const tipAfterView = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      sampleVisible: boolean;
+      sampleClientX: number;
+      sampleClientY: number;
+    } | null;
+    expect(tipAfterView).toMatchObject({ sampleVisible: true });
+    expect(tipAfterView!.sampleClientX).toBeGreaterThanOrEqual(0);
+    expect(tipAfterView!.sampleClientX).toBeLessThanOrEqual(400);
+    expect(tipAfterView!.sampleClientY).toBeGreaterThanOrEqual(0);
+    expect(tipAfterView!.sampleClientY).toBeLessThanOrEqual(120);
+    wrapper.unmount();
+  });
+
+  it('PR-CANVAS-129: off-track sample keeps true x; clip overlay handles edge', async () => {
+    // Sample at t=5000 is left of view [10000, 30000] — emit the true (negative)
+    // sample x so SwimlaneView's overflow clip can show a partial outline / stem
+    // to the track edge (no coerced border circle).
+    const counterModel = {
+      minTime: 0,
+      maxTime: 40_000,
+      processes: [
+        {
+          id: 'p-counter-offtrack',
+          name: 'unit_utilization',
+          threads: [
+            {
+              id: 'counter-offtrack',
+              name: 'Utilization (%)',
+              events: [],
+              counter: {
+                points: [{ t: 5_000, v: 40, values: { 'Utilization (%)': 40 } }],
+                yMax: 100,
+                colorHex: '#3D64AD',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 10_000, endTime: 30_000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel } });
+    await fireAllDeviceRo();
+
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 200, clientY: y, pointerId: 1 });
+    const tip = wrapper.emitted('counter-hover')!.at(-1)![0] as {
+      value: number;
+      sampleVisible: boolean;
+      linkVisible: boolean;
+      sampleClientX: number;
+      dotClientX: number;
+      clipRect: { left: number; width: number };
+    } | null;
+    expect(tip).toMatchObject({
+      value: 40,
+      sampleVisible: false,
+      linkVisible: true,
+      dotClientX: 200,
+      clipRect: { left: 0, width: 400 },
+    });
+    // True sample x is left of the track (not coerced to 0).
+    expect(tip!.sampleClientX).toBeLessThan(0);
     wrapper.unmount();
   });
 });

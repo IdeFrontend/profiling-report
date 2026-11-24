@@ -605,13 +605,17 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(short.y - long.y).toBe(LANE_HEIGHT);
     const leaf = layout.lanes.find((l) => !l.folder)!;
     expect(leaf.rowCount * LANE_HEIGHT).toBe(2 * LANE_HEIGHT);
-    // The lane background spans rowCount × LANE_HEIGHT in both renderers.
+    // Lane fill uses laneChromeHeight (collapsed multi-series folder → 26px; else flatLaneHeight).
     return Promise.all([
       import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'),
       import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'),
     ]).then(([canvasSrc, webglSrc]) => {
-      expect((canvasSrc as { default: string }).default).toMatch(/lane\.rowCount \* LANE_HEIGHT \* dpr/);
-      expect((webglSrc as { default: string }).default).toMatch(/lane\.rowCount \* LANE_HEIGHT \* dpr/);
+      expect((canvasSrc as { default: string }).default).toMatch(
+        /laneChromeHeight\([^)]*\) \* dpr/,
+      );
+      expect((webglSrc as { default: string }).default).toMatch(
+        /laneChromeHeight\([^)]*\) \* dpr/,
+      );
     });
   });
 
@@ -1905,7 +1909,7 @@ describe('PR-RENDER: marquee hit collection', () => {
     const body = layoutSrc.slice(brace, end + 1);
     expect(body).toMatch(/laneEventRange/);
     expect(body).toMatch(/lane\.y/);
-    expect(body).toMatch(/rowCount/);
+    expect(body).toMatch(/flatLaneHeight/);
 
     const twoLane = rebuildLayout({
       minTime: 0,

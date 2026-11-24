@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { laneCategoryLabel, t } from '../../../../i18n';
-import { LANE_HEIGHT, type CollapseAnimState } from '../../../../swimlane/layout';
+import {
+  COUNTER_LANE_HEIGHT,
+  flatLaneHeight,
+  LANE_HEIGHT,
+  type CollapseAnimState,
+} from '../../../../swimlane/layout';
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
 import type { GutterBarDisplay, GutterLane } from './gutterTypes';
@@ -52,8 +57,18 @@ const laneExternallyHovered = computed(
 );
 /** Leaf/folder share the same indent; pin is absolute at gutter left. */
 const pad = computed(() => `${24 + props.depth * 14}px`);
-/** Multi-row leaf renders one tall title cell; folders/spacer leaves stay LANE_HEIGHT. */
-const rowHeightPx = computed(() => `${(props.lane.rowCount ?? 1) * LANE_HEIGHT}px`);
+/** Multi-row leaf / CounterTrack band; collapsed counter folders use COUNTER_LANE_HEIGHT. */
+const rowHeightPx = computed(() => {
+  const anim = props.collapseAnim;
+  const keep = props.lane.counterFolder ? COUNTER_LANE_HEIGHT - LANE_HEIGHT : 0;
+  if (keep > 0 && anim && anim.groupId === props.lane.id && anim.hiddenHeight > 0) {
+    return `${LANE_HEIGHT + keep * (1 - anim.visible)}px`;
+  }
+  if (props.lane.counterFolder && isCollapsed.value) {
+    return `${COUNTER_LANE_HEIGHT}px`;
+  }
+  return `${flatLaneHeight(props.lane)}px`;
+});
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
 const isThinUtil = computed(() => !(isFolder.value || props.depth === 0));
 const utilSizeClass = computed(() =>
@@ -168,8 +183,11 @@ const midlineStyle = computed(() =>
 function collapseStyle(id: string): Record<string, string> | undefined {
   const anim = props.collapseAnim;
   if (!anim || anim.groupId !== id || anim.hiddenHeight <= 0) return undefined;
+  // hiddenHeight already drops the counter-folder keep (26 − 22). Put that
+  // 4px back so the open frame of the tween is the real child span.
+  const keep = props.lane.counterFolder && props.lane.id === id ? COUNTER_LANE_HEIGHT - LANE_HEIGHT : 0;
   return {
-    height: `${Math.max(0, anim.hiddenHeight * anim.visible)}px`,
+    height: `${Math.max(0, (anim.hiddenHeight + keep) * anim.visible)}px`,
     opacity: `${Math.max(0, Math.min(1, anim.visible))}`,
     overflow: 'hidden',
   };
@@ -186,7 +204,12 @@ onBeforeUnmount(() => {
     type="button"
     class="pr-gutter__lane pr-gutter__lane--folder"
     :class="{ 'pr-gutter__lane--lane-hover': laneExternallyHovered }"
-    :style="{ paddingLeft: pad }"
+    :style="{
+      paddingLeft: pad,
+      height: rowHeightPx,
+      flex: `0 0 ${rowHeightPx}`,
+      minHeight: rowHeightPx,
+    }"
     :data-testid="`gutter-folder-${lane.id}`"
     :aria-expanded="!isCollapsed"
     @click="emit('toggle', lane.id)"

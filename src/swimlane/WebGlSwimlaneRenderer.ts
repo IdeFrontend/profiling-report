@@ -20,6 +20,7 @@ import {
   LANE_HOVER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  laneChromeHeight,
   MAX_QUADS_PER_MESH,
   contentHeightFromLayout,
   encodeIntervalPair,
@@ -806,7 +807,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       const alpha = collapseAlpha(lane.y, this.collapse);
       if (alpha <= 0) continue;
       const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
-      const laneH = lane.rowCount * LANE_HEIGHT * dpr;
+      const laneH = laneChromeHeight(lane, this.collapsedIds, this.collapse) * dpr;
       if (y + laneH < 0 || y > devH) continue;
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
       this.drawSolidRect(solid, unit, 0, y, devW, laneH, bg, alpha);

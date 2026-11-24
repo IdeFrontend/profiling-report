@@ -1,74 +1,65 @@
 <script setup lang="ts">
-import { computed, type CSSProperties } from 'vue';
-import { t } from '../../../i18n';
+import type { CSSProperties } from 'vue';
+import { computed } from 'vue';
+
+export type CounterTipRow = {
+  label: string;
+  value: string;
+  /** Series swatch — set on every row for multi-series tips (OverviewCharts parity). */
+  color?: string;
+};
 
 const props = withDefaults(
   defineProps<{
-    /** Pipe / lane name — tip header (parity with EventTooltip event name). */
-    name: string;
-    utilization: number;
-    usingKb?: number | null;
+    /** One row per numeric `ph:C` arg on the sample (data-driven; no domain parsers). */
+    rows: CounterTipRow[];
     stylePos: CSSProperties;
-    locale?: string;
+    /** Formatted sample time (relative to swim origin); shown as a Sample Time row above args. */
+    sampleTimeLabel?: string | null;
+    /**
+     * Arg-key label of the hovered series — that tip row gets OverviewCharts
+     * `is-active` bold (swatches stay on every series row).
+     */
+    activeLabel?: string | null;
   }>(),
-  { usingKb: null, locale: undefined },
+  { sampleTimeLabel: null, activeLabel: null },
 );
 
-const utilLabel = computed(() => t('counterTipUtilization', props.locale));
-const usingLabel = computed(() => t('counterTipUsing', props.locale));
-
-const utilValue = computed(() => {
-  const n = Number.isFinite(props.utilization) ? props.utilization : 0;
-  return `${formatUtil(n)}%`;
-});
-
-const usingValue = computed(() => {
-  if (props.usingKb == null || !Number.isFinite(props.usingKb)) return null;
-  return `${formatKb(props.usingKb)} KB`;
-});
-
-/** Utilization % — short; integers stay bare. */
-function formatUtil(n: number): string {
-  if (Number.isInteger(n)) return String(n);
-  return String(Number(n.toFixed(2)));
-}
-
-/**
- * Using KB — fewer display digits than producer floats (was toPrecision(6)).
- * Cap at 2 decimal places; strip trailing zeros.
- */
-function formatKb(n: number): string {
-  if (Number.isInteger(n)) return String(n);
-  return String(Number(n.toFixed(2)));
-}
+/** Multi-series chrome when any row carries a legend color (OverviewCharts parity). */
+const keyed = computed(() => props.rows.some((r) => !!r.color));
 </script>
 
 <template>
   <div
     class="pr-tooltip pr-counter-hover-tip"
+    :class="{ 'pr-counter-hover-tip--keyed': keyed }"
     data-testid="counter-hover-tooltip"
     :style="stylePos"
   >
+    <!-- No title — lane/folder name duplicates the series row(s). -->
     <div
-      class="pr-counter-hover-tip__title"
-      data-testid="counter-hover-name"
+      v-if="sampleTimeLabel"
+      class="pr-counter-hover-tip__time"
+      data-testid="counter-hover-time"
     >
-      {{ name }}
+      <span class="pr-counter-hover-tip__name">Sample Time</span>
+      <span class="pr-counter-hover-tip__value">{{ sampleTimeLabel }}</span>
     </div>
     <div
+      v-for="(row, i) in rows"
+      :key="`${row.label}-${i}`"
       class="pr-counter-hover-tip__row"
-      data-testid="counter-hover-util"
+      :class="{ 'is-active': activeLabel != null && row.label === activeLabel }"
+      data-testid="counter-hover-row"
+      :data-active="activeLabel != null && row.label === activeLabel ? 'true' : undefined"
     >
-      <span class="pr-counter-hover-tip__name">{{ utilLabel }}</span>
-      <span class="pr-counter-hover-tip__value">{{ utilValue }}</span>
-    </div>
-    <div
-      v-if="usingValue"
-      class="pr-counter-hover-tip__row"
-      data-testid="counter-hover-using"
-    >
-      <span class="pr-counter-hover-tip__name">{{ usingLabel }}</span>
-      <span class="pr-counter-hover-tip__value">{{ usingValue }}</span>
+      <span
+        v-if="keyed"
+        class="pr-counter-hover-tip__swatch"
+        :style="{ background: row.color || '#fff' }"
+      />
+      <span class="pr-counter-hover-tip__name">{{ row.label }}</span>
+      <span class="pr-counter-hover-tip__value">{{ row.value }}</span>
     </div>
   </div>
 </template>
@@ -99,12 +90,12 @@ function formatKb(n: number): string {
   animation: pr-counter-tip-in 120ms ease;
 }
 
-.pr-counter-hover-tip__title {
-  font-weight: 600;
-  color: #e8e8e8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/** Sample Time — flush left (no swatch column indent); OverviewCharts parity. */
+.pr-counter-hover-tip__time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
 }
 
 .pr-counter-hover-tip__row {
@@ -112,6 +103,18 @@ function formatKb(n: number): string {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+}
+
+.pr-counter-hover-tip--keyed .pr-counter-hover-tip__row {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.pr-counter-hover-tip__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
 }
 
 .pr-counter-hover-tip__name {
@@ -123,36 +126,23 @@ function formatKb(n: number): string {
 
 .pr-counter-hover-tip__value {
   font-variant-numeric: tabular-nums;
-  text-align: right;
   color: #e8e8e8;
+  white-space: nowrap;
+}
+
+.pr-counter-hover-tip__row.is-active {
+  color: #e8e8e8;
+  font-weight: 700;
 }
 
 @keyframes pr-counter-tip-in {
   from {
     opacity: 0;
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pr-counter-hover-tip.pr-tooltip {
-    animation: none;
-  }
-}
-
-/* Teleported value-dot — OverviewCharts parity (fixed so parent overflow cannot crop it). */
-.pr-counter-hover-dot {
-  position: fixed;
-  z-index: 999;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  box-sizing: border-box;
 }
 </style>
