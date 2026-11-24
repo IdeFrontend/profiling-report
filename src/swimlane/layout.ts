@@ -250,6 +250,46 @@ export const IDLE_COLLAPSE: CollapseTransform = {
   folds: [],
 };
 
+/**
+ * True when a multi-series folder paints the collapsed overlay on its own row.
+ * False while that folder's expand tween still shows children (`fold.visible > 0`).
+ * Folds-based collapse keeps `children`, so rest-collapsed is `collapsedIds`, not
+ * an empty child list.
+ */
+export function counterFolderPaintsOverlay(
+  thread: SwimThread,
+  collapsedIds: readonly string[] | null | undefined,
+  collapse: CollapseTransform = IDLE_COLLAPSE,
+): boolean {
+  if (!isCounterSeriesFolder(thread)) return false;
+  const collapsed = collapsedIds?.includes(thread.id) ?? false;
+  if (!isCollapsedCounterFolder(thread) && !collapsed) return false;
+  if (!collapsed) return true;
+  for (const f of collapse.folds) {
+    if (f.groupId === thread.id && f.visible > 0) return false;
+  }
+  return true;
+}
+
+/**
+ * Lane fill / divider height. A rest-collapsed multi-series folder paints a
+ * `COUNTER_LANE_HEIGHT` overlay on a row the expanded layout still sizes at
+ * `LANE_HEIGHT` (the extra 4px is `counterFolderCollapseKeepExtra`).
+ */
+export function laneChromeHeight(
+  lane: {
+    height?: number;
+    rowCount?: number;
+    counter?: boolean;
+    thread: SwimThread;
+  },
+  collapsedIds: readonly string[] | null | undefined,
+  collapse: CollapseTransform = IDLE_COLLAPSE,
+): number {
+  if (counterFolderPaintsOverlay(lane.thread, collapsedIds, collapse)) return COUNTER_LANE_HEIGHT;
+  return flatLaneHeight(lane);
+}
+
 /** Content-space Y span of a Card/folder's descendant rows on the expanded layout. */
 export function groupSubtreeSpan(
   layout: SwimlaneLayout,

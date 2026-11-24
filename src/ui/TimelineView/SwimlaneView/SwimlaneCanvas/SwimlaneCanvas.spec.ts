@@ -6178,6 +6178,18 @@ describe('SwimlaneCanvas', () => {
     expect(tip!.rows).toHaveLength(2);
     expect(tip!.rows.every((r) => !!r.color)).toBe(true);
 
+    // Lane scroll drops the stem immediately; settle puts it back on the row under the pointer.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    await canvas.trigger('wheel', { clientX: 150, clientY: y, deltaX: 0, deltaY: 40 });
+    const hovers = wrapper.emitted('counter-hover')!;
+    expect(hovers.at(-2)![0]).toBeNull();
+    expect(hovers.at(-1)![0]).toMatchObject({ name: 'memory_utilization' });
+
     await canvas.trigger('pointerleave', { clientX: 0, clientY: 0 });
     expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toBeNull();
     wrapper.unmount();
@@ -6257,6 +6269,11 @@ describe('SwimlaneCanvas', () => {
     });
     await wrapper.setProps({ model: { ...counterModel }, collapsedIds: [] });
     await fireAllDeviceRo();
+
+    // Expanded folder row is chevron-only — no overlay tip on the parent band.
+    const folderY = 40 + LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: folderY, pointerId: 1 });
+    expect(wrapper.emitted('counter-hover') ?? []).toHaveLength(0);
 
     // Header 40 + folder 22 + mid of first child counter lane (26).
     const y = 40 + LANE_HEIGHT + COUNTER_LANE_HEIGHT / 2;

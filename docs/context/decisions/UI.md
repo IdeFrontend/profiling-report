@@ -219,7 +219,7 @@ Format and statuses: [README.md](README.md).
 - **Decision:**
   1. **Placement:** Chrome-like **inline CounterTrack lanes** in the swim hierarchy (one Card per counter pid / `process_name`), not the 统计分析 OverviewCharts block.
   2. **Shape:** step-after area + stroke; hold the last sample across gaps until the next point.
-  3. **Y scale:** **per-track auto** from that track’s samples (`yMax`); not the shared overview 0–100 domain. Memory util Y = **Using Bytes (KB)** when present ([DATA-57](./DATA.md)).
+  3. **Y scale:** **per-track auto** from that track’s samples (`yMax`); not the shared overview 0–100 domain. A collapsed multi-series folder uses one shared max across its series (point 5, [DATA-57](./DATA.md)); each expanded child uses its own `yMax`.
   4. **Labels:** Card = CTEF `process_name`; lane = `ph:C` / `thread_name`; series = numeric **arg keys** (children when N>1).
   5. **Multi-series:** Collapsed folder paints all series overlaid (shared Y); expand → chevron-only folder + one child chart per arg (overlay gone). Multi folders **default-collapsed**.
   6. **LOD:** draw the **full** step path first; Chrome `skipDistance` only if zoom-out janks later.

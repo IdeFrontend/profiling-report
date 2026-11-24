@@ -10,15 +10,19 @@ import {
   unionEventIntervals,
   walkVisibleRows,
 } from '../../src/domain/swimTree';
-import type { SwimlaneModel } from '../../src/domain/types';
+import type { SwimlaneModel, SwimThread } from '../../src/domain/types';
 import {
   contentHeightFromModel,
   COUNTER_LANE_HEIGHT,
+  counterFolderPaintsOverlay,
   flatLaneHeight,
+  IDLE_COLLAPSE,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
+  laneChromeHeight,
   layoutHeaders,
   rebuildLayout,
+  type CollapseTransform,
 } from '../../src/swimlane/layout';
 
 function nestedModel(): SwimlaneModel {
@@ -201,6 +205,40 @@ describe('swimTree + nested layout', () => {
     expect(counterLane.height).toBe(COUNTER_LANE_HEIGHT);
     expect(flatLaneHeight(counterLane)).toBe(26);
     expect(flatLaneHeight(intervalLane)).toBe(LANE_HEIGHT);
+
+    const folder: SwimThread = {
+      id: 'folder',
+      name: 'memory_utilization',
+      events: [],
+      counterSeries: [
+        { points: [{ t: 0, v: 1 }], yMax: 1 },
+        { points: [{ t: 0, v: 2 }], yMax: 2 },
+      ],
+      children: [
+        { id: 'a', name: 'a', events: [], counter: { points: [{ t: 0, v: 1 }], yMax: 1 } },
+        { id: 'b', name: 'b', events: [], counter: { points: [{ t: 0, v: 2 }], yMax: 2 } },
+      ],
+    };
+    const folderLane = { thread: folder, rowCount: 1 };
+    const opening: CollapseTransform = {
+      active: true,
+      folds: [
+        {
+          groupId: 'folder',
+          foldY: LANE_HEIGHT,
+          groupTop: 0,
+          subtreeEnd: LANE_HEIGHT + COUNTER_LANE_HEIGHT * 2,
+          visible: 0.5,
+          shift: 20,
+        },
+      ],
+    };
+    expect(counterFolderPaintsOverlay(folder, ['folder'], IDLE_COLLAPSE)).toBe(true);
+    expect(laneChromeHeight(folderLane, ['folder'], IDLE_COLLAPSE)).toBe(COUNTER_LANE_HEIGHT);
+    expect(counterFolderPaintsOverlay(folder, [], IDLE_COLLAPSE)).toBe(false);
+    expect(laneChromeHeight(folderLane, [], IDLE_COLLAPSE)).toBe(LANE_HEIGHT);
+    expect(counterFolderPaintsOverlay(folder, ['folder'], opening)).toBe(false);
+    expect(laneChromeHeight(folderLane, ['folder'], opening)).toBe(LANE_HEIGHT);
     expect(contentHeightFromModel({
       minTime: 0,
       maxTime: 1000,

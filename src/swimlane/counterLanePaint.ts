@@ -10,7 +10,7 @@ import {
   LANE_PAD_Y,
   collapseShiftY,
   collapseAlpha,
-  isCollapsedCounterFolder,
+  counterFolderPaintsOverlay,
   isCounterSeriesFolder,
   type FlatLane,
   type CollapseTransform,
@@ -82,22 +82,11 @@ export function paintCounterLanes(
   collapsedIds: readonly string[] = [],
 ): void {
   const pad = LANE_PAD_Y * dpr;
-  const collapsed = collapsedIds.length > 0 ? new Set(collapsedIds) : null;
   for (const lane of lanes) {
     if (collapseAlpha(lane.y, collapse) <= 0) continue;
 
     // Rest-collapsed multi-series overlay only (not mid expand/collapse tween).
-    let multiOverlay =
-      isCounterSeriesFolder(lane.thread) &&
-      (isCollapsedCounterFolder(lane.thread) || !!collapsed?.has(lane.thread.id));
-    if (multiOverlay && collapsed?.has(lane.thread.id)) {
-      for (const f of collapse.folds) {
-        if (f.groupId === lane.thread.id && f.visible > 0) {
-          multiOverlay = false;
-          break;
-        }
-      }
-    }
+    const multiOverlay = counterFolderPaintsOverlay(lane.thread, collapsedIds, collapse);
 
     if (!lane.counter && !multiOverlay) continue;
     // Expanded multi-series folder: chevron only (even if wrongly flagged counter).

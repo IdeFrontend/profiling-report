@@ -905,10 +905,11 @@ const markerSets = computed((): OverviewMarkerSet[] => {
 </style>
 
 <style>
-/* Teleported tip — match EventTooltip chrome (unscoped). */
+/* Teleported to body, same as the marker clip boxes (z-index 998). The tip
+   must paint above those clips; CounterHoverTip uses the same 1000. */
 .pr-overview-value-tip.pr-tooltip {
   position: fixed;
-  z-index: 20;
+  z-index: 1000;
   pointer-events: none;
   box-sizing: border-box;
   padding: 8px 10px;

@@ -33,7 +33,7 @@ import {
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
-  flatLaneHeight,
+  laneChromeHeight,
   contentHeightFromLayout,
   eventBlockMetrics,
   eventEmphasis,
@@ -766,7 +766,7 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       const laneAlpha = collapseAlpha(lane.y, this.collapse);
       if (laneAlpha <= 0) continue;
       const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
-      const laneH = flatLaneHeight(lane) * dpr;
+      const laneH = laneChromeHeight(lane, this.collapsedIds, this.collapse) * dpr;
       if (y + laneH < 0 || y > this.height) continue;
       ctx.globalAlpha = laneAlpha;
       ctx.fillStyle = lane.thread.id === this.hoveredLaneId ? LANE_HOVER_FILL : LANE_FILL;

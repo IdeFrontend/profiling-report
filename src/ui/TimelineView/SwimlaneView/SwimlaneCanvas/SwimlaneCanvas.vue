@@ -7,6 +7,7 @@ import {
   type DependencyMode,
   type MeasureRange,
   type SwimEvent,
+  type SwimThread,
   type SwimlaneModel,
   type SwimlaneViewWindow,
 } from '../../../../domain/types';
@@ -30,6 +31,7 @@ import {
   findLaidOutEvent,
   IDLE_COLLAPSE,
   COUNTER_LANE_HEIGHT,
+  counterFolderPaintsOverlay,
   flatLaneHeight,
   LANE_HEIGHT,
   LANE_PAD_Y,
@@ -267,6 +269,13 @@ function clearCounterHover(): void {
   emit('counter-hover', null);
 }
 
+/** Collapsed overlay only. A visible expand tween still shows the child charts. */
+function counterHoverOverlay(thread: SwimThread): boolean {
+  const anim = props.collapseAnim;
+  if (anim && anim.groupId === thread.id && anim.visible > 0) return false;
+  return counterFolderPaintsOverlay(thread, props.collapsedIds, IDLE_COLLAPSE);
+}
+
 /**
  * Tip a CounterTrack lane under the pointer.
  * Counter lanes win over interval `eventUnder` (magnet/hit bleed must not suppress
@@ -284,14 +293,9 @@ function emitCounterHover(
   // paintView().scrollY already subtracts contentTopPad — same space as lane paint/hit.
   const hit = laneAtContentY(backend.getLayout(), localY + view.scrollY);
   const thread = hit?.lane.thread;
-  // Leaf CounterTrack (`lane.counter`) or multi-series folder overlay (`counterSeries`).
-  // Folds-based collapse keeps children on the folder thread; promotion sets `lane.counter`,
-  // but accept `counterSeries` alone so hover still works if promotion lags.
-  if (
-    !hit ||
-    !thread ||
-    (!hit.lane.counter && !(thread.counterSeries && thread.counterSeries.length > 0))
-  ) {
+  // Leaf (`thread.counter`) or a collapsed multi-series overlay. An expanded folder
+  // still carries `counterSeries` for its children; that row is chevron-only.
+  if (!hit || !thread) {
     clearCounterHover();
     return;
   }
@@ -307,19 +311,25 @@ function emitCounterHover(
     laneColor: string;
   };
   const seriesHits: SeriesHit[] = [];
-  if (thread.counterSeries && thread.counterSeries.length > 0) {
+  const overlaySeries =
+    thread.counterSeries &&
+    thread.counterSeries.length > 0 &&
+    counterHoverOverlay(thread)
+      ? thread.counterSeries
+      : null;
+  if (overlaySeries) {
     // Collapsed multi-series overlay: markers on every series; tip highlights nearest.
     const yCss = hit.lane.y - view.scrollY;
     const plotTop = yCss + LANE_PAD_Y;
     const bandH = hit.lane.height ?? COUNTER_LANE_HEIGHT;
     const plotH = Math.max(1, bandH - LANE_PAD_Y * 2);
     let sharedYMax = 0;
-    for (const s of thread.counterSeries) {
+    for (const s of overlaySeries) {
       if (s.yMax > sharedYMax) sharedYMax = s.yMax;
     }
     if (sharedYMax <= 0) sharedYMax = 1;
-    for (let i = 0; i < thread.counterSeries.length; i++) {
-      const s = thread.counterSeries[i]!;
+    for (let i = 0; i < overlaySeries.length; i++) {
+      const s = overlaySeries[i]!;
       seriesHits.push({
         id: `${thread.id}#${i}`,
         label: thread.children?.[i]?.name ?? thread.name,
@@ -3622,9 +3632,9 @@ function applyHoverLift(hoveredId: string | null): void {
 }
 
 /**
- * Drop the default-mode hover chrome (magnet caret + snap bars, event hover, lane tint)
- * when lane scrolling starts — the event under the pointer moves, so a stale magnet or
- * hover would keep highlighting the wrong block for the whole scroll.
+ * Drop the default-mode hover chrome (magnet caret + snap bars, event hover, lane tint,
+ * counter markers) when lane scrolling starts — the row under the pointer moves, so a
+ * stale magnet or stem would keep highlighting the pre-scroll position.
  */
 function invalidateScrollHover(): void {
   if (props.measureMode) return;
@@ -3634,6 +3644,7 @@ function invalidateScrollHover(): void {
   emit('cursor', null);
   emit('hover', null, 0, 0);
   emitLaneHover(null);
+  clearCounterHover();
 }
 
 /**
