@@ -11,7 +11,7 @@
 
 ## Sketches
 
-![Source correlation dual pane](../ui/source/v930-source/source-correlation.jpeg)
+![Source correlation dual pane](../ui/source/930-legacy/v930-source/source-correlation.jpeg)
 
 Component crop: [`src/ui/SourceView/visual/source-correlation.png`](../../src/ui/SourceView/visual/source-correlation.png).
 

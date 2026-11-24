@@ -34,7 +34,7 @@ Related: [../views/](../views/) · [product-sections.md](../views/product-sectio
 
 Mockup (binary layout):
 
-![npu-rep layout](../ui/source/v930/entry.jpeg)
+![npu-rep layout](../ui/source/930/EntryPoint/screenshot.png)
 
 ---
 

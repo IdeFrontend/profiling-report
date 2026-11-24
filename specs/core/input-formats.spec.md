@@ -28,7 +28,7 @@ Classic `cann-rep` fixture details remain in [rep-format](./rep-format.spec.md).
 
 ## Design sketches
 
-- [NPU-REP binary layout](../../docs/ui/source/v930/entry.jpeg)
+- [NPU-REP binary layout](../../docs/ui/source/930/EntryPoint/screenshot.png)
 
 ## Changelog
 - **2026-10-26** — Head `origin` enum moved to [PROC-9](../../docs/context/decisions/PROC.md). Compute field catalog: [SCHEMA.md](../../docs/formats/compute/SCHEMA.md).

@@ -42,7 +42,7 @@ Crops: [`visual/dependency-links.png`](./visual/dependency-links.png) — [`visu
 ## Design sketches
 
 - [dependency-links](./visual/dependency-links.png) — from `v930/task-click-detail`
-- [Task click detail](../../../../../docs/ui/source/v930/task-click-detail.jpeg) — full frame
+- [Task click detail](../../../../../docs/ui/source/930/TaskClickedBottomBarOthersDimmed/screenshot.png) — full frame
 
 ## Dependencies
 

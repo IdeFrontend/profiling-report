@@ -174,7 +174,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 - [pin-lanes](./visual/pin-lanes.png) — from `v930/hardware-more-detail`
 - [pin-icon-detail](./visual/pin-icon-detail.png) — from `v930/hardware-more-detail`
 - [pin-hover-tooltip](./visual/pin-hover-tooltip.png) — from `v930/hardware-more-detail`
-- [hardware-more-detail](../../../../../docs/ui/source/v930/hardware-more-detail.jpeg) — full frame (Core2.Cube expanded)
+- [hardware-more-detail](../../../../../docs/ui/source/930/ReportStatisticsMoreHardwareInfo/screenshot.png) — full frame (Core2.Cube expanded)
 
 ## Dependencies
 

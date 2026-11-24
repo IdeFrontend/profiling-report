@@ -89,7 +89,7 @@ Test coverage: PR-JSON-001..002, PR-UTIL-001..002, PR-UI-001..008, PR-E2E-001..0
 
 **Goal:** Playground on `data/out.rep` surfaces every usable embed. Timeline shell only, no MSTT.
 
-The M1 milestone extends the "Other views" aside panel based on design frames [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg), [`v930/compute-load-detail`](../../ui/source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg) (changelog items #2–#4):
+The M1 milestone extends the "Other views" aside panel based on design frames [`v930/compute-load`](../../ui/source/930/ComputeLoadAnalysis/screenshot.png), [`v930/compute-load-detail`](../../ui/source/930/ComputeLoadAnalysisDetails/screenshot.png), [`v930/memory-load-detail`](../../ui/source/930/MemoryLoadAnalysisDetails/screenshot.png) (changelog items #2–#4):
 
 - **#2** — PIPE occupancy with Cube | Vector toggle for MIX ops  
 - **#3** — Compute detail tabs (PipeUtilization / ArithmeticUtilization / ResourceConflictRatio)  

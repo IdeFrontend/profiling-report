@@ -11,7 +11,7 @@
 
 ## Sketches
 
-![Event details](../ui/source/v930/detail-strip-raised.jpeg)
+![Event details](../ui/source/930/ClickFloatingBottomBar/screenshot.png)
 
 ## Purpose
 

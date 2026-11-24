@@ -85,7 +85,7 @@ Omit when the component has no distinct chrome.
 ## Design sketches
 
 - `[crop name](./visual/crop.png)` — from `{batch}/{scene}` (see `visual/provenance.yaml`)
-- `<source frame>` — e.g. `/docs/ui/source/v930/entry.jpeg` for full layout context
+- `<source frame>` — e.g. `/docs/ui/source/930/EntryPoint/screenshot.png` for full layout context
 
 Design hierarchy: [`docs/ui/DESIGN_INDEX.md`](../docs/ui/DESIGN_INDEX.md).
 
