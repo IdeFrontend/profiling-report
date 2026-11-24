@@ -6066,6 +6066,62 @@ describe('SwimlaneCanvas', () => {
     wrapper.unmount();
   });
 
+  it('PR-CANVAS-129: single-arg lane tip uses the arg key, not the ph:C name', async () => {
+    const counterModel = {
+      minTime: 0,
+      maxTime: 20_000,
+      processes: [
+        {
+          id: 'p-counter-10',
+          name: 'AIV0_UNIT_UTILIZATION (unit_utilization)',
+          threads: [
+            {
+              id: 'counter-10-unit_utilization',
+              name: 'unit_utilization',
+              events: [],
+              counter: {
+                points: [
+                  { t: 5_000, v: 40, values: { 'Utilization (%)': 40 } },
+                ],
+                yMax: 80,
+                colorHex: '#1A743E',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SwimlaneCanvas, {
+      props: {
+        ...nullProps,
+        model: counterModel,
+        view: { startTime: 0, endTime: 20_000, scrollY: 0 },
+        preferRenderer: 'canvas' as const,
+      },
+      attachTo: document.body,
+    });
+    const wrap = wrapper.find('[data-testid="swimlane"]').element as HTMLElement;
+    Object.defineProperty(wrap, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(wrap, 'clientHeight', { value: 120, configurable: true });
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    const canvas = wrapper.find('[data-testid="swimlane-canvas"]');
+    Object.defineProperty(canvas.element, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 400, height: 120, right: 400, bottom: 120 }),
+    });
+    await wrapper.setProps({ model: { ...counterModel } });
+    await fireAllDeviceRo();
+
+    const y = 40 + COUNTER_LANE_HEIGHT / 2;
+    await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
+    expect(wrapper.emitted('counter-hover')!.at(-1)![0]).toMatchObject({
+      name: 'unit_utilization',
+      rows: [{ label: 'Utilization (%)', value: '40%' }],
+    });
+    wrapper.unmount();
+  });
+
   it('PR-CANVAS-129: collapsed multi-series CounterTrack folder emits tip + markers', async () => {
     // Regression: folds-based collapse kept children on the folder thread, so the
     // folder lane lacked `counter` and emitCounterHover bailed — no tip/markers.

@@ -422,7 +422,14 @@ function emitCounterHover(
   // Expanded / single leaf: only this series' row, no bold / no swatches.
   const multiSeriesTip = built.length > 1;
   const colorByLabel = new Map(built.map((b) => [b.label, b.color] as const));
-  const rows = counterTipRows(active.pt, active.label, { onlySeries: !multiSeriesTip }).map(
+  // N=1 lanes are named with the ph:C name, while `values` keys are arg names.
+  // onlySeries would then miss and fall back to a unitless lane-name row.
+  const labelIsArgKey =
+    !!active.pt.values &&
+    Object.prototype.hasOwnProperty.call(active.pt.values, active.label);
+  const rows = counterTipRows(active.pt, active.label, {
+    onlySeries: !multiSeriesTip && labelIsArgKey,
+  }).map(
     (r) =>
       multiSeriesTip
         ? { ...r, color: colorByLabel.get(r.label) ?? active.color }
