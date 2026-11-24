@@ -198,11 +198,8 @@ Crops: [`visual/event-blocks.png`](./visual/event-blocks.png), [`visual/search-h
 **Input formats:** [METRICS_AND_TRACE.md](../../../../../docs/formats/compute/METRICS_AND_TRACE.md) (trace.json Chrome Trace events).
 
 ## Changelog
-<<<<<<< HEAD
-- **2026-11-23** — Ctrl/Cmd chorded while a press is still under the 4px gate pans instead of opening the marquee Δt line; the hover-gap overlay and event tooltip stay hidden for that pan, including when the view window updates or a lane scroll settles; the settle still restores the time cursor and lane highlight (`PR-CANVAS-130`). `pointerup` does not select.
-=======
 - **2026-11-24** — Ctrl(+Alt) pan keeps CounterTrack sample outline + stem; off-track samples clamp into the track and marker client Y clips to the canvas rect (`PR-CANVAS-129`).
->>>>>>> c130158a (fix: keep CounterTrack sample markers during pan)
+- **2026-11-23** — Ctrl/Cmd chorded while a press is still under the 4px gate pans instead of opening the marquee Δt line; the hover-gap overlay and event tooltip stay hidden for that pan, including when the view window updates or a lane scroll settles; the settle still restores the time cursor and lane highlight (`PR-CANVAS-130`). `pointerup` does not select.
 - **2026-10-01** — Hover recording on wheel is gated on the wheel originating on the canvas itself, so forwarded wheels (gutter, card strip, overview — including in-bounds overlays) never re-emit a phantom cursor on scroll settle (`PR-CANVAS-125` / `PR-CANVAS-127`).
 - **2026-10-01** — A gutter-forwarded Ctrl/Cmd+wheel clamps its zoom anchor to the track instead of zooming around a negative time (`PR-CANVAS-126`).
 - **2026-10-01** — A wheel forwarded from the lane gutter (pointer left of the canvas) scrolls lanes but no longer re-emits a negative-time cursor on scroll settle (`PR-CANVAS-125`).
