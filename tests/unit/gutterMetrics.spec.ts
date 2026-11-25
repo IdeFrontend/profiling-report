@@ -378,4 +378,144 @@ describe('PR-GMET: gutter metrics', () => {
     expect(metrics).not.toContain('cacheHit');
     expect(metrics).not.toContain('task');
   });
+
+  it('PR-GMET-009: ratio CounterTrack leaf uses time-weighted mean % bar', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'mem',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
+          threads: [
+            {
+              id: 'pct',
+              name: 'Utilization (%)',
+              events: [],
+              counter: {
+                yMax: 40,
+                points: [
+                  { t: 0, v: 20 },
+                  { t: 50, v: 40 },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    expect(availableGutterMetrics(model, [], 'mem')).toEqual(['utilization']);
+    const bars = gutterBarsForCard(model, [], 'utilization', 'mem');
+    // mean 30% over [0,100]
+    expect(bars.get('pct')).toMatchObject({
+      barWidth: 30,
+      label: '30%',
+      thresholdColor: true,
+    });
+  });
+
+  it('PR-GMET-010: absolute CounterTrack Card has no util metric or bars', () => {
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'exec',
+          name: 'AIV0_PUSHQ_EXEC_QUEUE_UTILIZATION (exec_queue_utilization)',
+          threads: [
+            {
+              id: 'q',
+              name: 'exec_queue_utilization',
+              events: [],
+              counter: {
+                yMax: 10,
+                points: [
+                  { t: 0, v: 2 },
+                  { t: 50, v: 8 },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    expect(availableGutterMetrics(model, [], 'exec')).toEqual([]);
+    expect(defaultGutterMetric(availableGutterMetrics(model, [], 'exec'))).toBeNull();
+    const bars = gutterBarsForCard(model, [], 'utilization', 'exec');
+    expect(bars.size).toBe(0);
+  });
+
+  it('PR-GMET-011: multi-series counter folder bar follows ratio child only', () => {
+    const folderId = 'counter-22-memory_utilization';
+    const model: SwimlaneModel = {
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'mem',
+          name: 'AIV0_UB_UTILIZATION (memory_utilization)',
+          threads: [
+            {
+              id: folderId,
+              name: 'memory_utilization',
+              events: [],
+              counterSeries: [
+                {
+                  yMax: 40,
+                  points: [
+                    { t: 0, v: 20 },
+                    { t: 50, v: 40 },
+                  ],
+                },
+                {
+                  yMax: 1,
+                  points: [
+                    { t: 0, v: 0.05 },
+                    { t: 50, v: 0.04 },
+                  ],
+                },
+              ],
+              children: [
+                {
+                  id: `${folderId}-Utilization (%)`,
+                  name: 'Utilization (%)',
+                  events: [],
+                  counter: {
+                    yMax: 40,
+                    points: [
+                      { t: 0, v: 20 },
+                      { t: 50, v: 40 },
+                    ],
+                  },
+                },
+                {
+                  id: `${folderId}-Using Bytes (KB)`,
+                  name: 'Using Bytes (KB)',
+                  events: [],
+                  counter: {
+                    yMax: 1,
+                    points: [
+                      { t: 0, v: 0.05 },
+                      { t: 50, v: 0.04 },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(availableGutterMetrics(model, [], 'mem')).toEqual(['utilization']);
+    const bars = gutterBarsForCard(model, [], 'utilization', 'mem');
+    expect(bars.get(`${folderId}-Utilization (%)`)).toMatchObject({
+      barWidth: 30,
+      label: '30%',
+    });
+    expect(bars.has(`${folderId}-Using Bytes (KB)`)).toBe(false);
+    expect(bars.get(folderId)).toMatchObject({
+      barWidth: 30,
+      label: '30%',
+    });
+  });
 });

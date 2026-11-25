@@ -211,6 +211,17 @@ Format and statuses: [README.md](README.md).
 
 ---
 
+## UI-62
+
+- **Resolved:** 2026-11-25
+- **Was:** Product chat follow-up on CounterTrack gutter chrome (no prior open-question row)
+- **Question:** When a CounterTrack Card/lane has no utilization metric (and no other Card metric), should the metric selector and util bar hide?
+- **Decision:** **Yes.** Per lane: omit `bar` when the active metric has no value (absolute counters never get a util bar — [DATA-59](./DATA.md)). Per Card: hide the header metric selector when `availableGutterMetrics` is empty (absolute-only counter Cards today). Do not show a fake `0%` track. Single-mode Cards that **do** have utilization may still show a one-item selector.
+- **Specs:** [gutter-metrics](../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [DATA-59](./DATA.md)
+- **Source:** Product chat 2026-11-25.
+
+---
+
 ## UI-61
 
 - **Resolved:** 2026-11-17 (revised 2026-11-23 — Chrome hierarchy, multi-series folders, white dual markers)

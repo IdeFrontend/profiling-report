@@ -16,10 +16,10 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 
 ## Unit contract
 
-- **barWidth** is always 0–100 (UI **track** percent of the 110px gutter util column). For **both** metrics it is the **same** event-coverage ratio (event duration / model span) — switching the Card dropdown must **not** change bar fill widths, only labels.
+- **barWidth** is always 0–100 (UI **track** percent of the 110px gutter util column). For **interval (pipe) lanes**, both metrics share the **same** event-coverage ratio (event duration / model span) — switching the Card dropdown must **not** change those fill widths, only labels. **CounterTrack** leaves use [DATA-59](../../docs/context/decisions/DATA.md) instead (ratio mean or omit).
 - **clockCycle** label values are **absolute clock-cycle counts** from mapped `PipeUtilization.csv` `*_total_cycles`. Labels are **bare integers** (no `µs` / ms / `%` suffix) — [UI-46](../../docs/context/decisions/UI.md).
-- **utilization** labels use **`%`** of that same event coverage (unchanged).
-- Time window for coverage is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
+- **utilization** labels use **`%`** (event coverage for interval leaves; time-weighted counter mean for ratio CounterTracks).
+- Time window for coverage / counter means is the swimlane model span `[minTime, maxTime]` (full trace), not the visible viewport.
 - CSV aggregations ignore `NA` tokens. Multi-`block_id` on clockCycle labels uses **mean** of non-`NA` cells ([DATA-28](../../docs/context/decisions/DATA.md)). Do **not** use `*_time(us)` for clockCycle **labels** (aside absolute times stay [DATA-33f](../../docs/context/decisions/interim/DATA.md)).
 
 ## Behavior
@@ -28,10 +28,10 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 
 | Value | UI label (zh / en via i18n) | Quantity (normative) | Data source |
 |-------|---------------|-------------------|---------------|
-| `utilization` | 利用率 / Utilization | Event coverage ratio 0..1 | `computeThreadUtilization(thread, minTime, maxTime)` per [utilization.spec.md](./utilization.spec.md) |
+| `utilization` | 利用率 / Utilization | Interval: event coverage 0..1. Counter ratio leaves: time-weighted mean % as 0..1 ([DATA-59](../../docs/context/decisions/DATA.md)). Absolute counters: **no bar**. | [utilization.spec.md](./utilization.spec.md) |
 | `clockCycle` | 时钟周期 / Clock Cycle | Absolute pipe **clock cycles** | `PipeUtilization.csv` mapped `*_total_cycles` columns only |
 
-**Selector.** Exactly **two** selectable Card-header items when both are available. **Utilization** is unchanged (maps to Product 耗时占比). **Clock Cycles** uses the formula below. Do **not** reintroduce `cacheHit` / `task` without a new spec pass.
+**Selector.** Exactly **two** selectable Card-header items when both are available. **Utilization** maps to Product 耗时占比 on pipes and to DATA-59 counter means on ratio CounterTracks. **Clock Cycles** uses the formula below. Do **not** reintroduce `cacheHit` / `task` without a new spec pass.
 
 **Naming note.** The product string **时钟周期 / Clock Cycle** is the Card-dropdown label. The measured quantity is **cycle counts**, not µs. Do **not** read `*_time(us)` for this metric.
 
@@ -39,10 +39,10 @@ gutterBarsForCard(model, csvRows, metric, cardId): Map<laneId, GutterBarDisplay>
 
 Per Card:
 
-1. **utilization** — offer when the Card subtree has trace lanes (always on trace-backed reports).
+1. **utilization** — offer when at least one leaf under that Card yields a utilization value: an **interval** leaf (event coverage, including idle `0%`), **or** a **ratio** CounterTrack leaf ([DATA-59](../../docs/context/decisions/DATA.md)). Absolute-only counter Cards do **not** get utilization.
 2. **clockCycle** — offer when `PipeUtilization.csv` yields at least one mapped pipe with a non-`NA` cycle value for a lane under that Card — either a direct `*_total_cycles` column **or** a **derived** value from that column’s `*_time(us)` × matching-side block rate (`side_total_cycles / side_time(us)`).
 
-When **utilization** is unavailable, default to **clockCycle**. When neither is available, return `null`.
+When **utilization** is unavailable, default to **clockCycle**. When neither is available, return `null` / `[]` — parent **hides** the Card metric selector ([UI-62](../../docs/context/decisions/UI.md)).
 
 ### clockCycle formula (normative)
 
@@ -91,37 +91,47 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 | **thresholdColor** | true (red when barWidth &lt; 50) — same as utilization |
 | **midline** | fixed **50%** for both metrics |
 
-### Shared barWidth (both metrics)
+### Shared barWidth (interval lanes, both metrics)
 
-`barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0; **`0` when coverage is 0**. Coverage = `computeThreadUtilization` / folder **mean** of children (idle included). Full rules: [utilization.spec.md](./utilization.spec.md).
+For **interval** leaves/folders: `barWidth = round(coverage × 100)` clamped 1..100 when coverage &gt; 0 but rounds to 0; **`0` when coverage is 0**. Coverage = `computeThreadUtilization` / folder **mean** of children (idle included). Full rules: [utilization.spec.md](./utilization.spec.md).
+
+### CounterTrack utilization ([DATA-59](../../docs/context/decisions/DATA.md))
+
+- **Ratio leaf** (`isRatioUtilizationKey(name)`): `barWidth` from `counterUtilizationFraction` (time-weighted mean → 0..1); label `` `${barWidth}%` ``; `thresholdColor` true.
+- **Absolute leaf** (queue depth, bytes, …): **omit** the lane from `gutterBarsForCard` (no `bar`).
+- **Counter folder** (`counterSeries`): mean of **ratio** children’s fractions only; omit folder bar when no ratio child yields a value.
+- Do **not** fall back to event coverage (`0%`) for counter leaves.
 
 ### utilization (summary)
 
-**label** = `` `${barWidth}%` ``. **thresholdColor** = true. Midline **50%**. Bar identical to clockCycle mode.
+**label** = `` `${barWidth}%` `` when a bar exists. **thresholdColor** = true. Midline **50%**. Interval bars identical in clockCycle mode; counter bars only in utilization mode (absolute counters stay bar-less).
 
 ### Fill / midline (both metrics)
 
 | Metric | Red fill | Dashed average-line position |
 |--------|------------------|------------------------------|
 | **utilization** | util &lt; 50% (gray at exactly 50%) | fixed **50%** |
-| **clockCycle** | same as utilization (shared barWidth) | fixed **50%** |
+| **clockCycle** | same as utilization (shared interval barWidth) | fixed **50%** |
 
 ## Acceptance Criteria
 
 1. **PR-GMET-001** — Returns available metrics; omits clockCycle when CSV yields neither mappable `*_total_cycles` nor derivable time×side-rate values (utilization only).
 2. **PR-GMET-002** — Default metric is utilization when available, else clockCycle when available, else `null`.
-3. **PR-GMET-003** — barWidth is event coverage for **both** metrics (identical fills when switching dropdown); clockCycle does **not** use cycle-sum normalization for bars.
-4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring (unchanged).
+3. **PR-GMET-003** — Interval barWidth is event coverage for **both** metrics (identical fills when switching dropdown); clockCycle does **not** use cycle-sum normalization for bars.
+4. **PR-GMET-004** — utilization uses event coverage window and threshold coloring for interval lanes (unchanged).
 5. **PR-GMET-005** — Folder **labels** **sum distinct** pipe-key cycle raws for clockCycle (same-key multi-core siblings count once); folder **barWidth** stays mean coverage.
 6. **PR-GMET-006** — Ignores `NA` CSV cells; means `*_total_cycles` across `block_id` rows ([DATA-28](../../docs/context/decisions/DATA.md)).
 7. **PR-GMET-007** — `averageBarWidthForCard` is **50** for both metrics.
 8. **PR-GMET-008** — `clockCycle` labels: bare rounded integers (no `µs` / unit suffix); uses mapped `*_total_cycles` (or derived) — **not** `*_time(us)` as the displayed quantity.
+9. **PR-GMET-009** — Ratio CounterTrack leaf: time-weighted mean `%` bar over model span.
+10. **PR-GMET-010** — Absolute CounterTrack leaf / Card: no util bar; utilization omitted from available metrics.
+11. **PR-GMET-011** — Multi-series counter folder bar follows ratio child only.
 
 ## Edge Cases
 
 | State | Behavior |
 |---|---|
-| Chrome Trace only (no CSV) | clockCycle unavailable; utilization only |
+| Chrome Trace only (no CSV) | clockCycle unavailable; utilization only when interval or ratio-counter leaves exist |
 | Empty Card subtree | No bars; selector hidden when no modes |
 | Flat CTEF (no nested children) | Metrics apply to depth-0 pipe leaves |
 | Lane with no matching CSV key | Shared coverage bar; empty cycle label in clockCycle mode |
@@ -130,16 +140,19 @@ Prefer the columns above. When a per-pipe `*_total_cycles` column is absent (com
 | Only block-level `aic_total_cycles` / `aiv_total_cycles` (no pipe time) | clockCycle unavailable |
 | Per-pipe `*_total_cycles` missing but `*_time(us)` + side totals present | **Derive** absolute cycles (see column map); labels still bare cycles |
 | `*_time(us)` alone (no side totals / no pipe cycles) | Cannot form clockCycle **label**; bar still shows coverage |
+| Absolute-only counter Card (exec/issue queue) | No utilization / clockCycle; selector hidden; no bars ([UI-62](../../docs/context/decisions/UI.md)) |
+| Memory util folder (`%` + KB) | Folder + `%` child get util bars; KB child omits bar |
 
 ## Dependencies
 
-[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/compute/METRICS_AND_TRACE.md), [DATA-28](../../docs/context/decisions/DATA.md) / [DATA-33f](../../docs/context/decisions/interim/DATA.md) / [DATA-38](../../docs/context/decisions/DATA.md) / [UI-46](../../docs/context/decisions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
+[utilization.spec.md](./utilization.spec.md), [view-models.spec.md](./view-models.spec.md), [METRICS_AND_TRACE.md](../../docs/formats/compute/METRICS_AND_TRACE.md), [DATA-28](../../docs/context/decisions/DATA.md) / [DATA-33f](../../docs/context/decisions/interim/DATA.md) / [DATA-38](../../docs/context/decisions/DATA.md) / [DATA-59](../../docs/context/decisions/DATA.md) / [UI-46](../../docs/context/decisions/UI.md) / [UI-62](../../docs/context/decisions/UI.md), [LaneGutter.spec.md](../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md).
 
 ## Open
 
-None for DATA-38 / UI-46 — resolved 2026-09-14. Derive fallback for missing per-pipe `*_total_cycles` remains shipping until producer ships those columns.
+None for DATA-38 / UI-46 / DATA-59 / UI-62. Derive fallback for missing per-pipe `*_total_cycles` remains shipping until producer ships those columns.
 
 ## Changelog
+- **2026-11-25** — DATA-59 / UI-62: CounterTrack ratio mean bars; absolute omit; availability hide (PR-GMET-009…011).
 - **2026-09-14** — Folder cycle labels sum distinct `laneColorKey`s (no N-core duplication of one CSV column); drop duplicate Unit-contract heading.
 - **2026-09-14** — Review fixes: per-side MIX derive; availability includes derive; folder label oversum accepted; LaneGutter ACs use thresholdColor + 50% midline for both metrics.
 - **2026-09-14** — Promote DATA-38 / UI-46 to decisions; strike interim DATA-38a / UI-46a.
