@@ -188,12 +188,6 @@ const props = withDefaults(defineProps<{
    */
   pickBaselineFile?: () => Promise<BaselinePick | null>;
   /**
-   * Recent performance reports for the picker's checkbox view — what the host
-   * currently lists as its own reports (MSTT: the Performance results tree;
-   * the bundled web hosts: the shared demo list). Host-owned: the checked set
-   * IS the `baselines` list and every toggle comes back as `update:baselines`.
-   */
-  /**
    * Adapted packs for the checked baselines the rows reference, supplied by
    * the host: it adapts the baseline bytes itself via the public
    * `loadReportSource` and keys each pack by baseline id. Data-only side
@@ -201,6 +195,12 @@ const props = withDefaults(defineProps<{
    * paints no comparison until the host delivers it.
    */
   baselineReports?: BaselineReports;
+  /**
+   * Recent performance reports for the picker's checkbox view — what the host
+   * currently lists as its own reports (MSTT: the Performance results tree;
+   * the bundled web hosts: the shared demo list). Host-owned: the checked set
+   * IS the `baselines` list and every toggle comes back as `update:baselines`.
+   */
   recentBaselines?: Baseline[];
 }>(), {
   title: undefined,
@@ -222,6 +222,11 @@ const props = withDefaults(defineProps<{
   environment: undefined,
   suduWorkerUrl: '/sudu/worker.js',
   resolveSourceFile: undefined,
+  baselines: undefined,
+  baselineRows: undefined,
+  pickBaselineFile: undefined,
+  baselineReports: undefined,
+  recentBaselines: undefined,
 });
 
 const emit = defineEmits<{
@@ -2096,8 +2101,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     :data-capabilities="caps.join(',')"
   >
     <ReportToolbar
-      ref="toolbarRef"
       v-if="loadError || (!showTimeline && !showSource && !showOverviewTab)"
+      ref="toolbarRef"
       :title="toolbarBrand"
       :search-query="viewState.searchQuery"
       :aside-visible="viewState.asideVisible"
@@ -2158,8 +2163,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
     >
       <template #main>
         <ReportToolbar
-          ref="toolbarRef"
           v-if="showTimeline || showSource || showOverviewTab"
+          ref="toolbarRef"
           :title="toolbarBrand"
           :search-query="viewState.searchQuery"
           :aside-visible="viewState.asideVisible"

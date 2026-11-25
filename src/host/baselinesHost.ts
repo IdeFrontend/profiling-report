@@ -724,9 +724,15 @@ const baselines = ref<Baseline[]>([]);
   let resolvePick: ((pick: BaselinePick | null) => void) | null = null;
 
   function pickBaselineFile(): Promise<BaselinePick | null> {
+    // A host that renders the hidden input conditionally (or already unmounted
+    // it) must get a settled promise: assigning the resolver and clicking a
+    // missing input used to leave it pending forever, and a second call
+    // orphaned the first resolver.
+    const el = input();
+    if (!el) return Promise.resolve(null);
     return new Promise((resolve) => {
       resolvePick = resolve;
-      input()?.click();
+      el.click();
     });
   }
 

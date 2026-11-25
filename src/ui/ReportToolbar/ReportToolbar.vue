@@ -86,6 +86,9 @@ const props = withDefaults(
     selectedOperatorId: undefined,
     timelineTraces: undefined,
     selectedTimelineTraceId: undefined,
+    baselines: undefined,
+    pickBaselineFile: undefined,
+    recentBaselines: undefined,
   },
 );
 

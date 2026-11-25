@@ -34,6 +34,13 @@ function realFileEvent(name: string, bytes: Uint8Array, lastModified = 123): Eve
   return { target: el } as unknown as Event;
 }
 
+/** A host whose hidden input exists — a pick only settles while the input is
+ *  there (a missing input resolves null at once, see the pending-pick test). */
+function pickHost() {
+  const el = document.createElement('input');
+  return createBaselinesHost(() => el);
+}
+
 describe('createBaselinesHost', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -59,7 +66,7 @@ describe('createBaselinesHost', () => {
   });
 
   it('resolves the pick with a disambiguated pseudo-path; cancel resolves null', async () => {
-    const host = createBaselinesHost(() => null);
+    const host = pickHost();
     const pending = host.pickBaselineFile();
     host.onFileChosen(fileEvent('profile.npu-rep', 42, 7));
     const pick = await pending;
@@ -87,15 +94,22 @@ describe('createBaselinesHost', () => {
   });
 
   it('resolves null when the change event carries no file', async () => {
-    const host = createBaselinesHost(() => null);
+    const host = pickHost();
     const pending = host.pickBaselineFile();
     const el = { files: [], value: '' };
     host.onFileChosen({ target: el } as unknown as Event);
     expect(await pending).toBeNull();
   });
 
-  it('adapts a row\'s baseline file into baselineReports via loadReportSource', async () => {
+  it('a pick with no host input resolves null instead of hanging', async () => {
+    // A host that unmounts its hidden input (or renders it conditionally) must
+    // still get a settled promise — the old code left it pending forever.
     const host = createBaselinesHost(() => null);
+    await expect(host.pickBaselineFile()).resolves.toBeNull();
+  });
+
+  it('adapts a row\'s baseline file into baselineReports via loadReportSource', async () => {
+    const host = pickHost();
     // Browse: the pick resolves with the pseudo-path; the bytes stay in the glue.
     const pending = host.pickBaselineFile();
     host.onFileChosen(realFileEvent('out.rep', loadOutRepBytes()));
@@ -160,7 +174,7 @@ describe('createBaselinesHost', () => {
 
   it('a corrupt file degrades with a warning, never an error state', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const host = createBaselinesHost(() => null);
+    const host = pickHost();
     const pending = host.pickBaselineFile();
     host.onFileChosen(realFileEvent('broken.rep', new Uint8Array([1, 2, 3, 4])));
     const pick = await pending;
@@ -172,7 +186,7 @@ describe('createBaselinesHost', () => {
   });
 
   it('re-picking the same file re-adapts through the pickNonce alone', async () => {
-    const host = createBaselinesHost(() => null);
+    const host = pickHost();
     const pending = host.pickBaselineFile();
     host.onFileChosen(realFileEvent('out.rep', loadOutRepBytes()));
     const pick = await pending;

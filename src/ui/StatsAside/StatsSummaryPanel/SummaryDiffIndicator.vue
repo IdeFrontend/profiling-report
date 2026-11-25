@@ -97,41 +97,41 @@ function closeTip() {
       :id="tipId"
       class="pr-field-sr"
     >{{ tipText }}</span>
-  <Teleport to="body">
-    <div
-      v-if="tipOpen && tip && tip.length"
-      class="pr-diff-tip"
-      role="tooltip"
-      data-testid="baseline-compare-tip"
-      :style="tipStyle"
-    >
+    <Teleport to="body">
       <div
-        v-for="(entry, i) in tip"
-        :key="i"
-        class="pr-diff-tip__row"
-        :class="{ 'pr-diff-tip__row--current': !entry.tone }"
-        :data-testid="`baseline-compare-tip-row-${i + 1}`"
+        v-if="tipOpen && tip && tip.length"
+        class="pr-diff-tip"
+        role="tooltip"
+        data-testid="baseline-compare-tip"
+        :style="tipStyle"
       >
-        <span class="pr-diff-tip__label">{{ entry.label }}</span>
-        <span class="pr-diff-tip__value">{{ entry.value }}</span>
-        <span
-          v-if="entry.tone && entry.delta"
-          class="pr-diff"
-          :class="`pr-diff--${entry.tone}`"
+        <div
+          v-for="(entry, i) in tip"
+          :key="i"
+          class="pr-diff-tip__row"
+          :class="{ 'pr-diff-tip__row--current': !entry.tone }"
+          :data-testid="`baseline-compare-tip-row-${i + 1}`"
         >
+          <span class="pr-diff-tip__label">{{ entry.label }}</span>
+          <span class="pr-diff-tip__value">{{ entry.value }}</span>
           <span
-            class="pr-diff__badge"
-            aria-hidden="true"
+            v-if="entry.tone && entry.delta"
+            class="pr-diff"
+            :class="`pr-diff--${entry.tone}`"
           >
-            <PrIcon :name="entry.tone === 'increase' ? 'diff-up' : 'diff-down'" />
-          </span>
-          <!-- The popup prints the bare magnitude: the tinted badge already
+            <span
+              class="pr-diff__badge"
+              aria-hidden="true"
+            >
+              <PrIcon :name="entry.tone === 'increase' ? 'diff-up' : 'diff-down'" />
+            </span>
+            <!-- The popup prints the bare magnitude: the tinted badge already
                carries the direction, a minus on green reads wrong (product). -->
-          <span class="pr-diff__text">{{ entry.delta }}</span>
-        </span>
+            <span class="pr-diff__text">{{ entry.delta }}</span>
+          </span>
+        </div>
       </div>
-    </div>
-  </Teleport>
+    </Teleport>
   </span>
 </template>
 

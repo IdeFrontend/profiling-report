@@ -1351,7 +1351,8 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
 
 test('PR-E2E-022: the aside Baseline bar hides until checked and follows the checked set', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
-  await expect(page.getByTestId('stats-aside')).toBeVisible();
+  // A cold vite start can take ~10s before the aside hydrates.
+  await expect(page.getByTestId('stats-aside')).toBeVisible({ timeout: 15_000 });
   // Nothing checked → NO Baseline / Operator row at all (UI-63 resolved).
   await expect(page.getByTestId('stats-baseline-bar')).toHaveCount(0);
   await expect(page.getByTestId('aside-baseline-select')).toHaveCount(0);

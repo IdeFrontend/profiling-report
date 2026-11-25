@@ -1406,15 +1406,15 @@ onBeforeUnmount(stopZoomAnim);
                 :data-testid="`edge-${v.key}`"
               >{{ v.text }}</text>
 
-        <text
-          ref="measureTwin"
-          class="pr-topo__edge"
-          x="-1000"
-          y="-1000"
-          opacity="0"
-          aria-hidden="true"
-        />
-      </template>
+              <text
+                ref="measureTwin"
+                class="pr-topo__edge"
+                x="-1000"
+                y="-1000"
+                opacity="0"
+                aria-hidden="true"
+              />
+            </template>
           </svg>
         </div>
       </div>
