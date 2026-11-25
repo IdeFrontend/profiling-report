@@ -468,8 +468,14 @@ describe('StatsAside', () => {
     expect(wrapper.findAll('[data-testid="roofline-roof"]')).toHaveLength(1);
     // Chip HardwareInfo sample + block GM (both kept).
     expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(2);
-    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
-    expect(wrapper.get('[data-testid="roofline-tooltip"]').text()).toContain('AIV fp16');
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
+    // Teleported to `body` (same as summary-card / duration tips).
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')?.textContent).toContain(
+      'AIV fp16',
+    );
   });
 
   it('PR-STATS-014e: a picked block keeps an interim root roof', async () => {
@@ -2078,6 +2084,51 @@ describe('StatsAside', () => {
       },
     });
     expect(without.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+  });
+
+  it('PR-ROOF-004: a drill-in dismisses the teleported point tip', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['roofline'],
+        report: report({
+          roofline: {
+            points: [
+              {
+                id: 'gm',
+                label: 'GM Read + Write',
+                intensity: 0.09,
+                performance: 0.002,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
+            mixLabels: [],
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ],
+          },
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeTruthy();
+    // Keyboard drill-in does not move the pointer, so the circle never gets mouseleave.
+    await wrapper.get('[data-testid="stats-aside-more"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(true);
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
   });
 
   it('PR-STATS-016: 详情 switches to compute mode when tables exist', async () => {

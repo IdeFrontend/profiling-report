@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { afterEach, describe, expect, it } from 'vitest';
+import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
+import { FIXED_TIP_OFFSET_PX, FIXED_TIP_PAD_PX } from '../../placeFixedTip';
 import RooflinePanel from './RooflinePanel.vue';
 import {
   ROOFLINE_CHART_H,
@@ -10,6 +12,9 @@ import {
   ROOFLINE_X_TICK_BELOW_PLOT,
 } from './rooflineLayout';
 import type { RooflineViewModel } from '../../../domain/types';
+
+/** Teleported tip must leave `document.body` with its mount. */
+enableAutoUnmount(afterEach);
 
 const sample: RooflineViewModel = {
   points: [
@@ -59,7 +64,13 @@ describe('RooflinePanel', () => {
     expect(knees[0]!.attributes('rx')).toBe('2');
     expect(knees[0]!.attributes('fill')).toBe(sample.series[0]!.color);
     expect(knees[0]!.attributes('stroke')).toBe(sample.series[0]!.color);
+    // Paint is pointer-events:none; a larger hit pad owns the hover target.
     expect(knees[0]!.attributes('pointer-events')).toBe('none');
+    const hit = wrapper.get('[data-testid="roofline-knee-hit"]');
+    expect(hit.attributes('width')).toBe('16');
+    expect(wrapper.get('[data-testid="roofline-roof-hit"]').attributes('stroke-width')).toBe(
+      '12',
+    );
   });
 
   it('PR-ROOF-001b: raised card has under-roof gradient wash', () => {
@@ -200,11 +211,24 @@ describe('RooflinePanel', () => {
     expect(wrapper.find('.pr-roofline__chart-title').exists()).toBe(false);
     const src = (await import('./RooflinePanel.vue?raw')).default as string;
     expect(src).not.toMatch(/pr-roofline__chart-title/);
+    expect(src).toMatch(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-x:\s*auto/s);
+    expect(src).toMatch(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-y:\s*hidden/s);
+    // Chromium drops ::-webkit-scrollbar when scrollbar-width is not auto (tokens.css).
+    const scrollBlock =
+      src.match(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-y:\s*hidden[^}]*\}/s)?.[0] ?? '';
+    expect(scrollBlock).not.toMatch(/scrollbar-width/);
+    expect(src).toMatch(
+      /@supports not selector\(::-webkit-scrollbar\)\s*\{[^}]*scrollbar-width:\s*thin/s,
+    );
+    expect(src).toMatch(/\.pr-roofline__legend-scroll::-webkit-scrollbar\s*\{[^}]*height:\s*8px/s);
     expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*display:\s*grid/s);
+    expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*padding-bottom:\s*8px/s);
+    expect(src).not.toMatch(/\.pr-roofline__legend\s*\{[^}]*overflow-x:/s);
     expect(src).toMatch(/\.pr-roofline__leg-head\s*\{[^}]*color:\s*#c4c4c4/s);
     expect(src).toMatch(/\.pr-roofline__leg-item\s*\{[^}]*color:\s*#8a8a8a/s);
     // max(2 AIV, 1 AIC) → two shared item columns (nth swatches align).
-    expect(legend.attributes('style') ?? '').toMatch(/repeat\(2,\s*max-content\)/);
+    const grid = legend.get('.pr-roofline__legend');
+    expect(grid.attributes('style') ?? '').toMatch(/repeat\(2,\s*max-content\)/);
     expect(legend.text()).toContain('AIV:');
     expect(legend.text()).toContain('AIV fp16');
     expect(legend.text()).toContain('AIC:');
@@ -213,7 +237,7 @@ describe('RooflinePanel', () => {
     expect(wrapper.findAll('.pr-roofline__leg-pad')).toHaveLength(1);
   });
 
-  it('PR-ROOF-008: legend hover highlights the matching roof', async () => {
+  it('PR-ROOF-008: legend ↔ series hover highlight each other', async () => {
     const multi: RooflineViewModel = {
       ...sample,
       series: [
@@ -237,13 +261,19 @@ describe('RooflinePanel', () => {
         },
       ],
     };
-    const wrapper = mount(RooflinePanel, { props: { model: multi } });
+    const wrapper = mount(RooflinePanel, { props: { model: multi }, attachTo: document.body });
     // Dashed series apply dash to both slope and plateau paths.
     const dashedRoof = wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]');
     expect(dashedRoof.findAll('.pr-roofline__roof--dashed')).toHaveLength(2);
     // Round caps would eat the 3px gap at the lit 3.5px stroke. Butt keeps 4/3.
     const src = (await import('./RooflinePanel.vue?raw')).default as string;
     expect(src).toMatch(/\.pr-roofline__roof--dashed\s*\{[^}]*stroke-linecap:\s*butt/s);
+    // Dimmed knees stay more opaque than dimmed roof strokes.
+    expect(src).toMatch(
+      /\.pr-roofline__knee-g\.pr-roofline__roof-g--dim\s*\{[^}]*opacity:\s*0\.7/s,
+    );
+    // Measured points paint after knees so a 16×16 pad cannot steal point hover.
+    expect(src.indexOf('roofline-knee-hit')).toBeLessThan(src.indexOf('data-testid="roofline-point"'));
 
     const leg = wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]');
     await leg.trigger('mouseenter');
@@ -256,44 +286,228 @@ describe('RooflinePanel', () => {
     // Highlighted series is painted last (on top).
     expect(roofs[roofs.length - 1]!.attributes('data-series-id')).toBe('aiv-fp16');
     expect(
-      wrapper.get('[data-testid="roofline-knee"][data-series-id="aic-fp32"]').classes(),
+      wrapper.get('.pr-roofline__knee-g[data-series-id="aic-fp32"]').classes(),
     ).toContain('pr-roofline__roof-g--dim');
+    // Legend emphasis does not open a tip, so the knee stays at rest size.
+    expect(
+      wrapper.get('.pr-roofline__knee-g[data-series-id="aiv-fp16"] [data-testid="roofline-knee"]').attributes('width'),
+    ).toBe('8');
     await leg.trigger('mouseleave');
     expect(wrapper.find('.pr-roofline__roof-g--lit').exists()).toBe(false);
     expect(wrapper.find('.pr-roofline__roof-g--dim').exists()).toBe(false);
+
+    // Vice versa: hovering the knee lights the matching legend item.
+    const knee = wrapper.get('.pr-roofline__knee-g[data-series-id="aic-fp32"]');
+    const kneePaint = wrapper.get(
+      '.pr-roofline__knee-g[data-series-id="aic-fp32"] [data-testid="roofline-knee"]',
+    );
+    expect(kneePaint.attributes('width')).toBe('8');
+    await knee.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeTruthy();
+    // The knee that owns the tip grows 8→10.
+    expect(kneePaint.attributes('width')).toBe('10');
+    expect(kneePaint.attributes('height')).toBe('10');
+    expect(
+      wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aic-fp32"]').classes(),
+    ).toContain('pr-roofline__leg-item--lit');
+    expect(
+      wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]').classes(),
+    ).toContain('pr-roofline__roof-g--dim');
+    await knee.trigger('mouseleave');
+    expect(kneePaint.attributes('width')).toBe('8');
+    expect(wrapper.find('.pr-roofline__leg-item--lit').exists()).toBe(false);
+    // Knee leave dismisses the tip (PR-ROOF-009). A roof hover only emphasizes.
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    const roof = wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]');
+    await roof.trigger('mouseenter');
+    expect(
+      wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]').classes(),
+    ).toContain('pr-roofline__leg-item--lit');
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+    expect(
+      wrapper.get('.pr-roofline__knee-g[data-series-id="aiv-fp16"] [data-testid="roofline-knee"]').attributes('width'),
+    ).toBe('8');
+    await roof.trigger('mouseleave');
+    expect(wrapper.find('.pr-roofline__leg-item--lit').exists()).toBe(false);
   });
 
-  it('PR-ROOF-004: hover point shows tooltip inside card without layout jump', async () => {
-    const wrapper = mount(RooflinePanel, { props: { model: sample } });
+  it('PR-ROOF-009: knee hover opens tip with ridge intensity and peaks', async () => {
+    const wrapper = mount(RooflinePanel, { props: { model: sample }, attachTo: document.body });
+    const knee = wrapper.get('[data-testid="roofline-knee"]');
+    const restX = Number(knee.attributes('x'));
+    expect(knee.attributes('width')).toBe('8');
+    await wrapper.get('.pr-roofline__knee-g').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
+    expect(knee.attributes('width')).toBe('10');
+    expect(Number(knee.attributes('x'))).toBeCloseTo(restX - 1);
+    const tip = document.querySelector('[data-testid="roofline-tooltip"]');
+    expect(tip).toBeTruthy();
+    expect(tip!.getAttribute('data-tip-kind')).toBe('knee');
+    expect(tip!.textContent).toContain('AIV fp32');
+    // Ridge = 13.5 * 1000 / 1600 = 8.4375 → fmtVal ≥1 → toFixed(3)
+    expect(tip!.textContent).toContain('8.438 Ops/Byte');
+    expect(tip!.textContent).toContain('13.500 TOps/s');
+    expect(tip!.textContent).toContain('1600.000 GB/s');
+  });
+
+  it('PR-ROOF-006: legend wheel maps vertical delta to horizontal scroll when overflowing', async () => {
+    const wrapper = mount(RooflinePanel, { props: { model: sample }, attachTo: document.body });
+    const legend = wrapper.get('[data-testid="roofline-legend"]');
+    const el = legend.element as HTMLElement;
+    Object.defineProperty(el, 'clientWidth', { configurable: true, value: 40 });
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, value: 200 });
+    el.scrollLeft = 0;
+    const prevented: boolean[] = [];
+    await legend.trigger('wheel', {
+      deltaY: 30,
+      deltaX: 0,
+      preventDefault: () => {
+        prevented.push(true);
+      },
+    });
+    expect(el.scrollLeft).toBe(30);
+    expect(prevented).toEqual([true]);
+  });
+
+  it('PR-ROOF-004: hover point opens a teleported floating tooltip without layout jump', async () => {
+    const wrapper = mount(RooflinePanel, { props: { model: sample }, attachTo: document.body });
     const card = wrapper.get('.pr-roofline__card');
-    const tip = wrapper.get('[data-testid="roofline-tooltip"]');
-    expect(card.element.contains(tip.element)).toBe(true);
-    // Tip is a reserved in-flow band under the SVG (not absolute over ticks).
+    expect(wrapper.find('[data-testid="roofline-tooltip"]').exists()).toBe(false);
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+    // Tip is teleported / fixed — not an in-card reserved band under the SVG.
     const src = (await import('./RooflinePanel.vue?raw')).default as string;
-    expect(src).toMatch(
-      /\.pr-roofline__tip\s*\{[^}]*min-height:\s*calc\(12px\s*\*\s*1\.2\)/s,
-    );
-    expect(src).not.toMatch(/\.pr-roofline__tip\s*\{[^}]*position:\s*absolute/s);
+    expect(src).toContain('<Teleport to="body">');
+    expect(src).toMatch(/\.pr-roofline-tip\.pr-tooltip\s*\{[^}]*position:\s*fixed/s);
+    expect(src).toMatch(/\.pr-roofline-tip\.pr-tooltip\s*\{[^}]*max-width:\s*280px/s);
+    expect(src).not.toMatch(/\.pr-roofline__tip\s*\{/);
 
     const heightBefore = card.element.getBoundingClientRect().height;
-    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
-    expect(tip.text()).toContain('Ops/Byte');
-    expect(tip.text()).toContain('TOps/s');
+    const tipW = Number(src.match(/const TIP_EST_W = (\d+)/)?.[1]);
+    const tipH = Number(src.match(/const TIP_EST_H = (\d+)/)?.[1]);
+    // 3 wrapped name lines + 2 value lines + name margin + pad + border.
+    const minTipH = 12 * 1.45 * 5 + 4 + 8 * 2 + 1 * 2;
+    expect(tipW).toBe(280);
+    expect(tipH).toBeGreaterThanOrEqual(minTipH);
+
+    const point = wrapper.get('[data-testid="roofline-point"]');
+    expect(point.attributes('r')).toBe('4');
+    // Flip uses the max box. A left/above flip anchors `right` / `bottom` so the
+    // near edge stays one offset from the pointer — not `left = x - offset - maxWidth`.
+    const expectBeside = (clientX: number, clientY: number) => {
+      const node = document.querySelector('[data-testid="roofline-tooltip"]') as HTMLElement;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const toTheRight = clientX + FIXED_TIP_OFFSET_PX + tipW <= vw - FIXED_TIP_PAD_PX;
+      const below = clientY + FIXED_TIP_OFFSET_PX + tipH <= vh - FIXED_TIP_PAD_PX;
+      if (toTheRight) {
+        expect(node.style.left).toBe(`${clientX + FIXED_TIP_OFFSET_PX}px`);
+        expect(node.style.right).toBe('auto');
+      } else {
+        expect(node.style.left).toBe('auto');
+        expect(node.style.right).toBe(`${vw - clientX + FIXED_TIP_OFFSET_PX}px`);
+      }
+      if (below) {
+        expect(node.style.top).toBe(`${clientY + FIXED_TIP_OFFSET_PX}px`);
+        expect(node.style.bottom).toBe('auto');
+      } else {
+        expect(node.style.top).toBe('auto');
+        expect(node.style.bottom).toBe(`${vh - clientY + FIXED_TIP_OFFSET_PX}px`);
+      }
+    };
+
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    const tip = document.querySelector('[data-testid="roofline-tooltip"]') as HTMLElement;
+    expect(tip).toBeTruthy();
+    expect(tip.parentElement).toBe(document.body);
+    expect(card.element.contains(tip)).toBe(false);
+    expect(tip.textContent).toContain('GM Read + Write');
+    expect(tip.textContent).toContain('Ops/Byte');
+    expect(tip.textContent).toContain('TOps/s');
     expect(card.element.getBoundingClientRect().height).toBe(heightBefore);
+    expect(point.attributes('r')).toBe('5');
+    expectBeside(40, 80);
+
+    const nearRight = window.innerWidth - 40;
+    await point.trigger('mousemove', { clientX: nearRight, clientY: 80 });
+    expectBeside(nearRight, 80);
+    // Gap from the pointer to the tip's right edge is the offset, not the 280px estimate.
+    expect(parseFloat(tip.style.right)).toBe(window.innerWidth - nearRight + FIXED_TIP_OFFSET_PX);
+
+    const nearBottom = window.innerHeight - 10;
+    await point.trigger('mousemove', { clientX: 40, clientY: nearBottom });
+    expectBeside(40, nearBottom);
+    expect(parseFloat(tip.style.bottom)).toBe(window.innerHeight - nearBottom + FIXED_TIP_OFFSET_PX);
   });
 
   it('PR-ROOF-004: tooltip follows the current point when the model is replaced', async () => {
-    const wrapper = mount(RooflinePanel, { props: { model: sample } });
-    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
+    const wrapper = mount(RooflinePanel, { props: { model: sample }, attachTo: document.body });
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
     const next: RooflineViewModel = {
       ...sample,
       points: [{ ...sample.points[0]!, intensity: 12, performance: 4 }],
     };
     await wrapper.setProps({ model: next });
-    const tip = wrapper.get('[data-testid="roofline-tooltip"]').text();
+    const tip = document.querySelector('[data-testid="roofline-tooltip"]')?.textContent ?? '';
     expect(tip).toContain('12.000');
     expect(tip).toContain('4.000');
     expect(tip).not.toContain('0.090');
+  });
+
+  it('PR-ROOF-004: leave / aside scroll / resize / dropped id dismiss the tip', async () => {
+    const aside = document.createElement('div');
+    aside.className = 'pr-aside__body';
+    document.body.appendChild(aside);
+    const wrapper = mount(RooflinePanel, { props: { model: sample }, attachTo: aside });
+    await nextTick();
+
+    const point = wrapper.get('[data-testid="roofline-point"]');
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeTruthy();
+
+    await point.trigger('mouseleave');
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    aside.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    await point.trigger('pointercancel');
+    await nextTick();
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    await wrapper.setProps({
+      model: { ...sample, points: [{ ...sample.points[0]!, id: 'other' }] },
+    });
+    await nextTick();
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+    // Same id coming back must not resurrect a tip that was only unmounted by v-if.
+    await wrapper.setProps({ model: sample });
+    await nextTick();
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    // Aside scroll dismisses tip only — legend emphasis must survive (PR-ROOF-008).
+    const leg = wrapper.get('[data-testid="roofline-leg-item"]');
+    await leg.trigger('mouseenter');
+    expect(leg.classes()).toContain('pr-roofline__leg-item--lit');
+    aside.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    expect(leg.classes()).toContain('pr-roofline__leg-item--lit');
+
+    aside.remove();
   });
 
   it('PR-ROOF-007: log domains have no hard X/Y cap for chip-scale roofs', () => {

@@ -517,11 +517,15 @@ watch(
   { immediate: true },
 );
 
+const rooflinePanel = ref<{ closePointTip: () => void } | null>(null);
+
 // A card tooltip holds a snapshot of its metric, and the overlays paint under it: drop it whenever
-// the surface changes instead of letting it outlive the card it describes.
+// the surface changes instead of letting it outlive the card it describes. The roofline tip is
+// teleported to `body` (z-index 20) and would otherwise paint over this overlay (z-index 2).
 watch(asideSurface, () => {
   closeTip();
   closeDurationBreakdownTip();
+  rooflinePanel.value?.closePointTip();
 });
 
 const scopedPipeOccupancy = computed(() => {
@@ -1309,6 +1313,7 @@ const detailTestId = computed(() => {
             </div>
           </div>
           <RooflinePanel
+            ref="rooflinePanel"
             :model="roofline"
             :locale="locale"
           />
