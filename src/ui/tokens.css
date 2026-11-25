@@ -10,13 +10,21 @@
   --pr-surface-raised: #363636;
   --pr-surface-hover: #424242;
   --pr-divider: #3a3a3a;
+  /* Border roles: raised card, row separator, gutter divider. */
+  --pr-border-card: #353535;
+  --pr-border-separator: #2a2a2a;
+  --pr-border-gutter: #313131;
+  --pr-text: #e6e6e6;
+  --pr-text-muted: #9aa0a6;
+  --pr-accent: #3078f0;
+  --pr-text-accent: #6ea8fe;
   --pr-tab-inactive: #b3b3b3;
   --pr-axis-tick: #313131;
   /* Muting is carried by the band behind the ticks (see --pr-axis-band-muted),
      so muted ticks keep the normal color. */
   --pr-axis-tick-muted: #313131;
   --pr-axis-band-muted: #1b1b1b;
-  --pr-playhead: #3078f0;
+  --pr-playhead: #3078f7;
   --pr-color-cube: #007084;
   --pr-color-vector: #007464;
   --pr-color-mte1: #885c00;
@@ -115,7 +123,7 @@
 .pr-block-pill {
   appearance: none;
   background: #2a2a2a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23c8c8c8' d='M0 0l5 6 5-6z'/></svg>") no-repeat right 8px center;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--pr-divider, #3a3a3a);
   color: #e0e0e0;
   font-size: 11px;
   padding: 4px 22px 4px 10px;
@@ -160,7 +168,7 @@
   width: 100%;
   box-sizing: border-box;
   background: #262626;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--pr-divider, #3a3a3a);
   color: #e0e0e0;
   font-size: 11px;
   padding: 5px 24px 5px 26px;

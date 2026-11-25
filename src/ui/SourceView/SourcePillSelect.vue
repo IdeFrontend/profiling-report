@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import PrIcon from '../PrIcon.vue';
 
 export type SourceSelectOption = { id: string; label: string };
 
@@ -16,7 +17,8 @@ const emit = defineEmits<{
 }>();
 
 const open = ref(false);
-const triggerRef = ref<HTMLButtonElement | null>(null);
+const triggerRef = ref<HTMLElement | null>(null);
+const buttonRef = ref<HTMLButtonElement | null>(null);
 const labelRef = ref<HTMLElement | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
 const menuStyle = ref<Record<string, string>>({});
@@ -75,7 +77,7 @@ function pick(id: string, e?: Event) {
   e?.preventDefault();
   open.value = false;
   if (id !== props.modelValue) emit('update:modelValue', id);
-  triggerRef.value?.focus();
+  buttonRef.value?.focus();
 }
 
 function onDocPointerDown(e: PointerEvent) {
@@ -106,7 +108,7 @@ function onKeydown(e: KeyboardEvent) {
   }
   if (e.key === 'Escape') {
     open.value = false;
-    triggerRef.value?.focus();
+    buttonRef.value?.focus();
     return;
   }
   if (e.key === 'ArrowDown') {
@@ -190,21 +192,31 @@ onBeforeUnmount(() => {
       ref="labelRef"
       :for="buttonId"
     >{{ caption }}:</label>
-    <button
-      :id="buttonId"
+    <span
       ref="triggerRef"
-      type="button"
-      class="pr-block-pill pr-source-view__select source-pill__trigger"
-      :data-testid="testId"
-      :aria-label="caption"
-      :aria-expanded="open"
-      aria-haspopup="listbox"
-      :aria-controls="open ? listboxId : undefined"
-      :aria-activedescendant="activeId"
-      @click="toggle"
+      class="pr-block-pill pr-source-view__select source-pill"
     >
-      {{ label }}
-    </button>
+      <span
+        class="source-pill__label"
+        :data-testid="`${testId}-label`"
+        :title="label"
+      >{{ label }}</span>
+      <button
+        :id="buttonId"
+        ref="buttonRef"
+        type="button"
+        class="source-pill__trigger"
+        :data-testid="testId"
+        :aria-label="caption"
+        :aria-expanded="open"
+        aria-haspopup="listbox"
+        :aria-controls="open ? listboxId : undefined"
+        :aria-activedescendant="activeId"
+        @click="toggle"
+      >
+        <PrIcon name="chevron-down" />
+      </button>
+    </span>
     <Teleport to="body">
       <ul
         v-if="open"
@@ -250,29 +262,54 @@ onBeforeUnmount(() => {
 
 /*
  * Closed-control box (Source tab + any host that mounts this pill). Lives here so
- * consumers do not restate SourceView :deep rules. background-color only — keeps
- * the `.pr-block-pill` chevron from tokens.css.
+ * consumers do not restate SourceView :deep rules. The `.pr-block-pill` background
+ * image is cleared; the chevron button owns the arrow.
  */
 .pr-source-view__select {
   box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   height: var(--pr-src-control-h, 28px);
   max-width: 220px;
-  padding-top: 0;
-  padding-bottom: 0;
+  padding: 0 2px 0 10px;
   border-radius: var(--pr-src-control-radius, 6px);
+  background-image: none;
   background-color: var(--pr-src-bg-control, #363636);
   color: var(--pr-src-text, #c8c8c8);
   font-size: 12px;
-  line-height: calc(var(--pr-src-control-h, 28px) - 2px);
+  line-height: normal;
+  cursor: default;
 }
 
-/* Button reset so the shared pill (not a native <select>) keeps the same box. */
-.source-pill__trigger {
-  font-family: inherit;
-  text-align: left;
+/* Selectable file name (Chromium cannot start a drag inside a <button>). */
+.source-pill__label {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: text;
+  user-select: text;
+}
+
+.source-pill__trigger {
+  flex: 0 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.source-pill__trigger:focus-visible {
+  outline: 1px solid var(--pr-accent, #5291ff);
+  outline-offset: -1px;
 }
 </style>
 

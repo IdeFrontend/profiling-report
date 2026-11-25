@@ -204,6 +204,16 @@ Format and statuses: [README.md](README.md).
 
 ---
 
+## UI-58
+
+- **Resolved:** 2026-11-24
+- **Question:** What are the real row schemas and interactions for **Inline Functions**, **Source Markers**, and **Statistics** dock tabs under the compare view?
+- **Decision:** The compare view ships **without** the bottom dock. The two Source panes fill the view height, and Inline Functions / Source Markers / Statistics are not rendered. Re-introduce them only with Product-locked row schemas.
+- **Specs:** [SourceDiffView.spec.md](../../../src/ui/SourceDiff/SourceDiffView.spec.md) (`PR-DIFF-203`), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md)
+- **Source:** Engineering decision in review (2026-11-24): the dock and its mock tables were deleted; the schemas stayed unanswered.
+
+---
+
 ## UI-60
 
 - **Resolved:** 2026-11-02

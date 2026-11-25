@@ -1,0 +1,4 @@
+# graphify settings
+# Total query keys set these defaults, and this file marks the project graphify-enabled.
+query_budget=4000
+query_depth=3

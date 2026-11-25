@@ -5,3 +5,4 @@ docs/ui/source/**/*.webp filter=lfs diff=lfs merge=lfs -text
 docs/ui/source/**/*.gif filter=lfs diff=lfs merge=lfs -text
 data/**/*.npu-rep filter=lfs diff=lfs merge=lfs -text
 data/**/*.db filter=lfs diff=lfs merge=lfs -text
+data/source-diff/*.npu-rep -filter -diff -merge -text

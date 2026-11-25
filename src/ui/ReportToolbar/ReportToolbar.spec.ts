@@ -527,19 +527,11 @@ describe('ReportToolbar', () => {
     expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
   });
 
-  it('PR-TOOLBAR-014: OP selector hidden for zero or one operator (brand shown)', () => {
+  it('PR-TOOLBAR-014: OP selector hidden for zero or one operator', () => {
     const single = mount(ReportToolbar, {
       props: { ...defaultProps, operators: [{ id: 'op1', label: 'op1' }] },
     });
     expect(single.find('[data-testid="op-selector"]').exists()).toBe(false);
-    expect(single.find('.pr-tabs__brand').exists()).toBe(true);
-    expect(single.find('.pr-tabs__brand').attributes('title')).toBe(single.find('.pr-tabs__brand').text());
-
-    const longTitle = 'Long Report Name That The 200px Brand Box Clips Mid Word';
-    const clipped = mount(ReportToolbar, {
-      props: { ...defaultProps, title: longTitle, operators: [{ id: 'op1', label: 'op1' }] },
-    });
-    expect(clipped.find('.pr-tabs__brand').attributes('title')).toBe(longTitle);
 
     const none = mount(ReportToolbar, { props: defaultProps });
     expect(none.find('[data-testid="op-selector"]').exists()).toBe(false);
@@ -807,6 +799,73 @@ describe('ReportToolbar', () => {
     await flushPromises();
     expect(document.querySelector('[data-testid="baselines-popover"]')).toBeNull();
     wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-040: compare chrome has no html export; baseline colon is zh-only', async () => {
+    const base = {
+      ...defaultProps,
+      locale: 'en-US',
+      activeTab: 'source' as const,
+      sourceTabEnabled: true,
+      compareMode: true,
+    };
+    const hidden = mount(ReportToolbar, {
+      props: { ...base, htmlExportAvailable: true },
+    });
+    expect(hidden.find('[data-testid="export-html"]').exists()).toBe(false);
+    expect(hidden.find('.pr-compare__baseline').text()).toBe('Baseline');
+    hidden.unmount();
+
+    const zh = mount(ReportToolbar, { props: { ...base, locale: 'zh-CN' } });
+    expect(zh.find('.pr-compare__baseline').text()).toBe(t('sourceDiffBaseline', 'zh-CN'));
+    expect(zh.find('.pr-compare__baseline').text()).toContain('：');
+    zh.unmount();
+  });
+
+  it('PR-TOOLBAR-041: compare chrome matches the Timeline band', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    const searchSrc = (await import('./ToolbarSearch.vue?raw')).default as string;
+    // Same band as Timeline: 60px tall, 8px padding, #3a3a3a edge, accent wash shown.
+    expect(src).not.toMatch(/\.pr-chrome--compare \.pr-chrome__wash/);
+    expect(src).not.toMatch(/\.pr-chrome--compare\s*\{[^}]*box-shadow/);
+    expect(src).toMatch(/\.pr-chrome--compare\s*\{[^}]*border-bottom-color:\s*#3a3a3a/);
+    expect(src).toMatch(/\.pr-chrome--compare\s*\{[^}]*min-height:\s*60px/);
+    expect(src).toMatch(/\.pr-chrome--compare\s*\{[^}]*padding:\s*8px/);
+    expect(src).toMatch(/\.pr-toolbar--compare\s*\{[^}]*gap:\s*8px/);
+    // Left group uses the shared 8px rhythm.
+    expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*margin-right:\s*8px/);
+    expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*font-weight:\s*400/);
+    expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*color:\s*#ffffff/);
+    expect(src).toMatch(/\.pr-compare__baseline\s*\{[^}]*gap:\s*8px/);
+    // Baseline select 305px maximum, #999999 value, grey-180 caret.
+    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*max-width:\s*305px/);
+    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*color:\s*#999999/);
+    expect(src).toMatch(/%23b4b4b4/);
+    expect(src).toMatch(/\.pr-compare__exit\s*\{[^}]*color:\s*#b4b4b4/);
+    expect(src).toMatch(/\.pr-compare__exit\s*\{[^}]*background:\s*#343434/);
+    // Compare action icons inherit the 6px base radius; the right group gaps 8px.
+    expect(src).not.toMatch(/\.pr-compare__right \.pr-toolbar__icon-btn/);
+    expect(src).toMatch(/\.pr-toolbar__icon-btn\s*\{[^}]*border-radius:\s*6px/);
+    expect(src).toMatch(/\.pr-compare__right\s*\{[^}]*gap:\s*8px/);
+    // Compare search pill uses the shared 190px / 4px / 32px tokens.
+    expect(searchSrc).toMatch(/\.pr-compare-search\s*\{[^}]*width:\s*190px/);
+    expect(searchSrc).toMatch(/\.pr-compare-search input\s*\{[^}]*width:\s*190px/);
+    expect(searchSrc).toMatch(/\.pr-compare-search input\s*\{[^}]*padding-left:\s*32px/);
+    expect(searchSrc).toMatch(/\.pr-compare-search input\s*\{[^}]*border-radius:\s*4px/);
+    expect(searchSrc).toMatch(/\.pr-compare-search input::placeholder\s*\{[^}]*color:\s*#999999/);
+    // Shared pill keeps its documented 190px / 4px for timeline and source.
+    expect(searchSrc).toMatch(/flex:\s*0 0 190px/);
+    expect(searchSrc).toMatch(/\.pr-toolbar__search input\s*\{[^}]*border-radius:\s*4px/);
+  });
+
+  it('PR-TOOLBAR-042: compare toolbar shrinks the baseline select before wrapping', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-toolbar--compare\s*\{[^}]*flex-wrap:\s*wrap/);
+    expect(src).toMatch(/\.pr-toolbar--compare\s*\{[^}]*overflow-x:\s*visible/);
+    expect(src).toMatch(/\.pr-compare__left\s*\{[^}]*flex:\s*1 1 auto/);
+    expect(src).toMatch(/\.pr-compare__baseline\s*\{[^}]*min-width:\s*0/);
+    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*max-width:\s*305px/);
+    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*min-width:\s*96px/);
   });
 
   it('PR-TOOLBAR-029: timeline-trace radios emit on select; hidden for 0–1 traces', async () => {

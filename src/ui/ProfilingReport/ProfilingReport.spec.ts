@@ -18,6 +18,7 @@ import type {
   AdaptedReport,
   Baseline,
   MemoryTopologyModel,
+  ReportCapability,
   SwimlaneModel,
 } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
@@ -2838,40 +2839,6 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
-  it('PR-ROOT-036: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
-    const adapterLoaded = mount(ProfilingReport, {
-      props: { title: 'gather_2d.npu-rep', source: loadOutRepBuffer() },
-    });
-    await flushPromises();
-
-    expect(adapterLoaded.get('.pr-tabs__brand').text()).toBe('add_custom');
-    adapterLoaded.unmount();
-
-    const signature = 'void gather_2d_custom<float, unsigned int>(float*, unsigned int*)';
-    const withSignature = mount(ProfilingReport, {
-      props: {
-        title: 'gather_2d.npu-rep',
-        swimlaneModel: depsModel(),
-        reportModel: {
-          ...emptyReportViewModel(),
-          summary: { ...emptyReportViewModel().summary, opName: signature },
-        },
-      },
-    });
-    expect(withSignature.get('.pr-tabs__brand').text()).toBe('gather_2d_custom');
-    withSignature.unmount();
-
-    const withoutOpName = mount(ProfilingReport, {
-      props: {
-        title: 'gather_2d.npu-rep',
-        swimlaneModel: depsModel(),
-        reportModel: emptyReportViewModel(),
-      },
-    });
-    expect(withoutOpName.get('.pr-tabs__brand').text()).toBe('gather_2d.npu-rep');
-    withoutOpName.unmount();
-  });
-
   it('PR-ROOT-029: a Parameter frame opens Source at its line, or line 1', async () => {
     const correlation = mockSourceCorrelation();
     const file = correlation.files[0]!;
@@ -3640,5 +3607,177 @@ describe('ProfilingReport scaffold', () => {
   it('tokens.css has no partial light-theme override block (#267)', async () => {
     const css = (await import('../tokens.css?raw')).default as string;
     expect(css).not.toMatch(/\.pr-root\[data-theme=['"]light['"]\]/);
+  });
+
+  it('PR-DIFF-204: compare mode picks a non-current baseline, survives operator switch, resets on tab change', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-compare',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      operators: { id: string; label: string }[];
+      selectedOperatorId: string;
+      operatorReports: Record<string, AdaptedReport>;
+    };
+    vm.operators = [
+      { id: 'op1', label: 'OP 1' },
+      { id: 'op2', label: 'OP 2' },
+    ];
+    vm.selectedOperatorId = 'op1';
+    vm.operatorReports = {
+      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+    };
+    await nextTick();
+
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(
+      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
+    ).toBe('op2');
+
+    // Switching the current operator to the baseline keeps compare mode and re-picks one.
+    vm.selectedOperatorId = 'op2';
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(
+      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
+    ).toBe('op1');
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-040: compareOnly opens compare without tabs; default keeps both tabs', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const settings = {
+      title: 'compare-only',
+      swimlaneModel: depsModel(),
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+      capabilities: ['sourceTab'] as ReportCapability[],
+    };
+
+    const standard = mount(ProfilingReport, { props: settings });
+    expect(standard.find('[data-testid="tab-timeline"]').exists()).toBe(true);
+    expect(standard.find('[data-testid="tab-source"]').exists()).toBe(true);
+    standard.unmount();
+
+    const wrapper = mount(ProfilingReport, { props: { ...settings, compareOnly: true } });
+    const vm = wrapper.vm as unknown as {
+      operators: { id: string; label: string }[];
+      selectedOperatorId: string;
+      operatorReports: Record<string, AdaptedReport>;
+    };
+    vm.operators = [
+      { id: 'op1', label: 'OP 1' },
+      { id: 'op2', label: 'OP 2' },
+    ];
+    vm.selectedOperatorId = 'op1';
+    vm.operatorReports = {
+      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+    };
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.findAll('.pr-tabs__tab')).toHaveLength(0);
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(
+      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
+    ).toBe('op2');
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.findAll('.pr-tabs__tab')).toHaveLength(0);
+    wrapper.unmount();
+
+    const single = mount(ProfilingReport, {
+      props: { ...settings, compareOnly: true, swimlaneModel: undefined },
+    });
+    const singleVm = single.vm as unknown as {
+      operators: { id: string; label: string }[];
+      selectedOperatorId: string;
+      operatorReports: Record<string, AdaptedReport>;
+    };
+    singleVm.operators = [{ id: 'op1', label: 'OP 1' }];
+    singleVm.selectedOperatorId = 'op1';
+    singleVm.operatorReports = {
+      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+    };
+    await nextTick();
+    await nextTick();
+    expect(single.findAll('.pr-tabs__tab')).toHaveLength(0);
+    expect(single.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(single.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(single.find('[data-testid="no-timeline"]').exists()).toBe(false);
+    single.unmount();
+  });
+
+  it('PR-DIFF-211: explicit compare exit lands on the Source tab', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-compare-exit',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      operators: { id: string; label: string }[];
+      selectedOperatorId: string;
+      operatorReports: Record<string, AdaptedReport>;
+    };
+    vm.operators = [
+      { id: 'op1', label: 'OP 1' },
+      { id: 'op2', label: 'OP 2' },
+    ];
+    vm.selectedOperatorId = 'op1';
+    vm.operatorReports = {
+      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
+    };
+    await nextTick();
+
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="tab-source"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="tab-source"]').classes()).toContain('pr-tabs__tab--active');
+
+    // Programmatic reset: a replaced report closes compare and keeps the tab.
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: { ...correlation } },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="tab-source"]').classes()).toContain('pr-tabs__tab--active');
+    wrapper.unmount();
   });
 });

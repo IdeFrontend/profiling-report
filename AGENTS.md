@@ -88,3 +88,7 @@ Read the matching `SKILL.md` only for that turn/session.
 ## Demo data — every element must visibly differ
 
 When a comparison surface is demo-visible, EVERY element that can carry a comparison (summary card, PIPE bar, topology node percentage, details field — compute AND memory) must show a non-zero difference against the open demo report for EVERY demo baseline and for EVERY demo operator (default operator included), with both tones (increase/decrease) present at once, and values must vary baseline-to-baseline AND operator-to-operator. A zero/equal value anywhere is a defect. Verify by looping every demo baseline (unit + e2e), not by checking one; seeded ranges must sit strictly on one side of every fixture's own values so no baseline can land on a zero delta, and the per-baseline factor must keep them there.
+
+## Mockup annotations
+
+In docs/ui/source/** a filled purple rectangle (#C068FA) with white text and a leader dot is an annotation, not a control. Read the element the dot points at. Never treat that purple as a UI color.

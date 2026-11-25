@@ -52,16 +52,6 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [INTERACTIONS.md](../../ui/INTERACTIONS.md).
 
-### UI-58 — Source dock panel schemas
-
-**Status:** `open`
-
-**Question:** What are the real row schemas and interactions for **Inline Functions**, **Source Markers**, and **Statistics** (columns, click→navigate rules, empty states)? Sketch shows dual Source selectors under Inline Functions — are those nested dual panes or filters?
-
-**Answer so far:** Dock bodies ship mock-derived tables from correlation / metrics until Product locks schemas ([v930-source/source-correlation](../../ui/source/930-legacy/v930-source/source-correlation.jpeg)).
-
-**Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [VIEW_DATA_REQUIREMENTS §15](../../formats/VIEW_DATA_REQUIREMENTS.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md).
-
 ### UI-59 — Source metric cell heatmap rules
 
 **Status:** `open`

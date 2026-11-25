@@ -179,4 +179,21 @@ function onEnter(event: KeyboardEvent) {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+
+/* Compare-chrome search pill now matches the Timeline pill (PR-TOOLBAR-041):
+   the only local token left is the placeholder tint. */
+.pr-compare-search {
+  flex: 0 0 190px;
+  width: 190px;
+}
+
+.pr-compare-search input {
+  width: 190px;
+  padding-left: 32px;
+  border-radius: 4px;
+}
+
+.pr-compare-search input::placeholder {
+  color: #999999;
+}
 </style>

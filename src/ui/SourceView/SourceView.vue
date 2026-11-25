@@ -691,8 +691,11 @@ onBeforeUnmount(() => {
     :data-pane-bars="paneBarsTwoLine ? 'two' : 'one'"
   >
     <!-- First control bar lives on the ReportToolbar tab row (no extra margin).
-         When the host is absent (unit tests), Teleport stays disabled and renders in place. -->
+         When the host is absent (unit tests), the disabled Teleport renders in place.
+         The key forces a fresh Teleport once the host is connected: a Teleport enabled after
+         mount keeps the target it resolved to null while the host was still detached. -->
     <Teleport
+      :key="chromeHostReady ? 'host' : 'inline'"
       :disabled="!chromeHostReady"
       :to="SOURCE_CHROME_HOST"
     >

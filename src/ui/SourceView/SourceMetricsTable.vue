@@ -58,6 +58,13 @@ const props = withDefaults(
     showHeader?: boolean;
     /** Leading `#` column (SASS table-only pane; Sudu owns line numbers on Source). */
     showLineNumbers?: boolean;
+    /** Metric column emphasized by Navigate By (Source compare). */
+    highlightColumn?: string | null;
+    /**
+     * Diff plane tint per view line (1-based): `removed` or `modified` renders
+     * `pr-src-metrics__row--<tone>` so the metrics row matches the code band beside it.
+     */
+    rowTones?: Record<number, string>;
     /**
      * Controlled column widths (px). When omitted the table keeps its own map
      * (Asm pane). Sudu pane passes a shared map so the external header stays aligned.
@@ -76,7 +83,9 @@ const props = withDefaults(
     fontSizeCss: undefined,
     showHeader: true,
     showLineNumbers: false,
+    highlightColumn: null,
     columnWidths: null,
+    rowTones: undefined,
     locale: undefined,
   },
 );
@@ -422,6 +431,18 @@ function isTextCol(col: { id: string; kind: string }): boolean {
 
 const colSpan = computed(() => columns.value.length + (props.showLineNumbers ? 1 : 0));
 
+/** A diff-pane filler row: this side owns no source line, so it has no values. */
+function isBlankRow(row: TableRow): boolean {
+  return row.metrics != null && Object.keys(row.metrics.values).length === 0;
+}
+
+/** Diff tint class for this view line, or null on a plain table. */
+function rowToneClass(row: TableRow): string | null {
+  if (row.line == null) return null;
+  const tone = props.rowTones?.[row.line];
+  return tone ? `pr-src-metrics__row--${tone}` : null;
+}
+
 function isZeroMetric(row: SourceLineMetrics | null): boolean {
   const colId = props.dimZeroFor;
   if (!colId || !row) return false;
@@ -489,6 +510,7 @@ const styleVars = computed(() => {
 <template>
   <div
     class="pr-src-metrics"
+    :class="{ 'pr-src-metrics--toned': rowTones }"
     :style="styleVars"
     data-testid="source-metrics"
   >
@@ -537,7 +559,9 @@ const styleVars = computed(() => {
               v-for="col in columns"
               :key="col.id"
               :title="col.label"
-              :class="{ 'pr-src-metrics__left': isTextCol(col) }"
+              :class="{
+                'pr-src-metrics__left': isTextCol(col),
+              }"
             >
               <span class="pr-src-metrics__th-label">{{ col.label }}</span>
               <span
@@ -590,15 +614,19 @@ const styleVars = computed(() => {
             v-for="row in windowRows"
             :key="row.doc"
             :data-line="row.line ?? undefined"
-            :class="{
-              'pr-src-metrics__row--current': currentDocRow != null
-                ? row.doc === currentDocRow
-                : row.line != null && currentLine === row.line,
-              'pr-src-metrics__row--correlated': row.line != null && correlatedSet.has(row.line),
-              'pr-src-metrics__row--match': row.line != null && matchSet.has(row.line),
-              'pr-src-metrics__row--dim': isZeroMetric(row.metrics),
-              'pr-src-metrics__row--gap': row.line == null,
-            }"
+            :class="[
+              rowToneClass(row),
+              {
+                'pr-src-metrics__row--current': currentDocRow != null
+                  ? row.doc === currentDocRow
+                  : row.line != null && currentLine === row.line,
+                'pr-src-metrics__row--correlated': row.line != null && correlatedSet.has(row.line),
+                'pr-src-metrics__row--match': row.line != null && matchSet.has(row.line),
+                'pr-src-metrics__row--dim': isZeroMetric(row.metrics),
+                'pr-src-metrics__row--gap': row.line == null,
+                'pr-src-metrics__row--blank': isBlankRow(row),
+              },
+            ]"
             :style="{ height: `${rowHeightCss || 20}px` }"
             @click="row.line != null && emit('row-click', row.line)"
           >
@@ -626,9 +654,10 @@ const styleVars = computed(() => {
               <template v-if="row.line == null" />
               <template v-else-if="col.kind === 'bar'">
                 <!-- Sketch: hatch background, solid used fill, % at the right end.
-                     A gap (no metric row) stays blank instead of an empty track. -->
+                     A gap (no metric row) stays blank instead of an empty track.
+                     A diff filler (empty values) paints nothing, not a zero-width capsule. -->
                 <span
-                  v-if="row.metrics != null"
+                  v-if="row.metrics != null && !isBlankRow(row)"
                   class="pr-src-metrics__bar-track"
                 >
                   <span
@@ -709,7 +738,7 @@ const styleVars = computed(() => {
                 {{ r.value }}
               </td>
               <td class="pr-src-metrics__tip-pct">
-                <!-- Same capsule as Warp Occupancy: hatch unused + solid used + % inside the bar. -->
+                <!-- Same capsule as Warp Occupancy: solid track unused + solid used + % inside the bar. -->
                 <span class="pr-src-metrics__bar-track pr-src-metrics__tip-bar">
                   <span
                     class="pr-src-metrics__bar-fill"
@@ -746,7 +775,7 @@ const styleVars = computed(() => {
   flex: 0 0 auto;
   /* Titles live in a ~20px row — never show a scrollbar here; body drives scrollLeft. */
   overflow: hidden;
-  border-bottom: 1px solid #333333;
+  border-bottom: 1px solid var(--pr-border-separator, #2a2a2a);
   background: #2a2a2a;
   border-radius: 6px 6px 0 0;
 }
@@ -819,6 +848,7 @@ const styleVars = computed(() => {
   padding-right: 6px;
 }
 
+/* Navigate By target — the design keeps the header unmarked. */
 .pr-src-metrics__col-resize {
   position: absolute;
   top: 0;
@@ -905,17 +935,14 @@ const styleVars = computed(() => {
   /* v930-source: ~⅔ of the ~18px mono row — taller capsule than the old 10px. */
   height: 14px;
   border-radius: 7px;
-  border: 1px solid #333333;
+  border: 1px solid var(--pr-border-separator, #2a2a2a);
   overflow: hidden;
-  /* Unused remainder: diagonal hatch (v930-source). */
+  /* Unused remainder: "/" hatch over the cell background. Stops are axis lengths at 135deg, so
+     horizontal = axis * 1.41421: stripe 1.0607px -> 1.5px, gap end 2.8284px -> 4px period.
+     A whole-number 4px horizontal period keeps every stripe identical on any device pixel grid. */
   background:
-    repeating-linear-gradient(
-      -45deg,
-      #3a3a3a,
-      #3a3a3a 2px,
-      #2a2a2a 2px,
-      #2a2a2a 4px
-    );
+    repeating-linear-gradient(135deg, rgb(52 52 52) 0 1.0606601717798212px, transparent 1.0606601717798212px 2.8284271247461903px),
+    var(--table-bg);
 }
 
 /* Used occupancy: solid fill from the left. */
@@ -972,6 +999,29 @@ tr:hover td {
   background: #323232;
 }
 
+/* Diff plane: only the two band states tint a row, so an untinted row never highlights. */
+.pr-src-metrics--toned tbody tr:not(.pr-src-metrics__row--removed):not(.pr-src-metrics__row--modified):hover td {
+  background: transparent;
+}
+
+/* Diff plane: the metrics row repeats the code band it sits beside (SourceDiffPane). */
+.pr-src-metrics__row--removed td,
+.pr-src-metrics__row--removed:hover td {
+  background: #472628;
+}
+
+/* Diff plane 1px row line, inset so the 18px row keeps its height. Tinted and blank
+   spacer rows stay unbroken, matching the code bands and PR-DIFF-107. */
+.pr-src-metrics--toned tbody tr[data-line]:not(.pr-src-metrics__row--removed):not(.pr-src-metrics__row--modified):not(.pr-src-metrics__row--blank) td {
+  box-shadow: inset 0 -1px 0 #2a2a2a;
+}
+
+/* Diff plane: the modified band mirrors theme index 23 on the code plane. */
+.pr-src-metrics__row--modified td,
+.pr-src-metrics__row--modified:hover td {
+  background: #4a3924;
+}
+
 .pr-src-metrics__filler,
 .pr-src-metrics__filler td {
   pointer-events: none;
@@ -997,7 +1047,7 @@ tr:hover td {
   background: transparent;
 }
 
-/* Stall breakdown tip — v930-source: padded card, pill header row, hatch bars.
+/* Stall breakdown tip — v930-source: padded card, pill header row, solid bars.
    Teleported to body; z-index above Source chrome so a left-flipped tip stays visible. */
 .pr-src-metrics__tip {
   position: fixed;
