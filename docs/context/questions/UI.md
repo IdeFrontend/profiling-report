@@ -81,3 +81,14 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 **Answer so far:** Sketch has **no** heat tint. An amber fill was tried and removed as non-sketch. Leave cells uncolored until Product asks for heat.
 
 **Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [COLOR_TOKENS](../../ui/COLOR_TOKENS.md), [UX_SPEC](../../ui/UX_SPEC.md).
+
+### UI-62 — Baselines control icon and chrome
+
+**Status:** `partial`
+
+**Question:** Which icon does the baselines (对比基线) toolbar control use, and is the popover chrome (title copy, row layout, + placement) Product-approved?
+
+**Answer so far:** **Icon — resolved (2026-11-11):** the mockup's own add-baseline glyph from the 1130 batch (`docs/ui/source/1130/add-baseline.jpeg`, the highlighted toolbar action of the 增加基线操作 scene; mask `src/ui/icons/add-baseline.png`, provenance crop `docs/ui/review/icons/add-baseline-1130.png`). **Chrome — still open:** the popover layout follows the floating-chrome canon ([INTERACTIONS.md](../../ui/INTERACTIONS.md)) until a design frame covers the surface.
+
+**Specs when answered:** [BaselinePicker.spec.md](../../../src/ui/ReportToolbar/BaselinePicker/BaselinePicker.spec.md), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md), [baselines](../../views/baselines.md).
+

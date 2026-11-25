@@ -2,12 +2,31 @@
 import { computed, ref } from 'vue';
 import { t } from '../../../i18n';
 import type { SummaryCategory } from '../../../domain/types';
+import { formatDetailValue } from '../../../domain/detailValue';
 import { highlightParts } from '../../searchHighlight';
+import SummaryDiffIndicator from '../StatsSummaryPanel/SummaryDiffIndicator.vue';
+import { metricDiff, type MetricDiff } from '../../../domain/metricDiff';
+import { asideRoundsToZero, formatAsideValue } from '../asideValueFormat';
+import type { BaselineTipRow } from '../baselineTip';
 
 const props = defineProps<{
   categories: SummaryCategory[];
   activeId?: string;
   locale?: string;
+  /**
+   * The PRIMARY baseline's categories (对比基线): a field whose numeric value
+   * differs from the current one gets a delta badge after the value — details
+   * show DELTAS (the bars show values).
+   */
+  baselineCategories?: SummaryCategory[];
+  /**
+   * Every comparison row's categories (multi-baseline 对比基线): the first row
+   * is the primary inline badge; hovering the badge lists the CURRENT value
+   * and every row's own value + delta (the other baselines live only there).
+   */
+  comparisonCategories?: { label: string; categories: SummaryCategory[] }[];
+  /** Label for the current report in the popup (i18n from the parent). */
+  comparisonCurrentLabel?: string;
 }>();
 
 const emit = defineEmits<{
@@ -15,6 +34,15 @@ const emit = defineEmits<{
 }>();
 
 const search = ref('');
+
+/** Bare numeric delta (baseline − current) for one field pair; null when either side is not numeric or equal. */
+function diffFor(current: string, baseline: string | undefined): MetricDiff | null {
+  if (baseline == null) return null;
+  const cur = Number(current);
+  const base = Number(baseline);
+  if (!Number.isFinite(cur) || !Number.isFinite(base)) return null;
+  return metricDiff(cur, base);
+}
 
 const active = computed(
   () => props.categories.find((c) => c.id === props.activeId) ?? props.categories[0] ?? null,
@@ -40,11 +68,45 @@ const fields = computed(() => {
   const rows = q
     ? category.fields.filter((f) => f.key.toLowerCase().includes(q.toLowerCase()))
     : category.fields;
-  return rows.map((f) => ({
-    key: f.key,
-    value: f.value,
-    parts: highlightParts(f.key, q),
-  }));
+  return rows.map((f) => {
+    const base = props.baselineCategories
+      ?.find((c) => c.id === category.id)
+      ?.fields.find((bf) => bf.key === f.key);
+    // Multi-baseline popup rows: current value first, then every baseline's
+    // own value + delta (a single comparison row included).
+    const comparison: BaselineTipRow[] = [];
+    if (props.comparisonCategories && props.comparisonCategories.length > 0) {
+      comparison.push({
+        label: props.comparisonCurrentLabel ?? 'Current',
+        value: formatDetailValue(f.value),
+      });
+      for (const entry of props.comparisonCategories) {
+        const bf = entry.categories
+          .find((c) => c.id === category.id)
+          ?.fields.find((x) => x.key === f.key);
+        if (bf == null) continue;
+        const d = diffFor(f.value, bf.value);
+        const text = d && !asideRoundsToZero(d.magnitude) ? formatAsideValue(d.magnitude) : undefined;
+        comparison.push({
+          label: entry.label,
+          value: formatDetailValue(bf.value),
+          tone: text ? d?.tone : undefined,
+          direction:
+            text && d
+              ? t(d.tone === 'increase' ? 'diffIncreased' : 'diffDecreased', props.locale)
+              : undefined,
+          delta: text,
+        });
+      }
+    }
+    return {
+      key: f.key,
+      value: f.value,
+      parts: highlightParts(f.key, q),
+      diff: diffFor(f.value, base?.value),
+      tip: comparison.length > 1 ? comparison : null,
+    };
+  });
 });
 </script>
 
@@ -138,7 +200,20 @@ const fields = computed(() => {
             :data-testid="part.match ? 'summary-field-match' : undefined"
           >{{ part.text }}</span>
         </span>
-        <span class="pr-summ__field-value">{{ field.value }}</span>
+        <span class="pr-summ__field-side">
+          <span class="pr-summ__field-value">{{ formatDetailValue(field.value) }}</span>
+          <!-- The delta badge stays on the SAME line, right after the value
+               (baseline-compare details mockup 1130). -->
+          <SummaryDiffIndicator
+            v-if="field.diff && !asideRoundsToZero(field.diff.magnitude)"
+            :tone="field.diff.tone"
+            :text="formatAsideValue(field.diff.magnitude)"
+            :direction-label="t(field.diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased', locale)"
+            :tip="field.tip"
+            :focusable="false"
+            :data-testid="`summary-field-diff-${field.key}`"
+          />
+        </span>
       </li>
     </ul>
   </div>
@@ -223,7 +298,18 @@ const fields = computed(() => {
 .pr-summ__field-value {
   color: #e6e6e6;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  /* Details pages read value-first from the left edge (1130 diff-detail mockup). */
+  text-align: left;
   word-break: break-all;
+}
+
+/* Value + delta badge share one flex row so the badge never wraps under it.
+ * Left-justified: the delta follows its own value, not a right-hand column. */
+.pr-summ__field-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
 }
 </style>

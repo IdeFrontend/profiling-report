@@ -15,6 +15,7 @@ import {
   ROOFLINE_Y_TICK_LABEL_DY as Y_TICK_LABEL_DY,
 } from './rooflineLayout';
 import type { RooflinePoint, RooflineSeries, RooflineViewModel } from '../../../domain/types';
+import { formatAsidePct } from '../asideValueFormat';
 
 const props = defineProps<{
   model: RooflineViewModel;
@@ -291,7 +292,7 @@ const mixParts = computed(() =>
   props.model.mixLabels.map((m, i) => ({
     id: m.id,
     label: m.label,
-    percent: `${m.percent.toFixed(6)}%`,
+    percent: formatAsidePct(m.percent),
     prefix: i === 0 ? '' : ', ',
   })),
 );

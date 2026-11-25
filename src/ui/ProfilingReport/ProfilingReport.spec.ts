@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { markRaw, nextTick } from 'vue';
+import { defineComponent, h, markRaw, nextTick } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
 import TimelineView from '../TimelineView/TimelineView.vue';
@@ -14,7 +14,12 @@ import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
 import type { CannbotPayload } from '../../domain/cannbot';
-import type { SwimlaneModel } from '../../domain/types';
+import type {
+  AdaptedReport,
+  Baseline,
+  MemoryTopologyModel,
+  SwimlaneModel,
+} from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 vi.mock('@sudu-ide/code-review', () => ({
@@ -3086,6 +3091,473 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(deferred.findComponent(SourceView).props('model').files[0].text).toContain('late_bound');
     deferred.unmount();
+  });
+
+  it('PR-ROOT-045: a checkbox toggle forwards the checked set as update:baselines', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [
+          { id: 'r1', name: 'R1', path: '/r1' },
+          { id: 'r2', name: 'R2', path: '/r2' },
+        ],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    // The picker panel teleports to body (PR-BASELINE-027), so its content is
+    // read from the document, not the wrapper.
+    const check = () =>
+      document.querySelector<HTMLInputElement>('[data-testid="baseline-check"]')!;
+    check().checked = true;
+    check().dispatchEvent(new Event('change'));
+    await nextTick();
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[{ id: 'r1', name: 'R1', path: '/r1' }]],
+    ]);
+    // Unchecking removes it — the checked set IS the host-owned list.
+    check().checked = false;
+    check().dispatchEvent(new Event('change'));
+    await nextTick();
+    expect(wrapper.emitted('update:baselines')).toEqual([
+      [[{ id: 'r1', name: 'R1', path: '/r1' }]],
+      [[]],
+    ]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-046: Browse appends the picked report as a checked baseline', async () => {
+    const pick = vi.fn().mockResolvedValue({ path: '/data/new.npu-rep', name: 'new-baseline' });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [],
+        pickBaselineFile: pick,
+        recentBaselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    (document.querySelector('[data-testid="baseline-browse"]') as HTMLElement).click();
+    await nextTick();
+    await flushPromises();
+    const appended = wrapper.emitted('update:baselines')![0][0] as Baseline[];
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toMatchObject({ name: 'new-baseline', path: '/data/new.npu-rep' });
+    expect(typeof appended[0].id).toBe('string');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-047: unchecking a baseline drops its comparison rows (host-owned invariant)', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+        baselineRows: [{ id: 'row1', baselineId: 'r1', operatorId: '' }],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [{ id: 'r1', name: 'R1', path: '/r1' }],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    // Teleported panel (PR-BASELINE-027): the checkbox lives in the document.
+    const check = document.querySelector<HTMLInputElement>('[data-testid="baseline-check"]')!;
+    check.checked = false;
+    check.dispatchEvent(new Event('change'));
+    await nextTick();
+    expect(wrapper.emitted('update:baselines')).toEqual([[[]]]);
+    // The host applies the emptied list back → the row is pruned.
+    await wrapper.setProps({ baselines: [] });
+    await nextTick();
+    expect(wrapper.emitted('update:baselineRows')).toEqual([[[]]]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-048: the aside receives the checked list + rows and row edits stay host-owned', async () => {
+    const rows = [{ id: 'row1', baselineId: 'b1', operatorId: '' }];
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+        baselines: [
+          { id: 'b1', name: 'OPPROF_A', path: '/a' },
+          { id: 'b2', name: 'OPPROF_B', path: '/b' },
+        ],
+        baselineRows: rows,
+        baselineReports: {},
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const aside = wrapper.findComponent({ name: 'StatsAside' });
+    expect(aside.props('baselines')).toHaveLength(2);
+    expect(aside.props('baselineRows')).toEqual(rows);
+    const next = [{ id: 'row1', baselineId: 'b2', operatorId: '' }];
+    aside.vm.$emit('update:baselineRows', next);
+    await nextTick();
+    expect(wrapper.emitted('update:baselineRows')).toEqual([[next]]);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-052: a checked set defaults one comparison row (first add + restored list)', async () => {
+    const entry = { id: 'b1', name: 'OPPROF_A', path: '/a' };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [],
+        baselineRows: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    // Empty → non-empty (the first add the host applies back) → the default row.
+    await wrapper.setProps({ baselines: [entry] });
+    await nextTick();
+    const first = wrapper.emitted('update:baselineRows')?.[0]?.[0] as {
+      baselineId: string;
+      operatorId: string;
+    }[];
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({ baselineId: 'b1', operatorId: '' });
+
+    // An add onto a NON-empty list never adds another row.
+    const emitted = wrapper.emitted('update:baselineRows')!.length;
+    await wrapper.setProps({
+      baselines: [entry, { id: 'b2', name: 'OPPROF_B', path: '/b' }],
+      baselineRows: first as never,
+    });
+    await nextTick();
+    expect(wrapper.emitted('update:baselineRows')!.length).toBe(emitted);
+    wrapper.unmount();
+
+    // A host-restored non-empty list with no rows mounts with the default row
+    // (the design's 默认一个基线 — unlike the old single-selection contract).
+    const restored = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [entry],
+        baselineRows: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    await nextTick();
+    const rows = restored.emitted('update:baselineRows')?.[0]?.[0] as { baselineId: string }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].baselineId).toBe('b1');
+    restored.unmount();
+  });
+
+  it('PR-ROOT-053: a pointerdown on the aside comparison bar closes the baselines popover', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+        baselines: [{ id: 'b1', name: 'OPPROF_A', path: '/a' }],
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [{ id: 'b1', name: 'OPPROF_A', path: '/a' }],
+      },
+    });
+    // Open the picker popover.
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    // Teleported panel (PR-BASELINE-027): it lives in the document.
+    expect(document.querySelector('[data-testid="baselines-popover"]')).not.toBeNull();
+    // Press anywhere on the aside bar — the capture emit reaches the root,
+    // which closes the popover through the toolbar's exposed close.
+    const bar = wrapper.get('[data-testid="stats-baseline-bar"]');
+    await bar.trigger('pointerdown');
+    await nextTick();
+    expect(document.querySelector('[data-testid="baselines-popover"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-049: cached baseline packs paint in place; a row without its pack shows no comparison', async () => {
+    const pack = (us: number): AdaptedReport => ({
+      reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: us, opName: 'relu' } },
+      swimlaneModel: null,
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+        baselines: [
+          { id: 'b1', name: 'OPPROF_A', path: '/a' },
+          { id: 'b2', name: 'OPPROF_B', path: '/b' },
+          { id: 'b9', name: 'OPPROF_C', path: '/c' },
+        ],
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+        baselineReports: { b1: { baselineId: 'b1', report: pack(900) } },
+      },
+    });
+    await flushPromises();
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+
+    // Switching the row to an ALREADY cached pack paints it in place.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'row1', baselineId: 'b2', operatorId: '' }],
+      baselineReports: {
+        b1: { baselineId: 'b1', report: pack(900) },
+        b2: { baselineId: 'b2', report: pack(700) },
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="stats-duration-diff"] .pr-diff__text').text()).toBe('0.30');
+
+    // A row whose pack has not landed yet (still adapting) paints no
+    // comparison — never another baseline's values.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'row1', baselineId: 'b9', operatorId: '' }],
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
+
+    // The pack landing brings the badge back in place, no remount of the aside.
+    const aside = wrapper.findComponent({ name: 'StatsAside' });
+    const asideEl = aside.element;
+    await wrapper.setProps({
+      baselineReports: {
+        b1: { baselineId: 'b1', report: pack(900) },
+        b2: { baselineId: 'b2', report: pack(700) },
+        b9: { baselineId: 'b9', report: pack(500) },
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="stats-duration-diff"] .pr-diff__text').text()).toBe('0.50');
+    expect(wrapper.findComponent({ name: 'StatsAside' }).element).toBe(asideEl);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-050: the baseline reports are a data-only side channel', async () => {
+    const baselinePack: AdaptedReport = {
+      reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 900, opName: 'relu' } },
+      swimlaneModel: null,
+    };
+    const base = {
+      swimlaneModel: depsModel(),
+      reportModel: { ...emptyReportViewModel(), summary: { taskDurationUs: 1000 } },
+      baselines: [{ id: 'b1', name: 'OPPROF_A', path: '/a' }],
+      baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+      baselineReports: { b1: { baselineId: 'b1', report: baselinePack } },
+    };
+    const wrapper = mount(ProfilingReport, { props: base });
+    await flushPromises();
+    // The payload rides alongside the normal mount: one ready, no error.
+    expect(wrapper.emitted('ready')).toHaveLength(1);
+    expect(wrapper.emitted('error')).toBeUndefined();
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+
+    // Select an event so view state has something a reset would destroy.
+    const vm = wrapper.vm as unknown as { viewState: { selectedEventId: string | null } };
+    const only = [depsModel().processes[0]!.threads[0]!.events[0]!];
+    wrapper.findComponent({ name: 'TimelineView' }).vm.$emit('multi-select', only);
+    await nextTick();
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    const selects = wrapper.emitted('select')?.length ?? 0;
+
+    // Swapping an unrelated cached pack must not re-load or reset.
+    await wrapper.setProps({
+      baselineReports: {
+        b1: { baselineId: 'b1', report: baselinePack },
+        b9: { baselineId: 'b9', report: baselinePack },
+      },
+    });
+    await flushPromises();
+    expect(wrapper.emitted('ready')).toHaveLength(1);
+    expect(wrapper.emitted('error')).toBeUndefined();
+    expect(wrapper.emitted('select')?.length ?? 0).toBe(selects);
+    expect(vm.viewState.selectedEventId).toBe('a');
+    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+    // Dropping the row's pack ends just the comparison chrome.
+    await wrapper.setProps({ baselineReports: {} });
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stats-aside"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  /** Panel stub for the 全屏 pass-through tests: the root's model/baseline
+   *  hand-off is the contract there, not the SVG chrome. */
+  const TopologyPanelStub = defineComponent({
+    name: 'MemoryTopologyPanel',
+    props: {
+      model: { type: Object, default: null },
+      baseline: { type: Object, default: null },
+    },
+    emits: ['open-details', 'open-fullscreen', 'open-memory-unit'],
+    setup(_props, { emit }) {
+      return () =>
+        h('div', { 'data-testid': 'topology-panel-stub' }, [
+          h(
+            'button',
+            {
+              'data-testid': 'topology-panel-stub-fullscreen',
+              onClick: () => emit('open-fullscreen'),
+            },
+            'fs',
+          ),
+        ]);
+    },
+  });
+
+  it('PR-ROOT-051: topology 全屏 badges against the primary row pack, in place', async () => {
+    const memoryTable = (value: string) => ({
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+      rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': value }],
+      blockIds: ['0'],
+    });
+    const topologyOf = (value: string): MemoryTopologyModel =>
+      firstLabelledMemoryTopology([memoryTable(value)])!.model;
+    const packOf = (topology: MemoryTopologyModel): AdaptedReport => ({
+      reportModel: {
+        ...emptyReportViewModel(),
+        summary: { taskDurationUs: 900, opName: 'relu' },
+        memoryTopology: topology,
+      },
+      swimlaneModel: null,
+    });
+    const baselineTopology = topologyOf('3.4');
+    const nextTopology = topologyOf('5.6');
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: markRaw(topologyReport()),
+        baselines: [
+          { id: 'b1', name: 'OPPROF_A', path: '/a' },
+          { id: 'b9', name: 'OPPROF_C', path: '/c' },
+        ],
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+        baselineReports: { b1: { baselineId: 'b1', report: packOf(baselineTopology) } },
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    // The stacked aside receives the same baseline (PR-STATS-056) …
+    expect(wrapper.findComponent({ name: 'MemoryTopologyPanel' }).props('baseline')).toEqual(
+      baselineTopology,
+    );
+
+    // … and so does the 全屏 overlay's own panel (emit-carried snapshot).
+    await wrapper.get('[data-testid="topology-panel-stub-fullscreen"]').trigger('click');
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    const fullscreen = wrapper
+      .findAllComponents({ name: 'MemoryTopologyPanel' })
+      .find((p) => overlay.element.contains(p.element));
+    expect(fullscreen).toBeDefined();
+    expect(fullscreen!.props('baseline')).toEqual(baselineTopology);
+    const node = fullscreen!.element;
+
+    // The open overlay is a one-shot snapshot: moving the row does not
+    // remount the panel and does not chase the new pack.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'row1', baselineId: 'b9', operatorId: '' }],
+      baselineReports: {
+        b1: { baselineId: 'b1', report: packOf(baselineTopology) },
+        b9: { baselineId: 'b9', report: packOf(nextTopology) },
+      },
+    });
+    await nextTick();
+    const stillOverlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    const after = wrapper
+      .findAllComponents({ name: 'MemoryTopologyPanel' })
+      .find((p) => stillOverlay.element.contains(p.element))!;
+    expect(after.element).toBe(node);
+    expect(after.props('baseline')).toEqual(baselineTopology);
+
+    // A fresh emit (re-opening) picks up the current primary resolution…
+    await wrapper.get('[data-testid="topology-panel-stub-fullscreen"]').trigger('click');
+    await nextTick();
+    expect(after.props('baseline')).toEqual(nextTopology);
+
+    // … and a row without a pack carries a null baseline through.
+    await wrapper.setProps({ baselineReports: { b1: { baselineId: 'b1', report: packOf(baselineTopology) } } });
+    await nextTick();
+    await wrapper.get('[data-testid="topology-panel-stub-fullscreen"]').trigger('click');
+    await nextTick();
+    expect(after.props('baseline')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-051b: a Metric switch rebuilds the 全屏 baseline from the picked operator', async () => {
+    const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
+    const csv = (ratio: number, gbs: number, cnt: number) => [
+      'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+      `1,l2_cached_ratio,${ratio}`,
+      `2,hbm_to_l2_syn_gbs,${gbs}`,
+      `3,hbm_to_l2_syn_cnt,${cnt}`,
+      '4,hbm_to_l2_syn_ratio,0.25',
+    ].join('\n');
+    const archModel = (ratio: number, gbs: number, cnt: number) => ({
+      ...emptyReportViewModel(),
+      profile: 'emulate' as const,
+      summary: { taskDurationUs: 1000 },
+      csvTexts: { 'ArchDiagramMetrics.csv': csv(ratio, gbs, cnt) },
+      memoryTables: [
+        {
+          fileName: 'ArchDiagramMetrics.csv',
+          headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+          rows: [],
+          blockIds: [],
+        },
+      ],
+    });
+    const pickedCsv = csv(40, 4, 400);
+    const defaultCsv = csv(10, 1, 100);
+    const pack: AdaptedReport = {
+      reportModel: archModel(10, 1, 100),
+      swimlaneModel: null,
+      operators: [
+        { id: 'default-op', label: 'default-op' },
+        { id: 'picked', label: 'picked' },
+      ],
+      operatorReports: {
+        'default-op': { reportModel: archModel(10, 1, 100), swimlaneModel: null },
+        picked: { reportModel: archModel(40, 4, 400), swimlaneModel: null },
+      },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: markRaw(archModel(90, 9, 900)),
+        capabilities: ['archDiagram'],
+        baselines: [{ id: 'b1', name: 'OPPROF_A', path: '/a' }],
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: 'picked' }],
+        baselineReports: { b1: { baselineId: 'b1', report: pack } },
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    await wrapper.get('[data-testid="topology-panel-stub-fullscreen"]').trigger('click');
+    await nextTick();
+    const overlay = wrapper.get('[data-testid="topology-fullscreen-overlay"]');
+    const overlayPanel = () =>
+      wrapper
+        .findAllComponents({ name: 'MemoryTopologyPanel' })
+        .find((p) => overlay.element.contains(p.element))!;
+    // Open-time snapshot resolves the PICKED operator's metrics.
+    expect(overlayPanel().props('baseline')).toEqual(
+      topologyFromArchDiagramMetrics(pickedCsv)!,
+    );
+
+    // Switching the overlay's Metric mode must rebuild the baseline from the
+    // SAME picked operator — the pack's default operator has different bytes.
+    await wrapper
+      .get('[data-testid="topology-fs-metric-select"] .pr-metric-select__trigger')
+      .trigger('click');
+    (document.querySelector('[data-testid="topology-fs-metric-option-number_of_requests"]') as HTMLElement).click();
+    await nextTick();
+    expect(overlayPanel().props('baseline')).toEqual(
+      topologyFromArchDiagramMetrics(pickedCsv, 'number_of_requests')!,
+    );
+    expect(overlayPanel().props('baseline')).not.toEqual(
+      topologyFromArchDiagramMetrics(defaultCsv, 'number_of_requests')!,
+    );
+    wrapper.unmount();
   });
 
   it('PR-ROOT-032: session actions, optimize and open-cannwork forward to the host with reference and view hidden', async () => {

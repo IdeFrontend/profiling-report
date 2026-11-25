@@ -241,27 +241,37 @@ export const TOPOLOGY_PEAK_PLATE_EDGE_ID = 'l2-hit';
  * The panel types its `PLATE_SLOTS` against this tuple, so a newly plated unit without
  * coordinates fails typecheck instead of silently drawing nothing (same rule as the link slots).
  * AIV0/AIV1 share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); the simplified AIV × 2 chrome
- * paints one badge each at `PLATE_SLOTS` (PR-MEMTOP-016).
+ * paints one badge each at `PLATE_SLOTS` (PR-MEMTOP-016). SIMT has no producer field (`NA`), so
+ * real reports stay blank there; the demo hosts synthesize `aiv_simt_ratio`.
  * `satisfies` keeps the tuple in step with the domain union: a unit that is not a
  * `MemoryTopologyPlateNodeId` cannot be listed here.
  */
-export const TOPOLOGY_PLATE_NODE_IDS = ['aiv_scalar', 'vec', 'cube'] as const satisfies readonly MemoryTopologyPlateNodeId[];
+export const TOPOLOGY_PLATE_NODE_IDS = [
+  'aiv_scalar',
+  'vec',
+  'cube',
+  'simt',
+  'aic_scalar',
+  'aiv_scalar_unit',
+] as const satisfies readonly MemoryTopologyPlateNodeId[];
 
 export type TopologyPlateNodeId = (typeof TOPOLOGY_PLATE_NODE_IDS)[number];
 
 /**
  * UI-49 in-box `%` badges (DATA-39 rows 1/2, 6'/7', 8). `aiv_scalar_ratio` / `aiv_vec_ratio` /
- * `aic_cube_ratio` are **fractions** of the unit's own busy time (DATA-28) — the same ratio the
- * 计算负载分析 pipe rows show — and print as `{ratio × 100}%` at the sketch's **two decimals**
- * (`57.90%`, where the pipe row rounds to `58%`). The producer's six `NA` in-box
- * rows (AIC `Scalar`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP`) cover only **four** badge
- * positions: the `SIMD VF` rows describe the `Vec` position, which the `Vec` rows (`6'`/`7'`) fill,
- * so it is painted, and those four positions stay blank.
+ * `aic_cube_ratio` / `aic_scalar_ratio` are **fractions** of the unit's own busy time (DATA-28) —
+ * the same ratio the 计算负载分析 pipe rows show — and print as `{ratio × 100}%` at the sketch's
+ * **two decimals** (`57.90%`, where the pipe row rounds to `58%`). The AIV row's own `Scalar`
+ * unit box shows the same `aiv_scalar_ratio` as the combined badge. SIMT's producer row is `NA`
+ * (`aiv_simt_ratio`): real reports stay blank, the demo hosts synthesize it.
  */
 const PLATE_MAP: { node: TopologyPlateNodeId; file: string; columns: string[] }[] = [
   { node: 'aiv_scalar', file: 'PipeUtilization.csv', columns: ['aiv_scalar_ratio'] },
   { node: 'vec', file: 'PipeUtilization.csv', columns: ['aiv_vec_ratio'] },
   { node: 'cube', file: 'PipeUtilization.csv', columns: ['aic_cube_ratio'] },
+  { node: 'simt', file: 'PipeUtilization.csv', columns: ['aiv_simt_ratio'] },
+  { node: 'aic_scalar', file: 'PipeUtilization.csv', columns: ['aic_scalar_ratio'] },
+  { node: 'aiv_scalar_unit', file: 'PipeUtilization.csv', columns: ['aiv_scalar_ratio'] },
 ];
 
 /**
@@ -381,9 +391,13 @@ function topologyFromSource(read: MemoryValueSource): MemoryTopologyModel | unde
   );
 
   // UI-49: in-box unit-utilization badges. The ratio is a fraction of the unit's own busy time.
+  // `value` mirrors the printed percentage (`Number(pct.toFixed(2))`) from the same ratio, so
+  // baseline comparison diffs plates without parsing the formatted `label` (PR-VM-029).
   const plates = PLATE_MAP.flatMap((p) => {
     const ratio = read(p.file, p.columns);
-    return ratio == null ? [] : [{ node: p.node, label: formatLabel(ratio * 100, '%') }];
+    if (ratio == null) return [];
+    const pct = ratio * 100;
+    return [{ node: p.node, label: formatLabel(pct, '%'), value: Number(pct.toFixed(2)) }];
   });
 
   return {
@@ -439,7 +453,8 @@ const FILE_CATEGORY: Record<string, string> = {
   'MemoryL0.csv': 'MemoryL0',
   'MemoryUB.csv': 'MemoryUB',
   'L2Cache.csv': 'L2Cache',
-  // UI-49: the in-box unit-utilization badges (Scalar / Vec / Cube) live in PipeUtilization.
+  // UI-49: the in-box unit-utilization badges (all chrome plate positions) live in
+  // PipeUtilization.
   'PipeUtilization.csv': 'PipeUtilization',
 };
 

@@ -1,14 +1,29 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch } from 'vue';
 import { t, archMetricModeLabel } from '../../i18n';
+import { baselineDisplayTitle } from '../../domain/baselineTitle';
+import {
+  metricDiff,
+  summaryDiffs,
+  utilizationPercent,
+  type MetricDiff,
+  type SummaryMetricValues,
+} from '../../domain/metricDiff';
+import { asideRoundsToZero, formatAsidePct, formatAsideValue } from './asideValueFormat';
+import type { BaselineTipRow } from './baselineTip';
 import type {
+  AdaptedReport,
   BandwidthCardModel,
+  Baseline,
+  BaselineReports,
+  BaselineRow,
   MemoryHeatmapUnitId,
   MemoryTopologyModel,
   PipeOccupancyItem,
   PipeOccupancySide,
   ReportCapability,
   ReportViewModel,
+  SummaryCategory,
 } from '../../domain/types';
 import {
   bandwidthCardsFromRows,
@@ -34,10 +49,11 @@ import HardwareDetailsPanel from './HardwareDetailsPanel/HardwareDetailsPanel.vu
 import RooflinePanel from './RooflinePanel/RooflinePanel.vue';
 import MemoryTopologyPanel from './MemoryTopologyPanel/MemoryTopologyPanel.vue';
 import CannbotActions from './CannbotActions.vue';
+import CloseButton from '../CloseButton.vue';
+import SummaryDiffIndicator from './StatsSummaryPanel/SummaryDiffIndicator.vue';
+import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import DetailChevron from './DetailChevron.vue';
 import CannworkOptimizeIcon from '../CannworkOptimizeIcon.vue';
-import CloseButton from '../CloseButton.vue';
-import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import { cooldown } from '../../domain/cooldown';
 import type { CannbotScope, CannbotSessions } from '../../domain/cannbot';
 
@@ -50,9 +66,29 @@ const props = defineProps<{
    * topology fullscreen share one selection; omit for standalone mounts (local default).
    */
   archMetricMode?: ArchDiagramMetricMode;
+  /**
+   * Host-owned checked baselines (对比基线) — the picker's checkbox set. The
+   * aside renders the comparison row list only while this set is non-empty;
+   * each row's report pick edits the host-owned rows (`update:baselineRows`).
+   */
+  baselines?: Baseline[];
+  /**
+   * Comparison rows (对比基线): baseline + pack operator per row; row 0 is the
+   * primary and drives every aside value, the rest surface only in the
+   * per-value hover popups. Absent/empty = no comparison row.
+   */
+  baselineRows?: BaselineRow[];
+  /**
+   * Adapted packs for the checked baselines the rows reference (对比基线).
+   * A row without a pack paints no comparison. Data-only side channel: never
+   * enters the main load path.
+   */
+  baselineReports?: BaselineReports;
+  /** Current report's operator id — auto-pairs the baseline pack when it matches. */
   /** Latest CANNWork session per scope, pushed by the host. Omitted → all scopes idle. */
   cannbotSessions?: CannbotSessions;
 }>();
+
 
 const emit = defineEmits<{
   close: [];
@@ -60,14 +96,27 @@ const emit = defineEmits<{
   'view-full-csv': [payload: { fileName: string; text: string }];
   'open-pipe-details': [];
   /** §11.2.3.2: `unit` is the heat unit clicked on the diagram, so 全屏 opens on it. */
-  'open-topology-fullscreen': [model: MemoryTopologyModel, unit?: MemoryHeatmapUnitId];
+  'open-topology-fullscreen': [
+    model: MemoryTopologyModel,
+    unit?: MemoryHeatmapUnitId,
+    baseline?: MemoryTopologyModel | null,
+    baselineRows?: { label: string; model: MemoryTopologyModel }[],
+  ];
   'open-cannbot': [scope: CannbotScope];
   'open-cannbot-stop': [scope: CannbotScope];
   'cannbot-reference': [scope: CannbotScope];
   'cannbot-view': [scope: CannbotScope];
   'perform-optimization': [];
   'update:archMetricMode': [mode: ArchDiagramMetricMode];
+  /** Comparison-row edit (add/remove/switch report or operator) — host-owned rows. */
+  'update:baselineRows': [rows: BaselineRow[]];
   'open-performance-hints': [];
+  /**
+   * A pointerdown inside the Baseline / Operator bar (capture phase, so the
+   * selects' own `pointerdown.stop` cannot swallow it) — the root closes the
+   * baselines popover on it (review PR #234).
+   */
+  'baseline-bar-down': [];
 }>();
 
 type PipeSide = PipeOccupancySide;
@@ -103,9 +152,11 @@ const hasDuration = computed(
 /** One block selector for every widget (DATA-19 / DATA-29): `''` = All, else that `block_id`. */
 const blockId = ref('');
 
-/** Rows for one CSV in the picked block; searches compute and memory tabs (DATA-19). */
-function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
-  const report = props.report;
+function rowsForBlockOf(
+  report: ReportViewModel | null | undefined,
+  fileName: string,
+  id: string,
+): Record<string, string>[] {
   if (!report) return [];
   const table = [...report.computeTables, ...report.memoryTables].find(
     (t) => t.fileName === fileName,
@@ -113,26 +164,395 @@ function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
   return table ? table.rows.filter((r) => r['block_id'] === id) : [];
 }
 
-const bandwidthCards = computed(() => {
-  const id = blockId.value;
-  const all = props.report?.bandwidthCards ?? [];
+/** Rows for one CSV in the picked block; searches compute and memory tabs (DATA-19). */
+function rowsForBlock(fileName: string, id: string): Record<string, string>[] {
+  return rowsForBlockOf(props.report, fileName, id);
+}
+
+function bandwidthCardsOf(
+  report: ReportViewModel | null | undefined,
+  id: string,
+): BandwidthCardModel[] {
+  const all = report?.bandwidthCards ?? [];
   if (!id) return all;
-  const peak = props.report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
+  const peak = report?.summary.gmBwTheoreticalGBs ?? all[0]?.sides[0]?.peakGBs;
   // A block with no `Memory.csv` shows no tile — never the All aggregate wearing its label.
-  return bandwidthCardsFromRows(rowsForBlock('Memory.csv', id), peak);
-});
-const computeCard = computed(() => {
-  const id = blockId.value;
-  const all = props.report?.computeCard;
+  return bandwidthCardsFromRows(rowsForBlockOf(report, 'Memory.csv', id), peak);
+}
+
+function computeCardOf(report: ReportViewModel | null | undefined, id: string) {
+  const all = report?.computeCard;
   if (!id) return all;
   // Peak is per-chip (DATA-29), so the picked block re-reads only the measured side and inherits
   // the peak; nothing to read (no row) blanks the tile rather than repeating the All value.
   return computeCardFromRows(
-    rowsForBlock('ArithmeticUtilization.csv', id),
-    props.report?.summary ?? {},
+    rowsForBlockOf(report, 'ArithmeticUtilization.csv', id),
+    report?.summary ?? {},
     all,
   );
+}
+
+const bandwidthCards = computed(() => bandwidthCardsOf(props.report, blockId.value));
+const computeCard = computed(() => computeCardOf(props.report, blockId.value));
+
+/* ===== Baseline comparison (对比基线) — summary cards, PIPE, topology, 详情 =====
+ * Every slice reads the same aside-local context: the resolved baseline model,
+ * plus `summaryDiffs` for the card metrics. Roofline is the remaining slice. */
+
+/** Adapted pack behind a checked baseline (host-cached by baseline id). */
+function packById(baselineId: string): AdaptedReport | null {
+  return props.baselineReports?.[baselineId]?.report ?? null;
+}
+
+/** Adapted pack behind one comparison row. */
+function packOf(row: BaselineRow | null | undefined): AdaptedReport | null {
+  if (!row) return null;
+  return packById(row.baselineId);
+}
+
+/** Operator options for a baseline pack; a flat pack synthesizes one option. */
+function baselineOperatorOptionsOf(rep: AdaptedReport | null | undefined) {
+  if (!rep) return [];
+  if (rep.operators && rep.operators.length > 0) {
+    return rep.operators.map((o) => ({ id: o.id, label: o.label }));
+  }
+  const keys = Object.keys(rep.operatorReports ?? {});
+  if (keys.length > 0) return keys.map((id) => ({ id, label: id }));
+  const opName = rep.reportModel?.summary.opName;
+  return opName ? [{ id: opName, label: opName }] : [];
+}
+
+/** Operator options for one checked baseline: the host-declared `operators`
+ *  records win (the data model's contract — a real host lists the pack's
+ *  operators before its bytes ever adapt), else the adapted pack's own list. */
+function baselineEntryOperatorOptionsOf(
+  baseline: Baseline | undefined,
+  rep: AdaptedReport | null | undefined,
+) {
+  if (baseline?.operators && baseline.operators.length > 0) {
+    return baseline.operators.map((o) => ({ id: o.id, label: o.label }));
+  }
+  return baselineOperatorOptionsOf(rep);
+}
+
+/** The row's operator: its own pick when valid, else the pack operator matching
+ * the open report's `opName`, else the first (review PR #234 semantics). */
+function resolveRowOperator(operatorId: string, options: { id: string }[]): string | null {
+  if (options.length === 0) return null;
+  if (operatorId && options.some((o) => o.id === operatorId)) return operatorId;
+  const match = summary.value?.opName;
+  if (match != null && options.some((o) => o.id === match)) return match;
+  return options[0].id;
+}
+
+interface ResolvedBaselineRow {
+  row: BaselineRow;
+  index: number;
+  label: string;
+  options: { id: string; label: string }[];
+  operatorId: string | null;
+  model: ReportViewModel | null;
+}
+
+/** Every comparison row resolved against its host pack (the popup list uses all
+ * of them; row 0 is the primary). A row without a pack has `model: null`. */
+const resolvedRows = computed<ResolvedBaselineRow[]>(() =>
+  (props.baselineRows ?? []).map((row, index) => {
+    const report = packOf(row);
+    const entry = checkedBaselines.value.find((b) => b.id === row.baselineId);
+    const options = baselineEntryOperatorOptionsOf(entry, report);
+    const operatorId = resolveRowOperator(row.operatorId, options);
+    const model = report
+      ? (operatorId != null ? report.operatorReports?.[operatorId]?.reportModel : null)
+        ?? report.reportModel
+      : null;
+    const zh = (props.locale ?? 'zh').toLowerCase().startsWith('zh');
+    return {
+      row,
+      index,
+      // 1130 guide typography: no space before the number in zh (基线1).
+      label: zh
+        ? `${t('baselineLabel', props.locale)}${index + 1}`
+        : `${t('baselineLabel', props.locale)} ${index + 1}`,
+      options,
+      operatorId,
+      model,
+    };
+  }),
+);
+
+const primaryRow = computed(() => resolvedRows.value[0] ?? null);
+
+/** The primary row's ReportViewModel — the singular comparison every surface reads. */
+const baselineModel = computed<ReportViewModel | null>(() => primaryRow.value?.model ?? null);
+
+function sumMeasuredGBs(cards: BandwidthCardModel[], id: string): number | undefined {
+  const card = cards.find((c) => c.id === id);
+  if (!card || card.sides.length === 0) return undefined;
+  return card.sides.reduce((a, s) => a + s.measuredGBs, 0);
+}
+
+/** A fraction clamped to [0, 1] and snapped to the AICore card's OWN display
+ *  grid (two decimals of the [0, 100]% it prints), so the comparison diffs the
+ *  score a reader can verify on the card. */
+function clampFraction(n: number | null | undefined): number | undefined {
+  if (n == null || !Number.isFinite(n)) return undefined;
+  const clamped = Math.min(1, Math.max(0, n));
+  return Number((clamped * 100).toFixed(2)) / 100;
+}
+
+/** Measured throughput rewritten so measured ÷ peak lands on the compute/BW
+ *  card's printed INTEGER score (`utilScore`). The card prints that integer and
+ *  the diff picks it up as-is, so a badge never claims a delta between two
+ *  numbers the cards cannot show (review finding: 42.3% vs 41.6% printed 42
+ *  both ways while the badge read 0.7). */
+function scoreMeasured(measured: number | undefined, peak: number | undefined): number | undefined {
+  if (measured == null || peak == null || !Number.isFinite(measured) || !Number.isFinite(peak) || peak <= 0) {
+    return measured;
+  }
+  return (peak * utilScore(measured, peak)) / 100;
+}
+
+/** Raw card metrics of one report side, in the card's own units. The clamped
+ *  metrics (AICore util/balance, compute, BW) carry EXACTLY the score the card
+ *  prints — two-decimal percent for AICore, an integer percent for compute/BW —
+ *  so the diffs and the hover popups below can never disagree with the card;
+ *  duration stays raw. */
+function metricValues(report: ReportViewModel | null | undefined, id: string): SummaryMetricValues {
+  const bw = bandwidthCardsOf(report, id);
+  const readCard = bw.find((c) => c.id === 'input');
+  const writeCard = bw.find((c) => c.id === 'output');
+  const compute = computeCardOf(report, id);
+  const side = (which: 'aic' | 'aiv') => {
+    const found = compute?.sides.find((s) => s.side === which);
+    return found
+      ? {
+          ...found,
+          measuredTflops: scoreMeasured(found.measuredTflops, found.peakTflops),
+        }
+      : undefined;
+  };
+  return {
+    taskDurationUs: report?.summary.taskDurationUs,
+    // summaryDiffs turns these fractions into percentages; the clamp + 2dp snap
+    // is the same [0, 100]% score the AICore card shows.
+    parallelUtilization: clampFraction(report?.summary.parallelUtilization),
+    parallelBalance: clampFraction(report?.summary.parallelBalance),
+    compute: { aic: side('aic'), aiv: side('aiv') },
+    bandwidth: {
+      read: readCard
+        ? {
+            measuredGBs: scoreMeasured(sumMeasuredGBs(bw, 'input'), readCard.sides[0]?.peakGBs),
+            peakGBs: readCard.sides[0]?.peakGBs,
+          }
+        : undefined,
+      write: writeCard
+        ? {
+            measuredGBs: scoreMeasured(sumMeasuredGBs(bw, 'output'), writeCard.sides[0]?.peakGBs),
+            peakGBs: writeCard.sides[0]?.peakGBs,
+          }
+        : undefined,
+    },
+  };
+}
+
+const diffs = computed(() => {
+  const bl = baselineModel.value;
+  if (!bl || !props.report) return null;
+  return summaryDiffs(
+    metricValues(props.report, blockId.value),
+    metricValues(bl, blockId.value),
+  );
 });
+
+/**
+ * Comparison mode (对比基线): a resolved baseline pack is present. The summary grid then
+ * raises its minimum tile to 300px (`repeat(auto-fit, minmax(300px, 1fr))`) — enough for
+ * the two value + diff-chip rows inside one card, so a two-column state never paints a chip
+ * past its tile — and the well width picks the column count: the default ~456px well keeps
+ * one card per row, a widened aside fits two (PR-STATS-059). Without a pack the sketch's
+ * 2×2 grid stays.
+ */
+const compareCards = computed(() => baselineModel.value != null);
+
+/**
+ * Diff text per metric — the mockup prints the unsigned magnitude in the
+ * metric's own unit: bare number for duration (unit implied by the base
+ * value) and compute, `%` attached for AICore/BW. Everything rides the panel's
+ * ONE two-decimal format (PR-STATS-060); a magnitude whose two-decimal
+ * rounding lands on `0.00` yields no badge.
+ */
+function diffText(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): string {
+  if (!diff) return '';
+  if (kind === 'pct') {
+    return asideRoundsToZero(diff.magnitude) ? '' : formatAsidePct(diff.magnitude);
+  }
+  if (kind === 'duration') {
+    // Same unit as the current card's base value: ms when it prints ms, else µs.
+    const us = props.report?.summary.taskDurationUs;
+    const magnitude = us != null && us >= 1000 ? diff.magnitude / 1000 : diff.magnitude;
+    return asideRoundsToZero(magnitude) ? '' : formatAsideValue(magnitude);
+  }
+  return asideRoundsToZero(diff.magnitude) ? '' : formatAsideValue(diff.magnitude);
+}
+
+function diffDirectionLabel(tone: MetricDiff['tone']): string {
+  return tone === 'increase' ? t('diffIncreased', props.locale) : t('diffDecreased', props.locale);
+}
+
+interface DiffView {
+  tone: MetricDiff['tone'];
+  text: string;
+  label: string;
+}
+
+/** A renderable diff: null when the metric is missing, equal, or rounds to zero. */
+function diffView(diff: MetricDiff | null | undefined, kind: 'duration' | 'pct' | 'bare'): DiffView | null {
+  const text = diffText(diff, kind);
+  return diff && text ? { tone: diff.tone, text, label: diffDirectionLabel(diff.tone) } : null;
+}
+
+const durationDiff = computed(() => diffView(diffs.value?.taskDurationUs, 'duration'));
+const parallelDiff = computed(() => diffView(diffs.value?.parallelUtilization, 'pct'));
+const balanceDiff = computed(() => diffView(diffs.value?.parallelBalance, 'pct'));
+const computeAicDiff = computed(() => diffView(diffs.value?.computeAic, 'bare'));
+const computeAivDiff = computed(() => diffView(diffs.value?.computeAiv, 'bare'));
+const bwReadDiff = computed(() => diffView(diffs.value?.bandwidthRead, 'pct'));
+const bwWriteDiff = computed(() => diffView(diffs.value?.bandwidthWrite, 'pct'));
+
+/* ===== Multi-baseline hover popups (对比基线) =====
+ * Every comparison row is diffed against the same open report through the same
+ * math as the primary (`summaryDiffs`), so the popup can never disagree with
+ * the inline badge. The current report rides first as the reference value; the
+ * popup exists for every comparison row, including a single baseline (the
+ * numbers are the popup's job — the chip only carries the delta). */
+
+const currentMetricValues = computed(() => metricValues(props.report, blockId.value));
+const rowComparisons = computed(() =>
+  resolvedRows.value.map((entry) => {
+    if (!entry.model) return { entry, metrics: null, diffs: null };
+    const metrics = metricValues(entry.model, blockId.value);
+    return { entry, metrics, diffs: summaryDiffs(currentMetricValues.value, metrics) };
+  }),
+);
+
+function buildMetricTip(
+  currentValue: string | null,
+  read: (cmp: (typeof rowComparisons.value)[number]) => {
+    value: string;
+    diff?: MetricDiff | null;
+  } | null,
+  kind: 'duration' | 'pct' | 'bare',
+): BaselineTipRow[] | null {
+  if (resolvedRows.value.length === 0) return null;
+  const rows: BaselineTipRow[] = [];
+  if (currentValue != null) {
+    rows.push({ label: t('compareCurrent', props.locale), value: currentValue });
+  }
+  for (const cmp of rowComparisons.value) {
+    const got = read(cmp);
+    if (!got) continue;
+    const view = diffView(got.diff ?? null, kind);
+    rows.push({
+      label: cmp.entry.label,
+      value: got.value,
+      tone: view?.tone,
+      direction: view?.label,
+      delta: view?.text,
+    });
+  }
+  return rows.length > 1 ? rows : null;
+}
+
+const durationTip = computed(() => {
+  const cur = summary.value?.taskDurationUs;
+  // One unit for the whole popup — the CURRENT card's (ms when it prints ms,
+  // else µs), so the rows stay comparable (1130 guide).
+  const inMs = cur != null && cur >= 1000;
+  const fmt = (us: number) =>
+    inMs ? `${formatAsideValue(us / 1000)} ms` : `${formatAsideValue(us)} µs`;
+  return buildMetricTip(
+    cur != null ? fmt(cur) : null,
+    (c) => {
+      const us = c.metrics?.taskDurationUs;
+      return us == null ? null : { value: fmt(us), diff: c.diffs?.taskDurationUs };
+    },
+    'duration',
+  );
+});
+const parallelTip = computed(() => {
+  // currentMetricValues carries the clamped [0, 1] fraction the card prints.
+  const cur = utilizationPercent(currentMetricValues.value.parallelUtilization, 1);
+  return buildMetricTip(
+    cur != null ? formatAsidePct(cur) : null,
+    (c) => {
+      const v = utilizationPercent(c.metrics?.parallelUtilization, 1);
+      return v == null ? null : { value: formatAsidePct(v), diff: c.diffs?.parallelUtilization };
+    },
+    'pct',
+  );
+});
+const balanceTip = computed(() => {
+  const cur = utilizationPercent(currentMetricValues.value.parallelBalance, 1);
+  return buildMetricTip(
+    cur != null ? formatAsidePct(cur) : null,
+    (c) => {
+      const v = utilizationPercent(c.metrics?.parallelBalance, 1);
+      return v == null ? null : { value: formatAsidePct(v), diff: c.diffs?.parallelBalance };
+    },
+    'pct',
+  );
+});
+const computeTip = (side: 'aic' | 'aiv') =>
+  computed(() => {
+    const cur = utilizationPercent(
+      currentMetricValues.value.compute?.[side]?.measuredTflops,
+      currentMetricValues.value.compute?.[side]?.peakTflops,
+    );
+    return buildMetricTip(
+      cur != null ? formatAsideValue(cur) : null,
+      (c) => {
+        const v = utilizationPercent(
+          c.metrics?.compute?.[side]?.measuredTflops,
+          c.metrics?.compute?.[side]?.peakTflops,
+        );
+        return v == null
+          ? null
+          : {
+              value: formatAsideValue(v),
+              diff: side === 'aic' ? c.diffs?.computeAic : c.diffs?.computeAiv,
+            };
+      },
+      'bare',
+    );
+  });
+const computeAicTip = computeTip('aic');
+const computeAivTip = computeTip('aiv');
+const bandwidthTip = (dir: 'read' | 'write') =>
+  computed(() => {
+    const cur = utilizationPercent(
+      currentMetricValues.value.bandwidth?.[dir]?.measuredGBs,
+      currentMetricValues.value.bandwidth?.[dir]?.peakGBs,
+    );
+    return buildMetricTip(
+      cur != null ? formatAsidePct(cur) : null,
+      (c) => {
+        const v = utilizationPercent(
+          c.metrics?.bandwidth?.[dir]?.measuredGBs,
+          c.metrics?.bandwidth?.[dir]?.peakGBs,
+        );
+        return v == null
+          ? null
+          : {
+              value: formatAsidePct(v),
+              diff: dir === 'read' ? c.diffs?.bandwidthRead : c.diffs?.bandwidthWrite,
+            };
+      },
+      'pct',
+    );
+  });
+const bwReadTip = bandwidthTip('read');
+const bwWriteTip = bandwidthTip('write');
 const roofline = computed(() => {
   const id = blockId.value;
   if (!id) return props.report?.roofline;
@@ -309,6 +729,19 @@ function truncated(el: EventTarget | null): boolean {
  *
  * `whenTruncated` keeps a fully visible column label quiet instead of echoing its own text.
  */
+/**
+ * True when the pointer is over a comparison delta chip. The chip owns its own
+ * multi-baseline popup (1130 guide: the popup opens on the DELTA, not on the
+ * card value); without this guard, entering the value row opens the card's
+ * exact-value tooltip too.
+ */
+function overDiffChip(e: PointerEvent): boolean {
+  const el = typeof document.elementFromPoint === 'function'
+    ? document.elementFromPoint(e.clientX, e.clientY)
+    : null;
+  return !!el?.closest?.('.pr-diff');
+}
+
 function tipBind(
   tip: CardTip | null | undefined,
   opts: { focusable?: boolean; whenTruncated?: boolean } = {},
@@ -335,10 +768,18 @@ function tipBind(
         }
       : {}),
     onPointerenter: (e: PointerEvent) => {
-      if (!hidden(e.currentTarget)) openTip(tip, e.clientX, e.clientY);
+      if (overDiffChip(e) || hidden(e.currentTarget)) return;
+      openTip(tip, e.clientX, e.clientY);
     },
     onPointermove: (e: PointerEvent) => {
-      if (!cardTip.value) return;
+      // Over a delta chip the comparison popup owns the pointer; close the
+      // card's exact-value tooltip instead of re-opening it on every move.
+      if (overDiffChip(e)) {
+        closeTip();
+        return;
+      }
+      // Moving within the value row (e.g. off the delta) must re-open the
+      // value tip: no pointerenter fires while the pointer never left the row.
       if (hidden(e.currentTarget)) closeTip();
       else openTip(tip, e.clientX, e.clientY);
     },
@@ -451,12 +892,14 @@ const computeCategories = computed(() =>
     ),
   ),
 );
+/** The four `summary.jsonl` categories the memory 详情 lists. One predicate for the current and
+ *  the baseline side, so the comparison can never pair a category the list itself would drop. */
+const MEMORY_CATEGORY_IDS = ['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const;
+function isMemoryCategory(c: SummaryCategory): boolean {
+  return (MEMORY_CATEGORY_IDS as readonly string[]).includes(c.id);
+}
 const memoryCategories = computed(() =>
-  (props.report?.summaryCategories ?? []).filter((c) =>
-    (['MemoryL0', 'L2Cache', 'Memory', 'MemoryUB'] as const).includes(
-      c.id as 'MemoryL0' | 'L2Cache' | 'Memory' | 'MemoryUB',
-    ),
-  ),
+  (props.report?.summaryCategories ?? []).filter(isMemoryCategory),
 );
 const activeCategory = ref('');
 watch(
@@ -565,10 +1008,14 @@ watch(
  * the picked-block topology rebuild (UI-49's in-box Scalar/Vec/Cube badges live in PipeUtilization)
  * and the memory 详情 CSV field list (UI-38's MTE utilizations do too).
  */
-const memoryTablesWithPipe = computed(() => [
-  ...(props.report?.memoryTables ?? []),
-  ...(props.report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
-]);
+function memoryTablesWithPipeOf(report: ReportViewModel | null | undefined) {
+  return [
+    ...(report?.memoryTables ?? []),
+    ...(report?.computeTables ?? []).filter((t) => t.fileName === 'PipeUtilization.csv'),
+  ];
+}
+
+const memoryTablesWithPipe = computed(() => memoryTablesWithPipeOf(props.report));
 
 /** Emulate Architecture Diagram (DATA-48a): metric mode switches `*_gbs` / `*_ratio` / `*_cnt`. */
 const isArchDiagram = computed(() => (props.capabilities ?? []).includes('archDiagram'));
@@ -596,16 +1043,41 @@ watch(isArchDiagram, (on) => {
  * Emulate / `archDiagram`: rebuild from ArchDiagramMetrics + selected metric mode only — never
  * `?? report.memoryTopology` (that snapshot is always default `*_gbs`; a blank mode must DATA-30 hide).
  */
-const topologyModel = computed(() => {
+function topologyOf(report: ReportViewModel | null | undefined) {
   if (isArchDiagram.value) {
-    const csv = archDiagramCsvFromTexts(props.report?.csvTexts);
+    // Each side rebuilds from its own ArchDiagramMetrics with the shared mode — never the
+    // adapter snapshot, which is always the default `*_gbs` (DATA-30 / PR-STATS-037).
+    const csv = archDiagramCsvFromTexts(report?.csvTexts);
     return topologyFromArchDiagramMetrics(csv, archMetricMode.value);
   }
   const id = blockId.value;
-  const tables = memoryTablesWithPipe.value;
+  const tables = memoryTablesWithPipeOf(report);
   // A picked block shows only that block's rows — never the All aggregate wearing its label.
   if (id && tables.length > 0) return buildMemoryTopology(tables, id);
-  return props.report?.memoryTopology;
+  return report?.memoryTopology;
+}
+
+const topologyModel = computed(() => topologyOf(props.report));
+
+/**
+ * The selected baseline's topology in the SAME scope as `topologyModel` (PR-STATS-056): All reads
+ * the baseline's adapter snapshot, a picked block rebuilds from the baseline's own CSVs (the one
+ * block selector scopes both sides), and ArchDiagram rebuilds from the baseline's own
+ * ArchDiagramMetrics with the selected metric mode. `null` without a pack, so the panel paints
+ * no delta nodes and its DOM stays exactly as before comparison.
+ */
+const topologyBaseline = computed(() =>
+  baselineModel.value ? topologyOf(baselineModel.value) : null,
+);
+
+/** Every comparison row's topology in the same scope (badge hover popup, multi-row). */
+const topologyBaselineRows = computed(() => {
+  const rows: { label: string; model: MemoryTopologyModel }[] = [];
+  for (const entry of resolvedRows.value) {
+    const model = entry.model ? topologyOf(entry.model) : null;
+    if (model) rows.push({ label: entry.label, model });
+  }
+  return rows;
 });
 
 /**
@@ -629,6 +1101,252 @@ const csvOnly = computed(
 );
 
 const summary = computed(() => props.report?.summary);
+
+/* ===== Baseline comparison rows (对比基线, 1130 multi-row) =====
+ * With any baseline checked the bar renders at least one row (基线1): a report
+ * select + an operator select per row, `−` on every row but the first, and `+`
+ * to add one. Row 0 is the PRIMARY — every aside value reads it; the other
+ * rows surface only in the per-value hover popup. Rows are host-owned; the
+ * aside renders and emits the whole edited list. */
+
+const checkedBaselines = computed(() => props.baselines ?? []);
+const comparisonRows = computed(() => props.baselineRows ?? []);
+
+/** Shared report-slot width for the comparison rows: the widest report title's
+ *  FULL text (caption + select), measured from the rendered labels. Every row
+ *  uses it, so the 算子 column stands one under another even when the rows show
+ *  different report names; the report select fills the slot (the operator stays
+ *  pressed to it), and the slot shrinks before the operator on a narrow aside —
+ *  widening restores the report text first, then the operator value. */
+const baselineBarEl = ref<HTMLElement | null>(null);
+const reportSlotW = ref<number | null>(null);
+/** Shared 基线N label width: the digits differ in a proportional fallback font
+ *  (the Linux CI font made 基线1 / 基线2 10.7px apart), which shifted the field
+ *  and shrank the gap differently per row — the operator columns lost their
+ *  common line. Every row label takes the widest label's width. */
+const rowLabelW = ref<number | null>(null);
+let measureCanvas: CanvasRenderingContext2D | null | undefined;
+/** The label's own TEXT width, independent of the box it currently clips in
+ *  (reading `scrollWidth` would feed the slot width back into itself and creep
+ *  up a pixel on every remeasure). */
+function labelTextWidth(label: HTMLElement): number {
+  if (measureCanvas === undefined) {
+    measureCanvas = document.createElement('canvas').getContext('2d');
+  }
+  if (!measureCanvas) return 0;
+  const style = getComputedStyle(label);
+  measureCanvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  return measureCanvas.measureText(label.textContent ?? '').width;
+}
+async function measureReportSlot(): Promise<void> {
+  await nextTick();
+  const bar = baselineBarEl.value;
+  if (!bar) return;
+  let widest = 0;
+  let widestLabel = 0;
+  for (const row of bar.querySelectorAll('.pr-aside__baseline-row')) {
+    const rowLabel = row.querySelector('.pr-aside__baseline-label') as HTMLElement | null;
+    // No layout (jsdom / hidden aside): skip the canvas measurement.
+    if (rowLabel && rowLabel.getBoundingClientRect().width > 0) {
+      widestLabel = Math.max(widestLabel, labelTextWidth(rowLabel));
+    }
+    const caption = row.querySelector(
+      '.pr-aside__baseline-sub--report .pr-aside__baseline-k',
+    ) as HTMLElement | null;
+    const label = row.querySelector(
+      '.pr-aside__baseline-sub--report .pr-metric-select__label',
+    ) as HTMLElement | null;
+    if (!caption || !label) continue;
+    // No layout (jsdom / hidden aside): leave the design fallback in place.
+    if (caption.getBoundingClientRect().width <= 0) continue;
+    // Caption + sub gap + full label + the select's trigger gap/chevron/border.
+    widest = Math.max(
+      widest,
+      caption.getBoundingClientRect().width + 4 + labelTextWidth(label) + 26,
+    );
+  }
+  reportSlotW.value = widest > 0 ? Math.min(640, Math.ceil(widest) + 2) : null;
+  rowLabelW.value = widestLabel > 0 ? Math.ceil(widestLabel) + 1 : null;
+}
+const baselineSlotStyle = computed(() => {
+  const style: Record<string, string> = {};
+  if (reportSlotW.value) style['--pr-baseline-report-w'] = `${reportSlotW.value}px`;
+  if (rowLabelW.value) style['--pr-baseline-row-label-w'] = `${rowLabelW.value}px`;
+  return style;
+});
+/** Only the inputs of the rendered report TITLE (`baselineDisplayTitle`: name,
+ *  path, pickedAt) and the locale size the slot — an operator pick must not
+ *  re-measure (the computed key compares by value, so it does not fire). */
+const reportSlotKey = computed(() =>
+  [
+    (props.baselines ?? [])
+      .map((b) => `${b.id}:${b.name}:${b.pickedAt ?? ''}:${b.path}`)
+      .join('|'),
+    comparisonRows.value.map((r) => `${r.id}:${r.baselineId}`).join('|'),
+    props.locale,
+  ].join('||'),
+);
+watch(reportSlotKey, measureReportSlot, { flush: 'post', immediate: true });
+const baselineIds = computed(() => checkedBaselines.value.map((b) => b.id));
+/** Operator options of every checked baseline — each operator is one row slot. */
+const operatorOptionsByBaseline = computed(() => {
+  const map = new Map<string, { id: string; label: string }[]>();
+  for (const baseline of checkedBaselines.value) {
+    map.set(baseline.id, baselineEntryOperatorOptionsOf(baseline, packById(baseline.id)));
+  }
+  return map;
+});
+
+/** Row capacity: the SUM of operator counts across the checked baselines, so the
+ *  same report can carry several rows with different operators. A baseline whose
+ *  pack has no operator list still counts as one slot. */
+const baselineRowCapacity = computed(() =>
+  checkedBaselines.value.reduce(
+    (sum, baseline) =>
+      sum + Math.max(1, operatorOptionsByBaseline.value.get(baseline.id)?.length ?? 0),
+    0,
+  ),
+);
+const canAddBaselineRow = computed(
+  () => comparisonRows.value.length < baselineRowCapacity.value,
+);
+
+function baselineNameOf(id: string): string {
+  const entry = checkedBaselines.value.find((b) => b.id === id);
+  // The derived title: filename + timestamp instead of a generated boilerplate
+  // id (review PR #234); the raw id stays the last-resort fallback.
+  return entry ? baselineDisplayTitle(entry) : id;
+}
+function rowOperatorName(entry: ResolvedBaselineRow, id: string): string {
+  const label = entry.options.find((o) => o.id === id)?.label;
+  if (label != null) return label;
+  return id === '' ? t('selectPlaceholder', props.locale) : id;
+}
+
+/** Row caption, 1130 guide: `基线1：` (zh, no space) / `Baseline 1:` (en). */
+function rowLabelText(index: number): string {
+  const n = index + 1;
+  const zh = (props.locale ?? 'zh').toLowerCase().startsWith('zh');
+  return zh
+    ? `${t('baselineLabel', props.locale)}${n}：`
+    : `${t('baselineLabel', props.locale)} ${n}:`;
+}
+
+/** Field captions, 1130 guide: `报告：` / `算子：` (zh full-width colon) vs `Report:`. */
+function fieldCaption(key: 'stats' | 'operatorLabel'): string {
+  const zh = (props.locale ?? 'zh').toLowerCase().startsWith('zh');
+  return `${t(key, props.locale)}${zh ? '：' : ':'}`;
+}
+
+function emitRows(next: BaselineRow[]): void {
+  emit('update:baselineRows', next);
+}
+/** `baseline|operator` pairs the OTHER rows hold — the edited row's own pair is
+ *  free to keep. Same operator source as the `+` path (host-declared first,
+ *  pack fallback), so a row that still carries `operatorId: ''` counts as the
+ *  operator it resolves to. */
+function usedPairsExcept(rowId: string): Set<string> {
+  return new Set(
+    comparisonRows.value
+      .filter((row) => row.id !== rowId)
+      .map((row) => {
+        const options = operatorOptionsByBaseline.value.get(row.baselineId) ?? [];
+        return `${row.baselineId}|${resolveRowOperator(row.operatorId, options) ?? ''}`;
+      }),
+  );
+}
+/** The first operator of `baselineId` the other rows do not hold, or null when
+ *  every operator slot of that report is taken. */
+function freeOperatorFor(baselineId: string, used: Set<string>): string | null {
+  const options = operatorOptionsByBaseline.value.get(baselineId) ?? [];
+  return options.find((option) => !used.has(`${baselineId}|${option.id}`))?.id ?? null;
+}
+/** Move the row to another report: its operator resets to the new report's
+ *  default (the open report's `opName` match, else the first) — unless another
+ *  row already holds that pair, in which case the row takes the first free
+ *  operator. When EVERY operator of the target report is already held by the
+ *  other rows the switch is a NO-OP: moving the row would duplicate a pair and
+ *  burn a capacity slot while leaving a distinct pair unreachable (review
+ *  2026-11-25). */
+function setRowBaseline(rowId: string, baselineId: string): void {
+  const options = operatorOptionsByBaseline.value.get(baselineId) ?? [];
+  const used = usedPairsExcept(rowId);
+  let operatorId: string | null;
+  if (options.length === 0) {
+    // A report without an operator list owns exactly one row slot (`id: ''`).
+    operatorId = used.has(`${baselineId}|`) ? null : '';
+  } else {
+    const preferred = resolveRowOperator('', options);
+    operatorId =
+      preferred && !used.has(`${baselineId}|${preferred}`)
+        ? preferred
+        : freeOperatorFor(baselineId, used);
+  }
+  // Every pair of that report is taken: keep the row where it is.
+  if (operatorId == null) return;
+  emitRows(
+    comparisonRows.value.map((r) =>
+      r.id === rowId ? { ...r, baselineId, operatorId } : r,
+    ),
+  );
+}
+/** Pick the row's operator. A pair another row already holds resolves to the
+ *  first free operator of the same report — the dropdowns offer every operator,
+ *  but the row set stays one distinct pair per row (review 2026-11-25). */
+function setRowOperator(rowId: string, operatorId: string): void {
+  const row = comparisonRows.value.find((r) => r.id === rowId);
+  if (!row) return;
+  const used = usedPairsExcept(rowId);
+  const next = used.has(`${row.baselineId}|${operatorId}`)
+    ? (freeOperatorFor(row.baselineId, used) ?? operatorId)
+    : operatorId;
+  emitRows(
+    comparisonRows.value.map((r) => (r.id === rowId ? { ...r, operatorId: next } : r)),
+  );
+}
+/** The next free `arow-N` id. Derived from the rows already present rather than
+ *  a per-mount counter: the host-owned rows outlive the aside (closing and
+ *  reopening it remounts the component), and a reused id made the two rows
+ *  share a `:key` and edit each other. */
+function nextRowId(): string {
+  const used = new Set(comparisonRows.value.map((r) => r.id));
+  let seq = comparisonRows.value.length + 1;
+  while (used.has(`arow-${seq}`)) seq += 1;
+  return `arow-${seq}`;
+}
+/** Add a row for the first (baseline, operator) pair not used yet — the same
+ *  report can repeat with another operator. The caller disables `+` once every
+ *  checked baseline's operator slots are used. */
+function addBaselineRow(): void {
+  if (!canAddBaselineRow.value) return;
+  // The used set must read the SAME operator source as the candidates/capacity
+  // (host-declared first, pack fallback): with no adapted pack the pack path
+  // resolves every row to the bare key and the first candidate looks free
+  // forever, so `+` would repeat one (baseline, operator) pair.
+  const used = new Set(
+    comparisonRows.value.map((row) => {
+      const options = operatorOptionsByBaseline.value.get(row.baselineId) ?? [];
+      return `${row.baselineId}|${resolveRowOperator(row.operatorId, options) ?? ''}`;
+    }),
+  );
+  for (const baseline of checkedBaselines.value) {
+    const options = operatorOptionsByBaseline.value.get(baseline.id) ?? [];
+    const candidates = options.length > 0 ? options : [{ id: '', label: '' }];
+    const free = candidates.find((option) => !used.has(`${baseline.id}|${option.id}`));
+    if (!free) continue;
+    emitRows([
+      ...comparisonRows.value,
+      { id: nextRowId(), baselineId: baseline.id, operatorId: free.id },
+    ]);
+    return;
+  }
+}
+/** Remove a row; the FIRST row is the primary and cannot be removed. */
+function removeBaselineRow(index: number): void {
+  if (index <= 0 || index >= comparisonRows.value.length) return;
+  emitRows(comparisonRows.value.filter((_, i) => i !== index));
+}
+
 
 function numericBlockDim(blockDim: string | number | undefined): number | undefined {
   if (blockDim == null || blockDim === '') return undefined;
@@ -791,15 +1509,118 @@ function matchesSide(item: PipeOccupancyItem, side: PipeSide): boolean {
   return (item.side ?? side) === side;
 }
 
-const visiblePipes = computed(() => {
-  const all = scopedPipeOccupancy.value;
+/** The selected baseline's PIPE row paired with a current row (same id + side). */
+/** Baseline PIPE rows under the picked block: the same scoping rules as the
+ * current side — a block with no PipeUtilization.csv rows blanks rather than
+ * repeat the All aggregate (DATA-19 / PR-STATS-014b). */
+function scopedBaselinePipeOccupancyOf(model: ReportViewModel | null): PipeOccupancyItem[] {
+  const all = model?.pipeOccupancy ?? [];
+  if (!model || !blockId.value) return all;
+  const rows = rowsForBlockOf(model, 'PipeUtilization.csv', blockId.value);
+  return rows.length === 0 ? [] : pipeOccupancyFromRows(rows);
+}
+const scopedBaselinePipeOccupancy = computed(() => scopedBaselinePipeOccupancyOf(baselineModel.value));
+
+function baselinePipeFor(row: PipeOccupancyItem) {
+  if (!baselineModel.value) return null;
+  return (
+    scopedBaselinePipeOccupancy.value.find(
+      (b) => b.id === row.id && (b.side ?? row.side) === row.side,
+    ) ?? null
+  );
+}
+
+/** One bar per metric in comparison mode: the bar's own utilization delta against the
+ * paired baseline row, in percentage points (PR-STATS-055). The ratio exists on every
+ * row, so emulate/ICache rows compare too — the in-bar time is not the compared metric. */
+function pipeDiffFor(row: PipeOccupancyItem): DiffView | null {
+  const base = baselinePipeFor(row);
+  return diffView(
+    metricDiff(
+      utilizationPercent(row.ratio, 1) ?? undefined,
+      utilizationPercent(base?.ratio, 1) ?? undefined,
+    ),
+    'pct',
+  );
+}
+
+/** Baseline PIPE popup: the current percent, then every row's own percent and
+ * percentage-point delta for the SAME metric (a single baseline included). */
+function pipeTipFor(row: PipeOccupancyItem): BaselineTipRow[] | null {
+  if (resolvedRows.value.length === 0) return null;
+  /** The guide's popup prints the row's in-bar value; percent rows fall back to their %. */
+  const pipeValue = (p: PipeOccupancyItem) =>
+    p.absoluteValue != null ? formatPipeAbsolute(p.absoluteValue) : formatAsidePct(p.ratio * 100);
+  const entries: BaselineTipRow[] = [
+    { label: t('compareCurrent', props.locale), value: pipeValue(row) },
+  ];
+  for (const entry of resolvedRows.value) {
+    const base = scopedBaselinePipeOccupancyOf(entry.model).find(
+      (b) => b.id === row.id && (b.side ?? row.side) === row.side,
+    );
+    if (!base) continue;
+    const view = diffView(
+      metricDiff(
+        utilizationPercent(row.ratio, 1) ?? undefined,
+        utilizationPercent(base.ratio, 1) ?? undefined,
+      ),
+      'pct',
+    );
+    entries.push({
+      label: entry.label,
+      value: pipeValue(base),
+      tone: view?.tone,
+      direction: view?.label,
+      delta: view?.text,
+    });
+  }
+  return entries.length > 1 ? entries : null;
+}
+/** Comparison active for the PIPE rows: the baseline pack is present. */
+const hasBaselinePipes = computed(() => baselineModel.value != null);
+
+/**
+ * The baseline pack's memory categories for the 详情 delta badges (PR-STATS-056), filtered by the
+ * same four ids as `memoryCategories` — compute categories never pair into the memory list.
+ * `undefined` without a pack keeps the list's no-baseline DOM identical.
+ */
+const baselineMemoryCategories = computed<SummaryCategory[] | undefined>(() => {
+  const model = baselineModel.value;
+  return model ? (model.summaryCategories ?? []).filter(isMemoryCategory) : undefined;
+});
+
+/** Every comparison row's categories for the 详情 hover popup (a single row included). */
+const detailComparisonCategories = computed(() =>
+  resolvedRows.value.flatMap((entry) =>
+    entry.model ? [{ label: entry.label, categories: entry.model.summaryCategories ?? [] }] : [],
+  ),
+);
+const memoryComparisonCategories = computed(() =>
+  resolvedRows.value.flatMap((entry) =>
+    entry.model
+      ? [
+          {
+            label: entry.label,
+            categories: (entry.model.summaryCategories ?? []).filter(isMemoryCategory),
+          },
+        ]
+      : [],
+  ),
+);
+
+/** The side the PIPE list is filtered by right now (null = show both). */
+const activePipeSide = computed<PipeSide | null>(() => {
   // Emulate sides (`aic`/`aiv0`/`aiv1`) must not fall through to compute knownSide
   // (`aic`→cube / `aiv*`→vector) — that blanks a single-core pack (UI-54).
-  if (isMix.value || hasEmulatePipeCores.value) {
-    return all.filter((p) => matchesSide(p, pipeSide.value));
-  }
-  if (knownSide.value == null) return all;
-  return all.filter((p) => matchesSide(p, knownSide.value!));
+  if (isMix.value || hasEmulatePipeCores.value) return pipeSide.value;
+  return knownSide.value;
+});
+
+const visiblePipes = computed(() => {
+  const all = scopedPipeOccupancy.value;
+  const side = activePipeSide.value;
+  if (side == null) return all;
+  return all.filter((p) => matchesSide(p, side));
 });
 
 /**
@@ -828,17 +1649,12 @@ const durationValueTip = computed(() =>
 );
 
 function formatPipeAbsolute(v: number): string {
-  if (Math.abs(v) >= 100) return v.toFixed(2);
-  if (Math.abs(v) >= 1) return v.toFixed(2);
-  return v.toFixed(5);
+  return formatAsideValue(v);
 }
 
-/** UI-34 / DATA-33h: magnitude rounding for GB/s and TFLOPS subtitles. */
+/** UI-34 / DATA-33h: GB/s and TFLOPS subtitles ride the panel's ONE format (PR-STATS-060). */
 function formatMagnitude(n: number): string {
-  if (n >= 10) return n.toFixed(1);
-  if (n >= 0.01) return n.toFixed(2);
-  if (n >= 0.001) return n.toFixed(3);
-  return n.toFixed(4);
+  return formatAsideValue(n);
 }
 
 function utilScore(measured: number, peak: number): number {
@@ -892,7 +1708,6 @@ function openHardware() {
 
 /** 防连点（R9）：点击后 1 秒冷却期内忽略重复点击，只放行第一次。 */
 const DETAILS_COOLDOWN_MS = 1000;
-
 const openPipeDetails = cooldown(() => {
   if (showCompute.value) asideSurface.value = 'compute';
   emit('open-pipe-details');
@@ -904,7 +1719,11 @@ const openMemoryDetails = cooldown(() => {
 
 function openTopologyFullscreen() {
   const m = topologyModel.value;
-  if (m) emit('open-topology-fullscreen', m);
+  // The resolved baseline topology rides along: the root's fullscreen overlay
+  // has no access to the aside's Operator pick or block scope, so the aside —
+  // the only place that resolution lives — hands over the same comparison the
+  // stacked diagram paints (PR-STATS-056 / PR-ROOT-051).
+  if (m) emit('open-topology-fullscreen', m, undefined, topologyBaseline.value ?? null, topologyBaselineRows.value);
 }
 
 /**
@@ -913,7 +1732,7 @@ function openTopologyFullscreen() {
  */
 function openMemoryUnit(unit: MemoryHeatmapUnitId) {
   const m = topologyModel.value;
-  if (m) emit('open-topology-fullscreen', m, unit);
+  if (m) emit('open-topology-fullscreen', m, unit, topologyBaseline.value ?? null, topologyBaselineRows.value);
 }
 
 /**
@@ -940,6 +1759,14 @@ const detailTestId = computed(() => {
   if (asideSurface.value === 'memory') return 'stats-memory';
   return undefined;
 });
+
+/**
+ * The 全屏 topology overlay reads these LIVE models on a Metric-mode switch
+ * (PR-ROOT-051): the aside is the only place that resolves row 0's Operator
+ * pick and the block scope, so re-deriving the baseline in the root would
+ * compare the pack's default operator against the picked one.
+ */
+defineExpose({ topologyModel, topologyBaseline, topologyBaselineRows });
 </script>
 
 <template>
@@ -1014,6 +1841,88 @@ const detailTestId = computed(() => {
           @click="emit('close')"
         />
       </div>
+
+      <!-- Comparison rows (对比基线, 1130 guide): directly under the title row,
+           above the meta line, only while baselines are checked (UI-63
+           resolved). One row per host `baselineRows` entry: 基线N + the report
+           select + the operator select; the FIRST row ends with `+` (add a
+           row) and every row after it with `−` (the first row cannot be
+           removed). The capture pointerdown closes the baselines popover via
+           the root. -->
+      <div
+        v-if="checkedBaselines.length > 0"
+        ref="baselineBarEl"
+        class="pr-aside__baseline-bar"
+        :style="baselineSlotStyle"
+        data-testid="stats-baseline-bar"
+        @pointerdown.capture="emit('baseline-bar-down')"
+      >
+        <div
+          v-for="entry in resolvedRows"
+          :key="entry.row.id"
+          class="pr-aside__baseline-row"
+          :data-testid="`stats-baseline-row-${entry.index + 1}`"
+        >
+          <span class="pr-aside__baseline-label">{{ rowLabelText(entry.index) }}</span>
+          <!-- 1130 guide: one 28px rounded field per row holds BOTH sub-selects. -->
+          <span class="pr-aside__baseline-field">
+            <span class="pr-aside__baseline-sub pr-aside__baseline-sub--report">
+              <span class="pr-aside__baseline-k">{{ fieldCaption('stats') }}</span>
+              <CardMetricSelect
+                :model-value="entry.row.baselineId"
+                :options="baselineIds"
+                variant="inline"
+                :test-id-prefix="`aside-baseline${entry.index === 0 ? '' : `-${entry.index + 1}`}`"
+                :ariaLabel="t('baselineLabel', locale)"
+                :label-of="baselineNameOf"
+                @update:model-value="setRowBaseline(entry.row.id, $event)"
+              />
+            </span>
+            <!-- The 28px design gap: a real spacer, so it can give way (down to
+                 8px) when the row is squeezed and the operator column must ride
+                 left after the report dropdown. -->
+            <span
+              class="pr-aside__baseline-gap"
+              aria-hidden="true"
+            />
+            <span class="pr-aside__baseline-sub pr-aside__baseline-sub--operator">
+              <span class="pr-aside__baseline-k">{{ fieldCaption('operatorLabel') }}</span>
+              <CardMetricSelect
+                :model-value="entry.operatorId ?? ''"
+                :options="entry.options.map((o) => o.id)"
+                variant="inline"
+                :test-id-prefix="`aside-baseline-operator${entry.index === 0 ? '' : `-${entry.index + 1}`}`"
+                :ariaLabel="t('operatorLabel', locale)"
+                :label-of="(id: string) => rowOperatorName(entry, id)"
+                @update:model-value="setRowOperator(entry.row.id, $event)"
+              />
+            </span>
+          </span>
+          <!-- 1130 guide: the FIRST row ends with `+` (add), every row after it
+               with `−` (remove; the first row cannot be removed). Both are
+               28×28 `#222121` buttons with a `#B3B3B3` glyph. -->
+          <button
+            v-if="entry.index === 0"
+            type="button"
+            class="pr-aside__baseline-step pr-aside__baseline-step--add"
+            data-testid="baseline-row-add"
+            :disabled="!canAddBaselineRow"
+            :aria-label="t('addBaseline', locale)"
+            :title="t('addBaseline', locale)"
+            @click="addBaselineRow"
+          />
+          <button
+            v-else
+            type="button"
+            class="pr-aside__baseline-step pr-aside__baseline-step--remove"
+            :data-testid="`baseline-row-remove-${entry.index + 1}`"
+            :aria-label="t('removeBaseline', locale)"
+            :title="t('removeBaseline', locale)"
+            @click="removeBaselineRow(entry.index)"
+          />
+        </div>
+      </div>
+
       <p
         v-if="hasMeta || showMore"
         class="pr-aside__meta"
@@ -1066,6 +1975,7 @@ const detailTestId = computed(() => {
         <div
           v-if="hasSummary"
           class="pr-cards"
+          :class="{ 'pr-cards--compare': compareCards }"
           data-testid="stats-summary"
         >
           <div
@@ -1084,6 +1994,14 @@ const detailTestId = computed(() => {
               >
                 <span class="pr-card__num">{{ durationParts.value }}</span>
                 <span class="pr-card__unit">{{ durationParts.unit }}</span>
+                <SummaryDiffIndicator
+                  v-if="durationDiff"
+                  :tone="durationDiff.tone"
+                  :text="durationDiff.text"
+                  :direction-label="durationDiff.label"
+                  :tip="durationTip"
+                  data-testid="stats-duration-diff"
+                />
               </div>
               <div
                 v-if="durationSecondary && !durationBreakdown"
@@ -1146,9 +2064,16 @@ const detailTestId = computed(() => {
                     :data-testid="`stats-aicore-${row.id}-score`"
                     v-bind="tipBind(row.scoreTip, { focusable: true })"
                   >
-                    <span class="pr-card__num">{{ row.score.toFixed(2) }}</span>
+                    <span class="pr-card__num">{{ formatAsideValue(row.score) }}</span>
                     <span class="pr-card__unit">%</span>
-                  </span>
+                    <SummaryDiffIndicator
+                      v-if="row.id === 'util' ? parallelDiff : balanceDiff"
+                      :tone="(row.id === 'util' ? parallelDiff : balanceDiff)!.tone"
+                      :text="(row.id === 'util' ? parallelDiff : balanceDiff)!.text"
+                      :direction-label="(row.id === 'util' ? parallelDiff : balanceDiff)!.label"
+                      :tip="row.id === 'util' ? parallelTip : balanceTip"
+                      :data-testid="`stats-aicore-${row.id}-diff`"
+                    />                </span>
                   <span
                     class="pr-bw-col__side"
                     :data-tip="row.labelTip.value"
@@ -1197,8 +2122,15 @@ const detailTestId = computed(() => {
                     :data-testid="`stats-compute-${row.side}-score`"
                     v-bind="tipBind(row.scoreTip, { focusable: true })"
                   >
-                    <span class="pr-card__num">{{ row.score }}</span>
-                  </span>
+                    <span class="pr-card__num">{{ formatAsideValue(row.score) }}</span>
+                    <SummaryDiffIndicator
+                      v-if="row.side === 'aic' ? computeAicDiff : computeAivDiff"
+                      :tone="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.tone"
+                      :text="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.text"
+                      :direction-label="(row.side === 'aic' ? computeAicDiff : computeAivDiff)!.label"
+                      :tip="row.side === 'aic' ? computeAicTip : computeAivTip"
+                      :data-testid="`stats-compute-${row.side}-diff`"
+                    />                </span>
                   <span
                     class="pr-bw-col__side"
                     :data-tip="row.labelTip.value"
@@ -1260,9 +2192,16 @@ const detailTestId = computed(() => {
                     :data-testid="`stats-bandwidth-${row.dir}-score`"
                     v-bind="tipBind(row.scoreTip, { focusable: true })"
                   >
-                    <span class="pr-card__num">{{ row.score }}</span>
+                    <span class="pr-card__num">{{ formatAsideValue(row.score) }}</span>
                     <span class="pr-card__unit">%</span>
-                  </span>
+                    <SummaryDiffIndicator
+                      v-if="row.dir === 'read' ? bwReadDiff : bwWriteDiff"
+                      :tone="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.tone"
+                      :text="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.text"
+                      :direction-label="(row.dir === 'read' ? bwReadDiff : bwWriteDiff)!.label"
+                      :tip="row.dir === 'read' ? bwReadTip : bwWriteTip"
+                      :data-testid="`stats-bandwidth-${row.dir}-diff`"
+                    />                </span>
                   <span
                     class="pr-bw-col__side"
                     :data-tip="row.labelTip.value"
@@ -1411,26 +2350,46 @@ const detailTestId = computed(() => {
                   class="pr-pipe-row"
                   :style="{ '--pr-pipe': COLOR[pipe.colorKey] ?? COLOR.default }"
                 >
-                  <span class="pr-pipe-row__label">{{ pipe.label }}</span>
-                  <span class="pr-pipe-row__track">
-                    <span
-                      class="pr-pipe-row__hatch"
-                      aria-hidden="true"
-                    />
-                    <span
-                      class="pr-pipe-row__bar"
-                      :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
-                    />
-                    <span
-                      class="pr-pipe-row__grid"
-                      aria-hidden="true"
-                    />
-                    <span
-                      v-if="pipe.absoluteValue != null"
-                      class="pr-pipe-row__abs"
-                      data-testid="pipe-absolute"
-                    >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
-                    <span class="pr-pipe-row__pct">{{ Math.round(pipe.ratio * 100) }}%</span>
+                  <span class="pr-pipe-row__labels">
+                    <span class="pr-pipe-row__label">{{ pipe.label }}</span>
+                  </span>
+                  <span class="pr-pipe-row__stack">
+                    <span class="pr-pipe-row__track">
+                      <span
+                        class="pr-pipe-row__hatch"
+                        aria-hidden="true"
+                      />
+                      <span
+                        class="pr-pipe-row__bar"
+                        :style="{ width: `${Math.min(100, Math.max(0, pipe.ratio * 100))}%` }"
+                      />
+                      <span
+                        class="pr-pipe-row__grid"
+                        aria-hidden="true"
+                      />
+                      <!-- Comparison mode keeps ONE bar: after the in-bar value comes the
+                       baseline delta — arrow badge, gap, magnitude (1130 方案一). Rows
+                       without an in-bar time carry the delta at the same left position. -->
+                      <span
+                        v-if="pipe.absoluteValue != null || pipeDiffFor(pipe)"
+                        class="pr-pipe-row__value"
+                      >
+                        <span
+                          v-if="pipe.absoluteValue != null"
+                          class="pr-pipe-row__abs"
+                          data-testid="pipe-absolute"
+                        >{{ formatPipeAbsolute(pipe.absoluteValue) }}</span>
+                        <SummaryDiffIndicator
+                          v-if="pipeDiffFor(pipe)"
+                          :tone="pipeDiffFor(pipe)!.tone"
+                          :text="pipeDiffFor(pipe)!.text"
+                          :direction-label="pipeDiffFor(pipe)!.label"
+                          :tip="pipeTipFor(pipe)"
+                          :data-testid="`pipe-diff-${pipe.id}-${pipe.side ?? 'x'}`"
+                        />
+                      </span>
+                      <span class="pr-pipe-row__pct">{{ formatAsidePct(pipe.ratio * 100) }}</span>
+                    </span>
                   </span>
                 </li>
               </ul>
@@ -1492,6 +2451,8 @@ const detailTestId = computed(() => {
             <MemoryTopologyPanel
               v-if="showTopology"
               :model="topologyModel"
+              :baseline="topologyBaseline"
+              :baseline-rows="topologyBaselineRows"
               :locale="locale"
               :selectable-units="hasMemoryHeatmap"
               show-fullscreen
@@ -1527,6 +2488,9 @@ const detailTestId = computed(() => {
               :categories="computeCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="hasBaselinePipes ? (baselineModel?.summaryCategories ?? undefined) : undefined"
+              :comparison-categories="detailComparisonCategories"
+              :comparison-current-label="t('compareCurrent', locale)"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel
@@ -1563,6 +2527,9 @@ const detailTestId = computed(() => {
               :categories="memoryCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="baselineMemoryCategories"
+              :comparison-categories="memoryComparisonCategories"
+              :comparison-current-label="t('compareCurrent', locale)"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel
@@ -1645,6 +2612,9 @@ const detailTestId = computed(() => {
               :categories="computeCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="hasBaselinePipes ? (baselineModel?.summaryCategories ?? undefined) : undefined"
+              :comparison-categories="detailComparisonCategories"
+              :comparison-current-label="t('compareCurrent', locale)"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel
@@ -1663,6 +2633,9 @@ const detailTestId = computed(() => {
               :categories="memoryCategories"
               :active-id="activeCategory"
               :locale="locale"
+              :baseline-categories="baselineMemoryCategories"
+              :comparison-categories="memoryComparisonCategories"
+              :comparison-current-label="t('compareCurrent', locale)"
               @update:active-id="activeCategory = $event"
             />
             <CsvFieldListPanel
@@ -1866,6 +2839,215 @@ const detailTestId = computed(() => {
   gap: 4px 12px;
 }
 
+/* Baseline / Operator dropdown row (对比基线): the Block switcher's chrome,
+   header placement under the meta line; hidden without a selected baseline. */
+.pr-aside__baseline-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  /* 1130 export: rows at y229..257 / 265..293 → an 8px pitch gap. */
+  gap: 8px;
+  margin: 8px 0 6px;
+  /* Six visible rows (6 × 28px field + 5 × 8px gap); the seventh and beyond
+   * scroll inside the bar instead of growing the aside. `.pr-root` already
+   * paints the dark 8px scrollbar. */
+  max-height: 208px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* One comparison row: 基线N： [ 报告 [select]  算子 [select] ] +/− */
+.pr-aside__baseline-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.pr-aside__baseline-label {
+  font-size: 12px;
+  line-height: 16px;
+  color: #999999;
+  white-space: nowrap;
+  /* Every row caption takes the WIDEST caption's measured width: a proportional
+   * fallback font renders 基线1 and 基线2 at different widths, which moved the
+   * field (and the gap's shrink) per row and broke the operator column line.
+   * The aside measures the labels and sets the var (PR-STATS-061b). */
+  flex: 0 0 var(--pr-baseline-row-label-w, auto);
+}
+
+/* 1130 export: the row's single dropdown field — 28px, radius 4,
+ * #2A2A2A at 41% over the aside ground. */
+.pr-aside__baseline-field {
+  display: flex;
+  align-items: center;
+  /* 1130 export: groups at x12 and x234 of the 365px field → a 28px gap,
+   * carried by `.pr-aside__baseline-gap` so it can shrink under pressure. */
+  gap: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  /* Air between the row caption's colon and the field, and the field to the action. */
+  margin: 0 12px 0 8px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: rgba(42, 42, 42, 0.41);
+  /* A squeezed row never paints its selects outside the field's own chrome. */
+  overflow: hidden;
+}
+
+.pr-aside__baseline-sub {
+  display: flex;
+  align-items: center;
+  /* Air between `报告：` / `算子：` and the dropdown text. */
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  /* A squeezed sub clips its own content: the report dropdown can never paint
+   * over the gap and the operator column beside it. */
+  overflow: hidden;
+}
+
+/* 1130 export: the 28px run between the report and operator groups. It is the
+ * first thing to give way (floor 8px), so a narrowing row carries the operator
+ * column left with the report instead of pinning it to the field's edge. */
+.pr-aside__baseline-gap {
+  flex: 0 20 28px;
+  min-width: 8px;
+  align-self: stretch;
+}
+
+/* 1130 export: the report group's slot is 194px (36 label + 134 value + 4 + 20
+ * chevron) and the operator group 120px. Both slots are content-independent, so
+ * the operator caption sits on the same column line in every row whatever the
+ * report / operator text lengths are. The report slot absorbs the field's
+ * leftover width (194px at the design width) and shrinks before the operator
+ * slot does. */
+.pr-aside__baseline-sub--report {
+  /* ONE slot width for every row, measured from the WIDEST report title
+   * (`--pr-baseline-report-w`, set by the aside): the 算子 column therefore
+   * stands one under another even when the rows carry different report names,
+   * while the select fills the slot so the operator stays pressed to it. The
+   * basis is content-derived, never an arbitrary stretch — it grows back to
+   * the full widest title first (shrink 10) and the report text restores before
+   * the operator gets anything. */
+  flex: 0 10 var(--pr-baseline-report-w, 194px);
+}
+
+.pr-aside__baseline-sub--operator {
+  /* Content-sized and never shrinking: the operator value keeps its full
+   * length while the report is trimming (the field clips it only at the very
+   * minimum). Once the report is whole, the operator value is fully visible;
+   * widening first completes the report text, then reveals the operator. */
+  flex: 0 0 auto;
+}
+
+.pr-aside__baseline-k {
+  font-size: 12px;
+  line-height: 16px;
+  color: #999999;
+  white-space: nowrap;
+}
+
+/* Sub-select chrome inside the field: the export's trigger has no padding and
+ * a 20×20 #B3B3B3 chevron right after the value. */
+.pr-aside__baseline-field :deep(.pr-metric-select) {
+  flex: 0 1 auto;
+  max-width: 100%;
+  /* Never narrower than the 1px border + gap + chevron: the arrow stays inside. */
+  min-width: 26px;
+}
+
+/* The report select fills the shared slot: its box ends at the common column
+ * edge, so the operator sits 28px after it on every row. The slot itself is
+ * sized to the widest full title, so no row's value is trimmed while the
+ * aside has room. Later than the shared rule on purpose (same specificity). */
+.pr-aside__baseline-sub--report :deep(.pr-metric-select) {
+  flex-grow: 1;
+  max-width: none;
+}
+
+.pr-aside__baseline-field :deep(.pr-metric-select__trigger) {
+  height: 20px;
+  padding: 0;
+}
+
+/* The field is the trigger's chrome: hovering (or opening) a sub-select paints no
+ * extra selection box — the design shows only the row's own field. */
+.pr-aside__baseline-field :deep(.pr-metric-select__trigger:hover),
+.pr-aside__baseline-field :deep(.pr-metric-select--open .pr-metric-select__trigger) {
+  border-color: transparent;
+}
+
+.pr-aside__baseline-field :deep(.pr-metric-select__label) {
+  color: #e6e6e6;
+}
+
+.pr-aside__baseline-field :deep(.pr-metric-select__chev) {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  background-color: #b3b3b3;
+  -webkit-mask: url('../icons/chevron-down.png') center / 12px 12px no-repeat;
+  mask: url('../icons/chevron-down.png') center / 12px 12px no-repeat;
+}
+
+.pr-aside__baseline-field :deep(.pr-metric-select__chev::before) {
+  display: none;
+}
+
+/* 1130 export row action: 28×28, #222121, radius 4, #B3B3B3 plus/minus glyph
+ * (the first row's `+`, the later rows' `−`). */
+.pr-aside__baseline-step {
+  position: relative;
+  appearance: none;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0;
+  border-radius: 4px;
+  background: #222121;
+  color: #b3b3b3;
+  cursor: pointer;
+}
+
+.pr-aside__baseline-step::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13.5px;
+  height: 1.5px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.pr-aside__baseline-step--add::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.5px;
+  height: 13.5px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.pr-aside__baseline-step:not(:disabled):hover {
+  color: #ffffff;
+}
+
+/* Every checked baseline already has a row — the + has nothing left to add. */
+.pr-aside__baseline-step:disabled {
+  color: #666666;
+  cursor: default;
+  opacity: 0.45;
+}
+
 .pr-aside__meta-seg {
   display: inline-flex;
   align-items: baseline;
@@ -2052,6 +3234,21 @@ const detailTestId = computed(() => {
   .pr-cards {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/*
+ * 对比基线 (comparison, PR-STATS-059): a comparison raises the minimum tile to
+ * 300px. A two-column comparison tile has to fit TWO value + diff-chip rows
+ * (AICore / compute / BW); below ~288px the right column's chip paints past
+ * the tile's edge — the text-over-block overlap product saw just before the
+ * grid collapsed. 300px leaves room for a 3-digit value in both locales, so
+ * the WELL width decides the column count: the default ~456px well is one
+ * column (2 × 300 + 8 = 608 > 456), a widened aside fits two, and a narrower
+ * one stays single. The 430px container query above still owns the
+ * non-compare fallback.
+ */
+.pr-cards--compare {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .pr-card {
@@ -2277,7 +3474,15 @@ const detailTestId = computed(() => {
 }
 
 .pr-bw-col__head > .pr-card__value {
-  flex: 0 0 auto;
+  /* One line while the column has room; in a narrow comparison column the
+   * diff chip wraps under the number instead of painting past the card. The
+   * value shrinks to the widest of its parts, never below the digits
+   * (PR-STATS-059 / PR-STATS-062). */
+  flex: 0 1 auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  max-width: 100%;
 }
 
 .pr-bw-col__side {
@@ -2497,6 +3702,20 @@ const detailTestId = computed(() => {
   min-width: 0;
 }
 
+.pr-pipe-row__labels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pr-pipe-row__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
 .pr-pipe-row__track {
   position: relative;
   display: block;
@@ -2560,18 +3779,44 @@ const detailTestId = computed(() => {
   background-repeat: no-repeat;
 }
 
-.pr-pipe-row__abs {
+/* The in-bar value and its baseline delta share one left-anchored line. */
+.pr-pipe-row__value {
   position: absolute;
   left: 6px;
   top: 50%;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  max-width: calc(100% - 12px);
   transform: translateY(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.pr-pipe-row__abs {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: #ffffff;
   white-space: nowrap;
   line-height: 1;
-  pointer-events: none;
+}
+
+/* The line itself stays pointer-transparent (the bar under it keeps its own
+ * pointer behaviour), but the delta chip must receive hover/focus so the
+ * multi-baseline popup opens from the PIPE rows too. */
+.pr-pipe-row__value :deep(.pr-diff) {
+  pointer-events: auto;
+}
+
+/* On the coloured bar the delta badge is the mockup's WHITE circle with the tone
+ * arrow — the cards' tone-tinted fill would sink into the bar's own colour — and
+ * the magnitude reads white like the in-bar value beside it. */
+.pr-pipe-row__value :deep(.pr-diff__badge) {
+  background: #ffffff;
+}
+
+.pr-pipe-row__value :deep(.pr-diff__text) {
+  color: #ffffff;
 }
 
 .pr-pipe-row__pct {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HardwareDetailsModel } from '../../../domain/types';
+import { formatDetailValue } from '../../../domain/detailValue';
 
 defineProps<{
   model: HardwareDetailsModel;
@@ -31,7 +32,7 @@ defineProps<{
           <span
             class="pr-hw__val"
             :title="f.value"
-          >{{ f.value }}</span>
+          >{{ formatDetailValue(f.value) }}</span>
         </li>
       </ul>
     </section>

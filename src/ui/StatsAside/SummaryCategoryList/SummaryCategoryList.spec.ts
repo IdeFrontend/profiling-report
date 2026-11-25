@@ -77,4 +77,156 @@ describe('SummaryCategoryList', () => {
     expect(wrapper.get('[data-testid="summary-search"]').element).toHaveProperty('value', 'mte2');
     expect(wrapper.find('[data-testid="summary-category-fields"]').findAll('li')).toHaveLength(0);
   });
+
+  it('PR-SUMM-005: field values display at most four decimals, residue trimmed', () => {
+    const cats = [
+      {
+        id: 'Memory',
+        title: 'Memory',
+        fields: [
+          { key: 'residue', value: '0.9796212499999999' },
+          { key: 'trailing', value: '1.50000' },
+          { key: 'fine', value: '1616.375' },
+          { key: 'integer', value: '1616' },
+          // Sub-1e-4 magnitudes keep their significant digits instead of
+          // flattening to 0 under a 4-decimal ceiling (review finding).
+          { key: 'tiny', value: '0.000012345' },
+          { key: 'tinier', value: '3.1415926535e-10' },
+          { key: 'note', value: 'text-only' },
+        ],
+      },
+    ];
+    const wrapper = mount(SummaryCategoryList, { props: { categories: cats } });
+    const values = wrapper.findAll('.pr-summ__field-value').map((v) => v.text());
+    expect(values).toEqual([
+      '0.9796', '1.5', '1616.375', '1616', '0.000012345', '3.1416e-10', 'text-only',
+    ]);
+    wrapper.unmount();
+  });
+
+  it('PR-SUMM-004: baseline categories paint delta badges right of the values', () => {
+    const cats = [
+      {
+        id: 'PipeUtilization',
+        title: 'PipeUtilization',
+        fields: [
+          { key: 'aiv_vec_ratio', value: '0.5' },
+          { key: 'aic_mte2_ratio', value: '0.8' },
+          { key: 'note', value: 'text-only' },
+          { key: 'same', value: '0.4' },
+        ],
+      },
+    ];
+    const baseline = [
+      {
+        id: 'PipeUtilization',
+        title: 'PipeUtilization',
+        fields: [
+          { key: 'aiv_vec_ratio', value: '0.7' },
+          { key: 'aic_mte2_ratio', value: '0.6' },
+          { key: 'note', value: 'text-only' },
+          { key: 'same', value: '0.4' },
+        ],
+      },
+    ];
+    const wrapper = mount(SummaryCategoryList, {
+      props: { categories: cats, baselineCategories: baseline },
+    });
+    // 0.7 − 0.5 = 0.2 → green down badge right of the value; the tone arrow
+    // carries the direction, so the magnitude stays unsigned (no minus).
+    const up = wrapper.get('[data-testid="summary-field-diff-aiv_vec_ratio"]');
+    expect(up.classes()).toContain('pr-diff--decrease');
+    expect(up.get('.pr-diff__text').text()).toBe('0.20');
+    // The badge shares the value's flex line wrapper and follows it in DOM
+    // order — the same line, never wrapped under the first one.
+    const field = up.element.closest('.pr-summ__field') as HTMLElement;
+    const side = field.querySelector('.pr-summ__field-side') as HTMLElement;
+    expect(side.contains(field.querySelector('.pr-summ__field-value')!)).toBe(true);
+    expect(side.contains(up.element)).toBe(true);
+    expect(
+      (side.querySelector('.pr-summ__field-value') as HTMLElement).nextElementSibling,
+    ).toBe(up.element);
+    // 0.6 − 0.8 = −0.2 → red up badge.
+    const down = wrapper.get('[data-testid="summary-field-diff-aic_mte2_ratio"]');
+    expect(down.classes()).toContain('pr-diff--increase');
+    expect(down.get('.pr-diff__text').text()).toBe('0.20');
+    // Non-numeric and equal fields carry no badge.
+    expect(wrapper.find('[data-testid="summary-field-diff-note"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="summary-field-diff-same"]').exists()).toBe(false);
+    wrapper.unmount();
+
+    // Without a baseline pack: no badges at all.
+    const plain = mount(SummaryCategoryList, { props: { categories: cats } });
+    expect(plain.findAll('[data-testid^="summary-field-diff-"]')).toHaveLength(0);
+    plain.unmount();
+  });
+
+  it('PR-SUMM-007: comparison rows drive the shared hover popup', async () => {
+    const cat = (v: string) => [
+      { id: 'PipeUtilization', title: 'PipeUtilization', fields: [{ key: 'aiv_vec_ratio', value: v }] },
+    ];
+    const wrapper = mount(SummaryCategoryList, {
+      props: {
+        categories: cat('0.7'),
+        baselineCategories: cat('0.5'),
+        comparisonCategories: [
+          { label: '基线 1', categories: cat('0.5') },
+          { label: '基线 2', categories: cat('0.3') },
+        ],
+        comparisonCurrentLabel: '当前',
+      },
+    });
+    const badge = wrapper.get('[data-testid="summary-field-diff-aiv_vec_ratio"]');
+    await badge.trigger('pointerenter');
+    const tip = document.querySelector('[data-testid="baseline-compare-tip"]');
+    expect(tip).not.toBeNull();
+    const rows = [...tip!.querySelectorAll('[data-testid^="baseline-compare-tip-row-"]')];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain('当前');
+    expect(rows[0].textContent).toContain('0.7');
+    expect(rows[1].textContent).toContain('基线 1');
+    expect(rows[1].textContent).toContain('0.5');
+    // Bare magnitudes in the popup (the badge carries the direction).
+    expect(rows[1].querySelector('.pr-diff__text')?.textContent).toBe('0.20');
+    expect(rows[2].textContent).toContain('基线 2');
+    expect(rows[2].textContent).toContain('0.3');
+    expect(rows[2].querySelector('.pr-diff__text')?.textContent).toBe('0.40');
+    await badge.trigger('pointerleave');
+    expect(document.querySelector('[data-testid="baseline-compare-tip"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-SUMM-006: values and baseline deltas align to the left edge, delta after value', async () => {
+    // Layout is a style contract (1130 diff-detail mockup); happy-dom paints no scoped
+    // CSS, so assert the SFC's own rules (same source-assertion pattern as
+    // SummaryDiffIndicator in StatsAside.spec).
+    const src = (await import('./SummaryCategoryList.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-summ__field-value\s*\{[^}]*text-align:\s*left/);
+    expect(src).toMatch(/\.pr-summ__field-side\s*\{[^}]*justify-content:\s*flex-start/);
+
+    const wrapper = mount(SummaryCategoryList, {
+      props: {
+        categories: [
+          {
+            id: 'PipeUtilization',
+            title: 'PipeUtilization',
+            fields: [{ key: 'aiv_vec_ratio', value: '0.7' }],
+          },
+        ],
+        baselineCategories: [
+          {
+            id: 'PipeUtilization',
+            title: 'PipeUtilization',
+            fields: [{ key: 'aiv_vec_ratio', value: '0.5' }],
+          },
+        ],
+      },
+    });
+    const value = wrapper.get('.pr-summ__field-value');
+    const badge = wrapper.get('[data-testid="summary-field-diff-aiv_vec_ratio"]');
+    // Both share the left-justified line, and the delta comes AFTER the value.
+    expect(value.element.parentElement?.className).toContain('pr-summ__field-side');
+    expect(value.element.nextElementSibling).toBe(badge.element);
+    wrapper.unmount();
+  });
 });
