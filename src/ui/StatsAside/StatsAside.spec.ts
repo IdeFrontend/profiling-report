@@ -468,8 +468,14 @@ describe('StatsAside', () => {
     expect(wrapper.findAll('[data-testid="roofline-roof"]')).toHaveLength(1);
     // Chip HardwareInfo sample + block GM (both kept).
     expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(2);
-    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
-    expect(wrapper.get('[data-testid="roofline-tooltip"]').text()).toContain('AIV fp16');
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
+    // Teleported to `body` (same as summary-card / duration tips).
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')?.textContent).toContain(
+      'AIV fp16',
+    );
   });
 
   it('PR-STATS-014e: a picked block keeps an interim root roof', async () => {

@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { t } from '../../../i18n';
+import {
+  FIXED_TIP_OFFSET_PX,
+  placeFixedTip,
+} from '../../placeFixedTip';
 import {
   ROOFLINE_CHART_H as H,
   ROOFLINE_CHART_W as W,
@@ -34,7 +38,21 @@ const mixY = topsY;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
 
-const hovered = ref<RooflinePoint | null>(null);
+/**
+ * Hover tip follows EventTooltip / StatsAside card tips: teleported `position: fixed`
+ * beside the pointer so the aside cannot crop it and the chart no longer reserves a
+ * bottom text band (PR-ROOF-004). Dismiss on aside scroll / window resize matches
+ * StatsAside's `closeTip` contract so a fixed box cannot strand after the chart moves.
+ */
+const rootEl = ref<HTMLElement | null>(null);
+const tipId = useId();
+const hoveredId = ref<string | null>(null);
+const tipPos = ref<{ left: string; top: string } | null>(null);
+/** placeFixedTip estimate — matches `.pr-roofline-tip` min/max width + 3 lines. */
+const TIP_EST_W = 280;
+const TIP_EST_H = 72;
+let asideScrollEl: Element | null = null;
+
 /** Experimental: legend hover → emphasize that series' roof on the plot. */
 const legendHoverId = ref<string | null>(null);
 /**
@@ -243,78 +261,145 @@ const mixParts = computed(() =>
   })),
 );
 
-const tooltipText = computed(() => {
-  const id = hovered.value?.id;
-  if (!id) return '';
-  const p = props.model.points.find((pt) => pt.id === id);
-  if (!p) return '';
-  return `${p.label}: ${fmtVal(p.intensity)} Ops/Byte, ${fmtVal(p.performance)} TOps/s`;
+/** Resolve by id so a model replace keeps the tip on the same point (PR-ROOF-004). */
+const hoveredPoint = computed((): RooflinePoint | null => {
+  const id = hoveredId.value;
+  if (!id) return null;
+  return props.model.points.find((pt) => pt.id === id) ?? null;
+});
+
+function closePointTip() {
+  hoveredId.value = null;
+  tipPos.value = null;
+}
+
+function placeTip(e: MouseEvent) {
+  const { left, top } = placeFixedTip({
+    x: e.clientX,
+    y: e.clientY,
+    tipW: TIP_EST_W,
+    tipH: TIP_EST_H,
+    viewportW: window.innerWidth,
+    viewportH: window.innerHeight,
+    offset: FIXED_TIP_OFFSET_PX,
+  });
+  tipPos.value = { left: `${left}px`, top: `${top}px` };
+}
+
+function onPointEnter(e: MouseEvent, p: RooflinePoint) {
+  hoveredId.value = p.id;
+  placeTip(e);
+}
+
+function onPointMove(e: MouseEvent) {
+  if (hoveredId.value) placeTip(e);
+}
+
+function onPointLeave() {
+  closePointTip();
+}
+
+function bindAsideScroll(el: HTMLElement | null) {
+  if (asideScrollEl) {
+    asideScrollEl.removeEventListener('scroll', closePointTip);
+    asideScrollEl = null;
+  }
+  if (!el) return;
+  const parent = el.closest('.pr-aside__body');
+  if (!parent) return;
+  asideScrollEl = parent;
+  asideScrollEl.addEventListener('scroll', closePointTip, { passive: true });
+}
+
+watch(rootEl, (el) => bindAsideScroll(el), { flush: 'post' });
+/** Point id gone (block switch / empty model) — do not resurrect the tip later. */
+watch(hoveredPoint, (p) => {
+  if (!p && hoveredId.value) closePointTip();
+});
+watch(hasPoints, (ok) => {
+  if (!ok) closePointTip();
+});
+
+onMounted(() => window.addEventListener('resize', closePointTip));
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', closePointTip);
+  bindAsideScroll(null);
 });
 </script>
 
 <template>
   <div
     v-if="hasPoints"
+    ref="rootEl"
     class="pr-roofline"
     data-testid="roofline-panel"
   >
     <div class="pr-roofline__card">
       <div class="pr-roofline__card-head">
+        <!--
+          Scroll on a wrapper, not the grid: overflow-x:auto + overflow-y:hidden
+          on a height:auto box lets the classic H-scrollbar eat the row height and
+          clip AIV/AIC to an empty track (PR-ROOF-006).
+        -->
         <div
-          class="pr-roofline__legend"
+          class="pr-roofline__legend-scroll"
           data-testid="roofline-legend"
-          :style="legendGridStyle"
         >
-          <template v-if="aivSeries.length">
-            <span class="pr-roofline__leg-head">AIV:</span>
-            <span
-              v-for="s in aivSeries"
-              :key="s.id"
-              class="pr-roofline__leg-item"
-              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
-              data-testid="roofline-leg-item"
-              :data-series-id="s.id"
-              @mouseenter="legendHoverId = s.id"
-              @mouseleave="legendHoverId = null"
-            >
+          <div
+            class="pr-roofline__legend"
+            :style="legendGridStyle"
+          >
+            <template v-if="aivSeries.length">
+              <span class="pr-roofline__leg-head">AIV:</span>
               <span
-                class="pr-roofline__leg-swatch"
-                :style="{ background: s.color }"
-              />
-              {{ s.label }}
-            </span>
-            <span
-              v-for="n in Math.max(0, legendColCount - aivSeries.length)"
-              :key="`aiv-pad-${n}`"
-              class="pr-roofline__leg-pad"
-              aria-hidden="true"
-            />
-          </template>
-          <template v-if="aicSeries.length">
-            <span class="pr-roofline__leg-head">AIC:</span>
-            <span
-              v-for="s in aicSeries"
-              :key="s.id"
-              class="pr-roofline__leg-item"
-              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
-              data-testid="roofline-leg-item"
-              :data-series-id="s.id"
-              @mouseenter="legendHoverId = s.id"
-              @mouseleave="legendHoverId = null"
-            >
+                v-for="s in aivSeries"
+                :key="s.id"
+                class="pr-roofline__leg-item"
+                :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+                data-testid="roofline-leg-item"
+                :data-series-id="s.id"
+                @mouseenter="legendHoverId = s.id"
+                @mouseleave="legendHoverId = null"
+              >
+                <span
+                  class="pr-roofline__leg-swatch"
+                  :style="{ background: s.color }"
+                />
+                {{ s.label }}
+              </span>
               <span
-                class="pr-roofline__leg-swatch"
-                :style="{ background: s.color }"
+                v-for="n in Math.max(0, legendColCount - aivSeries.length)"
+                :key="`aiv-pad-${n}`"
+                class="pr-roofline__leg-pad"
+                aria-hidden="true"
               />
-              {{ s.label }}
-            </span>
-            <span
-              v-for="n in Math.max(0, legendColCount - aicSeries.length)"
-              :key="`aic-pad-${n}`"
-              class="pr-roofline__leg-pad"
-              aria-hidden="true"
-            />
-          </template>
+            </template>
+            <template v-if="aicSeries.length">
+              <span class="pr-roofline__leg-head">AIC:</span>
+              <span
+                v-for="s in aicSeries"
+                :key="s.id"
+                class="pr-roofline__leg-item"
+                :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+                data-testid="roofline-leg-item"
+                :data-series-id="s.id"
+                @mouseenter="legendHoverId = s.id"
+                @mouseleave="legendHoverId = null"
+              >
+                <span
+                  class="pr-roofline__leg-swatch"
+                  :style="{ background: s.color }"
+                />
+                {{ s.label }}
+              </span>
+              <span
+                v-for="n in Math.max(0, legendColCount - aicSeries.length)"
+                :key="`aic-pad-${n}`"
+                class="pr-roofline__leg-pad"
+                aria-hidden="true"
+              />
+            </template>
+          </div>
         </div>
       </div>
       <svg
@@ -443,8 +528,10 @@ const tooltipText = computed(() => {
             :r="POINT_R"
             :fill="p.style === 'hollow' ? '#262626' : p.color"
             :stroke="p.color"
-            @mouseenter="hovered = p"
-            @mouseleave="hovered = null"
+            :aria-describedby="hoveredId === p.id ? tipId : undefined"
+            @mouseenter="onPointEnter($event, p)"
+            @mousemove="onPointMove"
+            @mouseleave="onPointLeave"
           />
           <!-- Roof ridge knees (on the lines): filled rounded squares like legend. -->
           <rect
@@ -515,14 +602,27 @@ const tooltipText = computed(() => {
           dominant-baseline="alphabetic"
         >TOps/s</text>
       </svg>
-      <div
-        class="pr-roofline__tip"
-        data-testid="roofline-tooltip"
-        :aria-hidden="!hovered"
-      >
-        {{ tooltipText }}
-      </div>
     </div>
+    <!--
+      Teleported like EventTooltip / StatsAside card tips — aside overflow and the
+      timeline stacking context must not crop a pointer-following box.
+    -->
+    <Teleport to="body">
+      <div
+        v-if="hoveredPoint && tipPos"
+        :id="tipId"
+        class="pr-tooltip pr-roofline-tip"
+        role="tooltip"
+        data-testid="roofline-tooltip"
+        :style="tipPos"
+      >
+        <div class="pr-roofline-tip__name">
+          {{ hoveredPoint.label }}
+        </div>
+        <div>{{ fmtVal(hoveredPoint.intensity) }} Ops/Byte</div>
+        <div>{{ fmtVal(hoveredPoint.performance) }} TOps/s</div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -558,21 +658,47 @@ const tooltipText = computed(() => {
 }
 
 /*
+ * Scrollport for a dense dtype×bandwidth legend (DATA-57a). Keep overflow off
+ * the grid itself — a classic horizontal scrollbar on a height:auto grid eats
+ * the row box and clips the labels to an empty track.
+ */
+.pr-roofline__legend-scroll {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.pr-roofline__legend-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.pr-roofline__legend-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+}
+
+.pr-roofline__legend-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*
  * Top of the raised card (no in-card chart title). One grid for both rows so
- * the nth AIV / AIC swatches share a vertical edge.
+ * the nth AIV / AIC swatches share a vertical edge. Width is intrinsic; the
+ * scrollport above clamps to the card. Padding matches the thin scrollbar so
+ * inset classic bars cannot clip the AIC row.
  */
 .pr-roofline__legend {
   display: grid;
   column-gap: 10px;
   row-gap: 4px;
   align-items: center;
-  min-width: 0;
   width: max-content;
-  max-width: 100%;
+  padding-bottom: 6px;
   font-size: 12px;
   line-height: 1.2;
-  /* Emulate dtype×bandwidth roofs can exceed ~7 series (DATA-57a). */
-  overflow-x: auto;
 }
 
 .pr-roofline__leg-head {
@@ -700,20 +826,51 @@ const tooltipText = computed(() => {
 .pr-roofline__mix-pct {
   fill: #ffffff;
 }
+</style>
 
-/* Reserved band below the SVG so hover never covers x-ticks / Ops/Byte. */
-.pr-roofline__tip {
-  flex: 0 0 auto;
-  min-height: calc(12px * 1.2);
-  padding: 0;
-  font-size: 12px;
-  line-height: 1.2;
-  color: #d0d8e0;
+<!--
+  Unscoped: Teleport → body (same as CounterHoverTip / overview value tip). Scoped
+  selectors can fail to paint on the teleported node, so the tip would mount invisible.
+-->
+<style>
+.pr-roofline-tip.pr-tooltip {
+  position: fixed;
+  z-index: 20;
   pointer-events: none;
-  visibility: hidden;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  color: #e8e8e8;
+  font-size: 12px;
+  line-height: 1.45;
+  min-width: 180px;
+  max-width: 280px;
+  animation: pr-roofline-tip-in 120ms ease;
 }
 
-.pr-roofline__tip:not(:empty) {
-  visibility: visible;
+@keyframes pr-roofline-tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-roofline-tip.pr-tooltip {
+    animation: none;
+  }
+}
+
+.pr-roofline-tip__name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #ffffff;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 </style>
