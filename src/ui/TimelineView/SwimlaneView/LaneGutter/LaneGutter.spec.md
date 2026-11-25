@@ -54,12 +54,12 @@ Each lane **and folder** row optionally shows a util bar whose **width** and **l
 
 #### Label formats per metric
 
-Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (absolute `*_total_cycles` → bare cycle label; **barWidth** = shared event coverage).
+Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (absolute `*_total_cycles` → bare cycle label; **barWidth** = shared event coverage on **interval** lanes).
 
 | Metric | `bar.label` (thick bars) | `barWidth` | Fill color |
 |--------|--------------------------|------------|------------|
-| 利用率 (utilization) | `NN%` | Event coverage % (0–100) | Red when &lt; 50%; gray when ≥ 50% |
-| 时钟周期 (clockCycle) | Bare absolute cycle count (no `µs` / unit suffix) | **Same** as utilization | Same as utilization (`thresholdColor`) |
+| 利用率 (utilization) | `NN%` | Interval lanes: event coverage % (0–100). Ratio CounterTracks: time-weighted mean % ([DATA-59](../../../../../docs/context/decisions/DATA.md)) | Red when &lt; 50%; gray when ≥ 50% |
+| 时钟周期 (clockCycle) | Bare absolute cycle count (no `µs` / unit suffix) | **Same** as interval utilization (event coverage) | Same as utilization (`thresholdColor`) |
 | Legacy pipe ratio | `NN%` | `utilization × 100` | true |
 
 **Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip on the **util column** (full lane height hit target; title excluded) (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
@@ -184,6 +184,7 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../SwimlaneView.spec.md).
 
 ## Changelog
+- **2026-11-25** — DATA-59: utilization `barWidth` is event coverage on interval lanes and the time-weighted mean on ratio CounterTracks.
 - **2026-09-10** — PR-GUTTER-016: thin util tip also opens on keyboard focus (`tabindex=0`); pointer hit target remains full lane height.
 - **2026-09-10** — PR-GUTTER-016: thin util value tip hit target is full lane height in the util column (not only the 8px bar paint); title/pin still excluded.
 - **2026-09-08** — Multi-row leaf renders one tall title cell `rowCount × LANE_HEIGHT` (`PR-GUTTER-018`).

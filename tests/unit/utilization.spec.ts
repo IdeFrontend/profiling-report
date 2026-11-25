@@ -71,11 +71,25 @@ describe('PR-UTIL: thread utilization', () => {
         100,
       ),
     ).toBe(50);
+    // Unequal holds: 0 for 90, 100 for 10 → 10. Arithmetic mean of the samples is 50.
+    expect(
+      timeWeightedCounterMean(
+        [
+          { t: 0, v: 0 },
+          { t: 90, v: 100 },
+        ],
+        0,
+        100,
+      ),
+    ).toBe(10);
+    // Leading gap before the first in-window sample is not filled with 0.
+    expect(timeWeightedCounterMean([{ t: 90, v: 100 }], 0, 100)).toBe(100);
     // Sample before window still holds into it
     expect(
       timeWeightedCounterMean([{ t: -10, v: 40 }], 0, 100),
     ).toBe(40);
     expect(timeWeightedCounterMean([], 0, 100)).toBeUndefined();
+    expect(timeWeightedCounterMean([{ t: 200, v: 80 }], 0, 100)).toBeUndefined();
   });
 
   it('PR-UTIL-006: counter util fraction scales by yMax ≤1 vs already-percent', () => {
@@ -116,5 +130,21 @@ describe('PR-UTIL: thread utilization', () => {
       counter: { yMax: 10, points: [{ t: 0, v: 4 }] },
     };
     expect(counterUtilizationFraction(queue, 0, 100)).toBeUndefined();
+
+    const below: SwimThread = {
+      id: 'lo',
+      name: 'Utilization (%)',
+      events: [],
+      counter: { yMax: 40, points: [{ t: 0, v: -20 }] },
+    };
+    expect(counterUtilizationFraction(below, 0, 100)).toBe(0);
+
+    const above: SwimThread = {
+      id: 'hi',
+      name: 'Utilization (%)',
+      events: [],
+      counter: { yMax: 200, points: [{ t: 0, v: 150 }] },
+    };
+    expect(counterUtilizationFraction(above, 0, 100)).toBe(1);
   });
 });
