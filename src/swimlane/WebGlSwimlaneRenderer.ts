@@ -53,9 +53,18 @@ import {
 } from './layout';
 import { eventFill, labelColorOn } from '../domain/laneColors';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { debugSwimlaneWindow } from './debug';
 import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, extendMargin1Css, extendMargin2Css, extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx, tickAlphaMax, tickBand } from './shaders';
 import { TextAtlas, EVENT_LABEL_FONT_CSS_PX } from './textAtlas';
+
+/**
+ * [debug] Log the visual time window on every zoom / pan (dev switch; set to false to silence).
+ * One line per changed window, raw doubles so the console keeps full precision:
+ *   [swimlane:view] zoom 1.15 | startNs .. endNs spanNs .. | nsPerDevicePx .. | dpr .. devW ..
+ *   | busiest <lane> ticksInView .. spacingDevicePx ..
+ * `spacingDevicePx` is the mean distance between the busiest lane's duration-0 events in device
+ * px: below 1 means several ticks per pixel (dense band), above 1 means individual columns.
+ */
+const debugSwimlaneWindow = true;
 
 interface GlProgram {
   program: WebGLProgram;

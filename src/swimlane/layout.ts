@@ -1296,6 +1296,20 @@ export function upperBoundFloat(values: ArrayLike<number>, t: number): number {
   return lo;
 }
 
+/** Next float32 strictly above `x` (bit increment). Used for the float32-ulp edge padding. */
+function nextFloat32Up(x: number): number {
+  const f = Math.fround(x);
+  if (!Number.isFinite(f)) return f;
+  // +-0: step to the smallest positive float32.
+  if (f === 0) return Math.fround(Math.pow(2, -149));
+  const buf = new ArrayBuffer(4);
+  const view = new DataView(buf);
+  view.setFloat32(0, f, true);
+  const bits = view.getUint32(0, true);
+  view.setUint32(0, f > 0 ? bits + 1 : bits - 1, true);
+  return view.getFloat32(0, true);
+}
+
 /** One float32 ulp at `|x|`. Non-finite → 0 so the bound stays comparable. */
 function float32Ulp(x: number): number {
   const f = Math.fround(Math.abs(x));
