@@ -8,7 +8,7 @@ import type {
 import { t } from '../../i18n';
 import { highlightParts } from '../searchHighlight';
 import { SOURCE_TAB_MONO_FAMILY } from './sourceFonts';
-import { sparseDocumentLines } from './sourceDocument';
+import { sparseLayout } from './sourceDocument';
 import {
   ensureSourceColWidths,
   sourceColCanResize,
@@ -27,8 +27,14 @@ const EMPTY_METRIC_VALUES: Record<string, null> = Object.freeze({});
 const props = withDefaults(
   defineProps<{
     file: SourceFileModel;
-    /** Current caret line (1-based), or null. */
+    /** Current caret source line (1-based), or null. */
     currentLine: number | null;
+    /**
+     * Editor caret document row (1-based), including a blank gap row.
+     * When set, the current highlight follows this row so a caret on a
+     * skipped range stays on the same metrics row.
+     */
+    currentDocRow?: number | null;
     /** Extra lines to highlight (correlation). */
     correlatedLines?: number[];
     /** Search hits to mark (does not remove rows — keeps editor sync). */
@@ -60,6 +66,7 @@ const props = withDefaults(
     locale?: string;
   }>(),
   {
+    currentDocRow: null,
     correlatedLines: () => [],
     matchLines: () => [],
     searchQuery: '',
@@ -228,7 +235,7 @@ const rowH = computed(() => props.rowHeightCss || 20);
 
 /** Dense asm uses `lines.length`; sparse emulate uses its collapsed document. */
 const sparseRows = computed<number[] | null>(() =>
-  props.file.sparse ? sparseDocumentLines(props.file.lines) : null,
+  props.file.sparse ? sparseLayout(props.file) : null,
 );
 
 const lineExtent = computed(() => {
@@ -576,7 +583,9 @@ const styleVars = computed(() => {
             :key="row.doc"
             :data-line="row.line ?? undefined"
             :class="{
-              'pr-src-metrics__row--current': row.line != null && currentLine === row.line,
+              'pr-src-metrics__row--current': currentDocRow != null
+                ? row.doc === currentDocRow
+                : row.line != null && currentLine === row.line,
               'pr-src-metrics__row--correlated': row.line != null && correlatedSet.has(row.line),
               'pr-src-metrics__row--match': row.line != null && matchSet.has(row.line),
               'pr-src-metrics__row--dim': isZeroMetric(row.metrics),
@@ -601,12 +610,13 @@ const styleVars = computed(() => {
                 'pr-src-metrics__text': isTextCol(col),
                 'pr-src-metrics__addr': col.id === 'address',
                 'pr-src-metrics__asm': col.id === 'assembly',
-                'pr-src-metrics__bar-cell': col.kind === 'bar',
+                'pr-src-metrics__bar-cell': col.kind === 'bar' && row.line != null,
               }"
               @mouseenter="col.id === 'samplingStall' ? onStallEnter($event, row.metrics) : undefined"
               @mouseleave="col.id === 'samplingStall' ? onStallLeave() : undefined"
             >
-              <template v-if="col.kind === 'bar'">
+              <template v-if="row.line == null" />
+              <template v-else-if="col.kind === 'bar'">
                 <!-- Sketch: hatch background, solid used fill, % at the right end -->
                 <span class="pr-src-metrics__bar-track">
                   <span
@@ -964,6 +974,11 @@ tr:hover td {
 
 .pr-src-metrics__row--gap:hover td {
   background: transparent;
+}
+
+.pr-src-metrics__row--gap.pr-src-metrics__row--current td,
+.pr-src-metrics__row--gap.pr-src-metrics__row--current:hover td {
+  background: #2a2a2a;
 }
 
 .pr-src-metrics__filler:hover td {

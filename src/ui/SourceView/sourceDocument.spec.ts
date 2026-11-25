@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { MISSING_SOURCE_EMBED_PREFIX } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import type { SourceFileModel } from '../../domain/types';
 import {
   SPARSE_GAP_ROWS,
   sparseDocumentLines,
+  sparseLayout,
   sparseSourceDocument,
 } from './sourceDocument';
 
@@ -59,6 +61,39 @@ describe('sparse source document', () => {
 
   it('PR-SRC-018c: dense files keep the plain text model', () => {
     expect(sparseSourceDocument(sparseFile({ sparse: false }))).toBeNull();
+    expect(sparseLayout(sparseFile({ sparse: false }))).toBeNull();
+    // No reported lines and no placeholder: both panes use the plain text.
     expect(sparseSourceDocument(sparseFile({ lines: [] }))).toBeNull();
+    expect(sparseLayout(sparseFile({ lines: [] }))).toBeNull();
+  });
+
+  it('PR-SRC-018d: missing-embed banner stays on the first rendered row', () => {
+    const banner = `${MISSING_SOURCE_EMBED_PREFIX}/missing/kernel.asc`;
+    const file = sparseFile({
+      text: `${banner}\n\n`,
+      lines: [{ line: 2, values: { executionCount: 3 } }],
+      lineCount: 2,
+    });
+    const doc = sparseSourceDocument(file)!;
+    expect(doc.rows.map((row) => row.lineNumber ?? 0)).toEqual([2]);
+    expect(doc.rows[0]!.tokens.map((token) => token.text)).toEqual([banner]);
+    expect(doc.text.startsWith(banner)).toBe(true);
+    expect(doc.docLineOfSource.has(1)).toBe(false);
+    expect(sparseLayout(file)).toEqual([2]);
+  });
+
+  it('PR-SRC-018e: no reported lines share one banner row', () => {
+    const banner = `${MISSING_SOURCE_EMBED_PREFIX}/missing/kernel.asc`;
+    const file = sparseFile({
+      text: `${banner}\n\n`,
+      lines: [],
+      lineCount: 2,
+    });
+    expect(sparseLayout(file)).toEqual([1]);
+    const doc = sparseSourceDocument(file)!;
+    expect(doc.sourceLineOfDoc).toEqual([1]);
+    expect(doc.rows.map((row) => row.lineNumber ?? 0)).toEqual([1]);
+    expect(doc.rows[0]!.tokens.map((token) => token.text)).toEqual([banner]);
+    expect(doc.text).toBe(`${banner}\n`);
   });
 });

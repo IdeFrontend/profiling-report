@@ -123,6 +123,8 @@ const geom = ref<EditorGeometry>({
 });
 
 const rowH = ref(20);
+/** Editor caret document row, including a blank gap. Null when the band is cleared. */
+const caretDocRow = ref<number | null>(null);
 const filler = ref(0);
 const fontSizeCss = ref(12);
 const fontFamily = ref<string | null>(null);
@@ -482,7 +484,9 @@ function wireSync() {
     caretEchoed = true;
     // Only rebuild the theme when clearLine actually hid the current-line band.
     restoreThemeIfOverridden();
-    // Blank gap rows are not report lines — keep the previous selection.
+    // Gap rows are not source lines, so correlation stays put, but the metrics
+    // highlight must follow this caret or the two panes drift on a skipped range.
+    caretDocRow.value = lineNumber;
     const line = toSourceLine(lineNumber);
     if (line == null) return;
     emit('update:currentLine', line);
@@ -652,6 +656,7 @@ function onRowClick(line: number) {
   restoreThemeIfOverridden();
   const already = editor.getPosition?.()?.lineNumber === target;
   editor.setPosition({ lineNumber: target, column: 1 });
+  caretDocRow.value = editor.getPosition?.()?.lineNumber ?? target;
   editor.focus();
   if (already) emit('update:currentLine', line);
 }
@@ -684,6 +689,7 @@ function setLine(
   // Compare the caret after setPosition: Sudu clamps past EOF and does not notify
   // when the line did not change, which must not be reported as 'moved'.
   const next = editor.getPosition?.()?.lineNumber;
+  caretDocRow.value = next ?? target;
   if (prev == null || next == null) return prev === target ? 'unchanged' : 'moved';
   return next === prev ? 'unchanged' : 'moved';
 }
@@ -696,6 +702,7 @@ function setLine(
 function clearLine() {
   pendingLine = null;
   pendingCaretEcho = false;
+  caretDocRow.value = null;
   if (!editor) return;
   ignoreCaret = true;
   try {
@@ -738,6 +745,7 @@ watch(
     if (!editor || !pool || !model) return;
     // Before the await, so a currentLine watch cannot move the old document.
     ignoreCaret = true;
+    caretDocRow.value = null;
     const api = await loadSuduApi();
     if (disposed || !editor || !pool || !model) {
       ignoreCaret = false;
@@ -949,6 +957,7 @@ defineExpose({
             v-model:column-widths="metricColWidths"
             :file="file"
             :current-line="currentLine ?? null"
+            :current-doc-row="caretDocRow"
             :correlated-lines="correlatedLines"
             :match-lines="matchLines"
             :dim-zero-for="dimZeroFor"

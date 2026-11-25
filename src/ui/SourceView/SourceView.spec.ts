@@ -1556,6 +1556,18 @@ describe('SourceView', () => {
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain(
       'pr-src-metrics__row--current',
     );
+
+    // Caret on the blank row after line 1: the metrics highlight follows it.
+    ed.setPosition({ lineNumber: 2, column: 1 });
+    await flushPromises();
+    const gaps = sourceTable.findAll('tr.pr-src-metrics__row--gap');
+    expect(gaps[0]!.classes()).toContain('pr-src-metrics__row--current');
+    expect(sourceTable.find('tr[data-line="1"]').classes()).not.toContain(
+      'pr-src-metrics__row--current',
+    );
+    expect(sourceTable.find('tr[data-line="46"]').classes()).not.toContain(
+      'pr-src-metrics__row--current',
+    );
     wrapper.unmount();
   });
 });

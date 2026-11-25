@@ -1,4 +1,5 @@
 import type { ILineDescriptor } from '@sudu-ide/types/frontend';
+import { isMissingSourceEmbed } from '../../adapters/sourceCorrelation/resolveSourceFile';
 import type { SourceFileModel } from '../../domain/types';
 
 /**
@@ -28,6 +29,21 @@ export function sparseDocumentLines(lines: readonly { line: number }[]): number[
   return out;
 }
 
+/**
+ * Collapsed row list shared by the editor and the metrics table.
+ * `null` for dense files, and for a sparse file with no reported lines and no
+ * missing-embed banner (both panes then use the plain `text` / `lineCount`).
+ * A missing embed with no reported lines is one row so the banner is not
+ * dropped while the table shows extent 0.
+ */
+export function sparseLayout(file: Pick<SourceFileModel, 'sparse' | 'lines' | 'text'>): number[] | null {
+  if (!file.sparse) return null;
+  const layout = sparseDocumentLines(file.lines);
+  if (layout.length > 0) return layout;
+  if (isMissingSourceEmbed(file.text)) return [1];
+  return null;
+}
+
 export interface SparseSourceDocument {
   /** Sudu `newTextModelFromLines` descriptors, in collapsed order. */
   rows: ILineDescriptor[];
@@ -45,10 +61,13 @@ export interface SparseSourceDocument {
  * `newTextModel(file.text)` path.
  */
 export function sparseSourceDocument(file: SourceFileModel): SparseSourceDocument | null {
-  if (!file.sparse) return null;
+  const layout = sparseLayout(file);
+  if (!layout) return null;
   const textByLine = file.text.split(/\r?\n/);
-  const layout = sparseDocumentLines(file.lines);
-  if (layout.length === 0) return null;
+  // The placeholder is written only on padded line 1. Reported lines often
+  // start later, so put that banner on the first rendered row.
+  const banner = isMissingSourceEmbed(file.text) ? (textByLine[0] ?? '') : '';
+  let bannerPending = banner.length > 0;
   const rows: ILineDescriptor[] = [];
   const docLineOfSource = new Map<number, number>();
   const sourceLineOfDoc: number[] = [];
@@ -58,7 +77,12 @@ export function sparseSourceDocument(file: SourceFileModel): SparseSourceDocumen
       sourceLineOfDoc.push(0);
       continue;
     }
-    rows.push({ lineNumber: line, tokens: [{ text: textByLine[line - 1] ?? '' }] });
+    let text = textByLine[line - 1] ?? '';
+    if (bannerPending) {
+      if (!text) text = banner;
+      bannerPending = false;
+    }
+    rows.push({ lineNumber: line, tokens: [{ text }] });
     sourceLineOfDoc.push(line);
     docLineOfSource.set(line, rows.length);
   }

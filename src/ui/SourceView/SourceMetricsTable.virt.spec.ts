@@ -96,6 +96,8 @@ describe('SourceMetricsTable virtualization', () => {
       text: `${Array.from({ length: 24 }, () => '').join('\n')}\n`,
       metricsColumns: [
         { id: 'executionCount', label: 'Instructions Executed', kind: 'number' },
+        { id: 'relTime', label: 'Relative time', kind: 'bar' },
+        { id: 'warpOccupancy', label: 'Warp occupancy', kind: 'bar' },
       ],
       lines: [
         { line: 17, values: { executionCount: 3 } },
@@ -132,6 +134,24 @@ describe('SourceMetricsTable virtualization', () => {
     const gaps = wrapper.findAll('.pr-src-metrics__row--gap');
     expect(gaps).toHaveLength(4);
     expect(gaps.map((tr) => tr.text())).toEqual(['', '', '', '']);
+    // Skipped ranges stay blank — no hatch bar on Relative time / Warp occupancy.
+    expect(wrapper.findAll('.pr-src-metrics__row--gap .pr-src-metrics__bar-track')).toHaveLength(0);
+    expect(wrapper.findAll('tr[data-line="17"] .pr-src-metrics__bar-track')).toHaveLength(2);
     wrapper.unmount();
+
+    const marked = mount(SourceMetricsTable, {
+      props: {
+        file,
+        currentLine: 17,
+        currentDocRow: 2,
+        rowHeightCss: rowH,
+        showHeader: false,
+        showLineNumbers: true,
+      },
+    });
+    const gapRows = marked.findAll('.pr-src-metrics__row--gap');
+    expect(gapRows[0]!.classes()).toContain('pr-src-metrics__row--current');
+    expect(marked.find('tr[data-line="17"]').classes()).not.toContain('pr-src-metrics__row--current');
+    marked.unmount();
   });
 });

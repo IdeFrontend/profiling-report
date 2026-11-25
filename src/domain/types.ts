@@ -527,14 +527,17 @@ export interface SourceFileModel {
   text: string;
   metricsColumns: SourceMetricsColumn[];
   /**
-   * Per-line metrics. May be **sparse** (only rows with data / mappings) when
-   * `lineCount` is set — the metrics table virtualizes over `1..lineCount` and
-   * fills gaps. Dense asm listings omit `lineCount` and use `lines.length`.
+   * Per-line metrics. May list only rows with data. Without `sparse`, a set
+   * `lineCount` makes the metrics table virtualize `1..lineCount` and fill
+   * gaps. With `sparse`, the table and the editor use the collapsed document
+   * (reported lines plus blank gap rows) and do not invent a row per skipped
+   * source line. Dense asm listings omit `lineCount` and use `lines.length`.
    */
   lines: SourceLineMetrics[];
   /**
-   * Total 1-based line extent for the metrics table / editor sync when `lines`
-   * is sparse (emulate source pads `text` to this length).
+   * Max reported source line (1-based). Without `sparse`, this is the metrics
+   * table extent. With `sparse`, the table and the editor use the collapsed
+   * document; `lineCount` only sizes the padded `text` fallback.
    */
   lineCount?: number;
   /**
