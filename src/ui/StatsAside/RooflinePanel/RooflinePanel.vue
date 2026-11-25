@@ -326,6 +326,9 @@ watch(hasPoints, (ok) => {
   if (!ok) closePointTip();
 });
 
+/** StatsAside calls this when the drill-in surface changes (tip is on `body`, above the overlay). */
+defineExpose({ closePointTip });
+
 onMounted(() => window.addEventListener('resize', closePointTip));
 onBeforeUnmount(() => {
   window.removeEventListener('resize', closePointTip);
