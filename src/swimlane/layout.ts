@@ -2222,43 +2222,25 @@ export function assignTickDensityDims(
   return out;
 }
 
-/** Next float32 strictly above `x` (bit increment). Used for duration-0 tick pairs. */
-export function nextFloat32Up(x: number): number {
-  const f = Math.fround(x);
-  if (!Number.isFinite(f)) return f;
-  // ±0: step to the smallest positive float32.
-  if (f === 0) return Math.fround(Math.pow(2, -149));
-  const buf = new ArrayBuffer(4);
-  const view = new DataView(buf);
-  view.setFloat32(0, f, true);
-  let bits = view.getUint32(0, true);
-  bits = f > 0 ? bits + 1 : bits - 1;
-  view.setUint32(0, bits, true);
-  return view.getFloat32(0, true);
-}
-
-/** Encode [start,end] relative to base for float32 VBOs; keep end > start after fround. */
+/** Encode one interval for the float32 VBO: base-relative start, end > start after fround. */
 export function encodeIntervalPair(
   start: number,
   duration: number,
   base: number,
 ): [number, number] {
   const f0 = Math.fround(start - base);
+  // Not a no-op: it keeps a tick out of the "float32 collapse" nudge below, which would give the
+  // pair a >= 1 ns width - exactly the fabricated duration that used to smear sub-ns ICACHE
+  // ticks into a slab. It is also the tick signal: the vertex shader treats a degenerate pair
+  // (l == r) as duration 0, and relies on durables always encoding end > start. A durable whose
+  // endpoints collapse to one float32 (about 1 ns at timestamps near 1 s) would therefore paint
+  // as a tick; that event is sub-pixel at every zoom, so the mis-paint is invisible.
+  if (duration === 0) return [f0, f0];
   let f1 = Math.fround(start + duration - base);
   if (!(f1 > f0)) {
-    if (duration === 0) {
-      // Instant tick: next float32 while that step is sub-nanosecond. A ≥1 ns
-      // nudge overlaps ~0.6 ns ICACHE ph:i into one slab (#205). From 2^23 ns
-      // the float32 ulp itself is ≥1 ns, so leave the pair degenerate and let
-      // the vertex shader expand floor==ceil to one device column.
-      const step = nextFloat32Up(f0);
-      const width = step - f0;
-      f1 = width > 0 && width < 1 ? step : f0;
-    } else {
-      // Float32 collapsed a short/large-magnitude interval — nudge end by ≥1ns (rel).
-      f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));
-      if (!(f1 > f0)) f1 = f0 + 1;
-    }
+    // Float32 collapsed a short / large-magnitude interval - nudge the end by >= 1 ns.
+    f1 = Math.fround(f0 + Math.max(1, Math.fround(duration) || 1));
+    if (!(f1 > f0)) f1 = f0 + 1;
   }
   return [f0, f1];
 }

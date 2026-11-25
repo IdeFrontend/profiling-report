@@ -53,7 +53,8 @@ import {
 } from './layout';
 import { eventFill, labelColorOn } from '../domain/laneColors';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, extendMargin1Css, extendMargin2Css, extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx, tickGap0DevicePx } from './shaders';
+import { debugSwimlaneWindow } from './debug';
+import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, extendMargin1Css, extendMargin2Css, extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx, tickAlphaMax, tickBand } from './shaders';
 import { TextAtlas, EVENT_LABEL_FONT_CSS_PX } from './textAtlas';
 
 interface GlProgram {
@@ -67,7 +68,9 @@ interface GlProgram {
   uRR: WebGLUniformLocation | null;
   uExtendParameters: WebGLUniformLocation | null;
   uSrcOver: WebGLUniformLocation | null;
-  uTickGap0: WebGLUniformLocation | null;
+  uTickBand: WebGLUniformLocation | null;
+  uTickAlphaMax: WebGLUniformLocation | null;
+  uTickWidthPx: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -145,6 +148,25 @@ interface LaneMeshes {
  * Leaf-pipe brightness metric: count when duration-0 events are ≥ durables (tie → count);
  * length AA when durables strictly outnumber zero-width. Skips summary bars.
  */
+/** [debug] Per-lane duration-0 timestamps, used by the view logging above. */
+function collectLaneTickStats(
+  layout: SwimlaneLayout,
+): { name: string; times: number[] }[] {
+  const byLane = new Map<number, number[]>();
+  for (const ev of layout.events) {
+    if (ev.event.duration !== 0 || ev.summary) continue;
+    const list = byLane.get(ev.laneIndex) ?? [];
+    list.push(ev.event.startTime);
+    byLane.set(ev.laneIndex, list);
+  }
+  const out: { name: string; times: number[] }[] = [];
+  for (const [laneIndex, times] of byLane) {
+    const lane = layout.lanes[laneIndex];
+    out.push({ name: lane ? lane.thread.name : String(laneIndex), times });
+  }
+  return out;
+}
+
 export function laneUsesCountMetric(
   events: ReadonlyArray<{ event: { duration: number }; summary?: boolean }>,
 ): boolean {
@@ -203,7 +225,9 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uRR: gl.getUniformLocation(program, 'uRR'),
     uExtendParameters: gl.getUniformLocation(program, 'uExtendParameters'),
     uSrcOver: gl.getUniformLocation(program, 'uSrcOver'),
-    uTickGap0: gl.getUniformLocation(program, 'uTickGap0'),
+    uTickBand: gl.getUniformLocation(program, 'uTickBand'),
+    uTickAlphaMax: gl.getUniformLocation(program, 'uTickAlphaMax'),
+    uTickWidthPx: gl.getUniformLocation(program, 'uTickWidthPx'),
   };
 }
 
@@ -258,8 +282,8 @@ function linkTextProgram(gl: WebGL2RenderingContext, fsSrc: string): TextProgram
 }
 
 /**
- * Sudu setVbSquareWithGaps: 6 floats/vertex — adds gapPrev,gapNext per vertex (aData).
- * [exp] count-hit revert: the 7th `aHit` float is gone; always 6 floats.
+ * Sudu setVbSquareWithGaps: 6 floats/vertex - adds gapPrev,gapNext per vertex (aData).
+ * 6 floats per vertex: pos, uv, data. Tick-ness is derived from a degenerate pair, not a flag.
  */
 export function setVbSquareWithGaps(
   p: number,
@@ -269,7 +293,6 @@ export function setVbSquareWithGaps(
   gapNext: number,
   vb: Float32Array,
 ): void {
-  // [exp] count-hit revert: 6-float vertex only (no `aHit` 7th float).
   const s = 6;
   const write = (vertex: number, x: number, y: number, texX: number, texY: number) => {
     const o = p + vertex * s;
@@ -285,34 +308,6 @@ export function setVbSquareWithGaps(
   write(1, x1, 1, x0, 1);
   write(2, x0, -1, x1, 0);
   write(3, x0, 1, x1, 0);
-}
-
-/**
- * Merge consecutive degenerate pairs that share one float32 x into one quad.
- * Positive-width intervals stay separate. `hits[i]` is how many events that quad stands for.
- * ponytail: consecutive equals only. A non-degenerate pair between two same-x ticks keeps both.
- */
-export function collapseSameXTicks(pairs: readonly number[]): { pairs: number[]; hits: number[] } {
-  const outPairs: number[] = [];
-  const hits: number[] = [];
-  const n = pairs.length / 2;
-  for (let i = 0; i < n; i++) {
-    const a = pairs[i * 2]!;
-    const b = pairs[i * 2 + 1]!;
-    const prev = hits.length - 1;
-    if (
-      prev >= 0 &&
-      a === b &&
-      a === outPairs[prev * 2] &&
-      outPairs[prev * 2] === outPairs[prev * 2 + 1]
-    ) {
-      hits[prev] = hits[prev]! + 1;
-      continue;
-    }
-    outPairs.push(a, b);
-    hits.push(1);
-  }
-  return { pairs: outPairs, hits };
 }
 
 /**
@@ -332,7 +327,6 @@ function createChunk(
   indexAt: (i: number) => number = (i) => off + i,
 ): MeshChunk {
   const numSquares = Math.min(pairCount, MAX_QUADS_PER_MESH);
-  // [exp] count-hit revert: always 6 floats per vertex (pos, uv, data).
   const floatsPerVert = 6;
   const vb = new Float32Array(numSquares * floatsPerVert * 4);
   const ib = new Uint16Array(numSquares * 6);
@@ -675,7 +669,61 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   }
 
   setView(view: SwimlaneViewWindow): void {
+    const prev = this.view;
     this.view = { ...view };
+    // Guard at the call site: with the flag off this is one branch and no call.
+    if (debugSwimlaneWindow) this.debugLogView(prev, view);
+  }
+
+  /**
+   * [debug] Visual window on every zoom / pan, so a problematic zoom can be described exactly.
+   * Units: ns (model time), ms (relative to minTime = what the tooltip shows), device px.
+   * Suppresses identical windows (render() calls setView again with the same object).
+   */
+  private debugLogView(prev: SwimlaneViewWindow, next: SwimlaneViewWindow): void {
+    // No usable viewport yet (first setView can precede the resize) - nothing to interpret.
+    if (!(this.width > 0) || !(next.endTime > next.startTime)) return;
+    // Exact compare: an unchanged window is passed as the same numbers; any real zoom/pan moves.
+    if (prev.startTime === next.startTime && prev.endTime === next.endTime) return;
+    const span = next.endTime - next.startTime;
+    const prevSpan = prev.endTime - prev.startTime;
+    const devW = Math.max(1, this.width);
+    const nsPerDevicePx = span / devW;
+    const zoom = prevSpan > 0 && span > 0 ? prevSpan / span : 1;
+    const ticks = collectLaneTickStats(this.layout);
+    // Busiest duration-0 lane in view: tick count and mean spacing in device px.
+    // spacing < 1 -> several ticks per pixel (ladder regime), > 1 -> individual columns.
+    let busiest = { name: '', inView: 0, spacingPx: NaN };
+    for (const lane of ticks) {
+      let inView = 0;
+      for (const t of lane.times) if (t >= next.startTime && t <= next.endTime) inView++;
+      if (inView > busiest.inView) {
+        busiest = { name: lane.name, inView, spacingPx: inView > 1 ? devW / inView : NaN };
+      }
+    }
+    // Raw numbers, several args -> console keeps full double precision (no toFixed rounding).
+    console.log(
+      '[swimlane:view] zoom',
+      zoom,
+      '| startNs',
+      next.startTime,
+      'endNs',
+      next.endTime,
+      'spanNs',
+      span,
+      '| nsPerDevicePx',
+      nsPerDevicePx,
+      '| dpr',
+      this.dpr,
+      'devW',
+      devW,
+      '| busiest',
+      busiest.name || '-',
+      'ticksInView',
+      busiest.inView,
+      'spacingDevicePx',
+      busiest.spacingPx,
+    );
   }
 
   /** Overlay owns hover lift; keep the arg so hover-only calls no-op on `selectedId`. */
@@ -881,8 +929,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         rrSwitchThreshold * this.dpr,
       );
     if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
-    // Inter-tick gap (device px) that maps to tick alpha 1; dense plateau = 1-e^(-1/g0).
-    if (swim.uTickGap0) gl.uniform1f(swim.uTickGap0, tickGap0DevicePx);
+    // Dense-column target brightness: overlapping bars converge to this instead of piling up.
+    if (swim.uTickBand) gl.uniform1f(swim.uTickBand, tickBand);
+    if (swim.uTickAlphaMax) gl.uniform1f(swim.uTickAlphaMax, tickAlphaMax);
+    // One CSS px wide tick bar in device px.
+    if (swim.uTickWidthPx) gl.uniform1f(swim.uTickWidthPx, Math.max(1, Math.round(dpr)));
 
     const muteRest =
       this.searchQuery.length === 0 && (this.selectedId != null || this.multiIds.size > 0);
@@ -1236,13 +1287,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       // Folder lanes carry only summary bars — paint the whole mesh in the summary gray.
       const summary = allEvents.length > 0 && allEvents.every((e) => e.summary);
       const rows: SubRowMesh[] = rowEvents.map((events, r) => {
-        const raw: number[] = [];
+        const pairs: number[] = [];
         for (const item of events) {
           const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
-          raw.push(a, b);
+          pairs.push(a, b);
         }
-        // [exp] tick ladder: one quad per event - collapsing same-x ticks would hide counts.
-        const pairs = raw;
         return {
           y: lane.y + r * LANE_HEIGHT,
           quadStarts: encodedQuadStarts(pairs),

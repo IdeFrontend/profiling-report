@@ -4,7 +4,6 @@ import {
   contentHeightFromLayout,
   contentHeightFromModel,
   encodeIntervalPair,
-  nextFloat32Up,
   EVENT_MARGIN,
   eventEmphasis,
   isKeepBright,
@@ -50,7 +49,6 @@ import { eventFill } from '../../src/domain/laneColors';
 import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import {
-  collapseSameXTicks,
   compositeLabelBackdrop,
   laneUsesCountMetric,
   WebGlSwimlaneRenderer,
@@ -1509,54 +1507,15 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(tickDensityDim(8, 2)).toBe(1);
   });
 
-  it('PR-RENDER-065: duration-0 ticks do not merge into continuous time coverage (#205)', async () => {
-    // Sub-ns ICACHE spacing (~0.606ns). A ≥1ns encode pair overlaps neighbors into one slab.
-    const spacing = 0.606;
-    const starts = Array.from({ length: 40 }, (_, i) => 4300 + i * spacing);
-    const pairs = starts.map((t) => encodeIntervalPair(t, 0, 0));
-    for (const [a, b] of pairs) {
-      expect(b).toBeGreaterThan(a);
-      // Next-float32 only — nowhere near 1ns, so neighbors stay disjoint in time.
-      expect(b - a).toBeLessThan(spacing);
-      expect(b).toBe(nextFloat32Up(a));
+  it('PR-RENDER-065: duration-0 encodes as a degenerate pair (no ULP width) (#205)', () => {
+    // Tick width is no longer encoded: the mesh carries aTick and the vertex shader paints a
+    // fixed pixel-snapped bar, so the pair must not depend on the timestamp magnitude/ULP.
+    for (const base of [0, 4300, 10_000_000, 1e9]) {
+      for (const t of [base, base + 0.606, base + 0.606 * 39]) {
+        const [a, b] = encodeIntervalPair(t, 0, 0);
+        expect(a).toBe(b);
+      }
     }
-    // Encoded union must not cover the whole cluster (would paint as one gray bar).
-    let covered = 0;
-    let cursor = -Infinity;
-    for (const [a, b] of pairs) {
-      if (b <= cursor) continue;
-      covered += b - Math.max(a, cursor);
-      cursor = b;
-    }
-    const span = starts[starts.length - 1]! - starts[0]!;
-    expect(covered).toBeLessThan(span * 0.05);
-
-    // From 2^23 ns the float32 ulp is ≥1 ns. Next-up pairs would overlap
-    // 0.606 ns ticks into a slab; those pairs stay degenerate instead.
-    const far = Array.from({ length: 40 }, (_, i) => 10_000_000 + i * spacing);
-    for (const t of far) {
-      const [a, b] = encodeIntervalPair(t, 0, 0);
-      expect(b).toBe(a);
-    }
-
-    // Positive-duration collapse path is unchanged (≥1ns nudge when float32 merges ends).
-    const base = 1_000_000_000;
-    const [, posEnd] = encodeIntervalPair(base + 100, 1, base);
-    const [posStart] = encodeIntervalPair(base + 100, 1, base);
-    expect(posEnd - posStart).toBeGreaterThanOrEqual(1);
-
-    // Same encoded x collapses to one quad; the hit count is the stack. Distinct x stays 1.
-    const farPairs = far.flatMap((t) => encodeIntervalPair(t, 0, 0));
-    const stacked = collapseSameXTicks(farPairs);
-    expect(stacked.hits.reduce((sum, hit) => sum + hit, 0)).toBe(far.length);
-    expect(stacked.pairs.length / 2).toBeLessThan(far.length);
-    expect(stacked.hits.some((hit) => hit > 1)).toBe(true);
-    const nearPairs = starts.flatMap((t) => encodeIntervalPair(t, 0, 0));
-    const distinct = collapseSameXTicks(nearPairs);
-    expect(distinct.pairs).toEqual(nearPairs);
-    expect(distinct.hits.every((hit) => hit === 1)).toBe(true);
-    expect(collapseSameXTicks([0, 10, 10, 20])).toEqual({ pairs: [0, 10, 10, 20], hits: [1, 1] });
-    expect(collapseSameXTicks([5, 5, 5, 5, 6, 6])).toEqual({ pairs: [5, 5, 6, 6], hits: [2, 1] });
   });
 
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {

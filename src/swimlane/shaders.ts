@@ -27,15 +27,23 @@ export const extendMargin1Css = 2;
 export const extendMargin2Css = 4;
 
 /**
- * Tick density ladder (PR-EXPERIMENT), in DEVICE px: the inter-tick gap at which one tick
- * contributes alpha 1. Alpha = clamp(gap / g0), so a uniformly covered column converges to a
- * zoom-invariant plateau `1 - e^(-1/g0)` (no overflow), while separated ticks brighten toward
- * full as they pull apart. At equal spacing 2 ticks in a pixel are still brighter than 1.
+ * Tick density ladder (PR-EXPERIMENT).
  *
- * g0 = 0.75 px -> dense plateau ~0.74 (188 of 255), a tick ~0.75 px from its neighbour is full.
- * Smaller g0 -> brighter dense bands and a shorter distance to full brightness.
+ * A tick paints a bar uTickWidthPx device px wide. When bars overlap, N = width / gap of them
+ * hit one pixel, and source-over accumulates 1 - (1-a)^N. Rather than let that pile up into a
+ * solid brick, the per-tick alpha is pre-divided by the expected overlap:
+ *
+ *   alpha = 1 - (1 - band)^(gap / width),  clamped to [0, alphaMax]
+ *
+ * so a fully covered column converges to band at EVERY zoom level, while a separated tick keeps
+ * growing toward alphaMax (the isolated look). No density cap, no zebra, no overflow: brightness
+ * is bounded by alphaMax by construction.
+ *
+ * band = 0.6  -> dense ICACHE runs read as a medium band (not a bright slab).
+ * alphaMax = 0.8 -> an isolated tick is clearly brighter than that band.
  */
-export const tickGap0DevicePx = 0.75;
+export const tickBand = 0.6;
+export const tickAlphaMax = 0.8;
 
 /**
  * Odd stripe multiplier for the Canvas thin-tick density alternate (matches
@@ -60,7 +68,9 @@ in vec2 aPos;
 in vec2 aTex;
 in vec2 aData; // x = distance to prev event end, y = distance to next event start (event coords)
 
-uniform float uTickGap0; // device px: inter-tick gap at which a tick contributes alpha 1
+uniform float uTickBand; // target brightness of a fully covered column (dense plateau)
+uniform float uTickAlphaMax; // cap on one tick's alpha (isolated tick look)
+uniform float uTickWidthPx; // device px painted per tick (1 CSS px, >= 1)
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
@@ -107,9 +117,20 @@ void main() {
   // A uniformly covered column converges to 1 - e^(-1/g0) at any zoom (no overflow); ticks that
   // separate brighten toward full, so mid-zoom does not fall into a dim band. At equal spacing
   // N ticks in one pixel still accumulate 1-(1-alpha)^N (2 > 1, 3 > 2, smaller step).
-  vTick = (rPx - lPx) <= 0.001 ? 1.0 : 0.0;
+  // Encoder contract (layout.ts encodeIntervalPair): a duration-0 tick is the only event that
+  // encodes a degenerate pair; durables always have end > start. No extra vertex attribute needed.
+  // Accepted edge case: a durable whose two endpoints round to the same float32 (about 1 ns at
+  // timestamps near 1 s) is indistinguishable from a tick and paints as one - such an event is
+  // sub-pixel at every zoom, so the mis-paint is invisible.
+  vTick = (lX == rX) ? 1.0 : 0.0;
   float gapAvgPx = (gapPrevPx + gapNextPx) * 0.5;
-  vTickA = clamp(gapAvgPx / max(uTickGap0, 0.05), 0.0, 1.0);
+  // Pre-divide by the expected bar overlap: N bars hit one pixel = width / gap, so
+  // alpha = 1 - (1 - band)^(gap / width) keeps a covered column at band for any density.
+  // The 0.05 floor = "at least one twentieth of a bar apart" so coincident ticks stay faintly
+  // visible instead of collapsing to alpha 0.
+  float tickWpx = max(1.0, uTickWidthPx);
+  float overlap = max(gapAvgPx / tickWpx, 0.05);
+  vTickA = clamp(1.0 - pow(1.0 - uTickBand, overlap), 0.0, uTickAlphaMax);
 
   float screenY = glToPixelY(pos.y);
   // [exp] geometry no longer encodes tick density: a duration-0 tick paints exactly one device
@@ -117,9 +138,10 @@ void main() {
   float screenL = floor(extendedL);
   float screenR = ceil(extendedR);
   if (vTick > 0.5) {
-    float tickC = (lPx + rPx) * 0.5;
-    screenL = tickC - 0.5;
-    screenR = tickC + 0.5;
+    // Pixel-snapped bar, uTickWidthPx device px wide: coverage is exactly 1 across it.
+    float tickL = floor((lPx + rPx) * 0.5 - tickWpx * 0.5);
+    screenL = tickL;
+    screenR = tickL + tickWpx;
   } else if (screenR <= screenL) {
     screenR = screenL + 1.0;
   }
