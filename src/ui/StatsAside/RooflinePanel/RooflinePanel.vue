@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { t } from '../../../i18n';
 import {
   FIXED_TIP_OFFSET_PX,
-  placeFixedTip,
+  FIXED_TIP_PAD_PX,
 } from '../../placeFixedTip';
 import {
   ROOFLINE_CHART_H as H,
@@ -50,14 +50,23 @@ const legendScrollEl = ref<HTMLElement | null>(null);
 const tipId = useId();
 type HoverTip = { kind: 'point'; id: string } | { kind: 'knee'; id: string };
 const hoverTip = ref<HoverTip | null>(null);
-const tipPos = ref<{ left: string; top: string } | null>(null);
+const tipPos = ref<{
+  left: string;
+  right: string;
+  top: string;
+  bottom: string;
+} | null>(null);
 /**
- * placeFixedTip estimate. Width is the tip max-width. Height covers a wrapped
- * emulate label (48-char symbol + level + PC → up to 3 name lines) plus the
- * two value lines: 12px × 1.45 × 5 + 4px name margin + 8×2 pad + 1×2 border = 109.
- * Knee tips are shorter (name + 3 metrics); the taller estimate still clamps safely.
- * ponytail: estimate, not a measured box. Upgrade: place from the tip's offsetHeight
- * after mount if labels grow past three lines.
+ * Flip threshold only — not the placed origin. Width is the tip max-width.
+ * Height covers a wrapped emulate label (48-char symbol + level + PC → up to
+ * 3 name lines) plus the two value lines:
+ * 12px × 1.45 × 5 + 4px name margin + 8×2 pad + 1×2 border = 109.
+ * Knee tips are shorter; the taller estimate still flips early enough.
+ * A left/above flip anchors with `right` / `bottom` (StatsAside card tips) so
+ * the near edge stays `FIXED_TIP_OFFSET_PX` from the pointer. Subtracting this
+ * estimate from `left` parked a narrower box a max-width away.
+ * ponytail: a viewport narrower than max-width + gap can still run a left-flipped
+ * tip off the left edge. Measure and clamp if a small window becomes a target.
  */
 const TIP_EST_W = 280;
 const TIP_EST_H = 112;
@@ -74,9 +83,13 @@ const seriesHoverId = ref<string | null>(null);
  * Hit pads are larger than the paint so thin roofs / 8px knees stay easy to grab.
  */
 const KNEE = 8;
+/** Hovered knee that owns the tip. Same 8→10 step as CounterTrack active markers. */
+const KNEE_HOVER = 10;
 const KNEE_HIT = 16;
 const KNEE_RX = 2;
 const POINT_R = 4;
+/** Hovered measured point that owns the tip (diameter 8→10). */
+const POINT_R_HOVER = 5;
 /** Invisible stroke width for roof hit-testing (visual stays 2 / lit 3.5). */
 const ROOF_HIT_STROKE = 12;
 
@@ -324,16 +337,33 @@ function closePointTip() {
 }
 
 function placeTip(e: MouseEvent) {
-  const { left, top } = placeFixedTip({
-    x: e.clientX,
-    y: e.clientY,
-    tipW: TIP_EST_W,
-    tipH: TIP_EST_H,
-    viewportW: window.innerWidth,
-    viewportH: window.innerHeight,
-    offset: FIXED_TIP_OFFSET_PX,
-  });
-  tipPos.value = { left: `${left}px`, top: `${top}px` };
+  const x = e.clientX;
+  const y = e.clientY;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const offset = FIXED_TIP_OFFSET_PX;
+  const pad = FIXED_TIP_PAD_PX;
+  // Flip on the max box. The flipped edge is `right` / `bottom`, so a tip
+  // narrower or shorter than the estimate still sits `offset` px from the pointer.
+  const toTheRight = x + offset + TIP_EST_W <= vw - pad;
+  const below = y + offset + TIP_EST_H <= vh - pad;
+  tipPos.value = {
+    left: toTheRight ? `${x + offset}px` : 'auto',
+    right: toTheRight ? 'auto' : `${vw - x + offset}px`,
+    top: below ? `${y + offset}px` : 'auto',
+    bottom: below ? 'auto' : `${vh - y + offset}px`,
+  };
+}
+
+function pointRadius(id: string): number {
+  return hoverTip.value?.kind === 'point' && hoverTip.value.id === id ? POINT_R_HOVER : POINT_R;
+}
+
+function kneePaint(s: RooflineSeries): { x: number; y: number; size: number } {
+  const hot = hoverTip.value?.kind === 'knee' && hoverTip.value.id === s.id;
+  const size = hot ? KNEE_HOVER : KNEE;
+  const seg = roofSegments(s);
+  return { x: seg.ridgeX - size / 2, y: seg.ridgeY - size / 2, size };
 }
 
 function onPointEnter(e: MouseEvent, p: RooflinePoint) {
@@ -667,10 +697,10 @@ onBeforeUnmount(() => {
             <rect
               data-testid="roofline-knee"
               class="pr-roofline__knee"
-              :x="roofSegments(s).ridgeX - KNEE / 2"
-              :y="roofSegments(s).ridgeY - KNEE / 2"
-              :width="KNEE"
-              :height="KNEE"
+              :x="kneePaint(s).x"
+              :y="kneePaint(s).y"
+              :width="kneePaint(s).size"
+              :height="kneePaint(s).size"
               :rx="KNEE_RX"
               :ry="KNEE_RX"
               :fill="s.color"
@@ -687,7 +717,7 @@ onBeforeUnmount(() => {
             :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
             :cx="xToPx(p.intensity)"
             :cy="yToPx(p.performance)"
-            :r="POINT_R"
+            :r="pointRadius(p.id)"
             :fill="p.style === 'hollow' ? '#262626' : p.color"
             :stroke="p.color"
             :aria-describedby="tipBody?.pointId === p.id ? tipId : undefined"

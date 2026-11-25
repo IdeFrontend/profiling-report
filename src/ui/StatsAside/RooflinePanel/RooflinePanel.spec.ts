@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import { FIXED_TIP_OFFSET_PX, placeFixedTip } from '../../placeFixedTip';
+import { FIXED_TIP_OFFSET_PX, FIXED_TIP_PAD_PX } from '../../placeFixedTip';
 import RooflinePanel from './RooflinePanel.vue';
 import {
   ROOFLINE_CHART_H,
@@ -288,14 +288,25 @@ describe('RooflinePanel', () => {
     expect(
       wrapper.get('.pr-roofline__knee-g[data-series-id="aic-fp32"]').classes(),
     ).toContain('pr-roofline__roof-g--dim');
+    // Legend emphasis does not open a tip, so the knee stays at rest size.
+    expect(
+      wrapper.get('.pr-roofline__knee-g[data-series-id="aiv-fp16"] [data-testid="roofline-knee"]').attributes('width'),
+    ).toBe('8');
     await leg.trigger('mouseleave');
     expect(wrapper.find('.pr-roofline__roof-g--lit').exists()).toBe(false);
     expect(wrapper.find('.pr-roofline__roof-g--dim').exists()).toBe(false);
 
     // Vice versa: hovering the knee lights the matching legend item.
     const knee = wrapper.get('.pr-roofline__knee-g[data-series-id="aic-fp32"]');
+    const kneePaint = wrapper.get(
+      '.pr-roofline__knee-g[data-series-id="aic-fp32"] [data-testid="roofline-knee"]',
+    );
+    expect(kneePaint.attributes('width')).toBe('8');
     await knee.trigger('mouseenter', { clientX: 40, clientY: 80 });
     expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeTruthy();
+    // The knee that owns the tip grows 8→10.
+    expect(kneePaint.attributes('width')).toBe('10');
+    expect(kneePaint.attributes('height')).toBe('10');
     expect(
       wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aic-fp32"]').classes(),
     ).toContain('pr-roofline__leg-item--lit');
@@ -303,6 +314,7 @@ describe('RooflinePanel', () => {
       wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]').classes(),
     ).toContain('pr-roofline__roof-g--dim');
     await knee.trigger('mouseleave');
+    expect(kneePaint.attributes('width')).toBe('8');
     expect(wrapper.find('.pr-roofline__leg-item--lit').exists()).toBe(false);
     // Knee leave dismisses the tip (PR-ROOF-009). A roof hover only emphasizes.
     expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
@@ -313,16 +325,24 @@ describe('RooflinePanel', () => {
       wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]').classes(),
     ).toContain('pr-roofline__leg-item--lit');
     expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+    expect(
+      wrapper.get('.pr-roofline__knee-g[data-series-id="aiv-fp16"] [data-testid="roofline-knee"]').attributes('width'),
+    ).toBe('8');
     await roof.trigger('mouseleave');
     expect(wrapper.find('.pr-roofline__leg-item--lit').exists()).toBe(false);
   });
 
   it('PR-ROOF-009: knee hover opens tip with ridge intensity and peaks', async () => {
     const wrapper = mount(RooflinePanel, { props: { model: sample }, attachTo: document.body });
+    const knee = wrapper.get('[data-testid="roofline-knee"]');
+    const restX = Number(knee.attributes('x'));
+    expect(knee.attributes('width')).toBe('8');
     await wrapper.get('.pr-roofline__knee-g').trigger('mouseenter', {
       clientX: 40,
       clientY: 80,
     });
+    expect(knee.attributes('width')).toBe('10');
+    expect(Number(knee.attributes('x'))).toBeCloseTo(restX - 1);
     const tip = document.querySelector('[data-testid="roofline-tooltip"]');
     expect(tip).toBeTruthy();
     expect(tip!.getAttribute('data-tip-kind')).toBe('knee');
@@ -373,19 +393,29 @@ describe('RooflinePanel', () => {
     expect(tipH).toBeGreaterThanOrEqual(minTipH);
 
     const point = wrapper.get('[data-testid="roofline-point"]');
-    const expectPlacedAt = (clientX: number, clientY: number) => {
-      const placed = placeFixedTip({
-        x: clientX,
-        y: clientY,
-        tipW,
-        tipH,
-        viewportW: window.innerWidth,
-        viewportH: window.innerHeight,
-        offset: FIXED_TIP_OFFSET_PX,
-      });
+    expect(point.attributes('r')).toBe('4');
+    // Flip uses the max box. A left/above flip anchors `right` / `bottom` so the
+    // near edge stays one offset from the pointer — not `left = x - offset - maxWidth`.
+    const expectBeside = (clientX: number, clientY: number) => {
       const node = document.querySelector('[data-testid="roofline-tooltip"]') as HTMLElement;
-      expect(node.style.left).toBe(`${placed.left}px`);
-      expect(node.style.top).toBe(`${placed.top}px`);
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const toTheRight = clientX + FIXED_TIP_OFFSET_PX + tipW <= vw - FIXED_TIP_PAD_PX;
+      const below = clientY + FIXED_TIP_OFFSET_PX + tipH <= vh - FIXED_TIP_PAD_PX;
+      if (toTheRight) {
+        expect(node.style.left).toBe(`${clientX + FIXED_TIP_OFFSET_PX}px`);
+        expect(node.style.right).toBe('auto');
+      } else {
+        expect(node.style.left).toBe('auto');
+        expect(node.style.right).toBe(`${vw - clientX + FIXED_TIP_OFFSET_PX}px`);
+      }
+      if (below) {
+        expect(node.style.top).toBe(`${clientY + FIXED_TIP_OFFSET_PX}px`);
+        expect(node.style.bottom).toBe('auto');
+      } else {
+        expect(node.style.top).toBe('auto');
+        expect(node.style.bottom).toBe(`${vh - clientY + FIXED_TIP_OFFSET_PX}px`);
+      }
     };
 
     await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
@@ -397,18 +427,19 @@ describe('RooflinePanel', () => {
     expect(tip.textContent).toContain('Ops/Byte');
     expect(tip.textContent).toContain('TOps/s');
     expect(card.element.getBoundingClientRect().height).toBe(heightBefore);
-    expectPlacedAt(40, 80);
+    expect(point.attributes('r')).toBe('5');
+    expectBeside(40, 80);
 
     const nearRight = window.innerWidth - 40;
     await point.trigger('mousemove', { clientX: nearRight, clientY: 80 });
-    expectPlacedAt(nearRight, 80);
-    expect(parseFloat(tip.style.left)).toBeLessThan(nearRight);
+    expectBeside(nearRight, 80);
+    // Gap from the pointer to the tip's right edge is the offset, not the 280px estimate.
+    expect(parseFloat(tip.style.right)).toBe(window.innerWidth - nearRight + FIXED_TIP_OFFSET_PX);
 
     const nearBottom = window.innerHeight - 10;
     await point.trigger('mousemove', { clientX: 40, clientY: nearBottom });
-    expectPlacedAt(40, nearBottom);
-    // A short estimate would leave the box below the pointer.
-    expect(nearBottom - parseFloat(tip.style.top)).toBeGreaterThanOrEqual(minTipH + FIXED_TIP_OFFSET_PX);
+    expectBeside(40, nearBottom);
+    expect(parseFloat(tip.style.bottom)).toBe(window.innerHeight - nearBottom + FIXED_TIP_OFFSET_PX);
   });
 
   it('PR-ROOF-004: tooltip follows the current point when the model is replaced', async () => {
