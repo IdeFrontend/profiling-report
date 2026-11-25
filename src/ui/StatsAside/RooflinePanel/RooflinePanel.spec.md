@@ -63,6 +63,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 [view-models](../../../../specs/core/view-models.spec.md), DATA-37a–f, [roofline](../../../../docs/views/roofline.md#tabs-fields).
 
 ## Changelog
+- **2026-11-19** — Product review: the mix labels read through the panel's ONE two-decimal format (PR-STATS-060): `84.100000%` becomes `84.10%`.
 
 - **2026-11-25** — A left/above tip flip anchors with `right` / `bottom` (12px from the pointer) instead of `left`/`top` minus the 280px estimate. The marker that owns the open tip grows 8→10px (circle `r` 4→5, knee 8×8→10×10).
 - **2026-11-25** — Knee tip only (PR-ROOF-009); legend ↔ series highlight (PR-ROOF-008) with dimmed knees at 0.7; larger roof/knee hit pads; points paint above knee pads; aside scroll dismisses tip without clearing series emphasis; legend wheel → horizontal scroll (PR-ROOF-006).

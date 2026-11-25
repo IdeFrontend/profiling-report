@@ -520,7 +520,17 @@ test('PR-ROOT-025: the heat panel takes the overlay’s right column; the diagra
   const aside = page.locator('[data-testid="stats-topology"] [data-testid="memory-topology-panel"]');
   await expect(aside).toBeVisible({ timeout: 60_000 });
   // Clicking a heat unit on the stacked diagram opens the overlay already on that unit.
-  await aside.getByTestId('memory-unit-ub').click();
+  // The click lands inside the AIV Scalar unit control (chrome 280,315), whose opaque cover
+  // sits over the UB hit box: the control must stay click-through (PR-MEMTOP-021).
+  const chromePoint = await aside.evaluate((root) => {
+    const svg = root.querySelector('.pr-topo__svg') as SVGSVGElement;
+    const ctm = svg.getScreenCTM()!;
+    return {
+      x: ctm.a * 280 + ctm.c * 315 + ctm.e,
+      y: ctm.b * 280 + ctm.d * 315 + ctm.f,
+    };
+  });
+  await page.mouse.click(chromePoint.x, chromePoint.y);
 
   const overlay = page.getByTestId('topology-fullscreen-overlay');
   await expect(overlay).toBeVisible();

@@ -38,6 +38,18 @@ function assertHtml(html, label) {
   if (!html.includes(readFileSync(fixture).toString('base64').slice(0, 32))) {
     fail(`${label}: embedded base64 does not match fixture prefix`);
   }
+  // The shell is a host: it must keep the baseline picker contract wired
+  // (report-shell/App.vue — views/baselines.md "every host that mounts
+  // ProfilingReport"). Without it the control silently vanishes from the
+  // offline artifact. Artifact markers prove the glue is bundled; the source
+  // assertions prove the bindings exist (bundle strings alone survive even
+  // with the `:pick-baseline-file` binding dropped).
+  if (
+    !html.includes('toggle-baselines')
+    || !html.includes('baseline-file-input')
+  ) {
+    fail(`${label}: exported shell lost the baseline picker host glue`);
+  }
 }
 
 function runGenerate(script, out) {
@@ -76,6 +88,25 @@ if (!miniHtml.includes('<p lang="zh-CN">keep</p>')) fail('stitch-html-report: re
 if (miniHtml.includes('__HTML_EXPORT_LOCALE__')) fail('stitch-html-report: locale placeholder left');
 
 if (!existsSync(fixture)) fail(`missing fixture ${fixture}`);
+
+const shellSource = readFileSync(join(root, 'report-shell/App.vue'), 'utf8');
+for (const binding of [
+  ':pick-baseline-file="pickBaselineFile"',
+  ':baseline-rows="baselineRows"',
+  ':baseline-reports="baselineReports"',
+  '@update:baselines="onBaselinesUpdate"',
+  '@update:baseline-rows="onBaselineRows"',
+]) {
+  if (!shellSource.includes(binding)) {
+    fail(`report-shell/App.vue lost the baseline binding: ${binding}`);
+  }
+}
+// A single-file artifact has no /data fixtures, so a demo recent list would
+// offer rows that can never adapt; the shell must keep Browse as the only
+// source of baselines.
+if (shellSource.includes(':recent-baselines=')) {
+  fail('report-shell/App.vue offers recent baselines a single-file artifact cannot load');
+}
 
 runGenerate(generate, join(root, 'dist/report-shell/smoke-vector_muladd.html'));
 

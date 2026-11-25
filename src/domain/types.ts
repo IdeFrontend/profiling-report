@@ -334,7 +334,13 @@ export interface MemoryTopologyEdge {
  *  field (DATA-39). A subset of the node ids, so a hand-built model cannot smuggle in a unit the
  *  panel has no badge slot for — the adapter's `TOPOLOGY_PLATE_NODE_IDS` tuple is checked against
  *  this union, and a new entry here fails typecheck in the panel until it gets coordinates. */
-export type MemoryTopologyPlateNodeId = 'aiv_scalar' | 'vec' | 'cube';
+export type MemoryTopologyPlateNodeId =
+  | 'aiv_scalar'
+  | 'vec'
+  | 'cube'
+  | 'simt'
+  | 'aic_scalar'
+  | 'aiv_scalar_unit';
 
 /** UI-49: unit-utilization badge painted inside a unit's own box, e.g. Scalar `33.24%`. */
 export interface MemoryTopologyPlate {
@@ -342,6 +348,13 @@ export interface MemoryTopologyPlate {
   node: MemoryTopologyPlateNodeId;
   /** `{n}%` of the unit's own utilization (DATA-28 ratio, not a peak-relative percent). */
   label: string;
+  /**
+   * Numeric percent behind `label` — `Number((ratio × 100).toFixed(2))`, e.g. `33.24` — from the
+   * same PipeUtilization ratio, so baseline comparison can diff plates without parsing strings.
+   * Optional: a hand-built / host model carrying only `label` stays valid and paints no delta.
+   * The compute adapters always fill it.
+   */
+  value?: number;
 }
 
 /** M2 memory topology: static node set + data-driven buffer-link labels. */
@@ -773,4 +786,29 @@ export interface BaselinePick {
 export interface BaselineReportData {
   baselineId: string;
   report: AdaptedReport;
+}
+
+/** Every checked baseline's adapted pack, keyed by baseline id (host-owned). */
+export type BaselineReports = Record<string, BaselineReportData>;
+
+/**
+ * One comparison row in the aside (对比基线, 1130 baseline rows): the report a
+ * row compares against + the pack operator it compares from. A row holds one
+ * distinct `(baselineId, operatorId)` pair — the same report may repeat with
+ * different operators, so the aside's row cap is the SUM of the checked
+ * baselines' operator counts (the `+` disables once every pair is used, the
+ * row setters resolve a taken pair to the next free operator, and a switch
+ * onto a report with NO free pair is a no-op — a pair is never duplicated).
+ * The FIRST row is the primary and drives the aside, the rest surface only in
+ * the per-value hover popups.
+ *
+ * Host-owned like the checked set (the viewer renders and emits
+ * `update:baselineRows`); `operatorId` is `''` until picked, which resolves to
+ * the pack operator matching the open report's `opName`, else the first.
+ */
+export interface BaselineRow {
+  /** Row identity — stable across baseline/operator switches so the row never remounts. */
+  id: string;
+  baselineId: string;
+  operatorId: string;
 }

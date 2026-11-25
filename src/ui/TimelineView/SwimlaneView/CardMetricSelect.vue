@@ -30,6 +30,36 @@ const triggerRef = ref<HTMLButtonElement | null>(null);
 const menuStyle = ref<Record<string, string>>({});
 const activeIndex = ref(0);
 
+/* Hover tip with the FULL selected text — the trigger ellipsizes long report /
+ * operator names. Same chrome as the app's other tips (`.pr-icon-tip`): raised
+ * surface, 6px radius, 11px text; teleported so the aside's clipped field and
+ * panel edges cannot crop it. */
+const tipVisible = ref(false);
+const tipRef = ref<HTMLElement | null>(null);
+const tipStyle = ref<Record<string, string>>({});
+
+async function showTip(): Promise<void> {
+  if (open.value) return;
+  tipStyle.value = { position: 'fixed', left: '-9999px', top: '-9999px' };
+  tipVisible.value = true;
+  await nextTick();
+  const trigger = triggerRef.value;
+  const tip = tipRef.value;
+  if (!trigger || !tip) return;
+  const r = trigger.getBoundingClientRect();
+  const t = tip.getBoundingClientRect();
+  const pad = 6;
+  const left = Math.max(pad, Math.min(r.left, window.innerWidth - pad - t.width));
+  const below = r.bottom + 6;
+  const top =
+    below + t.height > window.innerHeight - pad ? Math.max(pad, r.top - 6 - t.height) : below;
+  tipStyle.value = { position: 'fixed', left: `${Math.round(left)}px`, top: `${Math.round(top)}px` };
+}
+
+function hideTip(): void {
+  tipVisible.value = false;
+}
+
 const label = computed(() => props.labelOf(props.modelValue));
 const listboxId = computed(() => `${props.testIdPrefix}-listbox`);
 const activeId = computed(() => {
@@ -72,6 +102,7 @@ function toggle(e: Event) {
   e.stopPropagation();
   e.preventDefault();
   open.value = !open.value;
+  if (open.value) hideTip();
 }
 
 function pick(value: string, e?: Event) {
@@ -80,6 +111,9 @@ function pick(value: string, e?: Event) {
   emit('update:modelValue', value);
   open.value = false;
   triggerRef.value?.focus();
+  // Focus fires `showTip` synchronously; the pointer is still over the menu, so
+  // no pointerleave follows — hiding here keeps a picked select tip-free.
+  hideTip();
 }
 
 function onDocPointerDown(e: PointerEvent) {
@@ -110,6 +144,7 @@ function onKeydown(e: KeyboardEvent) {
     e.preventDefault();
     open.value = false;
     triggerRef.value?.focus();
+    hideTip();
     return;
   }
   if (e.key === 'ArrowDown') {
@@ -158,6 +193,18 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown, true);
   window.removeEventListener('scroll', onScrollOrResize, true);
   window.removeEventListener('resize', onScrollOrResize);
+  window.removeEventListener('scroll', hideTip, true);
+  window.removeEventListener('resize', hideTip);
+});
+
+watch(tipVisible, (v) => {
+  if (v) {
+    window.addEventListener('scroll', hideTip, true);
+    window.addEventListener('resize', hideTip);
+  } else {
+    window.removeEventListener('scroll', hideTip, true);
+    window.removeEventListener('resize', hideTip);
+  }
 });
 
 watch(
@@ -203,6 +250,10 @@ watch(
       :aria-controls="open ? listboxId : undefined"
       :aria-activedescendant="activeId"
       @click="toggle"
+      @pointerenter="showTip"
+      @pointerleave="hideTip"
+      @focus="showTip"
+      @blur="hideTip"
     >
       <span class="pr-metric-select__label">{{ label }}</span>
       <span
@@ -210,6 +261,17 @@ watch(
         aria-hidden="true"
       />
     </button>
+    <Teleport to="body">
+      <div
+        v-if="tipVisible && !open"
+        ref="tipRef"
+        class="pr-metric-select__tip"
+        role="tooltip"
+        :style="tipStyle"
+      >
+        {{ label }}
+      </div>
+    </Teleport>
     <Teleport to="body">
       <ul
         v-if="open"
@@ -249,7 +311,8 @@ watch(
   position: relative;
   margin-left: auto;
   max-width: 118px;
-  min-width: 0;
+  /* Keep the 1px border + gap + chevron inside the control at every width. */
+  min-width: 26px;
   flex: 0 1 118px;
 }
 
@@ -260,6 +323,8 @@ watch(
 }
 
 .pr-metric-select__trigger {
+  position: relative;
+  overflow: hidden;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -325,27 +390,64 @@ watch(
 
 <!-- Menu teleports to body — unscoped so styles apply outside the component root. -->
 <style>
+/* Teleported to `body` — match the report's operator dropdown
+ * (`ReportToolbar .pr-op-select`) instead of the old flat blue menu. */
 .pr-metric-select__menu {
   z-index: 10000;
   box-sizing: border-box;
   margin: 0;
   padding: 4px;
   list-style: none;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
-  background: #2a2a2a;
-  color: #e8e8e8;
+  background: var(--pr-surface-raised, #363636);
+  border-radius: 8px;
+  color: #d0d0d0;
   font-size: 12px;
   font-weight: 400;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  max-height: min(240px, calc(100vh - 16px));
+  overflow-y: auto;
+  /* Outside `.pr-root`: mirror its dark scrollbars, no white track/arrows. */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+.pr-metric-select__menu::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pr-metric-select__menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pr-metric-select__menu::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #5a5a5a;
+  background-clip: content-box;
+}
+
+.pr-metric-select__menu::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+  background-clip: content-box;
+}
+
+.pr-metric-select__menu::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.pr-metric-select__menu::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .pr-metric-select__option {
   box-sizing: border-box;
   display: block;
-  padding: 4px 8px;
-  border-radius: 2px;
-  color: #e8e8e8;
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: #d0d0d0;
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
@@ -353,16 +455,36 @@ watch(
 
 .pr-metric-select__option:hover,
 .pr-metric-select__option--active {
-  background: #323232;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .pr-metric-select__option--selected {
-  background: #3078f0;
-  color: #fff;
+  background: rgba(49, 122, 247, 0.2);
+  color: #ffffff;
 }
 
 .pr-metric-select__option--selected:hover,
 .pr-metric-select__option--selected.pr-metric-select__option--active {
-  background: #3078f0;
+  background: rgba(49, 122, 247, 0.2);
+}
+
+/* Hover tip — the app's tip chrome (`.pr-icon-tip` in tokens.css): raised
+ * surface, hairline border, 6px radius, 11px text. Wraps long report titles. */
+.pr-metric-select__tip {
+  z-index: 10001;
+  box-sizing: border-box;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 4px 8px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  color: #e6e6e6;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
 }
 </style>

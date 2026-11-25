@@ -12,4 +12,10 @@
  * model slice stays one import for the feature's consumers, and no second
  * per-name declaration can drift out of sync.
  */
-export type { Baseline, BaselinePick, BaselineReportData } from './types';
+export type {
+  Baseline,
+  BaselinePick,
+  BaselineReportData,
+  BaselineReports,
+  BaselineRow,
+} from './types';
