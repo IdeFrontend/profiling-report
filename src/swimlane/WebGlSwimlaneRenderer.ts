@@ -44,19 +44,16 @@ import {
   SELECTION_MUTED_FILL,
   SELECTION_MUTED_LABEL,
   SUMMARY_EVENT_FILL,
-  buildTickDensityCap,
-  sampleTickDensityCap,
   snapEventRect,
   type CollapseAnimState,
   type CollapseTransform,
   type FlatLane,
   type LaidOutEvent,
   type SwimlaneLayout,
-  type TickDensityCap,
 } from './layout';
 import { eventFill, labelColorOn } from '../domain/laneColors';
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint, glLinkTime, type DependencyLink } from './dependencyLinks';
-import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, extendMargin1Css, extendMargin2Css, extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx } from './shaders';
+import { CLEARTYPE_TEXT_POW, CURVE_FS, CURVE_VS, SOLID_FS, SOLID_VS, SWIMLANE_FS, SWIMLANE_VS, TEXT_CLEARTYPE_FS, TEXT_VS, extendMargin1Css, extendMargin2Css, extendTargetSizeCss, maxRR, minRR, rrSwitchThreshold, rrToDevicePx, tickGap0DevicePx } from './shaders';
 import { TextAtlas, EVENT_LABEL_FONT_CSS_PX } from './textAtlas';
 
 interface GlProgram {
@@ -70,9 +67,7 @@ interface GlProgram {
   uRR: WebGLUniformLocation | null;
   uExtendParameters: WebGLUniformLocation | null;
   uSrcOver: WebGLUniformLocation | null;
-  uUseCountMetric: WebGLUniformLocation | null;
-  uStipplePeriod: WebGLUniformLocation | null;
-  uDensityCap: WebGLUniformLocation | null;
+  uTickGap0: WebGLUniformLocation | null;
 }
 
 interface MeshChunk {
@@ -144,13 +139,6 @@ interface LaneMeshes {
   rows: SubRowMesh[];
   /** Collapsed-folder summary lane: drawn source-over (exact color), never additive. */
   summary?: boolean;
-  /**
-   * Per-pipe brightness metric for SWIMLANE_FS: true → count-hit (tick-majority / tie),
-   * false → length AA (more durables than duration-0).
-   */
-  useCountMetric: boolean;
-  /** Zoom-adaptive thin-tick saturation (null when not count-metric). */
-  densityCap: TickDensityCap | null;
 }
 
 /**
@@ -193,7 +181,6 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
   gl.bindAttribLocation(program, 0, 'aPos');
   if (vsSrc.includes('aTex')) gl.bindAttribLocation(program, 1, 'aTex');
   if (vsSrc.includes('aData')) gl.bindAttribLocation(program, 2, 'aData');
-  if (vsSrc.includes('aHit')) gl.bindAttribLocation(program, 3, 'aHit');
   gl.linkProgram(program);
   gl.deleteShader(vs);
   gl.deleteShader(fs);
@@ -216,9 +203,7 @@ function linkProgram(gl: WebGL2RenderingContext, vsSrc: string, fsSrc: string): 
     uRR: gl.getUniformLocation(program, 'uRR'),
     uExtendParameters: gl.getUniformLocation(program, 'uExtendParameters'),
     uSrcOver: gl.getUniformLocation(program, 'uSrcOver'),
-    uUseCountMetric: gl.getUniformLocation(program, 'uUseCountMetric'),
-    uStipplePeriod: gl.getUniformLocation(program, 'uStipplePeriod'),
-    uDensityCap: gl.getUniformLocation(program, 'uDensityCap'),
+    uTickGap0: gl.getUniformLocation(program, 'uTickGap0'),
   };
 }
 
@@ -870,7 +855,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // Safe because each sub-row mesh is mutually exclusive (multi-row layout); each device pixel
     // accumulates the coverage of all events across lanes / sub-rows.
     gl.enable(gl.BLEND);
-    gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
+    // [exp] one blend for the whole interval pass: durables emit alpha 0 (=> additive),
+    // ticks emit the density alpha (=> source-over ladder).
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
     // Extension params are CSS px (shaders.extendTargetSizeCss/extendMargin1Css/extendMargin2Css),
@@ -894,18 +881,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         rrSwitchThreshold * this.dpr,
       );
     if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
-    if (swim.uUseCountMetric) gl.uniform1f(swim.uUseCountMetric, 0);
-    if (swim.uDensityCap) gl.uniform1f(swim.uDensityCap, 1);
-    // One CSS-px zebra stripe (round(dpr) device columns) so dense zoom-out packs stay readable.
-    if (swim.uStipplePeriod) gl.uniform1f(swim.uStipplePeriod, Math.max(1, Math.round(dpr)));
+    // Inter-tick gap (device px) that maps to tick alpha 1; dense plateau = 1-e^(-1/g0).
+    if (swim.uTickGap0) gl.uniform1f(swim.uTickGap0, tickGap0DevicePx);
 
     const muteRest =
       this.searchQuery.length === 0 && (this.selectedId != null || this.multiIds.size > 0);
     const mutedRgb = hexToRgb(SELECTION_MUTED_FILL);
 
     const span = Math.max(1, this.view.endTime - this.view.startTime);
-    // Column dt for density cap: device columns (matches WebGL paint).
-    const dtDevice = span / Math.max(devW, 1);
     // aPos times are relative to timeBase (see encodeIntervalPair).
     const sx = 2 / span;
     const px = -1 + (2 * (this.timeBase - this.view.startTime)) / span;
@@ -937,19 +920,9 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
 
         gl.uniform4f(swim.uSizePos, sx, sy, px, py);
         if (swim.uYBounds) gl.uniform2f(swim.uYBounds, topSnapped, topSnapped + bandHSnapped);
-        if (swim.uUseCountMetric) {
-          gl.uniform1f(swim.uUseCountMetric, meshes.useCountMetric ? 1 : 0);
-        }
-        if (swim.uDensityCap) {
-          const dens =
-            meshes.densityCap != null ? sampleTickDensityCap(meshes.densityCap, dtDevice) : 1;
-          gl.uniform1f(swim.uDensityCap, dens);
-        }
 
-        // Summary always source-over. Count-metric resting: additive so N hits ≈ N/cap.
-        // Selection mute for count-metric: source-over muted gray (no additive-white mute).
         const mute = muteRest && !meshes.summary;
-        const srcOverBase = !!(meshes.summary || (meshes.useCountMetric && mute));
+        const srcOverBase = !!meshes.summary;
         if (srcOverBase) {
           gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
           if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
@@ -998,14 +971,13 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
               drawChunks(row.liftChunks, hexToRgb(eventFill(lane.color, 'selected')), 1);
             }
             if (!srcOverBase) {
-              gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
+              gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
               if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
             }
           }
         }
 
         if (srcOverBase) {
-          gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE);
           if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 0);
         }
       }
@@ -1263,17 +1235,14 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
       // Folder lanes carry only summary bars — paint the whole mesh in the summary gray.
       const summary = allEvents.length > 0 && allEvents.every((e) => e.summary);
-      const useCountMetric = summary ? false : laneUsesCountMetric(allEvents);
       const rows: SubRowMesh[] = rowEvents.map((events, r) => {
         const raw: number[] = [];
         for (const item of events) {
           const [a, b] = encodeIntervalPair(item.event.startTime, item.event.duration, this.timeBase);
           raw.push(a, b);
         }
-        // Same-x degenerate ticks are one quad; length-AA pipes keep one quad per event.
-        // [exp] count-hit revert: collapse stays (fewer quads), no `aHit` payload.
-        const collapsed = useCountMetric ? collapseSameXTicks(raw) : null;
-        const pairs = collapsed?.pairs ?? raw;
+        // [exp] tick ladder: one quad per event - collapsing same-x ticks would hide counts.
+        const pairs = raw;
         return {
           y: lane.y + r * LANE_HEIGHT,
           quadStarts: encodedQuadStarts(pairs),
@@ -1283,29 +1252,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           liftChunks: null,
         };
       });
-      let densityCap: TickDensityCap | null = null;
-      if (useCountMetric) {
-        const tickTimes: number[] = [];
-        let tMin = Infinity;
-        let tMax = -Infinity;
-        for (const item of allEvents) {
-          if (item.summary || item.event.duration !== 0) continue;
-          const t = item.event.startTime;
-          tickTimes.push(t);
-          if (t < tMin) tMin = t;
-          if (t > tMax) tMax = t;
-        }
-        // Lane events are startTime-ordered; tickTimes preserves that.
-        if (tickTimes.length > 0 && Number.isFinite(tMin) && Number.isFinite(tMax)) {
-          densityCap = buildTickDensityCap(tickTimes, tMin, tMax);
-        }
-      }
       return {
         color: hexToRgb(summary ? SUMMARY_EVENT_FILL : lane.color),
         rows,
         summary,
-        useCountMetric,
-        densityCap,
       };
     });
     this.rebuildEmphasisSplit();
@@ -1388,12 +1338,10 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
             : [...byKey.values()]
                 .sort((a, b) => a.dim - b.dim)
                 .map(({ rgb, dim, pairs }) => {
-                  const collapsed = meshes.useCountMetric ? collapseSameXTicks(pairs) : null;
                   return {
                     rgb,
                     dim,
-                    // [exp] count-hit revert: no `aHit` payload.
-                    chunks: createChunksFromPairs(gl, collapsed?.pairs ?? pairs),
+                    chunks: createChunksFromPairs(gl, pairs),
                   };
                 });
       }
