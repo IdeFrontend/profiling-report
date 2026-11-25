@@ -100,6 +100,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:currentLine': [line: number];
+  /** Document row of the caret, or null when the current-line band is cleared. */
+  'update:caretDoc': [row: number | null];
   'row-click': [line: number];
 }>();
 
@@ -487,6 +489,7 @@ function wireSync() {
     // Gap rows are not source lines, so correlation stays put, but the metrics
     // highlight must follow this caret or the two panes drift on a skipped range.
     caretDocRow.value = lineNumber;
+    emit('update:caretDoc', lineNumber);
     const line = toSourceLine(lineNumber);
     if (line == null) return;
     emit('update:currentLine', line);
@@ -634,10 +637,13 @@ function onEditorPointerDown() {
   void nextTick(() => {
     if (!editor || ignoreCaret) return;
     const now = editor.getPosition?.()?.lineNumber;
+    if (now !== row) return;
+    // Same-row click (including a gap left in place by clearLine) must
+    // restore the metrics highlight. A gap has no source line to emit.
+    caretDocRow.value = row;
+    emit('update:caretDoc', row);
     const line = toSourceLine(row);
-    if (now === row && line != null && props.currentLine !== line) {
-      emit('update:currentLine', line);
-    }
+    if (line != null && props.currentLine !== line) emit('update:currentLine', line);
   });
 }
 
@@ -657,6 +663,7 @@ function onRowClick(line: number) {
   const already = editor.getPosition?.()?.lineNumber === target;
   editor.setPosition({ lineNumber: target, column: 1 });
   caretDocRow.value = editor.getPosition?.()?.lineNumber ?? target;
+  emit('update:caretDoc', caretDocRow.value);
   editor.focus();
   if (already) emit('update:currentLine', line);
 }
@@ -690,6 +697,7 @@ function setLine(
   // when the line did not change, which must not be reported as 'moved'.
   const next = editor.getPosition?.()?.lineNumber;
   caretDocRow.value = next ?? target;
+  emit('update:caretDoc', caretDocRow.value);
   if (prev == null || next == null) return prev === target ? 'unchanged' : 'moved';
   return next === prev ? 'unchanged' : 'moved';
 }
@@ -703,6 +711,7 @@ function clearLine() {
   pendingLine = null;
   pendingCaretEcho = false;
   caretDocRow.value = null;
+  emit('update:caretDoc', null);
   if (!editor) return;
   ignoreCaret = true;
   try {
