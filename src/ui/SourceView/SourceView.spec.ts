@@ -1690,6 +1690,48 @@ describe('SourceView', () => {
     expect(sourceTable.find('tr[data-line="17"]').classes()).not.toContain(
       'pr-src-metrics__row--current',
     );
+
+    // sourceLine stayed null on the gap, so a new session must still clear it.
+    await wrapper.setProps({ model: { ...model }, session: 1 });
+    await flushPromises();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    ed.setPosition.mockClear();
+    await wrapper.find('[data-testid="source-find-next"]').trigger('click');
+    await flushPromises();
+    // No caret: next starts at the first data row (17), not the row after the old gap.
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 1, column: 1 });
+    wrapper.unmount();
+  });
+
+  it('PR-SRC-018h: editor load error shows the collapsed document', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    vi.mocked(newEditor).mockImplementationOnce(() => {
+      throw new Error('boot failed');
+    });
+    const base = mockSourceCorrelation();
+    const dense = base.files[0]!;
+    const rows = Array.from({ length: 128 }, () => '');
+    rows[45] = 'UNIQUE_SPARSE_TOKEN';
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        {
+          ...dense,
+          text: `${rows.join('\n')}\n`,
+          sparse: true,
+          lineCount: 128,
+          lines: [
+            { line: 17, values: { instructionsExecuted: 1 } },
+            { line: 46, values: { instructionsExecuted: 3 } },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const fallback = wrapper.get('[data-testid="sudu-fallback"]');
+    expect(fallback.text()).toContain('UNIQUE_SPARSE_TOKEN');
+    expect(fallback.text().split('\n').length).toBeLessThan(10);
     wrapper.unmount();
   });
 });

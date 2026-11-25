@@ -161,6 +161,12 @@ watch(
     asmNavigateBy.value = firstListedNavigate(m.navigateBy, m.assembly.metricsColumns);
     sourceLine.value = null;
     asmLine.value = null;
+    // A gap caret leaves sourceLine null, so the currentLine watch does not
+    // clear the metrics highlight or the document row Navigate By still uses.
+    sourceDocRow.value = null;
+    sourceOnGap.value = false;
+    sourcePane.value?.clearLine?.();
+    asmPane.value?.clearLine?.();
     searchQuery.value = '';
     syncOrigin.value = null;
     showFileMatch.value = false;

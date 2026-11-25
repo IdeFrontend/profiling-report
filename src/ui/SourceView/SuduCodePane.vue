@@ -957,7 +957,7 @@ defineExpose({
             v-if="loadError"
             class="pr-sudu-pane__fallback"
             data-testid="sudu-fallback"
-          >{{ file.text }}</pre>
+          >{{ sparseSourceDocument(file)?.text ?? file.text }}</pre>
         </div>
         <div class="pr-sudu-pane__splitter" />
         <div class="pr-sudu-pane__table">
