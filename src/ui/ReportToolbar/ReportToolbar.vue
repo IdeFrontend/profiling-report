@@ -1350,10 +1350,11 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         </div>
       </template>
       <button
-        v-else-if="compareAvailable"
+        v-else
         type="button"
         class="pr-compare__btn pr-compare__btn--text"
         data-testid="compare-enter"
+        :disabled="!compareAvailable"
         @click="emit('compare-enter')"
       >
         {{ t('sourceDiffEnter', locale) }}
@@ -2331,6 +2332,17 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 
 .pr-compare__btn--text:hover {
   background: #3d3d3d;
+  color: #b4b4b4;
+}
+
+/* No baseline picked: the entry stays visible but greyed, as the 1130 mockup asks. */
+.pr-compare__btn--text:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pr-compare__btn--text:disabled:hover {
+  background: #343434;
   color: #b4b4b4;
 }
 </style>

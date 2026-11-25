@@ -881,6 +881,24 @@ describe('ReportToolbar', () => {
     wrapper.unmount();
   });
 
+  it('PR-TOOLBAR-043: the compare entry is rendered but disabled without a comparable baseline', async () => {
+    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+    const base = { ...defaultProps, activeTab: 'source' as const, sourceTabEnabled: true, compareMode: false };
+    const off = mount(ReportToolbar, { props: base });
+    const offBtn = off.get('[data-testid="compare-enter"]');
+    expect(offBtn.attributes('disabled')).toBeDefined();
+    expect(offBtn.classes()).toContain('pr-compare__btn--text');
+    off.unmount();
+
+    const on = mount(ReportToolbar, { props: { ...base, compareAvailable: true } });
+    expect(on.get('[data-testid="compare-enter"]').attributes('disabled')).toBeUndefined();
+    on.unmount();
+
+    expect(src).toMatch(/\.pr-compare__btn--text:disabled\s*\{[^}]*opacity:\s*0\.45/);
+    expect(src).toMatch(/\.pr-compare__btn--text:disabled\s*\{[^}]*cursor:\s*default/);
+    expect(src).toMatch(/\.pr-compare__btn--text:disabled:hover\s*\{[^}]*background:\s*#343434/);
+  });
+
   it('PR-TOOLBAR-029: timeline-trace radios emit on select; hidden for 0–1 traces', async () => {
     const none = mount(ReportToolbar, { props: defaultProps });
     expect(none.find('[data-testid="timeline-trace-selector"]').exists()).toBe(false);

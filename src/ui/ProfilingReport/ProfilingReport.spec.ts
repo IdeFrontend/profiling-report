@@ -3744,7 +3744,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-055: the compare entry hides without a baseline source correlation', async () => {
+  it('PR-ROOT-055: the compare entry stays disabled without a baseline source correlation', async () => {
     const correlation = { ...mockSourceCorrelation(), mock: false };
     const run = (baselineCorrelation: typeof correlation | undefined) => mount(ProfilingReport, {
       props: {
@@ -3769,7 +3769,8 @@ describe('ProfilingReport scaffold', () => {
     const noBaseline = run(undefined);
     await noBaseline.find('[data-testid="tab-source"]').trigger('click');
     await nextTick();
-    expect(noBaseline.find('[data-testid="compare-enter"]').exists()).toBe(false);
+    expect(noBaseline.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    expect(noBaseline.find('[data-testid="compare-enter"]').attributes('disabled')).toBeDefined();
     expect(noBaseline.find('[data-testid="source-view"]').exists()).toBe(true);
     noBaseline.unmount();
 
@@ -3777,6 +3778,7 @@ describe('ProfilingReport scaffold', () => {
     await withBaseline.find('[data-testid="tab-source"]').trigger('click');
     await nextTick();
     expect(withBaseline.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    expect(withBaseline.find('[data-testid="compare-enter"]').attributes('disabled')).toBeUndefined();
     withBaseline.unmount();
   });
 
