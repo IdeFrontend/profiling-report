@@ -12,6 +12,8 @@ import {
   collapseAlpha,
   counterFolderPaintsOverlay,
   isCounterSeriesFolder,
+  visibleIndexRange,
+  collapseTweenOverlapsBands,
   type FlatLane,
   type CollapseTransform,
 } from './layout';
@@ -82,7 +84,21 @@ export function paintCounterLanes(
   collapsedIds: readonly string[] = [],
 ): void {
   const pad = LANE_PAD_Y * dpr;
-  for (const lane of lanes) {
+  const viewH = height / Math.max(dpr, Number.EPSILON);
+  const [lo, hi] = visibleIndexRange(
+    lanes.length,
+    (i) => collapseShiftY(lanes[i]!.y, collapse),
+    (i) => {
+      const lane = lanes[i]!;
+      if (counterFolderPaintsOverlay(lane.thread, collapsedIds, collapse)) return COUNTER_LANE_HEIGHT;
+      return flatLaneHeight(lane);
+    },
+    view.scrollY,
+    viewH,
+    !collapseTweenOverlapsBands(collapse),
+  );
+  for (let i = lo; i < hi; i++) {
+    const lane = lanes[i]!;
     if (collapseAlpha(lane.y, collapse) <= 0) continue;
 
     // Rest-collapsed multi-series overlay only (not mid expand/collapse tween).

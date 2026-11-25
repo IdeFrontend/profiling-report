@@ -132,6 +132,9 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 1. **PR-RENDER-064**: WebGL packs duration-0 events on the same interval mesh as durables; per-pipe `uUseCountMetric` selects additive length AA (durable-majority) vs count-hit (tick-majority / tie) with resting **additive** `stipple/uDensityCap` and mute **source-over**; 2-point zoom-adaptive `uDensityCap` sampled by device `dt` and extrapolated past `dt_wide`; same-x stacks share one quad; pan-stable CSS-px zebra; sub-pixel quads `center±0.5`; no `tickChunks` / per-pan density rebuild (#205).
 1. **PR-RENDER-065**: Duration-0 `encodeIntervalPair` uses next-float32 while the step is under 1 ns, else a degenerate pair, so sub-ns ticks do not merge (#205).
 1. **PR-RENDER-066**: Canvas duration-0 ticks use full-height CSS-column density marks (count 1 → dim 1; multi-hit log dim with zoom-adaptive cap; `viewEnd` included) with gap-tolerant similarity alternate and pan-stable `k·dt` bins; search/selection stays discrete; WebGL uses unified intervals + per-pipe length/count FS (#205).
+1. **PR-RENDER-067**: `bandMissesViewport` is true when a content-space band is fully above or below the CSS viewport. WebGL `drawEventLabels` and the Canvas event walk call it on the lane band before scanning that lane's events.
+1. **PR-RENDER-068**: `visibleIndexRange` returns the `[lo, hi)` slice of a Y-monotonic list whose bands intersect the CSS viewport (`viewH ≤ 0` keeps the full list). An in-flight collapse tween, whose band ends are not sorted, scans linearly so a tall lane is not skipped. WebGL lane chrome, interval fills, and ClearType labels iterate that slice; overlay CounterTracks and `laneAtContentY` do too. `laneAtContentY` windows with `flatLaneHeight` (a CounterTrack band is `COUNTER_LANE_HEIGHT`, not `rowCount * LANE_HEIGHT`). A ClearType overlay with no lifts, no collapse summaries, and no CounterTracks skips the per-frame `clearRect` after the first empty paint.
+1. **PR-RENDER-069**: WebGL interval `drawElements` submits only the start-sorted quad range that can overlap the time window (`overlappingEncodedRange` on per-row encoded starts; `drawChunkQuads` maps that onto chunk `pairOffset`). Each edge is padded by one float32 ulp so a start that rounds away from the window is kept when its encoded end still crosses the view. Count-metric same-x collapse still uses that range on the collapsed starts.
 
 ## Edge Cases
 
@@ -148,6 +151,10 @@ Both lifts clear the threshold from a resting `L ≈ 0.50`, so **a label inverts
 WebGL hybrid path is implemented (`WebGlSwimlaneRenderer` + Canvas overlay); Canvas remains the fallback when WebGL2 is unavailable.
 
 ## Changelog
+- **2026-11-25** — An in-flight collapse tween scans lane windows linearly so a tall band is not skipped (`PR-RENDER-068`).
+- **2026-11-25** — `laneAtContentY` windows with `flatLaneHeight`, so the last 4px of a CounterTrack row still hit (`PR-RENDER-068`).
+- **2026-11-24** — Visible-lane index range for chrome/fills/labels/counters; empty ClearType overlay skip (`PR-RENDER-068`). Time-windowed `drawElements` on start-sorted interval quads (`PR-RENDER-069`).
+- **2026-11-24** — Label and Canvas event walks skip lanes whose band misses the viewport before the per-lane event scan (`PR-RENDER-067`).
 - **2026-11-23** — #205 / PR-RENDER-064: density cap extrapolates past `dt_wide`; same-x float32 ticks share one quad (`min(1, stack × stipple / cap)`); Canvas builds the median cap at `setModel`.
 - **2026-11-23** — #205 / PR-RENDER-064/066: 2-point zoom-adaptive density cap (wide median ↔ median-gap→1); resting count-path additive stipple/cap; mute src-over.
 - **2026-11-23** — #205 / PR-RENDER-064: sub-pixel tick quads use continuous `center±0.5` so fractional pan does not thrash zebra via floor/ceil gaps.

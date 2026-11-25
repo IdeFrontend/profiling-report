@@ -8,11 +8,16 @@ import {
   EVENT_MARGIN,
   eventEmphasis,
   isKeepBright,
+  bandMissesViewport,
+  drawChunkQuadRange,
   eventLabelAnchor,
   eventLabelsCanFit,
   eventPaintRect,
+  overlappingEncodedRange,
   overlappingLaneRange,
+  laneAtContentY,
   laneEventRange,
+  visibleIndexRange,
   eventRadius,
   eventsIntersectingRect,
   findExactEdgeMatches,
@@ -28,6 +33,7 @@ import {
   SUMMARY_EVENT_FILL,
   SUMMARY_LABEL_COLOR,
   summaryFolderId,
+  COUNTER_LANE_HEIGHT,
   LANE_GROUP_HEADER_HEIGHT,
   LANE_HEIGHT,
   TICK_ALTERNATE_FACTOR,
@@ -372,6 +378,10 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     expect(ids(...overlappingLaneRange(laneEvts, 0, 5, layout.maxLeafDuration))).toEqual(['a']);
     expect(eventLabelsCanFit(50, 2000, 400)).toBe(false);
     expect(eventLabelsCanFit(50, 100, 400)).toBe(true);
+    // PR-RENDER-067: a lane fully above or below the viewport is not scanned.
+    expect(bandMissesViewport(0, 22, 100, 800)).toBe(true);
+    expect(bandMissesViewport(900, 22, 0, 800)).toBe(true);
+    expect(bandMissesViewport(100, 22, 90, 800)).toBe(false);
 
     const spanLayout = rebuildLayout({
       minTime: 0,
@@ -429,11 +439,13 @@ describe('PR-RENDER: layout + CanvasSwimlaneRenderer', () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
     expect(webglSrc).toMatch(/eventLabelsCanFit\(this\.layout\.maxLeafDuration/);
+    expect(webglSrc).toMatch(/visibleIndexRange\(/);
     expect(webglSrc).toMatch(/overlappingLaneRange\(/);
     expect(webglSrc).toMatch(/lane\.folder/);
 
     const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
       .default as string;
+    expect(overlaySrc).toMatch(/bandMissesViewport\(\s*collapseShiftY\(lane\.y/);
     expect(overlaySrc).toMatch(/if \(!canFit && !lane\.folder\) continue/);
     expect(overlaySrc).toMatch(/if \(!canFit\) this\.paintLiftedLeaves\(ctx\)/);
 
@@ -1305,7 +1317,7 @@ describe('PR-RENDER: lane chrome color', () => {
 
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toMatch(/this\.drawEventLabels\(\)/);
+    expect(webglSrc).toMatch(/this\.drawEventLabels\(/);
     expect(webglSrc).not.toMatch(/\bliveScroll\b/);
     expect(webglSrc).not.toMatch(/setLiveScroll/);
     const renderBody = classMethodBody(webglSrc, 'render');
@@ -2088,5 +2100,136 @@ describe('PR-RENDER: collapsed-group summary events', () => {
     expect(texts.get('1 task')).toBe(SUMMARY_LABEL_COLOR);
     expect(texts.has('OPEN_LEAF')).toBe(true);
     expect(texts.has('HIDDEN_LEAF')).toBe(false);
+  });
+
+  it('PR-RENDER-068: visibleIndexRange slices Y-monotonic bands; empty ClearType overlay skips clearRect', async () => {
+    const yAt = (i: number) => i * 40;
+    const hAt = () => 22;
+    expect(visibleIndexRange(0, yAt, hAt, 0, 100)).toEqual([0, 0]);
+    expect(visibleIndexRange(5, yAt, hAt, 0, 0)).toEqual([0, 5]);
+    expect(visibleIndexRange(5, yAt, hAt, 90, 50)).toEqual([2, 4]);
+    // In-flight fold: tall band end sits below the next lane, so the end search skips it.
+    const ys = [51, 139, 150];
+    const hs = [176, 22, 22];
+    expect(visibleIndexRange(3, (i) => ys[i]!, (i) => hs[i]!, 161, 120)[0]).toBeGreaterThan(0);
+    expect(visibleIndexRange(3, (i) => ys[i]!, (i) => hs[i]!, 161, 120, false)).toEqual([0, 3]);
+
+    const tall = rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: Array.from({ length: 40 }, (_, i) => ({
+            id: `t${i}`,
+            name: `T${i}`,
+            events: [{ id: `e${i}`, name: 'e', startTime: 0, duration: 10 }],
+          })),
+        },
+      ],
+    });
+    const last = tall.lanes[tall.lanes.length - 1]!;
+    expect(laneAtContentY(tall, last.y + 1)?.lane.thread.id).toBe(last.thread.id);
+    expect(laneAtContentY(tall, last.y + last.rowCount * LANE_HEIGHT)?.lane).toBeUndefined();
+
+    const counterLayout = rebuildLayout({
+      minTime: 0,
+      maxTime: 10,
+      processes: [
+        {
+          id: 'p',
+          name: 'P',
+          threads: [
+            {
+              id: 'ctr',
+              name: 'UB',
+              events: [],
+              counter: { points: [{ t: 0, v: 1 }], yMax: 1 },
+            },
+          ],
+        },
+      ],
+    });
+    const counterLane = counterLayout.lanes.find((l) => l.thread.id === 'ctr')!;
+    expect(laneAtContentY(counterLayout, counterLane.y + COUNTER_LANE_HEIGHT - 1)?.lane.thread.id).toBe(
+      'ctr',
+    );
+    expect(laneAtContentY(counterLayout, counterLane.y + COUNTER_LANE_HEIGHT)?.lane).toBeUndefined();
+
+    let clears = 0;
+    const ctx = new Proxy({} as CanvasRenderingContext2D, {
+      get(_t, p) {
+        if (p === 'clearRect') return () => {
+          clears += 1;
+        };
+        return () => undefined;
+      },
+      set() {
+        return true;
+      },
+    });
+    const canvas = document.createElement('canvas');
+    canvas.getContext = (() => ctx) as unknown as HTMLCanvasElement['getContext'];
+    const overlay = new SwimlaneOverlayPainter();
+    overlay.attach(canvas);
+    overlay.resize(400, 120, 1);
+    overlay.setLayout(rebuildLayout({
+      minTime: 0,
+      maxTime: 100,
+      processes: [{ id: 'p', name: 'P', threads: [{ id: 't', name: 'T', events: [] }] }],
+    }));
+    overlay.setView({ startTime: 0, endTime: 100, scrollY: 0 });
+    overlay.setDrawEventLabels(false);
+    overlay.render();
+    overlay.render();
+    expect(clears).toBe(1);
+    overlay.setSelection('missing', null);
+    overlay.render();
+    expect(clears).toBe(2);
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/visibleIndexRange\(/);
+    const overlaySrc = (await import('../../src/swimlane/CanvasSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(overlaySrc).toMatch(/overlayBlank/);
+    expect(overlaySrc).toMatch(/visibleIndexRange\(/);
+    const counterSrc = (await import('../../src/swimlane/counterLanePaint.ts?raw')).default as string;
+    expect(counterSrc).toMatch(/visibleIndexRange\(/);
+    const layoutSrc = (await import('../../src/swimlane/layout.ts?raw')).default as string;
+    expect(layoutSrc).toMatch(/visibleIndexRange\(\s*lanes\.length/);
+  });
+
+  it('PR-RENDER-069: time-windowed drawElements uses encoded starts and chunk pairOffset', async () => {
+    const starts = new Float32Array([0, 10, 50, 100]);
+    expect(overlappingEncodedRange(starts, 40, 60, 5)).toEqual([2, 3]);
+    expect(overlappingEncodedRange(starts, 8, 12, 20)[0]).toBe(0);
+    // fround(start) sits a ulp below the f64 start while fround(start+duration) still crosses the view.
+    const start = 17179870208;
+    const duration = 1e9;
+    const viewStart = start + duration - 500;
+    const encodedStart = Math.fround(start);
+    expect(Math.fround(start + duration)).toBeGreaterThan(viewStart);
+    expect(encodedStart).toBeLessThan(viewStart - duration);
+    expect(overlappingEncodedRange(Float32Array.of(encodedStart), viewStart, viewStart + 1e6, duration)).toEqual([
+      0, 1,
+    ]);
+    // Sibling: fround(start) steps past viewEnd while the true start still overlaps.
+    const viewEnd = 17179871200;
+    const rightStart = 17179870209;
+    expect(rightStart).toBeLessThan(viewEnd);
+    expect(Math.fround(rightStart)).toBeGreaterThan(viewEnd);
+    expect(overlappingEncodedRange(Float32Array.of(Math.fround(rightStart)), 0, viewEnd, 0)).toEqual([0, 1]);
+    expect(drawChunkQuadRange(0, 8, 2, 5)).toEqual({ count: 18, byteOffset: 24 });
+    expect(drawChunkQuadRange(100, 50, 0, 80)).toBeNull();
+    expect(drawChunkQuadRange(0, 8, 0, 8)).toEqual({ count: 48, byteOffset: 0 });
+
+    const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
+      .default as string;
+    expect(webglSrc).toMatch(/overlappingEncodedRange\(/);
+    expect(webglSrc).toMatch(/drawChunkQuads\(/);
+    expect(webglSrc).toMatch(/pairOffset/);
+    expect(webglSrc).toMatch(/quadStarts/);
   });
 });

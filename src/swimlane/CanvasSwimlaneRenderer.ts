@@ -33,8 +33,12 @@ import {
   LANE_GROUP_HEADER_FILL,
   LANE_HOVER_FILL,
   LANE_GROUP_HEADER_HEIGHT,
+  LANE_HEIGHT,
+  bandMissesViewport,
   laneChromeHeight,
   contentHeightFromLayout,
+  visibleIndexRange,
+  collapseTweenOverlapsBands,
   eventBlockMetrics,
   eventEmphasis,
   isKeepBright,
@@ -228,6 +232,9 @@ export class SwimlaneOverlayPainter {
   private collapsedIds: readonly string[] = [];
   private summaryCache = new Map<string, SwimEvent[]>();
   private paintSummaries: readonly LaidOutEvent[] = [];
+  private hasCounterLanes = false;
+  /** True after a ClearType overlay painted nothing — skip further empty `clearRect`. */
+  private overlayBlank = false;
 
   attach(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -243,12 +250,15 @@ export class SwimlaneOverlayPainter {
       this.canvas.height = this.height;
       this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
+    this.overlayBlank = false;
   }
 
   setLayout(layout: SwimlaneLayout): void {
     if (layout === this.layout) return;
     this.layout = layout;
+    this.hasCounterLanes = layout.lanes.some((l) => l.counter);
     this.summaryCache.clear();
+    this.overlayBlank = false;
     this.refreshCollapse();
   }
 
@@ -437,9 +447,23 @@ export class SwimlaneOverlayPainter {
     paint(this.hoveredId);
   }
 
+  private overlayNeedsPaint(): boolean {
+    if (this.drawEventLabels) return true;
+    if (this.selectedId != null || this.hoveredId != null) return true;
+    if (this.paintSummaries.length > 0) return true;
+    return this.hasCounterLanes;
+  }
+
   render(): void {
     const ctx = this.ctx;
     if (!ctx || !this.canvas) return;
+    if (!this.overlayNeedsPaint()) {
+      if (this.overlayBlank) return;
+      ctx.clearRect(0, 0, this.width, this.height);
+      this.overlayBlank = true;
+      return;
+    }
+    this.overlayBlank = false;
     ctx.clearRect(0, 0, this.width, this.height);
 
     const dpr = this.dpr;
@@ -476,8 +500,18 @@ export class SwimlaneOverlayPainter {
     // stay in this walk; lifted leaves are painted by id so hover/selection fill is not lost.
     if (!canFit) this.paintLiftedLeaves(ctx);
 
-    for (let i = 0; i < this.layout.lanes.length; i++) {
-      const lane = this.layout.lanes[i]!;
+    const viewHCss = this.height / Math.max(dpr, Number.EPSILON);
+    const overlayLanes = this.layout.lanes;
+    const [laneLo, laneHi] = visibleIndexRange(
+      overlayLanes.length,
+      (i) => collapseShiftY(overlayLanes[i]!.y, this.collapse),
+      (i) => overlayLanes[i]!.rowCount * LANE_HEIGHT,
+      this.view.scrollY,
+      viewHCss,
+      !collapseTweenOverlapsBands(this.collapse),
+    );
+    for (let i = laneLo; i < laneHi; i++) {
+      const lane = overlayLanes[i]!;
       if (!canFit && !lane.folder) continue;
       if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
       const laneEvts = this.layout.eventsByLane[i] ?? [];
@@ -746,9 +780,30 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
     ctx.fillRect(0, 0, this.width, this.height);
 
     const dpr = this.dpr;
+    const viewHCss = this.height / Math.max(dpr, Number.EPSILON);
+    const scrollY = this.view.scrollY;
+    const headers = this.layout.headers;
+    const lanes = this.layout.lanes;
+    const [headerLo, headerHi] = visibleIndexRange(
+      headers.length,
+      (i) => collapseShiftY(headers[i]!.y, this.collapse),
+      () => LANE_GROUP_HEADER_HEIGHT,
+      scrollY,
+      viewHCss,
+    );
+    const tweenOverlap = collapseTweenOverlapsBands(this.collapse);
+    const [laneLo, laneHi] = visibleIndexRange(
+      lanes.length,
+      (i) => collapseShiftY(lanes[i]!.y, this.collapse),
+      (i) => laneChromeHeight(lanes[i]!, this.collapsedIds, this.collapse),
+      scrollY,
+      viewHCss,
+      !tweenOverlap,
+    );
 
-    for (const header of this.layout.headers) {
-      const headerTop = (collapseShiftY(header.y, this.collapse) - this.view.scrollY) * dpr;
+    for (let i = headerLo; i < headerHi; i++) {
+      const header = headers[i]!;
+      const headerTop = (collapseShiftY(header.y, this.collapse) - scrollY) * dpr;
       const headerH = LANE_GROUP_HEADER_HEIGHT * dpr;
       if (headerTop + headerH > 0 && headerTop < this.height) {
         ctx.fillStyle = LANE_GROUP_HEADER_FILL;
@@ -761,11 +816,11 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    for (let i = 0; i < this.layout.lanes.length; i++) {
-      const lane = this.layout.lanes[i]!;
+    for (let i = laneLo; i < laneHi; i++) {
+      const lane = lanes[i]!;
       const laneAlpha = collapseAlpha(lane.y, this.collapse);
       if (laneAlpha <= 0) continue;
-      const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
+      const y = (collapseShiftY(lane.y, this.collapse) - scrollY) * dpr;
       const laneH = laneChromeHeight(lane, this.collapsedIds, this.collapse) * dpr;
       if (y + laneH < 0 || y > this.height) continue;
       ctx.globalAlpha = laneAlpha;
@@ -813,10 +868,21 @@ export class CanvasSwimlaneRenderer implements SwimlaneRenderer {
 
     const widthCss = this.width / Math.max(dpr, Number.EPSILON);
 
-    for (let i = 0; i < this.layout.lanes.length; i++) {
-      const lane = this.layout.lanes[i]!;
+    for (let i = laneLo; i < laneHi; i++) {
+      const lane = lanes[i]!;
       if (lane.counter) continue;
       if (collapseAlpha(lane.y, this.collapse) <= 0) continue;
+      // Skip the time-window scan for lanes that cannot paint in this viewport.
+      if (
+        bandMissesViewport(
+          collapseShiftY(lane.y, this.collapse),
+          laneChromeHeight(lane, this.collapsedIds, this.collapse),
+          this.view.scrollY,
+          this.height / Math.max(dpr, Number.EPSILON),
+        )
+      ) {
+        continue;
+      }
       const laneEvts = this.layout.eventsByLane[i] ?? [];
       const [lo, hi] = laneEventRange(
         lane,

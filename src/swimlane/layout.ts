@@ -431,7 +431,13 @@ interface GeoRow {
   depth: number;
 }
 
+// ponytail: geometry is cached on the model object. In-place edits (pushing events
+// onto an existing SwimlaneModel) keep the stale walk. Rebuild the model instead.
+const geometryCache = new WeakMap<SwimlaneModel, { rows: GeoRow[]; height: number }>();
+
 function modelGeometry(model: SwimlaneModel): { rows: GeoRow[]; height: number } {
+  const cached = geometryCache.get(model);
+  if (cached) return cached;
   const rows: GeoRow[] = [];
   let y = 0;
   const skipHeaders = model.skipCardHeaders === true;
@@ -446,7 +452,9 @@ function modelGeometry(model: SwimlaneModel): { rows: GeoRow[]; height: number }
     rows.push({ id: row.thread.id, y, h, kind: row.kind, depth: row.depth });
     y += h;
   }
-  return { rows, height: y };
+  const geo = { rows, height: y };
+  geometryCache.set(model, geo);
+  return geo;
 }
 
 function groupSubtreeFromGeo(
@@ -1027,19 +1035,14 @@ export function contentHeightFromLayout(layout: SwimlaneLayout): number {
 export function contentHeightFromModel(model: SwimlaneModel | null): number {
   if (!model) return 120;
   const skipHeaders = model.skipCardHeaders === true;
-  const rows = walkVisibleRows(model);
-  let h = 0;
-  for (const row of rows) {
-    if (row.kind === 'header') {
-      if (!skipHeaders) h += LANE_GROUP_HEADER_HEIGHT;
-      continue;
-    }
-    // Folders are always one band (`rebuildLayout` hardcodes `rowCount: 1`); do not use
-    // `leafRowCount` here — a folder that somehow carried events would desync DOM Card strips.
-    // Counter leaves use COUNTER_LANE_HEIGHT via `threadBandHeight`.
-    h += row.kind === 'folder' ? LANE_HEIGHT : threadBandHeight(row.thread);
-  }
-  return Math.max(skipHeaders ? LANE_HEIGHT : 120, h || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT);
+  // Same row walk as collapse geometry (cached). Folders stay one band — do not use
+  // `leafRowCount` on a folder that somehow carried events; that would desync Card strips.
+  // Counter leaves use COUNTER_LANE_HEIGHT via `threadBandHeight` inside `modelGeometry`.
+  const { height } = modelGeometry(model);
+  return Math.max(
+    skipHeaders ? LANE_HEIGHT : 120,
+    height || LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT,
+  );
 }
 
 /** Expanded `contentHeightFromModel` minus rest + in-flight fold closes (same 120px body floor). */
@@ -1209,6 +1212,134 @@ export function rebuildLayout(model: SwimlaneModel | null): SwimlaneLayout {
   };
 }
 
+/** True when a content-space band is fully above or below the CSS viewport. */
+export function bandMissesViewport(
+  contentY: number,
+  height: number,
+  scrollY: number,
+  viewH: number,
+): boolean {
+  const y = contentY - scrollY;
+  return y + height < 0 || y > viewH;
+}
+
+/** In-flight fold compresses Y and leaves lane height, so band ends stop being sorted. */
+export function collapseTweenOverlapsBands(t: CollapseTransform): boolean {
+  for (const f of t.folds) if (f.animating) return true;
+  return false;
+}
+
+/**
+ * `[lo, hi)` of a Y-monotonic list whose bands intersect the CSS viewport.
+ * `viewH ≤ 0` keeps the full list (unmeasured wrap).
+ * `endsMonotonic` false: linear scan. An in-flight fold makes a tall band's end
+ * sit below the next lane's end, and the binary search then skips that band.
+ */
+export function visibleIndexRange(
+  count: number,
+  yAt: (i: number) => number,
+  hAt: (i: number) => number,
+  scrollY: number,
+  viewH: number,
+  endsMonotonic = true,
+): readonly [number, number] {
+  if (count === 0) return [0, 0];
+  if (!(viewH > 0)) return [0, count];
+  if (!endsMonotonic) {
+    // ponytail: O(n) for the ≤200ms tween only. Rest layouts stay on the search below.
+    let lo = 0;
+    while (lo < count && yAt(lo) + hAt(lo) <= scrollY) lo++;
+    const viewBottom = scrollY + viewH;
+    let end = lo;
+    while (end < count && yAt(end) < viewBottom) end++;
+    return [lo, end];
+  }
+  let lo = 0;
+  let hi = count;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (yAt(mid) + hAt(mid) <= scrollY) lo = mid + 1;
+    else hi = mid;
+  }
+  const viewBottom = scrollY + viewH;
+  let end = lo;
+  let hi2 = count;
+  while (end < hi2) {
+    const mid = (end + hi2) >> 1;
+    if (yAt(mid) < viewBottom) end = mid + 1;
+    else hi2 = mid;
+  }
+  return [lo, end];
+}
+
+/** First index in a sorted float32 array with `values[i] >= t`. */
+export function lowerBoundFloat(values: ArrayLike<number>, t: number): number {
+  let lo = 0;
+  let hi = values.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (values[mid]! < t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** First index in a sorted float32 array with `values[i] > t`. */
+export function upperBoundFloat(values: ArrayLike<number>, t: number): number {
+  let lo = 0;
+  let hi = values.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (values[mid]! <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** One float32 ulp at `|x|`. Non-finite → 0 so the bound stays comparable. */
+function float32Ulp(x: number): number {
+  const f = Math.fround(Math.abs(x));
+  if (!Number.isFinite(f)) return 0;
+  const up = nextFloat32Up(f);
+  const ulp = up - f;
+  return ulp > 0 ? ulp : 0;
+}
+
+/**
+ * Quad range of start-sorted encoded interval starts that can overlap
+ * `[viewStart, viewEnd]` (same origin as `encodeIntervalPair`). Left-span uses `maxDuration`.
+ * Encoded starts are float32: `fround(start)` can sit one ulp below the f64 start while
+ * `fround(start + duration)` still crosses the view. Pad both edges by that ulp so the
+ * tail is submitted (extra quads land off-screen).
+ */
+export function overlappingEncodedRange(
+  starts: ArrayLike<number>,
+  viewStart: number,
+  viewEnd: number,
+  maxDuration: number,
+): readonly [number, number] {
+  if (starts.length === 0) return [0, 0];
+  const left = viewStart - maxDuration;
+  return [
+    lowerBoundFloat(starts, left - float32Ulp(left)),
+    upperBoundFloat(starts, viewEnd + float32Ulp(viewEnd)),
+  ];
+}
+
+/** `drawElements` args for quads `[lo, hi)` inside a chunk that starts at `pairOffset`. */
+export function drawChunkQuadRange(
+  pairOffset: number,
+  pairCount: number,
+  lo: number,
+  hi: number,
+): { count: number; byteOffset: number } | null {
+  const cLo = Math.max(lo, pairOffset);
+  const cHi = Math.min(hi, pairOffset + pairCount);
+  if (cLo >= cHi) return null;
+  const local = cLo - pairOffset;
+  return { count: (cHi - cLo) * 6, byteOffset: local * 6 * 2 };
+}
+
 /** Event block height and Y, vertically centered in the lane between row dividers. */
 export function eventBlockMetrics(laneY: number, scrollY: number): { y: number; h: number } {
   const h = LANE_HEIGHT - LANE_PAD_Y * 2;
@@ -1341,12 +1472,21 @@ export function laneAtContentY(
   layout: SwimlaneLayout,
   contentY: number,
 ): { lane: FlatLane; index: number } | null {
+  const lanes = layout.lanes;
+  const [lo, hi] = visibleIndexRange(
+    lanes.length,
+    (i) => lanes[i]!.y,
+    (i) => flatLaneHeight(lanes[i]!),
+    contentY,
+    1,
+    !collapseTweenOverlapsBands(layout.collapse ?? IDLE_COLLAPSE),
+  );
   let leaf: FlatLane | undefined;
   let leafIndex = -1;
   let folder: FlatLane | undefined;
   let folderIndex = -1;
-  for (let i = 0; i < layout.lanes.length; i++) {
-    const l = layout.lanes[i]!;
+  for (let i = lo; i < hi; i++) {
+    const l = lanes[i]!;
     if (l.alpha === 0) continue;
     if (!(contentY >= l.y && contentY < l.y + flatLaneHeight(l))) continue;
     if (l.folder) {

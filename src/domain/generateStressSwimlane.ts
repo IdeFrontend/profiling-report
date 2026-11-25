@@ -22,7 +22,7 @@ export const STRESS_PIPE_NAMES = [
 /** Thinner Vec0 pipe set for small preset. */
 const SMALL_VEC_PIPES = ['ALL', 'SCALAR', 'MTE2', 'MTE3'] as const;
 
-export type StressSwimlanePreset = 'small' | 'medium' | 'large';
+export type StressSwimlanePreset = 'small' | 'medium' | 'large' | 'lanes';
 
 export interface StressSwimlaneOptions {
   /** Override events per pipe leaf. */
@@ -35,7 +35,7 @@ export interface StressSwimlaneOptions {
   occupancy?: number;
   /**
    * Same-core nearest pred/succ wiring. Default on for `small`, off for
-   * `medium`/`large` (all-pairs refs blow up heap and generate time).
+   * `medium`/`large`/`lanes` (all-pairs refs blow up heap and generate time).
    */
   linkDependencies?: boolean;
 }
@@ -88,6 +88,12 @@ const PRESETS: Record<StressSwimlanePreset, ShapeSpec> = {
       { name: 'Core2.Vec0', pipes: STRESS_PIPE_NAMES },
     ],
     eventsPerPipe: 6_667,
+  },
+  /** 50 Cards × 9 Cube pipes × 1 event = 450 (gutter windowing). */
+  lanes: {
+    cards: 50,
+    cores: [{ name: 'Core0.Cube', pipes: STRESS_PIPE_NAMES }],
+    eventsPerPipe: 1,
   },
 };
 
@@ -417,6 +423,8 @@ export function stressSwimlaneStats(model: SwimlaneModel): StressSwimlaneStats {
 }
 
 export function stressPresetFromQuery(value: string | null): StressSwimlanePreset {
-  if (value === 'small' || value === 'medium' || value === 'large') return value;
+  if (value === 'small' || value === 'medium' || value === 'large' || value === 'lanes') {
+    return value;
+  }
   return 'medium';
 }
