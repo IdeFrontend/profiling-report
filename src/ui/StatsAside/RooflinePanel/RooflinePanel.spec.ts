@@ -207,6 +207,13 @@ describe('RooflinePanel', () => {
     expect(src).not.toMatch(/pr-roofline__chart-title/);
     expect(src).toMatch(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-x:\s*auto/s);
     expect(src).toMatch(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-y:\s*hidden/s);
+    // Chromium drops ::-webkit-scrollbar when scrollbar-width is not auto (tokens.css).
+    const scrollBlock =
+      src.match(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-y:\s*hidden[^}]*\}/s)?.[0] ?? '';
+    expect(scrollBlock).not.toMatch(/scrollbar-width/);
+    expect(src).toMatch(
+      /@supports not selector\(::-webkit-scrollbar\)\s*\{[^}]*scrollbar-width:\s*thin/s,
+    );
     expect(src).toMatch(/\.pr-roofline__legend-scroll::-webkit-scrollbar\s*\{[^}]*height:\s*8px/s);
     expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*display:\s*grid/s);
     expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*padding-bottom:\s*8px/s);

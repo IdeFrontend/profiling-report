@@ -679,11 +679,21 @@ onBeforeUnmount(() => {
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
+}
+
+/*
+ * Chromium applies either scrollbar-* or ::-webkit-scrollbar, not both
+ * (tokens.css). The webkit bar below is 8px, matching the grid padding.
+ * Firefox has no webkit bar, so it gets scrollbar-width: thin only there.
+ */
+@supports not selector(::-webkit-scrollbar) {
+  .pr-roofline__legend-scroll {
+    scrollbar-width: thin;
+  }
 }
 
 .pr-roofline__legend-scroll::-webkit-scrollbar {
-  /* Keep equal to `.pr-roofline__legend` padding-bottom (scrollbar-width: thin). */
+  /* Keep equal to `.pr-roofline__legend` padding-bottom. */
   height: 8px;
 }
 
@@ -699,8 +709,8 @@ onBeforeUnmount(() => {
 /*
  * Top of the raised card (no in-card chart title). One grid for both rows so
  * the nth AIV / AIC swatches share a vertical edge. Width is intrinsic; the
- * scrollport above clamps to the card. Padding matches `scrollbar-width: thin`
- * (thicker than the old 6px webkit bar) so an inset bar cannot clip the AIC row.
+ * scrollport above clamps to the card. Padding matches the 8px webkit bar
+ * so an inset bar cannot clip the AIC row.
  */
 .pr-roofline__legend {
   display: grid;
