@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
+import { FIXED_TIP_OFFSET_PX, placeFixedTip } from '../../placeFixedTip';
 import RooflinePanel from './RooflinePanel.vue';
 import {
   ROOFLINE_CHART_H,
@@ -206,7 +207,9 @@ describe('RooflinePanel', () => {
     expect(src).not.toMatch(/pr-roofline__chart-title/);
     expect(src).toMatch(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-x:\s*auto/s);
     expect(src).toMatch(/\.pr-roofline__legend-scroll\s*\{[^}]*overflow-y:\s*hidden/s);
+    expect(src).toMatch(/\.pr-roofline__legend-scroll::-webkit-scrollbar\s*\{[^}]*height:\s*8px/s);
     expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*display:\s*grid/s);
+    expect(src).toMatch(/\.pr-roofline__legend\s*\{[^}]*padding-bottom:\s*8px/s);
     expect(src).not.toMatch(/\.pr-roofline__legend\s*\{[^}]*overflow-x:/s);
     expect(src).toMatch(/\.pr-roofline__leg-head\s*\{[^}]*color:\s*#c4c4c4/s);
     expect(src).toMatch(/\.pr-roofline__leg-item\s*\{[^}]*color:\s*#8a8a8a/s);
@@ -284,18 +287,50 @@ describe('RooflinePanel', () => {
     expect(src).not.toMatch(/\.pr-roofline__tip\s*\{/);
 
     const heightBefore = card.element.getBoundingClientRect().height;
-    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
-      clientX: 40,
-      clientY: 80,
-    });
-    const tip = document.querySelector('[data-testid="roofline-tooltip"]');
+    const tipW = Number(src.match(/const TIP_EST_W = (\d+)/)?.[1]);
+    const tipH = Number(src.match(/const TIP_EST_H = (\d+)/)?.[1]);
+    // 3 wrapped name lines + 2 value lines + name margin + pad + border.
+    const minTipH = 12 * 1.45 * 5 + 4 + 8 * 2 + 1 * 2;
+    expect(tipW).toBe(280);
+    expect(tipH).toBeGreaterThanOrEqual(minTipH);
+
+    const point = wrapper.get('[data-testid="roofline-point"]');
+    const expectPlacedAt = (clientX: number, clientY: number) => {
+      const placed = placeFixedTip({
+        x: clientX,
+        y: clientY,
+        tipW,
+        tipH,
+        viewportW: window.innerWidth,
+        viewportH: window.innerHeight,
+        offset: FIXED_TIP_OFFSET_PX,
+      });
+      const node = document.querySelector('[data-testid="roofline-tooltip"]') as HTMLElement;
+      expect(node.style.left).toBe(`${placed.left}px`);
+      expect(node.style.top).toBe(`${placed.top}px`);
+    };
+
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    const tip = document.querySelector('[data-testid="roofline-tooltip"]') as HTMLElement;
     expect(tip).toBeTruthy();
-    expect(tip!.parentElement).toBe(document.body);
-    expect(card.element.contains(tip!)).toBe(false);
-    expect(tip!.textContent).toContain('GM Read + Write');
-    expect(tip!.textContent).toContain('Ops/Byte');
-    expect(tip!.textContent).toContain('TOps/s');
+    expect(tip.parentElement).toBe(document.body);
+    expect(card.element.contains(tip)).toBe(false);
+    expect(tip.textContent).toContain('GM Read + Write');
+    expect(tip.textContent).toContain('Ops/Byte');
+    expect(tip.textContent).toContain('TOps/s');
     expect(card.element.getBoundingClientRect().height).toBe(heightBefore);
+    expectPlacedAt(40, 80);
+
+    const nearRight = window.innerWidth - 40;
+    await point.trigger('mousemove', { clientX: nearRight, clientY: 80 });
+    expectPlacedAt(nearRight, 80);
+    expect(parseFloat(tip.style.left)).toBeLessThan(nearRight);
+
+    const nearBottom = window.innerHeight - 10;
+    await point.trigger('mousemove', { clientX: 40, clientY: nearBottom });
+    expectPlacedAt(40, nearBottom);
+    // A short estimate would leave the box below the pointer.
+    expect(nearBottom - parseFloat(tip.style.top)).toBeGreaterThanOrEqual(minTipH + FIXED_TIP_OFFSET_PX);
   });
 
   it('PR-ROOF-004: tooltip follows the current point when the model is replaced', async () => {
@@ -340,9 +375,18 @@ describe('RooflinePanel', () => {
     expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
 
     await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    await point.trigger('pointercancel');
+    await nextTick();
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    await point.trigger('mouseenter', { clientX: 40, clientY: 80 });
     await wrapper.setProps({
       model: { ...sample, points: [{ ...sample.points[0]!, id: 'other' }] },
     });
+    await nextTick();
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+    // Same id coming back must not resurrect a tip that was only unmounted by v-if.
+    await wrapper.setProps({ model: sample });
     await nextTick();
     expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
 

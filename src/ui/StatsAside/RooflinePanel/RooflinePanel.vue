@@ -41,16 +41,22 @@ const opsY = plotBottomY;
 /**
  * Hover tip follows EventTooltip / StatsAside card tips: teleported `position: fixed`
  * beside the pointer so the aside cannot crop it and the chart no longer reserves a
- * bottom text band (PR-ROOF-004). Dismiss on aside scroll / window resize matches
- * StatsAside's `closeTip` contract so a fixed box cannot strand after the chart moves.
+ * bottom text band (PR-ROOF-004). Dismiss on leave, aside scroll, window resize, and
+ * `pointercancel` matches StatsAside's `closeTip` contract so a fixed box cannot strand.
  */
 const rootEl = ref<HTMLElement | null>(null);
 const tipId = useId();
 const hoveredId = ref<string | null>(null);
 const tipPos = ref<{ left: string; top: string } | null>(null);
-/** placeFixedTip estimate — matches `.pr-roofline-tip` min/max width + 3 lines. */
+/**
+ * placeFixedTip estimate. Width is the tip max-width. Height covers a wrapped
+ * emulate label (48-char symbol + level + PC → up to 3 name lines) plus the
+ * two value lines: 12px × 1.45 × 5 + 4px name margin + 8×2 pad + 1×2 border = 109.
+ * ponytail: estimate, not a measured box. Upgrade: place from the tip's offsetHeight
+ * after mount if labels grow past three lines.
+ */
 const TIP_EST_W = 280;
-const TIP_EST_H = 72;
+const TIP_EST_H = 112;
 let asideScrollEl: Element | null = null;
 
 /** Experimental: legend hover → emphasize that series' roof on the plot. */
@@ -532,6 +538,8 @@ onBeforeUnmount(() => {
             @mouseenter="onPointEnter($event, p)"
             @mousemove="onPointMove"
             @mouseleave="onPointLeave"
+            @pointerleave="onPointLeave"
+            @pointercancel="onPointLeave"
           />
           <!-- Roof ridge knees (on the lines): filled rounded squares like legend. -->
           <rect
@@ -672,7 +680,8 @@ onBeforeUnmount(() => {
 }
 
 .pr-roofline__legend-scroll::-webkit-scrollbar {
-  height: 6px;
+  /* Keep equal to `.pr-roofline__legend` padding-bottom (scrollbar-width: thin). */
+  height: 8px;
 }
 
 .pr-roofline__legend-scroll::-webkit-scrollbar-thumb {
@@ -687,8 +696,8 @@ onBeforeUnmount(() => {
 /*
  * Top of the raised card (no in-card chart title). One grid for both rows so
  * the nth AIV / AIC swatches share a vertical edge. Width is intrinsic; the
- * scrollport above clamps to the card. Padding matches the thin scrollbar so
- * inset classic bars cannot clip the AIC row.
+ * scrollport above clamps to the card. Padding matches `scrollbar-width: thin`
+ * (thicker than the old 6px webkit bar) so an inset bar cannot clip the AIC row.
  */
 .pr-roofline__legend {
   display: grid;
@@ -696,7 +705,7 @@ onBeforeUnmount(() => {
   row-gap: 4px;
   align-items: center;
   width: max-content;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   font-size: 12px;
   line-height: 1.2;
 }
