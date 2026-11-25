@@ -1168,6 +1168,10 @@ describe('SourceView', () => {
       } as unknown as ReturnType<typeof newEditor>;
     });
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
+    const publishSuduResize = () => {
+      dpr = 1.25;
+      lineHeight = 25;
+    };
     try {
       await flushPromises();
       const pane = wrapper.get('[data-testid="sudu-code-pane"]').element as HTMLElement;
@@ -1189,8 +1193,10 @@ describe('SourceView', () => {
         },
       });
 
-      dpr = 1.25;
-      lineHeight = 25;
+      // Sudu publishes the new line height from its own resize listener, registered
+      // after the pane listener. Added after mount so it runs after scheduleGeomRefresh
+      // and before the rAF. A synchronous readGeom in the pane listener still sees 18px at dpr 1.
+      window.addEventListener('resize', publishSuduResize);
       setVScrollPos.mockClear();
       window.dispatchEvent(new Event('resize'));
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
@@ -1206,6 +1212,7 @@ describe('SourceView', () => {
       expect(scrollTop).toBeLessThanOrEqual(maxFor(rowHeight()));
       expect(setVScrollPos).not.toHaveBeenCalled();
     } finally {
+      window.removeEventListener('resize', publishSuduResize);
       if (original) vi.mocked(newEditor).mockImplementation(original);
       wrapper.unmount();
     }
