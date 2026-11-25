@@ -1,5 +1,8 @@
 import { laneColorKey } from './laneColors';
-import { computeThreadUtilization } from './utilization';
+import {
+  computeThreadUtilization,
+  counterUtilizationFraction,
+} from './utilization';
 import type { SwimlaneModel, SwimProcess, SwimThread } from './types';
 
 export type GutterMetric = 'clockCycle' | 'utilization';
@@ -112,8 +115,14 @@ function cycleByColorKey(rows: Record<string, string>[]): Map<string, number> {
   return out;
 }
 
-function leafUtilization(thread: SwimThread, model: SwimlaneModel): number {
-  // Include 0 so idle lanes paint `0%` and folder means count idle children.
+/**
+ * Interval leaf: event coverage (idle → 0 so folder means include it).
+ * Counter leaf: ratio mean fraction, or undefined for absolute / empty ([DATA-59]).
+ */
+function leafUtilization(thread: SwimThread, model: SwimlaneModel): number | undefined {
+  if (thread.counter) {
+    return counterUtilizationFraction(thread, model.minTime, model.maxTime);
+  }
   return computeThreadUtilization(thread, model.minTime, model.maxTime);
 }
 
@@ -134,12 +143,18 @@ function sumRollup(values: number[]): number | undefined {
   return values.reduce((a, b) => a + b, 0);
 }
 
-/** Event-coverage tree — drives barWidth for **both** metrics. */
+/**
+ * Utilization tree — drives barWidth.
+ * Counter folders mean **ratio** children only; absolute siblings are skipped ([DATA-59]).
+ * Interval folders mean all children (idle 0 included).
+ */
 function computeUtilTree(thread: SwimThread, model: SwimlaneModel): number | undefined {
   if (thread.children !== undefined) {
     const childVals = (thread.children ?? [])
       .map((c) => computeUtilTree(c, model))
       .filter((v): v is number => v != null);
+    // Absolute-only counter folder → no bar (empty childVals).
+    if (thread.counterSeries && childVals.length === 0) return undefined;
     return meanRollup(childVals);
   }
   return leafUtilization(thread, model);
@@ -248,14 +263,15 @@ function cardHasCycleData(
   return walk(proc.threads);
 }
 
-function cardHasTraceLanes(proc: SwimProcess): boolean {
+/** True when the Card has at least one leaf that yields a utilization bar value ([DATA-59]). */
+function cardHasUtilizationMetric(proc: SwimProcess, model: SwimlaneModel): boolean {
   const walk = (threads: SwimThread[]): boolean => {
     for (const t of threads) {
       if (t.children !== undefined) {
         if (walk(t.children ?? [])) return true;
         continue;
       }
-      return true;
+      if (leafUtilization(t, model) != null) return true;
     }
     return false;
   };
@@ -280,7 +296,7 @@ export function availableGutterMetrics(
     }
   }
   for (const proc of procs) {
-    if (cardHasTraceLanes(proc)) {
+    if (cardHasUtilizationMetric(proc, model)) {
       metrics.push('utilization');
       break;
     }
@@ -295,7 +311,8 @@ export function defaultGutterMetric(available: GutterMetric[]): GutterMetric | n
 }
 
 /**
- * Bar width is always event coverage (same for both metrics).
+ * Interval barWidth is event coverage (same for both metrics).
+ * Counter ratio leaves use DATA-59 means; absolute counters are omitted (no bar).
  * Labels: utilization → `NN%`; clockCycle → bare absolute cycle counts.
  */
 export function gutterBarsForCard(
@@ -314,6 +331,7 @@ export function gutterBarsForCard(
 
   const out = new Map<string, GutterBarDisplay>();
   for (const [id, coverage] of utilById) {
+    // Absolute counter leaves / folders are absent from utilById (undefined skipped).
     const barWidth = utilBarWidth(coverage);
     if (metric === 'utilization') {
       out.set(id, {

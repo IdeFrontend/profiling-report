@@ -154,6 +154,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Empty groups array | Empty gutter |
 | Groups with zero lanes | Card spacer rendered, no lane rows |
 | Standalone CTEF (no pipe data) | All lanes show empty util slot (no label) |
+| Absolute CounterTrack leaf (queue / bytes) | Empty util slot — no bar ([DATA-59](../../../../../docs/context/decisions/DATA.md) / [UI-62](../../../../../docs/context/decisions/UI.md)) |
+| Ratio CounterTrack leaf | Util bar = time-weighted mean `%` over model span |
 | Metric switch on Card | Parent recomputes **bar** on lanes under that Card only |
 | Flat CTEF (no `children`) | Card → leaf lanes only (MVP-compatible) |
 | Very long thread names | CSS text-overflow truncation |
