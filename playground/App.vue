@@ -334,6 +334,10 @@ onMounted(async () => {
           :href="stressHref('large')"
           data-testid="stress-large"
         >large</a>
+        <a
+          :href="stressHref('lanes')"
+          data-testid="stress-lanes"
+        >lanes</a>
         <span class="playground__sep">·</span>
         <a
           :href="stressHref(stressPreset, 'webgl')"

@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { COUNTER_LANE_HEIGHT, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../../../swimlane/layout';
 import LaneGutter from './LaneGutter.vue';
+import {
+  GUTTER_VIRTUALIZE_AFTER_GROUPS,
+  gutterGroupBands,
+  shouldVirtualizeGutter,
+  windowGutterGroups,
+} from './gutterWindow';
 
 /** One rule's declarations from the raw SFC. Scoped so comment prose — which cites the
  *  old values on purpose — cannot satisfy or break a negative assertion. */
@@ -26,6 +33,16 @@ describe('LaneGutter', () => {
 
     expect(wrapper.find('[data-testid="lane-gutter"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Thread A');
+  });
+
+  it('PR-GUTTER-021: off-screen rows skip layout with an exact intrinsic height', () => {
+    const wrapper = mount(LaneGutter, { props: { groups } });
+    const lane = wrapper.get('[data-testid="gutter-lane-l1"]').attributes('style') ?? '';
+    expect(lane).toContain('content-visibility: auto');
+    expect(lane).toContain('contain-intrinsic-size: auto 22px');
+    const group = wrapper.get('[data-testid="gutter-group-p1"]').attributes('style') ?? '';
+    expect(group).toContain('content-visibility: auto');
+    expect(group).toContain('contain-intrinsic-size: auto 40px');
   });
 
   it('PR-GUTTER-002: shows utilization percent; ≥50% fill is gray not lane.color', () => {
@@ -390,14 +407,16 @@ describe('LaneGutter', () => {
     });
     const pin = wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]');
     expect(pin.attributes('aria-label')).toBe('Pin to top');
-    expect(pin.find('.pr-gutter__pin-tip').exists()).toBe(false);
+    expect(document.body.querySelector('.pr-gutter__pin-tip')).toBeNull();
     await pin.trigger('pointerenter');
-    expect(pin.find('.pr-gutter__pin-tip').text()).toBe('Pin to top');
+    expect(document.body.querySelector('.pr-gutter__pin-tip')?.textContent).toBe('Pin to top');
 
     await wrapper.setProps({ locale: 'zh-CN' });
     expect(wrapper.get('[data-testid="gutter-lane-l1"] [data-testid="lane-pin"]').attributes('aria-label')).toBe(
       '置顶',
     );
+    wrapper.unmount();
+    expect(document.body.querySelector('.pr-gutter__pin-tip')).toBeNull();
   });
 
   it('PR-GUTTER-014: categoryKey localizes card folder / spacer labels', async () => {
@@ -608,6 +627,148 @@ describe('LaneGutter', () => {
     expect(rest.get('[data-testid="gutter-collapse-p1"]').attributes('style')).toBeUndefined();
     rest.unmount();
     wrapper.unmount();
+  });
+
+  it('PR-GUTTER-020: window Card groups to the viewport plus overscan', () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      id: `c${i}`,
+      name: `Card${i}`,
+      lanes: [{ id: `l${i}`, name: `L${i}`, color: '#f00' }],
+    }));
+    expect(shouldVirtualizeGutter(many.length, 100)).toBe(true);
+    expect(shouldVirtualizeGutter(GUTTER_VIRTUALIZE_AFTER_GROUPS, 100)).toBe(false);
+    expect(shouldVirtualizeGutter(20, 0)).toBe(false);
+
+    const bands = gutterGroupBands(many, new Set());
+    expect(bands).toHaveLength(20);
+    expect(bands[0]).toMatchObject({ y: 0, h: 62 });
+    const mounted = windowGutterGroups(bands, 0, 100);
+    const groups = mounted.filter((m) => m.kind === 'group');
+    const spacers = mounted.filter((m) => m.kind === 'spacer');
+    expect(groups).toHaveLength(6);
+    expect(spacers).toHaveLength(1);
+    expect(spacers[0]).toEqual({ kind: 'spacer', h: 14 * 62 });
+
+    const wrapper = mount(LaneGutter, {
+      props: { groups: many, viewportHeight: 100, scrollY: 0 },
+    });
+    expect(wrapper.findAll('[data-testid^="gutter-group-"]')).toHaveLength(6);
+    expect(wrapper.findAll('[data-testid="gutter-window-spacer"]')).toHaveLength(1);
+    expect(wrapper.get('[data-testid="gutter-window-spacer"]').attributes('style')).toContain(
+      'height: 868px',
+    );
+    wrapper.unmount();
+
+    const full = mount(LaneGutter, { props: { groups: many } });
+    expect(full.findAll('[data-testid^="gutter-group-"]')).toHaveLength(20);
+    expect(full.findAll('[data-testid="gutter-window-spacer"]')).toHaveLength(0);
+    full.unmount();
+
+    const sixteen = many.slice(0, 16);
+    const capped = mount(LaneGutter, {
+      props: { groups: sixteen, viewportHeight: 100, scrollY: 0 },
+    });
+    expect(capped.findAll('[data-testid^="gutter-group-"]')).toHaveLength(16);
+    expect(capped.findAll('[data-testid="gutter-window-spacer"]')).toHaveLength(0);
+    capped.unmount();
+
+    const counterBands = gutterGroupBands(
+      [
+        {
+          id: 'ub',
+          name: 'UB',
+          lanes: [{ id: 'ctr', name: 'UB', color: '#3D64AD', counter: true }],
+        },
+      ],
+      new Set(),
+    );
+    expect(counterBands[0]!.h).toBe(LANE_GROUP_HEADER_HEIGHT + COUNTER_LANE_HEIGHT);
+
+    const folded = gutterGroupBands(
+      [
+        {
+          id: 'ub',
+          name: 'UB',
+          lanes: [
+            {
+              id: 'folder',
+              name: 'memory',
+              color: '#3D64AD',
+              counterFolder: true,
+              children: [{ id: 'leaf', name: 'pct', color: '#3D64AD', counter: true }],
+            },
+          ],
+        },
+      ],
+      new Set(['folder']),
+    );
+    expect(folded[0]!.h).toBe(LANE_GROUP_HEADER_HEIGHT + COUNTER_LANE_HEIGHT);
+  });
+
+  it('PR-GUTTER-020: a focused Card stays mounted outside the window', async () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      id: `c${i}`,
+      name: `Card${i}`,
+      lanes: [{ id: `l${i}`, name: `L${i}`, color: '#f00' }],
+    }));
+    const wrapper = mount(LaneGutter, {
+      props: { groups: many, viewportHeight: 100, scrollY: 0 },
+      attachTo: document.body,
+    });
+    const pin = wrapper.get('[data-testid="gutter-collapse-c0"] [data-testid="lane-pin"]')
+      .element as HTMLButtonElement;
+    pin.focus();
+    await wrapper.setProps({ scrollY: 2000 });
+    expect(wrapper.find('[data-testid="gutter-group-c0"]').exists()).toBe(true);
+    expect(document.activeElement).toBe(pin);
+    wrapper.unmount();
+  });
+
+  it('PR-GUTTER-022: collapse tween shrinks the windowed Card band', () => {
+    const lanes = Array.from({ length: 30 }, (_, i) => ({
+      id: `a${i}`,
+      name: `A${i}`,
+      color: '#f00',
+    }));
+    const many = [
+      { id: 'c0', name: 'Card0', lanes },
+      ...Array.from({ length: 19 }, (_, i) => ({
+        id: `c${i + 1}`,
+        name: `Card${i + 1}`,
+        lanes: [{ id: `l${i}`, name: `L${i}`, color: '#f00' }],
+      })),
+    ];
+    const hiddenHeight = 30 * LANE_HEIGHT;
+    const anim = { groupId: 'c0', visible: 0.5, hiddenHeight };
+    const rest = gutterGroupBands(many, new Set());
+    const tween = gutterGroupBands(many, new Set(), anim);
+    expect(rest[0]!.h).toBe(LANE_GROUP_HEADER_HEIGHT + hiddenHeight);
+    expect(tween[0]!.h).toBe(LANE_GROUP_HEADER_HEIGHT + hiddenHeight / 2);
+    expect(tween[1]!.y).toBe(tween[0]!.h);
+
+    const open = mount(LaneGutter, {
+      props: { groups: many, viewportHeight: 400, scrollY: 0, collapseAnim: anim },
+    });
+    // Card 1 is pulled on screen by the shrink (rest y is past the overscan).
+    expect(open.find('[data-testid="gutter-group-c1"]').exists()).toBe(true);
+    open.unmount();
+
+    const scrolled = mount(LaneGutter, {
+      props: { groups: many, viewportHeight: 400, scrollY: 1000, collapseAnim: anim },
+    });
+    const top = 1000 - 240;
+    let spacerH = 0;
+    for (const b of tween) {
+      if (b.y + b.h < top) spacerH += b.h;
+      else break;
+    }
+    const restSpacer = windowGutterGroups(rest, 1000, 400).find((m) => m.kind === 'spacer');
+    expect(restSpacer).toEqual({ kind: 'spacer', h: rest[0]!.h });
+    expect(spacerH).not.toBe(rest[0]!.h);
+    expect(scrolled.get('[data-testid="gutter-window-spacer"]').attributes('style')).toContain(
+      `height: ${spacerH}px`,
+    );
+    scrolled.unmount();
   });
 
   it('PR-GUTTER-019: collapsed counterFolder row is COUNTER_LANE_HEIGHT (26px)', async () => {

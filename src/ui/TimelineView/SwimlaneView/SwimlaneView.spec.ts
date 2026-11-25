@@ -3,7 +3,9 @@ import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
-import { COUNTER_LANE_HEIGHT } from '../../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT, LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../../swimlane/layout';
+import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H } from '../OverviewCharts/overviewLayout';
+import LaneGutter from './LaneGutter/LaneGutter.vue';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import CounterHoverTip from './CounterHoverTip.vue';
 import SwimlaneView from './SwimlaneView.vue';
@@ -2425,9 +2427,7 @@ describe('SwimlaneView', () => {
     expect(wrapper.get('[data-testid="card-strip-card1"]').attributes('style')).toContain(
       'top: 580px',
     );
-    // The first header now sits above the viewport (top: −120) but must stay mounted —
-    // no viewport filter — so a keyboard-focused `role="button"` header scrolled out of
-    // view keeps its focus.
+    // Body clientHeight is 0 here, so the strip window is not applied and card0 stays mounted.
     expect(wrapper.find('[data-testid="card-strip-card0"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="card-strip-card0"]').attributes('style')).toContain(
       'top: -120px',
@@ -2437,6 +2437,248 @@ describe('SwimlaneView', () => {
     await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 120, true);
     expect(wrapper.emitted('update:scrollY')?.at(-1)?.[0]).toBe(120);
     wrapper.unmount();
+  });
+
+  it('PR-SWIMVIEW-049: lane-scroll ease drops gutter hits, then resolves the row under the pointer', async () => {
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [{ id: 'card0', name: 'Card0', lanes: [{ id: 'l0', name: 'L0', color: '#f00' }] }],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            {
+              id: 'card0',
+              name: 'Card0',
+              threads: [{ id: 'l0', name: 'L0', events: [{ id: 'e', name: 'e', startTime: 0, duration: 10 }] }],
+            },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const stack = wrapper.get('.pr-swim-stack').element;
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 8, clientY: 8 }));
+    const lane = wrapper.get('[data-testid="gutter-lane-l0"]').element;
+    const fromPoint = vi.spyOn(document, 'elementFromPoint').mockReturnValue(lane);
+
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 40, false);
+    expect(stack.classList.contains('pr-swim-stack--lane-scrolling')).toBe(true);
+    expect(wrapper.emitted('hover-lane')).toBeFalsy();
+
+    const canvas = wrapper.findComponent(SwimlaneCanvas);
+    const exposed = (
+      canvas.vm as unknown as { $: { exposed: { handleWheel: (e: WheelEvent) => void } } }
+    ).$.exposed;
+    const spy = vi.spyOn(exposed, 'handleWheel');
+    await wrapper.get('[data-testid="lane-gutter"]').trigger('wheel', { deltaY: 40, deltaX: 0 });
+    expect(spy).toHaveBeenCalled();
+
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 48, true);
+    expect(stack.classList.contains('pr-swim-stack--lane-scrolling')).toBe(false);
+    expect(wrapper.emitted('hover-lane')?.at(-1)?.[0]).toBe('l0');
+
+    const src = (await import('./SwimlaneView.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-swim-stack--lane-scrolling :deep\(\.pr-body-gutter\)::after/);
+    expect(src).not.toMatch(/\.pr-body-gutter \*\s*\{[^}]*pointer-events:\s*none/);
+
+    fromPoint.mockRestore();
+    wrapper.unmount();
+  });
+
+  it('PR-SWIMVIEW-050: card strips outside the viewport unmount unless focused', async () => {
+    const tallThreads = Array.from({ length: 30 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      events: [{ id: `${i}-e`, name: 'e', startTime: 0, duration: 100 }],
+    }));
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          { id: 'card0', name: 'Card0', lanes: tallThreads.map((t) => ({ ...t, color: '#f00' })) },
+          { id: 'card1', name: 'Card1', lanes: [] },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            { id: 'card0', name: 'Card0', threads: tallThreads },
+            { id: 'card1', name: 'Card1', threads: [] },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const body = wrapper.get('[data-testid="swim-body"]').element;
+    Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
+
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 1, false);
+    expect(wrapper.find('[data-testid="card-strip-card0"]').exists()).toBe(true);
+    // card1 header is at y = 40 + 30*22 = 700, past 200 + 240 overscan.
+    expect(wrapper.find('[data-testid="card-strip-card1"]').exists()).toBe(false);
+
+    const card0 = wrapper.get('[data-testid="card-strip-card0"]').element as HTMLElement;
+    card0.focus();
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 2000, false);
+    expect(wrapper.find('[data-testid="card-strip-card0"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="card-strip-card0"]').attributes('style')).toContain('top: -2000px');
+    wrapper.unmount();
+  });
+
+  it('PR-SWIMVIEW-050: a body resize re-windows card strips without another scroll', async () => {
+    const roHandles: { el: Element | null; fire: () => void }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        el: Element | null = null;
+        constructor(private cb: ResizeObserverCallback) {
+          roHandles.push(this);
+        }
+        observe(el: Element) {
+          this.el = el;
+        }
+        fire() {
+          if (!this.el) return;
+          this.cb(
+            [{ target: this.el } as unknown as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+    const tallThreads = Array.from({ length: 30 }, (_, i) => ({
+      id: `l${i}`,
+      name: `L${i}`,
+      events: [{ id: `${i}-e`, name: 'e', startTime: 0, duration: 100 }],
+    }));
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups: [
+          { id: 'card0', name: 'Card0', lanes: tallThreads.map((t) => ({ ...t, color: '#f00' })) },
+          { id: 'card1', name: 'Card1', lanes: [] },
+        ],
+        collapsedIds: [],
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: [
+            { id: 'card0', name: 'Card0', threads: tallThreads },
+            { id: 'card1', name: 'Card1', threads: [] },
+          ],
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const body = wrapper.get('[data-testid="swim-body"]').element as HTMLElement;
+    Object.defineProperty(body, 'clientHeight', { value: 200, configurable: true });
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', 1, false);
+    // card1 header is at y = 40 + 30*22 = 700, past 200 + 240 overscan.
+    expect(wrapper.find('[data-testid="card-strip-card1"]').exists()).toBe(false);
+
+    Object.defineProperty(body, 'clientHeight', { value: 800, configurable: true });
+    const bodyRO = roHandles.find((h) => h.el === body);
+    expect(bodyRO).toBeTruthy();
+    bodyRO!.fire();
+    await nextTick();
+    expect(wrapper.find('[data-testid="card-strip-card1"]').exists()).toBe(true);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+  });
+
+  it('PR-SWIMVIEW-051: gutter window scroll is content Y under the overview pad', async () => {
+    const roHandles: { el: Element | null; fire: () => void }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        el: Element | null = null;
+        constructor(private cb: ResizeObserverCallback) {
+          roHandles.push(this);
+        }
+        observe(el: Element) {
+          this.el = el;
+        }
+        fire() {
+          if (!this.el) return;
+          this.cb(
+            [{ target: this.el } as unknown as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+    const nTracks = 11;
+    const pad = OVERVIEW_HEADER_H + nTracks * OVERVIEW_LANE_H;
+    const bandH = LANE_GROUP_HEADER_HEIGHT + LANE_HEIGHT;
+    const groups = Array.from({ length: 20 }, (_, i) => ({
+      id: `c${i}`,
+      name: `Card${i}`,
+      lanes: [{ id: `l${i}`, name: `L${i}`, color: '#f00' }],
+    }));
+    const overviewSeries = Array.from({ length: nTracks }, (_, i) => ({
+      id: `ov${i}`,
+      label: `OV${i}`,
+      points: [{ t: 0, v: 1 }, { t: 1000, v: 2 }],
+    }));
+    const view = createViewState({ minTime: 0, maxTime: 1000, processes: [] });
+    const wrapper = mount(SwimlaneView, {
+      props: {
+        groups,
+        collapsedIds: [],
+        overviewSeries,
+        model: {
+          minTime: 0,
+          maxTime: 1000,
+          processes: groups.map((g) => ({
+            id: g.id,
+            name: g.name,
+            threads: [{ id: `l${g.id}`, name: g.name, events: [] }],
+          })),
+        },
+        view,
+        selectedEventId: null,
+        hoveredEventId: null,
+        searchQuery: '',
+      },
+      attachTo: document.body,
+    });
+    const body = wrapper.get('[data-testid="swim-body"]').element as HTMLElement;
+    Object.defineProperty(body, 'clientHeight', { value: 400, configurable: true });
+    roHandles.find((h) => h.el === body)?.fire();
+    await nextTick();
+
+    const scrollY = 1000;
+    await wrapper.findComponent(SwimlaneCanvas).vm.$emit('scroll-y', scrollY, false);
+    await nextTick();
+    expect(wrapper.findComponent(LaneGutter).props('scrollY')).toBe(scrollY - pad);
+    // Card 11 sits in the top pad−overscan of the visible content. Wrap scroll would spacer it.
+    const card11Y = 11 * bandH;
+    expect(card11Y + bandH).toBeLessThan(scrollY - 240);
+    expect(card11Y + bandH).toBeGreaterThan(scrollY - pad);
+    expect(wrapper.find('[data-testid="gutter-group-c11"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="gutter-group-c0"]').exists()).toBe(false);
+    wrapper.unmount();
+    vi.unstubAllGlobals();
   });
 
   it('PR-SWIMVIEW-033: collapse tween clamps liveScrollY to visual content height', async () => {

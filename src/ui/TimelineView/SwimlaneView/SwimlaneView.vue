@@ -193,6 +193,8 @@ let gutterScrollSync = false;
 let gutterScrollSyncRaf = 0;
 /** True between an in-flight canvas `scroll-y` and its settle emit. */
 let canvasLiveScroll = false;
+/** Body gutter + card strips ignore hits while a lane-scroll ease is in flight. */
+let laneScrollLive = false;
 /**
  * Overlay scrollbar: hidden at rest, shown while the body scrolls, then fades
  * out after settle (paused while the pointer is over the strip). When visible
@@ -579,17 +581,46 @@ const marqueePreviewLive = computed(() => livePreviewIds.value != null);
 
 const overviewElRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 
+/** Extra px of card headers kept mounted above and below the body viewport. */
+const CARD_STRIP_OVERSCAN_PX = 240;
+/** Header that holds keyboard focus — stays mounted when scrolled out of the window. */
+const focusedCardId = ref<string | null>(null);
+
 const cardStrips = computed(() => {
   // Read the quantized chrome Y (same source as the overview transform) so the strips
   // stay pixel-locked to the gutter Card spacers instead of the canvas float.
   const scrollY = chromeScrollY.value;
   const pad = overviewContentPad.value;
-  // Bake the scroll offset into each strip's `top` and keep every strip mounted.
-  // Off-screen strips are clipped by the container's `overflow: hidden`; keeping them
-  // in the DOM preserves keyboard focus on a `role="button"` header scrolled out of
-  // view (a viewport filter would unmount the focused node and drop focus).
-  return cardHeaders.value.map((h) => ({ ...h, top: h.y + pad - scrollY }));
+  // Prefer the live box so a scroll after layout windows without waiting on ResizeObserver.
+  // Always read bodyViewportH too: clientHeight is not reactive, so a resize that does
+  // not also scroll would otherwise keep the last window. The larger of the two wins
+  // (live box can lead the observer). Unknown viewport (both 0) keeps every strip.
+  const liveH = bodyRef.value?.clientHeight ?? 0;
+  const viewH = Math.max(liveH, bodyViewportH.value);
+  const focused = focusedCardId.value;
+  const out: { id: string; name: string; y: number; expanded: boolean; top: number }[] = [];
+  for (const h of cardHeaders.value) {
+    const top = h.y + pad - scrollY;
+    const inWindow =
+      viewH <= 0 ||
+      (top + LANE_GROUP_HEADER_HEIGHT > -CARD_STRIP_OVERSCAN_PX &&
+        top < viewH + CARD_STRIP_OVERSCAN_PX);
+    if (inWindow || h.id === focused) out.push({ ...h, top });
+  }
+  return out;
 });
+
+function onCardStripsFocusIn(e: FocusEvent): void {
+  const el = (e.target as HTMLElement | null)?.closest?.('[data-card-id]');
+  focusedCardId.value = el?.getAttribute('data-card-id') ?? null;
+}
+
+function onCardStripsFocusOut(e: FocusEvent): void {
+  const next = e.relatedTarget as Node | null;
+  const root = e.currentTarget as HTMLElement;
+  if (next && root.contains(next)) return;
+  focusedCardId.value = null;
+}
 
 let bodyResizeObserver: ResizeObserver | null = null;
 
@@ -807,11 +838,15 @@ function applyScrollChromeTransforms(y: number): void {
   }
 }
 
-/** Gutter + card/overview chrome from one Y; both follow the quantized scrollTop. */
+/** Gutter + card/overview chrome from one Y. A scrollTop write is not read back
+ * in the same turn — that forced a layout of every gutter row. */
 function syncScrollChromeFromY(y: number): void {
-  setGutterScrollTop(y);
-  const gutterY = gutterRef.value?.root?.scrollTop;
-  const chromeY = gutterY != null && Number.isFinite(gutterY) ? gutterY : y;
+  const wrote = setGutterScrollTop(y);
+  let chromeY = y;
+  if (!wrote) {
+    const gutterY = gutterRef.value?.root?.scrollTop;
+    if (gutterY != null && Number.isFinite(gutterY)) chromeY = gutterY;
+  }
   chromeScrollY.value = chromeY;
   applyScrollChromeTransforms(chromeY);
 }
@@ -833,9 +868,9 @@ watch(
   },
 );
 
-function setGutterScrollTop(y: number): void {
+function setGutterScrollTop(y: number): boolean {
   const el = gutterRef.value?.root;
-  if (!el || Math.abs(el.scrollTop - y) <= 0.5) return;
+  if (!el || Math.abs(el.scrollTop - y) <= 0.5) return false;
   gutterScrollSync = true;
   el.scrollTop = y;
   if (gutterScrollSyncRaf) cancelAnimationFrame(gutterScrollSyncRaf);
@@ -845,6 +880,25 @@ function setGutterScrollTop(y: number): void {
     gutterScrollSyncRaf = 0;
     gutterScrollSync = false;
   });
+  return true;
+}
+
+function setLaneScrollLive(live: boolean): void {
+  if (laneScrollLive === live) return;
+  laneScrollLive = live;
+  stackRef.value?.classList.toggle('pr-swim-stack--lane-scrolling', live);
+}
+
+/** After the ease, the pointer is still — pick up the gutter row now under it. */
+function resolveGutterHoverFromPointer(): void {
+  const p = lastPointerClient;
+  if (!p || typeof document.elementFromPoint !== 'function') return;
+  const el = document.elementFromPoint(p.x, p.y);
+  const row = el?.closest?.('[data-lane-id]');
+  const gutter = gutterRef.value?.root;
+  if (!row || !gutter || !gutter.contains(row)) return;
+  const id = row.getAttribute('data-lane-id');
+  if (id) onLaneHover(id);
 }
 
 function onScrollY(scrollY: number, settled?: boolean) {
@@ -861,10 +915,15 @@ function onScrollY(scrollY: number, settled?: boolean) {
   if (moved) revealScrollbar();
   if (settled) {
     canvasLiveScroll = false;
+    setLaneScrollLive(false);
+    resolveGutterHoverFromPointer();
     emit('update:scrollY', y);
     if (scrollbarVisible.value) scheduleScrollbarHide();
     return;
   }
+  // Only an explicit in-flight frame (settled === false) freezes hits. A bare
+  // scroll-y without the flag is a test/parent poke, not a wheel ease.
+  if (moved && settled === false) setLaneScrollLive(true);
   if (moved) canvasLiveScroll = true;
 }
 
@@ -1228,6 +1287,8 @@ defineExpose({
         :hovered-lane-id="hoveredLaneId"
         :locale="locale"
         :collapse-anim="collapseAnim"
+        :scroll-y="chromeScrollY - overviewContentPad"
+        :viewport-height="bodyViewportH"
         @scroll="onGutterScroll"
         @wheel.prevent="onStripWheel"
         @toggle-group="emit('toggle-group', $event)"
@@ -1284,6 +1345,8 @@ defineExpose({
           '--pr-card-header-fill': LANE_GROUP_HEADER_FILL,
           '--pr-card-header-hover': LANE_GROUP_HEADER_HOVER,
         }"
+        @focusin="onCardStripsFocusIn"
+        @focusout="onCardStripsFocusOut"
       >
         <div
           v-for="strip in cardStrips"
@@ -1291,6 +1354,7 @@ defineExpose({
           role="button"
           tabindex="0"
           class="pr-card-strip"
+          :data-card-id="strip.id"
           :data-testid="`card-strip-${strip.id}`"
           :aria-expanded="strip.expanded"
           :aria-label="strip.name"
@@ -1404,6 +1468,20 @@ defineExpose({
 </template>
 
 <style scoped>
+/* Lane-scroll ease: a covering hit target on the gutter host swallows row
+ * hover without `pointer-events: none` on the host (follow-up wheels still
+ * reach @wheel → handleWheel). Card strips are few and stay none. */
+.pr-swim-stack--lane-scrolling :deep(.pr-body-gutter)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.pr-swim-stack--lane-scrolling .pr-card-strip,
+.pr-swim-stack--lane-scrolling :deep(.pr-card-strip *) {
+  pointer-events: none;
+}
+
 .pr-swim-stack {
   position: relative;
   display: flex;
@@ -1577,6 +1655,7 @@ defineExpose({
 
 .pr-body-gutter {
   box-sizing: border-box;
+  position: relative;
 }
 
 /* Pin to used gutter column so the handle stays on the seam when the column shrinks. */

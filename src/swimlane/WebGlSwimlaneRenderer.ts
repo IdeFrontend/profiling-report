@@ -31,6 +31,10 @@ import {
   eventLabelsCanFit,
   eventPaintRect,
   overlappingLaneRange,
+  overlappingEncodedRange,
+  drawChunkQuadRange,
+  visibleIndexRange,
+  collapseTweenOverlapsBands,
   eventScreenRect,
   findEvent,
   findLaidOutEvent,
@@ -76,6 +80,9 @@ interface MeshChunk {
   vbo: WebGLBuffer;
   ibo: WebGLBuffer;
   indexCount: number;
+  /** First quad index in the parent start-sorted pair list. */
+  pairOffset: number;
+  pairCount: number;
 }
 
 interface EmphasisLayer {
@@ -120,6 +127,8 @@ const CURVE_INSTANCE_FLOATS = 10;
 interface SubRowMesh {
   /** Content-space Y of this sub-row's lane band (lane.y + rowIndex * LANE_HEIGHT). */
   y: number;
+  /** Start-sorted encoded interval starts (same origin as `encodeIntervalPair`). */
+  quadStarts: Float32Array;
   /** All events (including duration-0) — additive blend; metric from lane `useCountMetric`. */
   chunks: MeshChunk[];
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
@@ -391,7 +400,14 @@ function createChunk(
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
   gl.bindVertexArray(null);
 
-  return { vao, vbo, ibo, indexCount: numSquares * 6 };
+  return {
+    vao,
+    vbo,
+    ibo,
+    indexCount: numSquares * 6,
+    pairOffset: off,
+    pairCount: numSquares,
+  };
 }
 
 /** Edge fake-gap for the first/last event of a lane (model time units). A huge constant so an
@@ -475,7 +491,7 @@ function createUnitQuad(gl: WebGL2RenderingContext): MeshChunk {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
   gl.bindVertexArray(null);
-  return { vao, vbo, ibo, indexCount: 6 };
+  return { vao, vbo, ibo, indexCount: 6, pairOffset: 0, pairCount: 1 };
 }
 
 /** Textured unit quad (aPos + aTex). V is flipped in UVs (sudu): screen top samples canvas row 0,
@@ -501,7 +517,32 @@ function createTextQuad(gl: WebGL2RenderingContext): MeshChunk {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
   gl.bindVertexArray(null);
-  return { vao, vbo, ibo, indexCount: 6 };
+  return { vao, vbo, ibo, indexCount: 6, pairOffset: 0, pairCount: 1 };
+}
+
+const EMPTY_QUAD_STARTS = new Float32Array(0);
+
+function encodedQuadStarts(pairs: number[]): Float32Array {
+  const n = pairs.length >> 1;
+  if (n === 0) return EMPTY_QUAD_STARTS;
+  const starts = new Float32Array(n);
+  for (let i = 0; i < n; i++) starts[i] = pairs[i * 2]!;
+  return starts;
+}
+
+/** Submit only quads in `[lo, hi)` of a start-sorted pair list (`PR-RENDER-069`). */
+function drawChunkQuads(
+  gl: WebGL2RenderingContext,
+  chunks: readonly MeshChunk[],
+  lo: number,
+  hi: number,
+): void {
+  for (const chunk of chunks) {
+    const range = drawChunkQuadRange(chunk.pairOffset, chunk.pairCount, lo, hi);
+    if (!range) continue;
+    gl.bindVertexArray(chunk.vao);
+    gl.drawElements(gl.TRIANGLES, range.count, gl.UNSIGNED_SHORT, range.byteOffset);
+  }
 }
 
 /**
@@ -788,9 +829,30 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     const laneHoverBg = hexToRgb(LANE_HOVER_FILL);
     const headerBg = hexToRgb(LANE_GROUP_HEADER_FILL);
     const divider = 0x3a / 255;
+    const viewHCss = devH / Math.max(dpr, Number.EPSILON);
+    const scrollY = this.view.scrollY;
+    const headers = this.layout.headers;
+    const lanes = this.layout.lanes;
+    const [headerLo, headerHi] = visibleIndexRange(
+      headers.length,
+      (i) => collapseShiftY(headers[i]!.y, this.collapse),
+      () => LANE_GROUP_HEADER_HEIGHT,
+      scrollY,
+      viewHCss,
+    );
+    const tweenOverlap = collapseTweenOverlapsBands(this.collapse);
+    const [laneLo, laneHi] = visibleIndexRange(
+      lanes.length,
+      (i) => collapseShiftY(lanes[i]!.y, this.collapse),
+      (i) => laneChromeHeight(lanes[i]!, this.collapsedIds, this.collapse),
+      scrollY,
+      viewHCss,
+      !tweenOverlap,
+    );
 
-    for (const header of this.layout.headers) {
-      const headerTop = (collapseShiftY(header.y, this.collapse) - this.view.scrollY) * dpr;
+    for (let i = headerLo; i < headerHi; i++) {
+      const header = headers[i]!;
+      const headerTop = (collapseShiftY(header.y, this.collapse) - scrollY) * dpr;
       const headerH = LANE_GROUP_HEADER_HEIGHT * dpr;
       if (headerTop + headerH > 0 && headerTop < devH) {
         this.drawSolidRect(solid, unit, 0, headerTop, devW, headerH, headerBg);
@@ -802,11 +864,11 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    for (let i = 0; i < this.layout.lanes.length; i++) {
-      const lane = this.layout.lanes[i]!;
+    for (let i = laneLo; i < laneHi; i++) {
+      const lane = lanes[i]!;
       const alpha = collapseAlpha(lane.y, this.collapse);
       if (alpha <= 0) continue;
-      const y = (collapseShiftY(lane.y, this.collapse) - this.view.scrollY) * dpr;
+      const y = (collapseShiftY(lane.y, this.collapse) - scrollY) * dpr;
       const laneH = laneChromeHeight(lane, this.collapsedIds, this.collapse) * dpr;
       if (y + laneH < 0 || y > devH) continue;
       const bg = lane.thread.id === this.hoveredLaneId ? laneHoverBg : laneBg;
@@ -860,9 +922,12 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // aPos times are relative to timeBase (see encodeIntervalPair).
     const sx = 2 / span;
     const px = -1 + (2 * (this.timeBase - this.view.startTime)) / span;
+    const viewStartRel = this.view.startTime - this.timeBase;
+    const viewEndRel = this.view.endTime - this.timeBase;
+    const maxDur = this.layout.maxLeafDuration;
 
-    for (let i = 0; i < this.laneMeshes.length; i++) {
-      const lane = this.layout.lanes[i];
+    for (let i = laneLo; i < laneHi; i++) {
+      const lane = lanes[i];
       const meshes = this.laneMeshes[i];
       if (!lane || !meshes) continue;
       const laneAlpha = collapseAlpha(lane.y, this.collapse);
@@ -871,7 +936,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       for (const row of meshes.rows) {
         const { y: topRaw, h: bandHRaw } = eventBlockMetrics(
           collapseShiftY(row.y, this.collapse),
-          this.view.scrollY,
+          scrollY,
         );
         const top = topRaw * dpr;
         const bandH = bandHRaw * dpr;
@@ -903,10 +968,25 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           if (swim.uSrcOver) gl.uniform1f(swim.uSrcOver, 1);
         }
 
-        const drawChunks = (chunks: MeshChunk[], rgb: [number, number, number], dim: number): void => {
+        const [qLo, qHi] = overlappingEncodedRange(
+          row.quadStarts,
+          viewStartRel,
+          viewEndRel,
+          maxDur,
+        );
+        const drawChunks = (
+          chunks: MeshChunk[],
+          rgb: [number, number, number],
+          dim: number,
+          cullTime = false,
+        ): void => {
           // Premul RGB × dim + alpha dim — matches Canvas globalAlpha on fills.
           const a = dim * laneAlpha;
           gl.uniform4f(swim.uColor, rgb[0] * a, rgb[1] * a, rgb[2] * a, a);
+          if (cullTime) {
+            drawChunkQuads(gl, chunks, qLo, qHi);
+            return;
+          }
           for (const chunk of chunks) {
             gl.bindVertexArray(chunk.vao);
             gl.drawElements(gl.TRIANGLES, chunk.indexCount, gl.UNSIGNED_SHORT, 0);
@@ -919,7 +999,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
           }
         } else {
           const baseRgb = mute ? mutedRgb : meshes.color;
-          drawChunks(row.chunks, baseRgb, 1);
+          drawChunks(row.chunks, baseRgb, 1, true);
           if (row.brightChunks || row.liftChunks) {
             // Src-over so keep-bright fills replace the muted bar (additive would double).
             if (!srcOverBase) {
@@ -944,7 +1024,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       }
     }
 
-    this.drawEventLabels();
+    this.drawEventLabels(laneLo, laneHi);
 
     // Curves draw last, above event labels — re-enable blend (labels render opaque with no blend).
     // One instanced draw; scroll is already `uView.z`, so lane-scroll ease does not skip this pass.
@@ -1005,7 +1085,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     this.depLinks = [];
   }
 
-  private drawEventLabels(): void {
+  private drawEventLabels(laneLo: number, laneHi: number): void {
     const gl = this.gl;
     const prog = this.textProgCT;
     const quad = this.textQuad;
@@ -1035,7 +1115,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     gl.uniform2f(prog.uTextPow, CLEARTYPE_TEXT_POW, 0);
     gl.enable(gl.SCISSOR_TEST);
 
-    for (let i = 0; i < this.layout.lanes.length; i++) {
+    for (let i = laneLo; i < laneHi; i++) {
       const lane = this.layout.lanes[i];
       // Folder lanes hold summaries (and possibly unsorted extras); "N tasks" stays on the overlay.
       if (!lane || lane.folder || collapseAlpha(lane.y, this.collapse) <= 0) continue;
@@ -1208,6 +1288,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
         const pairs = collapsed?.pairs ?? raw;
         return {
           y: lane.y + r * LANE_HEIGHT,
+          quadStarts: encodedQuadStarts(pairs),
           chunks: createChunksFromPairs(gl, pairs, collapsed?.hits),
           emphasisLayers: null,
           brightChunks: null,
