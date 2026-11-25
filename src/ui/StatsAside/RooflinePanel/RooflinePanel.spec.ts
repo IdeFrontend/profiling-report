@@ -295,6 +295,7 @@ describe('RooflinePanel', () => {
     // Vice versa: hovering the knee lights the matching legend item.
     const knee = wrapper.get('.pr-roofline__knee-g[data-series-id="aic-fp32"]');
     await knee.trigger('mouseenter', { clientX: 40, clientY: 80 });
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeTruthy();
     expect(
       wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aic-fp32"]').classes(),
     ).toContain('pr-roofline__leg-item--lit');
@@ -302,6 +303,17 @@ describe('RooflinePanel', () => {
       wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]').classes(),
     ).toContain('pr-roofline__roof-g--dim');
     await knee.trigger('mouseleave');
+    expect(wrapper.find('.pr-roofline__leg-item--lit').exists()).toBe(false);
+    // Knee leave dismisses the tip (PR-ROOF-009). A roof hover only emphasizes.
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+
+    const roof = wrapper.get('[data-testid="roofline-roof"][data-series-id="aiv-fp16"]');
+    await roof.trigger('mouseenter');
+    expect(
+      wrapper.get('[data-testid="roofline-leg-item"][data-series-id="aiv-fp16"]').classes(),
+    ).toContain('pr-roofline__leg-item--lit');
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
+    await roof.trigger('mouseleave');
     expect(wrapper.find('.pr-roofline__leg-item--lit').exists()).toBe(false);
   });
 
