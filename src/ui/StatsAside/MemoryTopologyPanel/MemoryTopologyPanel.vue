@@ -7,6 +7,8 @@ import {
   type TopologySlotEdgeId,
 } from '../../../adapters/memoryTopology';
 import type { MemoryHeatmapUnitId, MemoryTopologyModel } from '../../../domain/types';
+import PrIcon from '../../PrIcon.vue';
+import { UNIT_WORD_GLYPHS, type UnitWordKey } from './unitWordPaths';
 
 /** Base value type size, cap-height matched to the export's own values (see Visual).
  *  Mirrors the `.pr-topo__edge` font-size; the fit rule below only ever shrinks from it. */
@@ -29,8 +31,8 @@ export const SLOT_MAX_W: Record<string, number> = {
   'l2-ub': 49.0,
   'ub-l2': 49.0,
   'l2-l1-read': 49.0,
-  'ub-vec': 42.1,
-  'vec-ub': 42.1,
+  'ub-vec': 37.9,
+  'vec-ub': 37.7,
   'l1-l0a': 41.1,
   'l1-l0b': 40.3,
   'l0a-cube': 36.7,
@@ -43,20 +45,59 @@ export const SLOT_MAX_W: Record<string, number> = {
  * UI-49 in-box `%` badge slots — centres under each unit's own word on the 448×423 chrome.
  * Keyed by the adapter's `TOPOLOGY_PLATE_NODE_IDS`, so a newly plated unit without coordinates
  * fails typecheck. The simplified chrome draws one **AIV × 2** row (not separate AIV0/AIV1
- * stacks): `Scalar` (282.2, 321.0), `Vec`/SIMD (372.1, 367.8), AIC `Cube` (338.1, 95.3) —
- * each is the export's under-word util sample centre (not the box centre / not the unit word).
+ * stacks): `Scalar` (282.2, 321.0), `Vec`/SIMD (372.1, 366.8 — the base value centre of the
+ * centred two-line control), AIC `Cube` (338.1, 95.3) — each is the export's under-word util
+ * sample centre (not the box centre / not the unit word).
  * AIV0/AIV1 still share one field (`aiv_scalar_ratio` / `aiv_vec_ratio`); one chrome slot is
- * enough for the combined row.
- *
- * The other in-box badges — AIC `Scalar`, AIV `SIMT`, `FixP` — are the producer's `NA` rows
- * and carry no slot (UI-49). The producer also marks `SIMD VF` rows `NA`, but those describe
- * the `Vec` position the `Vec` rows fill, so it is painted rather than blank.
+ * enough for the combined row. The remaining unit boxes carry their own value too: the AIC
+ * `Scalar` box (310.05, 184.065), the AIV row's `Scalar` unit box (310.05, 255.065) and the
+ * AIV `SIMT` box (372.2, 325.3) — the SIMT ratio is demo-only (the producer's row is `NA`).
  */
 export const PLATE_SLOTS: Record<TopologyPlateNodeId, readonly (readonly [number, number])[]> = {
   aiv_scalar: [[282.2, 321.0]],
-  vec: [[372.1, 367.8]],
+  vec: [[372.1, 366.8]],
   cube: [[338.1, 95.3]],
+  simt: [[372.2, 325.3]],
+  aic_scalar: [[310.05, 184.065]],
+  aiv_scalar_unit: [[310.05, 255.065]],
 };
+
+/**
+ * Bottom of each unit's element frame (F), in chrome units, measured off the export. The
+ * comparison badge hangs under the percentage value and shrinks so its circle stays inside
+ * this frame; it never moves the value itself — the label layout stays the master chrome's.
+ */
+const DIFF_BADGE_FRAME_BOTTOM: Record<TopologyPlateNodeId | 'peak', number> = {
+  aiv_scalar: 336,
+  vec: 376,
+  cube: 123,
+  simt: 333.5,
+  aic_scalar: 197,
+  aiv_scalar_unit: 268,
+  peak: 238.9,
+};
+
+/** Circle centre below the value: value half-height + a hair of air. */
+const DIFF_BADGE_PITCH = 5.6;
+
+/**
+ * 对比基线 badge geometry: the circle is centred on the value's x (horizontal centre) and hangs
+ * below the value; where the unit frame is shallow the circle shrinks instead of crossing the
+ * box outline. Only the arrow lives in the SVG — the values are in the hover popup.
+ */
+export function diffBadgeGeometry(
+  slot: TopologyPlateNodeId | 'peak',
+  valueX: number,
+  valueY: number,
+): { x: number; y: number; diameter: number } {
+  const y = valueY + DIFF_BADGE_PITCH;
+  const circleTop = y - DIFF_BADGE_SIZE / 2;
+  const diameter = Math.min(
+    DIFF_BADGE_SIZE,
+    Math.max(0, DIFF_BADGE_FRAME_BOTTOM[slot] - 1.2 - circleTop),
+  );
+  return { x: valueX, y, diameter };
+}
 
 /**
  * Room an in-box badge has inside its own unit box before it touches a wall, in chrome units,
@@ -70,6 +111,9 @@ export const PLATE_MAX_W: Record<TopologyPlateNodeId, number> = {
   aiv_scalar: 26.5,
   vec: 18.5,
   cube: 28.5,
+  simt: 28.5,
+  aic_scalar: 28.5,
+  aiv_scalar_unit: 28.5,
 };
 
 /** Fallback for a slot the table above forgets. It is the *tightest* measured bound, so a new
@@ -107,8 +151,8 @@ export const SLOTS: Record<TopologySlotEdgeId, readonly (readonly [number, numbe
   'l2-ub': [[159.7, 315.2]],
   'ub-l2': [[159.6, 331.2]],
   'l2-l1-read': [[160.1, 87.9]],
-  'ub-vec': [[338.7, 351.8]],
-  'vec-ub': [[338.6, 363.8]],
+  'ub-vec': [[335.7, 351.8]],
+  'vec-ub': [[335.6, 363.8]],
   'l1-l0a': [[239.1, 49.8]],
   'l1-l0b': [[239.1, 74.8]],
   'l0a-cube': [[300.9, 54.8]],
@@ -157,6 +201,18 @@ export function fitFontSize(
   const max = bounds[slot] ?? DEFAULT_MAX_W;
   return natural > max ? (max / natural) * base : base;
 }
+
+/**
+ * 对比基线 (baseline comparison) badge, in chrome units. The diagram's own values are 6.3px, so
+ * the badge is drawn at chrome scale — it re-creates the 1130 mockup's badge rather than
+ * reusing the 12px HTML component, which cannot render inside SVG: a WHITE circle with a full
+ * tone arrow (shaft + head) centred BELOW the percentage value. Only the arrow is painted; the
+ * numbers live in the badge's hover popup.
+ */
+export const DIFF_BADGE_SIZE = 6.6;
+
+/** The L2 peak plate's own centre on the chrome — the plate's value and its badge anchor. */
+export const L2_PEAK_SLOT = [114.1, 218.3] as const;
 
 /** Zoom ladder (%) for the bar's **+** / **−**. 100 is the design's default readout and means
  *  *fitted to the box*, not 1:1 units. Stops are a fixed **1.5×** geometric series around 100,
@@ -219,6 +275,9 @@ export function continuousZoomFromDelta(current: number, deltaY: number): number
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch, watchEffect } from 'vue';
 import { t } from '../../../i18n';
+import { metricDiff, type DiffTone, type MetricDiff } from '../../../domain/metricDiff';
+import { asideRoundsToZero, formatAsidePct } from '../asideValueFormat';
+import type { BaselineTipRow } from '../baselineTip';
 import { animateProgress } from '../../TimelineView/animateViewWindow';
 /** Official product chrome: Figma export of `v930/report-stats-scrolled` 内存负载分析图 (simplified,
  *  448×423). Static labels stay outlined paths (including white `MTE_*` / `FixPipe` ink on
@@ -255,6 +314,19 @@ const props = withDefaults(
     selectableUnits?: boolean;
     /** §11.2.3.2: unit the heat panel is showing — painted as the selected highlight (PR-MEMTOP-022). */
     selectedUnit?: MemoryHeatmapUnitId | null;
+    /**
+     * 对比基线 (baseline comparison): the selected baseline's topology model. Every node
+     * percentage that also exists in this side — the in-box plates and the L2 peakPct —
+     * gets a delta badge right of its value. Absent / null means no comparison at all: the panel
+     * then renders exactly the nodes it rendered before this prop existed (PR-MEMTOP-024).
+     */
+    baseline?: MemoryTopologyModel | null;
+    /**
+     * Multi-baseline comparison (对比基线): every comparison row's own topology
+     * for the badge hover popup. `baseline` (row 0) still paints the inline
+     * badges; the other rows surface only in the popup.
+     */
+    baselineRows?: { label: string; model: MemoryTopologyModel }[];
   }>(),
   // `locale: undefined` is what `t()` already does with an absent prop (`resolveLocale` falls
   // back), but the linter needs the key present to see the optional prop as intentional.
@@ -265,6 +337,8 @@ const props = withDefaults(
     wheelGestures: false,
     selectableUnits: false,
     selectedUnit: null,
+    baseline: undefined,
+    baselineRows: () => [],
   },
 );
 
@@ -325,7 +399,7 @@ const values = computed(() =>
 
 /** DATA-20 plate text: `{n}%` from `peakPct`, else the `l2-hit` edge label. */
 const peakText = computed(() =>
-  l2PeakPct.value != null ? `${l2PeakPct.value.toFixed(2)}%` : label('l2-hit'),
+  l2PeakPct.value != null ? formatAsidePct(l2PeakPct.value) : label('l2-hit'),
 );
 
 /**
@@ -336,11 +410,323 @@ const peakText = computed(() =>
  */
 const plates = computed(() =>
   TOPOLOGY_PLATE_NODE_IDS.flatMap((node) => {
-    const text = props.model?.plates?.find((p) => p.node === node)?.label;
+    const plate = props.model?.plates?.find((p) => p.node === node);
+    const text = plate?.label;
     if (!text) return [];
-    return PLATE_SLOTS[node].map(([x, y], i) => ({ node, x, y, key: `plate-${node}-${i}`, text }));
+    return PLATE_SLOTS[node].map(([x, y], i) => ({
+      node,
+      x,
+      y,
+      key: `plate-${node}-${i}`,
+      text,
+      /** Numeric percent behind `label` (PR-VM-028); absent on a hand-built label-only model. */
+      value: plate.value,
+    }));
   }),
 );
+
+/** One 对比基线 badge. The SVG paints ONLY the circle + arrow; `text` / `direction` live in the
+ *  `<title>` and the hidden description (the SVG is `role="img"`, so its own `<title>` is not the
+ *  surfaced alternative — the summary is) and in the hover popup. */
+interface DiffBadge {
+  /** `topo-diff-{node}-{slot}` / `topo-diff-l2-peak` — deliberately outside the `plate-` and
+   *  `edge-` testid prefixes, which existing tests use to count the drawn values. */
+  testid: string;
+  /** Plate key or `peak` — the comparison this badge belongs to; stable across baseline switches. */
+  sourceKey: string;
+  /** Slot whose frame caps the circle's size. */
+  node: TopologyPlateNodeId | 'peak';
+  /** Circle centre x (the value's own centre — the badge sits BELOW it, horizontally centred). */
+  x: number;
+  /** Circle centre y (just under the value's ink). */
+  y: number;
+  /** Circle diameter in chrome units (shrunk inside shallow frames). */
+  diameter: number;
+  tone: DiffTone;
+  text: string;
+  direction: string;
+  /** FULL arrow path in chrome units (shaft + head): up for `increase`, down for `decrease`. */
+  arrow: string;
+}
+
+function makeBadge(
+  sourceKey: string,
+  testid: string,
+  node: TopologyPlateNodeId | 'peak',
+  valueCx: number,
+  valueCy: number,
+  diff: MetricDiff,
+): DiffBadge {
+  const { x: cx, y: badgeY, diameter: badgeD } = diffBadgeGeometry(node, valueCx, valueCy);
+  const text = formatAsidePct(diff.magnitude);
+  // Full arrow: a vertical shaft plus a two-stroke head joined at the tip. Both scale with the
+  // circle (shaft half-length 0.23d, head half-width 0.2d) so a shrunk badge keeps its drawing.
+  const shaft = 0.23 * badgeD;
+  const head = 0.2 * badgeD;
+  const arrow =
+    diff.tone === 'increase'
+      ? `M${cx} ${badgeY + shaft} L${cx} ${badgeY - shaft} M${cx - head} ${badgeY - 0.05} L${cx} ${badgeY - shaft} L${cx + head} ${badgeY - 0.05}`
+      : `M${cx} ${badgeY - shaft} L${cx} ${badgeY + shaft} M${cx - head} ${badgeY + 0.05} L${cx} ${badgeY + shaft} L${cx + head} ${badgeY + 0.05}`;
+  return {
+    sourceKey,
+    testid,
+    node,
+    x: cx,
+    y: badgeY,
+    diameter: badgeD,
+    tone: diff.tone,
+    text,
+    direction: t(
+      diff.tone === 'increase' ? 'diffIncreased' : 'diffDecreased',
+      props.locale,
+    ),
+    arrow,
+  };
+}
+
+/**
+ * 对比基线, plate half (PR-MEMTOP-025): every in-box percentage that also exists in the baseline
+ * model, diffed by `metricDiff` (delta = baseline − current; negative = increased = red up).
+ * Only the adapter's numeric `value` is comparable — a label-only hand-built plate has no number
+ * and paints no badge rather than diffing a formatted string.
+ */
+const plateDiffs = computed<DiffBadge[]>(() => {
+  const baseline = props.baseline;
+  if (!baseline?.plates?.length) return [];
+  return plates.value.flatMap((p) => {
+    const baselinePlate = baseline.plates?.find((bp) => bp.node === p.node);
+    const diff = metricDiff(p.value, baselinePlate?.value);
+    // metricDiff already drops missing/equal pairs; a delta that trims to `0` has no visible
+    // badge either (the same rule SummaryCategoryList uses).
+    if (!diff || asideRoundsToZero(diff.magnitude)) return [];
+    return [
+      makeBadge(
+        p.key,
+        p.key.replace(/^plate-/, 'topo-diff-'),
+        p.node,
+        p.x,
+        p.y,
+        diff,
+      ),
+    ];
+  });
+});
+
+/**
+ * 对比基线, L2 peak half (PR-MEMTOP-026): diffed only when BOTH sides carry the numeric
+ * `peakPct`. The `l2-hit` fallback label is a string plate, not a comparable percentage, and is
+ * never parsed.
+ */
+const peakDiff = computed<DiffBadge | null>(() => {
+  const baselinePeak = props.baseline?.nodes.find((n) => n.id === 'l2')?.peakPct;
+  const diff = metricDiff(l2PeakPct.value, baselinePeak);
+  if (!diff || asideRoundsToZero(diff.magnitude)) return null;
+  return makeBadge('peak', 'topo-diff-l2-peak', 'peak', L2_PEAK_SLOT[0], L2_PEAK_SLOT[1], diff);
+});
+
+/* ===== One unit control: title + value + badge =====
+ * The words these boxes need are baked into the chrome image, so the control covers its box
+ * (fill + border redrawn) and paints ONE reusable block: the word, then the value when the
+ * model carries one, then the comparison badge when a diff exists. Row gaps are the confirmed
+ * SIMT-next-to-VEC values (8.73 / 6.6 centres); the badge is its confirmed 4.7-unit circle
+ * enlarged by one third (× 4/3). Every unit control is vertically centred in its box. */
+const CONTROL_BADGE_D = (4.7 * 4) / 3;
+const CONTROL_ROWS = {
+  valueH: 4.5,
+  titleToValue: 8.73,
+  /** Value-centre → badge-centre: the confirmed 5.6 pitch dropped a further 1 unit. */
+  valueToBadge: 6.6,
+} as const;
+
+interface UnitControlConfig {
+  id: UnitWordKey;
+  node: TopologyPlateNodeId | 'peak';
+  box: { x: number; y: number; w: number; h: number; rx: number; fill: string };
+  center: boolean;
+  /** Export word centre for a non-centred control. */
+  wordCenterY: number;
+}
+
+const UNIT_CONTROLS: UnitControlConfig[] = [
+  { id: 'simt', node: 'simt', box: { x: 356, y: 293, w: 27, h: 53, rx: 2, fill: 'rgb(102,140,247)' }, center: true, wordCenterY: 316.57 },
+  { id: 'vec', node: 'vec', box: { x: 356, y: 348, w: 27, h: 28, rx: 2, fill: 'rgb(102,140,247)' }, center: true, wordCenterY: 359.07 },
+  { id: 'aiv_scalar', node: 'aiv_scalar', box: { x: 256, y: 301, w: 52, h: 28, rx: 2, fill: 'rgb(132,163,248)' }, center: true, wordCenterY: 309.07 },
+  { id: 'cube', node: 'cube', box: { x: 322, y: 54, w: 32, h: 69, rx: 2, fill: 'rgb(54,193,141)' }, center: true, wordCenterY: 84.57 },
+  { id: 'aic_scalar', node: 'aic_scalar', box: { x: 294, y: 164, w: 32, h: 27, rx: 2, fill: 'rgb(54,193,141)' }, center: true, wordCenterY: 174.99 },
+  { id: 'aiv_scalar_unit', node: 'aiv_scalar_unit', box: { x: 294, y: 233, w: 32, h: 27, rx: 2, fill: 'rgb(54,193,141)' }, center: true, wordCenterY: 246.0 },
+  { id: 'peak', node: 'peak', box: { x: 94, y: 16, w: 40, h: 391, rx: 2, fill: 'rgb(102,114,148)' }, center: true, wordCenterY: 204.5 },
+];
+
+function controlArrow(x: number, y: number, d: number, tone: DiffTone): string {
+  const shaft = 0.23 * d;
+  const head = 0.2 * d;
+  return tone === 'increase'
+    ? `M${x} ${y + shaft} L${x} ${y - shaft} M${x - head} ${y - 0.05} L${x} ${y - shaft} L${x + head} ${y - 0.05}`
+    : `M${x} ${y - shaft} L${x} ${y + shaft} M${x - head} ${y + 0.05} L${x} ${y + shaft} L${x + head} ${y + 0.05}`;
+}
+
+const unitControls = computed(() =>
+  UNIT_CONTROLS.map((cfg) => {
+    const plate = cfg.node === 'peak' ? null : plates.value.find((p) => p.node === cfg.node);
+    const text = cfg.node === 'peak' ? peakText.value : plate?.text;
+    const diff = cfg.node === 'peak'
+      ? peakDiff.value
+      : plateDiffs.value.find((b) => b.node === cfg.node);
+    const hasValue = !!text;
+    const hasBadge = hasValue && !!diff;
+    const word = UNIT_WORD_GLYPHS[cfg.id];
+    const titleH = word.abs.h;
+    const valueGap = CONTROL_ROWS.titleToValue - titleH / 2 - CONTROL_ROWS.valueH / 2;
+    const badgeGap = CONTROL_ROWS.valueToBadge - CONTROL_ROWS.valueH / 2 - CONTROL_BADGE_D / 2;
+    const blockH =
+      titleH +
+      (hasValue ? valueGap + CONTROL_ROWS.valueH : 0) +
+      (hasBadge ? badgeGap + CONTROL_BADGE_D : 0);
+    const top = cfg.center
+      ? cfg.box.y + (cfg.box.h - blockH) / 2
+      : cfg.wordCenterY - titleH / 2;
+    const cx = cfg.box.x + cfg.box.w / 2;
+    const titleY = top + titleH / 2;
+    const valueY = top + titleH + valueGap + CONTROL_ROWS.valueH / 2;
+    const badgeY = valueY + CONTROL_ROWS.valueToBadge;
+    const valueTestid = cfg.node === 'peak'
+      ? (l2PeakPct.value != null ? 'node-l2-peak' : 'edge-l2-hit')
+      : plate?.key;
+    const valueKey = cfg.node === 'peak' ? 'peak' : plate?.key ?? '';
+    // ONE hover column over the painted block (title word → value → badge, plus
+    // the gaps between them): a single element cannot fire pointerleave/enter
+    // while the pointer travels inside the column, so the popup never flickers
+    // between its parts. It is deliberately NOT the whole control cover — the
+    // cover and the box's empty area stay click-through for the heat unit under
+    // them (PR-MEMTOP-021). Width comes from the widest row; jsdom / first paint
+    // fall back to a nominal width.
+    const paintedPx = fitted.value[valueKey] ?? BASE_FONT_PX;
+    const naturalW = measuredValueWidths.value[valueKey] ?? 0;
+    const valueW = naturalW > 0 ? naturalW * (paintedPx / BASE_FONT_PX) : FALLBACK_VALUE_W;
+    const blockW = Math.max(word.abs.w, valueW, CONTROL_BADGE_D) + 4;
+    const blockTop = Math.min(
+      titleY - word.abs.h / 2,
+      valueY - CONTROL_ROWS.valueH / 2,
+      badgeY - CONTROL_BADGE_D / 2,
+    );
+    const blockBottom = Math.max(
+      titleY + word.abs.h / 2,
+      valueY + CONTROL_ROWS.valueH / 2,
+      badgeY + CONTROL_BADGE_D / 2,
+    );
+    return {
+      ...cfg,
+      cx,
+      titleH,
+      titleY,
+      /** Move the export glyph so its ink centre lands on the control's title centre. */
+      wordTransform: `translate(${cx - (word.abs.x + word.abs.w / 2)} ${titleY - (word.abs.y + word.abs.h / 2)})`,
+      word,
+      value: hasValue
+        ? { x: cx, y: valueY, text: text ?? '', key: valueKey, testid: valueTestid }
+        : null,
+      badge: hasBadge && diff
+        ? {
+            x: cx,
+            y: badgeY,
+            d: CONTROL_BADGE_D,
+            arrow: controlArrow(cx, badgeY, CONTROL_BADGE_D, diff.tone),
+            tone: diff.tone,
+            text: diff.text,
+            direction: diff.direction,
+            sourceKey: diff.sourceKey,
+            testid: diff.testid,
+          }
+        : null,
+      hit: hasBadge && diff
+        ? {
+            x: cx - blockW / 2,
+            y: blockTop,
+            w: blockW,
+            h: blockBottom - blockTop,
+            sourceKey: diff.sourceKey,
+            testid: diff.testid.replace(/^topo-diff-/, 'topo-hit-'),
+          }
+        : null,
+    };
+  }),
+);
+
+
+/* ===== Comparison hover popup (对比基线) =====
+ * Row 0 paints the inline badge (no numbers on the SVG); hovering the block's
+ * ONE hover column (an invisible rect over the title word + percentage value +
+ * badge + the gaps between them) lists the current percentage + every
+ * comparison row's own percentage and delta, so a single baseline shows its
+ * values too. */
+
+const compareTip = ref<{ entries: BaselineTipRow[]; x: number; y: number } | null>(null);
+const TIP_MAX_W = 300;
+
+/** Fixed-position popup beside the pointer, flipping to stay inside the viewport. */
+const compareTipStyle = computed(() => {
+  const tip = compareTip.value;
+  if (!tip) return {};
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const toRight = tip.x + 12 + TIP_MAX_W <= vw;
+  const below = tip.y < vh / 2;
+  return {
+    left: toRight ? `${tip.x + 12}px` : 'auto',
+    right: toRight ? 'auto' : `${vw - tip.x + 12}px`,
+    top: below ? `${tip.y + 12}px` : 'auto',
+    bottom: below ? 'auto' : `${vh - tip.y + 12}px`,
+  };
+});
+
+/** `plate-{node}-{slot}` → node; `peak` → null (the L2 peak). */
+function plateNodeOf(sourceKey: string): TopologyPlateNodeId | null {
+  if (!sourceKey.startsWith('plate-')) return null;
+  const node = sourceKey.slice('plate-'.length).replace(/-\d+$/, '');
+  return (TOPOLOGY_PLATE_NODE_IDS as readonly string[]).includes(node)
+    ? (node as TopologyPlateNodeId)
+    : null;
+}
+
+function plateTipRows(sourceKey: string): BaselineTipRow[] | null {
+  const rows = (props.baselineRows ?? []).filter((r) => r.model);
+  if (rows.length === 0) return null;
+  const node = plateNodeOf(sourceKey);
+  const current = node == null
+    ? (sourceKey === 'peak' ? l2PeakPct.value : undefined)
+    : plates.value.find((p) => p.key === sourceKey)?.value;
+  if (current == null) return null;
+  const entries: BaselineTipRow[] = [
+    { label: t('compareCurrent', props.locale), value: formatAsidePct(current) },
+  ];
+  for (const row of rows) {
+    const value = node == null
+      ? row.model.nodes.find((n) => n.id === 'l2')?.peakPct
+      : row.model.plates?.find((p) => p.node === node)?.value;
+    if (value == null) continue;
+    const diff = metricDiff(current, value);
+    const show = diff != null && !asideRoundsToZero(diff.magnitude);
+    entries.push({
+      label: row.label,
+      value: formatAsidePct(value),
+      tone: show ? diff.tone : undefined,
+      delta: show ? formatAsidePct(diff.magnitude) : undefined,
+    });
+  }
+  return entries.length > 1 ? entries : null;
+}
+
+function openPlateTip(e: PointerEvent, sourceKey: string) {
+  const entries = plateTipRows(sourceKey);
+  if (!entries) return;
+  compareTip.value = { entries, x: e.clientX, y: e.clientY };
+}
+function movePlateTip(e: PointerEvent) {
+  if (compareTip.value) compareTip.value = { ...compareTip.value, x: e.clientX, y: e.clientY };
+}
+function closePlateTip() {
+  compareTip.value = null;
+}
 
 /** Unique per instance: the panel renders twice at once (stacked + fullscreen overlay). */
 const summaryId = useId();
@@ -353,8 +739,13 @@ const summaryId = useId();
  */
 const summary = computed(() => {
   const names = new Map((props.model?.nodes ?? []).map((n) => [n.id, n.label]));
+  const diffs = new Map(plateDiffs.value.map((d) => [d.sourceKey, d]));
   const parts: string[] = [];
-  if (peakText.value) parts.push(`${names.get('l2') ?? 'L2'}: ${peakText.value}`);
+  if (peakText.value) {
+    parts.push(
+      `${names.get('l2') ?? 'L2'}: ${peakText.value}${peakDiff.value ? ` (${peakDiff.value.direction} ${peakDiff.value.text})` : ''}`,
+    );
+  }
   const seen = new Set<string>();
   for (const v of values.value) {
     if (!v.text || seen.has(v.id)) continue;
@@ -368,7 +759,10 @@ const summary = computed(() => {
   for (const p of plates.value) {
     if (seen.has(p.node)) continue;
     seen.add(p.node);
-    parts.push(`${names.get(p.node) ?? p.node}: ${p.text}`);
+    const diff = diffs.get(p.key);
+    parts.push(
+      `${names.get(p.node) ?? p.node}: ${p.text}${diff ? ` (${diff.direction} ${diff.text})` : ''}`,
+    );
   }
   return parts.join('; ');
 });
@@ -383,9 +777,19 @@ const measureTwin = ref<SVGTextElement | null>(null);
 /** Per-slot type size, set only where a value outgrows its slot (PR-MEMTOP-010). */
 const fitted = ref<Record<string, number>>({});
 
+/** Natural width of each plate / peak value at the base type size — the compared
+ *  block's hover column (PR-MEMTOP-029) spans the widest of its rows. Empty in
+ *  jsdom (no SVG text metrics), where the column falls back to a nominal width. */
+const measuredValueWidths = ref<Record<string, number>>({});
+
+/** jsdom / first paint have no text metrics yet: keep the hover column wide
+ *  enough for a typical `000.00%` readout. */
+const FALLBACK_VALUE_W = 24;
+
 watchEffect(() => {
   const el = measureTwin.value;
   const next: Record<string, number> = {};
+  const widths: Record<string, number> = {};
   if (el && typeof el.getComputedTextLength === 'function') {
     const measure = (text: string): number => {
       if (!text) return 0;
@@ -398,20 +802,25 @@ watchEffect(() => {
     }
     // In-box badges get their own, tighter wall table — they sit inside a box, not a corridor.
     for (const p of plates.value) {
-      const px = fitFontSize(measure(p.text), p.node, BASE_FONT_PX, PLATE_MAX_W);
+      const w = measure(p.text);
+      widths[p.key] = w;
+      const px = fitFontSize(w, p.node, BASE_FONT_PX, PLATE_MAX_W);
       if (px < BASE_FONT_PX) next[p.key] = px;
     }
     const peak = measure(peakText.value ?? '');
+    widths.peak = peak;
     const peakPx = fitFontSize(peak, 'l2-peak');
     if (peakPx < BASE_FONT_PX) next.peak = peakPx;
   }
   fitted.value = next;
+  measuredValueWidths.value = widths;
 });
 
 function fitStyle(key: string): { fontSize: string } | undefined {
   const px = fitted.value[key];
   return px != null ? { fontSize: `${px}px` } : undefined;
 }
+
 
 /** Bar state. Per panel instance — the stacked aside and the root overlay each keep their own
  *  zoom, so covering the report (a re-mount) starts the fullscreen diagram at 100%. */
@@ -842,19 +1251,148 @@ onBeforeUnmount(stopZoomAnim);
                 height="391"
               />
 
-              <!-- DATA-20 L2 Peak(%) in the export's in-box plate under L2 Cache. The plate holds
-                 `peakPct` when the node carries one, else the `l2-hit` edge label — one plate, so one
-                 element; the testid still tells the two sources apart. -->
-              <text
-                v-if="peakText"
-                x="114.1"
-                y="218.3"
-                text-anchor="middle"
-                dominant-baseline="middle"
-                class="pr-topo__pct"
-                :style="fitStyle('peak')"
-                :data-testid="l2PeakPct != null ? 'node-l2-peak' : 'edge-l2-hit'"
-              >{{ peakText }}</text>
+              <!-- ONE unit control, reused for every plated box (UI-49 + 对比基线): the export
+                 word is covered and redrawn, then the value (when the model carries one) and the
+                 comparison badge (when a diff exists) stack under it with fixed gaps. Three rows
+                 with a badge, two with only a value, one with neither. Every box is vertically
+                 centred.
+
+                 The compared block carries ONE transparent hover column (PR-MEMTOP-029)
+                 over its painted rows — title word, value, badge and the gaps between
+                 them — so moving inside it never re-enters the target and the popup does
+                 not flicker. The rest of the control stays click-through for the heat
+                 unit underneath (PR-MEMTOP-021). -->
+              <g
+                v-for="c in unitControls"
+                :key="c.id"
+                class="pr-topo__unit-control"
+                :data-testid="`unit-control-${c.id}`"
+              >
+                <rect
+                  :x="c.box.x"
+                  :y="c.box.y"
+                  :width="c.box.w"
+                  :height="c.box.h"
+                  :rx="c.box.rx"
+                  :fill="c.box.fill"
+                />
+                <rect
+                  :x="c.box.x + 0.5"
+                  :y="c.box.y + 0.5"
+                  :width="c.box.w - 1"
+                  :height="c.box.h - 1"
+                  :rx="Math.max(0, c.box.rx - 0.5)"
+                  fill="none"
+                  stroke="rgb(255, 255, 255)"
+                  stroke-opacity="0.2"
+                  stroke-width="1"
+                />
+                <g
+                  :transform="c.wordTransform"
+                  :data-testid="`unit-title-${c.id}`"
+                >
+                  <path
+                    :d="c.word.d"
+                    :fill="c.word.fill"
+                  />
+                </g>
+                <text
+                  v-if="c.value"
+                  :x="c.value.x"
+                  :y="c.value.y"
+                  text-anchor="middle"
+                  dominant-baseline="middle"
+                  class="pr-topo__pct"
+                  :style="fitStyle(c.value.key)"
+                  :data-testid="c.value.testid"
+                >{{ c.value.text }}</text>
+                <g
+                  v-if="c.badge"
+                  class="pr-topo__diff"
+                  :class="`pr-topo__diff--${c.badge.tone}`"
+                  :data-testid="c.badge.testid"
+                >
+                  <rect
+                    class="pr-topo__diff-box"
+                    :x="c.badge.x - c.badge.d / 2"
+                    :y="c.badge.y - c.badge.d / 2"
+                    :width="c.badge.d"
+                    :height="c.badge.d"
+                    :rx="c.badge.d / 2"
+                  />
+                  <path
+                    class="pr-topo__diff-arrow"
+                    :d="c.badge.arrow"
+                    fill="none"
+                    stroke-width="0.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </g>
+                <!-- The compared block's ONE hover target: an invisible column over
+                     the painted rows (PR-MEMTOP-029). Painted last so it catches the
+                     pointer across the title/value/badge and the gaps between them. -->
+                <rect
+                  v-if="c.hit"
+                  class="pr-topo__unit-hit"
+                  :x="c.hit.x"
+                  :y="c.hit.y"
+                  :width="c.hit.w"
+                  :height="c.hit.h"
+                  fill="none"
+                  :data-testid="c.hit.testid"
+                  @pointerenter="c.hit && openPlateTip($event, c.hit.sourceKey)"
+                  @pointermove="movePlateTip"
+                  @pointerleave="closePlateTip"
+                />
+              </g>
+
+              <!-- The SIMT and SIMD boxes grew 5 units to the LEFT over the export arrowheads
+                 that pointed at their old edge; redraw the SAME export head glyphs, shifted 5
+                 units so their tips land on the new left border. -->
+              <g
+                class="pr-topo__edge-head"
+                transform="translate(-5 0)"
+              >
+                <path
+                  d="M3.5703 5.9626L0.142423 3.2388C-0.0474744 3.1326 -0.0474744 2.86695 0.142423 2.76075L3.5703 0.037439C3.76019 -0.0687629 4 0.0635494 4 0.276223L4 5.72381C4 5.93622 3.76019 6.0688 3.5703 5.9626Z"
+                  transform="matrix(-1,0,0,1,361,305)"
+                  fill="rgb(128,128,128)"
+                />
+                <path
+                  d="M3.5703 5.9626L0.142423 3.2388C-0.0474744 3.1326 -0.0474744 2.86695 0.142423 2.76075L3.5703 0.037439C3.76019 -0.0687629 4 0.0635494 4 0.276223L4 5.72381C4 5.93622 3.76019 6.0688 3.5703 5.9626Z"
+                  transform="matrix(-1,0,0,1,361,318)"
+                  fill="rgb(128,128,128)"
+                />
+                <path
+                  d="M3.5703 5.9626L0.142423 3.2388C-0.0474744 3.1326 -0.0474744 2.86695 0.142423 2.76075L3.5703 0.037439C3.76019 -0.0687629 4 0.0635494 4 0.276223L4 5.72381C4 5.93622 3.76019 6.0688 3.5703 5.9626Z"
+                  transform="matrix(-1,0,0,1,361,353)"
+                  fill="rgb(57,121,249)"
+                />
+              </g>
+              <!-- AIC Scalar moved 2 down: erase the old export head under the new bottom border,
+                 then redraw the SAME glyph with its tip on the new bottom border. -->
+              <rect
+                x="306.8"
+                y="191"
+                width="7.2"
+                height="2.4"
+                fill="rgb(45,45,45)"
+              />
+              <path
+                class="pr-topo__edge-head"
+                d="M3.7322 6.64897L0.148882 3.61163C-0.0496273 3.4932 -0.0496273 3.19697 0.148882 3.07854L3.7322 0.0417487C3.93071 -0.0766785 4.18139 0.0708648 4.18139 0.30802L4.18139 6.3827C4.18139 6.61955 3.93071 6.7674 3.7322 6.64897Z"
+                transform="translate(0 2) matrix(0,1,1,0,307.027,189)"
+                fill="rgb(128,128,128)"
+              />
+              <!-- AIV Scalar grew 5 up: the head coming into its top follows (same export glyph,
+                 tip on the new top border); the taller box already covers the old head. -->
+              <path
+                class="pr-topo__edge-head"
+                d="M3.5703 5.9626L0.142423 3.2388C-0.0474744 3.1326 -0.0474744 2.86695 0.142423 2.76075L3.5703 0.037439C3.76019 -0.0687629 4 0.0635494 4 0.276223L4 5.72381C4 5.93622 3.76019 6.0688 3.5703 5.9626Z"
+                transform="translate(0 -5) matrix(0,-1,-1,-0,313.291,238.3)"
+                fill="rgb(128,128,128)"
+              />
 
               <text
                 v-for="v in values"
@@ -868,31 +1406,15 @@ onBeforeUnmount(stopZoomAnim);
                 :data-testid="`edge-${v.key}`"
               >{{ v.text }}</text>
 
-              <!-- UI-49 in-box unit-utilization badges (`Scalar` / `Vec` / `Cube`), under each box's own
-             word as in the sketch. Only units with a producer field get a slot, so the sketch's
-             four field-less badge positions (AIV0/AIV1 `SIMT`, AIC `Scalar`, `FixP`) stay blank —
-             the producer's `SIMD VF` `NA` rows name the painted `Vec` position. -->
-              <text
-                v-for="p in plates"
-                :key="p.key"
-                :x="p.x"
-                :y="p.y"
-                text-anchor="middle"
-                dominant-baseline="middle"
-                class="pr-topo__pct"
-                :style="fitStyle(p.key)"
-                :data-testid="p.key"
-              >{{ p.text }}</text>
-
-              <text
-                ref="measureTwin"
-                class="pr-topo__edge"
-                x="-1000"
-                y="-1000"
-                opacity="0"
-                aria-hidden="true"
-              />
-            </template>
+        <text
+          ref="measureTwin"
+          class="pr-topo__edge"
+          x="-1000"
+          y="-1000"
+          opacity="0"
+          aria-hidden="true"
+        />
+      </template>
           </svg>
         </div>
       </div>
@@ -1035,6 +1557,42 @@ onBeforeUnmount(stopZoomAnim);
       :id="summaryId"
       class="pr-topo__sr"
     >{{ summary }}</span>
+
+    <!-- Multi-baseline badge popup (对比基线): teleported to `body`, so no panel
+         or overlay overflow can crop it. -->
+    <Teleport to="body">
+      <div
+        v-if="compareTip"
+        class="pr-topo-compare-tip"
+        role="tooltip"
+        data-testid="topology-compare-tip"
+        :style="compareTipStyle"
+      >
+        <div
+          v-for="(entry, i) in compareTip.entries"
+          :key="i"
+          class="pr-topo-compare-tip__row"
+          :class="{ 'pr-topo-compare-tip__row--current': !entry.tone }"
+          :data-testid="`topology-compare-tip-row-${i + 1}`"
+        >
+          <span class="pr-topo-compare-tip__label">{{ entry.label }}</span>
+          <span class="pr-topo-compare-tip__value">{{ entry.value }}</span>
+          <span
+            v-if="entry.tone && entry.delta"
+            class="pr-topo-compare-tip__delta"
+            :class="`pr-topo-compare-tip__delta--${entry.tone}`"
+          >
+            <span
+              class="pr-topo-compare-tip__badge"
+              aria-hidden="true"
+            >
+              <PrIcon :name="entry.tone === 'increase' ? 'diff-up' : 'diff-down'" />
+            </span>
+            <span class="pr-topo-compare-tip__delta-text">{{ entry.delta }}</span>
+          </span>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1225,11 +1783,46 @@ onBeforeUnmount(stopZoomAnim);
 /* Same size/weight as the edge values: the export's in-box `%` numbers are the same type
  * (measured cap 4.25 units, ink fill ≈ the 800 weight). Colour is the export's pure white.
  * One rule for the L2 plate, whichever source fills it (Peak% or `l2-hit`), and for the UI-49
- * in-box unit-utilization badges (Scalar / Vec / Cube). */
+ * in-box unit-utilization badges (Scalar / Vec / Cube / SIMT / AIC Scalar / AIV Scalar unit). */
+/* The control's opaque cover + redrawn chrome must stay click-through: the
+ * heat unit hit boxes are painted under it (PR-MEMTOP-021), and a cover that
+ * took pointer events punched a hole in the UB target wherever a unit sits
+ * inside another unit's container. Only the compared block's invisible hover
+ * column goes live (PR-MEMTOP-029): it spans the painted rows (title word,
+ * value, badge and the gaps between them) as ONE element, so moving inside it
+ * never leaves/re-enters the target and the popup cannot flicker — while the
+ * cover and the box's empty area keep handing clicks/hover to the heat unit. */
+.pr-topo__unit-control {
+  pointer-events: none;
+}
+
+.pr-topo__unit-hit {
+  pointer-events: all;
+}
+
 .pr-topo__pct {
   fill: #fff;
   font-size: 6.3px;
   font-weight: 800;
+}
+
+/* Unit-control titles are the export's own outlined word paths (`unitWordPaths.ts`) —
+ * exact chrome font, not an HTML text face. */
+
+/* 对比基线 badge (PR-MEMTOP-027): `SummaryDiffIndicator`'s chrome re-created at the diagram's
+ * own scale — the 1130 mockup's badge: a WHITE circle carrying a full tone arrow (shaft + head),
+ * and the unsigned delta in WHITE at the value's own size and weight, right of the circle. Green
+ * is the default (decrease); the increase class repaints the arrow red. */
+.pr-topo__diff-box {
+  fill: #ffffff;
+}
+
+.pr-topo__diff-arrow {
+  stroke: #88c858;
+}
+
+.pr-topo__diff--increase .pr-topo__diff-arrow {
+  stroke: #e7434a;
 }
 
 /* Visually hidden, still in the a11y tree: the diagram's text alternative (PR-MEMTOP-011).
@@ -1243,5 +1836,88 @@ onBeforeUnmount(stopZoomAnim);
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+/* Multi-baseline badge popup (对比基线): the house tooltip chrome, teleported to `body`. */
+/* Same box as the shared baseline popup (1130 export): 12px radius, 12px inset,
+ * 16px rows on an 8px pitch. Values right-align to one edge, delta chips start
+ * at one left edge — two fixed columns so nothing shifts row to row. */
+.pr-topo-compare-tip {
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 192px;
+  max-width: 360px;
+  display: grid;
+  grid-template-columns: max-content 76px max-content;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  background: #262626;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.pr-topo-compare-tip__row {
+  display: contents;
+  white-space: nowrap;
+}
+
+/* The CURRENT percentage spans the value+delta columns and right-aligns to the
+ * box's top-right corner (flush with the 12px inset). */
+.pr-topo-compare-tip__row--current .pr-topo-compare-tip__value {
+  grid-column: 2 / -1;
+  text-align: right;
+}
+
+.pr-topo-compare-tip__label {
+  color: #b3b3b3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pr-topo-compare-tip__value {
+  color: #ffffff;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-topo-compare-tip__delta {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #e6e6e6;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-topo-compare-tip__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(136, 200, 88, 0.2);
+  color: #88c858;
+  line-height: 0;
+}
+
+/* The popup badge uses the SAME mask icons as SummaryDiffIndicator's inline and
+ * popup chips (thick shaft, filled head), never a font arrow glyph. */
+.pr-topo-compare-tip__badge :deep(.pr-icon) {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+}
+
+.pr-topo-compare-tip__delta--increase .pr-topo-compare-tip__badge {
+  background: rgba(231, 67, 74, 0.2);
+  color: #e7434a;
 }
 </style>

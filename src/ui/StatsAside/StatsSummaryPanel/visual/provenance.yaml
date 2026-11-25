@@ -12,3 +12,7 @@ crops:
     source: v930/report-stats-duration-2026-10-21
     region: "报告统计 frame with 整体耗时 hover list (计算/通信/通算重叠/头开销 times)"
     note: "2026-10-21 Product mock; tooltip has no 迭代/核 row"
+  baseline-diff-badge.png:
+    source: 1130/baseline-compare
+    region: "AICore card row, 方案一: green down badge (并行使用率) + red up badge (负载均衡度) with 5%/8% deltas"
+    box: { x: 880, y: 1810, w: 560, h: 140 }
