@@ -534,9 +534,15 @@ export interface SourceFileModel {
   lines: SourceLineMetrics[];
   /**
    * Total 1-based line extent for the metrics table / editor sync when `lines`
-   * is sparse (emulate source pads `text` to this length for Sudu carets).
+   * is sparse (emulate source pads `text` to this length).
    */
   lineCount?: number;
+  /**
+   * Emulate pack: only the reported lines are known, so the editor renders a
+   * mapped document (reported lines + blank gap rows between runs) instead of
+   * the padded `text`. Metrics rows follow the same collapsed order.
+   */
+  sparse?: boolean;
   /**
    * Source line (1-based) → assembly line numbers. On source files only;
    * omitted / empty on the assembly buffer.

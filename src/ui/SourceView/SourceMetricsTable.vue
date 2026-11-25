@@ -8,6 +8,7 @@ import type {
 import { t } from '../../i18n';
 import { highlightParts } from '../searchHighlight';
 import { SOURCE_TAB_MONO_FAMILY } from './sourceFonts';
+import { sparseDocumentLines } from './sourceDocument';
 import {
   ensureSourceColWidths,
   sourceColCanResize,
@@ -225,14 +226,21 @@ let bodyRo: ResizeObserver | null = null;
 
 const rowH = computed(() => props.rowHeightCss || 20);
 
-/** Dense asm uses `lines.length`; sparse emulate source uses `lineCount`. */
+/** Dense asm uses `lines.length`; sparse emulate uses its collapsed document. */
+const sparseRows = computed<number[] | null>(() =>
+  props.file.sparse ? sparseDocumentLines(props.file.lines) : null,
+);
+
 const lineExtent = computed(() => {
+  const sparse = sparseRows.value;
+  if (sparse) return sparse.length;
   const n = props.file.lineCount;
   if (typeof n === 'number' && n > 0) return n;
   return props.file.lines.length;
 });
 
 const sparseMetrics = computed(() => {
+  if (props.file.sparse) return true;
   const n = props.file.lineCount;
   return typeof n === 'number' && n > 0 && n !== props.file.lines.length;
 });
@@ -257,6 +265,15 @@ function rowForLine(line: number): SourceLineMetrics {
   return metricsByLine.value.get(line) ?? placeholderRow(line);
 }
 
+/** One rendered document row. `line` null marks a blank gap between source runs. */
+interface TableRow {
+  /** 1-based document row — scroll position and Vue key. */
+  doc: number;
+  /** Source line, or null for a blank gap row. */
+  line: number | null;
+  metrics: SourceLineMetrics | null;
+}
+
 const windowStart = computed(() => {
   const n = lineExtent.value;
   if (n === 0 || !virtualize.value) return 0;
@@ -264,18 +281,27 @@ const windowStart = computed(() => {
   return Math.max(0, Math.min(raw, n - 1));
 });
 
-const windowRows = computed(() => {
+const windowRows = computed<TableRow[]>(() => {
   const n = lineExtent.value;
-  if (n === 0) return [] as SourceLineMetrics[];
-  if (!virtualize.value && !sparseMetrics.value) return props.file.lines;
+  if (n === 0) return [] as TableRow[];
+  const sparse = sparseRows.value;
+  if (sparse == null && !virtualize.value && !sparseMetrics.value) {
+    return props.file.lines.map((row) => ({ doc: row.line, line: row.line, metrics: row }));
+  }
   const measured =
     viewportHeight.value > 0 ? Math.ceil(viewportHeight.value / rowH.value) : 0;
   const vp = Math.max(FALLBACK_VIEWPORT_ROWS, measured);
   const start = windowStart.value;
   const count = Math.min(n - start, virtualize.value ? vp + ROW_OVERSCAN * 2 : n);
-  const out: SourceLineMetrics[] = [];
+  const out: TableRow[] = [];
   for (let i = 0; i < count; i++) {
-    out.push(rowForLine(start + i + 1));
+    const index = start + i;
+    const line = sparse ? (sparse[index] ?? 0) : index + 1;
+    out.push(
+      line > 0
+        ? { doc: index + 1, line, metrics: rowForLine(line) }
+        : { doc: index + 1, line: null, metrics: null },
+    );
   }
   return out;
 });
@@ -319,13 +345,24 @@ function setScrollLeft(left: number) {
   if (headEl.value) headEl.value.scrollLeft = left;
 }
 
-/** Bring a 1-based line into view (works with the virtual window). */
+/** Bring a 1-based source line into view (works with the virtual window). */
 function scrollToLine(line: number) {
   const el = scrollEl.value;
   if (!el) return;
+  const sparse = sparseRows.value;
+  if (sparse) {
+    const row = sparse.indexOf(line) + 1;
+    if (row < 1) return;
+    scrollToDocRow(el, row);
+    return;
+  }
   if (line < 1 || line > lineExtent.value) return;
+  scrollToDocRow(el, line);
+}
+
+function scrollToDocRow(el: HTMLElement, row: number) {
   const h = rowH.value;
-  const top = (line - 1) * h;
+  const top = (row - 1) * h;
   const view = el.clientHeight || viewportHeight.value || h * FALLBACK_VIEWPORT_ROWS;
   // One policy: place the line about a third down the viewport (no scrollIntoView).
   const next = Math.max(0, top - Math.floor(view / 3));
@@ -370,15 +407,15 @@ function isTextCol(col: { id: string; kind: string }): boolean {
 
 const colSpan = computed(() => columns.value.length + (props.showLineNumbers ? 1 : 0));
 
-function isZeroMetric(row: SourceLineMetrics): boolean {
+function isZeroMetric(row: SourceLineMetrics | null): boolean {
   const colId = props.dimZeroFor;
-  if (!colId) return false;
+  if (!colId || !row) return false;
   const v = row.values[colId];
   return v == null || v === '' || v === 0;
 }
 
-function cellText(row: SourceLineMetrics, colId: string): string {
-  const v = row.values[colId];
+function cellText(row: SourceLineMetrics | null, colId: string): string {
+  const v = row?.values[colId];
   if (v == null) return '';
   if (typeof v === 'number') {
     const col = props.file.metricsColumns.find((c) => c.id === colId);
@@ -391,15 +428,15 @@ function cellText(row: SourceLineMetrics, colId: string): string {
 }
 
 /** Assembly search chips (same tokens as Compute Load CSV field list). */
-function assemblyHighlightParts(row: SourceLineMetrics) {
+function assemblyHighlightParts(row: SourceLineMetrics | null, line: number | null) {
   const text = cellText(row, 'assembly');
   const q = props.searchQuery?.trim() ?? '';
-  if (!q || !matchSet.value.has(row.line)) return [{ text, match: false as const }];
+  if (!q || line == null || !matchSet.value.has(line)) return [{ text, match: false as const }];
   return highlightParts(text, q);
 }
 
-function barWidth(row: SourceLineMetrics, colId: string): number {
-  const v = row.values[colId];
+function barWidth(row: SourceLineMetrics | null, colId: string): number {
+  const v = row?.values[colId];
   if (typeof v !== 'number' || v <= 0) return 0;
   const col = props.file.metricsColumns.find((c) => c.id === colId);
   if (col?.kind === 'bar' && v <= 1) return Math.min(100, v * 100);
@@ -407,8 +444,8 @@ function barWidth(row: SourceLineMetrics, colId: string): number {
   return Math.min(100, (v / max) * 100);
 }
 
-function onStallEnter(e: MouseEvent, row: SourceLineMetrics) {
-  if (!row.stallBreakdown?.length) return;
+function onStallEnter(e: MouseEvent, row: SourceLineMetrics | null) {
+  if (!row?.stallBreakdown?.length) return;
   const total = row.stallBreakdown.reduce((s, r) => s + r.value, 0);
   const el = e.currentTarget instanceof HTMLElement ? e.currentTarget : null;
   const box = el?.getBoundingClientRect();
@@ -536,16 +573,17 @@ const styleVars = computed(() => {
           </tr>
           <tr
             v-for="row in windowRows"
-            :key="row.line"
-            :data-line="row.line"
+            :key="row.doc"
+            :data-line="row.line ?? undefined"
             :class="{
-              'pr-src-metrics__row--current': currentLine === row.line,
-              'pr-src-metrics__row--correlated': correlatedSet.has(row.line),
-              'pr-src-metrics__row--match': matchSet.has(row.line),
-              'pr-src-metrics__row--dim': isZeroMetric(row),
+              'pr-src-metrics__row--current': row.line != null && currentLine === row.line,
+              'pr-src-metrics__row--correlated': row.line != null && correlatedSet.has(row.line),
+              'pr-src-metrics__row--match': row.line != null && matchSet.has(row.line),
+              'pr-src-metrics__row--dim': isZeroMetric(row.metrics),
+              'pr-src-metrics__row--gap': row.line == null,
             }"
             :style="{ height: `${rowHeightCss || 20}px` }"
-            @click="emit('row-click', row.line)"
+            @click="row.line != null && emit('row-click', row.line)"
           >
             <td
               v-if="showLineNumbers"
@@ -565,7 +603,7 @@ const styleVars = computed(() => {
                 'pr-src-metrics__asm': col.id === 'assembly',
                 'pr-src-metrics__bar-cell': col.kind === 'bar',
               }"
-              @mouseenter="col.id === 'samplingStall' ? onStallEnter($event, row) : undefined"
+              @mouseenter="col.id === 'samplingStall' ? onStallEnter($event, row.metrics) : undefined"
               @mouseleave="col.id === 'samplingStall' ? onStallLeave() : undefined"
             >
               <template v-if="col.kind === 'bar'">
@@ -573,21 +611,21 @@ const styleVars = computed(() => {
                 <span class="pr-src-metrics__bar-track">
                   <span
                     class="pr-src-metrics__bar-fill"
-                    :style="{ width: `${barWidth(row, col.id)}%` }"
+                    :style="{ width: `${barWidth(row.metrics, col.id)}%` }"
                   />
-                  <span class="pr-src-metrics__bar-label">{{ cellText(row, col.id) }}</span>
+                  <span class="pr-src-metrics__bar-label">{{ cellText(row.metrics, col.id) }}</span>
                 </span>
               </template>
               <template v-else-if="col.id === 'assembly' && searchQuery.trim()">
                 <span
-                  v-for="(part, i) in assemblyHighlightParts(row)"
+                  v-for="(part, i) in assemblyHighlightParts(row.metrics, row.line)"
                   :key="i"
                   :class="{ 'pr-field-match': part.match }"
                   :data-testid="part.match ? 'source-asm-match' : undefined"
                 >{{ part.text }}</span>
               </template>
               <template v-else>
-                {{ cellText(row, col.id) }}
+                {{ cellText(row.metrics, col.id) }}
               </template>
             </td>
           </tr>
@@ -916,6 +954,16 @@ tr:hover td {
 .pr-src-metrics__filler td {
   pointer-events: none;
   cursor: default;
+}
+
+/* Blank separator between sparse source runs — not a reported line. */
+.pr-src-metrics__row--gap,
+.pr-src-metrics__row--gap td {
+  cursor: default;
+}
+
+.pr-src-metrics__row--gap:hover td {
+  background: transparent;
 }
 
 .pr-src-metrics__filler:hover td {

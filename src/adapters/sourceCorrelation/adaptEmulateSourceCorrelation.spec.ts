@@ -94,6 +94,8 @@ describe('adaptEmulateSourceCorrelation', () => {
     expect(model!.files[0]!.text).toContain('mul();');
     expect(model!.files[0]!.sourceToAsm?.get(3)).toEqual([1]);
     expect(model!.files[0]!.sourceToAsm?.get(5)).toEqual([2]);
+    expect(model!.files[0]!.sparse).toBe(true);
+    expect(model!.files[0]!.lineCount).toBe(5);
     expect(model!.asmToSource.get(1)).toEqual({ fileId: '7', line: 3 });
     expect(model!.asmToSource.get(3)).toBeUndefined(); // unmapped NOP
     expect(model!.navigateBy).toEqual([
@@ -167,6 +169,7 @@ describe('adaptEmulateSourceCorrelation', () => {
     const model = adaptEmulateSourceCorrelation(payloads)!;
     expect(model.files[0]!.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
     expect(model.files[0]!.lineCount).toBe(2);
+    expect(model.files[0]!.sparse).toBe(true);
     expect(model.files[0]!.lines.find((l) => l.line === 2)?.values.executionCount).toBe(3);
     expect(model.files[0]!.sourceToAsm?.get(2)).toEqual([1]);
   });

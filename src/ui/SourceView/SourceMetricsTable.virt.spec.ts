@@ -87,4 +87,51 @@ describe('SourceMetricsTable virtualization', () => {
     expect(ext.total).toBe(ext.expected);
     wrapper.unmount();
   });
+
+  it('PR-SRC-018: sparse source renders reported lines with blank gap rows, not zero rows', () => {
+    const rowH = 18;
+    const file: SourceFileModel = {
+      id: '1',
+      path: '/sdk/kernel.asc',
+      text: `${Array.from({ length: 24 }, () => '').join('\n')}\n`,
+      metricsColumns: [
+        { id: 'executionCount', label: 'Instructions Executed', kind: 'number' },
+      ],
+      lines: [
+        { line: 17, values: { executionCount: 3 } },
+        { line: 22, values: { executionCount: 0 } },
+        { line: 24, values: { executionCount: 5 } },
+      ],
+      lineCount: 24,
+      sparse: true,
+    };
+    const wrapper = mount(SourceMetricsTable, {
+      props: {
+        file,
+        currentLine: null,
+        rowHeightCss: rowH,
+        showHeader: false,
+        showLineNumbers: true,
+      },
+      attachTo: document.body,
+    });
+    const bodyRows = wrapper.findAll('tbody tr').filter((tr) =>
+      tr.attributes('data-line') != null || tr.classes().includes('pr-src-metrics__row--gap'),
+    );
+    expect(bodyRows.map((tr) => tr.attributes('data-line') ?? null)).toEqual([
+      '17',
+      null,
+      null,
+      '22',
+      null,
+      null,
+      '24',
+    ]);
+    // A sparse document is short enough to mount whole — no phantom 1..24 extent.
+    expect(wrapper.findAll('.pr-src-metrics__virt-pad')).toHaveLength(0);
+    const gaps = wrapper.findAll('.pr-src-metrics__row--gap');
+    expect(gaps).toHaveLength(4);
+    expect(gaps.map((tr) => tr.text())).toEqual(['', '', '', '']);
+    wrapper.unmount();
+  });
 });

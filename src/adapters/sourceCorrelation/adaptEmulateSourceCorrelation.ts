@@ -366,6 +366,8 @@ export function adaptEmulateSourceCorrelation(
 
   // Sparse metrics + padded text: Sudu needs correct 1-based line numbers, but
   // allocating a dense metrics row per empty gap OOM/lags falite-scale packs.
+  // `sparse` makes the Source view render only these lines (blank gap rows
+  // between runs) instead of a mostly-empty full-height document.
   const files: SourceFileModel[] = [];
   for (const [fileId, meta] of filesById) {
     const texts = textByFileLine.get(fileId) ?? new Map();
@@ -416,6 +418,7 @@ export function adaptEmulateSourceCorrelation(
       metricsColumns: SOURCE_COLUMNS,
       lines,
       lineCount: maxLine,
+      sparse: true,
       sourceToAsm: fileSourceToAsm,
     });
   }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
+import type { SourceCorrelationModel } from '../../domain/types';
 import { t } from '../../i18n';
 import SourceView from './SourceView.vue';
 import { resetSuduRuntimeForTests } from './suduRuntime';
@@ -106,6 +107,7 @@ vi.mock('@sudu-ide/code-review', () => ({
     };
   }),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
+  newTextModelFromLines: vi.fn(() => ({ dispose: vi.fn() })),
 }));
 
 async function pickNavigate(
@@ -143,8 +145,10 @@ async function latestSuduEditor() {
 describe('SourceView', () => {
   beforeEach(async () => {
     resetSuduRuntimeForTests();
-    const { newEditor } = await import('@sudu-ide/code-review');
+    const { newEditor, newTextModel, newTextModelFromLines } = await import('@sudu-ide/code-review');
     vi.mocked(newEditor).mockClear();
+    vi.mocked(newTextModel).mockClear();
+    vi.mocked(newTextModelFromLines).mockClear();
   });
 
   it('PR-SOURCE-001: renders dual panes without dock shell', async () => {
@@ -1515,6 +1519,43 @@ describe('SourceView', () => {
     expect(
       wrapper.find('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').exists(),
     ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-SRC-018: sparse emulate source renders a mapped document with blank gap rows', async () => {
+    const base = mockSourceCorrelation();
+    const dense = base.files[0]!;
+    const pick = (line: number) => dense.lines.find((row) => row.line === line)!;
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        { ...dense, sparse: true, lineCount: 128, lines: [pick(1), pick(46), pick(61)] },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+
+    const { newTextModel, newTextModelFromLines } = await import('@sudu-ide/code-review');
+    expect(vi.mocked(newTextModel)).not.toHaveBeenCalled();
+    expect(vi.mocked(newTextModelFromLines)).toHaveBeenCalledTimes(1);
+    const descriptors = vi.mocked(newTextModelFromLines).mock.calls[0]![1];
+    expect(descriptors.map((row) => row.lineNumber ?? 0)).toEqual([1, 0, 0, 46, 0, 0, 61]);
+
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    // Only reported lines carry a number; skipped ranges are two blank rows.
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--gap')).toHaveLength(4);
+    expect(sourceTable.find('tr[data-line="46"]').exists()).toBe(true);
+    expect(sourceTable.find('tr[data-line="45"]').exists()).toBe(false);
+
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await flushPromises();
+    const ed = await latestSuduEditor();
+    // Source 46 sits at document row 4 (two blank rows follow line 1).
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 4, column: 1 });
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
     wrapper.unmount();
   });
 });

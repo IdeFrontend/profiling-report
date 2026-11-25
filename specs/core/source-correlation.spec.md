@@ -17,7 +17,8 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 - Line numbers are **1-based**.
 - Correlation maps: per-file `sourceToAsm: Map<sourceLine, asmLines[]>` and model `asmToSource: Map<asmLine, { fileId, line }>`.
-- Sparse emulate source files may set `lineCount` (metrics table extent) while `lines` stays sparse; dense listings omit `lineCount`.
+- Sparse emulate source files may set `lineCount` (max reported line) while `lines` stays sparse; dense listings omit `lineCount`.
+- Sparse emulate source files set **sparse** so the view renders only reported lines; a host-resolved full file clears it.
 - `mock: true` only on the deterministic fixture; real embeds set `mock: false`.
 
 ## Behavior
@@ -45,6 +46,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 - MVP metrics from `AsmMetrics` / `SourceLineMetrics`: ExecutionCount, TickCount, RelTime, WarpOccupancy, VectorUtilization (producer 0–100 stored as 0–1 for percent display). NULL → unavailable; numeric 0 stays 0.
 - Maps from `SourceInstructions` ⟕ `DebugInfo` ⟕ `SourceFiles` ⟕ `SourceLines`; `LineNum > 0` only. Unmapped clears correlation.
 - `SourceFiles` / `SourceLines` optional — assembly-only (`files: []`) or missing-embed placeholder (shared UX with compute).
+- Sparse emulate files render a **mapped document**: only reported lines carry a line number, and non-contiguous runs are separated by two blank unnumbered rows. Metrics rows follow the same collapsed order (no phantom zero rows), and caret / row selection translate between document rows and source lines.
 - Do **not** light from `IPCAsmMetrics` or hint CSVs alone ([DATA-53b](../../docs/context/decisions/interim/DATA.md#data-53b)).
 - Deferred emulate slices: stalls ([DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)), richer metrics / BB / stacks ([DATA-53c](../../docs/context/decisions/interim/DATA.md#data-53c)), full-file resolve ([DATA-53d](../../docs/context/decisions/interim/DATA.md#data-53d)), tick→ns ([DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e)), SASS label ([UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a)).
 
@@ -75,6 +77,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 15. **PR-SRC-015** — IPCAsmMetrics / hints alone do not light the gate.
 16. **PR-SRC-016** — `adaptSourceCorrelation` dispatches emulate ELF packs.
 17. **PR-SRC-017** — `adaptEmulate` with ELF attaches `sourceCorrelation` + `'sourceTab'`.
+18. **PR-SRC-018** — Sparse emulate lines render as mapped document.
 
 ## Dependencies
 
@@ -82,6 +85,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 ## Changelog
 
+- **2026-11-25** — Sparse emulate source renders a mapped document (`newTextModelFromLines`) with blank gap rows; metrics table follows the collapsed order (`PR-SRC-018`).
 - **2026-11-17** — Emulate ELF Source path (`adaptEmulateSourceCorrelation`, DATA-53): PR-SRC-012…017.
 - **2026-11-11** — Sampling Stall accepts both producer schemas (`PcSampling`/`address`, `pc_sampling`/`pc_offset`); partial counters, invalid addresses, and missing columns degrade with warnings (`PR-SRC-011`, [#212](https://github.com/IdeFrontend/profiling-report/pull/212)).
 - **2026-10-28** — Missing `.asc` embed keeps metrics-aligned placeholder and stall rollups (`PR-SRC-010`, [#175](https://github.com/IdeFrontend/profiling-report/issues/175)).
