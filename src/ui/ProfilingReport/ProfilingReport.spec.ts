@@ -3609,48 +3609,36 @@ describe('ProfilingReport scaffold', () => {
     expect(css).not.toMatch(/\.pr-root\[data-theme=['"]light['"]\]/);
   });
 
-  it('PR-DIFF-204: compare mode picks a non-current baseline, survives operator switch, resets on tab change', async () => {
+  it('PR-DIFF-204: compare mode pairs the open report with the primary saved baseline and resets on tab change', async () => {
     const correlation = { ...mockSourceCorrelation(), mock: false };
+    const baselineCorrelation = { ...correlation };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: baselineCorrelation },
+    };
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'source-compare',
         swimlaneModel: depsModel(),
         reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
         capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
       },
     });
-    const vm = wrapper.vm as unknown as {
-      operators: { id: string; label: string }[];
-      selectedOperatorId: string;
-      operatorReports: Record<string, AdaptedReport>;
-    };
-    vm.operators = [
-      { id: 'op1', label: 'OP 1' },
-      { id: 'op2', label: 'OP 2' },
-    ];
-    vm.selectedOperatorId = 'op1';
-    vm.operatorReports = {
-      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
-      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
-    };
     await nextTick();
 
     await wrapper.find('[data-testid="tab-source"]').trigger('click');
     await nextTick();
     await wrapper.find('[data-testid="compare-enter"]').trigger('click');
     await nextTick();
-    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
-    expect(
-      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
-    ).toBe('op2');
-
-    // Switching the current operator to the baseline keeps compare mode and re-picks one.
-    vm.selectedOperatorId = 'op2';
-    await nextTick();
-    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
-    expect(
-      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
-    ).toBe('op1');
+    const view = wrapper.findComponent({ name: 'SourceDiffView' });
+    expect(view.exists()).toBe(true);
+    expect(view.props('baseline')).toStrictEqual(baselineCorrelation);
+    expect(wrapper.find('[data-testid="compare-baseline"]').text()).toBe('a.rep');
+    expect(wrapper.find('[data-testid="compare-baseline"]').element.tagName).toBe('SPAN');
+    expect(wrapper.find('select').exists()).toBe(false);
 
     await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
     await nextTick();
@@ -3663,11 +3651,18 @@ describe('ProfilingReport scaffold', () => {
 
   it('PR-ROOT-040: compareOnly opens compare without tabs; default keeps both tabs', async () => {
     const correlation = { ...mockSourceCorrelation(), mock: false };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+    };
     const settings = {
       title: 'compare-only',
       swimlaneModel: depsModel(),
       reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
       capabilities: ['sourceTab'] as ReportCapability[],
+      baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+      baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+      baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
     };
 
     const standard = mount(ProfilingReport, { props: settings });
@@ -3676,28 +3671,12 @@ describe('ProfilingReport scaffold', () => {
     standard.unmount();
 
     const wrapper = mount(ProfilingReport, { props: { ...settings, compareOnly: true } });
-    const vm = wrapper.vm as unknown as {
-      operators: { id: string; label: string }[];
-      selectedOperatorId: string;
-      operatorReports: Record<string, AdaptedReport>;
-    };
-    vm.operators = [
-      { id: 'op1', label: 'OP 1' },
-      { id: 'op2', label: 'OP 2' },
-    ];
-    vm.selectedOperatorId = 'op1';
-    vm.operatorReports = {
-      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
-      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
-    };
     await nextTick();
     await nextTick();
 
     expect(wrapper.findAll('.pr-tabs__tab')).toHaveLength(0);
     expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
-    expect(
-      (wrapper.find('[data-testid="compare-baseline"]').element as HTMLSelectElement).value,
-    ).toBe('op2');
+    expect(wrapper.find('[data-testid="compare-baseline"]').text()).toBe('a.rep');
 
     await wrapper.find('[data-testid="compare-exit"]').trigger('click');
     await nextTick();
@@ -3707,18 +3686,8 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
 
     const single = mount(ProfilingReport, {
-      props: { ...settings, compareOnly: true, swimlaneModel: undefined },
+      props: { ...settings, compareOnly: true, swimlaneModel: undefined, baselineRows: [], baselineReports: {} },
     });
-    const singleVm = single.vm as unknown as {
-      operators: { id: string; label: string }[];
-      selectedOperatorId: string;
-      operatorReports: Record<string, AdaptedReport>;
-    };
-    singleVm.operators = [{ id: 'op1', label: 'OP 1' }];
-    singleVm.selectedOperatorId = 'op1';
-    singleVm.operatorReports = {
-      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
-    };
     await nextTick();
     await nextTick();
     expect(single.findAll('.pr-tabs__tab')).toHaveLength(0);
@@ -3728,30 +3697,106 @@ describe('ProfilingReport scaffold', () => {
     single.unmount();
   });
 
+  it('PR-ROOT-054: the right pane follows baselineRows[0] into its pack operator correlation', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const packCorrelation = { ...correlation };
+    const matmulCorrelation = { ...correlation };
+    const reluCorrelation = { ...correlation };
+    const adapted = (sourceCorrelation: typeof correlation): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const pack: AdaptedReport = {
+      ...adapted(packCorrelation),
+      reportModel: {
+        ...adapted(packCorrelation).reportModel,
+        summary: { ...emptyReportViewModel().summary, opName: 'matmul' },
+      },
+      operatorReports: { matmul: adapted(matmulCorrelation), relu: adapted(reluCorrelation) },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'baseline-backed',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+
+    // No row operator → the open report's OpName picks the pack operator.
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(matmulCorrelation);
+    expect(wrapper.find('select').exists()).toBe(false);
+
+    // A row operator wins and re-pairs the right pane.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'relu' }],
+    });
+    await nextTick();
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(reluCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-055: the compare entry hides without a baseline source correlation', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const run = (baselineCorrelation: typeof correlation | undefined) => mount(ProfilingReport, {
+      props: {
+        title: 'compare-entry',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: {
+              swimlaneModel: null,
+              reportModel: { ...emptyReportViewModel(), sourceCorrelation: baselineCorrelation },
+            },
+          },
+        },
+      },
+    });
+
+    const noBaseline = run(undefined);
+    await noBaseline.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(noBaseline.find('[data-testid="compare-enter"]').exists()).toBe(false);
+    expect(noBaseline.find('[data-testid="source-view"]').exists()).toBe(true);
+    noBaseline.unmount();
+
+    const withBaseline = run(correlation);
+    await withBaseline.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(withBaseline.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    withBaseline.unmount();
+  });
+
   it('PR-DIFF-211: explicit compare exit lands on the Source tab', async () => {
     const correlation = { ...mockSourceCorrelation(), mock: false };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: { ...correlation } },
+    };
     const wrapper = mount(ProfilingReport, {
       props: {
         title: 'source-compare-exit',
         swimlaneModel: depsModel(),
         reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
         capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
       },
     });
-    const vm = wrapper.vm as unknown as {
-      operators: { id: string; label: string }[];
-      selectedOperatorId: string;
-      operatorReports: Record<string, AdaptedReport>;
-    };
-    vm.operators = [
-      { id: 'op1', label: 'OP 1' },
-      { id: 'op2', label: 'OP 2' },
-    ];
-    vm.selectedOperatorId = 'op1';
-    vm.operatorReports = {
-      op1: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
-      op2: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation } },
-    };
     await nextTick();
 
     await wrapper.find('[data-testid="tab-source"]').trigger('click');

@@ -68,6 +68,48 @@ function hashKey(key: string): number {
   return h;
 }
 
+/**
+ * 源码对比 (source diff) compares per-line metrics too. Cloning the base pack
+ * would paint an all-equal diff, so each demo operator varies its correlation
+ * numbers deterministically. File ids, paths, text and line counts stay put.
+ */
+function varyDemoSourceCorrelation(
+  model: AdaptedReport['reportModel'],
+  seed: number,
+  opIndex: number,
+): void {
+  const correlation = model.sourceCorrelation;
+  if (!correlation) return;
+  for (const file of [correlation.assembly, ...correlation.files]) {
+    for (const line of file.lines) {
+      for (const [key, value] of Object.entries(line.values)) {
+        if (typeof value !== 'number') continue;
+        const h = hashKey(`${opIndex}:${seed}:${file.id}:${line.line}:${key}`);
+        const kind = file.metricsColumns.find((c) => c.id === key)?.kind;
+        if (kind === 'bar' || kind === 'percent') {
+          // A ratio stays inside 0..1; a zero line takes a small visible bar.
+          const pct = (h % 25) - 12 || 1;
+          const scaled = value === 0 ? ((h % 9) + 1) / 100 : value * (1 + pct / 100);
+          line.values[key] = Math.min(1, Math.max(0, scaled));
+          continue;
+        }
+        // A count moves by at least one so rounding can never erase the diff.
+        const pct = (h % 25) - 12 || 1;
+        const scaled = value === 0 ? (h % 9) + 1 : value * (1 + pct / 100);
+        if (Number.isInteger(value)) {
+          const rounded = Math.round(scaled);
+          line.values[key] = Math.max(
+            0,
+            rounded === value ? value + Math.sign(scaled - value) : rounded,
+          );
+        } else {
+          line.values[key] = scaled;
+        }
+      }
+    }
+  }
+}
+
 /** Percentages clamp at 100, like the PIPE demo ratios clamp at 1. */
 function clampPercent(n: number): number {
   return Math.min(100, Math.max(0, n));
@@ -554,6 +596,7 @@ export function withDemoOperatorPack(report: AdaptedReport, variationKey = ''): 
   const operatorReports: Record<string, AdaptedReport> = {};
   DEMO_BASELINE_OPERATORS.forEach((name, i) => {
     const model = structuredClone(base);
+    varyDemoSourceCorrelation(model, seed, i);
     scaleMeasuredMetrics(model, DEMO_OPERATOR_SCALES[i], seed);
     ensureDemoBlockTopology(model, seed, i);
     operatorReports[name] = { reportModel: model, swimlaneModel: report.swimlaneModel };

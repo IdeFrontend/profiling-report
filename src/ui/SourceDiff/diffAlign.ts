@@ -21,14 +21,6 @@ export interface DiffRow {
 /** Cells above this LCS table size fall back to the cheap hunk rule. */
 const LCS_CELL_LIMIT = 4_000_000
 
-/** First operator id that is not the current one; '' when the pack has a single op. */
-export function pickBaselineOperatorId(
-  operators: readonly { id: string }[] | undefined,
-  currentId: string | null | undefined,
-): string {
-  return operators?.find((op) => op.id !== currentId)?.id ?? ''
-}
-
 /** Split editor text into lines; a trailing newline does not add a phantom row. */
 export function splitSourceLines(text: string): string[] {
   if (text === '') return []

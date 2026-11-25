@@ -20,6 +20,7 @@ import {
   normalizeDependencyDepth,
 } from '../../domain/types';
 import { t, type MessageKey } from '../../i18n';
+import { baselineDisplayTitle } from '../../domain/baselineTitle';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 /* PyPTO multi-color glyphs — img, not PrIcon masks (masks kill #5291FF accents). */
 import shortcutMouseWheel from '../icons/shortcuts/mouse-scrollwheel-dark.svg';
@@ -61,11 +62,12 @@ const props = withDefaults(
     overviewTabEnabled?: boolean;
     /** Source-compare mode: swaps the source chrome for the compare controls. */
     compareMode?: boolean;
-    /** True when a baseline operator exists to compare against. */
+    /** True when a saved baseline with a source correlation exists to compare against. */
     compareAvailable?: boolean;
     /** Host embeds the Source surface alone: omit the view-tab strip. */
     hideTabs?: boolean;
-    compareBaselineId?: string | null;
+    /** The primary saved-baseline id, titled in the compare chrome. */
+    primaryBaselineId?: string | null;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
      * leave this false. Playground (and other hosts that serve the shell template)
@@ -87,7 +89,7 @@ const props = withDefaults(
     compareMode: false,
     compareAvailable: false,
     hideTabs: false,
-    compareBaselineId: null,
+    primaryBaselineId: null,
     htmlExportAvailable: false,
     clockFreqMHz: undefined,
     locale: undefined,
@@ -120,7 +122,6 @@ const emit = defineEmits<{
   'open-cannwork': [];
   'compare-enter': [];
   'compare-exit': [];
-  'update:compareBaselineId': [id: string];
   'compare-find-next': [];
   'compare-find-prev': [];
   'compare-find-search': [];
@@ -210,15 +211,12 @@ const opMenuRef = ref<HTMLElement | null>(null);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
 
-/** A baseline can't be the operator being inspected. */
-const baselineOptions = computed(() =>
-  (props.operators ?? []).filter((o) => o.id !== props.selectedOperatorId),
-);
-
-function onCompareBaselineChange(event: Event) {
-  const id = (event.target as HTMLSelectElement).value;
-  if (id) emit('update:compareBaselineId', id);
-}
+/** The primary baseline's title; the BaselinePicker is the only way to change it. */
+const compareBaselineTitle = computed(() => {
+  if (!props.primaryBaselineId) return '';
+  const baseline = props.baselines?.find((b) => b.id === props.primaryBaselineId);
+  return baseline ? baselineDisplayTitle(baseline) : '';
+});
 const showTimelineTraceSelector = computed(() => (props.timelineTraces?.length ?? 0) > 1);
 
 /** Drop stale open state when the selector unmounts (e.g. host swaps to a single-op source). */
@@ -1266,20 +1264,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           <span class="pr-compare__title">{{ t('sourceDiffTitle', locale) }}</span>
           <label class="pr-compare__baseline">
             <span>{{ t('sourceDiffBaseline', locale) }}</span>
-            <select
-              class="pr-compare__select"
+            <span
+              class="pr-compare__baseline-value"
               data-testid="compare-baseline"
-              :value="compareBaselineId ?? ''"
-              @change="onCompareBaselineChange"
-            >
-              <option
-                v-for="op in baselineOptions"
-                :key="op.id"
-                :value="op.id"
-              >
-                {{ op.label }}
-              </option>
-            </select>
+            >{{ compareBaselineTitle }}</span>
           </label>
         </div>
         <div class="pr-compare__right">
@@ -2241,7 +2229,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   min-width: 0;
 }
 
-/* Grow into the row so the select (96px base width) absorbs the shrink instead of
+/* Grow into the row so the baseline title absorbs the shrink instead of
    forcing the right group onto a second row. */
 .pr-compare__left {
   flex: 1 1 auto;
@@ -2271,25 +2259,15 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   white-space: nowrap;
 }
 
-.pr-compare__select {
-  appearance: none;
-  /* 96px base width, so line breaking wraps only when the floor cannot fit; the
-     select grows to the 305px design width and never below 96px. */
-  flex: 1 1 auto;
-  width: 96px;
+/* A long report title shrinks with an ellipsis; no second control replaces the picker. */
+.pr-compare__baseline-value {
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 305px;
-  min-width: 96px;
-  height: 28px;
-  padding: 0 24px 0 8px;
-  border: 0;
-  border-radius: 4px;
-  background-color: #2a2a2a;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23b4b4b4' d='M0 0l5 6 5-6z'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  color: #999999;
-  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
+  color: #999999;
 }
 
 .pr-compare__exit {
@@ -2309,7 +2287,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   background: #3d3d3d;
 }
 
-.pr-compare__select:focus-visible,
 .pr-compare__btn:focus-visible,
 .pr-compare__exit:focus-visible {
   outline: 1px solid var(--pr-accent, #5291ff);

@@ -173,4 +173,23 @@ describe('SourceDiffView', () => {
     expect(panes[0]!.props('linked')).toBe(true);
     wrapper.unmount();
   });
+
+  it('PR-DIFF-212: disjoint file paths still pair the panes through the first-file fallback', async () => {
+    const wrapper = mount(SourceDiffView, {
+      props: {
+        current: correlation([file('left-only', LEFT_LINES.join('\n'))]),
+        baseline: correlation([file('right-only', RIGHT_LINES.join('\n'))]),
+        locale: 'en-US',
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+    const panes = wrapper.findAllComponents(SourceDiffPane);
+    expect(panes).toHaveLength(2);
+    expect((panes[0]!.props('metrics') as SourceFileModel).id).toBe('left-only');
+    expect((panes[1]!.props('metrics') as SourceFileModel).id).toBe('right-only');
+    expect(sudu.diffModels).toHaveLength(1);
+    wrapper.unmount();
+  });
 });

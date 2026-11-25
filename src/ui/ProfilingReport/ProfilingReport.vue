@@ -104,7 +104,6 @@ import { collapseHiddenHeight, type CollapseAnimState } from '../../swimlane/lay
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
 import SourceDiffView from '../SourceDiff/SourceDiffView.vue';
-import { pickBaselineOperatorId } from '../SourceDiff/diffAlign';
 import '../tokens.css';
 import {
   availableGutterMetrics,
@@ -558,16 +557,39 @@ const overviewTabEnabled = computed(
 );
 const activeTab = ref<'overview' | 'timeline' | 'source'>('timeline');
 const showOverviewTab = computed(() => activeTab.value === 'overview');
-/** Source-compare mode: left = current operator, right = chosen baseline operator. */
+/** Source-compare mode: left = open report, right = the primary saved baseline. */
 const compareMode = ref(false);
-const compareBaselineId = ref('');
 const sourceDiffRef = ref<InstanceType<typeof SourceDiffView> | null>(null);
-const compareAvailable = computed(() => operators.value.length > 1);
-const compareBaselineReport = computed<AdaptedReport | null>(
-  () => operatorReports.value[compareBaselineId.value] ?? null,
-);
-const compareBaselineModel = computed<SourceCorrelationModel | null>(
-  () => compareBaselineReport.value?.reportModel.sourceCorrelation ?? null,
+/** The saved baseline row's operator, resolved like the aside's popups. */
+function compareOperatorIdOf(row: BaselineRow, pack: AdaptedReport): string | null {
+  const declared = props.baselines?.find((b) => b.id === row.baselineId)?.operators;
+  const keys = Object.keys(pack.operatorReports ?? {});
+  const options = declared?.length
+    ? declared.map((o) => o.id)
+    : keys.length > 0
+      ? keys
+      : pack.reportModel.summary.opName
+        ? [pack.reportModel.summary.opName]
+        : [];
+  if (options.length === 0) return null;
+  if (row.operatorId && options.includes(row.operatorId)) return row.operatorId;
+  const opName = report.value?.summary.opName;
+  if (opName != null && options.includes(opName)) return opName;
+  return options[0]!;
+}
+const compareBaselineModel = computed<SourceCorrelationModel | null>(() => {
+  const row = (props.baselineRows ?? [])[0];
+  const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
+  if (!row || !pack) return null;
+  const operatorId = compareOperatorIdOf(row, pack);
+  return (
+    (operatorId ? pack.operatorReports?.[operatorId]?.reportModel.sourceCorrelation : null) ??
+    pack.reportModel.sourceCorrelation ??
+    null
+  );
+});
+const compareAvailable = computed(
+  () => report.value?.sourceCorrelation != null && compareBaselineModel.value != null,
 );
 
 function exitCompareMode() {
@@ -581,25 +603,15 @@ function onCompareExit() {
 }
 
 function enterCompareMode() {
-  const id = pickBaselineOperatorId(operators.value, selectedOperatorId.value);
-  if (!id) return;
-  compareBaselineId.value = id;
-  compareMode.value = true;
-}
-
-function onCompareBaselineChange(id: string) {
-  if (id) compareBaselineId.value = id;
+  if (compareAvailable.value) compareMode.value = true;
 }
 
 // A new report invalidates the comparison pair. Switching operator keeps compare mode
-// (left pane reloads); when it lands on the baseline, pick another baseline.
+// (left pane reloads); a lost baseline correlation falls back to the single pane.
 watch([() => props.reportModel], () => exitCompareMode());
 
-watch(selectedOperatorId, (id) => {
-  if (!compareMode.value || id !== compareBaselineId.value) return;
-  const next = pickBaselineOperatorId(operators.value, id);
-  if (next) compareBaselineId.value = next;
-  else exitCompareMode();
+watch(compareAvailable, (ok) => {
+  if (!ok) exitCompareMode();
 });
 
 /** compareOnly starts on Source and never shows the tab strip; no baseline → single pane. */
@@ -2237,7 +2249,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :hide-tabs="compareOnly"
           :compare-mode="compareMode"
           :compare-available="compareAvailable && sourceTabEnabled"
-          :compare-baseline-id="compareBaselineId"
+          :primary-baseline-id="(baselineRows ?? [])[0]?.baselineId ?? null"
           :html-export-available="htmlExportAvailable"
           :baselines="baselines"
           :pick-baseline-file="pickBaselineFile"
@@ -2253,7 +2265,6 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:active-tab="onActiveTab"
           @compare-enter="enterCompareMode"
           @compare-exit="onCompareExit"
-          @update:compare-baseline-id="onCompareBaselineChange"
           @compare-find-next="sourceDiffRef?.findNext()"
           @compare-find-prev="sourceDiffRef?.findPrev()"
           @compare-find-search="sourceDiffRef?.findSearch(1)"

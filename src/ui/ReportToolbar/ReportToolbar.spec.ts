@@ -837,10 +837,10 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*font-weight:\s*400/);
     expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*color:\s*#ffffff/);
     expect(src).toMatch(/\.pr-compare__baseline\s*\{[^}]*gap:\s*8px/);
-    // Baseline select 305px maximum, #999999 value, grey-180 caret.
-    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*max-width:\s*305px/);
-    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*color:\s*#999999/);
-    expect(src).toMatch(/%23b4b4b4/);
+    // Baseline value 305px maximum, #999999; no select caret in the chrome.
+    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*max-width:\s*305px/);
+    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*color:\s*#999999/);
+    expect(src).not.toMatch(/\.pr-compare__select/);
     expect(src).toMatch(/\.pr-compare__exit\s*\{[^}]*color:\s*#b4b4b4/);
     expect(src).toMatch(/\.pr-compare__exit\s*\{[^}]*background:\s*#343434/);
     // Compare action icons inherit the 6px base radius; the right group gaps 8px.
@@ -858,14 +858,27 @@ describe('ReportToolbar', () => {
     expect(searchSrc).toMatch(/\.pr-toolbar__search input\s*\{[^}]*border-radius:\s*4px/);
   });
 
-  it('PR-TOOLBAR-042: compare toolbar shrinks the baseline select before wrapping', async () => {
+  it('PR-TOOLBAR-042: the compare chrome titles the primary baseline and renders no select', async () => {
     const src = (await import('./ReportToolbar.vue?raw')).default as string;
-    expect(src).toMatch(/\.pr-toolbar--compare\s*\{[^}]*flex-wrap:\s*wrap/);
-    expect(src).toMatch(/\.pr-toolbar--compare\s*\{[^}]*overflow-x:\s*visible/);
-    expect(src).toMatch(/\.pr-compare__left\s*\{[^}]*flex:\s*1 1 auto/);
-    expect(src).toMatch(/\.pr-compare__baseline\s*\{[^}]*min-width:\s*0/);
-    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*max-width:\s*305px/);
-    expect(src).toMatch(/\.pr-compare__select\s*\{[^}]*min-width:\s*96px/);
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        locale: 'en-US',
+        activeTab: 'source' as const,
+        sourceTabEnabled: true,
+        compareMode: true,
+        primaryBaselineId: 'b1',
+        baselines: [{ id: 'b1', name: '', path: '/data/a.rep' }],
+      },
+    });
+    const value = wrapper.get('[data-testid="compare-baseline"]');
+    expect(value.element.tagName).toBe('SPAN');
+    expect(value.text()).toBe('a.rep');
+    expect(wrapper.find('select').exists()).toBe(false);
+    // A long title shrinks with an ellipsis instead of a shrinking select.
+    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*text-overflow:\s*ellipsis/);
+    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*max-width:\s*305px/);
+    wrapper.unmount();
   });
 
   it('PR-TOOLBAR-029: timeline-trace radios emit on select; hidden for 0–1 traces', async () => {

@@ -410,6 +410,50 @@ describe('createBaselinesHost', () => {
     expect(peakPctOf(first(a))).not.toBe(peakPctOf(first(b)));
   });
 
+  it('varies sourceCorrelation per operator and baseline without touching file identity', () => {
+    const base = loadReportSource(
+      new Uint8Array(readFileSync('playground/public/data/gather_2d.npu-rep')),
+    );
+    const source = base.reportModel.sourceCorrelation!;
+    let hotFile = -1;
+    let hotLine = -1;
+    let hotKey = '';
+    let hotValue = 0;
+    for (const [fi, f] of source.files.entries()) {
+      for (const [li, l] of f.lines.entries()) {
+        const hit = Object.entries(l.values).find(([, v]) => typeof v === 'number');
+        if (hit) {
+          [hotFile, hotLine] = [fi, li];
+          [hotKey, hotValue] = [hit[0], hit[1] as number];
+          break;
+        }
+      }
+      if (hotFile >= 0) break;
+    }
+    expect(hotFile, 'a numeric source metric exists').toBeGreaterThanOrEqual(0);
+    const identity = (corr: typeof source) =>
+      corr.files.map((f) => ({ id: f.id, path: f.path, text: f.text, lines: f.lines.length }));
+    const before = identity(source);
+    const beforeValues = JSON.stringify(source.files.map((f) => f.lines.map((l) => l.values)));
+
+    const seen = new Set<number>();
+    for (const id of ['demo-recent-1', 'demo-recent-2']) {
+      const pack = withDemoOperatorPack(base, id);
+      for (const adapted of Object.values(pack.operatorReports!)) {
+        const corr = adapted.reportModel.sourceCorrelation!;
+        expect(identity(corr)).toEqual(before);
+        const value = corr.files[hotFile]!.lines[hotLine]!.values[hotKey] as number;
+        expect(value, `${id}: hot line must differ`).not.toBe(hotValue);
+        seen.add(value);
+      }
+    }
+    // Neither operator nor baseline can land on the same numbers.
+    expect(seen.size).toBeGreaterThan(1);
+    // The pack cloned the model, so the caller's report is untouched.
+    expect(identity(source)).toEqual(before);
+    expect(JSON.stringify(source.files.map((f) => f.lines.map((l) => l.values)))).toBe(beforeValues);
+  });
+
   it('reseeds the memory topology per baseline and scales it per operator', () => {
     // out.rep carries real plates (23.04% / 7.19%) and a 0% L2 peak — the demo
     // seeding must REPLACE them: filling only missing values would leave
