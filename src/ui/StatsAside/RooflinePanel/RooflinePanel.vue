@@ -41,17 +41,21 @@ const opsY = plotBottomY;
 /**
  * Hover tip follows EventTooltip / StatsAside card tips: teleported `position: fixed`
  * beside the pointer so the aside cannot crop it and the chart no longer reserves a
- * bottom text band (PR-ROOF-004). Dismiss on leave, aside scroll, window resize, and
- * `pointercancel` matches StatsAside's `closeTip` contract so a fixed box cannot strand.
+ * bottom text band (PR-ROOF-004). Covers measured points and ridge knees. Dismiss on
+ * leave, aside scroll, window resize, and `pointercancel` matches StatsAside's
+ * `closeTip` contract so a fixed box cannot strand.
  */
 const rootEl = ref<HTMLElement | null>(null);
+const legendScrollEl = ref<HTMLElement | null>(null);
 const tipId = useId();
-const hoveredId = ref<string | null>(null);
+type HoverTip = { kind: 'point'; id: string } | { kind: 'knee'; id: string };
+const hoverTip = ref<HoverTip | null>(null);
 const tipPos = ref<{ left: string; top: string } | null>(null);
 /**
  * placeFixedTip estimate. Width is the tip max-width. Height covers a wrapped
  * emulate label (48-char symbol + level + PC → up to 3 name lines) plus the
  * two value lines: 12px × 1.45 × 5 + 4px name margin + 8×2 pad + 1×2 border = 109.
+ * Knee tips are shorter (name + 3 metrics); the taller estimate still clamps safely.
  * ponytail: estimate, not a measured box. Upgrade: place from the tip's offsetHeight
  * after mount if labels grow past three lines.
  */
@@ -59,15 +63,22 @@ const TIP_EST_W = 280;
 const TIP_EST_H = 112;
 let asideScrollEl: Element | null = null;
 
-/** Experimental: legend hover → emphasize that series' roof on the plot. */
-const legendHoverId = ref<string | null>(null);
+/**
+ * Shared series emphasis id (PR-ROOF-008): legend ↔ roof/knee. Lit item + thickened
+ * roof; other series dim.
+ */
+const seriesHoverId = ref<string | null>(null);
 /**
  * Sketch (report-stats-duration-source): filled rounded-square knees on the
  * roof ridges; measured points off the lines are filled circles.
+ * Hit pads are larger than the paint so thin roofs / 8px knees stay easy to grab.
  */
 const KNEE = 8;
+const KNEE_HIT = 16;
 const KNEE_RX = 2;
 const POINT_R = 4;
+/** Invisible stroke width for roof hit-testing (visual stays 2 / lit 3.5). */
+const ROOF_HIT_STROKE = 12;
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
 
@@ -116,7 +127,7 @@ const legendGridStyle = computed(() => ({
 /** Paint highlighted roof last so it sits above siblings. */
 const roofDrawOrder = computed(() => {
   const list = [...seriesList.value];
-  const id = legendHoverId.value;
+  const id = seriesHoverId.value;
   if (!id) return list;
   const i = list.findIndex((s) => s.id === id);
   if (i < 0) return list;
@@ -126,11 +137,16 @@ const roofDrawOrder = computed(() => {
 });
 
 function roofHighlightClass(id: string): Record<string, boolean> {
-  const hover = legendHoverId.value;
+  const hover = seriesHoverId.value;
   return {
     'pr-roofline__roof-g--lit': hover === id,
     'pr-roofline__roof-g--dim': hover != null && hover !== id,
   };
+}
+
+/** True ridge Ops/Byte (not domain-clamped) for knee tips. */
+function ridgeIntensity(s: RooflineSeries): number {
+  return (s.peakComputeTops * 1000) / Math.max(s.peakBandwidthGBs, 1e-12);
 }
 
 /** Log domain from points + roofs. */
@@ -267,16 +283,44 @@ const mixParts = computed(() =>
   })),
 );
 
-/** Resolve by id so a model replace keeps the tip on the same point (PR-ROOF-004). */
-const hoveredPoint = computed((): RooflinePoint | null => {
-  const id = hoveredId.value;
-  if (!id) return null;
-  return props.model.points.find((pt) => pt.id === id) ?? null;
+/**
+ * Tip body for the open hover (point or knee). Resolve by id so a model replace
+ * keeps the tip on the same target (PR-ROOF-004).
+ */
+const tipBody = computed((): { name: string; lines: string[]; pointId?: string } | null => {
+  const tip = hoverTip.value;
+  if (!tip) return null;
+  if (tip.kind === 'point') {
+    const p = props.model.points.find((pt) => pt.id === tip.id);
+    if (!p) return null;
+    return {
+      name: p.label,
+      lines: [`${fmtVal(p.intensity)} Ops/Byte`, `${fmtVal(p.performance)} TOps/s`],
+      pointId: p.id,
+    };
+  }
+  const s = seriesList.value.find((series) => series.id === tip.id);
+  if (!s) return null;
+  return {
+    name: s.label,
+    lines: [
+      `${fmtVal(ridgeIntensity(s))} Ops/Byte`,
+      `${fmtVal(s.peakComputeTops)} TOps/s`,
+      `${fmtVal(s.peakBandwidthGBs)} GB/s`,
+    ],
+  };
 });
 
-function closePointTip() {
-  hoveredId.value = null;
+/** Drop the floating tip only — keep legend/roof emphasis (PR-ROOF-008). */
+function dismissTip() {
+  hoverTip.value = null;
   tipPos.value = null;
+}
+
+/** Tip + series emphasis. Drill-in / empty panel / stale target use the full clear. */
+function closePointTip() {
+  dismissTip();
+  seriesHoverId.value = null;
 }
 
 function placeTip(e: MouseEvent) {
@@ -293,34 +337,83 @@ function placeTip(e: MouseEvent) {
 }
 
 function onPointEnter(e: MouseEvent, p: RooflinePoint) {
-  hoveredId.value = p.id;
+  seriesHoverId.value = null;
+  hoverTip.value = { kind: 'point', id: p.id };
   placeTip(e);
 }
 
 function onPointMove(e: MouseEvent) {
-  if (hoveredId.value) placeTip(e);
+  if (hoverTip.value?.kind === 'point') placeTip(e);
 }
 
 function onPointLeave() {
-  closePointTip();
+  if (hoverTip.value?.kind === 'point') dismissTip();
+}
+
+/** Roof path: emphasize series only — tip is knee-exclusive (PR-ROOF-009). */
+function onRoofEnter(s: RooflineSeries) {
+  seriesHoverId.value = s.id;
+}
+
+function onRoofLeave() {
+  seriesHoverId.value = null;
+}
+
+function onKneeEnter(e: MouseEvent, s: RooflineSeries) {
+  seriesHoverId.value = s.id;
+  hoverTip.value = { kind: 'knee', id: s.id };
+  placeTip(e);
+}
+
+function onKneeMove(e: MouseEvent) {
+  if (hoverTip.value?.kind === 'knee') placeTip(e);
+}
+
+function onKneeLeave() {
+  if (hoverTip.value?.kind === 'knee') dismissTip();
+  seriesHoverId.value = null;
+}
+
+function onLegendEnter(id: string) {
+  seriesHoverId.value = id;
+}
+
+function onLegendLeave() {
+  seriesHoverId.value = null;
+}
+
+/** Map vertical wheel to horizontal scroll when the legend overflows (PR-ROOF-006). */
+function onLegendWheel(e: WheelEvent) {
+  const el = legendScrollEl.value;
+  if (!el) return;
+  const max = el.scrollWidth - el.clientWidth;
+  if (max <= 1) return;
+  const dx = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+  if (dx === 0) return;
+  const next = Math.min(max, Math.max(0, el.scrollLeft + dx));
+  if (next === el.scrollLeft) return;
+  e.preventDefault();
+  el.scrollLeft = next;
 }
 
 function bindAsideScroll(el: HTMLElement | null) {
   if (asideScrollEl) {
-    asideScrollEl.removeEventListener('scroll', closePointTip);
+    asideScrollEl.removeEventListener('scroll', dismissTip);
     asideScrollEl = null;
   }
   if (!el) return;
   const parent = el.closest('.pr-aside__body');
   if (!parent) return;
   asideScrollEl = parent;
-  asideScrollEl.addEventListener('scroll', closePointTip, { passive: true });
+  // Scroll/resize: tip only — do not clear seriesHoverId while the pointer still
+  // rests on a legend item or roof (PR-ROOF-008).
+  asideScrollEl.addEventListener('scroll', dismissTip, { passive: true });
 }
 
 watch(rootEl, (el) => bindAsideScroll(el), { flush: 'post' });
-/** Point id gone (block switch / empty model) — do not resurrect the tip later. */
-watch(hoveredPoint, (p) => {
-  if (!p && hoveredId.value) closePointTip();
+/** Target id gone (block switch / empty model) — do not resurrect the tip later. */
+watch(tipBody, (body) => {
+  if (!body && hoverTip.value) closePointTip();
 });
 watch(hasPoints, (ok) => {
   if (!ok) closePointTip();
@@ -329,9 +422,9 @@ watch(hasPoints, (ok) => {
 /** StatsAside calls this when the drill-in surface changes (tip is on `body`, above the overlay). */
 defineExpose({ closePointTip });
 
-onMounted(() => window.addEventListener('resize', closePointTip));
+onMounted(() => window.addEventListener('resize', dismissTip));
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', closePointTip);
+  window.removeEventListener('resize', dismissTip);
   bindAsideScroll(null);
 });
 </script>
@@ -351,8 +444,10 @@ onBeforeUnmount(() => {
           clip AIV/AIC to an empty track (PR-ROOF-006).
         -->
         <div
+          ref="legendScrollEl"
           class="pr-roofline__legend-scroll"
           data-testid="roofline-legend"
+          @wheel="onLegendWheel"
         >
           <div
             class="pr-roofline__legend"
@@ -364,11 +459,11 @@ onBeforeUnmount(() => {
                 v-for="s in aivSeries"
                 :key="s.id"
                 class="pr-roofline__leg-item"
-                :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+                :class="{ 'pr-roofline__leg-item--lit': seriesHoverId === s.id }"
                 data-testid="roofline-leg-item"
                 :data-series-id="s.id"
-                @mouseenter="legendHoverId = s.id"
-                @mouseleave="legendHoverId = null"
+                @mouseenter="onLegendEnter(s.id)"
+                @mouseleave="onLegendLeave"
               >
                 <span
                   class="pr-roofline__leg-swatch"
@@ -389,11 +484,11 @@ onBeforeUnmount(() => {
                 v-for="s in aicSeries"
                 :key="s.id"
                 class="pr-roofline__leg-item"
-                :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
+                :class="{ 'pr-roofline__leg-item--lit': seriesHoverId === s.id }"
                 data-testid="roofline-leg-item"
                 :data-series-id="s.id"
-                @mouseenter="legendHoverId = s.id"
-                @mouseleave="legendHoverId = null"
+                @mouseenter="onLegendEnter(s.id)"
+                @mouseleave="onLegendLeave"
               >
                 <span
                   class="pr-roofline__leg-swatch"
@@ -506,13 +601,17 @@ onBeforeUnmount(() => {
             :class="roofHighlightClass(s.id)"
             data-testid="roofline-roof"
             :data-series-id="s.id"
+            @mouseenter="onRoofEnter(s)"
+            @mouseleave="onRoofLeave"
           >
+            <!-- Paint first; hit strokes sit on top (transparent, wider, solid). -->
             <path
               class="pr-roofline__roof"
               :class="{ 'pr-roofline__roof--dashed': s.slopeStyle === 'dashed' }"
               :d="roofSegments(s).slope"
               fill="none"
               :stroke="s.color"
+              pointer-events="none"
             />
             <path
               class="pr-roofline__roof"
@@ -520,11 +619,65 @@ onBeforeUnmount(() => {
               :d="roofSegments(s).plateau"
               fill="none"
               :stroke="s.color"
+              pointer-events="none"
+            />
+            <path
+              class="pr-roofline__roof-hit"
+              data-testid="roofline-roof-hit"
+              :d="roofSegments(s).slope"
+              fill="none"
+              stroke="transparent"
+              :stroke-width="ROOF_HIT_STROKE"
+            />
+            <path
+              class="pr-roofline__roof-hit"
+              data-testid="roofline-roof-hit"
+              :d="roofSegments(s).plateau"
+              fill="none"
+              stroke="transparent"
+              :stroke-width="ROOF_HIT_STROKE"
             />
           </g>
         </g>
-        <!-- Markers sit outside plot clip so edge marks are not cropped. -->
+        <!-- Markers sit outside plot clip so edge marks are not cropped.
+             Knees first, points on top so a 16×16 knee pad cannot steal PR-ROOF-004. -->
         <g class="pr-roofline__markers">
+          <!-- Roof ridge knees: 8×8 paint + larger transparent hit pad. -->
+          <g
+            v-for="s in roofDrawOrder"
+            :key="`knee-${s.id}`"
+            class="pr-roofline__knee-g"
+            :class="roofHighlightClass(s.id)"
+            :data-series-id="s.id"
+            @mouseenter="onKneeEnter($event, s)"
+            @mousemove="onKneeMove"
+            @mouseleave="onKneeLeave"
+            @pointerleave="onKneeLeave"
+            @pointercancel="onKneeLeave"
+          >
+            <rect
+              class="pr-roofline__knee-hit"
+              data-testid="roofline-knee-hit"
+              :x="roofSegments(s).ridgeX - KNEE_HIT / 2"
+              :y="roofSegments(s).ridgeY - KNEE_HIT / 2"
+              :width="KNEE_HIT"
+              :height="KNEE_HIT"
+              fill="transparent"
+            />
+            <rect
+              data-testid="roofline-knee"
+              class="pr-roofline__knee"
+              :x="roofSegments(s).ridgeX - KNEE / 2"
+              :y="roofSegments(s).ridgeY - KNEE / 2"
+              :width="KNEE"
+              :height="KNEE"
+              :rx="KNEE_RX"
+              :ry="KNEE_RX"
+              :fill="s.color"
+              :stroke="s.color"
+              pointer-events="none"
+            />
+          </g>
           <!-- Measured points (off the roofs): filled/hollow circles, series color. -->
           <circle
             v-for="p in model.points"
@@ -537,30 +690,12 @@ onBeforeUnmount(() => {
             :r="POINT_R"
             :fill="p.style === 'hollow' ? '#262626' : p.color"
             :stroke="p.color"
-            :aria-describedby="hoveredId === p.id ? tipId : undefined"
+            :aria-describedby="tipBody?.pointId === p.id ? tipId : undefined"
             @mouseenter="onPointEnter($event, p)"
             @mousemove="onPointMove"
             @mouseleave="onPointLeave"
             @pointerleave="onPointLeave"
             @pointercancel="onPointLeave"
-          />
-          <!-- Roof ridge knees (on the lines): filled rounded squares like legend. -->
-          <rect
-            v-for="s in roofDrawOrder"
-            :key="`knee-${s.id}`"
-            data-testid="roofline-knee"
-            class="pr-roofline__knee"
-            :class="roofHighlightClass(s.id)"
-            :data-series-id="s.id"
-            :x="roofSegments(s).ridgeX - KNEE / 2"
-            :y="roofSegments(s).ridgeY - KNEE / 2"
-            :width="KNEE"
-            :height="KNEE"
-            :rx="KNEE_RX"
-            :ry="KNEE_RX"
-            :fill="s.color"
-            :stroke="s.color"
-            pointer-events="none"
           />
         </g>
         <text
@@ -620,18 +755,23 @@ onBeforeUnmount(() => {
     -->
     <Teleport to="body">
       <div
-        v-if="hoveredPoint && tipPos"
+        v-if="tipBody && tipPos"
         :id="tipId"
         class="pr-tooltip pr-roofline-tip"
         role="tooltip"
         data-testid="roofline-tooltip"
+        :data-tip-kind="hoverTip?.kind"
         :style="tipPos"
       >
         <div class="pr-roofline-tip__name">
-          {{ hoveredPoint.label }}
+          {{ tipBody.name }}
         </div>
-        <div>{{ fmtVal(hoveredPoint.intensity) }} Ops/Byte</div>
-        <div>{{ fmtVal(hoveredPoint.performance) }} TOps/s</div>
+        <div
+          v-for="(line, i) in tipBody.lines"
+          :key="i"
+        >
+          {{ line }}
+        </div>
       </div>
     </Teleport>
   </div>
@@ -803,16 +943,34 @@ onBeforeUnmount(() => {
   stroke-width: 3.5;
 }
 
+.pr-roofline__roof-g {
+  cursor: pointer;
+}
+
+.pr-roofline__roof-hit {
+  pointer-events: stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pr-roofline__knee-g {
+  cursor: pointer;
+}
+
 .pr-roofline__knee {
   stroke-width: 1.5;
   transition: opacity 80ms ease, stroke-width 80ms ease;
 }
 
-.pr-roofline__knee.pr-roofline__roof-g--dim {
-  opacity: 0.28;
+/*
+ * Knees stay more opaque than dimmed roofs so ridge markers remain findable
+ * while another series is emphasized (avoid compounding a second 0.28 on the paint).
+ */
+.pr-roofline__knee-g.pr-roofline__roof-g--dim {
+  opacity: 0.7;
 }
 
-.pr-roofline__knee.pr-roofline__roof-g--lit {
+.pr-roofline__knee-g.pr-roofline__roof-g--lit .pr-roofline__knee {
   stroke-width: 2.5;
 }
 
