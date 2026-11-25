@@ -48,6 +48,33 @@ export function colorForThread(name: string): string {
   return LANE_COLOR_HEX[laneColorKey(name)];
 }
 
+/**
+ * Memory-util CounterTrack stroke/fill — same ink as heatmap "used"
+ * ([COLOR_TOKENS](../../docs/ui/COLOR_TOKENS.md) `HEAT_BLOCK_WITH_DATA`).
+ */
+export const MEMORY_UTIL_COUNTER_COLOR = '#3D64AD';
+
+const MEMORY_UTIL_PROCESS_RE = /_(?:UB|L0A|L0B|L0C|L1)_UTILIZATION\b/i;
+const PUSHQ_PROCESS_RE = /_PUSHQ_/i;
+const UNIT_UTIL_PROCESS_RE = /_UNIT_UTILIZATION\b/i;
+
+/** True for emulate memory-util pipe process names (`*_UB/L0*_UTILIZATION`). */
+export function isMemoryUtilProcess(processName: string): boolean {
+  return MEMORY_UTIL_PROCESS_RE.test(processName);
+}
+
+/**
+ * Color for a Trace `ph:C` CounterTrack from its CTEF `process_name`.
+ * Pipe-tied queues reuse durable-lane hues; memory → heat blue; PUSHQ → vector;
+ * unit util → scalar.
+ */
+export function colorForCounterProcess(processName: string): string {
+  if (isMemoryUtilProcess(processName)) return MEMORY_UTIL_COUNTER_COLOR;
+  if (PUSHQ_PROCESS_RE.test(processName)) return LANE_COLOR_HEX.vector;
+  if (UNIT_UTIL_PROCESS_RE.test(processName)) return LANE_COLOR_HEX.scalar;
+  return colorForThread(processName);
+}
+
 export type EventState = 'normal' | 'hover' | 'selected';
 
 /**
@@ -175,6 +202,28 @@ export function overviewStrokeHex(baseHex: string): string {
   if (base && base.L < 0.62) {
     out = oklchToHex({
       L: Math.min(1, base.L + OVERVIEW_STROKE_LIFT_L),
+      C: base.C,
+      h: base.h,
+    });
+  }
+  memo.set(key, out);
+  return out;
+}
+
+/**
+ * Distinct stroke for the i-th series under one CounterTrack process
+ * (collapsed multi-series overlay). Index 0 = base; later indices lift L.
+ */
+export function counterSeriesColor(baseHex: string, seriesIndex: number): string {
+  if (seriesIndex <= 0) return baseHex;
+  const key = `${baseHex}|counter-series|${seriesIndex}`;
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit;
+  const base = hexToOklch(baseHex);
+  let out = baseHex;
+  if (base) {
+    out = oklchToHex({
+      L: Math.min(1, base.L + OVERVIEW_STROKE_LIFT_L * seriesIndex),
       C: base.C,
       h: base.h,
     });

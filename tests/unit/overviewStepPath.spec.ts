@@ -60,14 +60,14 @@ describe('stepValueAt', () => {
 });
 
 describe('stepPointAt', () => {
-  it('holds full sample including optional abs', () => {
+  it('holds full sample including optional values snapshot', () => {
     const pts = [
-      { t: 0, v: 2, abs: 0.05 },
-      { t: 100, v: 3, abs: 0.04 },
+      { t: 0, v: 2, values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 } },
+      { t: 100, v: 3, values: { 'Utilization (%)': 3, 'Using Bytes (KB)': 0.04 } },
     ];
-    expect(stepPointAt(pts, 50)).toEqual({ t: 0, v: 2, abs: 0.05 });
-    expect(stepPointAt(pts, 100)).toEqual({ t: 100, v: 3, abs: 0.04 });
-    expect(stepPointAt(pts, 150)).toEqual({ t: 100, v: 3, abs: 0.04 });
+    expect(stepPointAt(pts, 50)).toEqual(pts[0]);
+    expect(stepPointAt(pts, 100)).toEqual(pts[1]);
+    expect(stepPointAt(pts, 150)).toEqual(pts[1]);
     expect(stepPointAt(pts, -1)).toBeNull();
   });
 });

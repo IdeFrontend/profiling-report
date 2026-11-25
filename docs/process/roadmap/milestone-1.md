@@ -25,7 +25,7 @@ Index: [README.md](README.md)
 
 Aside mode switcher: **Summary** | **PIPE** | **Pipe details** | **Memory** | **Cache** | **Metrics** (omit modes with no data).
 
-Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cube|Vector), [`v930/compute-load-detail`](../../ui/source/v930/compute-load-detail.jpeg), [`v930/memory-load-detail`](../../ui/source/v930/memory-load-detail.jpeg) (tabs + block + 查看全部).
+Design frames: [`v930/compute-load`](../../ui/source/930/ComputeLoadAnalysis/screenshot.png) (Cube|Vector), [`v930/compute-load-detail`](../../ui/source/930/ComputeLoadAnalysisDetails/screenshot.png), [`v930/memory-load-detail`](../../ui/source/930/MemoryLoadAnalysisDetails/screenshot.png) (tabs + block + 查看全部).
 
 | View | Status | Features |
 |------|--------|----------|
@@ -56,7 +56,7 @@ Design frames: [`v930/compute-load`](../../ui/source/v930/compute-load.jpeg) (Cu
 |---------|--------|------------|
 | No column semantics / units for many CSV fields (producer spec WIP) | Labels may be raw header names only | Ship raw headers + values; polish labels when format spec arrives |
 | Which rows to show (per `block_id` vs aggregate) | Wrong UX for multi-block fixture | **DATA-28 / DATA-19**: mean bars + one block selector for every widget |
-| Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `source/v930/compute-load-detail.jpeg` list pattern |
+| Sketches for pipe/memory **lists** exist; Metrics/Cache aside chrome less specified | Layout guesswork | Mirror changelog tabs + `source/930/ComputeLoadAnalysisDetails/screenshot.png` list pattern |
 | Summary tiles beyond M1 scope (compute / BW) | Summary incomplete vs sketches | Out of M1; DATA-2–10 resolved, wire in a later slice |
 | DATA-32 — no `OverviewSeries` in fixture | Overview charts stay empty | Keep hidden (already decided) |
 | Dense/wide CSVs may hurt aside UX | Scroll/search only | Search + virtualize if needed; no chart derivation in M1 |

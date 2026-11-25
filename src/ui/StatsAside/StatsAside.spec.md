@@ -286,7 +286,7 @@ Mount only when duration is present. Omit when the summary is BW-only.
 
 ### PIPE (`pipe-bars.png`, `mode-tabs.png`)
 
-Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpeg) at ~4× (bar 64px crop → 16px CSS).
+Sampled from [`v930/compute-load`](../../../docs/ui/source/930/ComputeLoadAnalysis/screenshot.png) at ~4× (bar 64px crop → 16px CSS).
 
 | Token | Value |
 |-------|--------|
@@ -314,9 +314,9 @@ Sampled from [`v930/compute-load`](../../../docs/ui/source/v930/compute-load.jpe
 - [summary-cards](./StatsSummaryPanel/visual/summary-cards.png) — from `v930/report-stats-open`
 - [pipe-bars](./PipeOccupancyPanel/visual/pipe-bars.png) — from `v930/compute-load`
 - [hardware-detail](./HardwareDetailsPanel/visual/hardware-detail.png) — from `v930/hardware-more-detail`
-- [compute-load-detail](../../../docs/ui/source/v930/compute-load-detail.jpeg) — compute CSV overlay
-- [memory-load-detail](../../../docs/ui/source/v930/memory-load-detail.jpeg) — memory overlay
-- [PIPE occupancy](../../../docs/ui/source/v930/compute-load.jpeg) — full frame
+- [compute-load-detail](../../../docs/ui/source/930/ComputeLoadAnalysisDetails/screenshot.png) — compute CSV overlay
+- [memory-load-detail](../../../docs/ui/source/930/MemoryLoadAnalysisDetails/screenshot.png) — memory overlay
+- [PIPE occupancy](../../../docs/ui/source/930/ComputeLoadAnalysis/screenshot.png) — full frame
 
 ## Dependencies
 

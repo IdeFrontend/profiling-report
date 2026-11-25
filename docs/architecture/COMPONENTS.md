@@ -266,7 +266,7 @@ Cards from `SummaryMetrics`.
 
 ### `PipeOccupancyPanel` (M / M1)
 
-Horizontal bars from `PipeOccupancyItem[]`. **M1:** Cube | Vector segmented control when `OpType == MIX` ([`v930/compute-load`](../ui/source/v930/compute-load.jpeg)).
+Horizontal bars from `PipeOccupancyItem[]`. **M1:** Cube | Vector segmented control when `OpType == MIX` ([`v930/compute-load`](../ui/source/930/ComputeLoadAnalysis/screenshot.png)).
 
 **Why:** Highest-value `.rep` analytics panel in sketches; data from `PipeUtilization.csv` via adapter.
 

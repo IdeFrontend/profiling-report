@@ -42,15 +42,24 @@ export interface SwimEvent {
 export type LaneCategoryKey = 'comm' | 'compute' | 'hbm';
 
 /** One CounterTrack sample: `v` is the Y-domain value; optional `abs` is producer absolute (KB). */
-export type SwimCounterPoint = { t: number; v: number; abs?: number };
+/**
+ * CounterTrack sample. `v` drives the lane Y series; optional `values` keeps every
+ * numeric `ph:C` arg at that timestamp for a data-driven hover tip.
+ */
+export type SwimCounterPoint = {
+  t: number;
+  v: number;
+  /** Full numeric args snapshot from the Chrome Trace counter event (tip rows). */
+  values?: Record<string, number>;
+};
 
-/** Chrome-like CounterTrack samples on a swim leaf (emulate Trace ph:C util pipes). */
+/** Chrome-like CounterTrack samples on a swim leaf (Trace `ph:C`). */
 export interface SwimCounterSeries {
-  /** Canonical ns timestamps; `v` in the track's Y domain (util %). */
+  /** Canonical ns timestamps; `v` in the track's Y domain (auto-scaled). */
   points: SwimCounterPoint[];
   /** Per-track auto Y max (Chrome CounterTrack); must be > 0. */
   yMax: number;
-  /** Optional stroke/fill override (e.g. memory util `#E7434A`); else `colorForThread`. */
+  /** Optional stroke/fill override; else `colorForThread`. */
   colorHex?: string;
 }
 
@@ -71,9 +80,14 @@ export interface SwimThread {
   summaryEvents?: SwimEvent[];
   /**
    * CounterTrack leaf (mutually exclusive with non-empty `events`): step-after area
-   * chart in the lane band. Emulate Trace util pipes (#208/#209/#206).
+   * chart in the lane band. Built from Chrome Trace `ph:C` counters.
    */
   counter?: SwimCounterSeries;
+  /**
+   * Collapsed multi-series CounterTrack folder: overlay paint for every arg series.
+   * Present with non-empty `children` (one leaf per arg key). Ignored when expanded.
+   */
+  counterSeries?: SwimCounterSeries[];
 }
 
 export interface SwimProcess {
@@ -713,4 +727,50 @@ export interface SwimlaneRenderer {
   render(): void;
   hitTest(x: number, y: number): string | null;
   dispose(): void;
+}
+
+/** A saved comparison report (对比基线) — host-owned list, the library only renders and selects. */
+export interface Baseline {
+  /** Opaque identity, unique per host list and stable while the entry stays;
+   *  hosts mint ids with the barrel's `newBaselineId`. */
+  id: string;
+  name: string;
+  /** Host-meaningful identity (absolute path / URI). The library never opens
+   *  it; browser hosts fabricate a display pseudo-path. */
+  path: string;
+  /**
+   * The baseline's operator records, in pack order (MSTT: the pack's
+   * operators; bundled web hosts fill demo values on the host side). The
+   * aside Operator dropdown lists them by `id`; absent = the dropdown offers
+   * only Not selected.
+   */
+  operators?: ReportOperator[];
+  /**
+   * Pick timestamp in epoch ms (a host mtime or the pick moment). Drives the
+   * derived display title (`baselineDisplayTitle`). Only a REAL positive
+   * instant counts: `0` is the unknown-mtime sentinel, NaN/negative are
+   * broken — all three fall to the embedded OPPROF stamp instead of
+   * shadowing it.
+   */
+  pickedAt?: number;
+}
+
+/** What the host file dialog resolved after the picker + press; `null` = cancelled. */
+export interface BaselinePick {
+  path: string;
+  /** Display name; the root falls back to the path basename when omitted. */
+  name?: string;
+  /** File mtime (epoch ms) — the derived title's timestamp; defaults to the pick moment. */
+  pickedAt?: number;
+}
+
+/**
+ * The selected baseline's adapted pack, supplied by the host: it adapts the
+ * baseline bytes itself via the public `loadReportSource` and tags the result
+ * with the baseline id it belongs to. The root ignores a payload whose id does
+ * not match the current selection. The library never reads the filesystem.
+ */
+export interface BaselineReportData {
+  baselineId: string;
+  report: AdaptedReport;
 }

@@ -46,7 +46,7 @@ export function resizeMeasureEdge(input: {
  * Trusted moves with buttons===0 recover from a lost pointerup (skip synthetic test events).
  */
 export function bindWindowPointerDrag(handlers: {
-  onMove: (clientX: number, clientY: number) => void;
+  onMove: (clientX: number, clientY: number, e: PointerEvent) => void;
   onEnd: () => void;
 }): () => void {
   const moveOpts: AddEventListenerOptions = { capture: true };
@@ -55,7 +55,7 @@ export function bindWindowPointerDrag(handlers: {
       onEnd();
       return;
     }
-    handlers.onMove(e.clientX, e.clientY);
+    handlers.onMove(e.clientX, e.clientY, e);
   };
   const onEnd = () => {
     cleanup();

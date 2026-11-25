@@ -21,6 +21,7 @@ const UI_DIR = resolve(ROOT, 'src/ui');
 const SWIM_DIR = resolve(ROOT, 'src/swimlane');
 const DOCS_UI = resolve(ROOT, 'docs/ui');
 const DOCS_CONTEXT = resolve(ROOT, 'docs/context');
+const SPECS_DIR = resolve(ROOT, 'specs');
 const HQ_MANIFEST = resolve(DOCS_CONTEXT, 'visual/questions/manifest.yaml');
 const HQ_OUT_DIR = resolve(DOCS_CONTEXT, 'visual/questions');
 
@@ -288,10 +289,16 @@ function checkMarkdownLinks() {
     ...findFiles(resolve(ROOT, 'src/swimlane'), (n) => n.endsWith('.md')),
     ...findFiles(DOCS_UI, (n) => n.endsWith('.md')),
     ...findFiles(DOCS_CONTEXT, (n) => n.endsWith('.md')),
+    // specs also cite design frames (e.g. the NPU-REP layout anchor) — a deleted batch
+    // must fail here, not silently leave a 404 sketch link in a spec
+    ...findFiles(SPECS_DIR, (n) => n.endsWith('.md')),
   ];
 
   for (const file of mdFiles) {
-    const content = readFileSync(file, 'utf-8');
+    // link examples inside code spans/fences are documentation, not citations
+    const content = readFileSync(file, 'utf-8')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`\n]*`/g, '');
     const base = dirname(file);
     let m;
     MD_LINK_RE.lastIndex = 0;
@@ -313,6 +320,29 @@ function checkMarkdownLinks() {
         fail(`broken image link in ${relative(ROOT, file)}: ${stripLinkTarget(raw)}`);
       }
     }
+  }
+}
+
+/** A markdown table's header and body rows must have the separator's cell count. */
+function checkMarkdownTable(file) {
+  const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+  const cells = (line) => line.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).length;
+  const isSep = (line) => /^\|(\s*:?-{3,}:?\s*\|)+$/.test(line.trim());
+  let expected = 0;
+  let prev = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith('|')) { expected = 0; prev = null; continue; }
+    const n = cells(line);
+    if (isSep(line)) {
+      if (prev != null && cells(prev) !== n) {
+        fail(`malformed markdown table in ${relative(ROOT, file)}:${i}: header has ${cells(prev)} cells, separator has ${n}`);
+      }
+      expected = n;
+    } else if (expected && n !== expected) {
+      fail(`malformed markdown table in ${relative(ROOT, file)}:${i + 1}: row has ${n} cells, table has ${expected}`);
+    }
+    prev = line;
   }
 }
 
@@ -362,6 +392,7 @@ const maps = loadManifest();
 checkVisualPacks(maps);
 checkHqVisuals(maps);
 checkMarkdownLinks();
+checkMarkdownTable(resolve(DOCS_UI, 'DESIGN_INDEX.md'));
 
 for (const w of warnings) console.warn(`WARN: ${w}`);
 if (errors.length) {

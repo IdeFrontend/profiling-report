@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import type { GutterMetric } from '../../../domain/gutterMetrics';
 import { createViewState } from '../../../domain/viewState';
-import { LANE_HEIGHT } from '../../../swimlane/layout';
+import { COUNTER_LANE_HEIGHT } from '../../../swimlane/layout';
 import SwimlaneCanvas from './SwimlaneCanvas/SwimlaneCanvas.vue';
 import CounterHoverTip from './CounterHoverTip.vue';
 import SwimlaneView from './SwimlaneView.vue';
@@ -3013,23 +3013,31 @@ describe('SwimlaneView', () => {
       vi.restoreAllMocks();
     });
 
-    it('PR-SWIMVIEW-048: CounterTrack hover mounts teleported tip with util % + Using KB', async () => {
+    it('PR-SWIMVIEW-048: CounterTrack hover mounts teleported tip with arg rows', async () => {
       const model = {
         minTime: 0,
         maxTime: 20_000,
         processes: [
           {
-            id: 'p-counter-memory-util',
-            name: 'Memory utilization',
+            id: 'p-counter-22',
+            name: 'AIV0_UB_UTILIZATION (memory_utilization)',
             threads: [
               {
-                id: 'counter-AIV0_UB_UTILIZATION',
-                name: 'AIV0_UB_UTILIZATION',
+                id: 'counter-22-Utilization (%)',
+                name: 'Utilization (%)',
                 events: [],
                 counter: {
                   points: [
-                    { t: 5_000, v: 2, abs: 0.05 },
-                    { t: 10_000, v: 3, abs: 0.04 },
+                    {
+                      t: 5_000,
+                      v: 2,
+                      values: { 'Utilization (%)': 2, 'Using Bytes (KB)': 0.05 },
+                    },
+                    {
+                      t: 10_000,
+                      v: 3,
+                      values: { 'Utilization (%)': 3, 'Using Bytes (KB)': 0.04 },
+                    },
                   ],
                   yMax: 3,
                   colorHex: '#E7434A',
@@ -3071,33 +3079,68 @@ describe('SwimlaneView', () => {
       });
 
       // Header 40px + mid of counter lane.
-      const y = 40 + LANE_HEIGHT / 2;
+      const y = 40 + COUNTER_LANE_HEIGHT / 2;
       await canvas.trigger('pointermove', { clientX: 150, clientY: y, pointerId: 1 });
       await nextTick();
 
       const tip = document.querySelector('[data-testid="counter-hover-tooltip"]') as HTMLElement | null;
       expect(tip).not.toBeNull();
-      // Pipe name header (EventTooltip event-name parity).
-      expect(tip!.querySelector('[data-testid="counter-hover-name"]')!.textContent).toBe(
-        'AIV0_UB_UTILIZATION',
-      );
-      // OverviewCharts tip layout: label left, value right (default locale zh-CN).
-      const utilRow = tip!.querySelector('[data-testid="counter-hover-util"]') as HTMLElement;
-      const usingRow = tip!.querySelector('[data-testid="counter-hover-using"]') as HTMLElement;
-      expect(utilRow.textContent).toMatch(/利用率/);
-      expect(utilRow.textContent).toMatch(/2%/);
-      expect(usingRow.textContent).toMatch(/占用/);
-      expect(usingRow.textContent).toMatch(/0\.05 KB/);
+      // No title — series name lives in the value row only.
+      expect(tip!.querySelector('[data-testid="counter-hover-name"]')).toBeNull();
+      const timeRow = tip!.querySelector('[data-testid="counter-hover-time"]');
+      expect(timeRow).not.toBeNull();
+      expect(timeRow!.textContent).toMatch(/Sample Time/);
+      expect((timeRow!.textContent ?? '').length).toBeGreaterThan(4);
+      const rowEls = [...tip!.querySelectorAll('[data-testid="counter-hover-row"]')];
+      const rows = rowEls.map((el) => el.textContent ?? '');
+      // Single leaf: only the hovered series (sibling args on `values` omitted).
+      expect(rowEls).toHaveLength(1);
+      expect(rows[0]).toMatch(/Utilization \(%\)/);
+      expect(rows[0]).toMatch(/2%/);
+      // No bold/swatch — nothing to contrast when the tip has one series row.
+      expect(rowEls[0]!.classList.contains('is-active')).toBe(false);
+      expect(rowEls[0]!.querySelector('.pr-counter-hover-tip__swatch')).toBeNull();
       // Inline fixed positioning so Teleport→body stays visible without waiting on CSS.
       expect(tip!.style.position).toBe('fixed');
       expect(tip!.style.left).toBe('162px');
       expect(tip!.style.top).toBe(`${y + 12}px`);
 
-      // Value-dot circle on the step-after hold (OverviewCharts parity).
-      const dot = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
-      expect(dot).not.toBeNull();
-      expect(dot!.style.left).toBe('150px');
-      expect(dot!.style.background.toLowerCase()).toMatch(/#e7434a|231,\s*67,\s*74/);
+      // Clip box is fixed+overflow:hidden; dots/link are absolute inside it so
+      // off-track samples can render partially at the track edge.
+      const clip = document.querySelector(
+        '[data-testid="counter-hover-clip"]',
+      ) as HTMLElement | null;
+      expect(clip).not.toBeNull();
+      expect(clip!.style.position).toBe('fixed');
+      expect(clip!.style.overflow).toBe('hidden');
+      // Sample (white outline 10px) + hold (opaque series disc = inner hole 6px, no ring)
+      // + white link from sample outer edge → hold outer edge (not through centers).
+      const sample = document.querySelector(
+        '[data-testid="counter-hover-sample"]',
+      ) as HTMLElement | null;
+      expect(sample).not.toBeNull();
+      expect(sample!.style.position).toBe('absolute');
+      expect(sample!.style.left).toBe('100px');
+      expect(sample!.style.background).toMatch(/transparent/i);
+      expect(sample!.style.border).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
+      expect(sample!.style.width).toBe('10px');
+      const hold = document.querySelector('[data-testid="counter-hover-dot"]') as HTMLElement | null;
+      expect(hold).not.toBeNull();
+      expect(hold!.style.left).toBe('150px');
+      expect(hold!.style.background.toLowerCase()).toMatch(/#e7434a|rgb\(231,\s*67,\s*74\)/i);
+      expect(hold!.style.border).toMatch(/^(none|$)/i);
+      expect(hold!.style.position).toBe('absolute');
+      expect(hold!.style.width).toBe('6px');
+      expect(hold!.style.height).toBe('6px');
+      const link = document.querySelector(
+        '[data-testid="counter-hover-link"]',
+      ) as HTMLElement | null;
+      expect(link).not.toBeNull();
+      // Centers 100→150; sampleR=5, holdR=3 → left=105, width=42.
+      expect(link!.style.position).toBe('absolute');
+      expect(link!.style.left).toBe('105px');
+      expect(link!.style.width).toBe('42px');
+      expect(link!.style.borderTop).toMatch(/#fff|rgb\(255,\s*255,\s*255\)/i);
 
       // Same lane hit, but a short iframe: tip must flip above/left instead of cropping.
       Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
@@ -3119,22 +3162,37 @@ describe('SwimlaneView', () => {
       await nextTick();
       expect(document.querySelector('[data-testid="counter-hover-tooltip"]')).toBeNull();
       expect(document.querySelector('[data-testid="counter-hover-dot"]')).toBeNull();
+      expect(document.querySelector('[data-testid="counter-hover-sample"]')).toBeNull();
+      expect(document.querySelector('[data-testid="counter-hover-link"]')).toBeNull();
       wrapper.unmount();
     });
 
-    it('PR-SWIMVIEW-048: Using KB display caps at 2 decimal places', () => {
+    it('PR-SWIMVIEW-048: KB / percent tip values cap at 2 decimal places', () => {
       const tip = mount(CounterHoverTip, {
         props: {
-          name: 'AIV0_UB_UTILIZATION',
-          utilization: 12.3456,
-          usingKb: 12.345678,
+          sampleTimeLabel: '5 µs',
+          activeLabel: 'Utilization (%)',
+          rows: [
+            { label: 'Utilization (%)', value: '12.35%', color: '#3D64AD' },
+            { label: 'Using Bytes (KB)', value: '12.35 KB', color: '#5A7EC4' },
+          ],
           stylePos: { position: 'fixed', left: '0px', top: '0px' },
-          locale: 'en',
         },
       });
-      expect(tip.get('[data-testid="counter-hover-name"]').text()).toBe('AIV0_UB_UTILIZATION');
-      expect(tip.get('[data-testid="counter-hover-util"]').text()).toMatch(/Utilization\s*12\.35%/);
-      expect(tip.get('[data-testid="counter-hover-using"]').text()).toMatch(/Using\s*12\.35 KB/);
+      expect(tip.find('[data-testid="counter-hover-name"]').exists()).toBe(false);
+      expect(tip.get('[data-testid="counter-hover-time"]').text()).toMatch(/Sample Time\s*5 µs/);
+      const rows = tip.findAll('[data-testid="counter-hover-row"]');
+      expect(rows[0]!.text()).toMatch(/Utilization \(%\)\s*12\.35%/);
+      expect(rows[1]!.text()).toMatch(/Using Bytes \(KB\)\s*12\.35 KB/);
+      // Multi-series: swatch on every row; bold only on active.
+      expect(rows[0]!.find('.pr-counter-hover-tip__swatch').attributes('style')).toMatch(
+        /#3D64AD|rgb\(61,\s*100,\s*173\)/i,
+      );
+      expect(rows[1]!.find('.pr-counter-hover-tip__swatch').attributes('style')).toMatch(
+        /#5A7EC4|rgb\(90,\s*126,\s*196\)/i,
+      );
+      expect(rows[0]!.classes()).toContain('is-active');
+      expect(rows[1]!.classes()).not.toContain('is-active');
       tip.unmount();
     });
   });

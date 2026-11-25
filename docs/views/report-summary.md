@@ -11,7 +11,7 @@
 
 ## Sketches
 
-![Report statistics open](../ui/source/v930/report-stats-open.jpeg)
+![Report statistics open](../ui/source/930/OpenReportStatistics/screenshot.png)
 
 **Component crop:** ![Summary cards](../../src/ui/StatsAside/StatsSummaryPanel/visual/summary-cards.png)
 

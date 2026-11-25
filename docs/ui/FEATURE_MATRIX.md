@@ -15,7 +15,7 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Simulator Phase 2: dedicated arch chrome / VF IPC / call stacks / … | P2 | MHTML §11.2.3; [DATA-48](../context/questions/DATA.md); capabilities `vfIpc`, `callStacks`, … |
 | Timeline secondary tab | M | Primary view |
 | OP算子 / 概览 / 源码 tabs | M | **时间线** always; **概览** (Overview) only when the pack carries operator rows (`OpBasicInfo.csv` or the `OpInfoSummary` fallback) — operator table + 低利用率 (underutilization) dock; **源码** only when the pack has a real Source model ([UI-37](../context/decisions/UI.md)). Emulate lights when ELF Source* / AsmMetrics gate passes ([DATA-53](../context/decisions/DATA.md)); gelu-without-ELF stays absent. **详情** / **缓存** are not in the chrome. OP算子 = brand / multi-op selector. Compute packing / heat tint still open ([DATA-52](../context/questions/DATA.md), [UI-56](../context/questions/UI.md)–[UI-59](../context/questions/UI.md)). |
-| Host explorer / performance tree | H | `source/v930/entry.jpeg` left rail |
+| Host explorer / performance tree | H | `source/930/EntryPoint/screenshot.png` left rail |
 | Keep Insight for `.bin` | H | See formats comparison |
 
 ## Toolbar
@@ -28,12 +28,12 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | User guide | M | Rightmost `help` glyph; opens `userGuideUrl` (default `https://gitcode.com/opdevtools/plugin_release/blob/main/README.md#profiling-report-用户指南`) in a new tab |
 | Download HTML report | optional | Self-contained file:// HTML for share-out / CI — **not** MSTT packaging. Toolbar control is opt-in (`allowHtmlExport`); CLI is `npu-rep-html` / `generate:html-report`. |
 | Toggle stats / report panel | M | |
-| Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/v930/task-measure-mode.jpeg) |
-| Timeline markers | P2 | `source/v930/entry.jpeg` annotations |
+| Time-range measure / 度量模式 | M2 | Toolbar caliper; drag `[t0,t1]`; shaded band + Δt; **local overlay only** — does not recompute the aside. Sketch: [`v930/task-measure-mode`](./source/930/TaskTimeMeasurementMode/screenshot.png) |
+| Timeline markers | P2 | `source/930/EntryPoint/screenshot.png` annotations |
 | Show/hide dependency links | P2 | |
 | Task display unit (auto s/ms/µs/ns or CPU clocks) | M | Two-tier auto ([UI-40](../context/decisions/UI.md)): axis/cursor from viewport / overview density; tooltip/detail/Δt per-value. No manual dropdown. Optional **CPU clocks** when OpBasicInfo freq present — **derived** `ns × freq` ([UI-45](../context/decisions/UI.md)); tooltip + detail only. |
 | Layer / display control (extra options, clock cycles) | P2 | Same popover surface; more options later |
-| 流水视图显示 (multi-timeline radio selector) | M | Switch among present §11.14 CTEF embeds (`Communication` / `PipeTrace` / SimtWarp); hide when &lt; 2; omit unmatched `stat` ([DATA-56](../context/decisions/DATA.md)). Sketch: [`1130/pipeline-display-filter`](./source/1130/1130_仿真上板公共_流水显示筛选_流水显示筛选.jpeg) |
+| 流水视图显示 (multi-timeline radio selector) | M | Switch among present §11.14 CTEF embeds (`Communication` / `PipeTrace` / SimtWarp); hide when &lt; 2; omit unmatched `stat` ([DATA-56](../context/decisions/DATA.md)). Sketch: [`1130/pipeline-display-filter`](./source/1130/PipelineDisplayFilter/screenshot.png) |
 | Settings | P2 | |
 
 ## Swimlane
@@ -43,26 +43,26 @@ Legend: **M** = MVP must-have · **P2** = Phase 2+ · **H** = host (MSTT) respon
 | Time axis + playhead | M | Times in **ns**; display unit **auto-scales** ([UI-40](../context/decisions/UI.md)) |
 | Cube / Vector overview charts | M | From `Sampling.json` `ph:C` — all counters present ([DATA-39](../context/decisions/DATA.md)); **hide** if empty ([DATA-32](../context/decisions/DATA.md)); with 流水视图显示, only while **pipeTrace** (or catalog absent) — hide for communication / warpOccupy ([DATA-56](../context/decisions/DATA.md)); per-track pin → sticky strip above pinned lanes (PyPTO) |
 | Hierarchical lane gutter + util bars | M | Card → 通信/计算/储存HBM → Core → pipes; **only Card** is group header; nested folders = lane-style expanders + util. Producer/stress **fixed** names ([DATA-35](../context/decisions/DATA.md)); flat CTEF still valid. Mid-row 统计 control **deferred** ([UI-47](../context/questions/deferred.md)) — do not ship. |
-| Card-header gutter metric selector | M | Per-Card dropdown (**利用率** + **时钟周期**); shared event-coverage bars; clockCycle labels = absolute `*_total_cycles` — [`gutter-metrics.spec.md`](../../specs/core/gutter-metrics.spec.md), [`DATA-38`](../context/decisions/DATA.md), [`UI-46`](../context/decisions/UI.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md); sketch [`v930/entry`](./source/v930/entry.jpeg) |
+| Card-header gutter metric selector | M | Per-Card dropdown (**利用率** + **时钟周期**); shared event-coverage bars; clockCycle labels = absolute `*_total_cycles` — [`gutter-metrics.spec.md`](../../specs/core/gutter-metrics.spec.md), [`DATA-38`](../context/decisions/DATA.md), [`UI-46`](../context/decisions/UI.md), [`SwimlaneView.spec.md`](../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md); sketch [`v930/entry`](./source/930/EntryPoint/screenshot.png) |
 | Uniform event-sequence lane background + horizontal row dividers | M | No zebra striping; gutter↔timeline continuous `#3a3a3a` lines ([UI_OVERVIEW](UI_OVERVIEW.md)) |
 | Colored event rectangles | M | Normative colors [COLOR_TOKENS](COLOR_TOKENS.md) |
-| Multi-height lanes (overlapping events) | M | A leaf lane whose events overlap in time splits into non-overlapping sub-rows under one title (`source/v930/task-multi-height.jpeg`); row height grows by `rowCount × 22px` |
+| Multi-height lanes (overlapping events) | M | A leaf lane whose events overlap in time splits into non-overlapping sub-rows under one title (`source/930/MultipleTasksHeightIncreased/screenshot.png`); row height grows by `rowCount × 22px` |
 | Event labels when wide enough | M | Vertically centered in block; horizontally centered in visible (clipped) event rect |
 | Adjacent-event gap measure (hover) | M | Default-mode hover in the free gap between adjacent events shows a transient, non-interactive Δt overlay (border sticks + arrow); does not change selection or window |
 | Alt event measure (Alt+click + hover) | M | Default-mode Alt+click anchor + Alt+hover Δt to an event edge or free cursor (same-lane reuse, cross-lane dashed connector, or full-height cursor line); ephemeral, does not change selection or window |
 | Zoom / pan (wheel, Shift+wheel, slider) | M | See [INTERACTIONS](INTERACTIONS.md); W/S/A/D → P2 ([PACKAGING_SUGGESTIONS](../context/PACKAGING_SUGGESTIONS.md)) |
 
 | ProfilerStep background bands | P2 | Needs data |
-| Dependency bezier links | P2 | `source/v930/entry.jpeg` |
-| Pin lane (gutter pushpin) | P2 | Leaf only this iteration (`#51`). **Folder pin deferred** — [UI-44](../context/questions/deferred.md); parked on `feat/pin-grouping-nodes` (PR #69). Sketch: `source/v930/hardware-more-detail.jpeg` |
-| Pin lane / context menu | P2 | `source/v930/task-context-menu.jpeg` (Pin row + global Shift+P; separate from gutter icon) |
-| Multi-select time slice summary | P2 | Marquee drag; `source/v930/task-marquee.jpeg` |
+| Dependency bezier links | P2 | `source/930/EntryPoint/screenshot.png` |
+| Pin lane (gutter pushpin) | P2 | Leaf only this iteration (`#51`). **Folder pin deferred** — [UI-44](../context/questions/deferred.md); parked on `feat/pin-grouping-nodes` (PR #69). Sketch: `source/930/ReportStatisticsMoreHardwareInfo/screenshot.png` |
+| Pin lane / context menu | P2 | `source/930/TaskContextMenu/screenshot.png` (Pin row + global Shift+P; separate from gutter icon) |
+| Multi-select time slice summary | P2 | Marquee drag; `source/930/TaskSelectionBox/screenshot.png` |
 
 ## Interactions (see also INTERACTIONS.md)
 
 | Feature | Phase | Notes / sketches |
 |---------|------:|------------------|
-| Hover tooltip (name, start, dur, end) | M | `source/v930/task-hover.jpeg` |
+| Hover tooltip (name, start, dur, end) | M | `source/930/TaskHover/screenshot.png` |
 | Single select → detail | M | |
 | Multi-select | P2 | Unmodified drag marquee + Slices dock + axis Δt — [INTERACTIONS](INTERACTIONS.md) |
 | Context menu | P2 | |
@@ -77,11 +77,11 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 | Report summary (time, compute, BW, util) | M | **2×2:** duration [DATA-33a](../context/decisions/interim/DATA.md)/[DATA-33e](../context/decisions/interim/DATA.md); compute Cube\|Vector [DATA-33h](../context/decisions/interim/DATA.md); bandwidth 读\|写 [DATA-8](../context/decisions/DATA.md) / [DATA-5](../context/decisions/DATA.md)–[DATA-7](../context/decisions/DATA.md); AICore 并行\|负载 [DATA-9](../context/decisions/DATA.md)/[DATA-10](../context/decisions/DATA.md) — [VIEW_DATA_REQUIREMENTS](../formats/VIEW_DATA_REQUIREMENTS.md) |
 | Aside shell (title, close, meta, 更多) | M | Close on **report** shell only (hides aside); overlay headers omit × and use back (PR-STATS-006b); meta hide-if-missing; **更多** always opens (UI-30, UI-31) — [StatsAside](../../src/ui/StatsAside/StatsAside.spec.md), [INTERACTIONS](INTERACTIONS.md) |
 | PIPE occupancy bars | M | `All` = `summary.jsonl` `PipeUtilization` mean non-`NA`, a picked id = that block's `PipeUtilization.csv` row ([DATA-28](../context/decisions/DATA.md) / [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); All \| block switcher when >1 block (PR-STATS-014b); **hide** if missing |
-| Cube \| Vector PIPE toggle (MIX only) | M1 | [`v930/compute-load`](./source/v930/compute-load.jpeg); non-MIX shows relevant side only |
+| Cube \| Vector PIPE toggle (MIX only) | M1 | [`v930/compute-load`](./source/930/ComputeLoadAnalysis/screenshot.png); non-MIX shows relevant side only |
 | Cube \| Vector 0 \| Vector 1 PIPE toggle (emulate) | M | [UI-54](../context/decisions/UI.md) / #196; sides `aic`/`aiv0`/`aiv1`; both vectors → 3-way; AIC+one AIV → Cube\|Vector; single side → plain label (not chip); never average AIV0/AIV1 |
 | Compute-load detail tabs | M1 | `PipeUtilization` \| `Pipe Utilization` ([UI-55](../context/decisions/UI.md): hist embed → sparse `aic_`/`aiv0_`/`aiv1_` `*_ratio`) \| `ArithmeticUtilization` \| `ResourceConflictRatio` (#3); searchable field lists (filter + highlight, [UI-43](../context/decisions/UI.md)); hist preferred + omit PipeUtilization when hist present |
 | Memory detail tabs + block + 查看全部 | M1 | Memory L1 / L2Cache / Memory L0 / Memory UB; block switcher [DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md); 查看全部 [DATA-33d](../context/decisions/interim/DATA.md) (#4); searchable field lists (filter + highlight, [UI-43](../context/decisions/UI.md)) |
-| Roofline bottleneck chart | M | Compute: multi-series AIV/AIC roofs per npu-compute §11.8. Emulate: `Roofline*.csv` dtype×bandwidth roofs ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)); adapter derives `roofline` when points exist. Tabs / L2 still omitted (DATA-37c/f). `source/v930/roofline-card-2026-10-15.png` / [milestone-3](../process/roadmap/milestone-3.md) |
+| Roofline bottleneck chart | M | Compute: multi-series AIV/AIC roofs per npu-compute §11.8. Emulate: `Roofline*.csv` dtype×bandwidth roofs ([DATA-57a](../context/decisions/interim/DATA.md#data-57a)); adapter derives `roofline` when points exist. Tabs / L2 still omitted (DATA-37c/f). `source/930-legacy/v930/roofline-card-2026-10-15.png` / [`1130/roofline-throughput`](./source/1130/RooflineThroughput/screenshot.png) / [milestone-3](../process/roadmap/milestone-3.md) |
 | Hardware info details | M1 | **Source confirmed:** `HardwareInfo.jsonl`; OpBasicInfo fallback ([DATA-34a](../context/decisions/interim/DATA.md)). **更多** always opens; show details when present, else **缺少 hardware info** (UI-30, UI-31) |
 | Memory topology diagram | M2 | Static SVG + **data-driven edge labels** ([UI-38](../context/decisions/UI.md), changelog #5); `All` = `summary.jsonl` category means, a picked id = that block's CSV row ([DATA-19](../context/decisions/DATA.md) / [DATA-29](../context/decisions/DATA.md)); diagram mounts only when the block is *drawable* (a plated edge value or the L2 plate, PR-VM-018); L2 Peak(%) ([DATA-20](../context/decisions/DATA.md); AIC-row link values open with [DATA-41](../context/questions/DATA.md), and its corridor plate reads the producer's `GM -> UB` field per [DATA-43](../context/decisions/DATA.md)); in-box **Scalar / Vec / Cube** unit badges from `PipeUtilization` ([UI-49](../context/decisions/UI.md), PR-MEMTOP-016); **详情** and stacked-diagram right-click open memory CSV overlay ([UI-35](../context/decisions/UI.md), PR-MEMTOP-008 / PR-STATS-017b); diagram **zoom bar** (缩小 / `%` / 放大 / 适应窗口, PR-MEMTOP-015) whose every step **keeps the middle of the box on the same part of the drawing** (PR-MEMTOP-018), with the zoomed diagram **drag-pannable** beside its scrollbars (PR-MEMTOP-017) and **全屏** covers `.pr-root` (PR-MEMTOP-014 / PR-STATS-033, PR-ROOT-009); overlay right-click does not open CSV (PR-ROOT-010 / PR-MEMTOP-008b) |
 
@@ -91,7 +91,7 @@ Delivery: **M** = timeline MVP; **M1** = [roadmap M1](../process/roadmap/milesto
 |---------|------:|------------------|
 | Name + start/duration/end | M | |
 | Source paths / PC address | P2 | |
-| Dependency mini-graph + depth filters | P2 | `source/v930/entry.jpeg` |
+| Dependency mini-graph + depth filters | P2 | `source/930/EntryPoint/screenshot.png` |
 
 ## Non-functional
 

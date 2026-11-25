@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { overviewSeriesStroke } from '../../../domain/laneColors';
 import type { OverviewSeries } from '../../../domain/types';
+import { formatDisplayTimeAuto, nsPerPxForTrack } from '../../../domain/formatTime';
 import { t } from '../../../i18n';
 import Chevron from '../../Chevron.vue';
 import PinIcon from '../../PinIcon.vue';
@@ -13,10 +14,20 @@ import {
 import {
   areaPathFromVertices,
   stepAfterVertices,
+  stepPointAt,
   stepValueAt,
   strokePathFromVertices,
 } from './stepPath';
 import { OVERVIEW_HEADER_H, OVERVIEW_LANE_H, OVERVIEW_TRACK_GAP, OVERVIEW_TRACK_H, OVERVIEW_Y_MAX } from './overviewLayout';
+import {
+  COUNTER_MARKER_WHITE,
+  counterHoldLinkSegment,
+  counterMarkerClipBoxStyle,
+  counterMarkerHoldPx,
+  counterMarkerRingPx,
+  counterMarkerSizePx,
+  counterSampleIntersectsTrack,
+} from '../../counterHoverMarkers';
 
 const props = withDefaults(
   defineProps<{
@@ -24,6 +35,11 @@ const props = withDefaults(
     /** Visible swimlane window (canonical ns). */
     startTime: number;
     endTime: number;
+    /**
+     * Report time origin (`SwimlaneModel.minTime`) for Sample Time tip formatting.
+     * Display times are relative to this origin (CounterTrack tip parity).
+     */
+    timeOrigin?: number;
     /** Match TimelineView / Swimlane gutter column width. */
     gutterWidth?: number;
     locale?: string;
@@ -47,6 +63,7 @@ const props = withDefaults(
     collapseHiddenHeight?: number;
   }>(),
   {
+    timeOrigin: 0,
     gutterWidth: 280,
     locale: 'zh-CN',
     pinnedOverviewIds: () => [],
@@ -78,8 +95,6 @@ const pinned = computed(() => new Set(props.pinnedOverviewIds ?? []));
 const isStrip = computed(() => props.variant === 'strip');
 const pinHoverId = ref<string | null>(null);
 const hoverSeriesId = ref<string | null>(null);
-/** Local ns under chart pointer — tip/dot without waiting for parent echo. */
-const hoverTimeNs = ref<number | null>(null);
 /** Local x ratio for the value dot (full 24px lane hit target, not parent echo). */
 const hoverXRatio = ref<number | null>(null);
 const tipPos = ref({ left: '0px', top: '0px' });
@@ -189,6 +204,17 @@ const x1 = computed(() => {
   return span > 0 ? props.endTime : props.startTime + 1;
 });
 
+/**
+ * Absolute ns under the pointer — always derived from xRatio × current window so
+ * zoom/pan cannot leave a stale absolute time that places the sample outline to
+ * the right of the hold.
+ */
+const hoverTimeNs = computed((): number | null => {
+  const ratio = hoverXRatio.value;
+  if (ratio == null) return null;
+  return x0.value + ratio * Math.max(1, x1.value - x0.value);
+});
+
 const tracks = computed(() => {
   const xSpan = x1.value - x0.value;
   const toX = (t: number) => ((t - x0.value) / xSpan) * VIEW_W;
@@ -223,7 +249,6 @@ function updateChartHover(seriesId: string, e: PointerEvent) {
   const el = e.currentTarget as HTMLElement;
   const { time, xRatio } = timeAtClientX(e.clientX, el);
   hoverSeriesId.value = seriesId;
-  hoverTimeNs.value = time;
   hoverXRatio.value = xRatio;
   tipPos.value = { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` };
   const root = el.closest('.pr-overview-charts');
@@ -291,10 +316,25 @@ function onChartPointerUp(e: PointerEvent) {
 
 function clearTipOnly() {
   hoverSeriesId.value = null;
-  hoverTimeNs.value = null;
   hoverXRatio.value = null;
   paintRectsById.value = {};
 }
+
+/**
+ * Hold follows the pointer (stable xRatio); hoverTimeNs is derived from that × window.
+ * On zoom/pan re-emit cursor so the parent playhead label matches the new time under
+ * the pointer (markers/tip already recompute via the derived time).
+ */
+watch(
+  [() => props.startTime, () => props.endTime],
+  () => {
+    const ratio = hoverXRatio.value;
+    if (ratio == null || hoverSeriesId.value == null) return;
+    const time = hoverTimeNs.value;
+    if (time == null) return;
+    emit('cursor', { time, xRatio: ratio, snapped: false });
+  },
+);
 
 function onChartPointerLeave(e: PointerEvent) {
   if (dragging.value) return;
@@ -358,6 +398,25 @@ const tipRows = computed((): TipRow[] => {
   }));
 });
 
+/**
+ * Sample Time for the hovered series' step-after sample (`pt.t`), not the cursor
+ * scrub time — CounterHoverTip parity.
+ */
+const sampleTimeLabel = computed((): string | null => {
+  const id = hoverSeriesId.value;
+  const time = hoverTimeNs.value;
+  if (id == null || time == null) return null;
+  const tr = tracks.value.find((t) => t.id === id);
+  if (!tr) return null;
+  const pt = stepPointAt(tr.points, time);
+  if (!pt) return null;
+  const rect = paintRectsById.value[id];
+  const w = rect && rect.width > 0 ? rect.width : 1;
+  return formatDisplayTimeAuto(pt.t, props.timeOrigin, {
+    nsPerPx: nsPerPxForTrack(x1.value - x0.value, w),
+  });
+});
+
 const showTip = computed(
   () => hoverSeriesId.value != null && tipRows.value.some((r) => r.value != null),
 );
@@ -366,31 +425,59 @@ function dotTopPercent(value: number): number {
   return (1 - Math.min(OVERVIEW_Y_MAX, Math.max(0, value)) / OVERVIEW_Y_MAX) * 100;
 }
 
-type ValueDot = {
+type OverviewMarkerSet = {
   id: string;
+  color: string;
   active: boolean;
-  style: { left: string; top: string; background: string };
+  sampleVisible: boolean;
+  /** Paint box — overflow:hidden clip so off-track samples render partially. */
+  clip: { left: number; top: number; width: number; height: number };
+  /** Positions relative to `clip` origin. */
+  sampleLeft: string;
+  sampleTop: string;
+  holdLeft: string;
+  holdTop: string;
+  link: { left: string; top: string; width: string } | null;
 };
 
-/** Fixed-position dots for every track (avoids transform clipping). */
-const valueDots = computed((): ValueDot[] => {
+/** Sample outline + series-colored hold + white link per track (clipped to paint). */
+const markerSets = computed((): OverviewMarkerSet[] => {
   const xRatio = hoverXRatio.value;
-  if (hoverSeriesId.value == null || xRatio == null) return [];
+  const time = hoverTimeNs.value;
+  if (hoverSeriesId.value == null || xRatio == null || time == null) return [];
   const rects = paintRectsById.value;
-  const out: ValueDot[] = [];
-  for (const row of tipRows.value) {
-    if (row.value == null) continue;
-    const rect = rects[row.id];
+  const span = Math.max(1, x1.value - x0.value);
+  const out: OverviewMarkerSet[] = [];
+  for (const tr of tracks.value) {
+    const pt = stepPointAt(tr.points, time);
+    if (!pt) continue;
+    const rect = rects[tr.id];
     if (!rect || rect.width <= 0 || rect.height <= 0) continue;
-    const yPct = dotTopPercent(row.value) / 100;
+    const yPct = dotTopPercent(pt.v) / 100;
+    const localY = yPct * rect.height;
+    const active = tr.id === hoverSeriesId.value;
+    // True sample x in paint-local coords (may be <0 or >width — overflow clips).
+    const sampleLocalX = ((pt.t - x0.value) / span) * rect.width;
+    const holdLocalX = xRatio * rect.width;
+    const sampleVisible = counterSampleIntersectsTrack(sampleLocalX, rect.width, active);
+    const seg = counterHoldLinkSegment(sampleLocalX, holdLocalX, active);
     out.push({
-      id: row.id,
-      active: row.id === hoverSeriesId.value,
-      style: {
-        left: `${rect.left + xRatio * rect.width}px`,
-        top: `${rect.top + yPct * rect.height}px`,
-        background: row.color,
-      },
+      id: tr.id,
+      color: tr.color,
+      active,
+      sampleVisible,
+      clip: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      sampleLeft: `${sampleLocalX}px`,
+      sampleTop: `${localY}px`,
+      holdLeft: `${holdLocalX}px`,
+      holdTop: `${localY}px`,
+      link: seg
+        ? {
+            left: `${seg.left}px`,
+            top: `${localY}px`,
+            width: `${seg.width}px`,
+          }
+        : null,
     });
   }
   return out;
@@ -526,6 +613,14 @@ const valueDots = computed((): ValueDot[] => {
         :style="tipPos"
       >
         <div
+          v-if="sampleTimeLabel"
+          class="pr-overview-value-tip__time"
+          data-testid="overview-sample-time"
+        >
+          <span class="pr-overview-value-tip__name">Sample Time</span>
+          <span class="pr-overview-value-tip__value">{{ sampleTimeLabel }}</span>
+        </div>
+        <div
           v-for="row in tipRows"
           :key="row.id"
           class="pr-overview-value-tip__row"
@@ -542,16 +637,75 @@ const valueDots = computed((): ValueDot[] => {
           }}</span>
         </div>
       </div>
-      <!-- Fixed outside the transformed overview stack so v≈0 is not clipped. -->
+      <!-- Fixed clip boxes so off-track samples render partially at the paint edge. -->
       <div
-        v-for="dot in valueDots"
-        :key="dot.id"
-        class="pr-overview-value-dot"
-        :class="{ 'is-active': dot.active }"
-        data-testid="overview-value-dot"
-        :data-series-id="dot.id"
-        :style="dot.style"
-      />
+        v-for="m in markerSets"
+        :key="m.id"
+        class="pr-overview-hover-clip"
+        data-testid="overview-hover-clip"
+        :data-series-id="m.id"
+        :style="counterMarkerClipBoxStyle(m.clip)"
+      >
+        <div
+          v-if="m.link"
+          class="pr-overview-hover-link"
+          :class="{ 'is-active': m.active }"
+          data-testid="overview-hover-link"
+          :data-series-id="m.id"
+          :style="{
+            position: 'absolute',
+            left: m.link.left,
+            top: m.link.top,
+            width: m.link.width,
+            height: '0px',
+            borderTop: `${counterMarkerRingPx(m.active)}px solid ${COUNTER_MARKER_WHITE}`,
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+            opacity: m.active ? 1 : 0.55,
+          }"
+        />
+        <div
+          v-if="m.sampleVisible"
+          class="pr-overview-value-dot pr-overview-value-dot--sample"
+          :class="{ 'is-active': m.active }"
+          data-testid="overview-hover-sample"
+          :data-series-id="m.id"
+          :style="{
+            position: 'absolute',
+            left: m.sampleLeft,
+            top: m.sampleTop,
+            background: 'transparent',
+            border: `${counterMarkerRingPx(m.active)}px solid ${COUNTER_MARKER_WHITE}`,
+            width: `${counterMarkerSizePx(m.active)}px`,
+            height: `${counterMarkerSizePx(m.active)}px`,
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            boxSizing: 'border-box',
+            opacity: m.active ? 1 : 0.55,
+          }"
+        />
+        <div
+          class="pr-overview-value-dot pr-overview-value-dot--hold"
+          :class="{ 'is-active': m.active }"
+          data-testid="overview-value-dot"
+          :data-series-id="m.id"
+          :style="{
+            position: 'absolute',
+            left: m.holdLeft,
+            top: m.holdTop,
+            background: m.color,
+            border: 'none',
+            width: `${counterMarkerHoldPx(m.active)}px`,
+            height: `${counterMarkerHoldPx(m.active)}px`,
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            boxSizing: 'border-box',
+            opacity: m.active ? 1 : 0.55,
+          }"
+        />
+      </div>
     </Teleport>
   </div>
 </template>
@@ -751,10 +905,11 @@ const valueDots = computed((): ValueDot[] => {
 </style>
 
 <style>
-/* Teleported tip — match EventTooltip chrome (unscoped). */
+/* Teleported to body, same as the marker clip boxes (z-index 998). The tip
+   must paint above those clips; CounterHoverTip uses the same 1000. */
 .pr-overview-value-tip.pr-tooltip {
   position: fixed;
-  z-index: 20;
+  z-index: 1000;
   pointer-events: none;
   box-sizing: border-box;
   padding: 8px 10px;
@@ -769,6 +924,14 @@ const valueDots = computed((): ValueDot[] => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/** Sample Time — flush left (no swatch column indent); CounterHoverTip parity. */
+.pr-overview-value-tip__time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
 }
 
 .pr-overview-value-tip__row {
@@ -802,24 +965,21 @@ const valueDots = computed((): ValueDot[] => {
   font-weight: 700;
 }
 
-/* Teleported value-dot — fixed so overview translateY / parent overflow cannot crop it. */
-.pr-overview-value-dot {
-  position: fixed;
-  z-index: 19;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid #fff;
+/* Teleported markers — fixed so overview translateY / parent overflow cannot crop them. */
+.pr-overview-value-dot--sample {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  box-sizing: border-box;
+}
+
+.pr-overview-value-dot--hold {
+  /* White 1px ring around the opaque series-colored hold disc. */
+  box-shadow: 0 0 0 1px #fff;
 }
 
 .pr-overview-value-dot.is-active {
-  width: 10px;
-  height: 10px;
-  border-width: 2px;
-  z-index: 20;
+  z-index: 1000;
+}
+
+.pr-overview-hover-link {
+  pointer-events: none;
 }
 </style>

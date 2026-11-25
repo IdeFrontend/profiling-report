@@ -40,7 +40,7 @@ PROC-1 — Producer status; format may evolve.
 
 ## Design sketches
 
-- [NPU-REP binary layout](../../docs/ui/source/v930/entry.jpeg)
+- [NPU-REP binary layout](../../docs/ui/source/930/EntryPoint/screenshot.png)
 
 ## Changelog
 - **2026-08-05** — Initial spec. Core behaviors established.
