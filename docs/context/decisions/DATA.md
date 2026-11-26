@@ -511,3 +511,21 @@ Format and statuses: [README.md](README.md).
 - **Specs:** [roofline](../../views/roofline.md)
 - **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-17.png`.
 
+---
+
+## DATA-59
+
+- **Resolved:** 2026-11-25
+- **Was:** Product chat lock for CounterTrack gutter utilization bars (no prior open-question row)
+- **Question:** What should the Card gutter **利用率** bar show for Trace `ph:C` CounterTracks (`memory_utilization`, `exec_queue_utilization`, …)? Average over the full time range? Hide chrome when no metric applies?
+- **Decision:**
+  1. **Ratio / percent series only.** A CounterTrack leaf contributes a utilization bar iff its series key is a utilization/percent quantity: name contains `%`, or matches `utilization` / `利用率`, **except** queue-depth / bytes keys (`queue`, `KB`, `bytes`) which are **not** utilization. Classify by the leaf `name` (arg key for multi-series children; `ph:C` name for N=1).
+  2. **Aggregate.** Time-weighted mean of the step-after series over the full model span `[minTime, maxTime]` (hold each sample until the next; last sample holds to `maxTime`) — same window as [DATA-38](./DATA.md), not the zoomed viewport. Do **not** use a plain arithmetic mean of samples.
+  3. **Scale.** `barWidth` / label use percent 0–100. When `yMax ≤ 1`, treat samples as 0–1 fractions and ×100; when `yMax > 1`, treat samples as already-percent (tip parity — no extra invent-scale). Label `` `${barWidth}%` ``; threshold red &lt; 50% and 50% midline apply (same as pipe util).
+  4. **Absolute series.** Queue depth, `Using Bytes (KB)`, and other non-ratio counters get **no** gutter bar (omit `bar` — empty util slot). Do **not** invent peak/yMax-normalized fill under **利用率**. Peak stays on the chart (`yMax`) / hover tip.
+  5. **Folders.** Multi-series counter folders (`counterSeries`) take the **mean of ratio children only**; absolute siblings stay bar-less. Folder with only absolute children → omit folder bar.
+  6. **Availability.** Offer Card **utilization** iff at least one leaf under that Card yields a utilization value (interval event-coverage, or a ratio counter mean). Absolute-only counter Cards do **not** get utilization. **clockCycle** unchanged. Empty `availableGutterMetrics` → hide the Card metric selector ([UI-62](./UI.md)); never fake `0%` coverage bars on counter leaves.
+  7. **Pipes unchanged.** Interval lanes keep event-coverage util ([DATA-38](./DATA.md)).
+- **Specs:** [gutter-metrics](../../../specs/core/gutter-metrics.spec.md), [utilization](../../../specs/core/utilization.spec.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [SwimlaneView.spec.md](../../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [DATA-57](./DATA.md), [UI-62](./UI.md)
+- **Source:** Product chat 2026-11-25 (average util for ratio series; hide bar + selector when no metric).
+

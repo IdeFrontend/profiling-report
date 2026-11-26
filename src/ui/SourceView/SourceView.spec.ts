@@ -1146,6 +1146,78 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
+  it('PR-SOURCE-029: device pixel ratio change refreshes metrics row height', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    const original = vi.mocked(newEditor).getMockImplementation();
+    let dpr = 1;
+    let lineHeight = 18;
+    // Past the pre-commit max (row 18px) and inside the post-commit max (row 20px).
+    const lineCount = 200;
+    const viewportPx = 360;
+    const vScroll = 3400 * 1.25;
+    const setVScrollPos = vi.fn();
+    vi.mocked(newEditor).mockImplementationOnce((args) => {
+      const ed = (original?.(args) ?? {}) as unknown as Record<string, unknown>;
+      return {
+        ...ed,
+        getDevicePixelRatio: () => dpr,
+        getLineHeight: () => lineHeight,
+        getFontSize: () => 12 * dpr,
+        getVScrollPos: () => vScroll,
+        setVScrollPos,
+      } as unknown as ReturnType<typeof newEditor>;
+    });
+    const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
+    const publishSuduResize = () => {
+      dpr = 1.25;
+      lineHeight = 25;
+    };
+    try {
+      await flushPromises();
+      const pane = wrapper.get('[data-testid="sudu-code-pane"]').element as HTMLElement;
+      const rowHeight = () => parseFloat(pane.style.getPropertyValue('--pr-src-row-h'));
+      expect(rowHeight()).toBe(18);
+
+      const scroll = wrapper.get('[data-testid="source-metrics-scroll"]').element;
+      let scrollTop = 0;
+      const maxFor = (rowH: number) => Math.max(0, lineCount * rowH - viewportPx);
+      Object.defineProperty(scroll, 'scrollTop', {
+        configurable: true,
+        get: () => scrollTop,
+        set: (v: number) => {
+          const max = maxFor(rowHeight());
+          const next = Math.min(Math.max(0, v), max);
+          if (next === scrollTop) return;
+          scrollTop = next;
+          queueMicrotask(() => scroll.dispatchEvent(new Event('scroll')));
+        },
+      });
+
+      // Sudu publishes the new line height from its own resize listener, registered
+      // after the pane listener. Added after mount so it runs after scheduleGeomRefresh
+      // and before the rAF. A synchronous readGeom in the pane listener still sees 18px at dpr 1.
+      window.addEventListener('resize', publishSuduResize);
+      setVScrollPos.mockClear();
+      window.dispatchEvent(new Event('resize'));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      await wrapper.vm.$nextTick();
+      expect(rowHeight()).toBeCloseTo(25 / 1.25, 5);
+      const metricsRow = wrapper.findAll('[data-testid="source-metrics"]')[0]!.find('tr[data-line="1"]');
+      expect(parseFloat(metricsRow.attributes('style')?.match(/height:\s*([0-9.]+)px/)?.[1] ?? '')).toBeCloseTo(
+        25 / 1.25,
+        5,
+      );
+      expect(scrollTop).toBeCloseTo(vScroll / dpr, 5);
+      expect(scrollTop).toBeGreaterThan(maxFor(18));
+      expect(scrollTop).toBeLessThanOrEqual(maxFor(rowHeight()));
+      expect(setVScrollPos).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('resize', publishSuduResize);
+      if (original) vi.mocked(newEditor).mockImplementation(original);
+      wrapper.unmount();
+    }
+  });
+
   it('PR-SOURCE-023: left pane hides columns until the editor geometry is ready', async () => {
     const { newEditor } = await import('@sudu-ide/code-review');
     const original = vi.mocked(newEditor).getMockImplementation();

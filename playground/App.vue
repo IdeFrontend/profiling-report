@@ -8,6 +8,11 @@ import {
   type StressSwimlanePreset,
 } from '../src/domain/generateStressSwimlane';
 import type { ReportViewModel, SwimlaneModel } from '../src/domain/types';
+import {
+  createBaselinesHost,
+  DEMO_RECENT_BASELINES,
+  withDemoBaselineOperators,
+} from '../src/host/baselinesHost';
 import { depsTraceFixture } from './depsFixture';
 import { hydrateSampleRep } from './hydrateSampleRep';
 
@@ -54,6 +59,45 @@ const error = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const openedName = ref<string | null>(null);
 const loadToken = ref(0);
+
+/**
+ * Baselines (对比基线) — host glue shared with report-shell/App.vue lives in
+ * `src/host/baselinesHost.ts` (hidden file input, session-only state); the
+ * playground is host code, the library itself keeps no storage.
+ */
+const baselineInputRef = ref<HTMLInputElement | null>(null);
+const {
+  baselines,
+  baselineRows,
+  baselineReports,
+  pickBaselineFile,
+  onBaselinesUpdate,
+  onBaselineRows,
+  onFileChosen: onBaselineFileChosen,
+  onPickCancel: onBaselinePickCancel,
+} = createBaselinesHost(() => baselineInputRef.value);
+
+/**
+ * The "baselines" link opens the picker popover — the same trigger the toolbar
+ * button presses. The saved-baseline list always starts EMPTY and nothing is
+ * selected; the popover then shows the recent view with the demo reports (the
+ * same set Add Recent lists) as unchecked checkboxes. A real host (MSTT) would
+ * persist its own list via the `update:*` emits; the web host keeps baselines
+ * session-only.
+ */
+function openBaselinesPicker(): void {
+  const attempt = (n: number): void => {
+    const trigger = document.querySelector<HTMLElement>('[data-testid="toggle-baselines"]');
+    if (trigger) trigger.click();
+    // The viewer may still be loading — retry briefly (ponytail: demo harness).
+    else if (n < 30) requestAnimationFrame(() => attempt(n + 1));
+  };
+  attempt(0);
+}
+
+/** Baselines as passed to the viewer: every entry carries demo operators (the
+ *  aside's Operator dropdown source) the way MSTT would pass the pack's real ones. */
+const viewerBaselines = computed(() => withDemoBaselineOperators(baselines.value));
 
 function readQuery(): URLSearchParams {
   if (typeof window === 'undefined') return new URLSearchParams();
@@ -318,6 +362,11 @@ onMounted(async () => {
           data-testid="fixture-ffn-dense"
         >ffn_dense.trace.json</a>
         <a
+          href="#"
+          data-testid="baselines-link"
+          @click.prevent="openBaselinesPicker"
+        >baselines</a>
+        <a
           :href="stressHref('medium')"
           data-testid="fixture-stress"
         >stress</a>
@@ -334,6 +383,10 @@ onMounted(async () => {
           :href="stressHref('large')"
           data-testid="stress-large"
         >large</a>
+        <a
+          :href="stressHref('lanes')"
+          data-testid="stress-lanes"
+        >lanes</a>
         <span class="playground__sep">·</span>
         <a
           :href="stressHref(stressPreset, 'webgl')"
@@ -381,6 +434,15 @@ onMounted(async () => {
           data-testid="open-file-input"
           @change="onFileChosen"
         >
+        <input
+          ref="baselineInputRef"
+          class="playground__file"
+          type="file"
+          accept=".rep,.ncrep,.npu-rep,.json"
+          data-testid="baseline-file-input"
+          @change="onBaselineFileChosen"
+          @cancel="onBaselinePickCancel"
+        >
       </div>
       <p
         class="playground__note"
@@ -406,7 +468,14 @@ onMounted(async () => {
         :prefer-renderer="preferRenderer"
         :locale="locale"
         :allow-html-export="true"
+        :baselines="viewerBaselines"
+        :baseline-rows="baselineRows"
+        :pick-baseline-file="pickBaselineFile"
+        :recent-baselines="DEMO_RECENT_BASELINES"
+        :baseline-reports="baselineReports"
         @view-full-csv="onViewFullCsv"
+        @update:baselines="onBaselinesUpdate"
+        @update:baseline-rows="onBaselineRows"
       />
       <ProfilingReport
         v-else-if="stressModel"
@@ -417,7 +486,14 @@ onMounted(async () => {
         :report-meta="reportMeta"
         :prefer-renderer="preferRenderer"
         :locale="locale"
+        :baselines="viewerBaselines"
+        :baseline-rows="baselineRows"
+        :pick-baseline-file="pickBaselineFile"
+        :recent-baselines="DEMO_RECENT_BASELINES"
+        :baseline-reports="baselineReports"
         @view-full-csv="onViewFullCsv"
+        @update:baselines="onBaselinesUpdate"
+        @update:baseline-rows="onBaselineRows"
       />
       <div
         v-else-if="!error"

@@ -14,11 +14,11 @@ Log-log roofline bottleneck chart (npu-compute §11.8). `StatsAside` mounts it w
 
 ## Behavior
 
-Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws per-series theoretical roofs (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points as circles (off the roofs), filled rounded-square knees on each ridge, and op-mix labels. Hover on a point shows intensity + performance; legend hover (experimental) highlights that series' roof. Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).
+Renders a log-log SVG: X = Ops/Byte, Y = TOps/s. Draws per-series theoretical roofs (`min(peakCompute, peakBW_GBs * intensity / 1000)`), measured points as circles (off the roofs), filled rounded-square knees on each ridge, and op-mix labels. Hover on a **point** or **knee** opens a teleported floating tooltip (EventTooltip / StatsAside card-tip chrome). Legend ↔ roof/knee hover is bidirectional (shared series emphasis). Parent hides the panel when there are no points — empty `points` renders an empty root (no chart chrome).
 
 Tabs (内存单元 / 通路 / 搬运) are omitted (DATA-37f).
 
-Emulate packs may pass many dtype×bandwidth series ([DATA-57a](../../../../docs/context/decisions/interim/DATA.md#data-57a)), including `aic-tf32-hf32` and dashed secondary bandwidth roofs; legend scrolls horizontally when dense.
+Emulate packs may pass many dtype×bandwidth series ([DATA-57a](../../../../docs/context/decisions/interim/DATA.md#data-57a)), including `aic-tf32-hf32` and dashed secondary bandwidth roofs; legend scrolls horizontally when dense (`overflow-y: hidden` so a vertical bar never appears). When the legend overflows, vertical wheel over the legend maps to horizontal scroll.
 
 ## Acceptance Criteria
 
@@ -27,11 +27,12 @@ Emulate packs may pass many dtype×bandwidth series ([DATA-57a](../../../../docs
 3. **PR-ROOF-002** — Shows mix labels when present.
 4. **PR-ROOF-002b** — Sketch-calibrated layout via `rooflineLayout.ts`: chart **440×303** @ **480px** aside; scaled `PAD.l` **47**; **op-mix and TOps/s share one alphabetic baseline** at `y = PAD.t − TOPS_GAP` (just above the plot). **Do not** place mix inside the plot (`PAD.t + inset` / former `MIX_TOP_INSET`) — that placement is rejected. **TOps/s** start-anchored at SVG `x=0` (same vertical line as aside title / AIV / AIC); **Ops/Byte** grid-aligned; markers not clipped; SVG display width tracks the card (`width: 100%`).
 5. **PR-ROOF-003** — Empty points → no chart SVG.
-6. **PR-ROOF-004** — Hover point exposes tooltip text with intensity and performance **inside the raised card** below the chart; tip slot is always reserved under the SVG (not absolutely overlaid) so the card does not shift on hover and x-tick / Ops/Byte labels stay visible. Replacing the model keeps the tip on the current point with the same id.
+6. **PR-ROOF-004** — Hover point opens a **teleported** floating tooltip (`position: fixed`, EventTooltip / `pr-stat-tip` chrome) beside the pointer with the point label plus intensity (`Ops/Byte`) and performance (`TOps/s`). The hovered circle grows from `r=4` to `r=5` while that tip is open (diameter 8→10, same step as CounterTrack active markers) and returns to `r=4` on dismiss. No in-card tip band under the SVG — the card does not shift on hover and x-tick / Ops/Byte labels stay visible. Preferred placement is below-right of the pointer (`left` / `top` = pointer + 12px). A flip (the max-width / wrapped-name box would leave the viewport) anchors that edge with `right` / `bottom` so the near edge stays 12px from the pointer — the 280px estimate decides the flip and does not set `left`. Replacing the model keeps the tip on the current point with the same id. Leaving the point, scrolling `.pr-aside__body`, resizing the window, `pointercancel`, or a drill-in (`asideSurface` change) dismisses the tip (StatsAside card-tip contract). A model that drops the hovered id clears the tip and a later model that brings that id back does not resurrect it.
 7. **PR-ROOF-005** — Interim host shape (root `peakComputeTops` / `peakBandwidthGBs`, no `series`) still draws a roof without throwing.
-8. **PR-ROOF-006** — Legend at the top of the raised card (**no** in-card **Roofline** chart title — the section title is `StatsAside`'s section-head `h4`); shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`.
+8. **PR-ROOF-006** — Legend at the top of the raised card (**no** in-card **Roofline** chart title — the section title is `StatsAside`'s section-head `h4`); shared CSS grid columns so the nth AIV / AIC swatches align; heads (`AIV:` / `AIC:`) `#c4c4c4` lighter than series labels `#8a8a8a`. Horizontal overflow scrolls on a **wrapper** (`overflow-x: auto` + `overflow-y: hidden`); the grid itself does not own overflow. The grid reserves `padding-bottom: 8px`, equal to the webkit scrollbar. `scrollbar-width` is not set on that element (Chromium would drop the webkit bar); Firefox gets `scrollbar-width: thin` only under `@supports not selector(::-webkit-scrollbar)`. When `scrollWidth > clientWidth`, wheel over the legend maps `deltaY` (or `deltaX`) into `scrollLeft` and `preventDefault`s so the aside does not scroll instead.
 9. **PR-ROOF-007** — Log domains are data-driven decade floors/ceils with **no** hard X/Y cap (including no `1e-3` / `1e-4` floor once samples exist); chip-scale peaks and ridges beyond the product crop (`100K` Ops/Byte / `1e5` TOps/s) still fit on-axis. When floor===ceil (lone power-of-ten), open **one decade** of span so SVG coordinates stay finite (**PR-ROOF-007b**).
-10. **PR-ROOF-008** — Legend hover (experimental): hovering a legend series thickens that roof (slope + plateau) and dims the other roofs / knees; leaving the item clears the highlight.
+10. **PR-ROOF-008** — Bidirectional series emphasis: hovering a legend item **or** that series' roof / knee thickens the matching roof (slope + plateau), dims the other roofs / knees, and lights the matching legend label; leaving clears the highlight. Roof hit-testing uses a transparent **12px** stroke (paint stays 2 / lit 3.5); knees keep an **8×8** paint square inside a **16×16** transparent hit pad.
+11. **PR-ROOF-009** — Hovering a ridge **knee** (not the roof stroke) opens the same teleported tip chrome with series `label`, ridge intensity `p_peak×1000/b_peak` (`Ops/Byte`), `peakComputeTops` (`TOps/s`), and `peakBandwidthGBs` (`GB/s`). The knee that owns the tip grows from **8×8** to **10×10** (still centered on the ridge) and returns to 8×8 on leave. Legend or roof emphasis does not change the paint size. Roof-path hover still emphasizes the series (**PR-ROOF-008**) without opening the tip.
 
 ## Visual
 
@@ -44,23 +45,29 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 | Chart title | **Omitted** inside the card (section-head title only) |
 | Plot well | `#262626` (same as card) |
 | Insets | Card pad **8px 8px 6px**; legend, TOps/s, and SVG share the left edge |
-| Legend | Top of raised card; one grid `28px + repeat(n, max-content)` across AIV then AIC rows so nth swatches align; heads `#c4c4c4`, labels `#8a8a8a`, `12px`; 8×8 swatches with **2px** radius + full series labels; hover highlights the matching roof (**PR-ROOF-008**) |
-| Roof | Per-series stroke color (AIV/AIC legend palette); stroke **`2px`** (lit **`3.5px`** on legend hover); **AIV** dashed / **AIC** solid on **both** slope and plateau (`4 3`). Dashed roofs use **butt** caps so the 3px gap stays open at 3.5px (round caps would close it). |
+| Legend | Top of raised card; scrollport wraps the grid (`overflow-x: auto` + `overflow-y: hidden`, webkit H-scrollbar **8px**; Firefox `scrollbar-width: thin` only when `::-webkit-scrollbar` is unsupported) so the classic bar cannot clip rows; wheel over an overflowing scrollport maps to `scrollLeft`; grid is `28px + repeat(n, max-content)` with `padding-bottom: 8px` across AIV then AIC so nth swatches align; heads `#c4c4c4`, labels `#8a8a8a`, `12px`; 8×8 swatches with **2px** radius + full series labels; bidirectional series highlight with roofs/knees (**PR-ROOF-008**) |
+| Roof | Per-series stroke color (AIV/AIC legend palette); stroke **`2px`** (lit **`3.5px`** on series hover); **AIV** dashed / **AIC** solid on **both** slope and plateau (`4 3`). Dashed roofs use **butt** caps so the 3px gap stays open at 3.5px (round caps would close it). |
 | Area wash | Vertical `#3078f0` under the topmost ridge: 16% → 10% @40% → 5% @75% → 0% at floor |
 | Mix annotation | Two-tone on the **TOps/s** row (**same** alphabetic baseline `PAD.t − TOPS_GAP`, centered): names `#999999`, percents `#ffffff`, `12px`; `label (percent.toFixed(6)%)`, comma-separated. **Locked:** must not sit inside the plot under the top grid |
 | Axis / ticks | `#999999` `12px`; ticks as decimals; x ticks at `plotBottom + 16`; y ticks at tick line `+ 4`; **TOps/s** start-anchored at SVG `x=0` (alphabetic baseline `PAD.t − TOPS_GAP`); **Ops/Byte** start-anchored `4px` right of plot on bottom grid line |
 | Chart SVG | Intrinsic **`440×303`** viewBox @ **480px** aside; CSS `width: 100%` |
 | Plot inset | `PAD` `{ l: 47, r: 66, t: 28, b: 39 }` — sketch `{34,48,20,28}` scaled by `440/320`; plot frame has no stroke |
-| Header→plot | Legend at card top; card→SVG **6px**; reserved tip band below SVG (in flow, not absolute) |
+| Header→plot | Legend at card top; card→SVG **6px**; point hover tip is teleported (not an in-card band) |
+| Point tip | Teleported `pr-tooltip` chrome: raised `#363636`, 12px radius, 8×10 pad, 12px/1.45, min 180 / max 280; bold label + Ops/Byte + TOps/s lines; below-right of the pointer by 12px. Flip (max box would leave the viewport; height fits a wrapped name of 3 lines plus the two values) uses `right` / `bottom` so the near edge stays 12px from the pointer; dismiss on leave / aside scroll / resize / `pointercancel` / drill-in |
+| Knee tip | Same chrome (`data-tip-kind="knee"`): series label + ridge Ops/Byte + peak TOps/s + peak GB/s (**PR-ROOF-009**) |
 | Grid | `#4a5568` (blue-grey; visible on `#262626` well) |
-| Markers | Measured points (off roofs) = filled/hollow **circles** (`r=4`, series color). Roof knees (on ridges) = **filled rounded squares** (`8×8`, `rx=2` like legend, series-color fill+stroke). Both render **outside** plot clip so edge marks are not cropped |
+| Markers | Measured points (off roofs) = filled/hollow **circles** (`r=4`, series color; `r=5` while that point's tip is open). Roof knees (on ridges) = **filled rounded squares** (`8×8` paint in a **16×16** hit pad, `rx=2`, interactive; **10×10** while that knee's tip is open). Knees paint under points so a pad cannot steal point hover. Dimmed knees use **0.7** opacity (roofs **0.28**). Both marker kinds render **outside** plot clip |
 
 ## Dependencies
 
 [view-models](../../../../specs/core/view-models.spec.md), DATA-37a–f, [roofline](../../../../docs/views/roofline.md#tabs-fields).
 
 ## Changelog
+- **2026-11-19** — Product review: the mix labels read through the panel's ONE two-decimal format (PR-STATS-060): `84.100000%` becomes `84.10%`.
 
+- **2026-11-25** — A left/above tip flip anchors with `right` / `bottom` (12px from the pointer) instead of `left`/`top` minus the 280px estimate. The marker that owns the open tip grows 8→10px (circle `r` 4→5, knee 8×8→10×10).
+- **2026-11-25** — Knee tip only (PR-ROOF-009); legend ↔ series highlight (PR-ROOF-008) with dimmed knees at 0.7; larger roof/knee hit pads; points paint above knee pads; aside scroll dismisses tip without clearing series emphasis; legend wheel → horizontal scroll (PR-ROOF-006).
+- **2026-11-25** — Point hover uses a teleported floating tooltip (PR-ROOF-004) dismissed on leave / aside scroll / resize / `pointercancel` / drill-in, and a dropped point id does not resurrect when that id returns. Legend scroll moves to a wrapper (`overflow-y: hidden`) with `padding-bottom: 8px` and an 8px webkit bar (`scrollbar-width: thin` is Firefox-only) so the bar cannot clip the AIV/AIC rows.
 - **2026-11-10** — The panel no longer renders its own `h4` title: `StatsAside`'s roofline section head owns the visible title (with the roofline cannbot group beside it). The svg `aria-label` keeps using `t('roofline')`.
 - **2026-10-22** — Dashed AIV roofs use butt caps so the `4 3` gap stays open at the lit 3.5px stroke.
 - **2026-10-22** — Roof stroke style: **AIV** dashed, **AIC** solid (slope + plateau).
@@ -69,7 +76,7 @@ Normative crop: [`visual/roofline.png`](./visual/roofline.png) — [`visual/prov
 - **2026-09-14** — Out of the current release: kept in code, hidden behind the opt-in `roofline` capability in `StatsAside` (no surface change to the panel itself).
 - **2026-09-02** — Chart SVG uses `width: 100%` (viewBox stays **440×303**) so aside scroll never needs a horizontal bar.
 - **2026-09-02** — Aside **480px** (Product); chart **440×303** from content well.
-- **2026-09-01** — Hover tooltip inside raised card; reserved tip slot prevents layout jump.
+- **2026-09-01** — (superseded 2026-11-25) Hover tooltip was an in-card reserved tip slot under the SVG.
 - **2026-09-01** — Fixed aside **468px** (v930 sketch); chart **428×294** scales from sketch **320×220** baseline.
 - **2026-09-01** — Card head→plot `gap` 8px (+6 under GM/L2).
 - **2026-08-31** — Mix labels anchored to plot top (`PAD.t + 10`), not mid-plot sketch band.

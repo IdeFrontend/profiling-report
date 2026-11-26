@@ -275,8 +275,8 @@ describe('MemoryTopologyPanel', () => {
       ['l2-ub', 159.7, 315.2],
       ['ub-l2', 159.6, 331.2],
       ['l2-l1-read', 160.1, 87.9],
-      ['ub-vec', 338.7, 351.8],
-      ['vec-ub', 338.6, 363.8],
+      ['ub-vec', 335.7, 351.8],
+      ['vec-ub', 335.6, 363.8],
       ['l1-l0a', 239.1, 49.8],
       ['l1-l0b', 239.1, 74.8],
       ['l0a-cube', 300.9, 54.8],
@@ -348,7 +348,8 @@ describe('MemoryTopologyPanel', () => {
       .filter((el) => el.text() === '0.00 GB/s' && Number(el.attributes('x')) > 360);
     expect(cubeGb).toHaveLength(1);
     expect(wrapper.get('[data-testid="plate-cube-0"]').text()).toBe('0.00%');
-    expect(Number(wrapper.get('[data-testid="plate-cube-0"]').attributes('y'))).toBeCloseTo(95.3, 5);
+    // The unit control centres its word/value block vertically in the CUBE box.
+    expect(Number(wrapper.get('[data-testid="plate-cube-0"]').attributes('y'))).toBeCloseTo(93.25425, 5);
   });
 
   it('PR-MEMTOP-016: unit badges sit on stripped util centres, clear of the unit word', () => {
@@ -357,15 +358,21 @@ describe('MemoryTopologyPanel', () => {
       aiv_scalar: [282.0, 309.07],
       vec: [371.86, 359.07],
       cube: [338.0, 84.57],
+      simt: [366.5, 305.0],
+      aic_scalar: [310.0, 173.0],
+      aiv_scalar_unit: [310.0, 244.0],
     };
     const UTIL: Record<TopologyPlateNodeId, readonly [number, number]> = {
       aiv_scalar: [282.2, 321.0],
-      vec: [372.1, 367.8],
+      vec: [372.1, 366.8],
       cube: [338.1, 95.3],
+      simt: [372.2, 325.3],
+      aic_scalar: [310.05, 184.065],
+      aiv_scalar_unit: [310.05, 255.065],
     };
-    expect(PLATE_SLOTS.aiv_scalar).toEqual([UTIL.aiv_scalar]);
-    expect(PLATE_SLOTS.vec).toEqual([UTIL.vec]);
-    expect(PLATE_SLOTS.cube).toEqual([UTIL.cube]);
+    for (const node of TOPOLOGY_PLATE_NODE_IDS) {
+      expect(PLATE_SLOTS[node]).toEqual([UTIL[node]]);
+    }
     for (const node of TOPOLOGY_PLATE_NODE_IDS) {
       const [[px, py]] = PLATE_SLOTS[node];
       const [wx, wy] = WORDS[node];
@@ -392,10 +399,10 @@ describe('MemoryTopologyPanel', () => {
         },
       },
     });
-    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(321.0, 5);
-    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(367.8, 5);
-    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(218.3, 5);
-    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('x'))).toBeCloseTo(114.1, 5);
+    expect(Number(wrapper.get('[data-testid="plate-aiv_scalar-0"]').attributes('y'))).toBeCloseTo(319.75425, 5);
+    expect(Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'))).toBeCloseTo(366.75425, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('y'))).toBeCloseTo(216.286, 5);
+    expect(Number(wrapper.get('[data-testid="node-l2-peak"]').attributes('x'))).toBeCloseTo(114, 5);
     // L2 peak vs L2 word (114.2, 204.5) — must clear half-cap (~3.15); sample band is ~13.8u under.
     expect(Math.hypot(114.1 - 114.2, 218.3 - 204.5)).toBeGreaterThanOrEqual(12);
   });
@@ -1392,8 +1399,8 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       'l2-ub': [133.75, 159.7, 188],
       'ub-l2': [133.75, 159.6, 188],
       'l2-l1-read': [133.75, 160.1, 188],
-      'ub-vec': [315, 338.7, 361],
-      'vec-ub': [315, 338.6, 361],
+      'ub-vec': [315, 335.7, 361],
+      'vec-ub': [315, 335.6, 361],
       'l1-l0a': [217, 239.1, 262],
       'l1-l0b': [217, 239.1, 262],
       'l0a-cube': [282, 300.9, 322],
@@ -1418,6 +1425,9 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
       aiv_scalar: [256, 282.2, 308],
       vec: [361.5, 372.1, 382.5],
       cube: [322, 338.1, 354],
+      simt: [351, 367, 382],
+      aic_scalar: [294, 310.05, 326],
+      aiv_scalar_unit: [294, 310.05, 326],
     };
     expect(Object.keys(PLATE_MAX_W).sort()).toEqual(Object.keys(BOXES).sort());
     expect(Object.keys(PLATE_SLOTS).sort()).toEqual([...TOPOLOGY_PLATE_NODE_IDS].sort());
@@ -1517,5 +1527,317 @@ describe('MemoryTopologyPanel value fit (PR-MEMTOP-010)', () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe('MemoryTopologyPanel 对比基线 badges', () => {
+  /** Current model: three plated units + an L2 peak (master slots). */
+  const currentModel = {
+    ...model,
+    nodes: [
+      ...model.nodes.map((n) => (n.id === 'l2' ? { ...n, peakPct: 0.6 } : n)),
+      { id: 'vec', label: 'Vec' },
+      { id: 'aiv_scalar', label: 'Scalar' },
+    ],
+    plates: [
+      { node: 'aiv_scalar' as const, label: '33.24%', value: 33.24 },
+      { node: 'vec' as const, label: '6.72%', value: 6.72 },
+      { node: 'cube' as const, label: '51.40%', value: 51.4 },
+    ],
+  };
+
+  /** Baseline: scalar rose, vec fell, cube equal; peak rose. */
+  const baselineModel = {
+    nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 5 }],
+    edges: [],
+    plates: [
+      { node: 'aiv_scalar' as const, label: '40.00%', value: 40 },
+      { node: 'vec' as const, label: '3.00%', value: 3 },
+      { node: 'cube' as const, label: '51.40%', value: 51.4 },
+    ],
+  };
+
+  it('PR-MEMTOP-024: no baseline paints zero badge nodes; edges are never badged', () => {
+    const wrapper = mount(MemoryTopologyPanel, { props: { model: currentModel } });
+    expect(wrapper.findAll('[data-testid^="topo-diff-"]')).toHaveLength(0);
+    // The edge values still render, with no badge attached to any of them.
+    expect(wrapper.find('[data-testid="edge-gm-l2-read-0"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-MEMTOP-025: plate badges pair by node and use the numeric value', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model: currentModel, baseline: baselineModel },
+    });
+    // Scalar fell against a higher baseline → green down; vec rose → red up; cube equal → none.
+    expect(wrapper.get('[data-testid="topo-diff-aiv_scalar-0"]').classes()).toContain(
+      'pr-topo__diff--decrease',
+    );
+    expect(wrapper.get('[data-testid="topo-diff-vec-0"]').classes()).toContain(
+      'pr-topo__diff--increase',
+    );
+    expect(wrapper.find('[data-testid="topo-diff-cube-0"]').exists()).toBe(false);
+
+    // A label-only plate has no comparable number → no badge.
+    const labelOnly = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...currentModel,
+          plates: [{ node: 'aiv_scalar', label: '33.24%' }],
+        },
+        baseline: baselineModel,
+      },
+    });
+    expect(labelOnly.find('[data-testid="topo-diff-aiv_scalar-0"]').exists()).toBe(false);
+    wrapper.unmount();
+    labelOnly.unmount();
+  });
+
+  it('PR-MEMTOP-026: the L2 peak badge needs numeric peakPct on both sides', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model: currentModel, baseline: baselineModel },
+    });
+    expect(wrapper.get('[data-testid="topo-diff-l2-peak"]').classes()).toContain(
+      'pr-topo__diff--decrease',
+    );
+
+    // Current side falls back to the `l2-hit` string label → the string is never parsed.
+    const fallback = mount(MemoryTopologyPanel, {
+      props: {
+        model: {
+          ...currentModel,
+          nodes: currentModel.nodes.map((n) => (n.id === 'l2' ? { id: 'l2', label: 'L2 Cache' } : n)),
+          edges: [...model.edges, { id: 'l2-hit', from: 'l2', to: 'l1', label: '0.60%' }],
+        },
+        baseline: baselineModel,
+      },
+    });
+    expect(fallback.find('[data-testid="topo-diff-l2-peak"]').exists()).toBe(false);
+    wrapper.unmount();
+    fallback.unmount();
+  });
+
+  it('PR-MEMTOP-027: the badge is an arrow-only circle centred under the value', async () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model: currentModel, baseline: baselineModel },
+    });
+    const scalar = wrapper.get('[data-testid="topo-diff-aiv_scalar-0"]');
+    // Horizontally centred on the value's x; below the value; no inline numbers.
+    const scalarValue = wrapper.get('[data-testid="plate-aiv_scalar-0"]');
+    const sx = Number(scalarValue.attributes('x'));
+    const sy = Number(scalarValue.attributes('y'));
+    const rect = scalar.get('rect');
+    expect(Number(rect.attributes('x')) + Number(rect.attributes('width')) / 2).toBeCloseTo(sx, 5);
+    expect(Number(rect.attributes('y')) + Number(rect.attributes('height')) / 2).toBeCloseTo(
+      sy + 6.6,
+      5,
+    );
+    expect(Number(rect.attributes('width'))).toBeCloseTo((4.7 * 4) / 3, 5);
+    expect(scalar.find('text').exists()).toBe(false);
+    // Full arrow path (shaft + head).
+    expect(scalar.get('path').attributes('d')?.match(/M/g)).toHaveLength(2);
+    // The Vec control's word + value + badge block is centred on its box's vertical centre.
+    const vecBadgeRect = wrapper.get('[data-testid="topo-diff-vec-0"] rect');
+    const vecBadgeCy =
+      Number(vecBadgeRect.attributes('y')) + Number(vecBadgeRect.attributes('height')) / 2;
+    const vecValueY = Number(wrapper.get('[data-testid="plate-vec-0"]').attributes('y'));
+    expect(vecBadgeCy).toBeCloseTo(vecValueY + 6.6, 5);
+    const vecTitleTy = Number(
+      (wrapper.get('[data-testid="unit-title-vec"]').attributes('transform') ?? '')
+        .match(/translate\([^ ]+ ([^)]+)\)/)?.[1],
+    );
+    const vecTitleY = vecTitleTy + (356.039 + 6.057 / 2);
+    expect(
+      (vecTitleY - 6.057 / 2 + (vecBadgeCy + (4.7 * 4) / 3 / 2)) / 2,
+    ).toBeCloseTo(362, 5);
+    // The peak badge anchors on the control's own centre.
+    const peakRect = wrapper.get('[data-testid="topo-diff-l2-peak"] rect');
+    expect(Number(peakRect.attributes('x')) + Number(peakRect.attributes('width')) / 2).toBeCloseTo(
+      114,
+      5,
+    );
+
+    // Chrome: white circle, tone-coloured arrow, no number text in the SVG.
+    const src = (await import('./MemoryTopologyPanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-topo__diff-box\s*\{[^}]*fill:\s*#ffffff/s);
+    expect(src).toMatch(/\.pr-topo__diff-arrow\s*\{[^}]*stroke:\s*#88c858/s);
+    expect(src).not.toMatch(/pr-topo__diff-text/);
+    wrapper.unmount();
+  });
+
+  it('PR-MEMTOP-028: a baseline switch patches the same badge nodes in place', async () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model: currentModel, baseline: baselineModel },
+    });
+    const before = wrapper.get('[data-testid="topo-diff-aiv_scalar-0"]').element;
+    await wrapper.setProps({
+      baseline: {
+        ...baselineModel,
+        plates: [
+          { node: 'aiv_scalar', label: '20.00%', value: 20 },
+          { node: 'vec', label: '3.00%', value: 3 },
+          { node: 'cube', label: '51.40%', value: 51.4 },
+        ],
+      },
+    });
+    const after = wrapper.get('[data-testid="topo-diff-aiv_scalar-0"]');
+    expect(after.element).toBe(before);
+    expect(after.classes()).toContain('pr-topo__diff--increase');
+    // Equal baseline → the badge node disappears.
+    await wrapper.setProps({
+      baseline: {
+        ...baselineModel,
+        plates: [
+          { node: 'aiv_scalar', label: '33.24%', value: 33.24 },
+          { node: 'vec', label: '3.00%', value: 3 },
+          { node: 'cube', label: '51.40%', value: 51.4 },
+        ],
+      },
+    });
+    expect(wrapper.find('[data-testid="topo-diff-aiv_scalar-0"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-MEMTOP-029: the block hover column owns the popup for one or many baselines', async () => {
+    const rowOf = (m: typeof baselineModel, label: string) => ({ label, model: m });
+    const multi = mount(MemoryTopologyPanel, {
+      props: {
+        model: currentModel,
+        baseline: baselineModel,
+        baselineRows: [
+          rowOf(baselineModel, '基线 1'),
+          rowOf(
+            {
+              ...baselineModel,
+              plates: [
+                { node: 'aiv_scalar', label: '50.00%', value: 50 },
+                { node: 'vec', label: '3.00%', value: 3 },
+                { node: 'cube', label: '51.40%', value: 51.4 },
+              ],
+            },
+            '基线 2',
+          ),
+        ],
+      },
+    });
+    // ONE hover column over the painted rows: entering it anywhere opens the
+    // popup and moving between the title, value and badge never re-enters the
+    // target (no flicker).
+    const hit = multi.get('[data-testid="topo-hit-aiv_scalar-0"]');
+    await hit.trigger('pointerenter');
+    const tip = document.querySelector('[data-testid="topology-compare-tip"]');
+    expect(tip).not.toBeNull();
+    const rows = [...tip!.querySelectorAll('[data-testid^="topology-compare-tip-row-"]')];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain('33.24%');
+    expect(rows[1].textContent).toContain('基线 1');
+    expect(rows[1].textContent).toContain('40.00%');
+    expect(rows[1].textContent).toContain('6.76%');
+    expect(rows[2].textContent).toContain('50.00%');
+    await hit.trigger('pointerleave');
+    expect(document.querySelector('[data-testid="topology-compare-tip"]')).toBeNull();
+    // The hover column is a separate invisible rect; the control group itself
+    // stays pointer-transparent, so the heat unit under it keeps its hover and
+    // click (PR-MEMTOP-021). Without a comparison no column exists at all.
+    expect(multi.get('[data-testid="unit-control-aiv_scalar"]').classes()).not.toContain(
+      'pr-topo__unit-control--live',
+    );
+    expect(hit.classes()).toContain('pr-topo__unit-hit');
+    const plain = mount(MemoryTopologyPanel, { props: { model: currentModel } });
+    expect(plain.find('[data-testid="topo-hit-aiv_scalar-0"]').exists()).toBe(false);
+    plain.unmount();
+    const src = (await import('./MemoryTopologyPanel.vue?raw')).default as string;
+    // The cover/group never takes the pointer; only the hover column does.
+    expect(src).toMatch(/\.pr-topo__unit-control \{\s*pointer-events: none;/s);
+    expect(src).toMatch(/\.pr-topo__unit-hit \{\s*pointer-events: all;/s);
+    expect(src).not.toMatch(/unit-control--live|pr-topo__pct--live|pr-topo__title--live/);
+    multi.unmount();
+
+    // A single baseline row still opens the popup (the SVG badge has no numbers).
+    const single = mount(MemoryTopologyPanel, {
+      props: {
+        model: currentModel,
+        baseline: baselineModel,
+        baselineRows: [rowOf(baselineModel, '基线 1')],
+      },
+    });
+    await single.get('[data-testid="topo-hit-aiv_scalar-0"]').trigger('pointerenter');
+    const oneTip = document.querySelector('[data-testid="topology-compare-tip"]');
+    expect(oneTip).not.toBeNull();
+    expect(oneTip!.querySelectorAll('[data-testid^="topology-compare-tip-row-"]')).toHaveLength(2);
+    single.unmount();
+    document.querySelector('[data-testid="topology-compare-tip"]')?.remove();
+  });
+
+  it('PR-MEMTOP-029: a zero primary delta still carries the hover column and the row alignment', async () => {
+    // Row 0 equals the current value (no inline badge); row 1 differs. The
+    // hover column must still exist so row 1 is reachable, and the equal row in
+    // the popup must keep the shared value column (the current-row class is
+    // index-based, never tone-based).
+    const same = {
+      ...currentModel,
+      plates: currentModel.plates!.map((p) => ({ ...p })),
+    };
+    const other = {
+      ...currentModel,
+      plates: currentModel.plates!.map((p) =>
+        p.node === 'aiv_scalar'
+          ? { node: p.node, label: '43.24%', value: (p.value ?? 0) + 10 }
+          : { ...p },
+      ),
+    };
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: {
+        model: currentModel,
+        baseline: same,
+        baselineRows: [
+          { label: '基线 1', model: same },
+          { label: '基线 2', model: other },
+        ],
+      },
+    });
+    // No inline badge for the equal row 0…
+    expect(wrapper.find('[data-testid="topo-diff-aiv_scalar-0"]').exists()).toBe(false);
+    // …but the hover column exists and opens the popup with every row.
+    const hit = wrapper.get('[data-testid="topo-hit-aiv_scalar-0"]');
+    await hit.trigger('pointerenter');
+    await nextTick();
+    const tip = () => document.querySelector('[data-testid="topology-compare-tip"]');
+    expect(tip()).not.toBeNull();
+    const rows = [...tip()!.querySelectorAll('[data-testid^="topology-compare-tip-row-"]')];
+    expect(rows).toHaveLength(3);
+    // Only the FIRST row is the current row; a zero-delta baseline row keeps
+    // the shared value column.
+    expect(rows[0].classList.contains('pr-topo-compare-tip__row--current')).toBe(true);
+    expect(rows[1].classList.contains('pr-topo-compare-tip__row--current')).toBe(false);
+    expect(rows[2].classList.contains('pr-topo-compare-tip__row--current')).toBe(false);
+
+    // The fixed popup cannot follow the user's own scroll/zoom or a resize: it
+    // closes on the wheel gesture (not on a programmatic scroll-into-view,
+    // which dispatches `scroll` and must not kill the fresh hover).
+    window.dispatchEvent(new WheelEvent('wheel'));
+    await nextTick();
+    expect(tip()).toBeNull();
+    await hit.trigger('pointerenter');
+    await nextTick();
+    expect(tip()).not.toBeNull();
+    window.dispatchEvent(new Event('resize'));
+    await nextTick();
+    expect(tip()).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-MEMTOP-027: badge controls carry no native <title> (the popup is the only tooltip)', () => {
+    const wrapper = mount(MemoryTopologyPanel, {
+      props: { model: currentModel, baseline: baselineModel },
+    });
+    const badge = wrapper.get('[data-testid="topo-diff-aiv_scalar-0"]');
+    // The native SVG title would paint a second, OS-styled tooltip beside the
+    // custom popup. The hidden summary carries the same direction + delta.
+    expect(badge.find('title').exists()).toBe(false);
+    expect(wrapper.get('.pr-topo__sr').text()).toMatch(
+      /(增加|减少|Increased|Decreased) \d+(\.\d+)?%/,
+    );
+    wrapper.unmount();
   });
 });

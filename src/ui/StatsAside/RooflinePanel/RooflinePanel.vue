@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { t } from '../../../i18n';
+import {
+  FIXED_TIP_OFFSET_PX,
+  FIXED_TIP_PAD_PX,
+} from '../../placeFixedTip';
 import {
   ROOFLINE_CHART_H as H,
   ROOFLINE_CHART_W as W,
@@ -11,6 +15,7 @@ import {
   ROOFLINE_Y_TICK_LABEL_DY as Y_TICK_LABEL_DY,
 } from './rooflineLayout';
 import type { RooflinePoint, RooflineSeries, RooflineViewModel } from '../../../domain/types';
+import { formatAsidePct } from '../asideValueFormat';
 
 const props = defineProps<{
   model: RooflineViewModel;
@@ -34,16 +39,60 @@ const mixY = topsY;
 const opsX = PAD.l + plotW + OPS_GAP_FROM_PLOT;
 const opsY = plotBottomY;
 
-const hovered = ref<RooflinePoint | null>(null);
-/** Experimental: legend hover → emphasize that series' roof on the plot. */
-const legendHoverId = ref<string | null>(null);
+/**
+ * Hover tip follows EventTooltip / StatsAside card tips: teleported `position: fixed`
+ * beside the pointer so the aside cannot crop it and the chart no longer reserves a
+ * bottom text band (PR-ROOF-004). Covers measured points and ridge knees. Dismiss on
+ * leave, aside scroll, window resize, and `pointercancel` matches StatsAside's
+ * `closeTip` contract so a fixed box cannot strand.
+ */
+const rootEl = ref<HTMLElement | null>(null);
+const legendScrollEl = ref<HTMLElement | null>(null);
+const tipId = useId();
+type HoverTip = { kind: 'point'; id: string } | { kind: 'knee'; id: string };
+const hoverTip = ref<HoverTip | null>(null);
+const tipPos = ref<{
+  left: string;
+  right: string;
+  top: string;
+  bottom: string;
+} | null>(null);
+/**
+ * Flip threshold only — not the placed origin. Width is the tip max-width.
+ * Height covers a wrapped emulate label (48-char symbol + level + PC → up to
+ * 3 name lines) plus the two value lines:
+ * 12px × 1.45 × 5 + 4px name margin + 8×2 pad + 1×2 border = 109.
+ * Knee tips are shorter; the taller estimate still flips early enough.
+ * A left/above flip anchors with `right` / `bottom` (StatsAside card tips) so
+ * the near edge stays `FIXED_TIP_OFFSET_PX` from the pointer. Subtracting this
+ * estimate from `left` parked a narrower box a max-width away.
+ * ponytail: a viewport narrower than max-width + gap can still run a left-flipped
+ * tip off the left edge. Measure and clamp if a small window becomes a target.
+ */
+const TIP_EST_W = 280;
+const TIP_EST_H = 112;
+let asideScrollEl: Element | null = null;
+
+/**
+ * Shared series emphasis id (PR-ROOF-008): legend ↔ roof/knee. Lit item + thickened
+ * roof; other series dim.
+ */
+const seriesHoverId = ref<string | null>(null);
 /**
  * Sketch (report-stats-duration-source): filled rounded-square knees on the
  * roof ridges; measured points off the lines are filled circles.
+ * Hit pads are larger than the paint so thin roofs / 8px knees stay easy to grab.
  */
 const KNEE = 8;
+/** Hovered knee that owns the tip. Same 8→10 step as CounterTrack active markers. */
+const KNEE_HOVER = 10;
+const KNEE_HIT = 16;
 const KNEE_RX = 2;
 const POINT_R = 4;
+/** Hovered measured point that owns the tip (diameter 8→10). */
+const POINT_R_HOVER = 5;
+/** Invisible stroke width for roof hit-testing (visual stays 2 / lit 3.5). */
+const ROOF_HIT_STROKE = 12;
 
 const hasPoints = computed(() => (props.model.points?.length ?? 0) > 0);
 
@@ -92,7 +141,7 @@ const legendGridStyle = computed(() => ({
 /** Paint highlighted roof last so it sits above siblings. */
 const roofDrawOrder = computed(() => {
   const list = [...seriesList.value];
-  const id = legendHoverId.value;
+  const id = seriesHoverId.value;
   if (!id) return list;
   const i = list.findIndex((s) => s.id === id);
   if (i < 0) return list;
@@ -102,11 +151,16 @@ const roofDrawOrder = computed(() => {
 });
 
 function roofHighlightClass(id: string): Record<string, boolean> {
-  const hover = legendHoverId.value;
+  const hover = seriesHoverId.value;
   return {
     'pr-roofline__roof-g--lit': hover === id,
     'pr-roofline__roof-g--dim': hover != null && hover !== id,
   };
+}
+
+/** True ridge Ops/Byte (not domain-clamped) for knee tips. */
+function ridgeIntensity(s: RooflineSeries): number {
+  return (s.peakComputeTops * 1000) / Math.max(s.peakBandwidthGBs, 1e-12);
 }
 
 /** Log domain from points + roofs. */
@@ -238,83 +292,249 @@ const mixParts = computed(() =>
   props.model.mixLabels.map((m, i) => ({
     id: m.id,
     label: m.label,
-    percent: `${m.percent.toFixed(6)}%`,
+    percent: formatAsidePct(m.percent),
     prefix: i === 0 ? '' : ', ',
   })),
 );
 
-const tooltipText = computed(() => {
-  const id = hovered.value?.id;
-  if (!id) return '';
-  const p = props.model.points.find((pt) => pt.id === id);
-  if (!p) return '';
-  return `${p.label}: ${fmtVal(p.intensity)} Ops/Byte, ${fmtVal(p.performance)} TOps/s`;
+/**
+ * Tip body for the open hover (point or knee). Resolve by id so a model replace
+ * keeps the tip on the same target (PR-ROOF-004).
+ */
+const tipBody = computed((): { name: string; lines: string[]; pointId?: string } | null => {
+  const tip = hoverTip.value;
+  if (!tip) return null;
+  if (tip.kind === 'point') {
+    const p = props.model.points.find((pt) => pt.id === tip.id);
+    if (!p) return null;
+    return {
+      name: p.label,
+      lines: [`${fmtVal(p.intensity)} Ops/Byte`, `${fmtVal(p.performance)} TOps/s`],
+      pointId: p.id,
+    };
+  }
+  const s = seriesList.value.find((series) => series.id === tip.id);
+  if (!s) return null;
+  return {
+    name: s.label,
+    lines: [
+      `${fmtVal(ridgeIntensity(s))} Ops/Byte`,
+      `${fmtVal(s.peakComputeTops)} TOps/s`,
+      `${fmtVal(s.peakBandwidthGBs)} GB/s`,
+    ],
+  };
+});
+
+/** Drop the floating tip only — keep legend/roof emphasis (PR-ROOF-008). */
+function dismissTip() {
+  hoverTip.value = null;
+  tipPos.value = null;
+}
+
+/** Tip + series emphasis. Drill-in / empty panel / stale target use the full clear. */
+function closePointTip() {
+  dismissTip();
+  seriesHoverId.value = null;
+}
+
+function placeTip(e: MouseEvent) {
+  const x = e.clientX;
+  const y = e.clientY;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const offset = FIXED_TIP_OFFSET_PX;
+  const pad = FIXED_TIP_PAD_PX;
+  // Flip on the max box. The flipped edge is `right` / `bottom`, so a tip
+  // narrower or shorter than the estimate still sits `offset` px from the pointer.
+  const toTheRight = x + offset + TIP_EST_W <= vw - pad;
+  const below = y + offset + TIP_EST_H <= vh - pad;
+  tipPos.value = {
+    left: toTheRight ? `${x + offset}px` : 'auto',
+    right: toTheRight ? 'auto' : `${vw - x + offset}px`,
+    top: below ? `${y + offset}px` : 'auto',
+    bottom: below ? 'auto' : `${vh - y + offset}px`,
+  };
+}
+
+function pointRadius(id: string): number {
+  return hoverTip.value?.kind === 'point' && hoverTip.value.id === id ? POINT_R_HOVER : POINT_R;
+}
+
+function kneePaint(s: RooflineSeries): { x: number; y: number; size: number } {
+  const hot = hoverTip.value?.kind === 'knee' && hoverTip.value.id === s.id;
+  const size = hot ? KNEE_HOVER : KNEE;
+  const seg = roofSegments(s);
+  return { x: seg.ridgeX - size / 2, y: seg.ridgeY - size / 2, size };
+}
+
+function onPointEnter(e: MouseEvent, p: RooflinePoint) {
+  seriesHoverId.value = null;
+  hoverTip.value = { kind: 'point', id: p.id };
+  placeTip(e);
+}
+
+function onPointMove(e: MouseEvent) {
+  if (hoverTip.value?.kind === 'point') placeTip(e);
+}
+
+function onPointLeave() {
+  if (hoverTip.value?.kind === 'point') dismissTip();
+}
+
+/** Roof path: emphasize series only — tip is knee-exclusive (PR-ROOF-009). */
+function onRoofEnter(s: RooflineSeries) {
+  seriesHoverId.value = s.id;
+}
+
+function onRoofLeave() {
+  seriesHoverId.value = null;
+}
+
+function onKneeEnter(e: MouseEvent, s: RooflineSeries) {
+  seriesHoverId.value = s.id;
+  hoverTip.value = { kind: 'knee', id: s.id };
+  placeTip(e);
+}
+
+function onKneeMove(e: MouseEvent) {
+  if (hoverTip.value?.kind === 'knee') placeTip(e);
+}
+
+function onKneeLeave() {
+  if (hoverTip.value?.kind === 'knee') dismissTip();
+  seriesHoverId.value = null;
+}
+
+function onLegendEnter(id: string) {
+  seriesHoverId.value = id;
+}
+
+function onLegendLeave() {
+  seriesHoverId.value = null;
+}
+
+/** Map vertical wheel to horizontal scroll when the legend overflows (PR-ROOF-006). */
+function onLegendWheel(e: WheelEvent) {
+  const el = legendScrollEl.value;
+  if (!el) return;
+  const max = el.scrollWidth - el.clientWidth;
+  if (max <= 1) return;
+  const dx = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+  if (dx === 0) return;
+  const next = Math.min(max, Math.max(0, el.scrollLeft + dx));
+  if (next === el.scrollLeft) return;
+  e.preventDefault();
+  el.scrollLeft = next;
+}
+
+function bindAsideScroll(el: HTMLElement | null) {
+  if (asideScrollEl) {
+    asideScrollEl.removeEventListener('scroll', dismissTip);
+    asideScrollEl = null;
+  }
+  if (!el) return;
+  const parent = el.closest('.pr-aside__body');
+  if (!parent) return;
+  asideScrollEl = parent;
+  // Scroll/resize: tip only — do not clear seriesHoverId while the pointer still
+  // rests on a legend item or roof (PR-ROOF-008).
+  asideScrollEl.addEventListener('scroll', dismissTip, { passive: true });
+}
+
+watch(rootEl, (el) => bindAsideScroll(el), { flush: 'post' });
+/** Target id gone (block switch / empty model) — do not resurrect the tip later. */
+watch(tipBody, (body) => {
+  if (!body && hoverTip.value) closePointTip();
+});
+watch(hasPoints, (ok) => {
+  if (!ok) closePointTip();
+});
+
+/** StatsAside calls this when the drill-in surface changes (tip is on `body`, above the overlay). */
+defineExpose({ closePointTip });
+
+onMounted(() => window.addEventListener('resize', dismissTip));
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', dismissTip);
+  bindAsideScroll(null);
 });
 </script>
 
 <template>
   <div
     v-if="hasPoints"
+    ref="rootEl"
     class="pr-roofline"
     data-testid="roofline-panel"
   >
     <div class="pr-roofline__card">
       <div class="pr-roofline__card-head">
+        <!--
+          Scroll on a wrapper, not the grid: overflow-x:auto + overflow-y:hidden
+          on a height:auto box lets the classic H-scrollbar eat the row height and
+          clip AIV/AIC to an empty track (PR-ROOF-006).
+        -->
         <div
-          class="pr-roofline__legend"
+          ref="legendScrollEl"
+          class="pr-roofline__legend-scroll"
           data-testid="roofline-legend"
-          :style="legendGridStyle"
+          @wheel="onLegendWheel"
         >
-          <template v-if="aivSeries.length">
-            <span class="pr-roofline__leg-head">AIV:</span>
-            <span
-              v-for="s in aivSeries"
-              :key="s.id"
-              class="pr-roofline__leg-item"
-              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
-              data-testid="roofline-leg-item"
-              :data-series-id="s.id"
-              @mouseenter="legendHoverId = s.id"
-              @mouseleave="legendHoverId = null"
-            >
+          <div
+            class="pr-roofline__legend"
+            :style="legendGridStyle"
+          >
+            <template v-if="aivSeries.length">
+              <span class="pr-roofline__leg-head">AIV:</span>
               <span
-                class="pr-roofline__leg-swatch"
-                :style="{ background: s.color }"
-              />
-              {{ s.label }}
-            </span>
-            <span
-              v-for="n in Math.max(0, legendColCount - aivSeries.length)"
-              :key="`aiv-pad-${n}`"
-              class="pr-roofline__leg-pad"
-              aria-hidden="true"
-            />
-          </template>
-          <template v-if="aicSeries.length">
-            <span class="pr-roofline__leg-head">AIC:</span>
-            <span
-              v-for="s in aicSeries"
-              :key="s.id"
-              class="pr-roofline__leg-item"
-              :class="{ 'pr-roofline__leg-item--lit': legendHoverId === s.id }"
-              data-testid="roofline-leg-item"
-              :data-series-id="s.id"
-              @mouseenter="legendHoverId = s.id"
-              @mouseleave="legendHoverId = null"
-            >
+                v-for="s in aivSeries"
+                :key="s.id"
+                class="pr-roofline__leg-item"
+                :class="{ 'pr-roofline__leg-item--lit': seriesHoverId === s.id }"
+                data-testid="roofline-leg-item"
+                :data-series-id="s.id"
+                @mouseenter="onLegendEnter(s.id)"
+                @mouseleave="onLegendLeave"
+              >
+                <span
+                  class="pr-roofline__leg-swatch"
+                  :style="{ background: s.color }"
+                />
+                {{ s.label }}
+              </span>
               <span
-                class="pr-roofline__leg-swatch"
-                :style="{ background: s.color }"
+                v-for="n in Math.max(0, legendColCount - aivSeries.length)"
+                :key="`aiv-pad-${n}`"
+                class="pr-roofline__leg-pad"
+                aria-hidden="true"
               />
-              {{ s.label }}
-            </span>
-            <span
-              v-for="n in Math.max(0, legendColCount - aicSeries.length)"
-              :key="`aic-pad-${n}`"
-              class="pr-roofline__leg-pad"
-              aria-hidden="true"
-            />
-          </template>
+            </template>
+            <template v-if="aicSeries.length">
+              <span class="pr-roofline__leg-head">AIC:</span>
+              <span
+                v-for="s in aicSeries"
+                :key="s.id"
+                class="pr-roofline__leg-item"
+                :class="{ 'pr-roofline__leg-item--lit': seriesHoverId === s.id }"
+                data-testid="roofline-leg-item"
+                :data-series-id="s.id"
+                @mouseenter="onLegendEnter(s.id)"
+                @mouseleave="onLegendLeave"
+              >
+                <span
+                  class="pr-roofline__leg-swatch"
+                  :style="{ background: s.color }"
+                />
+                {{ s.label }}
+              </span>
+              <span
+                v-for="n in Math.max(0, legendColCount - aicSeries.length)"
+                :key="`aic-pad-${n}`"
+                class="pr-roofline__leg-pad"
+                aria-hidden="true"
+              />
+            </template>
+          </div>
         </div>
       </div>
       <svg
@@ -412,13 +632,17 @@ const tooltipText = computed(() => {
             :class="roofHighlightClass(s.id)"
             data-testid="roofline-roof"
             :data-series-id="s.id"
+            @mouseenter="onRoofEnter(s)"
+            @mouseleave="onRoofLeave"
           >
+            <!-- Paint first; hit strokes sit on top (transparent, wider, solid). -->
             <path
               class="pr-roofline__roof"
               :class="{ 'pr-roofline__roof--dashed': s.slopeStyle === 'dashed' }"
               :d="roofSegments(s).slope"
               fill="none"
               :stroke="s.color"
+              pointer-events="none"
             />
             <path
               class="pr-roofline__roof"
@@ -426,11 +650,65 @@ const tooltipText = computed(() => {
               :d="roofSegments(s).plateau"
               fill="none"
               :stroke="s.color"
+              pointer-events="none"
+            />
+            <path
+              class="pr-roofline__roof-hit"
+              data-testid="roofline-roof-hit"
+              :d="roofSegments(s).slope"
+              fill="none"
+              stroke="transparent"
+              :stroke-width="ROOF_HIT_STROKE"
+            />
+            <path
+              class="pr-roofline__roof-hit"
+              data-testid="roofline-roof-hit"
+              :d="roofSegments(s).plateau"
+              fill="none"
+              stroke="transparent"
+              :stroke-width="ROOF_HIT_STROKE"
             />
           </g>
         </g>
-        <!-- Markers sit outside plot clip so edge marks are not cropped. -->
+        <!-- Markers sit outside plot clip so edge marks are not cropped.
+             Knees first, points on top so a 16×16 knee pad cannot steal PR-ROOF-004. -->
         <g class="pr-roofline__markers">
+          <!-- Roof ridge knees: 8×8 paint + larger transparent hit pad. -->
+          <g
+            v-for="s in roofDrawOrder"
+            :key="`knee-${s.id}`"
+            class="pr-roofline__knee-g"
+            :class="roofHighlightClass(s.id)"
+            :data-series-id="s.id"
+            @mouseenter="onKneeEnter($event, s)"
+            @mousemove="onKneeMove"
+            @mouseleave="onKneeLeave"
+            @pointerleave="onKneeLeave"
+            @pointercancel="onKneeLeave"
+          >
+            <rect
+              class="pr-roofline__knee-hit"
+              data-testid="roofline-knee-hit"
+              :x="roofSegments(s).ridgeX - KNEE_HIT / 2"
+              :y="roofSegments(s).ridgeY - KNEE_HIT / 2"
+              :width="KNEE_HIT"
+              :height="KNEE_HIT"
+              fill="transparent"
+            />
+            <rect
+              data-testid="roofline-knee"
+              class="pr-roofline__knee"
+              :x="kneePaint(s).x"
+              :y="kneePaint(s).y"
+              :width="kneePaint(s).size"
+              :height="kneePaint(s).size"
+              :rx="KNEE_RX"
+              :ry="KNEE_RX"
+              :fill="s.color"
+              :stroke="s.color"
+              pointer-events="none"
+            />
+          </g>
           <!-- Measured points (off the roofs): filled/hollow circles, series color. -->
           <circle
             v-for="p in model.points"
@@ -440,29 +718,15 @@ const tooltipText = computed(() => {
             :class="{ 'pr-roofline__point--hollow': p.style === 'hollow' }"
             :cx="xToPx(p.intensity)"
             :cy="yToPx(p.performance)"
-            :r="POINT_R"
+            :r="pointRadius(p.id)"
             :fill="p.style === 'hollow' ? '#262626' : p.color"
             :stroke="p.color"
-            @mouseenter="hovered = p"
-            @mouseleave="hovered = null"
-          />
-          <!-- Roof ridge knees (on the lines): filled rounded squares like legend. -->
-          <rect
-            v-for="s in roofDrawOrder"
-            :key="`knee-${s.id}`"
-            data-testid="roofline-knee"
-            class="pr-roofline__knee"
-            :class="roofHighlightClass(s.id)"
-            :data-series-id="s.id"
-            :x="roofSegments(s).ridgeX - KNEE / 2"
-            :y="roofSegments(s).ridgeY - KNEE / 2"
-            :width="KNEE"
-            :height="KNEE"
-            :rx="KNEE_RX"
-            :ry="KNEE_RX"
-            :fill="s.color"
-            :stroke="s.color"
-            pointer-events="none"
+            :aria-describedby="tipBody?.pointId === p.id ? tipId : undefined"
+            @mouseenter="onPointEnter($event, p)"
+            @mousemove="onPointMove"
+            @mouseleave="onPointLeave"
+            @pointerleave="onPointLeave"
+            @pointercancel="onPointLeave"
           />
         </g>
         <text
@@ -515,14 +779,32 @@ const tooltipText = computed(() => {
           dominant-baseline="alphabetic"
         >TOps/s</text>
       </svg>
-      <div
-        class="pr-roofline__tip"
-        data-testid="roofline-tooltip"
-        :aria-hidden="!hovered"
-      >
-        {{ tooltipText }}
-      </div>
     </div>
+    <!--
+      Teleported like EventTooltip / StatsAside card tips — aside overflow and the
+      timeline stacking context must not crop a pointer-following box.
+    -->
+    <Teleport to="body">
+      <div
+        v-if="tipBody && tipPos"
+        :id="tipId"
+        class="pr-tooltip pr-roofline-tip"
+        role="tooltip"
+        data-testid="roofline-tooltip"
+        :data-tip-kind="hoverTip?.kind"
+        :style="tipPos"
+      >
+        <div class="pr-roofline-tip__name">
+          {{ tipBody.name }}
+        </div>
+        <div
+          v-for="(line, i) in tipBody.lines"
+          :key="i"
+        >
+          {{ line }}
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -558,21 +840,58 @@ const tooltipText = computed(() => {
 }
 
 /*
+ * Scrollport for a dense dtype×bandwidth legend (DATA-57a). Keep overflow off
+ * the grid itself — a classic horizontal scrollbar on a height:auto grid eats
+ * the row box and clips the labels to an empty track.
+ */
+.pr-roofline__legend-scroll {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/*
+ * Chromium applies either scrollbar-* or ::-webkit-scrollbar, not both
+ * (tokens.css). The webkit bar below is 8px, matching the grid padding.
+ * Firefox has no webkit bar, so it gets scrollbar-width: thin only there.
+ */
+@supports not selector(::-webkit-scrollbar) {
+  .pr-roofline__legend-scroll {
+    scrollbar-width: thin;
+  }
+}
+
+.pr-roofline__legend-scroll::-webkit-scrollbar {
+  /* Keep equal to `.pr-roofline__legend` padding-bottom. */
+  height: 8px;
+}
+
+.pr-roofline__legend-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+}
+
+.pr-roofline__legend-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*
  * Top of the raised card (no in-card chart title). One grid for both rows so
- * the nth AIV / AIC swatches share a vertical edge.
+ * the nth AIV / AIC swatches share a vertical edge. Width is intrinsic; the
+ * scrollport above clamps to the card. Padding matches the 8px webkit bar
+ * so an inset bar cannot clip the AIC row.
  */
 .pr-roofline__legend {
   display: grid;
   column-gap: 10px;
   row-gap: 4px;
   align-items: center;
-  min-width: 0;
   width: max-content;
-  max-width: 100%;
+  padding-bottom: 8px;
   font-size: 12px;
   line-height: 1.2;
-  /* Emulate dtype×bandwidth roofs can exceed ~7 series (DATA-57a). */
-  overflow-x: auto;
 }
 
 .pr-roofline__leg-head {
@@ -655,16 +974,34 @@ const tooltipText = computed(() => {
   stroke-width: 3.5;
 }
 
+.pr-roofline__roof-g {
+  cursor: pointer;
+}
+
+.pr-roofline__roof-hit {
+  pointer-events: stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pr-roofline__knee-g {
+  cursor: pointer;
+}
+
 .pr-roofline__knee {
   stroke-width: 1.5;
   transition: opacity 80ms ease, stroke-width 80ms ease;
 }
 
-.pr-roofline__knee.pr-roofline__roof-g--dim {
-  opacity: 0.28;
+/*
+ * Knees stay more opaque than dimmed roofs so ridge markers remain findable
+ * while another series is emphasized (avoid compounding a second 0.28 on the paint).
+ */
+.pr-roofline__knee-g.pr-roofline__roof-g--dim {
+  opacity: 0.7;
 }
 
-.pr-roofline__knee.pr-roofline__roof-g--lit {
+.pr-roofline__knee-g.pr-roofline__roof-g--lit .pr-roofline__knee {
   stroke-width: 2.5;
 }
 
@@ -700,20 +1037,51 @@ const tooltipText = computed(() => {
 .pr-roofline__mix-pct {
   fill: #ffffff;
 }
+</style>
 
-/* Reserved band below the SVG so hover never covers x-ticks / Ops/Byte. */
-.pr-roofline__tip {
-  flex: 0 0 auto;
-  min-height: calc(12px * 1.2);
-  padding: 0;
-  font-size: 12px;
-  line-height: 1.2;
-  color: #d0d8e0;
+<!--
+  Unscoped: Teleport → body (same as CounterHoverTip / overview value tip). Scoped
+  selectors can fail to paint on the teleported node, so the tip would mount invisible.
+-->
+<style>
+.pr-roofline-tip.pr-tooltip {
+  position: fixed;
+  z-index: 20;
   pointer-events: none;
-  visibility: hidden;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--pr-surface-raised, #363636);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.2);
+  color: #e8e8e8;
+  font-size: 12px;
+  line-height: 1.45;
+  min-width: 180px;
+  max-width: 280px;
+  animation: pr-roofline-tip-in 120ms ease;
 }
 
-.pr-roofline__tip:not(:empty) {
-  visibility: visible;
+@keyframes pr-roofline-tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-roofline-tip.pr-tooltip {
+    animation: none;
+  }
+}
+
+.pr-roofline-tip__name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #ffffff;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 </style>

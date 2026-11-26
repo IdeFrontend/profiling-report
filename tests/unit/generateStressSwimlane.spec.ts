@@ -82,6 +82,7 @@ describe('PR-STRESS: generateStressSwimlane', () => {
 
   it('PR-STRESS-004: stressPresetFromQuery falls back to medium', () => {
     expect(stressPresetFromQuery('large')).toBe('large');
+    expect(stressPresetFromQuery('lanes')).toBe('lanes');
     expect(stressPresetFromQuery('nope')).toBe('medium');
     expect(stressPresetFromQuery(null)).toBe('medium');
   });
@@ -152,9 +153,11 @@ describe('PR-STRESS: generateStressSwimlane', () => {
     const small = generateStressSwimlane({ eventsPerThread: 1 }, 'small');
     const medium = generateStressSwimlane({ eventsPerThread: 1 }, 'medium');
     const large = generateStressSwimlane({ eventsPerThread: 1 }, 'large');
+    const lanes = generateStressSwimlane({ eventsPerThread: 1 }, 'lanes');
     expect('bands' in small).toBe(false);
     expect('bands' in medium).toBe(false);
     expect('bands' in large).toBe(false);
+    expect('bands' in lanes).toBe(false);
   });
 
   it('PR-STRESS-009: same-core deps are bidirectional and time-ordered', () => {
@@ -243,18 +246,28 @@ describe('PR-STRESS: generateStressSwimlane', () => {
     }
   });
 
-  it('PR-STRESS-011: linkDependencies defaults on for small, off for medium/large', () => {
+  it('PR-STRESS-011: linkDependencies defaults on for small, off for medium/large/lanes', () => {
     const small = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'small');
     const medium = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'medium');
     const large = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'large');
+    const lanes = generateStressSwimlane({ eventsPerThread: 4, timeSpanNs: 1_000, seed: 1 }, 'lanes');
     expect(firstPipeLeaf(small).events[0]!.dependencies).toBeTruthy();
     expect(firstPipeLeaf(medium).events[0]!.dependencies).toBeUndefined();
     expect(firstPipeLeaf(large).events[0]!.dependencies).toBeUndefined();
+    expect(firstPipeLeaf(lanes).events[0]!.dependencies).toBeUndefined();
 
     const wired = generateStressSwimlane(
       { eventsPerThread: 4, timeSpanNs: 1_000, seed: 1, linkDependencies: true },
       'medium',
     );
     expect(firstPipeLeaf(wired).events[0]!.dependencies).toBeTruthy();
+  });
+
+  it('PR-STRESS-012: lanes preset yields 50 Cards, 550 leaf threads, 450 events', () => {
+    const model = generateStressSwimlane({}, 'lanes');
+    const stats = stressSwimlaneStats(model);
+    expect(stats.processCount).toBe(50);
+    expect(stats.threadCount).toBe(550);
+    expect(stats.eventCount).toBe(450);
   });
 });

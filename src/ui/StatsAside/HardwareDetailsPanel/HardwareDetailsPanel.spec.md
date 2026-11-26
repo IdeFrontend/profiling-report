@@ -18,6 +18,7 @@ Renders each section title and key–value fields. Empty sections array → empt
 
 1. **PR-HW-001** — Renders section fields.
 2. **PR-HW-002** — Empty sections → no panel chrome.
+3. **PR-HW-003** — Field VALUES display at most four decimals (`formatDetailValue`): `1.7999999999999999` → `1.8`; non-numeric strings pass through.
 
 ## Visual
 

@@ -197,6 +197,27 @@ describe('CsvFieldListPanel', () => {
     expect(wide.find('[data-testid="csv-view-all"]').exists()).toBe(true);
   });
 
+  it('PR-CSV-010: field values display at most four decimals, residue trimmed', () => {
+    const tables: CsvTableModel[] = [
+      {
+        fileName: 'PipeUtilizationHist.csv',
+        headers: ['aic_scalar_ratio'],
+        rows: [{ aic_scalar_ratio: '0.5052200000000001' }],
+        blockIds: [],
+      },
+    ];
+    const wrapper = mount(CsvFieldListPanel, {
+      props: {
+        tables,
+        csvTexts: { 'PipeUtilizationHist.csv': 'PipeName,CoreName,Utilization\n' },
+        showBlockSwitcher: false,
+        showViewAll: false,
+      },
+    });
+    expect(wrapper.text()).toContain('0.5052');
+    wrapper.unmount();
+  });
+
   it('PR-CSV-009: Pipe Utilization tab label and aic_/aiv0_ ratio fields (UI-55)', () => {
     const histTables: CsvTableModel[] = [
       {
@@ -219,7 +240,14 @@ describe('CsvFieldListPanel', () => {
       'Pipe Utilization',
     );
     expect(wrapper.text()).toContain('aic_scalar_ratio');
-    expect(wrapper.text()).toContain('0.50522');
+    expect(wrapper.text()).toContain('0.5052');
     expect(wrapper.text()).toContain('aiv0_scalar_ratio');
+  });
+
+  it('PR-CSV-011: field values align to the left edge', async () => {
+    // Layout is a style contract (1130 diff-detail mockup); happy-dom paints no scoped
+    // CSS, so assert the SFC's own rule (source-assertion pattern used elsewhere).
+    const src = (await import('./CsvFieldListPanel.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-csv__field-value\s*\{[^}]*text-align:\s*left/);
   });
 });

@@ -9,6 +9,7 @@ import {
 } from '../../src/adapters';
 import {
   buildMemoryTopology,
+  buildMemoryTopologyFromCategories,
   firstLabelledMemoryTopology,
   foldCubeL0cCorridorEdges,
   hasDrawableTopology,
@@ -576,7 +577,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(label('gm-l2-read')).toBeUndefined();
   });
 
-  it('PR-VM-023 (UI-49 / DATA-39): in-box Scalar/Vec/Cube badges are the block\'s own pipe ratio, NA stays blank', () => {
+  it('PR-VM-023 (UI-49 / DATA-39): in-box unit badges are the block\'s own pipe ratio, NA stays blank', () => {
     // The producer's `PipeUtilization` ratios are fractions of each unit's own busy time, so the
     // badge prints `ratio × 100` at the sketch's two decimals (the pipe rows round to integers).
     const memory: CsvTableModel = {
@@ -590,29 +591,94 @@ describe('PR-VM: report view-models (interim)', () => {
     };
     const pipe: CsvTableModel = {
       fileName: 'PipeUtilization.csv',
-      headers: ['block_id', 'aiv_scalar_ratio', 'aiv_vec_ratio', 'aic_cube_ratio'],
+      headers: [
+        'block_id',
+        'aiv_scalar_ratio',
+        'aiv_vec_ratio',
+        'aic_cube_ratio',
+        'aiv_simt_ratio',
+        'aic_scalar_ratio',
+      ],
       rows: [
         {
           block_id: '0',
           aiv_scalar_ratio: '0.5790',
           aiv_vec_ratio: '0.5606',
           aic_cube_ratio: '0.0218',
+          aiv_simt_ratio: '0.2150',
+          aic_scalar_ratio: '0.1042',
         },
-        { block_id: '1', aiv_scalar_ratio: 'NA', aiv_vec_ratio: '0.3', aic_cube_ratio: '' },
+        {
+          block_id: '1',
+          aiv_scalar_ratio: 'NA',
+          aiv_vec_ratio: '0.3',
+          aic_cube_ratio: '',
+          aiv_simt_ratio: 'NA',
+          aic_scalar_ratio: 'NA',
+        },
       ],
       blockIds: ['0', '1'],
     };
     const plates = (id: string) => buildMemoryTopology([memory, pipe], id)?.plates;
     expect(plates('0')).toEqual([
-      { node: 'aiv_scalar', label: '57.90%' },
-      { node: 'vec', label: '56.06%' },
-      { node: 'cube', label: '2.18%' },
+      { node: 'aiv_scalar', label: '57.90%', value: 57.9 },
+      { node: 'vec', label: '56.06%', value: 56.06 },
+      { node: 'cube', label: '2.18%', value: 2.18 },
+      { node: 'simt', label: '21.50%', value: 21.5 },
+      { node: 'aic_scalar', label: '10.42%', value: 10.42 },
+      // The AIV row's own Scalar box shows the same ratio as the combined badge.
+      { node: 'aiv_scalar_unit', label: '57.90%', value: 57.9 },
     ]);
     // `NA` / empty drop that unit's badge — an absent badge, never `NaN%` or a false `0.00%`.
-    expect(plates('1')).toEqual([{ node: 'vec', label: '30.00%' }]);
+    expect(plates('1')).toEqual([{ node: 'vec', label: '30.00%', value: 30 }]);
 
     // No PipeUtilization among the tables → no badges at all (the panel supplies that table).
     expect(buildMemoryTopology([memory], '0')?.plates).toBeUndefined();
+  });
+
+  it('PR-VM-029: plates expose the numeric percent their label prints, for baseline diffs', () => {
+    // Baseline comparison diffs two models' plates; parsing the formatted label would round first
+    // and break on hand-built models. `value` is the same number the label prints, sourced from
+    // the same PipeUtilization ratio, so the two can never disagree.
+    const memory: CsvTableModel = {
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_ub_to_gm_bw(GB/s)'],
+      rows: [{ block_id: '0', 'aiv_ub_to_gm_bw(GB/s)': '8.38' }],
+      blockIds: ['0'],
+    };
+    const pipe: CsvTableModel = {
+      fileName: 'PipeUtilization.csv',
+      headers: [
+        'block_id',
+        'aiv_scalar_ratio',
+        'aiv_vec_ratio',
+        'aic_cube_ratio',
+        'aiv_simt_ratio',
+        'aic_scalar_ratio',
+      ],
+      rows: [
+        {
+          block_id: '0',
+          aiv_scalar_ratio: '0.579012345', // prints 57.90%; the raw × 100 carries float noise
+          aiv_vec_ratio: '0.5606',
+          aic_cube_ratio: '0.0218',
+          aiv_simt_ratio: '0.2150',
+          aic_scalar_ratio: '0.1042',
+        },
+      ],
+      blockIds: ['0'],
+    };
+    const plates = buildMemoryTopology([memory, pipe], '0')!.plates!;
+    expect(plates.map((p) => p.value)).toEqual([57.9, 56.06, 2.18, 21.5, 10.42, 57.9]);
+    // Label precision is the contract: every value equals the number its own label prints.
+    for (const plate of plates) expect(plate.value).toBe(Number(plate.label.replace('%', '')));
+
+    // The `All` summary-category path goes through the same builder, so it carries `value` too.
+    const fromCategories = buildMemoryTopologyFromCategories([
+      { id: 'Memory', title: 'Memory', fields: [{ key: 'aiv_ub_to_gm_bw(GB/s)', value: '8.38' }] },
+      { id: 'PipeUtilization', title: 'PipeUtilization', fields: [{ key: 'aiv_vec_ratio', value: '0.42' }] },
+    ]);
+    expect(fromCategories?.plates).toEqual([{ node: 'vec', label: '42.00%', value: 42 }]);
   });
 
   it('PR-VM-024 (DATA-43): the AIC-row corridor plate carries the producer\'s `GM -> UB` field', () => {
@@ -1334,7 +1400,7 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(model.pipeOccupancy.find((p) => p.id === 'vector')?.ratio).toBeCloseTo(0.42, 6);
     expect(model.memoryTopology?.edges.find((e) => e.id === 'ub-l2')?.label).toBe('42.00 GB/s');
     // UI-49: the in-box badges read the same category (the producer's `NA` units stay absent).
-    expect(model.memoryTopology?.plates).toEqual([{ node: 'vec', label: '42.00%' }]);
+    expect(model.memoryTopology?.plates).toEqual([{ node: 'vec', label: '42.00%', value: 42 }]);
     expect(model.summaryCategories!.find((c) => c.id === 'PipeUtilization')!.fields).toContainEqual({
       key: 'aiv_vec_ratio',
       value: '0.42',

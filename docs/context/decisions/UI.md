@@ -170,9 +170,12 @@ Format and statuses: [README.md](README.md).
 
 ## UI-49
 
-- **Resolved:** 2026-09-15
+- **Resolved:** 2026-09-15; **Amended:** 2026-11-24
 - **Question:** [DATA-20](DATA.md) settled the **L2** plate (hit rate, not a peak-relative percent). The sketch also draws nine in-box `%` badges — AIV0/AIV1 `Scalar`, AIV0/AIV1 `Vec`, AIC `Scalar`, `Cube`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP` — while the export gives a plate to none of them. Should any other unit show a **Peak(%)** badge, and if so what is its 100% reference?
 - **Decision:** The nine badges are **unit utilizations, not peak-relative percents** — no unit gains a peak badge, and the L2 plate keeps its DATA-20 hit-rate meaning. Paint the **three units that have a producer field**, each `{ratio × 100}%` at the sketch's two decimals (the ratio is a fraction of the unit's **own** busy time, DATA-28; the 计算负载分析 pipe rows print the same ratio rounded): AIV0 **and** AIV1 `Scalar` ← `aiv_scalar_ratio`, AIV0 **and** AIV1 `Vec` ← `aiv_vec_ratio`, AIC `Cube` ← `aic_cube_ratio` (all `Summary.jsonl` → `PipeUtilization`). The badges go **in the unit's own box** at the sketch's positions — the export needs no new plate rects. The producer's six `NA` badge rows (AIC `Scalar`, AIV0/AIV1 `SIMT VF`, AIV0/AIV1 `SIMD VF`, `FixP`) cover only **four** positions and stay **blank** — the `SIMD VF` rows name the same in-box position as the painted `Vec` rows (`6'`/`7'`).
+  **Amendment (2026-11-19, baseline slice):** the baseline diff originally added AIV `SIMT`, AIC `Scalar` and the AIV row's own `Scalar` unit box as extra plate positions to widen the compared set.
+  **Amendment (2026-11-23):** reverted — Memory Load Analysis keeps the **master chrome and label layout**, and baseline comparison adds **only an arrow badge** horizontally centred under each percentage value; its hover popup carries the baseline values.
+  **Amendment (2026-11-24):** the six in-box positions are painted again — the three above plus AIV `SIMT` ← `aiv_simt_ratio` (demo-only field; real reports stay blank), AIC `Scalar` ← `aic_scalar_ratio`, and the AIV row's own `Scalar` unit box ← `aiv_scalar_ratio` — so both Scalar boxes, SIMT and SIMD carry values and comparison badges; the master SVG and existing label positions are unchanged.
 - **Specs:** [MemoryTopologyPanel](../../../src/ui/StatsAside/MemoryTopologyPanel/MemoryTopologyPanel.spec.md) (PR-MEMTOP-016), [view-models](../../../specs/core/view-models.spec.md) (PR-VM-023), [memory-topology](../../views/memory-topology.md#edge-field-source), [StatsAside](../../../src/ui/StatsAside/StatsAside.spec.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)
 - **Source:** Producer `npu-tools` → `npu-compute/Questions/DATA questions/DATA questions.md` DATA-39 "Memory" table (2026-09-15), which maps the three badges and marks the other six **rows** `NA` (four in-box positions, since its `SIMD VF` rows name the painted `Vec` position); Product approval in chat (2026-09-15) to paint the units with a field and leave the four field-less positions blank. Rendered evidence: [`memory-topology-in-box-badges.png`](../visual/memory-topology-in-box-badges.png) — the three badges as the shipped panel paints them in the official chrome.
 
@@ -211,6 +214,17 @@ Format and statuses: [README.md](README.md).
 
 ---
 
+## UI-62
+
+- **Resolved:** 2026-11-25
+- **Was:** Product chat follow-up on CounterTrack gutter chrome (no prior open-question row)
+- **Question:** When a CounterTrack Card/lane has no utilization metric (and no other Card metric), should the metric selector and util bar hide?
+- **Decision:** **Yes.** Per lane: omit `bar` when the active metric has no value (absolute counters never get a util bar — [DATA-59](./DATA.md)). Per Card: hide the header metric selector when `availableGutterMetrics` is empty (absolute-only counter Cards today). Do not show a fake `0%` track. Single-mode Cards that **do** have utilization may still show a one-item selector.
+- **Specs:** [gutter-metrics](../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../../../src/ui/TimelineView/SwimlaneView/SwimlaneView.spec.md), [LaneGutter.spec.md](../../../src/ui/TimelineView/SwimlaneView/LaneGutter/LaneGutter.spec.md), [DATA-59](./DATA.md)
+- **Source:** Product chat 2026-11-25.
+
+---
+
 ## UI-61
 
 - **Resolved:** 2026-11-17 (revised 2026-11-23 — Chrome hierarchy, multi-series folders, white dual markers)
@@ -229,3 +243,13 @@ Format and statuses: [README.md](README.md).
   10. **Lane height:** CounterTrack leaves and **collapsed** counter folders use **`COUNTER_LANE_HEIGHT` = 26px**; expanded counter folders and interval lanes stay **`LANE_HEIGHT` = 22px**.
 - **Specs:** [timeline](../../views/timeline.md), [swimlane-model](../../../specs/core/swimlane-model.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [DATA-57](./DATA.md), [OverviewCharts.spec.md](../../../src/ui/TimelineView/OverviewCharts/OverviewCharts.spec.md) (Sampling-only)
 - **Source:** Product answers 2026-11-17; revised 2026-11-20 (generic tips/colors/26px); revised 2026-11-23 (Chrome hierarchy, memory multi-series, white dual markers, Overview parity).
+
+## UI-63
+
+**Status:** resolved (2026-11-16, review of PR #234).
+
+**Question:** Should the aside's Baseline / Operator dropdown row render always (Not selected when nothing is checked), or hide?
+
+**Answer:** Hide while no baseline is checked — no row, no dropdowns, with an empty checked set. With a non-empty set the row renders as before. The reviewer also settled three adjacent behaviors in the same review: the first added baseline autoselects (empty → non-empty transition; a restored session state never autoselects); the Operator default is the baseline's operator matching the open report's opName (else the first); pressing the bar closes the baselines popover. Display titles derive from the entry — filename + timestamp instead of a generated boilerplate id — and the popup title is Select baselines.
+
+**Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-052/054 restated, PR-STATS-057/058), [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md) (PR-ROOT-052/053), [BaselinePicker.spec.md](../../../src/ui/ReportToolbar/BaselinePicker/BaselinePicker.spec.md) (PR-BASELINE-028..030), [baselines](../../views/baselines.md).

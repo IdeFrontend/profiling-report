@@ -1,19 +1,45 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 import StatsAside from './StatsAside.vue';
 import { adaptRep, emptyReportViewModel } from '../../adapters/adaptRep';
 import {
+  buildMemoryTopology,
   buildMemoryTopologyFromCategories,
   firstLabelledMemoryTopology,
 } from '../../adapters/memoryTopology';
+import SummaryCategoryList from './SummaryCategoryList/SummaryCategoryList.vue';
 import { parseRep } from '../../adapters/parseRep';
-import type { ReportViewModel, RooflineViewModel } from '../../domain/types';
+import type {
+  AdaptedReport,
+  BaselineReports,
+  MemoryTopologyModel,
+  ReportViewModel,
+  RooflineViewModel,
+} from '../../domain/types';
 import { loadOutRepBytes } from '../../../tests/helpers/fixtures';
 import { t } from '../../i18n';
+import { baselineDisplayTitle } from '../../domain/baselineTitle';
 
 function report(partial: Partial<ReportViewModel> = {}): ReportViewModel {
   return { ...emptyReportViewModel(), ...partial };
+}
+
+/**
+ * Comparison props for one adapted baseline pack: one checked baseline, one
+ * comparison row over it (row 0 = the primary), and the host pack map. The
+ * multi-row tests extend/replace the rows and reports themselves.
+ */
+function withBaselineProps(pack: AdaptedReport | null): {
+  baselines: { id: string; name: string; path: string }[];
+  baselineRows: { id: string; baselineId: string; operatorId: string }[];
+  baselineReports: BaselineReports;
+} {
+  return {
+    baselines: [{ id: 'b1', name: 'baseline.rep', path: '/baseline.rep' }],
+    baselineRows: [{ id: 'b1-row', baselineId: 'b1', operatorId: '' }],
+    baselineReports: pack ? { b1: { baselineId: 'b1', report: pack } } : {},
+  };
 }
 
 /** Unmount every wrapper after its test so the shared card tooltip leaves the document with it. */
@@ -258,23 +284,23 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').text()).toContain('分块');
     // Same CardMetricSelect chrome as card-header / ArchDiagram Metric (not native .pr-block-pill).
     expect(wrapper.get('[data-testid="pipe-block-select"]').classes()).toContain('pr-metric-select');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50.00%');
     // All = summary.jsonl aggregate (4.0), not the first block's 1.0.
     expect(wrapper.text()).toContain('4.00 GB/s');
 
     await pickPipeBlock(wrapper, '1');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80.00%');
     expect(wrapper.text()).toContain('2.00 GB/s');
     expect(wrapper.text()).not.toContain('4.00 GB/s');
 
     // All must return to the summary.jsonl aggregate from a non-default pick (not via an intervening `0`).
     await pickPipeBlock(wrapper, '');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50.00%');
     expect(wrapper.text()).toContain('4.00 GB/s');
     expect(wrapper.text()).not.toContain('2.00 GB/s');
 
     await pickPipeBlock(wrapper, '0');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('20.00%');
     expect(wrapper.text()).toContain('1.00 GB/s');
   });
 
@@ -468,8 +494,14 @@ describe('StatsAside', () => {
     expect(wrapper.findAll('[data-testid="roofline-roof"]')).toHaveLength(1);
     // Chip HardwareInfo sample + block GM (both kept).
     expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(2);
-    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter');
-    expect(wrapper.get('[data-testid="roofline-tooltip"]').text()).toContain('AIV fp16');
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
+    // Teleported to `body` (same as summary-card / duration tips).
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')?.textContent).toContain(
+      'AIV fp16',
+    );
   });
 
   it('PR-STATS-014e: a picked block keeps an interim root roof', async () => {
@@ -611,14 +643,14 @@ describe('StatsAside', () => {
     expect(naCard.text()).toContain('N/A');
     expect(naCard.text()).not.toContain('10');
     // PIPE re-reads the block's own row (0.8, not the All 0.5) …
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('80.00%');
     expect(wrapper.text()).not.toContain('50%');
     // … and the selector stays reachable so All can be restored.
     expect(wrapper.find('[data-testid="pipe-block-switcher"]').exists()).toBe(true);
     await pickPipeBlock(wrapper, '');
     expect(wrapper.find('[data-testid="stats-bandwidth-card"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="stats-compute-card"]').classes()).not.toContain('pr-card--na');
-    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50%');
+    expect(wrapper.get('.pr-pipe-row__pct').text()).toBe('50.00%');
   });
 
   it('PR-STATS-003: Cube|Vector toggle only for MIX and filters by side', async () => {
@@ -697,21 +729,21 @@ describe('StatsAside', () => {
 
     let rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
-    expect(rows).toContain('51'); // round(0.505*100)
-    expect(rows).not.toContain('19'); // aiv0 MTE3 ~19%
+    expect(rows).toContain('50.50%'); // round(0.505*100)
+    expect(rows).not.toContain('18.56%'); // aiv0 MTE3 ~19%
     expect(rows).not.toContain('26'); // aiv1 MTE3
 
     await wrapper.get('[data-testid="pipe-side-aiv0"]').trigger('click');
     rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('MTE3');
-    expect(rows).toContain('19'); // round(0.1856*100)
+    expect(rows).toContain('18.56%'); // the unified two-decimal PIPE percent
     expect(rows).not.toContain('26');
-    expect(rows).not.toContain('51');
+    expect(rows).not.toContain('50.50%');
 
     await wrapper.get('[data-testid="pipe-side-aiv1"]').trigger('click');
     rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('26'); // round(0.264*100)
-    expect(rows).not.toContain('19');
+    expect(rows).not.toContain('18.56%');
 
     // Re-passing an equivalent report must not wipe Vector 1 back to Cube (aic).
     await wrapper.setProps({
@@ -764,7 +796,7 @@ describe('StatsAside', () => {
     expect(sideRule).not.toMatch(/\bborder\b/);
     let rows = aic.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
-    expect(rows).toContain('51');
+    expect(rows).toContain('50.50%');
     expect(rows).toContain('MTE3');
 
     const aivOnly = [
@@ -792,7 +824,7 @@ describe('StatsAside', () => {
     rows = aiv.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
     expect(rows).toContain('Scalar');
     expect(rows).toContain('48');
-    expect(rows).toContain('19');
+    expect(rows).toContain('18.56%');
   });
 
   it('PR-STATS-038b: AIC + one AIV uses Cube|Vector labels (#196)', async () => {
@@ -818,13 +850,13 @@ describe('StatsAside', () => {
     expect(wrapper.find('[data-testid="pipe-side-aiv1"]').exists()).toBe(false);
 
     let rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
-    expect(rows).toContain('51');
-    expect(rows).not.toContain('19');
+    expect(rows).toContain('50.50%');
+    expect(rows).not.toContain('18.56%');
 
     await wrapper.get('[data-testid="pipe-side-aiv0"]').trigger('click');
     rows = wrapper.findAll('.pr-pipe-row').map((r) => r.text()).join('|');
-    expect(rows).toContain('19');
-    expect(rows).not.toContain('51');
+    expect(rows).toContain('18.56%');
+    expect(rows).not.toContain('50.50%');
   });
 
   it('PR-STATS-004: blank or unrecognized opType shows all PIPE sides', async () => {
@@ -1312,8 +1344,8 @@ describe('StatsAside', () => {
         }),
       },
     });
-    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toBe('54');
-    expect(wrapper.get('[data-testid="stats-compute-aiv-score"]').text()).toBe('53');
+    expect(wrapper.get('[data-testid="stats-compute-aic-score"]').text()).toBe('54.00');
+    expect(wrapper.get('[data-testid="stats-compute-aiv-score"]').text()).toBe('53.00');
     expect(wrapper.get('[data-testid="stats-compute-aic-bar"]').attributes('style')).toContain('width: 54%');
     expect(wrapper.get('[data-testid="stats-compute-aic"]').text()).toMatch(/Cube/);
     expect(wrapper.get('[data-testid="stats-compute-aiv"]').text()).toMatch(/Vector/);
@@ -1941,7 +1973,7 @@ describe('StatsAside', () => {
     expect(read.text()).toMatch(/读|Read/);
     // DATA-8: read = aic + aiv = 80 + 90 = 170 → score round(170/1600×100) = 11
     expect(read.get('[data-testid="stats-bandwidth-read-score"]').text()).toMatch(/11/);
-    expect(read.text()).toMatch(/170\.0 \/ 1600\.0\s*GB\/s/);
+    expect(read.text()).toMatch(/170.00 \/ 1600.00\s*GB\/s/);
     expect(await hoverCardTip(wrapper, '[data-testid="stats-bandwidth-read"] .pr-card__sub')).toEqual({
       value: cardTipValue('170 / 1600 GB/s'),
       hint: t('bandwidthRatioHint').replace('{dir}', t('bwRead')),
@@ -1951,7 +1983,7 @@ describe('StatsAside', () => {
     );
     const write = card.get('[data-testid="stats-bandwidth-write"]');
     expect(write.text()).toMatch(/写|Write/);
-    expect(write.text()).toMatch(/1\.56 \/ 1600\.0\s*GB\/s/);
+    expect(write.text()).toMatch(/1\.56 \/ 1600\.00\s*GB\/s/);
   });
 
   it('PR-STATS-024: out.rep cards use 1600 GB/s peak (~1% score), not max of measured', () => {
@@ -1999,10 +2031,14 @@ describe('StatsAside', () => {
         }),
       },
     });
-    expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.065/);
+    expect(withAbs.get('[data-testid="pipe-absolute"]').text()).toMatch(/0\.07/);
     const track = withAbs.get('.pr-pipe-row__track');
     expect(track.find('.pr-pipe-row__bar .pr-pipe-row__abs').exists()).toBe(false);
-    expect(track.find(':scope > .pr-pipe-row__abs').exists()).toBe(true);
+    // The value line is a direct track child; the absolute is its direct child
+    // (the comparison delta shares the same line).
+    const valueLine = track.find(':scope > .pr-pipe-row__value');
+    expect(valueLine.exists()).toBe(true);
+    expect(valueLine.find(':scope > .pr-pipe-row__abs').exists()).toBe(true);
 
     const without = mount(StatsAside, {
       props: {
@@ -2078,6 +2114,51 @@ describe('StatsAside', () => {
       },
     });
     expect(without.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+  });
+
+  it('PR-ROOF-004: a drill-in dismisses the teleported point tip', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['roofline'],
+        report: report({
+          roofline: {
+            points: [
+              {
+                id: 'gm',
+                label: 'GM Read + Write',
+                intensity: 0.09,
+                performance: 0.002,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
+            mixLabels: [],
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'solid',
+              },
+            ],
+          },
+        }),
+      },
+    });
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeTruthy();
+    // Keyboard drill-in does not move the pointer, so the circle never gets mouseleave.
+    await wrapper.get('[data-testid="stats-aside-more"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="stats-hardware-details"]').exists()).toBe(true);
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')).toBeNull();
   });
 
   it('PR-STATS-016: 详情 switches to compute mode when tables exist', async () => {
@@ -2720,6 +2801,707 @@ describe('StatsAside', () => {
     expect(standalone.find('[data-testid="memory-unit-ub"]').exists()).toBe(true);
   });
 
+  /* ===== Baseline comparison rows (对比基线) — PR-STATS-052..054, 061..064 ===== */
+
+  const baselineList = [
+    { id: 'b1', name: 'OPPROF_20261108142517_QKWFPLXZVTRNBGMA', path: '/opprof/b1' },
+    { id: 'b2', name: 'OPPROF_20261109111842_MJNHEYSDCQXVBRUW', path: '/opprof/b2' },
+  ];
+
+  /** A pack carrying the given operators, each with its own model. */
+  function packWithOperators(ops: [string, number][]): AdaptedReport {
+    return {
+      ...adaptedPack(report({ summary: { taskDurationUs: ops[0][1] } })),
+      operators: ops.map(([id]) => ({ id, label: id })),
+      operatorReports: Object.fromEntries(
+        ops.map(([id, us]) => [id, adaptedPack(report({ summary: { taskDurationUs: us } }))]),
+      ),
+    };
+  }
+
+  it('PR-STATS-052: the comparison bar renders only with a non-empty checked set', () => {
+    // No baselines at all → no row, no dropdowns (UI-63 resolved: hide).
+    const plain = mount(StatsAside, { props: { report: report({ summary: { pid: '9' } }) } });
+    expect(plain.find('[data-testid="stats-baseline-bar"]').exists()).toBe(false);
+
+    // An empty list → no row either.
+    const empty = mount(StatsAside, {
+      props: { report: report({ summary: { pid: '9' } }), baselines: [] },
+    });
+    expect(empty.find('[data-testid="stats-baseline-bar"]').exists()).toBe(false);
+
+    // A checked set with one row → the bar renders the two dropdowns per row.
+    const withRow = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: baselineList,
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+      },
+    });
+    const bar = withRow.get('[data-testid="stats-baseline-bar"]');
+    expect(bar.text()).toContain(t('baselineLabel'));
+    expect(bar.text()).toContain(t('operatorLabel'));
+    expect(withRow.find('[data-testid="stats-baseline-row-1"]').exists()).toBe(true);
+    // Header placement (1130 guide): under the title row, ABOVE the meta line.
+    const meta = withRow.get('[data-testid="stats-aside-meta"]').element;
+    expect(
+      bar.element.compareDocumentPosition(meta) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("PR-STATS-053: each row's report select lists the checked set (no sentinel) and emits the edited row", async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: baselineList,
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: 'add_n' }],
+        baselineReports: {
+          b1: { baselineId: 'b1', report: packWithOperators([['matmul', 500], ['add_n', 700]]) },
+          b2: { baselineId: 'b2', report: packWithOperators([['gelu', 400], ['layernorm', 900]]) },
+        },
+      },
+    });
+    const select = wrapper.get('[data-testid="aside-baseline-select"]');
+    expect(select.attributes('data-value')).toBe('b1');
+    // The trigger label is the derived title, not the generated id.
+    expect(select.get('.pr-metric-select__label').text()).toBe(
+      baselineDisplayTitle(baselineList[0]),
+    );
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    const options = [...document.querySelectorAll('[data-testid^="aside-baseline-option-"]')].map((el) =>
+      el.getAttribute('data-testid'),
+    );
+    // The checked set only — no "Not selected" sentinel on a comparison row.
+    expect(options).toEqual(['aside-baseline-option-b1', 'aside-baseline-option-b2']);
+    (document.querySelector('[data-testid="aside-baseline-option-b2"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    // The report switch resolves the row's operator to the new report's first
+    // free operator (a row never keeps a pair another row already holds).
+    expect(wrapper.emitted('update:baselineRows')?.[0]?.[0]).toEqual([
+      { id: 'row1', baselineId: 'b2', operatorId: 'gelu' },
+    ]);
+  });
+
+  it('PR-STATS-061: the row setters keep every (report, operator) pair distinct', async () => {
+    // A taken operator pick resolves to the first free operator of that report
+    // instead of duplicating another row (review 2026-11-25). Row1 starts on
+    // add_n, row2 holds matmul, so the first free operator is relu.
+    const hostOperators = [
+      { id: 'matmul', label: 'matmul' },
+      { id: 'relu', label: 'relu' },
+      { id: 'add_n', label: 'add_n' },
+    ];
+    const operatorCase = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [{ id: 'b1', name: 'host.rep', path: '/host.rep', operators: hostOperators }],
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: 'add_n' },
+          { id: 'row2', baselineId: 'b1', operatorId: 'matmul' },
+        ],
+        baselineReports: {},
+      },
+    });
+    await operatorCase
+      .get('[data-testid="aside-baseline-operator-select"] .pr-metric-select__trigger')
+      .trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-operator-option-matmul"]') as HTMLElement).click();
+    await operatorCase.vm.$nextTick();
+    expect(operatorCase.emitted('update:baselineRows')?.[0]?.[0]).toEqual([
+      { id: 'row1', baselineId: 'b1', operatorId: 'relu' },
+      { id: 'row2', baselineId: 'b1', operatorId: 'matmul' },
+    ]);
+    operatorCase.unmount();
+
+    // A report switch to a report whose default operator is taken resolves to
+    // its next free operator (layernorm, because row2 already holds gelu).
+    const reportCase = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [
+          {
+            id: 'b1',
+            name: 'one.rep',
+            path: '/one.rep',
+            operators: [
+              { id: 'matmul', label: 'matmul' },
+              { id: 'add_n', label: 'add_n' },
+            ],
+          },
+          {
+            id: 'b2',
+            name: 'two.rep',
+            path: '/two.rep',
+            operators: [
+              { id: 'gelu', label: 'gelu' },
+              { id: 'layernorm', label: 'layernorm' },
+            ],
+          },
+        ],
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: 'matmul' },
+          { id: 'row2', baselineId: 'b2', operatorId: 'gelu' },
+        ],
+        baselineReports: {},
+      },
+    });
+    await reportCase
+      .get('[data-testid="aside-baseline-select"] .pr-metric-select__trigger')
+      .trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-option-b2"]') as HTMLElement).click();
+    await reportCase.vm.$nextTick();
+    expect(reportCase.emitted('update:baselineRows')?.[0]?.[0]).toEqual([
+      { id: 'row1', baselineId: 'b2', operatorId: 'layernorm' },
+      { id: 'row2', baselineId: 'b2', operatorId: 'gelu' },
+    ]);
+    reportCase.unmount();
+
+    // Switching onto a report whose every operator pair another row already
+    // holds is a no-op: the row stays put and nothing is emitted, so a pair is
+    // never duplicated.
+    const fullCase = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [
+          { id: 'b1', name: 'one.rep', path: '/one.rep', operators: [{ id: 'matmul', label: 'matmul' }] },
+          { id: 'b2', name: 'two.rep', path: '/two.rep', operators: [{ id: 'gelu', label: 'gelu' }] },
+        ],
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: 'matmul' },
+          { id: 'row2', baselineId: 'b2', operatorId: 'gelu' },
+        ],
+        baselineReports: {},
+      },
+    });
+    await fullCase
+      .get('[data-testid="aside-baseline-select"] .pr-metric-select__trigger')
+      .trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-option-b2"]') as HTMLElement).click();
+    await fullCase.vm.$nextTick();
+    expect(fullCase.emitted('update:baselineRows')).toBeUndefined();
+  });
+
+  it("PR-STATS-054: each row's operator lists its pack's operators, defaults to the match/first, and resets on a report switch", async () => {
+    const packs = {
+      b1: { baselineId: 'b1', report: packWithOperators([['matmul', 500], ['add_n', 700], ['relu', 800]]) },
+      b2: { baselineId: 'b2', report: packWithOperators([['gelu', 400], ['layernorm', 900]]) },
+    };
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: baselineList,
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+        baselineReports: packs,
+      },
+    });
+    const opSelect = wrapper.get('[data-testid="aside-baseline-operator-select"]');
+    // No opName on the open report → the pack's first operator.
+    expect(opSelect.attributes('data-value')).toBe('matmul');
+    await opSelect.get('.pr-metric-select__trigger').trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-operator-option-add_n"]') as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:baselineRows')?.[0]?.[0]).toEqual([
+      { id: 'row1', baselineId: 'b1', operatorId: 'add_n' },
+    ]);
+    // Picking refocuses the trigger; the pick must not strand the hover tip
+    // (the pointer is over the teleported menu, so no pointerleave follows).
+    expect(document.querySelector('.pr-metric-select__tip')).toBeNull();
+    await wrapper.setProps({
+      baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: 'add_n' }],
+    });
+    expect(opSelect.attributes('data-value')).toBe('add_n');
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+    // Switching the report re-defaults the operator to that pack's first.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'row1', baselineId: 'b2', operatorId: '' }],
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value')).toBe('gelu');
+
+    // The open report's opName MATCHES one of the pack's operators → that one
+    // is the default (review PR #234), not the first.
+    const matched = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', opName: 'add_n' } }),
+        baselines: baselineList,
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+        baselineReports: packs,
+      },
+    });
+    expect(
+      matched.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('add_n');
+    // An opName the pack does not carry → back to its first operator.
+    const unmatched = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', opName: 'conv2d' } }),
+        baselines: baselineList,
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+        baselineReports: packs,
+      },
+    });
+    expect(
+      unmatched.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('matmul');
+
+    // The baseline ENTRY's host-declared operators win over the pack's list
+    // (the Baseline data model): the select lists Host A / Host B, not matmul.
+    const declared = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [
+          {
+            id: 'b4',
+            name: 'host.rep',
+            path: '/host.rep',
+            operators: [
+              { id: 'host-a', label: 'Host A' },
+              { id: 'host-b', label: 'Host B' },
+            ],
+          },
+        ],
+        baselineRows: [{ id: 'row1', baselineId: 'b4', operatorId: '' }],
+        baselineReports: { b4: packs.b1 },
+      },
+    });
+    const declaredOp = declared.get('[data-testid="aside-baseline-operator-select"]');
+    expect(declaredOp.attributes('data-value')).toBe('host-a');
+    expect(declaredOp.get('.pr-metric-select__label').text()).toBe('Host A');
+
+    // A pack without operators → the Operator select reads Not selected.
+    const bare = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [{ id: 'b3', name: 'plain.rep', path: '/plain.rep' }],
+        baselineRows: [{ id: 'row1', baselineId: 'b3', operatorId: '' }],
+        baselineReports: { b3: { baselineId: 'b3', report: adaptedPack(report({ summary: { taskDurationUs: 1 } })) } },
+      },
+    });
+    const bareOp = bare.get('[data-testid="aside-baseline-operator-select"]');
+    expect(bareOp.attributes('data-value')).toBe('');
+    expect(bareOp.get('.pr-metric-select__label').text()).toBe(t('selectPlaceholder'));
+  });
+
+  it('PR-STATS-057: a pointerdown on the bar emits baseline-bar-down in the capture phase', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: baselineList,
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+      },
+    });
+    const bar = wrapper.get('[data-testid="stats-baseline-bar"]');
+    // A press anywhere on the bar emits — including INSIDE the select, whose
+    // own pointerdown.stop cannot swallow the capture handler.
+    await bar.trigger('pointerdown');
+    await wrapper.get('[data-testid="aside-baseline-select"] .pr-metric-select__trigger').trigger('pointerdown');
+    expect(wrapper.emitted('baseline-bar-down')).toHaveLength(2);
+  });
+
+  it("PR-STATS-058: each row's report dropdown labels title through baselineDisplayTitle", async () => {
+    const rows = [
+      { id: 'g1', name: 'OPPROF_20261108142517_QKWFPLXZVTRNBGMA', path: '/data/out.rep' },
+      { id: 'r1', name: 'gelu.npu-rep', path: '/data/gelu.npu-rep', pickedAt: new Date(2026, 10, 10, 9, 5).getTime() },
+    ];
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: rows,
+        baselineRows: [{ id: 'row1', baselineId: 'g1', operatorId: '' }],
+      },
+    });
+    const select = wrapper.get('[data-testid="aside-baseline-select"]');
+    expect(select.get('.pr-metric-select__label').text()).toBe(baselineDisplayTitle(rows[0]));
+    await select.get('.pr-metric-select__trigger').trigger('click');
+    const labels = [...document.querySelectorAll('[data-testid^="aside-baseline-option-"]')].map(
+      (el) => el.textContent ?? '',
+    );
+    expect(labels[0]).toBe(baselineDisplayTitle(rows[0]));
+    expect(labels[1]).toBe(baselineDisplayTitle(rows[1]));
+  });
+
+  it('PR-STATS-061: + adds a row (− only on rows after the first) and − removes it', async () => {
+    const props = {
+      report: report({ summary: { pid: '9' } }),
+      baselines: baselineList,
+      baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+      baselineReports: {
+        b1: { baselineId: 'b1', report: packWithOperators([['matmul', 500]]) },
+        b2: { baselineId: 'b2', report: packWithOperators([['gelu', 400]]) },
+      },
+    };
+    const wrapper = mount(StatsAside, { props });
+    // The primary row has no remove control (第一条不删除).
+    expect(wrapper.find('[data-testid="baseline-row-remove-1"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="baseline-row-add"]').trigger('click');
+    const added = wrapper.emitted('update:baselineRows')?.[0]?.[0] as {
+      id: string;
+      baselineId: string;
+      operatorId: string;
+    }[];
+    expect(added).toHaveLength(2);
+    // Defaults to the next unused (baseline, operator) pair.
+    expect(added[1]).toMatchObject({ baselineId: 'b2', operatorId: 'gelu' });
+
+    // Echo two rows: the second row gets its own select prefixes + a remove control.
+    await wrapper.setProps({
+      baselineRows: [
+        { id: 'row1', baselineId: 'b1', operatorId: '' },
+        { id: 'row2', baselineId: 'b2', operatorId: '' },
+      ],
+    });
+    expect(
+      wrapper.get('[data-testid="aside-baseline-2-select"]').attributes('data-value'),
+    ).toBe('b2');
+    expect(wrapper.find('[data-testid="aside-baseline-operator-2-select"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="stats-baseline-row-2"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="baseline-row-remove-2"]').trigger('click');
+    expect(wrapper.emitted('update:baselineRows')?.at(-1)?.[0]).toEqual([
+      { id: 'row1', baselineId: 'b1', operatorId: '' },
+    ]);
+
+    // One row per operator of the checked baselines: both packs hold one
+    // operator each, so two rows use the whole pool and the + is disabled.
+    await wrapper.setProps({
+      baselineRows: [
+        { id: 'row1', baselineId: 'b1', operatorId: '' },
+        { id: 'row2', baselineId: 'b2', operatorId: '' },
+      ],
+    });
+    const emitsBefore = wrapper.emitted('update:baselineRows')?.length ?? 0;
+    expect(wrapper.get('[data-testid="baseline-row-add"]').attributes('disabled')).toBeDefined();
+    await wrapper.get('[data-testid="baseline-row-add"]').trigger('click');
+    expect(wrapper.emitted('update:baselineRows')?.length).toBe(emitsBefore);
+
+    // A third checked baseline opens the + again; the third row takes it and the
+    // + disables again (three baselines = at most three rows).
+    const three = [...baselineList, { id: 'b3', name: 'plain.rep', path: '/plain.rep' }];
+    await wrapper.setProps({ baselines: three });
+    expect(wrapper.get('[data-testid="baseline-row-add"]').attributes('disabled')).toBeUndefined();
+    await wrapper.get('[data-testid="baseline-row-add"]').trigger('click');
+    const third = wrapper.emitted('update:baselineRows')?.at(-1)?.[0] as {
+      baselineId: string;
+    }[];
+    expect(third).toHaveLength(3);
+    expect(third[2].baselineId).toBe('b3');
+    await wrapper.setProps({
+      baselines: three,
+      baselineRows: [
+        { id: 'row1', baselineId: 'b1', operatorId: '' },
+        { id: 'row2', baselineId: 'b2', operatorId: '' },
+        { id: 'row3', baselineId: 'b3', operatorId: '' },
+      ],
+    });
+    expect(wrapper.get('[data-testid="baseline-row-add"]').attributes('disabled')).toBeDefined();
+
+    // The cap is the OPERATOR count of the checked baselines, not the baseline
+    // count: one report with two operators holds two rows (different operators).
+    const twoOps = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [baselineList[0]],
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: 'matmul' }],
+        baselineReports: {
+          b1: { baselineId: 'b1', report: packWithOperators([['matmul', 500], ['add_n', 700]]) },
+        },
+      },
+    });
+    expect(twoOps.get('[data-testid="baseline-row-add"]').attributes('disabled')).toBeUndefined();
+    await twoOps.get('[data-testid="baseline-row-add"]').trigger('click');
+    const paired = twoOps.emitted('update:baselineRows')?.at(-1)?.[0] as {
+      baselineId: string;
+      operatorId: string;
+    }[];
+    expect(paired).toHaveLength(2);
+    expect(paired[1]).toMatchObject({ baselineId: 'b1', operatorId: 'add_n' });
+    await twoOps.setProps({
+      baselineRows: [
+        { id: 'row1', baselineId: 'b1', operatorId: 'matmul' },
+        { id: 'row2', baselineId: 'b1', operatorId: 'add_n' },
+      ],
+    });
+    expect(twoOps.get('[data-testid="baseline-row-add"]').attributes('disabled')).toBeDefined();
+
+    // Host-declared operators + no adapted pack (the exported HTML shell 404s
+    // its /data fetches): `+` still walks the operator list — no repeated pair.
+    const noPack = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: [
+          {
+            id: 'b9',
+            name: 'host.rep',
+            path: '/host.rep',
+            operators: [
+              { id: 'matmul', label: 'matmul' },
+              { id: 'matmul_t', label: 'matmul_t' },
+              { id: 'add_n', label: 'add_n' },
+            ],
+          },
+        ],
+        baselineRows: [{ id: 'row1', baselineId: 'b9', operatorId: '' }],
+        baselineReports: {},
+      },
+    });
+    await noPack.get('[data-testid="baseline-row-add"]').trigger('click');
+    const noPackRows = noPack.emitted('update:baselineRows')?.at(-1)?.[0] as {
+      id: string;
+      baselineId: string;
+      operatorId: string;
+    }[];
+    expect(noPackRows).toHaveLength(2);
+    expect(noPackRows[1]).toMatchObject({ baselineId: 'b9', operatorId: 'matmul_t' });
+
+    // Reopening the aside remounts the component; a host-owned arow-N id must
+    // not be reused (two rows sharing one key would edit each other).
+    const reopenProps = {
+      report: report({ summary: { pid: '9' } }),
+      baselines: baselineList,
+      baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+      baselineReports: {
+        b1: {
+          baselineId: 'b1',
+          report: packWithOperators([['matmul', 500], ['add_n', 700], ['relu', 800]]),
+        },
+      },
+    };
+    const firstMount = mount(StatsAside, { props: reopenProps });
+    await firstMount.get('[data-testid="baseline-row-add"]').trigger('click');
+    const firstId = (
+      firstMount.emitted('update:baselineRows')?.at(-1)?.[0] as { id: string }[]
+    )[1].id;
+    firstMount.unmount();
+    const reopened = mount(StatsAside, {
+      props: {
+        ...reopenProps,
+        baselineRows: [
+          ...reopenProps.baselineRows,
+          { id: firstId, baselineId: 'b1', operatorId: 'add_n' },
+        ],
+      },
+    });
+    await reopened.get('[data-testid="baseline-row-add"]').trigger('click');
+    const reopenedRows = reopened.emitted('update:baselineRows')?.at(-1)?.[0] as { id: string }[];
+    expect(reopenedRows.at(-1)!.id).not.toBe(firstId);
+    expect(new Set(reopenedRows.map((r) => r.id)).size).toBe(reopenedRows.length);
+  });
+
+  it('PR-STATS-061b: the shared report slot re-measures on a title change, never on an operator pick', async () => {
+    // jsdom has no layout: give the measurement a caption width and a text
+    // metric, so the derived slot var is observable.
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 36,
+      height: 16,
+      left: 0,
+      top: 0,
+      right: 36,
+      bottom: 16,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      font: '',
+      measureText: (text: string) => ({ width: text.length * 7 }),
+    } as unknown as CanvasRenderingContext2D);
+    try {
+      // An empty host name derives the title from the report PATH, so a
+      // re-pointed baseline (same id/name/pickedAt) changes the rendered text.
+      const baseline = (path: string) => ({
+        id: 'b1',
+        name: '',
+        path,
+        pickedAt: 0,
+        operators: [
+          { id: 'op1', label: 'matmul' },
+          { id: 'op2', label: 'conv2d' },
+        ],
+      });
+      const wrapper = mount(StatsAside, {
+        props: {
+          report: report(),
+          baselines: [baseline('/reports/a.rep')],
+          baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: 'op1' }],
+        },
+      });
+      const settle = async () => {
+        await nextTick();
+        await nextTick();
+        await nextTick();
+      };
+      const slot = () =>
+        wrapper.get('[data-testid="stats-baseline-bar"]').attributes('style') ?? '';
+      const slotWidth = (style: string) =>
+        Number(/--pr-baseline-report-w:\s*([\d.]+)px/.exec(style)?.[1]);
+      await settle();
+      const first = slotWidth(slot());
+      expect(first).toBeGreaterThan(0);
+
+      await wrapper.setProps({ baselines: [baseline('/reports/much-longer-name.npu-rep')] });
+      await settle();
+      const longer = slot();
+      expect(slotWidth(longer)).toBeGreaterThan(first);
+
+      await wrapper.setProps({
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: 'op2' }],
+      });
+      await settle();
+      expect(slot()).toBe(longer);
+    } finally {
+      rect.mockRestore();
+      canvas.mockRestore();
+    }
+  });
+
+  it('PR-STATS-062: a summary card lists the current value + every baseline on hover (multi-row only)', async () => {
+    const duration = (us: number) => adaptedPack(report({ summary: { taskDurationUs: us } }));
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000 } }),
+        baselines: baselineList,
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: '' },
+          { id: 'row2', baselineId: 'b2', operatorId: '' },
+        ],
+        baselineReports: {
+          b1: { baselineId: 'b1', report: duration(4600) },
+          b2: { baselineId: 'b2', report: duration(7000) },
+        },
+      },
+    });
+    const badge = wrapper.get('[data-testid="stats-duration-diff"]');
+    expect(badge.attributes('tabindex')).toBe('0');
+    await badge.trigger('pointerenter');
+    const tip = document.querySelector('[data-testid="baseline-compare-tip"]');
+    expect(tip).not.toBeNull();
+    const rows = [...tip!.querySelectorAll('[data-testid^="baseline-compare-tip-row-"]')];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain(t('compareCurrent'));
+    expect(rows[0].textContent).toContain('1.00 ms');
+    expect(rows[1].textContent).toContain(t('baselineLabel'));
+    expect(rows[1].textContent).toContain('4.60 ms');
+    expect(rows[1].querySelector('.pr-diff__text')?.textContent).toBe('3.60');
+    expect(rows[2].textContent).toContain('7.00 ms');
+    expect(rows[2].querySelector('.pr-diff__text')?.textContent).toBe('6.00');
+    await badge.trigger('pointerleave');
+    expect(document.querySelector('[data-testid="baseline-compare-tip"]')).toBeNull();
+
+    // A single baseline row opens the popup too: the chip carries only the delta,
+    // the popup carries the current + that row's values.
+    const single = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000 } }),
+        ...withBaselineProps(duration(4600)),
+      },
+    });
+    const singleBadge = single.get('[data-testid="stats-duration-diff"]');
+    expect(singleBadge.attributes('tabindex')).toBe('0');
+    await singleBadge.trigger('pointerenter');
+    const singleTip = document.querySelector('[data-testid="baseline-compare-tip"]');
+    expect(singleTip).not.toBeNull();
+    expect(
+      singleTip!.querySelectorAll('[data-testid^="baseline-compare-tip-row-"]'),
+    ).toHaveLength(2);
+    await singleBadge.trigger('pointerleave');
+  });
+
+  it('PR-STATS-063: a details field lists the current value + every baseline on hover', async () => {
+    const cat = (v: string) => report({ summaryCategories: [memoryCategoryOf('Memory', v)] });
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: cat('100'),
+        baselines: baselineList,
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: '' },
+          { id: 'row2', baselineId: 'b2', operatorId: '' },
+        ],
+        baselineReports: {
+          b1: { baselineId: 'b1', report: adaptedPack(cat('80')) },
+          b2: { baselineId: 'b2', report: adaptedPack(cat('60')) },
+        },
+      },
+    });
+    const badge = wrapper.get(
+      '[data-testid="summary-field-diff-aiv_main_mem_read_bw"]',
+    );
+    await badge.trigger('pointerenter');
+    const tip = document.querySelector('[data-testid="baseline-compare-tip"]');
+    expect(tip).not.toBeNull();
+    const rows = [...tip!.querySelectorAll('[data-testid^="baseline-compare-tip-row-"]')];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain('100');
+    expect(rows[1].textContent).toContain('80');
+    expect(rows[2].textContent).toContain('60');
+  });
+
+  it('PR-STATS-065: a PIPE delta chip lists the current percent + every baseline on hover', async () => {
+    const pipe = (ratio: number) => [
+      { id: 'vector', label: 'Vector', ratio, colorKey: 'vector', side: 'vector' as const },
+    ];
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ pipeOccupancy: pipe(0.5) }),
+        baselines: baselineList,
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: '' },
+          { id: 'row2', baselineId: 'b2', operatorId: '' },
+        ],
+        baselineReports: {
+          b1: { baselineId: 'b1', report: adaptedPack(report({ pipeOccupancy: pipe(0.8) })) },
+          b2: { baselineId: 'b2', report: adaptedPack(report({ pipeOccupancy: pipe(0.6) })) },
+        },
+      },
+    });
+    const badge = wrapper.get('[data-testid="pipe-diff-vector-vector"]');
+    await badge.trigger('pointerenter');
+    const tip = document.querySelector('[data-testid="baseline-compare-tip"]');
+    expect(tip).not.toBeNull();
+    const rows = [...tip!.querySelectorAll('[data-testid^="baseline-compare-tip-row-"]')];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain('50.00%');
+    expect(rows[1].textContent).toContain('80.00%');
+    expect(rows[1].querySelector('.pr-diff__text')?.textContent).toBe('30.00%');
+    expect(rows[2].textContent).toContain('60.00%');
+    expect(rows[2].querySelector('.pr-diff__text')?.textContent).toBe('10.00%');
+    await badge.trigger('pointerleave');
+    expect(document.querySelector('[data-testid="baseline-compare-tip"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-STATS-064: a topology badge lists the current value + every baseline on hover', async () => {
+    const topo = (peak: string) =>
+      buildMemoryTopologyFromCategories([
+        { id: 'Memory', title: 'Memory', fields: [{ key: 'aiv_gm_to_ub_bw(GB/s)', value: '1.2' }] },
+        { id: 'L2Cache', title: 'L2Cache', fields: [{ key: 'aiv_total_hit_rate(%)', value: peak }] },
+      ])!;
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ memoryTopology: topo('77') }),
+        baselines: baselineList,
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: '' },
+          { id: 'row2', baselineId: 'b2', operatorId: '' },
+        ],
+        baselineReports: {
+          b1: { baselineId: 'b1', report: adaptedPack(report({ memoryTopology: topo('70') })) },
+          b2: { baselineId: 'b2', report: adaptedPack(report({ memoryTopology: topo('60') })) },
+        },
+      },
+    });
+    // The block's invisible hover column (title + value + badge) owns the popup.
+    await wrapper.get('[data-testid="topo-hit-l2-peak"]').trigger('pointerenter');
+    const tip = document.querySelector('[data-testid="topology-compare-tip"]');
+    expect(tip).not.toBeNull();
+    const rows = [...tip!.querySelectorAll('[data-testid^="topology-compare-tip-row-"]')];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain(t('compareCurrent'));
+    expect(rows[0].textContent).toContain('77.00%');
+    expect(rows[1].textContent).toContain(t('baselineLabel'));
+    expect(rows[1].textContent).toContain('70.00%');
+    expect(rows[2].textContent).toContain('60.00%');
+  });
+
   it('PR-STATS-037: archDiagram Metric select sits above the diagram and rebuilds labels', async () => {
     const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
     const archCsv = [
@@ -3232,6 +4014,587 @@ describe('StatsAside', () => {
     });
     expect(wrapper.find('[data-testid="performance-hints-trigger"]').exists()).toBe(false);
   });
+  /* ===== Baseline comparison (对比基线, 1130 方案一) — PR-STATS-049..070 ===== */
+
+  /** Minimal baseline pack: the aside reads only `reportModel` (and operators) for the slice. */
+  function adaptedPack(model: ReportViewModel): AdaptedReport {
+    return { reportModel: model, swimlaneModel: null };
+  }
+
+  it('PR-STATS-066: comparison badges render only with a row pack', () => {
+    // No baseline: no diff chrome — the aside renders exactly as before, and
+    // with no checked set the Baseline/Operator bar is absent (PR-STATS-052).
+    const plain = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', taskDurationUs: 1000 } }),
+      },
+    });
+    expect(plain.findAll('.pr-diff')).toHaveLength(0);
+    expect(plain.find('[data-testid="stats-baseline-bar"]').exists()).toBe(false);
+
+    const withBase = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', taskDurationUs: 1000 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 900, opName: 'relu' } }))),
+      },
+    });
+    expect(withBase.findAll('.pr-diff').length).toBeGreaterThan(0);
+    expect(withBase.find('[data-testid="stats-duration-diff"]').exists()).toBe(true);
+  });
+
+  it('PR-STATS-059: comparison raises the summary grid minimum tile', async () => {
+    // Without a pack the grid keeps the sketch 2×2 (the container query owns the narrow fallback).
+    const plain = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', taskDurationUs: 1000, parallelUtilization: 0.5 } }),
+      },
+    });
+    expect(plain.get('[data-testid="stats-summary"]').classes()).not.toContain('pr-cards--compare');
+
+    // A resolved pack = comparison mode: the class raises the minimum tile to
+    // 300px, and the WELL width picks the column count (auto-fit) instead of
+    // forcing one column at any width. jsdom cannot lay out the grid, so the
+    // class and the CSS threshold are what this test can assert; the browser
+    // e2e checks the columns and that no chip paints past its card.
+    const withBase = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9', taskDurationUs: 1000, parallelUtilization: 0.5 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 900, opName: 'relu' } }))),
+      },
+    });
+    expect(withBase.get('[data-testid="stats-summary"]').classes()).toContain('pr-cards--compare');
+    const src = (await import('./StatsAside.vue?raw')).default as string;
+    expect(src).toMatch(
+      /\.pr-cards--compare \{\s*grid-template-columns: repeat\(auto-fit, minmax\(300px, 1fr\)\);/s,
+    );
+  });
+
+  it('PR-STATS-060: the panel has ONE two-decimal format — trailing zeros included', async () => {
+    const { formatAsideValue, formatAsidePct, asideRoundsToZero } = await import('./asideValueFormat');
+    expect(formatAsideValue(54)).toBe('54.00');
+    expect(formatAsideValue(1.5)).toBe('1.50');
+    expect(formatAsideValue(0.065)).toBe('0.07');
+    expect(formatAsidePct(53)).toBe('53.00%');
+    expect(formatAsidePct(5.75)).toBe('5.75%');
+    expect(asideRoundsToZero(0)).toBe(true);
+    expect(asideRoundsToZero(0.004)).toBe(true);
+    expect(asideRoundsToZero(0.005)).toBe(false);
+    expect(asideRoundsToZero(0.01)).toBe(false);
+  });
+
+  it('PR-STATS-067: the bar Operator select drives the comparison per operator', async () => {
+    const baseline: AdaptedReport = {
+      ...adaptedPack(report({ summary: { taskDurationUs: 500, opName: 'op-a' } })),
+      operators: [
+        { id: 'op-a', label: 'Op A' },
+        { id: 'op-b', label: 'Op B' },
+      ],
+      operatorReports: {
+        'op-a': adaptedPack(report({ summary: { taskDurationUs: 500, parallelUtilization: 0.9 } })),
+        'op-b': adaptedPack(report({ summary: { taskDurationUs: 700, parallelUtilization: 0.3 } })),
+      },
+    };
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000, parallelUtilization: 0.5 } }),
+        ...withBaselineProps(baseline),
+      },
+    });
+    // Default = the row's first operator; op-a 0.9 vs current 0.5 → green down 40%.
+    expect(
+      wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('op-a');
+    const util = wrapper.get('[data-testid="stats-aicore-util-diff"]');
+    expect(util.classes()).toContain('pr-diff--decrease');
+    expect(util.get('.pr-diff__text').text()).toBe('40.00%');
+
+    // Picking op-b emits the host-owned row edit; the host echo repaints the
+    // comparison: 0.3 vs current 0.5 → red up 20%.
+    await wrapper
+      .get('[data-testid="aside-baseline-operator-select"]')
+      .get('.pr-metric-select__trigger')
+      .trigger('click');
+    (document.querySelector('[data-testid="aside-baseline-operator-option-op-b"]') as HTMLElement).click();
+    await nextTick();
+    expect(wrapper.emitted('update:baselineRows')?.[0]?.[0]).toEqual([
+      { id: 'b1-row', baselineId: 'b1', operatorId: 'op-b' },
+    ]);
+    await wrapper.setProps({
+      baselineRows: [{ id: 'b1-row', baselineId: 'b1', operatorId: 'op-b' }],
+    });
+    expect(
+      wrapper.get('[data-testid="aside-baseline-operator-select"]').attributes('data-value'),
+    ).toBe('op-b');
+    const utilB = wrapper.get('[data-testid="stats-aicore-util-diff"]');
+    expect(utilB.classes()).toContain('pr-diff--increase');
+    expect(utilB.get('.pr-diff__text').text()).toBe('20.00%');
+  });
+
+  it('PR-STATS-067: a flat pack falls back to summary.opName', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 500, opName: 'relu' } }))),
+      },
+    });
+    // No operators / operatorReports: the pack's single model is the comparison.
+    // current 1000 µs vs baseline 500 µs → 0.5 ms red up.
+    const badge = wrapper.get('[data-testid="stats-duration-diff"]');
+    expect(badge.classes()).toContain('pr-diff--increase');
+    expect(badge.get('.pr-diff__text').text()).toBe('0.50');
+  });
+
+  it('PR-STATS-055: comparison PIPE rows keep one bar and put the baseline delta after the value', async () => {
+    const pipes = [
+      { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const },
+      { id: 'mte2', label: 'MTE2', ratio: 0.3, colorKey: 'mte2', side: 'vector' as const },
+    ];
+    const baseline = report({
+      summary: { taskDurationUs: 500, opName: 'relu' },
+      pipeOccupancy: [
+        { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const },
+        { id: 'mte2', label: 'MTE2', ratio: 0.6, colorKey: 'mte2', side: 'vector' as const },
+      ],
+    });
+
+    // Without a pack: the classic single bar + trailing pct, no delta nodes.
+    const plain = mount(StatsAside, {
+      props: { report: report({ summary: { taskDurationUs: 1 }, pipeOccupancy: pipes }) },
+    });
+    expect(plain.findAll('.pr-pipe-row__track')).toHaveLength(2);
+    expect(plain.find('[data-testid="pipe-baseline-value"]').exists()).toBe(false);
+    expect(plain.find('[data-testid^="pipe-diff-"]').exists()).toBe(false);
+    expect(plain.findAll('.pr-pipe-row__pct').map((p) => p.text())).toEqual(['50.00%', '30.00%']);
+    plain.unmount();
+
+    // With a pack: still ONE bar per metric — the baseline never paints a second track.
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1 }, pipeOccupancy: pipes }),
+        ...withBaselineProps(adaptedPack(baseline)),
+      },
+    });
+    const row = wrapper.findAll('.pr-pipe-row')[0];
+    expect(row.findAll('.pr-pipe-row__track')).toHaveLength(1);
+    expect(row.findAll('.pr-pipe-row__pct')).toHaveLength(1);
+    expect(row.get('.pr-pipe-row__pct').text()).toBe('50.00%');
+    expect(wrapper.find('[data-testid="pipe-baseline-value"]').exists()).toBe(false);
+    // The delta compares the bar's own utilization (percentage points) even when
+    // the row carries no in-bar time: 0.5 vs 0.8 → green down 30.00%.
+    const ratioDelta = row.get('[data-testid="pipe-diff-vector-vector"]');
+    expect(ratioDelta.classes()).toContain('pr-diff--decrease');
+    expect(ratioDelta.get('.pr-diff__text').text()).toBe('30.00%');
+    expect(row.find('.pr-pipe-row__abs').exists()).toBe(false);
+    // The delta stays at the bar's left, in the value slot.
+    expect(row.findAll('.pr-pipe-row__value')).toHaveLength(1);
+    wrapper.unmount();
+
+    // The in-bar value carries the delta in its own unit: value → badge → gap → magnitude.
+    const withAbs = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const, absoluteValue: 0.60763 },
+          ],
+        }),
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const, absoluteValue: 0.81234 },
+            ],
+          }),
+        )),
+      },
+    });
+    const absRow = withAbs.findAll('.pr-pipe-row')[0];
+    expect(absRow.get('[data-testid="pipe-absolute"]').text()).toBe('0.61');
+    const valueLine = absRow.get('.pr-pipe-row__value');
+    const delta = valueLine.get('[data-testid="pipe-diff-vector-vector"]');
+    // Baseline higher → the current utilization decreased → green down 30.00%.
+    expect(delta.classes()).toContain('pr-diff--decrease');
+    expect(delta.get('.pr-diff__text').text()).toBe('30.00%');
+    // Value → badge (inside the shared indicator) → gap → delta, same line.
+    expect(valueLine.get('.pr-pipe-row__abs').element.nextElementSibling).toBe(delta.element);
+    expect(delta.find('.pr-diff__badge').exists()).toBe(true);
+    expect(absRow.findAll('.pr-pipe-row__track')).toHaveLength(1);
+    expect(absRow.find('[data-testid="pipe-baseline-absolute"]').exists()).toBe(false);
+    withAbs.unmount();
+
+    // The row set is the report's own fields: a baseline pipe the report
+    // lacks does NOT add a row (cube and vector show the same fields).
+    const richer = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1 }, pipeOccupancy: pipes }),
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const },
+              { id: 'cube', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' as const },
+            ],
+          }),
+        )),
+      },
+    });
+    expect(richer.findAll('.pr-pipe-row')).toHaveLength(2);
+    expect(
+      richer.findAll('.pr-pipe-row').filter((r) => r.get('.pr-pipe-row__label').text() === 'Cube'),
+    ).toHaveLength(0);
+    richer.unmount();
+
+    // Block scope: with a block picked, BOTH bars re-read their own model's
+    // PipeUtilization.csv row — the baseline bar must not keep the All
+    // aggregate under a block label (PR-STATS-014b / DATA-19).
+    const blockTables = (
+      rows: { block_id: string; aiv_vec_ratio: string; 'aiv_vec_time(us)': string }[],
+    ) => ({
+      fileName: 'PipeUtilization.csv',
+      headers: ['block_id', 'aiv_vec_ratio', 'aiv_vec_time(us)'],
+      rows,
+      blockIds: ['0', '1'],
+    });
+    const blockCurrent = report({
+      summary: { taskDurationUs: 1 },
+      pipeOccupancy: [
+        { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' as const },
+      ],
+      computeTables: [blockTables([
+        { block_id: '0', aiv_vec_ratio: '0.2', 'aiv_vec_time(us)': '10' },
+        { block_id: '1', aiv_vec_ratio: '0.8', 'aiv_vec_time(us)': '35' },
+      ])],
+      memoryTables: [],
+    });
+    const scoped = mount(StatsAside, {
+      props: {
+        report: blockCurrent,
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const },
+            ],
+            computeTables: [blockTables([
+              { block_id: '0', aiv_vec_ratio: '0.9', 'aiv_vec_time(us)': '40' },
+              { block_id: '1', aiv_vec_ratio: '0.4', 'aiv_vec_time(us)': '20' },
+            ])],
+            memoryTables: [],
+          }),
+        )),
+      },
+    });
+    await pickPipeBlock(scoped, '1');
+    expect(scoped.get('.pr-pipe-row__pct').text()).toBe('80.00%');
+    // Baseline block 1 ratio 0.4 vs the current 0.8 → the current rose → red up 40.00%.
+    const scopedDelta = scoped.get('[data-testid="pipe-diff-vector-vector"]');
+    expect(scopedDelta.classes()).toContain('pr-diff--increase');
+    expect(scopedDelta.get('.pr-diff__text').text()).toBe('40.00%');
+    scoped.unmount();
+
+    // A baseline without that block's rows carries no delta — never the All
+    // aggregate wearing a block label.
+    const noBaselineRows = mount(StatsAside, {
+      props: {
+        report: blockCurrent,
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'vector', label: 'Vector', ratio: 0.8, colorKey: 'vector', side: 'vector' as const, absoluteValue: 40 },
+            ],
+            computeTables: [],
+            memoryTables: [],
+          }),
+        )),
+      },
+    });
+    await pickPipeBlock(noBaselineRows, '1');
+    expect(noBaselineRows.find('[data-testid="pipe-baseline-value"]').exists()).toBe(false);
+    expect(noBaselineRows.find('[data-testid^="pipe-diff-"]').exists()).toBe(false);
+    noBaselineRows.unmount();
+
+    // Without report pipes the section stays hidden — the baseline never
+    // invents fields.
+    const noPipes = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1 } }),
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 500, opName: 'relu' },
+            pipeOccupancy: [
+              { id: 'cube', label: 'Cube', ratio: 0.4, colorKey: 'cube', side: 'aic' as const },
+            ],
+          }),
+        )),
+      },
+    });
+    expect(noPipes.find('[data-testid="pipe-occupancy"]').exists()).toBe(false);
+    noPipes.unmount();
+  });
+
+  it('PR-STATS-068: duration diff shows green down / red up with the card-unit magnitude', () => {
+    // current 4.60 ms vs baseline 7.00 ms → 2400 µs lower = green down 2.4 (ms, not µs).
+    const decreased = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 4600 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 7000, opName: 'relu' } }))),
+      },
+    });
+    const down = decreased.get('[data-testid="stats-duration-diff"]');
+    expect(down.classes()).toContain('pr-diff--decrease');
+    expect(down.find('.pr-icon').classes()).toContain('pr-icon--diff-down');
+    expect(down.get('.pr-diff__text').text()).toBe('2.40');
+
+    const increased = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 7000 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 4600, opName: 'relu' } }))),
+      },
+    });
+    const up = increased.get('[data-testid="stats-duration-diff"]');
+    expect(up.classes()).toContain('pr-diff--increase');
+    expect(up.find('.pr-icon').classes()).toContain('pr-icon--diff-up');
+    expect(up.get('.pr-diff__text').text()).toBe('2.40');
+
+    // A sub-ms card prints µs, so the delta stays in µs.
+    const micro = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 500 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 700, opName: 'relu' } }))),
+      },
+    });
+    expect(micro.get('[data-testid="stats-duration-diff"] .pr-diff__text').text()).toBe('200.00');
+  });
+
+  it('PR-STATS-069: AICore 并行使用率/负载均衡度 diffs in percentage points per column', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, parallelUtilization: 0.5, parallelBalance: 0.7 },
+        }),
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 1000, opName: 'relu', parallelUtilization: 0.7, parallelBalance: 0.5 },
+          }),
+        )),
+      },
+    });
+    const util = wrapper.get('[data-testid="stats-aicore-util-diff"]');
+    expect(util.classes()).toContain('pr-diff--decrease'); // 70% − 50%
+    expect(util.get('.pr-diff__text').text()).toBe('20.00%');
+    const bal = wrapper.get('[data-testid="stats-aicore-balance-diff"]');
+    expect(bal.classes()).toContain('pr-diff--increase'); // 50% − 70%
+    expect(bal.get('.pr-diff__text').text()).toBe('20.00%');
+  });
+
+  it('PR-STATS-070: compute Cube/Vector diffs render as bare numbers', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          computeCard: {
+            sides: [
+              { side: 'aic', measuredTflops: 100, peakTflops: 200 },
+              { side: 'aiv', measuredTflops: 80, peakTflops: 160 },
+            ],
+          },
+        }),
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 1000, opName: 'relu' },
+            computeCard: {
+              sides: [
+                { side: 'aic', measuredTflops: 172, peakTflops: 320 },
+                { side: 'aiv', measuredTflops: 70, peakTflops: 160 },
+              ],
+            },
+          }),
+        )),
+      },
+    });
+    // The cards print the INTEGER utilization (50, 54, 44); the badge is that
+    // printed-score delta, never the raw 53.75 − 50 (PR-STATS-069b).
+    const aic = wrapper.get('[data-testid="stats-compute-aic-diff"]');
+    expect(aic.classes()).toContain('pr-diff--decrease'); // 54 − 50
+    expect(aic.get('.pr-diff__text').text()).toBe('4.00');
+    const aiv = wrapper.get('[data-testid="stats-compute-aiv-diff"]');
+    expect(aiv.classes()).toContain('pr-diff--increase'); // 44 − 50
+    expect(aiv.get('.pr-diff__text').text()).toBe('6.00');
+  });
+
+  it('PR-STATS-069b: clamped cards diff the score they print, not the raw percent', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000, parallelUtilization: 1.5 } }),
+        ...withBaselineProps(
+          adaptedPack(report({ summary: { taskDurationUs: 1000, parallelUtilization: 0.9 } })),
+        ),
+      },
+    });
+    // The card clamps 150% to the printed 100.00%; the badge claims the 10-point
+    // difference a reader can verify, not the raw 60.
+    const badge = wrapper.get('[data-testid="stats-aicore-util-diff"]');
+    expect(badge.get('.pr-diff__text').text()).toBe('10.00%');
+    await badge.trigger('pointerenter');
+    const tip = document.querySelector('[data-testid="baseline-compare-tip"]');
+    expect(tip).not.toBeNull();
+    const rows = [...tip!.querySelectorAll('[data-testid^="baseline-compare-tip-row-"]')];
+    expect(rows[0].textContent).toContain('100.00%');
+    expect(rows[1].textContent).toContain('90.00%');
+    await badge.trigger('pointerleave');
+    wrapper.unmount();
+
+    // Compute/BW print an INTEGER score: two cards that both read 42 must not
+    // badge (42.3% vs 41.6%), while the next printed point must (43 vs 42).
+    const cards = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          computeCard: {
+            sides: [
+              { side: 'aic', measuredTflops: 42.3, peakTflops: 100 },
+              { side: 'aiv', measuredTflops: 42.6, peakTflops: 100 },
+            ],
+          },
+          bandwidthCards: [
+            { id: 'input', sides: [{ side: 'aic', measuredGBs: 338.4, peakGBs: 800 }] },
+            { id: 'output', sides: [{ side: 'aic', measuredGBs: 340.8, peakGBs: 800 }] },
+          ],
+        }),
+        ...withBaselineProps(
+          adaptedPack(
+            report({
+              summary: { taskDurationUs: 1000, opName: 'relu' },
+              computeCard: {
+                sides: [
+                  { side: 'aic', measuredTflops: 41.6, peakTflops: 100 },
+                  { side: 'aiv', measuredTflops: 41.6, peakTflops: 100 },
+                ],
+              },
+              bandwidthCards: [
+                { id: 'input', sides: [{ side: 'aic', measuredGBs: 332.8, peakGBs: 800 }] },
+                { id: 'output', sides: [{ side: 'aic', measuredGBs: 332.8, peakGBs: 800 }] },
+              ],
+            }),
+          ),
+        ),
+      },
+    });
+    expect(cards.find('[data-testid="stats-compute-aic-diff"]').exists()).toBe(false);
+    expect(cards.find('[data-testid="stats-bandwidth-read-diff"]').exists()).toBe(false);
+    const aiv = cards.get('[data-testid="stats-compute-aiv-diff"]');
+    expect(aiv.classes()).toContain('pr-diff--increase'); // 42 − 43
+    expect(aiv.get('.pr-diff__text').text()).toBe('1.00');
+    const write = cards.get('[data-testid="stats-bandwidth-write-diff"]');
+    expect(write.classes()).toContain('pr-diff--increase'); // 42 − 43
+    expect(write.get('.pr-diff__text').text()).toBe('1.00%');
+    // The hover popup prints the same integer scores the cards show.
+    await aiv.trigger('pointerenter');
+    const cardTip = document.querySelector('[data-testid="baseline-compare-tip"]');
+    const cardRows = [...cardTip!.querySelectorAll('[data-testid^="baseline-compare-tip-row-"]')];
+    expect(cardRows[0].textContent).toContain('43.00');
+    expect(cardRows[1].textContent).toContain('42.00');
+    await aiv.trigger('pointerleave');
+    cards.unmount();
+  });
+
+  it('PR-STATS-049: bandwidth 读/写 diffs in percentage points with % attached', () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000 },
+          bandwidthCards: [
+            {
+              id: 'input',
+              sides: [
+                { side: 'aic', measuredGBs: 80, peakGBs: 1600 },
+                { side: 'aiv', measuredGBs: 80, peakGBs: 1600 },
+              ],
+            },
+            { id: 'output', sides: [{ side: 'aiv', measuredGBs: 32, peakGBs: 1600 }] },
+          ],
+        }),
+        ...withBaselineProps(adaptedPack(
+          report({
+            summary: { taskDurationUs: 1000, opName: 'relu' },
+            bandwidthCards: [
+              { id: 'input', sides: [{ side: 'aic', measuredGBs: 800, peakGBs: 1600 }] },
+              { id: 'output', sides: [{ side: 'aiv', measuredGBs: 16, peakGBs: 1600 }] },
+            ],
+          }),
+        )),
+      },
+    });
+    const read = wrapper.get('[data-testid="stats-bandwidth-read-diff"]');
+    expect(read.classes()).toContain('pr-diff--decrease'); // 50 − 10
+    expect(read.get('.pr-diff__text').text()).toBe('40.00%');
+    const write = wrapper.get('[data-testid="stats-bandwidth-write-diff"]');
+    expect(write.classes()).toContain('pr-diff--increase'); // 1 − 2
+    expect(write.get('.pr-diff__text').text()).toBe('1.00%');
+  });
+
+  it('PR-STATS-050: missing sides, equal values, and sub-precision deltas suppress badges', () => {
+    // Baseline without 负载均衡度: the util badge renders, the balance one does not.
+    const missing = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1000, parallelUtilization: 0.5, parallelBalance: 0.7 },
+        }),
+        ...withBaselineProps(adaptedPack(
+          report({ summary: { taskDurationUs: 1000, opName: 'relu', parallelUtilization: 0.7 } }),
+        )),
+      },
+    });
+    expect(missing.find('[data-testid="stats-aicore-util-diff"]').exists()).toBe(true);
+    expect(missing.find('[data-testid="stats-aicore-balance-diff"]').exists()).toBe(false);
+
+    // Self-compare: the comparison row exists (a checked set always has one),
+    // but equal metrics paint no diff badges.
+    const equal = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000, parallelUtilization: 0.5 } }),
+        ...withBaselineProps(adaptedPack(
+          report({ summary: { taskDurationUs: 1000, opName: 'relu', parallelUtilization: 0.5 } }),
+        )),
+      },
+    });
+    expect(equal.find('[data-testid="stats-baseline-bar"]').exists()).toBe(true);
+    expect(equal.findAll('.pr-diff')).toHaveLength(0);
+
+    // 0.2 µs on a card that prints ms rounds to zero → suppressed.
+    const tiny = mount(StatsAside, {
+      props: {
+        report: report({ summary: { taskDurationUs: 1000 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 1000.2, opName: 'relu' } }))),
+      },
+    });
+    expect(tiny.find('[data-testid="stats-duration-diff"]').exists()).toBe(false);
+  });
+
+  it('PR-STATS-051: indicator chrome matches the mockup badge (tone tint, arrow mask, muted delta, sr word)', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        locale: 'en',
+        report: report({ summary: { taskDurationUs: 2000 } }),
+        ...withBaselineProps(adaptedPack(report({ summary: { taskDurationUs: 1000, opName: 'relu' } }))),
+      },
+    });
+    const badge = wrapper.get('[data-testid="stats-duration-diff"]');
+    expect(badge.classes()).toContain('pr-diff');
+    expect(badge.classes()).toContain('pr-diff--increase');
+    expect(badge.get('.pr-diff__badge .pr-icon').classes()).toContain('pr-icon--diff-up');
+    expect(badge.get('.pr-diff__text').text()).toBe('1.00');
+    // The sr-only direction word keeps AT informed of the tone.
+    expect(badge.get('.pr-field-sr').text()).toBe('Increased');
+
+    const src = (await import('./StatsSummaryPanel/SummaryDiffIndicator.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-diff__badge\s*\{[^}]*width:\s*12px/);
+    expect(src).toMatch(/\.pr-diff__badge\s*\{[^}]*height:\s*12px/);
+    expect(src).toMatch(/\.pr-diff__badge \.pr-icon\s*\{[^}]*width:\s*8px/);
+    expect(src).toMatch(/\.pr-diff__text\s*\{[^}]*font-size:\s*13px/);
+    expect(src).toMatch(/\.pr-diff__text\s*\{[^}]*color:\s*#e6e6e6/);
+  });
 
   it('PR-STATS-047: emulate 报告保留其所渲染章节的 CANNWork 组（compute / memory），summary 组仍按 DATA-47 省略', async () => {
     const { topologyFromArchDiagramMetrics } = await import('../../adapters/emulateMemoryTopology');
@@ -3302,5 +4665,277 @@ describe('StatsAside', () => {
         }),
       ),
     ).not.toContain('cannbot-summary');
+  });
+
+});
+
+/* ===== Comparison wiring: topology nodes + memory 详情 (PR-STATS-056) ===== */
+
+/** Panel stub: these tests assert the aside's own wiring; the SVG badge chrome is the panel spec's. */
+const TopologyPanelStub = defineComponent({
+  name: 'MemoryTopologyPanel',
+  props: {
+    model: { type: Object, default: null },
+    baseline: { type: Object, default: null },
+    locale: { type: String, default: undefined },
+    selectableUnits: { type: Boolean, default: false },
+    showFullscreen: { type: Boolean, default: false },
+  },
+  emits: ['open-details', 'open-fullscreen', 'open-memory-unit'],
+  setup(_props, { emit }) {
+    return () =>
+      h('div', { 'data-testid': 'topology-panel-stub' }, [
+        h(
+          'button',
+          {
+            'data-testid': 'topology-panel-stub-fullscreen',
+            onClick: () => emit('open-fullscreen'),
+          },
+          'fs',
+        ),
+      ]);
+  },
+});
+
+function pack(model: ReportViewModel): AdaptedReport {
+  return { reportModel: model, swimlaneModel: null };
+}
+
+function memoryTableOf(value: string) {
+  return {
+    fileName: 'Memory.csv',
+    headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+    rows: [{ block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': value }],
+    blockIds: ['0'],
+  };
+}
+
+/** Adapter snapshot from the same Memory.csv — the aside's All-scope topology source. */
+function topologySnapshotOf(value: string) {
+  return firstLabelledMemoryTopology([memoryTableOf(value)])!.model;
+}
+
+function memoryCategoryOf(id: string, value: string) {
+  return { id, title: id, fields: [{ key: 'aiv_main_mem_read_bw', value }] };
+}
+
+describe('StatsAside comparison wiring — topology + memory 详情 (PR-STATS-056)', () => {
+  it('PR-STATS-056: the topology panel gets the baseline model only with a pack, scoped to the aside', async () => {
+    const plain = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [memoryTableOf('1.2')],
+          memoryTopology: topologySnapshotOf('1.2'),
+        }),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    // No pack: no baseline model, so the panel paints zero extra nodes.
+    expect(plain.findComponent({ name: 'MemoryTopologyPanel' }).props('baseline')).toBeNull();
+    plain.unmount();
+
+    const baseline = report({
+      summary: { taskDurationUs: 2, opName: 'relu' },
+      memoryTables: [memoryTableOf('3.4')],
+      memoryTopology: topologySnapshotOf('3.4'),
+    });
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [memoryTableOf('1.2')],
+          memoryTopology: topologySnapshotOf('1.2'),
+        }),
+        ...withBaselineProps(pack(baseline)),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    const panel = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    expect(panel.props('baseline')).toEqual(baseline.memoryTopology);
+
+    // A baseline switch patches the same panel node — values change in place, no remount.
+    const node = panel.element;
+    const replacement = report({
+      summary: { taskDurationUs: 3, opName: 'gelu' },
+      memoryTables: [memoryTableOf('5.6')],
+      memoryTopology: topologySnapshotOf('5.6'),
+    });
+    await wrapper.setProps({ ...withBaselineProps(pack(replacement) )});
+    await nextTick();
+    const after = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    expect(after.element).toBe(node);
+    expect(after.props('baseline')).toEqual(replacement.memoryTopology);
+    wrapper.unmount();
+  });
+
+  it('PR-STATS-056: a picked block rebuilds BOTH topology sides from their own CSVs', async () => {
+    const blockMemory = (first: string, second: string) => ({
+      fileName: 'Memory.csv',
+      headers: ['block_id', 'aiv_gm_to_ub_bw(GB/s)'],
+      rows: [
+        { block_id: '0', 'aiv_gm_to_ub_bw(GB/s)': first },
+        { block_id: '1', 'aiv_gm_to_ub_bw(GB/s)': second },
+      ],
+      blockIds: ['0', '1'],
+    });
+    const blockPipe = (scalar: string, vec: string) => ({
+      fileName: 'PipeUtilization.csv',
+      headers: ['block_id', 'aiv_scalar_ratio', 'aiv_vec_ratio'],
+      rows: [
+        { block_id: '0', aiv_scalar_ratio: '0.1', aiv_vec_ratio: '0.2' },
+        { block_id: '1', aiv_scalar_ratio: scalar, aiv_vec_ratio: vec },
+      ],
+      blockIds: ['0', '1'],
+    });
+    const baseline = report({
+      summary: { taskDurationUs: 2, opName: 'relu' },
+      computeTables: [blockPipe('0.3', '0.4')],
+      memoryTables: [blockMemory('2.0', '4.5')],
+      // A stale All snapshot must never answer for the picked block.
+      memoryTopology: { nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 88 }], edges: [] },
+    });
+    const wrapper = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          pipeOccupancy: [{ id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' }],
+          computeTables: [blockPipe('0.5', '0.6')],
+          memoryTables: [blockMemory('1.0', '3.4')],
+        }),
+        ...withBaselineProps(pack(baseline)),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    await pickPipeBlock(wrapper, '1');
+    const panel = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    expect(panel.exists()).toBe(true);
+    const expected = buildMemoryTopology(
+      [...baseline.memoryTables, ...baseline.computeTables],
+      '1',
+    );
+    expect(panel.props('baseline')).toEqual(expected);
+    expect((panel.props('baseline') as MemoryTopologyModel).plates).toEqual([
+      { node: 'aiv_scalar', label: '30.00%', value: 30 },
+      { node: 'vec', label: '40.00%', value: 40 },
+      { node: 'aiv_scalar_unit', label: '30.00%', value: 30 },
+    ]);
+    // Rebuilt from the block's own metrics — not the All snapshot's L2 peak.
+    expect(
+      (panel.props('baseline') as MemoryTopologyModel).nodes.find((n) => n.id === 'l2')?.peakPct,
+    ).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('PR-STATS-056: ArchDiagram rebuilds each side from its own metrics and the shared mode', async () => {
+    const { topologyFromArchDiagramMetrics, ARCH_DIAGRAM_DEFAULT_METRIC_MODE } = await import(
+      '../../adapters/emulateMemoryTopology'
+    );
+    const archCsv = (gbs: string, cnt: string) =>
+      [
+        'ArchDiagramId,ArchDiagramParameterName,ArchDiagramParameterValue',
+        '1,l2_cached_ratio,50',
+        `2,hbm_to_l2_syn_gbs,${gbs}`,
+        `3,hbm_to_l2_syn_cnt,${cnt}`,
+        '4,hbm_to_l2_syn_ratio,0.25',
+      ].join('\n');
+    const archTable = () => ({
+      fileName: 'ArchDiagramMetrics.csv',
+      headers: ['ArchDiagramId', 'ArchDiagramParameterName', 'ArchDiagramParameterValue'],
+      rows: [],
+      blockIds: [],
+    });
+    const currentCsv = archCsv('1.5', '8');
+    const baselineCsv = archCsv('2.5', '4');
+    const baseline = report({
+      profile: 'emulate',
+      csvTexts: { 'ArchDiagramMetrics.csv': baselineCsv },
+      memoryTables: [archTable()],
+      // Snapshot is always the default mode — the diff must rebuild instead of reading it.
+      memoryTopology: { nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 88 }], edges: [] },
+    });
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['archDiagram'],
+        report: report({
+          profile: 'emulate',
+          csvTexts: { 'ArchDiagramMetrics.csv': currentCsv },
+          memoryTables: [archTable()],
+          memoryTopology: { nodes: [{ id: 'l2', label: 'L2 Cache', peakPct: 77 }], edges: [] },
+        }),
+        ...withBaselineProps(pack(baseline)),
+      },
+      global: { stubs: { MemoryTopologyPanel: TopologyPanelStub } },
+    });
+    const panel = wrapper.findComponent({ name: 'MemoryTopologyPanel' });
+    const expected = topologyFromArchDiagramMetrics(baselineCsv, ARCH_DIAGRAM_DEFAULT_METRIC_MODE)!;
+    expect(panel.props('baseline')).toEqual(expected);
+    expect(
+      (panel.props('baseline') as MemoryTopologyModel).nodes.find((n) => n.id === 'l2')?.peakPct,
+    ).toBe(50);
+
+    // The shared Metric select rebuilds the baseline too (never a stale snapshot).
+    await wrapper.get('[data-testid="topology-metric-select"] .pr-metric-select__trigger').trigger('click');
+    (document.querySelector('[data-testid="topology-metric-option-number_of_requests"]') as HTMLElement).click();
+    await nextTick();
+    expect(wrapper.findComponent({ name: 'MemoryTopologyPanel' }).props('baseline')).toEqual(
+      topologyFromArchDiagramMetrics(baselineCsv, 'number_of_requests'),
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-STATS-056: memory 详情 paints baseline deltas in the stacked list and the overlay', async () => {
+    // Stacked CSV-only report: the memory category list is on the report surface.
+    const stacked = mount(StatsAside, {
+      props: {
+        report: report({ summaryCategories: [memoryCategoryOf('Memory', '100')] }),
+        ...withBaselineProps(pack(report({ summaryCategories: [memoryCategoryOf('Memory', '80')] }))),
+      },
+    });
+    const stackedDiff = stacked.get(
+      '[data-testid="stats-memory"] [data-testid="summary-field-diff-aiv_main_mem_read_bw"]',
+    );
+    expect(stackedDiff.classes()).toContain('pr-diff--increase'); // baseline 80 − current 100
+    expect(stackedDiff.get('.pr-diff__text').text()).toBe('20.00');
+    stacked.unmount();
+
+    // The drilled-in memory overlay pairs the same categories.
+    const overlayMount = mount(StatsAside, {
+      props: {
+        report: report({
+          summary: { taskDurationUs: 1 },
+          memoryTables: [memoryTableOf('1.2')],
+          memoryTopology: topologySnapshotOf('1.2'),
+          summaryCategories: [memoryCategoryOf('Memory', '100')],
+        }),
+        ...withBaselineProps(pack(report({ summaryCategories: [memoryCategoryOf('Memory', '80')] }))),
+      },
+    });
+    await overlayMount.get('[data-testid="topology-details"]').trigger('click');
+    const overlay = overlayMount.get('[data-testid="stats-memory"]');
+    const overlayDiff = overlay.get('[data-testid="summary-field-diff-aiv_main_mem_read_bw"]');
+    expect(overlayDiff.get('.pr-diff__text').text()).toBe('20.00');
+    overlayMount.unmount();
+
+    // The filter is the four memory ids: a compute-only baseline pairs nothing into the list.
+    const filtered = mount(StatsAside, {
+      props: {
+        report: report({ summaryCategories: [memoryCategoryOf('Memory', '100')] }),
+        ...withBaselineProps(pack(
+          report({ summaryCategories: [memoryCategoryOf('PipeUtilization', '0.8')] }),
+        )),
+      },
+    });
+    expect(filtered.findComponent(SummaryCategoryList).props('baselineCategories')).toEqual([]);
+    expect(filtered.findAll('.pr-diff')).toHaveLength(0);
+    filtered.unmount();
+
+    // Without a pack the prop stays undefined and the list paints no delta nodes.
+    const plain = mount(StatsAside, {
+      props: { report: report({ summaryCategories: [memoryCategoryOf('Memory', '100')] }) },
+    });
+    expect(plain.findComponent(SummaryCategoryList).props('baselineCategories')).toBeUndefined();
+    expect(plain.findAll('.pr-diff')).toHaveLength(0);
+    plain.unmount();
   });
 });

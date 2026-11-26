@@ -39,6 +39,8 @@ Reusable searchable CSV field list with tabs, optional block switcher, and 查�
 7. **PR-CSV-007** — ArchDiagramMetrics EAV pivots to parameterName → value (deduped; meta columns hidden).
 8. **PR-CSV-008** — View all only for wide-row projection; hidden for ArchDiagram EAV even when `showViewAll` is true.
 9. **PR-CSV-009** — Tab label for `PipeUtilizationHist.csv` is `Pipe Utilization`; fields use projected `aic_*` / `aiv0_*` / `aiv1_*` `*_ratio` keys ([UI-55](../../../../docs/context/decisions/UI.md)).
+10. **PR-CSV-010** — Field VALUES display at most four decimals (`formatDetailValue`): `0.5052200000000001` → `0.5052`; shorter precision keeps its string.
+11. **PR-CSV-011** — Field VALUES align to the **left** edge of the value column (details pages read value-first; 1130 `diff-detail` mockup), so every row's numbers start at the same x.
 
 ## Visual
 
@@ -52,7 +54,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 | Search match | substring chip: fill `#1d283c`, text `#688aec` weight `600`, radius `3px`, pad `0` (flush; no gap); rest of label `#8e8e8e`; non-matching rows hidden |
 | Block pill | `.pr-block-pill` (`tokens.css`): bg `#2a2a2a`; radius `4px`; custom chevron; no native arrow. Caption via `t('block')` — **分块** / **Block**. PIPE summary block select uses `CardMetricSelect` instead ([StatsAside](../StatsAside.spec.md)). |
 | 查看全部 | `#c8c8c8` `12px` |
-| Field key | `#8e8e8e`; value `#e6e6e6` right-aligned |
+| Field key | `#8e8e8e`; value `#e6e6e6` left-aligned (PR-CSV-011) |
 | Field list | fills leftover overlay height; `overflow: auto` (no `max-height` cap) |
 
 ## Design sketches
@@ -65,6 +67,7 @@ Crops: [`visual/tabs-search.png`](./visual/tabs-search.png), [`visual/field-rows
 - [memory-load-detail](../../../../docs/ui/source/930/MemoryLoadAnalysisDetails/screenshot.png) — full frame
 
 ## Changelog
+- **2026-11-23** — Details pages read value-first from the left edge (PR-CSV-011): field values are left-aligned.
 - **2026-09-23** — Search restores filter **+** substring highlight chip (UI-43 reversed to filter + highlight).
 - **2026-09-11** — Search was temporarily filter-only (UI-43); superseded 2026-09-23.
 - **2026-08-31** — Zero matches show an empty list (no extra copy); search query persists across tab switches.

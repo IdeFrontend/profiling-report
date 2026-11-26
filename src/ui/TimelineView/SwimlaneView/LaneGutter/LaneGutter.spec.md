@@ -54,12 +54,12 @@ Each lane **and folder** row optionally shows a util bar whose **width** and **l
 
 #### Label formats per metric
 
-Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (absolute `*_total_cycles` → bare cycle label; **barWidth** = shared event coverage).
+Normative computation for **时钟周期**: [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md) § **clockCycle formula** (absolute `*_total_cycles` → bare cycle label; **barWidth** = shared event coverage on **interval** lanes).
 
 | Metric | `bar.label` (thick bars) | `barWidth` | Fill color |
 |--------|--------------------------|------------|------------|
-| 利用率 (utilization) | `NN%` | Event coverage % (0–100) | Red when &lt; 50%; gray when ≥ 50% |
-| 时钟周期 (clockCycle) | Bare absolute cycle count (no `µs` / unit suffix) | **Same** as utilization | Same as utilization (`thresholdColor`) |
+| 利用率 (utilization) | `NN%` | Interval lanes: event coverage % (0–100). Ratio CounterTracks: time-weighted mean % ([DATA-59](../../../../../docs/context/decisions/DATA.md)) | Red when &lt; 50%; gray when ≥ 50% |
+| 时钟周期 (clockCycle) | Bare absolute cycle count (no `µs` / unit suffix) | **Same** as interval utilization (event coverage) | Same as utilization (`thresholdColor`) |
 | Legacy pipe ratio | `NN%` | `utilization × 100` | true |
 
 **Thin bars** (pipe leaves) show fill width only; **omit in-track text** for all metrics — value appears in a hover tooltip on the **util column** (full lane height hit target; title excluded) (**PR-GUTTER-016**). **Thick bars** show **label** inside track, right-aligned.
@@ -74,7 +74,7 @@ Pushpin control on **leaf** rows only — not on nested folders or Card spacers.
 | Visibility | **Pinned:** always visible (filled). **Unpinned:** hover only — leaf gutter row, or pin `:focus-visible` (not events-chart hover) |
 | Unpinned (lane hover) | **Outline** pushpin; stroke `#a8a8a8` (chevron family) |
 | Pinned / pin hover | **Solid fill** accent blue `#4a90e2` (match toolbar measure-active) |
-| Tooltip | Localized **置顶** / **Pin to top** (`t('pin')`) on hover/focus over pushpin; EventTooltip chrome — `--pr-surface-raised` (`#363636`), `1px solid rgba(255,255,255,0.05)`, `0 0 16px rgba(0,0,0,0.2)`, radius `8px` |
+| Tooltip | Localized **置顶** / **Pin to top** (`t('pin')`) on hover/focus over pushpin; teleported to `body` (fixed, above the pin) so row culling cannot clip it; EventTooltip chrome — `--pr-surface-raised` (`#363636`), `1px solid rgba(255,255,255,0.05)`, `0 0 16px rgba(0,0,0,0.2)`, radius `8px` |
 | Row hover | Full gutter row highlight `--pr-surface-raised` (`#363636`) when pointer over the leaf **or folder** gutter row **or** that row’s events-chart band (`hoveredLaneId`), and the label lifts to `#fff`. Gutter `pointerenter`/`pointerleave` emit `lane-hover` so the canvas paints the track half to match (`setHoveredLane`). Canvas band hover does **not** reveal the unpinned pushpin |
 | Accessibility | Focusable `button`; `aria-label` **置顶**; pinned state reflected in `aria-pressed` |
 
@@ -146,6 +146,9 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 17. **PR-GUTTER-017** — While a Card/folder is animating (`collapseAnim`), its descendant rows sit inside a `.pr-gutter__collapse` wrapper whose inline `height` (`hiddenHeight × visible`) and `opacity` (`visible`) tween; `overflow: hidden` is applied only during the tween so the pin tooltip is not clipped at rest.
 18. **PR-GUTTER-018** — A leaf with `rowCount` renders one title cell `rowCount × LANE_HEIGHT` (name + util + pin vertically centered) with a single bottom border — no per-sub-row gutter rows.
 19. **PR-GUTTER-019** — A collapsed multi-series CounterTrack folder (`counterFolder` + id in `collapsedIds`) uses **`COUNTER_LANE_HEIGHT` (26px)** on the folder row (inline height / flex-basis / min-height), matching canvas fold `keepExtra`. Expanded counter folders stay **`LANE_HEIGHT` (22px)**.
+20. **PR-GUTTER-020** — When the parent passes a positive **viewportHeight** and there are more than 16 Card groups, the gutter mounts only groups whose band intersects the viewport plus 240px overscan; off-screen runs collapse to height spacers so `scrollHeight` stays honest. Spacer math uses the same row heights as the mounted gutter: counter leaves and collapsed counter folders are `COUNTER_LANE_HEIGHT` (26px), not `rowCount * LANE_HEIGHT`. A Card group that holds keyboard focus stays mounted when its band leaves that window (same idea as card-strip focus). With no viewport (or ≤16 groups) every group stays mounted.
+21. **PR-GUTTER-021** — Lane rows and Card spacers set `content-visibility: auto` with `contain-intrinsic-size` equal to their real row height. The pin tooltip is teleported to `body` so that paint containment does not clip it. Collapse wrappers are not culled.
+22. **PR-GUTTER-022** — An in-flight collapse tween resizes the windowed Card band.
 
 ## Edge Cases
 
@@ -154,6 +157,8 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 | Empty groups array | Empty gutter |
 | Groups with zero lanes | Card spacer rendered, no lane rows |
 | Standalone CTEF (no pipe data) | All lanes show empty util slot (no label) |
+| Absolute CounterTrack leaf (queue / bytes) | Empty util slot — no bar ([DATA-59](../../../../../docs/context/decisions/DATA.md) / [UI-62](../../../../../docs/context/decisions/UI.md)) |
+| Ratio CounterTrack leaf | Util bar = time-weighted mean `%` over model span |
 | Metric switch on Card | Parent recomputes **bar** on lanes under that Card only |
 | Flat CTEF (no `children`) | Card → leaf lanes only (MVP-compatible) |
 | Very long thread names | CSS text-overflow truncation |
@@ -182,6 +187,10 @@ Source: `v930/hardware-more-detail` (Core2.Cube expanded gutter). See [`visual/p
 [gutter-metrics.spec.md](../../../../specs/core/gutter-metrics.spec.md), [SwimlaneView.spec.md](../SwimlaneView.spec.md).
 
 ## Changelog
+- **2026-11-25** — An in-flight collapse tween resizes windowed Card bands so spacers stay aligned with the canvas (`PR-GUTTER-022`).
+- **2026-11-25** — Gutter window spacers use counter row height so off-screen Cards stay aligned with the canvas (`PR-GUTTER-020`).
+- **2026-11-25** — DATA-59: utilization `barWidth` is event coverage on interval lanes and the time-weighted mean on ratio CounterTracks.
+- **2026-11-24** — Window Card groups to the viewport plus overscan when there are more than 16 groups (`PR-GUTTER-020`). Off-screen gutter rows use `content-visibility: auto` (`PR-GUTTER-021`).
 - **2026-09-10** — PR-GUTTER-016: thin util tip also opens on keyboard focus (`tabindex=0`); pointer hit target remains full lane height.
 - **2026-09-10** — PR-GUTTER-016: thin util value tip hit target is full lane height in the util column (not only the 8px bar paint); title/pin still excluded.
 - **2026-09-08** — Multi-row leaf renders one tall title cell `rowCount × LANE_HEIGHT` (`PR-GUTTER-018`).

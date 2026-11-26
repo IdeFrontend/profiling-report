@@ -10,6 +10,7 @@ import {
 import Chevron from '../../../Chevron.vue';
 import PinIcon from '../../../PinIcon.vue';
 import type { GutterBarDisplay, GutterLane } from './gutterTypes';
+import { asIdSet } from './gutterWindow';
 
 /** Match EventTooltip offset; delay avoids flicker while scanning the gutter. */
 const UTIL_TIP_DELAY_MS = 400;
@@ -18,8 +19,8 @@ const UTIL_TIP_CURSOR_OFFSET_PX = 12;
 const props = defineProps<{
   lane: GutterLane;
   depth: number;
-  collapsedIds?: string[];
-  pinnedLaneIds?: string[];
+  collapsedIds?: readonly string[] | ReadonlySet<string>;
+  pinnedLaneIds?: readonly string[] | ReadonlySet<string>;
   /** Lane id under canvas/gutter hover — row highlight only (not pushpin). */
   hoveredLaneId?: string | null;
   locale?: string;
@@ -38,8 +39,8 @@ const emit = defineEmits<{
   'context-menu': [payload: { x: number; y: number; laneId: string }];
 }>();
 
-const collapsed = computed(() => new Set(props.collapsedIds ?? []));
-const pinned = computed(() => new Set(props.pinnedLaneIds ?? []));
+const collapsed = computed(() => asIdSet(props.collapsedIds));
+const pinned = computed(() => asIdSet(props.pinnedLaneIds));
 const isFolder = computed(() => props.lane.children !== undefined);
 const isCollapsed = computed(() => collapsed.value.has(props.lane.id));
 const isPinned = computed(() => pinned.value.has(props.lane.id));
@@ -48,6 +49,7 @@ const displayName = computed(() =>
   laneCategoryLabel(props.lane.categoryKey, props.lane.name, props.locale),
 );
 const pinPointerHover = ref(false);
+const pinTipStyle = ref<Record<string, string>>({ position: 'fixed', left: '0px', top: '0px' });
 const utilTipVisible = ref(false);
 const utilTipPos = ref({ left: '0px', top: '0px' });
 let utilTipTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,6 +71,11 @@ const rowHeightPx = computed(() => {
   }
   return `${flatLaneHeight(props.lane)}px`;
 });
+/** Off-screen rows skip layout. Intrinsic size matches the real row so scrollHeight stays honest. */
+const rowCullStyle = computed(() => ({
+  contentVisibility: 'auto' as const,
+  containIntrinsicSize: `auto ${rowHeightPx.value}`,
+}));
 /** Thick: folders or depth-0 leaves (通信/储存HBM); thin: pipe leaves under Core. */
 const isThinUtil = computed(() => !(isFolder.value || props.depth === 0));
 const utilSizeClass = computed(() =>
@@ -111,6 +118,26 @@ function setUtilTipPos(clientX: number, clientY: number) {
     left: `${clientX + UTIL_TIP_CURSOR_OFFSET_PX}px`,
     top: `${clientY + UTIL_TIP_CURSOR_OFFSET_PX}px`,
   };
+}
+
+function placePinTip(el: HTMLElement): void {
+  const r = el.getBoundingClientRect();
+  pinTipStyle.value = {
+    position: 'fixed',
+    left: `${r.left}px`,
+    top: `${r.top - 6}px`,
+    transform: 'translateY(-100%)',
+  };
+}
+
+function onPinPointerEnter(e: PointerEvent): void {
+  placePinTip(e.currentTarget as HTMLElement);
+  pinPointerHover.value = true;
+}
+
+function onPinFocus(e: FocusEvent): void {
+  placePinTip(e.currentTarget as HTMLElement);
+  pinPointerHover.value = true;
 }
 
 function onLanePointerEnter() {
@@ -209,8 +236,10 @@ onBeforeUnmount(() => {
       height: rowHeightPx,
       flex: `0 0 ${rowHeightPx}`,
       minHeight: rowHeightPx,
+      ...rowCullStyle,
     }"
     :data-testid="`gutter-folder-${lane.id}`"
+    :data-lane-id="lane.id"
     :aria-expanded="!isCollapsed"
     @click="emit('toggle', lane.id)"
     @pointerenter="emit('lane-hover', lane.id)"
@@ -292,8 +321,9 @@ onBeforeUnmount(() => {
       'pr-gutter__lane--lane-hover': laneExternallyHovered,
       'pr-gutter__lane--pinned': isPinned,
     }"
-    :style="{ paddingLeft: pad, height: rowHeightPx, flex: `0 0 ${rowHeightPx}` }"
+    :style="{ paddingLeft: pad, height: rowHeightPx, flex: `0 0 ${rowHeightPx}`, ...rowCullStyle }"
     :data-testid="`gutter-lane-${lane.id}`"
+    :data-lane-id="lane.id"
     @pointerenter="onLanePointerEnter"
     @pointerleave="onLanePointerLeave"
     @contextmenu="onContextMenu"
@@ -305,18 +335,21 @@ onBeforeUnmount(() => {
       :aria-label="pinLabel"
       :aria-pressed="isPinned"
       @click="onPinClick"
-      @pointerenter="pinPointerHover = true"
+      @pointerenter="onPinPointerEnter"
       @pointerleave="pinPointerHover = false"
-      @focus="pinPointerHover = true"
+      @focus="onPinFocus"
       @blur="pinPointerHover = false"
     >
       <PinIcon :filled="isPinned || pinPointerHover" />
+    </button>
+    <Teleport to="body">
       <span
         v-if="pinPointerHover"
         class="pr-gutter__tip pr-gutter__pin-tip"
         role="tooltip"
+        :style="pinTipStyle"
       >{{ pinLabel }}</span>
-    </button>
+    </Teleport>
     <span class="pr-gutter__lane-main">
       <span
         class="pr-gutter__name"
@@ -477,9 +510,9 @@ onBeforeUnmount(() => {
 }
 
 .pr-gutter__pin-tip {
-  /* Pin sits flush-left; center would clip past the gutter edge. */
-  left: 0;
-  bottom: calc(100% + 6px);
+  /* Teleported so content-visibility paint-containment on the row cannot clip it. */
+  position: fixed;
+  z-index: 1000;
 }
 
 .pr-gutter__name {

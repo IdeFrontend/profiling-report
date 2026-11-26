@@ -3,7 +3,10 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'v
 import PrIcon from '../PrIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import ToolbarSearch from './ToolbarSearch.vue';
+import BaselinePicker from './BaselinePicker/BaselinePicker.vue';
 import type {
+  Baseline,
+  BaselinePick,
   ReportOperator,
   TimeDisplayMode,
   TimelineTraceKind,
@@ -63,6 +66,12 @@ const props = withDefaults(
      * pass true when original report bytes exist.
      */
     htmlExportAvailable?: boolean;
+    /** Host-owned baseline list (对比基线); forwarded to the BaselinePicker. */
+    baselines?: Baseline[];
+    /** Host file dialog for the + press; absent = the baseline control is hidden. */
+    pickBaselineFile?: () => Promise<BaselinePick | null>;
+    /** Recent performance reports (Add Recent view); forwarded to the BaselinePicker. */
+    recentBaselines?: Baseline[];
   }>(),
   {
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
@@ -77,6 +86,9 @@ const props = withDefaults(
     selectedOperatorId: undefined,
     timelineTraces: undefined,
     selectedTimelineTraceId: undefined,
+    baselines: undefined,
+    pickBaselineFile: undefined,
+    recentBaselines: undefined,
   },
 );
 
@@ -95,6 +107,7 @@ const emit = defineEmits<{
   'update:zoomPercent': [value: number];
   'open-user-guide': [url: string];
   'export-html': [];
+  'update:baselines': [baselines: Baseline[]];
   'open-cannwork': [];
 }>();
 
@@ -394,6 +407,19 @@ watch(
   },
 );
 
+/**
+ * Conditional clip members change the toolbar's scrollWidth without changing
+ * its observed border box, so the ResizeObserver does not fire — re-scan when
+ * the baselines trigger or the HTML export button appear/disappear.
+ */
+watch(
+  [() => props.pickBaselineFile != null, () => props.htmlExportAvailable],
+  async () => {
+    await nextTick();
+    syncToolbarClipInert();
+  },
+);
+
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDisplayOutsidePointerDown);
   document.removeEventListener('keydown', onDisplayEscape);
@@ -406,7 +432,16 @@ onUnmounted(() => {
   toolbarClipRo = null;
 });
 
-defineExpose({ syncToolbarClipInert });
+const baselinePickerRef = ref<InstanceType<typeof BaselinePicker> | null>(null);
+
+/** Closes the baselines popover — the root calls it when the aside's
+ * Baseline / Operator bar is used (review PR #234; the bar stops pointerdown,
+ * so the popover's own outside-dismiss never sees those clicks). */
+function closeBaselinesPicker() {
+  baselinePickerRef.value?.close();
+}
+
+defineExpose({ syncToolbarClipInert, closeBaselinesPicker });
 
 function focusActiveOption() {
   const items = opMenuRef.value?.querySelectorAll<HTMLElement>('[data-testid="op-item"]');
@@ -1133,6 +1168,16 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       >
         <PrIcon name="stats" />
       </button>
+
+      <BaselinePicker
+        ref="baselinePickerRef"
+        data-toolbar-clip
+        :baselines="baselines ?? []"
+        :pick-baseline-file="pickBaselineFile"
+        :recent-baselines="recentBaselines"
+        :locale="locale"
+        @update:baselines="emit('update:baselines', $event)"
+      />
 
       <button
         v-if="htmlExportAvailable"
