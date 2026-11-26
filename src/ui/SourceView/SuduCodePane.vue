@@ -79,6 +79,11 @@ const props = withDefaults(
     /** Editor flex share (0–1). */
     editorRatio?: number;
     currentLine?: number | null;
+    /**
+     * Sparse gap document row to place on boot. Wins over `currentLine`, which
+     * still names the last real source line while the caret sits on a blank row.
+     */
+    restoreDocRow?: number | null;
     correlatedLines?: number[];
     matchLines?: number[];
     /** When non-empty, paints Sudu search highlights (`highlightRanges`). */
@@ -90,6 +95,7 @@ const props = withDefaults(
   {
     editorRatio: 0.62,
     currentLine: null,
+    restoreDocRow: null,
     correlatedLines: () => [],
     matchLines: () => [],
     searchQuery: '',
@@ -352,7 +358,17 @@ async function boot() {
     // Bind before setLine so a vscroll during reveal can reach the table once
     // geometry exists. waitForGeom replays the caret if this event was dropped.
     bindTableScroll();
-    if (bootLine != null) {
+    // A gap caret is not `currentLine`. Restoring that source line would jump
+    // the highlight back onto the last reported row (PR-SRC-018).
+    const gapRow = !echo && props.restoreDocRow != null ? props.restoreDocRow : null;
+    if (gapRow != null) {
+      ignoreCaret = true;
+      try {
+        placeDocRow(gapRow);
+      } finally {
+        ignoreCaret = false;
+      }
+    } else if (bootLine != null) {
       if (echo) {
         caretEchoed = false;
         const applied = setLine(bootLine);
@@ -666,6 +682,17 @@ function onRowClick(line: number) {
   emit('update:caretDoc', caretDocRow.value);
   editor.focus();
   if (already) emit('update:currentLine', line);
+}
+
+/** Place the caret on a document row (a sparse gap has no source line). No focus, no currentLine echo. */
+function placeDocRow(row: number) {
+  if (!editor) return;
+  restoreThemeIfOverridden();
+  editor.setPosition({ lineNumber: row, column: 1 });
+  editor.revealLine(row);
+  const next = editor.getPosition?.()?.lineNumber ?? row;
+  caretDocRow.value = next;
+  emit('update:caretDoc', next);
 }
 
 /**

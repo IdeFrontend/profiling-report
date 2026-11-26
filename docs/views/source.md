@@ -110,7 +110,7 @@ SourceLines ──(SourceFileId, SourceLineNum)──► complete file text
 
 ## Open
 
-DATA-52 (pack `.asc` rule / single JSON), DATA-54 (`Line: 0`), DATA-55 (extra compute metric columns), UI-56–59 (chrome modes / dock / heat tint). Emulate Source follow-ons ride interim [DATA-53a](../context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../context/decisions/interim/DATA.md#data-53e) / [UI-53a](../context/decisions/interim/UI.md#ui-53a).
+DATA-52 (pack `.asc` rule / single JSON), DATA-54 (`Line: 0`), DATA-55 (extra compute metric columns), UI-57–59 (dock / heat tint). Emulate Source follow-ons ride interim [DATA-53a](../context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../context/decisions/interim/DATA.md#data-53e) / [UI-53a](../context/decisions/interim/UI.md#ui-53a).
 
 ## Specs / code
 
