@@ -81,7 +81,7 @@ No Trace `cname` mapping. Arg-key leaf names are not used for color.
 
 ## Heatmap (memory utilization)
 
-Board/frame from [`v930-sim/memory-topology-fullscreen`](./source/v930-sim/memory-topology-fullscreen.jpeg); cell fill/legend lerp the binary Free→Used blues (#200). Diagram unit hit-box blues stay for topology selection ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)).
+Board/frame from [`v930-sim/memory-topology-fullscreen`](./source/930-legacy/v930-sim/memory-topology-fullscreen.jpeg); cell fill/legend lerp the binary Free→Used blues (#200). Diagram unit hit-box blues stay for topology selection ([memory-topology § Memory Utilization Heatmap](../views/memory-topology.md)).
 
 | Token | Value | Role |
 |-------|-------|------|
