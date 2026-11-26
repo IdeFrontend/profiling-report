@@ -9,6 +9,7 @@ import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import AsmTablePane from './AsmTablePane.vue';
 import { paneBarsUseTwoLines } from './paneBarLayout';
 import SourcePillSelect from './SourcePillSelect.vue';
+import { sparseLayout } from './sourceDocument';
 import SuduCodePane from './SuduCodePane.vue';
 
 /** ReportToolbar mounts `[data-testid=source-chrome-host]` on the tab row. */
@@ -75,6 +76,9 @@ const asmNavigateBy = ref(
 );
 const sourceLine = ref<number | null>(null);
 const asmLine = ref<number | null>(null);
+/** Editor caret document row. A gap row keeps `sourceLine` for correlation. */
+const sourceDocRow = ref<number | null>(null);
+const sourceOnGap = ref(false);
 const sourcePane = ref<PaneApi | null>(null);
 const asmPane = ref<PaneApi | null>(null);
 
@@ -157,6 +161,12 @@ watch(
     asmNavigateBy.value = firstListedNavigate(m.navigateBy, m.assembly.metricsColumns);
     sourceLine.value = null;
     asmLine.value = null;
+    // A gap caret leaves sourceLine null, so the currentLine watch does not
+    // clear the metrics highlight or the document row Navigate By still uses.
+    sourceDocRow.value = null;
+    sourceOnGap.value = false;
+    sourcePane.value?.clearLine?.();
+    asmPane.value?.clearLine?.();
     searchQuery.value = '';
     syncOrigin.value = null;
     showFileMatch.value = false;
@@ -194,10 +204,19 @@ function sourceMappedAsm(file: SourceFileModel | null | undefined, line: number)
   return file?.sourceToAsm?.get(line) ?? [];
 }
 
+function onSourceCaretDoc(row: number | null) {
+  sourceDocRow.value = row;
+  const layout = sourceFile.value && row != null ? sparseLayout(sourceFile.value) : null;
+  const at = row == null || !layout ? -1 : (layout[row - 1] ?? 0);
+  sourceOnGap.value = at === 0;
+}
+
 /** File picker only — asm→source correlation may change `selectedFileId` without reset. */
 function onSourceFileChange(fileId: string) {
   selectedFileId.value = fileId;
   sourceLine.value = null;
+  sourceDocRow.value = null;
+  sourceOnGap.value = false;
   asmLine.value = null;
   syncOrigin.value = null;
   showFileMatch.value = true;
@@ -294,6 +313,7 @@ function nextHotLine(lines: number[], current: number | null): number | null {
 }
 
 function onSourceLine(line: number) {
+  sourceOnGap.value = false;
   showFileMatch.value = false;
   // Asm-driven setLine echo — keep asm caret; clear the gate (no timer).
   if (syncOrigin.value === 'asm') {
@@ -396,7 +416,33 @@ function selectedNavigateColumn(): string {
 }
 
 function selectedCaret(): number | null {
-  return selectedPane.value === 'asm' ? asmLine.value : sourceLine.value;
+  if (selectedPane.value === 'asm') return asmLine.value;
+  // A gap is a row with no data. Value order and extremes must not treat the
+  // last reported line as the selected row.
+  if (sourceOnGap.value) return null;
+  return sourceLine.value;
+}
+
+function lineHasNavigateData(file: SourceFileModel, line: number, col: string): boolean {
+  const row = file.lines.find((l) => l.line === line);
+  return hasNavigateData(row?.values[col]);
+}
+
+/**
+ * Next/previous data row relative to a gap caret. The stale source line is
+ * the row just left, so stepping from it skips that row.
+ */
+function stepFromGap(file: SourceFileModel, col: string, docRow: number, dir: 1 | -1): number | null {
+  const layout = sparseLayout(file);
+  if (!layout) return null;
+  const data = layout
+    .map((line, i) => ({ line, doc: i + 1 }))
+    .filter((r) => r.line > 0 && lineHasNavigateData(file, r.line, col));
+  if (dir === 1) return data.find((r) => r.doc > docRow)?.line ?? null;
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i]!.doc < docRow) return data[i]!.line;
+  }
+  return null;
 }
 
 /** Document order of rows whose Navigate By cell has data. */
@@ -428,6 +474,12 @@ function jumpSelected(line: number) {
 function stepSelectedData(dir: 1 | -1) {
   const file = selectedNavigateFile();
   if (!file) return;
+  if (selectedPane.value === 'source' && sourceOnGap.value && sourceDocRow.value != null) {
+    const next = stepFromGap(file, selectedNavigateColumn(), sourceDocRow.value, dir);
+    if (next == null) return;
+    jumpSelected(next);
+    return;
+  }
   const next = stepDataLine(dataLinesInOrder(file, selectedNavigateColumn()), selectedCaret(), dir);
   if (next == null || next === selectedCaret()) return;
   jumpSelected(next);
@@ -767,6 +819,7 @@ onBeforeUnmount(() => {
           :search-query="trimmedSearch"
           :editor-ratio="0.62"
           @update:current-line="onSourceLine"
+          @update:caret-doc="onSourceCaretDoc"
         />
       </div>
       <div

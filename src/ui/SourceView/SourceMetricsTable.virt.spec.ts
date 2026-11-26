@@ -87,4 +87,71 @@ describe('SourceMetricsTable virtualization', () => {
     expect(ext.total).toBe(ext.expected);
     wrapper.unmount();
   });
+
+  it('PR-SRC-018: sparse source renders reported lines with blank gap rows, not zero rows', () => {
+    const rowH = 18;
+    const file: SourceFileModel = {
+      id: '1',
+      path: '/sdk/kernel.asc',
+      text: `${Array.from({ length: 24 }, () => '').join('\n')}\n`,
+      metricsColumns: [
+        { id: 'executionCount', label: 'Instructions Executed', kind: 'number' },
+        { id: 'relTime', label: 'Relative time', kind: 'bar' },
+        { id: 'warpOccupancy', label: 'Warp occupancy', kind: 'bar' },
+      ],
+      lines: [
+        { line: 17, values: { executionCount: 3 } },
+        { line: 22, values: { executionCount: 0 } },
+        { line: 24, values: { executionCount: 5 } },
+      ],
+      lineCount: 24,
+      sparse: true,
+    };
+    const wrapper = mount(SourceMetricsTable, {
+      props: {
+        file,
+        currentLine: null,
+        rowHeightCss: rowH,
+        showHeader: false,
+        showLineNumbers: true,
+      },
+      attachTo: document.body,
+    });
+    const bodyRows = wrapper.findAll('tbody tr').filter((tr) =>
+      tr.attributes('data-line') != null || tr.classes().includes('pr-src-metrics__row--gap'),
+    );
+    expect(bodyRows.map((tr) => tr.attributes('data-line') ?? null)).toEqual([
+      '17',
+      null,
+      null,
+      '22',
+      null,
+      null,
+      '24',
+    ]);
+    // A sparse document is short enough to mount whole — no phantom 1..24 extent.
+    expect(wrapper.findAll('.pr-src-metrics__virt-pad')).toHaveLength(0);
+    const gaps = wrapper.findAll('.pr-src-metrics__row--gap');
+    expect(gaps).toHaveLength(4);
+    expect(gaps.map((tr) => tr.text())).toEqual(['', '', '', '']);
+    // Skipped ranges stay blank — no hatch bar on Relative time / Warp occupancy.
+    expect(wrapper.findAll('.pr-src-metrics__row--gap .pr-src-metrics__bar-track')).toHaveLength(0);
+    expect(wrapper.findAll('tr[data-line="17"] .pr-src-metrics__bar-track')).toHaveLength(2);
+    wrapper.unmount();
+
+    const marked = mount(SourceMetricsTable, {
+      props: {
+        file,
+        currentLine: 17,
+        currentDocRow: 2,
+        rowHeightCss: rowH,
+        showHeader: false,
+        showLineNumbers: true,
+      },
+    });
+    const gapRows = marked.findAll('.pr-src-metrics__row--gap');
+    expect(gapRows[0]!.classes()).toContain('pr-src-metrics__row--current');
+    expect(marked.find('tr[data-line="17"]').classes()).not.toContain('pr-src-metrics__row--current');
+    marked.unmount();
+  });
 });

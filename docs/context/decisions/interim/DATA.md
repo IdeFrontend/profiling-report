@@ -260,13 +260,13 @@ Reuse compute edge `from`/`to` node ids from `memoryTopology.ts`. Set capability
 
 <a id="data-53d"></a>
 
-### DATA-53d — Emulate source text: sparse fragments, no auto absolute paths
+### DATA-53d — Emulate source text: full `SourceLines` document, sparse legacy fallback
 
 **Status:** `interim`
 **Question:** [DATA-53](../DATA.md) (resolved; deferred display fidelity)
-**Interim:** Reconstruct editor text sparsely from `SourceLines` via `DebugInfo` only. Missing text → compute-style `MISSING_SOURCE_EMBED_PREFIX` placeholder. Gaps between mapped `DebugInfoLineNum`s are empty lines so caret / correlation line numbers stay correct — the document therefore looks **fragmented**, not a solid full file (producer `SourceLines` is not a complete snapshot). High max line numbers still pad **`text`** for Sudu, but metrics rows stay **sparse** (`lineCount` + only interesting lines) so the metrics table can virtualize without allocating tens of thousands of empty row objects. The library does **not** auto-read absolute `SourceFilePath`s from the host filesystem. Optional host `resolveMissingSourceFiles` / `resolveSourceFile` may fill placeholders later (same hook as compute). No new rule requiring full `.asc` bundles in the leaf.
-**Implement / test as:** `adaptEmulateSourceCorrelation` + PR-SRC-014; `SourceFileModel.lineCount`; [SourceMetricsTable](../../../../src/ui/SourceView/SourceMetricsTable.vue) virtual window; [resolveSourceFile.ts](../../../../src/adapters/sourceCorrelation/resolveSourceFile.ts)
-**Superseded when:** Product locks a full-text pack / host resolver contract (related: [DATA-52](../../questions/DATA.md))
+**Interim:** Current producer packs ship the complete file text in `SourceLines.csv` as `SourceFileId,SourceLineNum,SourceLineId,SourceLine` (one row per physical line). `adaptEmulateSourceCorrelation` reconstructs each file from those `(file, line)` rows, preserving indentation, and renders it as a normal full document (`SourceFileModel.sparse = false`) with **sparse metric rows** — unreported rows have blank metric cells, not zeros. Legacy 2-column packs (only `SourceLineId,SourceLine`) still place text through `DebugInfo` and keep the **mapped document** (`sparse = true`): only reported lines carry a line number, non-contiguous runs are separated by two blank unnumbered rows, gap rows do not paint metric bars, and a caret on a gap row marks that metrics row. A truncated `1..N` range uses the same fallback. Missing text → compute-style `MISSING_SOURCE_EMBED_PREFIX` placeholder on the first rendered row. The library does **not** auto-read absolute `SourceFilePath`s from the host filesystem. Optional host `resolveMissingSourceFiles` / `resolveSourceFile` may fill placeholders later; real full text clears `sparse` (same hook as compute).
+**Implement / test as:** `adaptEmulateSourceCorrelation` + PR-SRC-014 / PR-SRC-018 / PR-SRC-019; `SourceFileModel.sparse` / `lineCount`; `sourceDocument.ts`; [SourceMetricsTable](../../../../src/ui/SourceView/SourceMetricsTable.vue); [resolveSourceFile.ts](../../../../src/adapters/sourceCorrelation/resolveSourceFile.ts)
+**Superseded when:** legacy 2-column packs are retired and the sparse fallback can be removed (related: [DATA-52](../../questions/DATA.md))
 
 <a id="data-53e"></a>
 

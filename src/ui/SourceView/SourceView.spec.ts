@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
+import type { SourceCorrelationModel } from '../../domain/types';
 import { t } from '../../i18n';
 import SourceView from './SourceView.vue';
 import { resetSuduRuntimeForTests } from './suduRuntime';
@@ -106,6 +107,7 @@ vi.mock('@sudu-ide/code-review', () => ({
     };
   }),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
+  newTextModelFromLines: vi.fn(() => ({ dispose: vi.fn() })),
 }));
 
 async function pickNavigate(
@@ -143,8 +145,10 @@ async function latestSuduEditor() {
 describe('SourceView', () => {
   beforeEach(async () => {
     resetSuduRuntimeForTests();
-    const { newEditor } = await import('@sudu-ide/code-review');
+    const { newEditor, newTextModel, newTextModelFromLines } = await import('@sudu-ide/code-review');
     vi.mocked(newEditor).mockClear();
+    vi.mocked(newTextModel).mockClear();
+    vi.mocked(newTextModelFromLines).mockClear();
   });
 
   it('PR-SOURCE-001: renders dual panes without dock shell', async () => {
@@ -1515,6 +1519,219 @@ describe('SourceView', () => {
     expect(
       wrapper.find('[data-testid="source-pane-source"] tr.pr-src-metrics__row--current').exists(),
     ).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-SRC-018: sparse emulate source renders a mapped document with blank gap rows', async () => {
+    const base = mockSourceCorrelation();
+    const dense = base.files[0]!;
+    const pick = (line: number) => dense.lines.find((row) => row.line === line)!;
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        { ...dense, sparse: true, lineCount: 128, lines: [pick(1), pick(46), pick(61)] },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+
+    const { newTextModel, newTextModelFromLines } = await import('@sudu-ide/code-review');
+    expect(vi.mocked(newTextModel)).not.toHaveBeenCalled();
+    expect(vi.mocked(newTextModelFromLines)).toHaveBeenCalledTimes(1);
+    const descriptors = vi.mocked(newTextModelFromLines).mock.calls[0]![1];
+    expect(descriptors.map((row) => row.lineNumber ?? 0)).toEqual([1, 0, 0, 46, 0, 0, 61]);
+
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    // Only reported lines carry a number; skipped ranges are two blank rows.
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--gap')).toHaveLength(4);
+    expect(sourceTable.find('tr[data-line="46"]').exists()).toBe(true);
+    expect(sourceTable.find('tr[data-line="45"]').exists()).toBe(false);
+
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    await asmTable.find('tr[data-line="2"]').trigger('click');
+    await flushPromises();
+    const ed = await latestSuduEditor();
+    // Source 46 sits at document row 4 (two blank rows follow line 1).
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 4, column: 1 });
+    expect(sourceTable.find('tr[data-line="46"]').classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+
+    // Caret on the blank row after line 1: the metrics highlight follows it.
+    ed.setPosition({ lineNumber: 2, column: 1 });
+    await flushPromises();
+    const gaps = sourceTable.findAll('tr.pr-src-metrics__row--gap');
+    expect(gaps[0]!.classes()).toContain('pr-src-metrics__row--current');
+    expect(sourceTable.find('tr[data-line="1"]').classes()).not.toContain(
+      'pr-src-metrics__row--current',
+    );
+    expect(sourceTable.find('tr[data-line="46"]').classes()).not.toContain(
+      'pr-src-metrics__row--current',
+    );
+    wrapper.unmount();
+  });
+
+  it('PR-SRC-018f: Navigate By steps from a gap caret, not the stale source line', async () => {
+    const base = mockSourceCorrelation();
+    const dense = base.files[0]!;
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        {
+          ...dense,
+          sparse: true,
+          lineCount: 128,
+          lines: [
+            { line: 17, values: { instructionsExecuted: 1 } },
+            { line: 46, values: { instructionsExecuted: 9 } },
+            { line: 61, values: { instructionsExecuted: 2 } },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    // Document: 17, gap, gap, 46, gap, gap, 61.
+    await sourceTable.find('tr[data-line="46"]').trigger('click');
+    await flushPromises();
+    const ed = await latestSuduEditor();
+
+    // Leave 46 onto the following gap. Previous must return to 46, not skip to 17.
+    ed.setPosition({ lineNumber: 5, column: 1 });
+    await flushPromises();
+    ed.setPosition.mockClear();
+    await wrapper.find('[data-testid="source-find-prev"]').trigger('click');
+    await flushPromises();
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 4, column: 1 });
+
+    // Gap after 17. Next must select 46, not the row after the stale line 46.
+    ed.setPosition({ lineNumber: 2, column: 1 });
+    await flushPromises();
+    ed.setPosition.mockClear();
+    await wrapper.find('[data-testid="source-find-next"]').trigger('click');
+    await flushPromises();
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 4, column: 1 });
+
+    // 46 is the highest value, but the caret is on a gap — highest still moves there.
+    ed.setPosition({ lineNumber: 2, column: 1 });
+    await flushPromises();
+    ed.setPosition.mockClear();
+    await wrapper.find('[data-testid="source-nav-highest"]').trigger('click');
+    await flushPromises();
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 4, column: 1 });
+
+    // Next higher starts the ascending order (line 17) instead of staying on 46.
+    ed.setPosition({ lineNumber: 2, column: 1 });
+    await flushPromises();
+    ed.setPosition.mockClear();
+    await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
+    await flushPromises();
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 1, column: 1 });
+    wrapper.unmount();
+  });
+
+  it('PR-SRC-018g: search uses document rows, and a gap click restores that row', async () => {
+    const base = mockSourceCorrelation();
+    const dense = base.files[0]!;
+    const banner = `// missing source embed:${dense.path}`;
+    const rows = Array.from({ length: 128 }, () => '');
+    rows[0] = banner;
+    rows[45] = 'UNIQUE_SPARSE_TOKEN';
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        {
+          ...dense,
+          text: `${rows.join('\n')}\n`,
+          sparse: true,
+          lineCount: 128,
+          lines: [
+            { line: 17, values: { instructionsExecuted: 1 } },
+            { line: 46, values: { instructionsExecuted: 9 } },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const ed = await latestSuduEditor();
+    await wrapper.get('[data-testid="source-search"]').setValue('UNIQUE_SPARSE_TOKEN');
+    await flushPromises();
+    const tokenHit = ed.highlightRanges.mock.calls.at(-1)?.[0] as
+      | { startLineNumber: number }[]
+      | null;
+    // Line 46 is document row 4 (17, gap, gap, 46), not source line 46.
+    expect(tokenHit?.map((range) => range.startLineNumber)).toEqual([4]);
+
+    await wrapper.get('[data-testid="source-search"]').setValue('missing source embed');
+    await flushPromises();
+    const bannerHit = ed.highlightRanges.mock.calls.at(-1)?.[0] as
+      | { startLineNumber: number }[]
+      | null;
+    expect(bannerHit?.[0]?.startLineNumber).toBe(1);
+
+    const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    await sourceTable.find('tr[data-line="17"]').trigger('click');
+    await flushPromises();
+    ed.setPosition({ lineNumber: 2, column: 1 });
+    await flushPromises();
+    const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
+    const unmapped = model.assembly.lines.find((row) => !model.asmToSource.has(row.line))?.line;
+    expect(unmapped).not.toBeNull();
+    await asmTable.find(`tr[data-line="${unmapped}"]`).trigger('click');
+    await flushPromises();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    await wrapper.find('[data-testid="sudu-editor-host"]').trigger('pointerdown');
+    await flushPromises();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--gap')[0]!.classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+    expect(sourceTable.find('tr[data-line="17"]').classes()).not.toContain(
+      'pr-src-metrics__row--current',
+    );
+
+    // sourceLine stayed null on the gap, so a new session must still clear it.
+    await wrapper.setProps({ model: { ...model }, session: 1 });
+    await flushPromises();
+    expect(sourceTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    ed.setPosition.mockClear();
+    await wrapper.find('[data-testid="source-find-next"]').trigger('click');
+    await flushPromises();
+    // No caret: next starts at the first data row (17), not the row after the old gap.
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 1, column: 1 });
+    wrapper.unmount();
+  });
+
+  it('PR-SRC-018h: editor load error shows the collapsed document', async () => {
+    const { newEditor } = await import('@sudu-ide/code-review');
+    vi.mocked(newEditor).mockImplementationOnce(() => {
+      throw new Error('boot failed');
+    });
+    const base = mockSourceCorrelation();
+    const dense = base.files[0]!;
+    const rows = Array.from({ length: 128 }, () => '');
+    rows[45] = 'UNIQUE_SPARSE_TOKEN';
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        {
+          ...dense,
+          text: `${rows.join('\n')}\n`,
+          sparse: true,
+          lineCount: 128,
+          lines: [
+            { line: 17, values: { instructionsExecuted: 1 } },
+            { line: 46, values: { instructionsExecuted: 3 } },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model } });
+    await flushPromises();
+    const fallback = wrapper.get('[data-testid="sudu-fallback"]');
+    expect(fallback.text()).toContain('UNIQUE_SPARSE_TOKEN');
+    expect(fallback.text().split('\n').length).toBeLessThan(10);
     wrapper.unmount();
   });
 });

@@ -75,7 +75,8 @@ export function applyResolvedSourceText(
   });
   // Dense `lines` define the extent — drop sparse emulate `lineCount` so the
   // metrics table does not keep the placeholder max line after host resolve.
-  return { ...file, text, lines, lineCount: undefined };
+  // Real text means a full document: stop collapsing to reported lines.
+  return { ...file, text, lines, lineCount: undefined, sparse: false };
 }
 
 /**
