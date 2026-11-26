@@ -300,6 +300,23 @@ describe('SourceDiffPane', () => {
     Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true });
   });
 
+  it('an unsampled source line keeps its separator and is not a filler', async () => {
+    const rows = [
+      row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'alpha', rightText: 'alpha' }),
+      row({ kind: 'same', leftLine: 2, rightLine: 2, leftText: 'beta', rightText: 'beta' }),
+    ];
+    const file = {
+      ...metrics,
+      metricsColumns: [{ id: 'cycles', label: 'Cycles', kind: 'bar' as const }],
+      lines: [{ line: 1, values: { cycles: 3 } }],
+    };
+    const wrapper = await mountPane(rows, 'left', file);
+    const beta = wrapper.get('tr[data-line="2"]');
+    expect(beta.classes()).not.toContain('pr-src-metrics__row--blank');
+    expect(beta.find('.pr-src-metrics__bar-track').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
   it('PR-DIFF-103: view rows past source lineCount still render', async () => {
     const rows = [
       row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' }),

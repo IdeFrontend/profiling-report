@@ -217,7 +217,13 @@ const viewMetrics = computed<SourceFileModel>(() => {
     lines: props.rows.map((row, index) => {
       const sourceLine = sideLine(row);
       const hit = sourceLine == null ? undefined : metricsByLine.value.get(sourceLine);
-      return { line: index + 1, values: hit?.values ?? {}, stallBreakdown: hit?.stallBreakdown };
+      // Only a spacer (this side has no source line) is an empty values object.
+      // A real line with no sample still lists the columns so the capsule and
+      // the row separator stay.
+      const values = sourceLine == null
+        ? {}
+        : hit?.values ?? Object.fromEntries(props.metrics.metricsColumns.map((col) => [col.id, null]));
+      return { line: index + 1, values, stallBreakdown: hit?.stallBreakdown };
     }),
   };
 });
