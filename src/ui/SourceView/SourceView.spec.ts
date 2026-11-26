@@ -1169,6 +1169,30 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
+  it('PR-SOURCE-032: the pill label toggles the menu and the chevron toggles it once', async () => {
+    const wrapper = mount(SourceView, {
+      props: { model: mockSourceCorrelation() },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const button = wrapper.get('[data-testid="source-navigate-by"]');
+    const label = wrapper.get('[data-testid="source-navigate-by-label"]');
+    const menu = () => document.querySelector('[data-testid="source-navigate-by-menu"]');
+
+    await label.trigger('click');
+    expect(menu()).not.toBeNull();
+    expect(button.attributes('aria-expanded')).toBe('true');
+
+    await label.trigger('click');
+    expect(menu()).toBeNull();
+    expect(button.attributes('aria-expanded')).toBe('false');
+
+    await button.trigger('click');
+    expect(menu()).not.toBeNull();
+    expect(button.attributes('aria-expanded')).toBe('true');
+    wrapper.unmount();
+  });
+
   it('PR-SOURCE-020: search reuses the timeline control; clear does not widen it', async () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     expect(wrapper.find('.pr-source-view__search').exists()).toBe(false);

@@ -195,6 +195,7 @@ onBeforeUnmount(() => {
     <span
       ref="triggerRef"
       class="pr-block-pill pr-source-view__select source-pill"
+      @click="toggle"
     >
       <span
         class="source-pill__label"
@@ -212,7 +213,6 @@ onBeforeUnmount(() => {
         aria-haspopup="listbox"
         :aria-controls="open ? listboxId : undefined"
         :aria-activedescendant="activeId"
-        @click="toggle"
       >
         <PrIcon name="chevron-down" />
       </button>
@@ -278,18 +278,17 @@ onBeforeUnmount(() => {
   color: var(--pr-src-text, #c8c8c8);
   font-size: 12px;
   line-height: normal;
-  cursor: default;
+  cursor: pointer;
 }
 
-/* Selectable file name (Chromium cannot start a drag inside a <button>). */
 .source-pill__label {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: text;
-  user-select: text;
+  cursor: pointer;
+  user-select: none;
 }
 
 .source-pill__trigger {
