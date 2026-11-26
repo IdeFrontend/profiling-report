@@ -176,7 +176,7 @@ watch(
 const rootEl = ref<HTMLElement | null>(null);
 
 function onWindowKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return;
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
   event.stopPropagation();
   emit('exit');
 }

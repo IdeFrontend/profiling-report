@@ -264,6 +264,10 @@ describe('SourceDiffView', () => {
     const root = wrapper.get('[data-testid="source-diff-view"]').element as HTMLElement;
     expect(document.activeElement).toBe(root);
     root.blur();
+    const swallowed = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    swallowed.preventDefault();
+    window.dispatchEvent(swallowed);
+    expect(wrapper.emitted('exit')).toBeUndefined();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(wrapper.emitted('exit')).toHaveLength(1);
     wrapper.unmount();

@@ -712,7 +712,11 @@ watch(
     const changedIds = [...ids].filter((id) => reports?.[id]?.report !== prev?.[id]?.report);
     if (changedIds.length === 0) return;
     const comparedId = compareBaselineId.value;
-    if (comparedId != null && changedIds.includes(comparedId)) {
+    const comparedPack = comparedId == null ? undefined : reports?.[comparedId]?.report;
+    const previousPack = comparedId == null ? undefined : prev?.[comparedId]?.report;
+    // A removed pack still has a resolver the next baseline can replay.
+    // A replaced pack is new bytes, so the old directory pick does not apply.
+    if (comparedPack && comparedPack !== previousPack) {
       baselineResolveGen += 1;
       baselineWorkspaceResolve = null;
       baselineWorkspaceFiles = [];
