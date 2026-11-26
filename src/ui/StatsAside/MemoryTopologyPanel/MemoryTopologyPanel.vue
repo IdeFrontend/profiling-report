@@ -1039,9 +1039,9 @@ onBeforeUnmount(stopZoomAnim);
 </template>
 
 <style scoped>
-/* Dark-only diagram surface. The chrome is baked for dark fills and cannot adapt; light theme
- * remaps `--pr-bg-panel` to `#f4f4f4`, so this stays the literal dark panel colour rather than
- * the token. Sibling dark-art panels (CsvFieldListPanel, RooflinePanel) do the same. */
+/* Dark-only diagram surface. The chrome is baked for dark fills and cannot adapt, so this stays
+ * the literal dark panel colour rather than `--pr-bg-panel`. Sibling dark-art panels
+ * (CsvFieldListPanel, RooflinePanel) do the same. */
 .pr-topo {
   display: flex;
   flex-direction: column;

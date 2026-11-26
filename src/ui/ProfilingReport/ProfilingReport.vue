@@ -131,6 +131,9 @@ const props = withDefaults(defineProps<{
   reportMeta?: CannbotReportMeta;
   /** CANNWork 最新会话状态（scope → session），宿主全量推送；缺省即全部 idle。 */
   cannbotSessions?: CannbotSessions;
+  /** Accepted for host compatibility; `'light'` currently paints the dark palette. */
+  /** Accepted for host compatibility (`'light'` currently paints the dark palette). */
+  /** Accepted for host compatibility; `'light'` currently paints the dark palette. */
   theme?: 'light' | 'dark';
   locale?: string;
   timeDisplayMode?: TimeDisplayMode;
@@ -2453,8 +2456,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
   min-width: 0;
   min-height: 0;
   padding: 10px 12px;
-  /* Sketch fullscreen ground is literal `#1a1a1a` (dark-only, like `.pr-heat` / `.pr-topo`).
-   * Do not use `--pr-bg-aside` — light theme remaps that token to `#e8ecf0`. */
+  /* Sketch fullscreen ground is literal `#1a1a1a` (dark-only chrome, like `.pr-heat` / `.pr-topo`). */
   background: #1a1a1a;
   overflow: hidden;
 }
