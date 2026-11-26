@@ -140,7 +140,7 @@ describe('SourceDiffView', () => {
     wrapper.unmount();
   });
 
-  it('PR-DIFF-207: Navigate By highlights one shared metric; the link toggle drives pane sync state', async () => {
+  it('PR-DIFF-207: Navigate By highlights one shared metric; scroll sync is always on', async () => {
     const columns: SourceMetricsColumn[] = [
       { id: 'instructionsExecuted', label: 'Instructions Executed', kind: 'bar' },
       { id: 'samplingStall', label: 'Sampling Stall', kind: 'bar' },
@@ -164,14 +164,18 @@ describe('SourceDiffView', () => {
     expect(panes[0]!.props('highlightColumn')).toBe('samplingStall');
     expect(panes[1]!.props('highlightColumn')).toBe('samplingStall');
 
-    const link = wrapper.find('[data-testid="source-diff-link-left"]');
-    expect(link.attributes('aria-pressed')).toBe('true');
-    await link.trigger('click');
-    expect(panes[0]!.props('linked')).toBe(false);
-    expect(panes[1]!.props('linked')).toBe(false);
-    expect(link.attributes('aria-pressed')).toBe('false');
-    await link.trigger('click');
-    expect(panes[0]!.props('linked')).toBe(true);
+    expect(wrapper.find('[data-testid="source-diff-link-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-diff-link-right"]').exists()).toBe(false);
+
+    type ScrollPane = { setScrollCss: (css: number) => void };
+    const rightSetScroll = vi.spyOn(panes[1]!.vm.$.exposed as unknown as ScrollPane, 'setScrollCss');
+    const leftSetScroll = vi.spyOn(panes[0]!.vm.$.exposed as unknown as ScrollPane, 'setScrollCss');
+    const leftListener = panes[0]!.props('scrollListener') as (css: number) => void;
+    const rightListener = panes[1]!.props('scrollListener') as (css: number) => void;
+    leftListener(126);
+    expect(rightSetScroll).toHaveBeenLastCalledWith(126);
+    rightListener(54);
+    expect(leftSetScroll).toHaveBeenLastCalledWith(54);
     wrapper.unmount();
   });
 

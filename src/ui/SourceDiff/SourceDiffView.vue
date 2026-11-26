@@ -180,22 +180,11 @@ const leftPane = ref<InstanceType<typeof SourceDiffPane> | null>(null);
 const rightPane = ref<InstanceType<typeof SourceDiffPane> | null>(null);
 
 /** Mirror one pane's wheel into the other; the pane's own echo sentinel stops the bounce. */
-const linked = ref(true);
-
 function syncScroll(side: 'left' | 'right') {
   return (css: number): void => {
-    if (!linked.value) return;
     if (side === 'left') rightPane.value?.setScrollCss(css);
     else leftPane.value?.setScrollCss(css);
   };
-}
-
-/** Link toggle: resuming copies the left pane's offset so the panes snap together. */
-function toggleLink(): void {
-  linked.value = !linked.value;
-  if (linked.value) {
-    rightPane.value?.setScrollCss(leftPane.value?.getScrollCss() ?? 0);
-  }
 }
 
 /** Move both panes to a view row. */
@@ -348,11 +337,9 @@ defineExpose({
           :diff-model="diffModel"
           :workers="workers"
           :scroll-listener="syncScroll('left')"
-          :linked="linked"
           :highlight-column="navigateBy"
           :workspace-available="currentWorkspaceAvailable"
           :workspace-title="t('sourceWorkspacePick', locale)"
-          @toggle-link="toggleLink"
           @pick-workspace="emit('pick-current-workspace')"
           @update:navigate-by="navigateBy = $event"
           @select-file="
@@ -381,11 +368,9 @@ defineExpose({
           :diff-model="diffModel"
           :workers="workers"
           :scroll-listener="syncScroll('right')"
-          :linked="linked"
           :highlight-column="navigateBy"
           :workspace-available="baselineWorkspaceAvailable"
           :workspace-title="t('sourceWorkspaceBaselinePick', locale)"
-          @toggle-link="toggleLink"
           @pick-workspace="emit('pick-baseline-workspace')"
           @update:navigate-by="navigateBy = $event"
         />

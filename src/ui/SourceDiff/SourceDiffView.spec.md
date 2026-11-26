@@ -12,7 +12,7 @@ Sudu `SideDiff` views fed by one shared diff model.
   either text or language changes, and the previous model is disposed after the panes
   adopt the replacement. Unmount disposes the current model; the pool stays cached.
 - Removed and inserted lines come from the native editor; the view paints no tint layer.
-- Scroll sync mirrors one pane's wheel into the other through `setScrollCss`.
+- Scroll sync is always on: one pane's wheel is mirrored into the other through `setScrollCss`.
 - Navigation mirrors the Source tab: find next/previous walks rows with `Navigate By`
   data, highest/lowest jump to the extreme values, sort asc/desc step the value order,
   and Enter in the search field walks text matches. All scroll both panes.
@@ -30,7 +30,7 @@ Sudu `SideDiff` views fed by one shared diff model.
 - **PR-DIFF-211** An explicit exit (the toolbar 退出对比 or Escape) lands on the Source tab while `sourceTabEnabled`; programmatic resets (new report, baseline collision) keep the current tab.
 - **PR-DIFF-205** `data/source-diff/demo.npu-rep` loads as three correlated `left` / `mid` / `right` operators whose first source file carries 3 metric columns and starts on the missing-source placeholder (`// missing source embed:`) with no embedded text; a workspace pick of the three loose `.asc` files refills every leaf, and the refilled `left` vs `right` delta is 5 lines.
 - **PR-DIFF-206** Every `data/source-diff/demo.npu-rep` leaf carries four entries, including a donor `PipeTrace.json` entry (type 2), and adapts a swimlane for the left, mid, and right sides.
-- **PR-DIFF-207** `Navigate By` defaults to the first metric column and keeps the same column selected in both panes; the pane-bar link button toggles shared scroll sync and reflects it with `aria-pressed`.
+- **PR-DIFF-207** `Navigate By` defaults to the first metric column and keeps the same column selected in both panes; scroll sync is always on and the pane bar renders no link toggle.
 - **PR-DIFF-109** A pointerdown on a pane host moves the focus ring to that pane; exactly one pane carries the focused class, and the left pane is focused by default.
 - **PR-DIFF-210** Both panes receive one shared diff model built from the two file texts; a text change rebuilds it, disposes the old model, and both panes adopt the replacement.
 - **PR-DIFF-212** Two correlations with disjoint file paths still render a left/right pane pair through the first-file fallback, and the view does not throw.

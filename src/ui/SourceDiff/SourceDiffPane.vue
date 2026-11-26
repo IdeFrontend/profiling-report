@@ -117,8 +117,6 @@ const props = withDefaults(
     activeFileId?: string;
     /** Vertical scroll in CSS px (parent mirrors it into the other pane). */
     scrollListener?: (cssScroll: number) => void;
-    /** Shared scroll-sync state from the pane bar link toggle. */
-    linked?: boolean;
     /** Metric column emphasized by Navigate By. */
     highlightColumn?: string | null;
     /** Whether this pane owns the focus ring. */
@@ -135,7 +133,6 @@ const props = withDefaults(
     files: undefined,
     activeFileId: undefined,
     scrollListener: undefined,
-    linked: true,
     highlightColumn: null,
     focused: false,
     workspaceAvailable: false,
@@ -145,7 +142,6 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'select-file': [id: string];
-  'toggle-link': [];
   'update:navigateBy': [id: string];
   'pick-workspace': [];
 }>();
@@ -413,18 +409,6 @@ defineExpose({ setScrollCss, scrollToRow, getScrollCss });
         @update:model-value="emit('select-file', $event)"
       />
       <button
-        type="button"
-        class="pr-src-diff-pane__icon-btn"
-        :class="{ 'pr-src-diff-pane__icon-btn--on': linked }"
-        :data-testid="`source-diff-link-${side}`"
-        :aria-label="t('sourceLinkSync', locale)"
-        :aria-pressed="linked"
-        :title="t('sourceLinkSync', locale)"
-        @click="emit('toggle-link')"
-      >
-        <PrIcon name="link" />
-      </button>
-      <button
         v-if="workspaceAvailable"
         type="button"
         class="pr-src-diff-pane__icon-btn"
@@ -581,12 +565,6 @@ defineExpose({ setScrollCss, scrollToRow, getScrollCss });
 .pr-src-diff-pane__icon-btn:focus-visible {
   outline: 2px solid var(--pr-playhead, #3078f0);
   outline-offset: 1px;
-}
-
-.pr-src-diff-pane__icon-btn--on,
-.pr-src-diff-pane__icon-btn[aria-pressed='true'] {
-  background: #363636;
-  color: #e6e6e6;
 }
 
 .pr-src-diff-pane__surface {
