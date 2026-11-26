@@ -4523,10 +4523,71 @@ describe('ProfilingReport scaffold', () => {
     const open = wrapper.findComponent(SourceDiffView).props('current') as SourceCorrelationModel;
     expect(open.files[0]!.text).toContain('int main()');
     expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
-    // A host pack swap clears the overlay, so the placeholder returns.
+    // Republishing the same pack object keeps the fill.
     await wrapper.setProps({ baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } } });
     await nextTick();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain('int baseline()');
+    // A new pack object clears the overlay, so the placeholder returns.
+    await wrapper.setProps({
+      baselineReports: {
+        'b-1': { baselineId: 'b-1', report: { ...pack, reportModel: { ...pack.reportModel } } },
+      },
+    });
+    await nextTick();
     expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('an operator with no source does not show another operator, and Escape on the selector exits', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const matmul = correlationWith('/src/matmul.asc', 'int matmul() { return 1; }\n');
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+      operatorReports: {
+        matmul: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+        },
+        relu: { swimlaneModel: null, reportModel: emptyReportViewModel() },
+      },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'operator-without-source',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{
+          id: 'b-1',
+          name: '',
+          path: '/data/a.rep',
+          operators: [{ id: 'matmul', label: 'MatMul' }, { id: 'relu', label: 'Relu' }],
+        }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'matmul' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+      attachTo: document.body,
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain('int matmul()');
+    await wrapper.find('[data-testid="compare-operator-select"] button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-operator-option-relu"]')?.click();
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+
+    const select = wrapper.get('[data-testid="compare-operator-select"]').element;
+    select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
     wrapper.unmount();
   });
 

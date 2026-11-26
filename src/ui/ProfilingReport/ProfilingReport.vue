@@ -286,11 +286,17 @@ const baselineSourceCorrelation = ref<Record<string, SourceCorrelationModel>>({}
  */
 const sourceSession = ref(0);
 
+/** Last open-report workspace resolver, replayed when the operator changes. */
+let reportWorkspaceResolve: ResolveSourceFile | null = null;
+/** Last baseline workspace resolver, replayed when the compare operator changes. */
+let baselineWorkspaceResolve: ResolveSourceFile | null = null;
+
 function bumpSourceSession() {
   sourceSession.value += 1;
   resolvedSourceCorrelation.value = null;
   // Export must carry the current report's text, not a previous load's picks.
   resolvedSourceTexts.value = {};
+  reportWorkspaceResolve = null;
 }
 const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
@@ -602,11 +608,11 @@ function compareOperatorIdOf(row: BaselineRow, pack: AdaptedReport | null): stri
 }
 function compareCorrelationOf(row: BaselineRow, pack: AdaptedReport): SourceCorrelationModel | null {
   const operatorId = compareOperatorIdOf(row, pack);
-  return (
-    (operatorId ? pack.operatorReports?.[operatorId]?.reportModel.sourceCorrelation : null) ??
-    pack.reportModel.sourceCorrelation ??
-    null
-  );
+  const operator = operatorId ? pack.operatorReports?.[operatorId] : undefined;
+  // An operator entry with no source is an empty pane. The root model is the
+  // first operator, so falling through would show that operator under this name.
+  if (operator) return operator.reportModel.sourceCorrelation ?? null;
+  return pack.reportModel.sourceCorrelation ?? null;
 }
 function compareSourceKeyOf(row: BaselineRow, pack: AdaptedReport): string {
   return `${row.baselineId}:${compareOperatorIdOf(row, pack) ?? ''}`;
@@ -687,9 +693,18 @@ const baselineWorkspaceAvailable = computed(
 // A host swap replaces every baseline pack; overlays key on the old packs.
 watch(
   () => props.baselineReports,
-  () => {
+  (reports, prev) => {
+    const ids = new Set([...Object.keys(reports ?? {}), ...Object.keys(prev ?? {})]);
+    const packChanged = [...ids].some((id) => reports?.[id]?.report !== prev?.[id]?.report);
+    if (!packChanged) return;
     baselineResolveGen += 1;
-    baselineSourceCorrelation.value = {};
+    baselineWorkspaceResolve = null;
+    const kept: Record<string, SourceCorrelationModel> = {};
+    for (const [key, model] of Object.entries(baselineSourceCorrelation.value)) {
+      const id = key.slice(0, key.indexOf(':'));
+      if (reports?.[id]?.report === prev?.[id]?.report) kept[key] = model;
+    }
+    baselineSourceCorrelation.value = kept;
     if (compareAutoSeeded.value) {
       compareBaselineId.value = defaultCompareBaselineId();
       compareOperatorId.value = '';
@@ -735,6 +750,22 @@ function onCompareBaselineChange(id: string) {
 function onCompareOperatorChange(id: string) {
   compareOperatorId.value = id;
   compareAutoSeeded.value = false;
+  if (!baselineWorkspaceResolve) return;
+  const resolve = baselineWorkspaceResolve;
+  void nextTick(() => {
+    const row = compareRow.value;
+    const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
+    const model = row && pack ? compareCorrelationOf(row, pack) : null;
+    if (!row || !pack || !model) return;
+    const resolveGen = ++baselineResolveGen;
+    void fillMissingSourceFiles(model, resolve).then((next) => {
+      if (resolveGen !== baselineResolveGen || !next) return;
+      baselineSourceCorrelation.value = {
+        ...baselineSourceCorrelation.value,
+        [compareSourceKeyOf(row, pack)]: next,
+      };
+    });
+  });
 }
 
 // Removing the selected checked baseline moves the compare pair to the next one.
@@ -1423,6 +1454,7 @@ async function onPickReportSourceWorkspace() {
   const resolveGen = ++sourceResolveGen;
   const resolve = await pickWorkspaceResolver(model);
   if (!resolve || resolveGen !== sourceResolveGen) return;
+  reportWorkspaceResolve = resolve;
   await fillReportSourceFiles(model, resolveGen, resolve);
 }
 
@@ -1435,6 +1467,7 @@ async function onPickBaselineSourceWorkspace() {
   const resolveGen = ++baselineResolveGen;
   const resolve = await pickWorkspaceResolver(model);
   if (!resolve || resolveGen !== baselineResolveGen) return;
+  baselineWorkspaceResolve = resolve;
   const next = await fillMissingSourceFiles(model, resolve);
   if (resolveGen !== baselineResolveGen || !next) return;
   baselineSourceCorrelation.value = {
@@ -1471,13 +1504,18 @@ function onOperatorChange(id: string) {
   internalSwim.value = rep.swimlaneModel;
   internalReport.value = rep.reportModel;
   internalCapabilities.value = rep.capabilities ?? null;
-  bumpSourceSession();
+  sourceSession.value += 1;
+  resolvedSourceCorrelation.value = null;
   // Viewport/selection reset like a fresh load, but keep aside open/closed and panel widths.
   resetViewFromModel(rep.swimlaneModel, viewState.value.asideVisible, {
     preservePanelWidths: true,
   });
   const resolveGen = ++sourceResolveGen;
-  void fillReportSourceFiles(rep.reportModel.sourceCorrelation, resolveGen);
+  void fillReportSourceFiles(
+    rep.reportModel.sourceCorrelation,
+    resolveGen,
+    reportWorkspaceResolve ?? undefined,
+  );
 }
 
 /** Swap among §11.14 catalog CTEF embeds without re-parsing the leaf. */
