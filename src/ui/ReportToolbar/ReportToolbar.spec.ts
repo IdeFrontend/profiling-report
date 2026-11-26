@@ -925,6 +925,8 @@ describe('ReportToolbar', () => {
     expect(on.get('[data-testid="compare-enter"]').attributes('disabled')).toBeUndefined();
     on.unmount();
 
+    expect(src).toMatch(/\.pr-compare__btn--text\s*\{[^}]*margin-right:\s*8px/);
+    expect(src).not.toMatch(/\.pr-compare__btn--text\s*\{[^}]*order:\s*1/);
     expect(src).toMatch(/\.pr-compare__btn--text:disabled\s*\{[^}]*opacity:\s*0\.45/);
     expect(src).toMatch(/\.pr-compare__btn--text:disabled\s*\{[^}]*cursor:\s*default/);
     expect(src).toMatch(/\.pr-compare__btn--text:disabled:hover\s*\{[^}]*background:\s*#343434/);

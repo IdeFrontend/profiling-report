@@ -258,4 +258,94 @@ describe('SourceDiffView', () => {
     expect(button.attributes('title')).toBe(t('sourceDiffWorkspaceBaselineDisabled', 'en-US'));
     wrapper.unmount();
   });
+
+  it('PR-DIFF-201: window Escape exits before the view is focused, and mount focuses the view', async () => {
+    const wrapper = await mountView();
+    const root = wrapper.get('[data-testid="source-diff-view"]').element as HTMLElement;
+    expect(document.activeElement).toBe(root);
+    root.blur();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(wrapper.emitted('exit')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-DIFF-218: a file pick pairs the other pane by path and survives a same-file overlay', async () => {
+    const leftA = file('a', 'alpha');
+    const leftB = file('b', 'beta');
+    const rightA = file('a', 'ALPHA');
+    const rightB = file('b', 'BETA');
+    const current = correlation([leftA, leftB]);
+    const baseline = correlation([rightA, rightB]);
+    const wrapper = mount(SourceDiffView, {
+      props: { current, baseline, locale: 'en-US' },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const panes = () => wrapper.findAllComponents(SourceDiffPane);
+    panes()[0]!.vm.$emit('select-file', 'b');
+    await nextTick();
+    expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('b');
+    expect((panes()[1]!.props('metrics') as SourceFileModel).id).toBe('b');
+
+    panes()[1]!.vm.$emit('select-file', 'a');
+    await nextTick();
+    expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('a');
+    expect((panes()[1]!.props('metrics') as SourceFileModel).id).toBe('a');
+
+    await wrapper.setProps({
+      current: { ...current, files: [leftA, leftB] },
+    });
+    await nextTick();
+    expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('a');
+    expect((panes()[1]!.props('metrics') as SourceFileModel).id).toBe('a');
+    wrapper.unmount();
+  });
+
+  it('PR-DIFF-219: search and Navigate By follow the focused pane, and search keeps its own cursor', async () => {
+    const columns: SourceMetricsColumn[] = [{ id: 'cycles', label: 'Cycles', kind: 'number' }];
+    const left = file('cur', 'keep\nkeep\nkeep', columns);
+    left.lines = [
+      { line: 1, values: { cycles: 1 } },
+      { line: 2, values: { cycles: 1 } },
+      { line: 3, values: { cycles: 1 } },
+    ];
+    const right = file('cur', 'right-only\nkeep\nkeep', columns);
+    right.lines = [
+      { line: 1, values: { cycles: 0 } },
+      { line: 2, values: { cycles: 4 } },
+      { line: 3, values: { cycles: 8 } },
+    ];
+    const wrapper = mount(SourceDiffView, {
+      props: {
+        current: correlation([left]),
+        baseline: correlation([right]),
+        locale: 'en-US',
+        searchQuery: 'right-only',
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const panes = wrapper.findAllComponents(SourceDiffPane);
+    const rightScroll = vi.spyOn(panes[1]!.vm.$.exposed as { scrollToRow: (index: number) => void }, 'scrollToRow');
+    const vm = wrapper.vm as unknown as {
+      findNext: () => void;
+      findSearch: (dir: 1 | -1) => void;
+    };
+
+    vm.findSearch(1);
+    expect(rightScroll).not.toHaveBeenCalled();
+
+    await wrapper.find('[data-testid="source-diff-pane-host-right"]').trigger('pointerdown');
+    vm.findNext();
+    expect(rightScroll).toHaveBeenLastCalledWith(1);
+
+    rightScroll.mockClear();
+    vm.findSearch(1);
+    expect(rightScroll).toHaveBeenLastCalledWith(0);
+
+    rightScroll.mockClear();
+    vm.findNext();
+    expect(rightScroll).toHaveBeenLastCalledWith(2);
+    wrapper.unmount();
+  });
 });

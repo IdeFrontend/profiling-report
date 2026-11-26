@@ -697,11 +697,14 @@ watch(
   },
 );
 
+const compareSearchQuery = ref('');
+
 function exitCompareMode() {
   compareMode.value = false;
   compareBaselineId.value = null;
   compareOperatorId.value = '';
   compareAutoSeeded.value = false;
+  compareSearchQuery.value = '';
 }
 
 /** Explicit exit (toolbar button, diff Escape) lands on the Source tab. */
@@ -794,7 +797,9 @@ const showTimelineSurface = computed(
 );
 
 watch(sourceTabEnabled, (ok) => {
-  if (!ok && activeTab.value === 'source') activeTab.value = 'timeline';
+  if (ok) return;
+  exitCompareMode();
+  if (activeTab.value === 'source') activeTab.value = 'timeline';
 });
 
 watch(overviewTabEnabled, (ok) => {
@@ -1487,9 +1492,12 @@ function onTimelineTraceChange(id: TimelineTraceKind) {
 }
 
 /** Parse before first paint when `source` is already available (avoids empty→loaded height jump). */
+let sourceWatchReady = false;
 watch(
   () => props.source,
   (src) => {
+    if (sourceWatchReady) exitCompareMode();
+    sourceWatchReady = true;
     sourceLoadGen += 1;
     sourceResolveGen += 1;
     const gen = sourceLoadGen;
@@ -1518,8 +1526,8 @@ watch(
   (rm) => {
     if (props.source) return;
     bumpSourceSession();
-    if (!rm?.sourceCorrelation) return;
     const resolveGen = ++sourceResolveGen;
+    if (!rm?.sourceCorrelation) return;
     void fillReportSourceFiles(rm.sourceCorrelation, resolveGen);
   },
   { immediate: true },
@@ -2486,6 +2494,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :primary-baseline-id="compareBaselineId"
           :compare-operators="compareOperators"
           :compare-operator-id="compareSelectedOperatorId"
+          :compare-search-query="compareSearchQuery"
           :html-export-available="htmlExportAvailable"
           :baselines="baselines"
           :pick-baseline-file="pickBaselineFile"
@@ -2501,6 +2510,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:active-tab="onActiveTab"
           @update:primary-baseline-id="onCompareBaselineChange"
           @update:compare-operator-id="onCompareOperatorChange"
+          @update:compare-search-query="compareSearchQuery = $event"
           @compare-enter="enterCompareMode"
           @compare-exit="onCompareExit"
           @compare-find-next="sourceDiffRef?.findNext()"
@@ -2535,7 +2545,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :baseline="compareBaselineModel ?? undefined"
           :locale="locale"
           :sudu-worker-url="suduWorkerUrl"
-          :search-query="viewState.searchQuery"
+          :search-query="compareSearchQuery"
           :current-workspace-available="reportSourceNeedsResolve && pickSourceWorkspace != null"
           :baseline-workspace-available="baselineWorkspaceAvailable"
           @exit="onCompareExit"

@@ -14,8 +14,12 @@ source-line metrics table for that side.
 - The header mirrors the normal Source pane (`#`, `Source`, then one label per metric
   column) and shares the row height, so line 1 starts level with metric row 1.
 - The row height is measured once per theme from a temporary plain Sudu editor in a
-  hidden host. The editor is disposed and the host removed immediately; the cache
-  re-measures when `window.devicePixelRatio` changes (browser zoom).
+  hidden host. `getFontSize()` is device pixels and is stored as CSS px (divided by
+  the device pixel ratio). The editor is disposed and the host removed immediately;
+  the cache re-measures when `window.devicePixelRatio` changes (browser zoom). A zoom
+  restores the visible row after the new row height commits.
+- The metrics file handed to the table omits `lineCount`, so the table extent is the
+  view-row list. A source `lineCount` shorter than that list does not drop the tail.
 - The metrics table is the scroll authority in CSS pixels; the pane converts to device
   pixels for `setVScrollPos` and converts editor scroll back through the device pixel
   ratio.
@@ -26,7 +30,7 @@ source-line metrics table for that side.
 
 - **PR-DIFF-101** A `changed` row renders through the shared native diff model in both panes; Sudu paints its own change backgrounds.
 - **PR-DIFF-102** An `onlyLeft` row stays with the left pane; both panes receive the shared model, and the right pane shows the native spacer without an overlay.
-- **PR-DIFF-103** Aligned rows drive the metrics table, and the native editor owns gutter numbers and filler spacers.
+- **PR-DIFF-103** Aligned rows drive the metrics table, and the native editor owns gutter numbers and filler spacers. A source `lineCount` shorter than the view-row list does not drop the tail rows.
 - **PR-DIFF-104** The pane header labels the gutter `#`, the source column `Source`, and every metric column with its model label.
 - **PR-DIFF-105** No tint overlay renders in the pane; the native `SideDiff` view paints row backgrounds inside the code plane.
 - **PR-DIFF-106** Each pane is a `region` whose accessible name states its side.

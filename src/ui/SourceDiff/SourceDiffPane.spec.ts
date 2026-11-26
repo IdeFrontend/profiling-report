@@ -48,7 +48,7 @@ vi.mock('@sudu-ide/code-review', () => ({
     dispose: vi.fn(),
     getDevicePixelRatio: () => sudu.dpr,
     getLineHeight: () => 18,
-    getFontSize: () => 12,
+    getFontSize: () => 12 * sudu.dpr,
     getFontFamily: () => 'monospace',
   })),
 }));
@@ -260,6 +260,7 @@ describe('SourceDiffPane', () => {
     expect(paneSrc).toContain('border-left: 1px solid #2a2a2a;');
     // Metrics/header plane bottom edge is lighter than the #2a2a2a head.
     expect(paneSrc).toContain('border-bottom: 1px solid #353535;');
+    expect(paneSrc).toContain('deviceFont / (dpr || 1)');
   });
 
   it('PR-DIFF-110: browser zoom re-measures geometry and keeps the visible source row', async () => {
@@ -297,6 +298,17 @@ describe('SourceDiffPane', () => {
     wrapper.unmount();
     sudu.dpr = 1;
     Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true });
+  });
+
+  it('PR-DIFF-103: view rows past source lineCount still render', async () => {
+    const rows = [
+      row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' }),
+      row({ kind: 'onlyLeft', leftLine: 2, rightLine: null, leftText: 'b' }),
+      row({ kind: 'onlyRight', leftLine: null, rightLine: 3, rightText: 'c' }),
+    ];
+    const wrapper = await mountPane(rows, 'left', { ...metrics, lineCount: 1 });
+    expect(wrapper.findAll('tr[data-line]')).toHaveLength(3);
+    wrapper.unmount();
   });
 
   it('PR-DIFF-112: workspace pick button follows availability and emits', async () => {

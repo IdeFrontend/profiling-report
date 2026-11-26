@@ -52,27 +52,39 @@ const baselineEmpty = computed(() => !props.baseline || props.baseline.files.len
 
 const EMPTY_FILE: SourceFileModel = { id: '', path: '', metricsColumns: [], lines: [], text: '' };
 
-function resolveFile(files: SourceFileModel[], id: string, path?: string): SourceFileModel {
-  return files.find((f) => f.id === id) ?? files.find((f) => f.path === path) ?? files[0] ?? EMPTY_FILE;
+function resolveFile(
+  files: SourceFileModel[],
+  id: string,
+  path?: string,
+  pathFirst = false,
+): SourceFileModel {
+  const byId = id ? files.find((f) => f.id === id) : undefined;
+  const byPath = path ? files.find((f) => f.path === path) : undefined;
+  if (pathFirst) return byPath ?? byId ?? files[0] ?? EMPTY_FILE;
+  return byId ?? byPath ?? files[0] ?? EMPTY_FILE;
 }
 
-/** Keep both sides on the same file path when the baseline ships the same file set. */
+/** Keep both sides on the same file path when the baseline ships that path. */
 function syncFileIds(keep: PaneSide): void {
   const left = props.current.files;
   const right = props.baseline?.files ?? [];
   if (keep === 'left' || !leftFileId.value) {
     const picked = resolveFile(left, leftFileId.value);
     leftFileId.value = picked.id;
-    rightFileId.value = resolveFile(right, rightFileId.value, picked.path).id;
+    rightFileId.value = resolveFile(right, rightFileId.value, picked.path, true).id;
   } else {
     const picked = resolveFile(right, rightFileId.value);
     rightFileId.value = picked.id;
-    leftFileId.value = resolveFile(left, leftFileId.value, picked.path).id;
+    leftFileId.value = resolveFile(left, leftFileId.value, picked.path, true).id;
   }
 }
 
+function fileSetKey(model: SourceCorrelationModel | undefined): string {
+  return (model?.files ?? []).map((f) => `${f.id}\0${f.path}`).join('\n');
+}
+
 watch(
-  () => [props.current, props.baseline],
+  () => [fileSetKey(props.current), fileSetKey(props.baseline)] as const,
   () => {
     leftFileId.value = '';
     rightFileId.value = '';
@@ -161,13 +173,25 @@ watch(
   },
 );
 
+const rootEl = ref<HTMLElement | null>(null);
+
+function onWindowKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return;
+  event.stopPropagation();
+  emit('exit');
+}
+
 onMounted(() => {
   void rebuildDiffModel();
+  // Entering compare removes the focused toolbar button, so focus starts on body.
+  rootEl.value?.focus();
+  window.addEventListener('keydown', onWindowKeydown);
 });
 
 onBeforeUnmount(() => {
   disposed = true;
   modelGeneration += 1;
+  window.removeEventListener('keydown', onWindowKeydown);
 });
 
 // Child panes dispose their views first; the pool is process-cached and never disposed.
@@ -193,51 +217,78 @@ function scrollToRow(index: number): void {
   rightPane.value?.scrollToRow(index);
 }
 
-/** Navigate By rows use this pane's (left) metric column, like the Source tab's focused pane. */
+/** Navigate By and search follow the focused pane, the way the Source tab does. */
 const navCursor = ref(-1);
 
 function hasNavigateData(value: number | string | null | undefined): boolean {
   return typeof value === 'number' ? value !== 0 : value != null && value !== '';
 }
 
+function valuesByLine(file: SourceFileModel): Map<number, SourceFileModel['lines'][number]['values']> {
+  const map = new Map<number, SourceFileModel['lines'][number]['values']>();
+  for (const line of file.lines) map.set(line.line, line.values);
+  return map;
+}
+
+const leftByLine = computed(() => valuesByLine(leftFile.value));
+const rightByLine = computed(() => valuesByLine(rightFile.value));
+
+function activeByLine(): Map<number, SourceFileModel['lines'][number]['values']> {
+  return activeSide.value === 'right' ? rightByLine.value : leftByLine.value;
+}
+
+function activeSourceLine(row: DiffRow): number | null {
+  return activeSide.value === 'right' ? row.rightLine : row.leftLine;
+}
+
+function activeSourceText(row: DiffRow): string {
+  return activeSide.value === 'right' ? row.rightText : row.leftText;
+}
+
 function metricValue(line: number, column: string): number {
-  const row = leftFile.value.lines.find((entry) => entry.line === line);
-  const value = row?.values[column];
+  const value = activeByLine().get(line)?.[column];
   return typeof value === 'number' ? value : 0;
 }
 
-watch([displayRows, navigateBy], () => {
+watch([displayRows, navigateBy, activeSide], () => {
   navCursor.value = -1;
   searchCursor.value = -1;
 });
 
-/** View rows with Navigate By data in document order. */
-const dataRows = computed<number[]>(() =>
-  displayRows.value.flatMap((row, index) =>
-    row.leftLine != null &&
-    hasNavigateData(leftFile.value.lines.find((entry) => entry.line === row.leftLine)?.values[navigateBy.value])
-      ? [index]
-      : [],
-  ),
-);
+/** View rows with Navigate By data in document order, on the focused pane. */
+const dataRows = computed<number[]>(() => {
+  const byLine = activeByLine();
+  const column = navigateBy.value;
+  return displayRows.value.flatMap((row, index) => {
+    const line = activeSourceLine(row);
+    return line != null && hasNavigateData(byLine.get(line)?.[column]) ? [index] : [];
+  });
+});
 
 /** View rows with Navigate By data, ordered by value (Source tab's `hotLines`). */
 function valueRows(desc: boolean): number[] {
   const rowsWithData = dataRows.value
-    .map((index) => ({
-      index,
-      line: displayRows.value[index]!.leftLine!,
-      value: metricValue(displayRows.value[index]!.leftLine!, navigateBy.value),
-    }))
+    .map((index) => {
+      const line = activeSourceLine(displayRows.value[index]!)!;
+      return {
+        index,
+        line,
+        value: metricValue(line, navigateBy.value),
+      };
+    })
     .sort((a, b) =>
       a.value !== b.value ? (desc ? b.value - a.value : a.value - b.value) : desc ? b.line - a.line : a.line - b.line,
     );
   return rowsWithData.map((entry) => entry.index);
 }
 
+function revealViewRow(index: number): void {
+  scrollToRow(index);
+}
+
 function jumpToViewRow(index: number): void {
   navCursor.value = index;
-  scrollToRow(index);
+  revealViewRow(index);
 }
 
 /** Next/previous data row in document order; does not wrap, the end stays. */
@@ -275,12 +326,12 @@ function goToExtreme(desc: boolean): void {
 
 const searchCursor = ref(-1);
 
-/** Enter in the search field walks matches through the left pane's text. */
+/** Enter walks matches in the focused pane. The search cursor stays off Navigate By. */
 function findSearch(dir: 1 | -1): void {
   const needle = props.searchQuery.trim().toLowerCase();
   if (!needle) return;
   const matches = displayRows.value.flatMap((row, index) =>
-    row.leftText.toLowerCase().includes(needle) ? [index] : [],
+    activeSourceText(row).toLowerCase().includes(needle) ? [index] : [],
   );
   if (!matches.length) return;
   const current = matches.indexOf(searchCursor.value);
@@ -291,7 +342,7 @@ function findSearch(dir: 1 | -1): void {
         : matches[matches.length - 1]!
       : matches[(current + dir + matches.length) % matches.length]!;
   searchCursor.value = next;
-  jumpToViewRow(next);
+  revealViewRow(next);
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -314,6 +365,7 @@ defineExpose({
 
 <template>
   <div
+    ref="rootEl"
     class="pr-src-diff"
     data-testid="source-diff-view"
     tabindex="-1"
@@ -373,6 +425,12 @@ defineExpose({
           :workspace-title="t('sourceWorkspaceBaselinePick', locale)"
           @pick-workspace="emit('pick-baseline-workspace')"
           @update:navigate-by="navigateBy = $event"
+          @select-file="
+            (id) => {
+              rightFileId = id;
+              syncFileIds('right');
+            }
+          "
         />
         <div
           v-else

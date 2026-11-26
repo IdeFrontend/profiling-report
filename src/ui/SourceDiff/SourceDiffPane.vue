@@ -65,10 +65,12 @@ function measureDiff(api: SuduApi, workers: SuduWorkerPool): DiffMeasurement {
     theme: DIFF_EDITOR_THEME,
   });
   const dpr = editor.getDevicePixelRatio() || fallback.dpr;
+  // getFontSize() is device pixels; the gutter measures in CSS px (SuduCodePane divides too).
+  const deviceFont = editor.getFontSize();
   const measured: DiffMeasurement = {
     rowHeightCss: cssRowHeight({ lineHeight: editor.getLineHeight(), dpr }) || fallback.rowHeightCss,
     dpr,
-    fontSize: editor.getFontSize() || fallback.fontSize,
+    fontSize: deviceFont > 0 ? deviceFont / (dpr || 1) : fallback.fontSize,
     fontFamily: editor.getFontFamily() || fallback.fontFamily,
   };
   editor.dispose();
@@ -81,6 +83,7 @@ function measureDiff(api: SuduApi, workers: SuduWorkerPool): DiffMeasurement {
 <script setup lang="ts">
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -200,14 +203,19 @@ const metricsByLine = computed(() => {
  * SourceMetricsTable looks values up by `line`, so feed it view rows and copy the
  * values of that row's source line. Filler rows carry no values.
  */
-const viewMetrics = computed<SourceFileModel>(() => ({
-  ...props.metrics,
-  lines: props.rows.map((row, index) => {
-    const sourceLine = sideLine(row);
-    const hit = sourceLine == null ? undefined : metricsByLine.value.get(sourceLine);
-    return { line: index + 1, values: hit?.values ?? {}, stallBreakdown: hit?.stallBreakdown };
-  }),
-}));
+const viewMetrics = computed<SourceFileModel>(() => {
+  // Drop lineCount so the table's extent is the view-row list, not the source file's.
+  const metrics = { ...props.metrics };
+  delete metrics.lineCount;
+  return {
+    ...metrics,
+    lines: props.rows.map((row, index) => {
+      const sourceLine = sideLine(row);
+      const hit = sourceLine == null ? undefined : metricsByLine.value.get(sourceLine);
+      return { line: index + 1, values: hit?.values ?? {}, stallBreakdown: hit?.stallBreakdown };
+    }),
+  };
+});
 
 /**
  * Design tint per view row, keyed by table line. A row this side lacks is a spacer on the
@@ -330,8 +338,12 @@ function onViewportResize(): void {
   const topRow = oldRowH > 0 ? Math.floor(getScrollCss() / oldRowH) : 0;
   measurement.value = measureDiff(suduApi, props.workers);
   rowH.value = measurement.value.rowHeightCss;
-  // Restore the same source row with the new height in this tick, before paint.
-  setScrollCss(topRow * rowH.value);
+  // The table still has the old row height until Vue flushes; restoring now clamps
+  // against the short scrollHeight and that offset never gets rewritten.
+  const top = topRow * rowH.value;
+  void nextTick(() => {
+    setScrollCss(top);
+  });
 }
 
 watch(

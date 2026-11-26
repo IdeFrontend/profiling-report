@@ -3665,6 +3665,58 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('PR-DIFF-204: compare search stays off the timeline query, and a new source or a disabled Source tab exits compare', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-compare-reset',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    const search = wrapper.get('[data-testid="compare-search"]');
+    await search.setValue('kernel');
+    await nextTick();
+    expect((wrapper.vm as unknown as { viewState: { searchQuery: string } }).viewState.searchQuery).toBe('');
+    expect((search.element as HTMLInputElement).value).toBe('kernel');
+
+    await wrapper.setProps({
+      reportModel: {
+        ...emptyReportViewModel(),
+        sourceCorrelation: { ...correlation, mock: true },
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    await wrapper.setProps({ source: new Uint8Array([1, 2, 3, 4]) });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-040: compareOnly opens compare without tabs; default keeps both tabs', async () => {
     const correlation = { ...mockSourceCorrelation(), mock: false };
     const pack: AdaptedReport = {

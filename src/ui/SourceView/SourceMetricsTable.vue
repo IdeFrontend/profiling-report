@@ -1050,6 +1050,8 @@ tr:hover td {
 /* Stall breakdown tip — v930-source: padded card, pill header row, solid bars.
    Teleported to body; z-index above Source chrome so a left-flipped tip stays visible. */
 .pr-src-metrics__tip {
+  /* Teleported to body, outside `.pr-src-metrics`, so the hatch token must live here. */
+  --table-bg: #1e1e1e;
   position: fixed;
   z-index: 1000;
   min-width: 340px;

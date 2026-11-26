@@ -6,6 +6,13 @@ import type {
 /**
  * Host picker for a source workspace (directory). One hidden directory input
  * per call; only files whose basename the library requested are read.
+ * Focus can return before `change`; wait this long so a completed pick still wins.
+ */
+export const SOURCE_WORKSPACE_FOCUS_CANCEL_MS = 300;
+
+/**
+ * Host picker for a source workspace (directory). One hidden directory input
+ * per call; only files whose basename the library requested are read.
  */
 export const pickSourceWorkspace: PickSourceWorkspace = (request) =>
   new Promise((resolve) => {
@@ -17,9 +24,11 @@ export const pickSourceWorkspace: PickSourceWorkspace = (request) =>
 
     let settled = false;
     let changed = false;
+    let focusTimer = 0;
     const finish = (files: SourceWorkspaceFile[] | null): void => {
       if (settled) return;
       settled = true;
+      window.clearTimeout(focusTimer);
       input.removeEventListener('change', onChange);
       input.removeEventListener('cancel', onCancel);
       window.removeEventListener('focus', onWindowFocus);
@@ -28,8 +37,8 @@ export const pickSourceWorkspace: PickSourceWorkspace = (request) =>
     };
 
     async function readPicked(files: FileList | null): Promise<void> {
-      const wanted = new Set(request.map((entry) => entry.basename));
-      const picked = [...(files ?? [])].filter((file) => wanted.has(file.name));
+      const wanted = new Set(request.map((entry) => entry.basename.toLowerCase()));
+      const picked = [...(files ?? [])].filter((file) => wanted.has(file.name.toLowerCase()));
       try {
         const read = await Promise.all(
           picked.map(async (file) => ({
@@ -59,7 +68,11 @@ export const pickSourceWorkspace: PickSourceWorkspace = (request) =>
      * A change may already be reading its files when focus fires: keep that pick.
      */
     function onWindowFocus(): void {
-      if (!changed) finish(null);
+      if (changed || settled) return;
+      window.clearTimeout(focusTimer);
+      focusTimer = window.setTimeout(() => {
+        if (!changed) finish(null);
+      }, SOURCE_WORKSPACE_FOCUS_CANCEL_MS);
     }
 
     input.addEventListener('change', onChange);

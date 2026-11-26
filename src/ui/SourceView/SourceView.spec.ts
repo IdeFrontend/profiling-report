@@ -599,7 +599,6 @@ describe('SourceView', () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
-    const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
     expect(asmNav.attributes('disabled')).toBeUndefined();
 
     await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
@@ -619,13 +618,11 @@ describe('SourceView', () => {
       metricsColumns: model.assembly.metricsColumns.filter((c) => c.id !== 'warpOccupancy'),
     };
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
-    const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
-    const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
 
     // A metric present in both dropdowns mirrors to the other pane.
     await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
-    expect(asmNav.text()).toContain('Sampling Stall');
-    expect(sourceNav.text()).toContain('Sampling Stall');
+    expect(wrapper.get('[data-testid="source-asm-navigate-by-label"]').text()).toContain('Sampling Stall');
+    expect(wrapper.get('[data-testid="source-navigate-by-label"]').text()).toContain('Sampling Stall');
 
     // A metric missing from the asm dropdown is not applied there.
     await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
@@ -635,8 +632,8 @@ describe('SourceView', () => {
     await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
 
     await pickNavigate(wrapper, 'source-navigate-by', 'warpOccupancy');
-    expect(sourceNav.text()).toContain('Warp Occupancy');
-    expect(asmNav.text()).toContain('Sampling Stall');
+    expect(wrapper.get('[data-testid="source-navigate-by-label"]').text()).toContain('Warp Occupancy');
+    expect(wrapper.get('[data-testid="source-asm-navigate-by-label"]').text()).toContain('Sampling Stall');
     wrapper.unmount();
   });
 
@@ -1050,15 +1047,16 @@ describe('SourceView', () => {
       attachTo: document.body,
     });
     const view = wrapper.get('[data-testid="source-view-select"]');
+    const viewLabel = wrapper.get('[data-testid="source-view-select-label"]');
     expect(view.attributes('aria-label')).toBe('View');
     expect(wrapper.get('[data-testid="source-view-toolbar"] label').text()).toBe('View:');
-    expect(view.text()).toBe('Source and SASS');
+    expect(viewLabel.text()).toBe('Source and SASS');
     expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(true);
 
     // Source only hides the SASS pane and selects Source.
     await pickNavigate(wrapper, 'source-view-select', 'source');
-    expect(view.text()).toBe('Source');
+    expect(viewLabel.text()).toBe('Source');
     expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="source-pane-source"]').classes()).toContain(
@@ -1067,7 +1065,7 @@ describe('SourceView', () => {
 
     // SASS only hides the Source pane and selects SASS.
     await pickNavigate(wrapper, 'source-view-select', 'asm');
-    expect(view.text()).toBe('SASS');
+    expect(viewLabel.text()).toBe('SASS');
     expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="source-pane-asm"]').classes()).toContain(
@@ -1076,7 +1074,7 @@ describe('SourceView', () => {
 
     // Both restores both panes and keeps the SASS selection.
     await pickNavigate(wrapper, 'source-view-select', 'both');
-    expect(view.text()).toBe('Source and SASS');
+    expect(viewLabel.text()).toBe('Source and SASS');
     expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="source-pane-asm"]').classes()).toContain(

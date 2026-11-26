@@ -24,5 +24,8 @@ describe('SourceMetricsTable occupancy hatch', () => {
 
     const fill = ruleBody('.pr-src-metrics__bar-fill');
     expect(fill).not.toContain('gradient');
+
+    const tip = ruleBody('.pr-src-metrics__tip');
+    expect(tip).toContain('--table-bg: #1e1e1e');
   });
 });

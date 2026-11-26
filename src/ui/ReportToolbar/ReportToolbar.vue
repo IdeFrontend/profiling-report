@@ -73,6 +73,8 @@ const props = withDefaults(
     compareOperators?: ReportOperator[];
     /** Compare chrome: the selected operator id. */
     compareOperatorId?: string | null;
+    /** Compare-only search. Kept off the timeline query. */
+    compareSearchQuery?: string;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
      * leave this false. Playground (and other hosts that serve the shell template)
@@ -97,6 +99,7 @@ const props = withDefaults(
     primaryBaselineId: null,
     compareOperators: undefined,
     compareOperatorId: null,
+    compareSearchQuery: '',
     htmlExportAvailable: false,
     clockFreqMHz: undefined,
     locale: undefined,
@@ -138,6 +141,7 @@ const emit = defineEmits<{
   'compare-nav-lowest': [];
   'compare-sort-asc': [];
   'compare-sort-desc': [];
+  'update:compareSearchQuery': [value: string];
 }>();
 
 const TIMELINE_TRACE_LABEL_KEY: Record<TimelineTraceKind, MessageKey> = {
@@ -1311,10 +1315,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           </button>
           <ToolbarSearch
             class="pr-compare-search"
-            :model-value="searchQuery"
+            :model-value="compareSearchQuery"
             :locale="locale"
             input-test-id="compare-search"
-            @update:model-value="emit('update:searchQuery', $event)"
+            @update:model-value="emit('update:compareSearchQuery', $event)"
             @submit="emit('compare-find-search')"
           />
           <button
@@ -2322,10 +2326,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 }
 
 .pr-compare__btn--text {
-  /* Teleported Source chrome lands after this button in the DOM; order keeps the
-     button last on the row so it sits at the right edge. */
-  order: 1;
-  margin-left: 8px;
+  /* The button is the host's first child; the teleported View caption follows it. */
+  margin-right: 8px;
   white-space: nowrap;
   height: 28px;
   padding: 0 12px;
