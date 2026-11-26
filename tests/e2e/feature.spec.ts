@@ -1123,8 +1123,8 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   await page.getByTestId('baselines-link').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   await expect(page.getByTestId('baselines-recent-list')).toBeVisible();
-  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
-  for (let i = 0; i < 5; i++) {
+  await expect(page.getByTestId('baseline-check')).toHaveCount(8);
+  for (let i = 0; i < 8; i++) {
     await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
   }
   // Rows title through the derived filename + timestamp, never the generated
@@ -1154,7 +1154,7 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
     mimeType: 'application/octet-stream',
     buffer: Buffer.from('npu-rep\0fake-baseline'),
   });
-  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await expect(page.getByTestId('baseline-check')).toHaveCount(9);
   await expect(page.getByTestId('baseline-check').last()).toBeChecked();
   await expect(page.locator('.pr-baseline__item--check').last()).toContainText('baseline-a.npu-rep');
   // The browsed title is the filename + the pick timestamp (PR-BASELINE-030).
@@ -1166,8 +1166,8 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   await page.reload();
   await expect(page.getByTestId('toggle-baselines')).toBeVisible();
   await page.getByTestId('baselines-link').click();
-  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
-  for (let i = 0; i < 5; i++) {
+  await expect(page.getByTestId('baseline-check')).toHaveCount(8);
+  for (let i = 0; i < 8; i++) {
     await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
   }
 });
@@ -1551,7 +1551,7 @@ test('PR-E2E-023: the aside Operator dropdown defaults to the matching (else fir
     mimeType: 'application/octet-stream',
     buffer: readFileSync(resolve(process.cwd(), 'data/out.rep')),
   });
-  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await expect(page.getByTestId('baseline-check')).toHaveCount(9);
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid^="aside-baseline-option-"]').last().click();
   // The real browsed report adapts into a demo multi-operator pack; its first
@@ -1884,7 +1884,7 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   // No baseline: zero badge nodes - the un-compared DOM is exactly the old diagram.
   await expect(badges).toHaveCount(0);
 
-  // Check ALL five demo baselines (DEMO-DIFF RULE: every baseline must show every badgeable
+  // Check the five original demo baselines (DEMO-DIFF RULE: every baseline must show every badgeable
   // element, with both tones at once).
   await page.getByTestId('toggle-baselines').click();
   const checkRows = page.locator('.pr-baseline__item--check');
@@ -2167,7 +2167,7 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   // comparison bar and the badges with it.
   // (The details click above closed the picker popover - reopen it.)
   await page.getByTestId('toggle-baselines').click();
-  await expect(page.locator('.pr-baseline__item--check')).toHaveCount(5);
+  await expect(page.locator('.pr-baseline__item--check')).toHaveCount(8);
   // The in-place sampling above left demo-recent-2 selected - uncheck it.
   await page.locator('.pr-baseline__item--check').nth(1).click();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', 'demo-recent-1');
