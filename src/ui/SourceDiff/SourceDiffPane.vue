@@ -429,8 +429,10 @@ function setScrollCss(css: number): void {
 }
 
 /** Jump to a view row (change navigation). */
-function scrollToRow(index: number): void {
-  setScrollCss(Math.max(0, index * rowH.value));
+function scrollToRow(index: number): number {
+  const css = Math.max(0, index * rowH.value);
+  setScrollCss(css);
+  return css;
 }
 
 function getScrollCss(): number {

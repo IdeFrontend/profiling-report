@@ -219,8 +219,10 @@ watch(rightPane, (pane) => {
 
 /** Move both panes to a view row. */
 function scrollToRow(index: number): void {
-  leftPane.value?.scrollToRow(index);
-  rightPane.value?.scrollToRow(index);
+  const css = leftPane.value?.scrollToRow(index);
+  const rightCss = rightPane.value?.scrollToRow(index);
+  const applied = css ?? rightCss;
+  if (applied != null) sharedScroll.value = applied;
 }
 
 /** Navigate By and search follow the focused pane, the way the Source tab does. */
