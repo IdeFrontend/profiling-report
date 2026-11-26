@@ -399,7 +399,7 @@ describe('SourceView', () => {
     expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
   });
 
-  it('PR-SOURCE-007: sketch toolbar controls are present', () => {
+  it('PR-SOURCE-007: sketch toolbar controls are present', async () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() } });
     expect(wrapper.find('[data-testid="source-search"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-toolbar-actions"]').exists()).toBe(true);
@@ -423,6 +423,9 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-file-select"]').element.closest('.pr-block-pill')).toBeTruthy();
     expect(wrapper.find('[data-testid="source-navigate-by"]').element.closest('.pr-block-pill')).toBeTruthy();
     expect(wrapper.find('[data-testid="source-asm-navigate-by"]').element.closest('.pr-block-pill')).toBeTruthy();
+    const src = (await import('./SourceView.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-source-view__views-row\s*\{[^}]*flex:\s*0 1 auto/);
+    expect(src).not.toMatch(/\.pr-source-view__views-row\s*\{[^}]*width:\s*100%/);
   });
 
   it('PR-SOURCE-031: workspace pick button follows availability and emits', async () => {

@@ -974,8 +974,10 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin: 0;
   padding: 0;
+  /* Shrink to the controls. A width of 100% inside the source toolbar row
+     pushes View to the far end, away from the Compare source button. */
+  flex: 0 1 auto;
   min-width: 0;
-  width: 100%;
   justify-content: flex-end;
   color: var(--pr-src-label);
   font-family: var(--pr-src-ui-font);
