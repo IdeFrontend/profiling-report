@@ -365,6 +365,43 @@ defineExpose({ close });
   gap: 2px;
   max-height: 260px;
   overflow-y: auto;
+  /* Teleported to `body` — outside `.pr-root` — so the tokens.css scrollbar
+     rules do not apply. Mirror the other teleported menus (SourcePillSelect):
+     dark thin thumb on a transparent track, no native light track/arrows
+     (issue #266). */
+  scrollbar-width: thin;
+  scrollbar-color: #5a5a5a transparent;
+}
+
+.pr-baseline__list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pr-baseline__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pr-baseline__list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #5a5a5a;
+  background-clip: content-box;
+}
+
+.pr-baseline__list::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+  background-clip: content-box;
+}
+
+.pr-baseline__list::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.pr-baseline__list::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .pr-baseline__empty {

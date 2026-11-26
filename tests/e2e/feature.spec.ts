@@ -1211,6 +1211,27 @@ test('PR-BASELINE-027: the baselines popover teleports above the overview hover 
     .toBe(true);
 });
 
+test('PR-BASELINE-031: the baselines list paints the teleported-menu scrollbar', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample');
+  await expect(page.getByTestId('playground-ready')).toBeVisible();
+  await page.getByTestId('toggle-baselines').click();
+  const list = page.locator('[data-testid="baselines-popover"] .pr-baseline__list');
+  await expect(list).toBeVisible();
+
+  // The popover lives on `body`, so the `.pr-root` scrollbar rules never reach
+  // it; issue #266: the native light bar cut a bright stripe through the dark
+  // panel. The standard properties are the authored contract (the webkit
+  // fallback only serves engines without them), so assert the computed style.
+  const scrollbar = await list.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { width: style.scrollbarWidth, color: style.scrollbarColor };
+  });
+  expect(scrollbar.width).toBe('thin');
+  expect(scrollbar.color).toContain('rgb(90, 90, 90)');
+  expect(scrollbar.color).toContain('rgba(0, 0, 0, 0)');
+});
+
 test('PR-E2E-021: the bar Operator select drives per-operator comparison badges', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
   await expect(page.getByTestId('stats-aside')).toBeVisible();
