@@ -425,6 +425,24 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-asm-navigate-by"]').element.closest('.pr-block-pill')).toBeTruthy();
   });
 
+  it('PR-SOURCE-031: workspace pick button follows availability and emits', async () => {
+    const hidden = mount(SourceView, { props: { model: mockSourceCorrelation() } });
+    expect(hidden.find('[data-testid="source-workspace-pick"]').exists()).toBe(false);
+    hidden.unmount();
+
+    const wrapper = mount(SourceView, {
+      props: { model: mockSourceCorrelation(), workspaceAvailable: true },
+    });
+    await flushPromises();
+    const button = wrapper.find('[data-testid="source-workspace-pick"]');
+    expect(button.exists()).toBe(true);
+    expect(button.attributes('aria-label')).toBe(t('sourceWorkspacePick'));
+    expect(button.classes()).toContain('pr-source-view__icon-btn');
+    await button.trigger('click');
+    expect(wrapper.emitted('pick-workspace')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
   it('PR-SOURCE-008: both panes paint search; Enter and prev/next use selected pane', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });

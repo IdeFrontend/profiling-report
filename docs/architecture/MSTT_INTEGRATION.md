@@ -73,6 +73,57 @@ resolveSourceFile?: (request: {
 
 Compute packs may ship [`objdump.txt`](../formats/compute/objdump.txt.md) / [`symbolizer.json`](../formats/compute/symbolizer.json.md) / [`summary.db`](../formats/compute/summary.db.md) without Ascend C source ([compute FORMAT](../formats/compute/FORMAT.md)). The library only looks inside pack payloads; it never opens disk paths. When adapted source text is the `// missing source embed: …` placeholder, the library calls this hook (once per missing file). Return UTF-8 source text to fill the editor (async after first paint is supported); return `null` or throw to keep the placeholder. Skip is automatic when [`.asc` / `.cpp`](../formats/compute/symbolizer.json.md#source-text) is already in the pack. Hosts (VS Code / MSTT) should implement the hook via `workspace.fs` (Remote-SSH-safe) with an allowlist (workspace folders + report directory). View packet: [source](../views/source.md).
 
+**`pickSourceWorkspace` (source workspace, [UI-64](../context/decisions/UI.md)).** One optional prop fills every source file the pack omitted:
+
+```ts
+import * as vscode from 'vscode';
+import type {
+  PickSourceWorkspace,
+  SourceWorkspaceFile,
+} from '@huawei/profiling-report';
+
+export const pickSourceWorkspace: PickSourceWorkspace = async (request) => {
+  const picked = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+  });
+  const folder = picked?.[0];
+  if (!folder) return null;
+  const files: SourceWorkspaceFile[] = [];
+  for (const { basename } of request) {
+    const found = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(folder, `**/${basename}`),
+      '**/{.git,node_modules}/**',
+      1,
+    );
+    const uri = found[0];
+    if (!uri) continue;
+    files.push({
+      path: vscode.workspace.asRelativePath(uri, false),
+      text: new TextDecoder().decode(await vscode.workspace.fs.readFile(uri)),
+    });
+  }
+  return { files };
+};
+```
+
+Pass it as `:pick-source-workspace="pickSourceWorkspace"`. The hook receives only the deduped files that still hold a placeholder, shaped `{ fileName, basename }[]`. The browser host opens a directory picker (hidden `webkitdirectory` input) and reads only the requested basenames; VS Code / MSTT opens a folder and reads through `workspace.fs`, so Remote-SSH works. The library itself never opens a disk path.
+
+**Fill only placeholders.** `workspaceSourceResolver` matches a picked file by exact path, then the longest shared suffix, then basename; an ambiguous tier counts as a miss, and a case-insensitive second pass runs before giving up. Only files whose text is still `// missing source embed: …` are replaced. Text already packed in the leaf stays authoritative and is never overwritten; `null`, a throw, or no match leaves the placeholder and the button visible.
+
+**Two buttons, two sides.** The single-pane Source tab shows **Pick source workspace** (`sourceWorkspacePick`) only while the open report has placeholders and the hook exists. Source diff (源码对比) shows one button per pane: left = open report (`sourceWorkspacePick`), right = the baseline row (`sourceWorkspaceBaselinePick`). The right button appears only while that baseline still has placeholders and the hook exists, and it hides once every file resolves. Compare enablement and the default pair are described under **Compare mode** below; row 0 keeps its numeric aside role. A baseline pick writes a local overlay keyed `${baselineId}:${operatorId}` and never mutates the cached pack.
+
+**Compare mode (源码对比, [UI-65](../context/decisions/UI.md)).** 进入源码对比 is enabled when the open report has a non-mock source correlation and at least one baseline is checked. No baseline source model is required. Compare opens on the first checked baseline whose adapted pack resolves a source correlation — `operatorReports[operatorId]?.reportModel.sourceCorrelation`, falling back to `reportModel.sourceCorrelation` — else on the first checked baseline.
+
+The compare header carries two inline selectors. The report selector lists only checked baselines and titles each entry through `baselineDisplayTitle`. The operator selector lists the selected baseline's declared `operators`, falling back to the pack's operator keys, then `summary.opName`. Picking a different report moves the pair to that baseline and resets the operator to its default; re-picking the current report keeps the operator. Picking an operator swaps only the right pane.
+
+A selected baseline with no source model or no files keeps the left pane and shows an explicit empty right pane (`sourceDiffBaselineEmpty`). When `pickSourceWorkspace` exists, that pane shows a disabled pick button titled `sourceDiffWorkspaceBaselineDisabled`. The right workspace button is enabled while the baseline still has placeholder files, and it hides when the pack carries source text or when no hook exists.
+
+Removing the selected checked baseline moves the pair to the baseline now at the removed position (else the last checked one) and resets the operator. Removing the last one exits compare. A manual exit or a new open report clears the pair, so the next open seeds the default again. Until the user picks a different report or an operator, each late `baselineReports` swap re-runs the default pair.
+
+**Exported source text.** Only an open-report fill records matched text, keyed by file path and limited to files that changed from placeholder to real. `export-html` passes that map to `stitchHtmlReport`, which injects `window.__NPU_SOURCE_TEXTS__` before the report bytes; the exported shell rebuilds a pick with `sourceWorkspaceFromTexts` and fills the same placeholders. A baseline fill never enters the export. The CLI (`--source-workspace <dir>` on both generators) reads a directory with the same text-only rules.
+
 MVP/M1 host can pass `[]` or omit; library shows summary, PIPE, M1 detail tabs, and timeline without requiring capability flags for those. `memoryDiagram` / measure chrome may be gated.
 
 `roofline` is derived when the report yields usable points; a host `capabilities` prop overrides the derived set wholesale.

@@ -11,13 +11,14 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stitchHtmlReport } from './stitch-html-report.mjs';
+import { readSourceWorkspace } from './source-workspace.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const templatePath = resolve(root, 'dist/report-shell/template.html');
 
 function usage() {
-  console.error(`Usage: generate-html-report.mjs <input.npu-rep> -o <output.html> [--name <title>] [--en|--zh]
+  console.error(`Usage: generate-html-report.mjs <input.npu-rep> -o <output.html> [--name <title>] [--en|--zh] [--source-workspace <dir>]
 
 Build the shell first: npm run build:report-shell`);
 }
@@ -33,6 +34,7 @@ function parseArgs(argv) {
   let output = null;
   let name = null;
   let locale = null;
+  let sourceWorkspace = null;
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '-o' || a === '--output') {
@@ -41,6 +43,10 @@ function parseArgs(argv) {
     }
     if (a === '--name') {
       name = args[++i];
+      continue;
+    }
+    if (a === '--source-workspace') {
+      sourceWorkspace = args[++i];
       continue;
     }
     if (a === '--en' || a === '--zh') {
@@ -56,10 +62,10 @@ function parseArgs(argv) {
     if (input) fail(`unexpected argument ${a}`);
     input = a;
   }
-  return { input, output, name, locale };
+  return { input, output, name, locale, sourceWorkspace };
 }
 
-const { input, output, name, locale } = parseArgs(process.argv);
+const { input, output, name, locale, sourceWorkspace } = parseArgs(process.argv);
 if (!input || !output) {
   usage();
   process.exit(1);
@@ -78,9 +84,12 @@ if (bytes.length === 0) fail(`input is empty: ${inputPath}`);
 
 const reportName = name ?? basename(inputPath);
 const template = readFileSync(templatePath, 'utf8');
+const workspacePath = sourceWorkspace ? resolve(process.cwd(), sourceWorkspace) : null;
+if (workspacePath && !existsSync(workspacePath)) fail(`source workspace not found: ${workspacePath}`);
+const sourceTexts = workspacePath ? readSourceWorkspace(workspacePath) : undefined;
 let html;
 try {
-  html = stitchHtmlReport(template, bytes, reportName, locale);
+  html = stitchHtmlReport(template, bytes, reportName, locale, sourceTexts);
 } catch (cause) {
   fail(`${cause instanceof Error ? cause.message : String(cause)} — rebuild with npm run build:report-shell`);
 }

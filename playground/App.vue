@@ -13,6 +13,7 @@ import {
   DEMO_RECENT_BASELINES,
   withDemoBaselineOperators,
 } from '../src/host/baselinesHost';
+import { pickSourceWorkspace } from '../src/host/sourceWorkspaceHost';
 import { depsTraceFixture } from './depsFixture';
 import { hydrateSampleRep } from './hydrateSampleRep';
 
@@ -479,6 +480,7 @@ onMounted(async () => {
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="DEMO_RECENT_BASELINES"
         :baseline-reports="baselineReports"
+        :pick-source-workspace="pickSourceWorkspace"
         @view-full-csv="onViewFullCsv"
         @update:baselines="onBaselinesUpdate"
         @update:baseline-rows="onBaselineRows"
@@ -497,6 +499,7 @@ onMounted(async () => {
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="DEMO_RECENT_BASELINES"
         :baseline-reports="baselineReports"
+        :pick-source-workspace="pickSourceWorkspace"
         @view-full-csv="onViewFullCsv"
         @update:baselines="onBaselinesUpdate"
         @update:baseline-rows="onBaselineRows"

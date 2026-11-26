@@ -46,6 +46,8 @@ const props = withDefaults(
     locale?: string;
     suduWorkerUrl?: string;
     userGuideUrl?: string;
+    /** Show the workspace picker button (at least one file needs source text). */
+    workspaceAvailable?: boolean;
   }>(),
   {
     session: 0,
@@ -53,11 +55,13 @@ const props = withDefaults(
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
+    workspaceAvailable: false,
   },
 );
 
 const emit = defineEmits<{
   'open-user-guide': [url: string];
+  'pick-workspace': [];
 }>();
 
 type PaneApi = {
@@ -821,6 +825,17 @@ onBeforeUnmount(() => {
               test-id="source-file-select"
               @update:model-value="onSourceFileChange"
             />
+            <button
+              v-if="workspaceAvailable"
+              type="button"
+              class="pr-source-view__icon-btn pr-icon-tip"
+              data-testid="source-workspace-pick"
+              :aria-label="t('sourceWorkspacePick', locale)"
+              :title="t('sourceWorkspacePick', locale)"
+              @click="emit('pick-workspace')"
+            >
+              <PrIcon name="add-baseline" />
+            </button>
           </div>
           <div class="pr-source-view__pane-bar-break" />
           <div class="pr-source-view__pane-bar-nav">

@@ -3,9 +3,17 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   HTML_EXPORT_B64_PLACEHOLDER,
+  HTML_EXPORT_EMBED_START,
   htmlExportFileName,
+  sourceWorkspaceFromTexts,
   stitchHtmlReport,
 } from './stitchHtmlReport';
+import {
+  MISSING_SOURCE_EMBED_PREFIX,
+  resolveMissingSourceFiles,
+  workspaceSourceResolver,
+} from '../adapters/sourceCorrelation/resolveSourceFile';
+import type { SourceCorrelationModel } from '../domain/types';
 
 const TEMPLATE = `<!doctype html>
 <html lang="zh-CN"><head><title>profiling-report</title></head>
@@ -32,6 +40,57 @@ describe('stitchHtmlReport', () => {
     // Viewer bundle (and this helper) mention the token; only the embed slot is filled.
     expect(html).toContain("const keep = '__HTML_EXPORT_B64__'");
     expect(html).not.toContain(`window.__NPU_REP_B64__ = '${HTML_EXPORT_B64_PLACEHOLDER}'`);
+  });
+
+  it('carries resolved source text before the embed block and escapes markup', () => {
+    const html = stitchHtmlReport(TEMPLATE, new Uint8Array([1]), 'op.npu-rep', 'en', {
+      'kernel.asc': 'if (a < b && c > d) {\n  run();\n}',
+      'sep.asc': 'x\u2028y\u2029z',
+    });
+    expect(html).toContain(
+      '<script>window.__NPU_SOURCE_TEXTS__ = {"kernel.asc":"if (a \\u003c b \\u0026\\u0026 c \\u003e d) {\\n  run();\\n}","sep.asc":"x\\u2028y\\u2029z"};</script>',
+    );
+    const scriptAt = html.indexOf('window.__NPU_SOURCE_TEXTS__');
+    expect(scriptAt).toBeLessThan(html.indexOf(HTML_EXPORT_EMBED_START));
+    expect(scriptAt).toBeLessThan(html.indexOf('window.__NPU_REP_B64__'));
+  });
+
+  it('omits the source text script when the map is empty', () => {
+    expect(stitchHtmlReport(TEMPLATE, new Uint8Array([1]), 'op.npu-rep')).not.toContain(
+      '__NPU_SOURCE_TEXTS__',
+    );
+    expect(
+      stitchHtmlReport(TEMPLATE, new Uint8Array([1]), 'op.npu-rep', 'en', {}),
+    ).not.toContain('__NPU_SOURCE_TEXTS__');
+  });
+
+  it('round-trips the stitched map into a resolver that fills a placeholder model', async () => {
+    const html = stitchHtmlReport(TEMPLATE, new Uint8Array([1]), 'op.npu-rep', 'en', {
+      '/sdk/kernel.asc': 'int kernel() { return 0; }\n',
+    });
+    const embedded = /window\.__NPU_SOURCE_TEXTS__ = (.*?);<\/script>/.exec(html);
+    expect(embedded).not.toBeNull();
+    const texts = JSON.parse(embedded![1]!) as Record<string, string>;
+    const pick = sourceWorkspaceFromTexts(texts)!;
+    const model: SourceCorrelationModel = {
+      files: [
+        {
+          id: '7',
+          path: '/sdk/kernel.asc',
+          language: 'ascend-c',
+          text: `${MISSING_SOURCE_EMBED_PREFIX}/sdk/kernel.asc\n`,
+          metricsColumns: [],
+          lines: [],
+        },
+      ],
+      assembly: { id: 'sass', path: 'k.sass', text: '', metricsColumns: [], lines: [] },
+      asmToSource: new Map(),
+      navigateBy: [],
+      mock: false,
+    };
+    const filled = await resolveMissingSourceFiles(model, workspaceSourceResolver(pick));
+    expect(filled.files[0]!.text).toBe('int kernel() { return 0; }\n');
+    expect(sourceWorkspaceFromTexts({})).toBeNull();
   });
 
   it('uses the HTML <script> slot when the viewer bundle quotes the same markers first', () => {

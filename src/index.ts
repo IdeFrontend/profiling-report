@@ -23,7 +23,11 @@ export {
   chromeTraceToSwimlane,
   isMissingSourceEmbed,
   mockSourceCorrelation,
+  modelNeedsSourceResolve,
   resolveMissingSourceFiles,
+  sourceBasename,
+  sourceResolveRequests,
+  workspaceSourceResolver,
   coreNameToPipeSide,
   csvTableFromPipeUtilizationHist,
   emptyReportViewModel,
@@ -46,8 +50,11 @@ export {
 
 export type * from './domain/types';
 export type {
+  PickSourceWorkspace,
   ResolveSourceFile,
   ResolveSourceFileRequest,
+  SourceWorkspaceFile,
+  SourceWorkspacePick,
 } from './adapters';
 export {
   DEFAULT_DEPENDENCY_DEPTH,

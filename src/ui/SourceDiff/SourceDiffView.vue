@@ -2,8 +2,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import type { ITextDiffModel } from '@sudu-ide/code-review';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
+import { t } from '../../i18n';
 import { alignSourceLines, splitSourceLines, type DiffRow } from './diffAlign';
 import SourceDiffPane from './SourceDiffPane.vue';
+import PrIcon from '../PrIcon.vue';
 import { getSuduWorkerPool, loadSuduApi, type SuduApi, type SuduWorkerPool } from '../SourceView/suduRuntime';
 
 const props = withDefaults(
@@ -11,20 +13,29 @@ const props = withDefaults(
     /** Current operator's source correlation — rendered in the left (focused) pane. */
     current: SourceCorrelationModel;
     /** Selected baseline operator's source correlation — rendered in the right pane. */
-    baseline: SourceCorrelationModel;
+    baseline?: SourceCorrelationModel;
     locale?: string;
     suduWorkerUrl?: string;
     searchQuery?: string;
+    /** The open report still has placeholder files a workspace pick can fill. */
+    currentWorkspaceAvailable?: boolean;
+    /** The baseline still has placeholder files a workspace pick can fill. */
+    baselineWorkspaceAvailable?: boolean;
   }>(),
   {
+    baseline: undefined,
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
     searchQuery: '',
+    currentWorkspaceAvailable: false,
+    baselineWorkspaceAvailable: false,
   },
 );
 
 const emit = defineEmits<{
   exit: [];
+  'pick-current-workspace': [];
+  'pick-baseline-workspace': [];
 }>();
 
 type PaneSide = 'left' | 'right';
@@ -35,7 +46,9 @@ const rightFileId = ref('');
 const activeSide = ref<PaneSide>('left');
 
 const leftFiles = computed<SourceFileModel[]>(() => props.current.files);
-const rightFiles = computed<SourceFileModel[]>(() => props.baseline.files);
+const rightFiles = computed<SourceFileModel[]>(() => props.baseline?.files ?? []);
+/** A missing baseline, or one without files, gets an explicit empty right pane. */
+const baselineEmpty = computed(() => !props.baseline || props.baseline.files.length === 0);
 
 const EMPTY_FILE: SourceFileModel = { id: '', path: '', metricsColumns: [], lines: [], text: '' };
 
@@ -46,7 +59,7 @@ function resolveFile(files: SourceFileModel[], id: string, path?: string): Sourc
 /** Keep both sides on the same file path when the baseline ships the same file set. */
 function syncFileIds(keep: PaneSide): void {
   const left = props.current.files;
-  const right = props.baseline.files;
+  const right = props.baseline?.files ?? [];
   if (keep === 'left' || !leftFileId.value) {
     const picked = resolveFile(left, leftFileId.value);
     leftFileId.value = picked.id;
@@ -337,7 +350,10 @@ defineExpose({
           :scroll-listener="syncScroll('left')"
           :linked="linked"
           :highlight-column="navigateBy"
+          :workspace-available="currentWorkspaceAvailable"
+          :workspace-title="t('sourceWorkspacePick', locale)"
           @toggle-link="toggleLink"
+          @pick-workspace="emit('pick-current-workspace')"
           @update:navigate-by="navigateBy = $event"
           @select-file="
             (id) => {
@@ -353,6 +369,7 @@ defineExpose({
         @pointerdown="activeSide = 'right'"
       >
         <SourceDiffPane
+          v-if="!baselineEmpty"
           ref="rightPane"
           :rows="displayRows"
           side="right"
@@ -366,9 +383,30 @@ defineExpose({
           :scroll-listener="syncScroll('right')"
           :linked="linked"
           :highlight-column="navigateBy"
+          :workspace-available="baselineWorkspaceAvailable"
+          :workspace-title="t('sourceWorkspaceBaselinePick', locale)"
           @toggle-link="toggleLink"
+          @pick-workspace="emit('pick-baseline-workspace')"
           @update:navigate-by="navigateBy = $event"
         />
+        <div
+          v-else
+          class="pr-src-diff__empty"
+          data-testid="source-diff-baseline-empty"
+        >
+          <span class="pr-src-diff__empty-hint">{{ t('sourceDiffBaselineEmpty', locale) }}</span>
+          <button
+            v-if="baselineWorkspaceAvailable"
+            type="button"
+            class="pr-src-diff__empty-btn"
+            data-testid="source-diff-workspace-right"
+            :title="t('sourceDiffWorkspaceBaselineDisabled', locale)"
+            :aria-label="t('sourceDiffWorkspaceBaselineDisabled', locale)"
+            disabled
+          >
+            <PrIcon name="add-baseline" />
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -404,5 +442,32 @@ defineExpose({
   flex: 1 1 50%;
   min-width: 0;
   min-height: 0;
+}
+
+.pr-src-diff__empty {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  color: #999999;
+  font-size: 12px;
+}
+
+.pr-src-diff__empty-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  background: transparent;
+  color: #666666;
+  cursor: not-allowed;
 }
 </style>

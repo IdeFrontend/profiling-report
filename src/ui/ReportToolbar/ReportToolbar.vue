@@ -4,6 +4,7 @@ import PrIcon from '../PrIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import ToolbarSearch from './ToolbarSearch.vue';
 import BaselinePicker from './BaselinePicker/BaselinePicker.vue';
+import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import type {
   Baseline,
   BaselinePick,
@@ -66,8 +67,12 @@ const props = withDefaults(
     compareAvailable?: boolean;
     /** Host embeds the Source surface alone: omit the view-tab strip. */
     hideTabs?: boolean;
-    /** The primary saved-baseline id, titled in the compare chrome. */
+    /** Compare chrome: the selected saved baseline id. */
     primaryBaselineId?: string | null;
+    /** Compare chrome: operators of the selected baseline. */
+    compareOperators?: ReportOperator[];
+    /** Compare chrome: the selected operator id. */
+    compareOperatorId?: string | null;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
      * leave this false. Playground (and other hosts that serve the shell template)
@@ -90,6 +95,8 @@ const props = withDefaults(
     compareAvailable: false,
     hideTabs: false,
     primaryBaselineId: null,
+    compareOperators: undefined,
+    compareOperatorId: null,
     htmlExportAvailable: false,
     clockFreqMHz: undefined,
     locale: undefined,
@@ -120,6 +127,8 @@ const emit = defineEmits<{
   'export-html': [];
   'update:baselines': [baselines: Baseline[]];
   'open-cannwork': [];
+  'update:primaryBaselineId': [id: string];
+  'update:compareOperatorId': [id: string];
   'compare-enter': [];
   'compare-exit': [];
   'compare-find-next': [];
@@ -211,11 +220,21 @@ const opMenuRef = ref<HTMLElement | null>(null);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
 
-/** The primary baseline's title; the BaselinePicker is the only way to change it. */
-const compareBaselineTitle = computed(() => {
-  if (!props.primaryBaselineId) return '';
-  const baseline = props.baselines?.find((b) => b.id === props.primaryBaselineId);
-  return baseline ? baselineDisplayTitle(baseline) : '';
+const compareReportOptions = computed(() => (props.baselines ?? []).map((b) => b.id));
+const compareReportLabel = (id: string): string => {
+  const baseline = props.baselines?.find((b) => b.id === id);
+  return baseline ? baselineDisplayTitle(baseline) : id;
+};
+const compareOperatorOptions = computed(() => (props.compareOperators ?? []).map((o) => o.id));
+const compareOperatorLabel = (id: string): string =>
+  props.compareOperators?.find((o) => o.id === id)?.label ?? id;
+const compareReportAriaLabel = computed(() => {
+  const id = props.primaryBaselineId;
+  return `${t('sourceDiffReport', props.locale)}: ${id ? compareReportLabel(id) : ''}`;
+});
+const compareOperatorAriaLabel = computed(() => {
+  const id = props.compareOperatorId;
+  return `${t('sourceDiffOperator', props.locale)}: ${id ? compareOperatorLabel(id) : ''}`;
 });
 const showTimelineTraceSelector = computed(() => (props.timelineTraces?.length ?? 0) > 1);
 
@@ -1262,13 +1281,24 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       <template v-if="compareMode">
         <div class="pr-compare__left">
           <span class="pr-compare__title">{{ t('sourceDiffTitle', locale) }}</span>
-          <label class="pr-compare__baseline">
-            <span>{{ t('sourceDiffBaseline', locale) }}</span>
-            <span
-              class="pr-compare__baseline-value"
-              data-testid="compare-baseline"
-            >{{ compareBaselineTitle }}</span>
-          </label>
+          <CardMetricSelect
+            variant="inline"
+            test-id-prefix="compare-report"
+            :model-value="primaryBaselineId ?? ''"
+            :options="compareReportOptions"
+            :ariaLabel="compareReportAriaLabel"
+            :label-of="compareReportLabel"
+            @update:model-value="emit('update:primaryBaselineId', $event)"
+          />
+          <CardMetricSelect
+            variant="inline"
+            test-id-prefix="compare-operator"
+            :model-value="compareOperatorId ?? ''"
+            :options="compareOperatorOptions"
+            :ariaLabel="compareOperatorAriaLabel"
+            :label-of="compareOperatorLabel"
+            @update:model-value="emit('update:compareOperatorId', $event)"
+          />
         </div>
         <div class="pr-compare__right">
           <button
@@ -2230,9 +2260,8 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   min-width: 0;
 }
 
-/* Grow into the row so the baseline title absorbs the shrink instead of
-   forcing the right group onto a second row. */
 .pr-compare__left {
+  gap: 8px;
   flex: 1 1 auto;
 }
 
@@ -2242,33 +2271,10 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 }
 
 .pr-compare__title {
-  margin-right: 8px;
   font-size: 12px;
   font-weight: 400;
   color: #ffffff;
   white-space: nowrap;
-}
-
-.pr-compare__baseline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 12px;
-  color: #b2b2b2;
-  white-space: nowrap;
-}
-
-/* A long report title shrinks with an ellipsis; no second control replaces the picker. */
-.pr-compare__baseline-value {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 305px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  color: #999999;
 }
 
 .pr-compare__exit {

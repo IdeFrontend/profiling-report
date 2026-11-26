@@ -801,24 +801,33 @@ describe('ReportToolbar', () => {
     wrapper.unmount();
   });
 
-  it('PR-TOOLBAR-040: compare chrome has no html export; baseline colon is zh-only', async () => {
+  it('PR-TOOLBAR-040: compare chrome has no html export and renders inline report/operator selectors', async () => {
     const base = {
       ...defaultProps,
       locale: 'en-US',
       activeTab: 'source' as const,
       sourceTabEnabled: true,
       compareMode: true,
+      primaryBaselineId: 'b1',
+      baselines: [{ id: 'b1', name: '', path: '/data/a.rep' }],
+      compareOperators: [{ id: 'matmul', label: 'MatMul' }],
+      compareOperatorId: 'matmul',
     };
     const hidden = mount(ReportToolbar, {
       props: { ...base, htmlExportAvailable: true },
     });
     expect(hidden.find('[data-testid="export-html"]').exists()).toBe(false);
-    expect(hidden.find('.pr-compare__baseline').text()).toBe('Baseline');
+    expect(hidden.find('[data-testid="compare-report-select"]').exists()).toBe(true);
+    expect(hidden.find('[data-testid="compare-operator-select"]').exists()).toBe(true);
+    expect(hidden.find('.pr-compare__title').text()).toBe(t('sourceDiffTitle', 'en-US'));
     hidden.unmount();
 
     const zh = mount(ReportToolbar, { props: { ...base, locale: 'zh-CN' } });
-    expect(zh.find('.pr-compare__baseline').text()).toBe(t('sourceDiffBaseline', 'zh-CN'));
-    expect(zh.find('.pr-compare__baseline').text()).toContain('：');
+    expect(zh.find('.pr-compare__title').text()).toBe(t('sourceDiffTitle', 'zh-CN'));
+    expect(zh.get('[data-testid="compare-report-select"] button').attributes('aria-label'))
+      .toBe(`${t('sourceDiffReport', 'zh-CN')}: a.rep`);
+    expect(zh.get('[data-testid="compare-operator-select"] button').attributes('aria-label'))
+      .toBe(`${t('sourceDiffOperator', 'zh-CN')}: MatMul`);
     zh.unmount();
   });
 
@@ -833,13 +842,10 @@ describe('ReportToolbar', () => {
     expect(src).toMatch(/\.pr-chrome--compare\s*\{[^}]*padding:\s*8px/);
     expect(src).toMatch(/\.pr-toolbar--compare\s*\{[^}]*gap:\s*8px/);
     // Left group uses the shared 8px rhythm.
-    expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*margin-right:\s*8px/);
+    expect(src).toMatch(/\.pr-compare__left\s*\{[^}]*gap:\s*8px/);
     expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*font-weight:\s*400/);
     expect(src).toMatch(/\.pr-compare__title\s*\{[^}]*color:\s*#ffffff/);
-    expect(src).toMatch(/\.pr-compare__baseline\s*\{[^}]*gap:\s*8px/);
-    // Baseline value 305px maximum, #999999; no select caret in the chrome.
-    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*max-width:\s*305px/);
-    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*color:\s*#999999/);
+    expect(src).not.toMatch(/\.pr-compare__baseline/);
     expect(src).not.toMatch(/\.pr-compare__select/);
     expect(src).toMatch(/\.pr-compare__exit\s*\{[^}]*color:\s*#b4b4b4/);
     expect(src).toMatch(/\.pr-compare__exit\s*\{[^}]*background:\s*#343434/);
@@ -858,8 +864,7 @@ describe('ReportToolbar', () => {
     expect(searchSrc).toMatch(/\.pr-toolbar__search input\s*\{[^}]*border-radius:\s*4px/);
   });
 
-  it('PR-TOOLBAR-042: the compare chrome titles the primary baseline and renders no select', async () => {
-    const src = (await import('./ReportToolbar.vue?raw')).default as string;
+  it('PR-TOOLBAR-042: report and operator selectors list their options and emit a pick', async () => {
     const wrapper = mount(ReportToolbar, {
       props: {
         ...defaultProps,
@@ -868,16 +873,42 @@ describe('ReportToolbar', () => {
         sourceTabEnabled: true,
         compareMode: true,
         primaryBaselineId: 'b1',
-        baselines: [{ id: 'b1', name: '', path: '/data/a.rep' }],
+        baselines: [
+          { id: 'b1', name: '', path: '/data/a.rep' },
+          { id: 'b2', name: '', path: '/data/b.rep' },
+        ],
+        compareOperators: [
+          { id: 'matmul', label: 'MatMul' },
+          { id: 'relu', label: 'Relu' },
+        ],
+        compareOperatorId: 'relu',
       },
     });
-    const value = wrapper.get('[data-testid="compare-baseline"]');
-    expect(value.element.tagName).toBe('SPAN');
-    expect(value.text()).toBe('a.rep');
     expect(wrapper.find('select').exists()).toBe(false);
-    // A long title shrinks with an ellipsis instead of a shrinking select.
-    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*text-overflow:\s*ellipsis/);
-    expect(src).toMatch(/\.pr-compare__baseline-value\s*\{[^}]*max-width:\s*305px/);
+    const report = wrapper.get('[data-testid="compare-report-select"]');
+    expect(report.text()).toBe('a.rep');
+    expect(report.get('button').attributes('aria-label')).toContain('a.rep');
+
+    await report.get('button').trigger('click');
+    const reportOption = document.querySelector<HTMLElement>(
+      '[data-testid="compare-report-option-b2"]',
+    );
+    expect(reportOption?.textContent?.trim()).toBe('b.rep');
+    reportOption?.click();
+    await nextTick();
+    expect(wrapper.emitted('update:primaryBaselineId')?.[0]).toEqual(['b2']);
+
+    const operator = wrapper.get('[data-testid="compare-operator-select"]');
+    expect(operator.text()).toBe('Relu');
+    expect(operator.get('button').attributes('aria-label')).toContain('Relu');
+    await operator.get('button').trigger('click');
+    const operatorOption = document.querySelector<HTMLElement>(
+      '[data-testid="compare-operator-option-matmul"]',
+    );
+    expect(operatorOption?.textContent?.trim()).toBe('MatMul');
+    operatorOption?.click();
+    await nextTick();
+    expect(wrapper.emitted('update:compareOperatorId')?.[0]).toEqual(['matmul']);
     wrapper.unmount();
   });
 

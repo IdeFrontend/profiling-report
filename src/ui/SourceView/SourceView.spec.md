@@ -61,7 +61,7 @@ Source | SASS correlation surface for the 源码 tab (UI-37) with **one View pic
 28. **PR-SOURCE-028** — Large metrics listings (>300 rows) virtualize the tbody (viewport window + pads).
 29. **PR-SOURCE-029** — DPR change keeps metrics row height.
 30. **PR-SOURCE-030** — The View picker (`source-view-select`) shows the caption `View` before the pill and offers Source, SASS, and Source and SASS; Source and SASS is the default. Each option renders only its panes: Source hides the SASS pane, SASS hides the Source pane, Source and SASS shows both. Picking a single pane also makes it the selected pane (`pr-source-view__pane--selected`); Source and SASS keeps that selection. An asm row chosen while Source is unmounted does not arm the echo gate, so the next source click moves the asm caret. Remounting SASS scrolls to the current asm line, or to the first file-match instruction when there is no caret.
-
+31. **PR-SOURCE-031** — The Source pane bar shows the workspace pick button (`source-workspace-pick`) only when `workspaceAvailable` is true. The button uses the pane-bar icon style and the `sourceWorkspacePick` label, and a click emits `pick-workspace` with no payload.
 ## Design sketches
 
 - [`visual/source-correlation.png`](./visual/source-correlation.png) ← [`v930-source/source-correlation`](../../../docs/ui/source/930-legacy/v930-source/source-correlation.jpeg)

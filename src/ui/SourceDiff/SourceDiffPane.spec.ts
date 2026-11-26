@@ -298,4 +298,33 @@ describe('SourceDiffPane', () => {
     sudu.dpr = 1;
     Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true });
   });
+
+  it('PR-DIFF-112: workspace pick button follows availability and emits', async () => {
+    const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1 })];
+    const bare = await mountPane(rows, 'left');
+    expect(bare.find('[data-testid="source-diff-workspace-left"]').exists()).toBe(false);
+    bare.unmount();
+
+    const wrapper = mount(SourceDiffPane, {
+      props: {
+        rows,
+        side: 'right',
+        metrics,
+        locale: 'en-US',
+        diffModel: sudu.diffModel,
+        workers: sudu.pool,
+        workspaceAvailable: true,
+        workspaceTitle: 'Pick baseline source workspace',
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const button = wrapper.find('[data-testid="source-diff-workspace-right"]');
+    expect(button.exists()).toBe(true);
+    expect(button.attributes('aria-label')).toBe('Pick baseline source workspace');
+    expect(button.classes()).toContain('pr-src-diff-pane__icon-btn');
+    await button.trigger('click');
+    expect(wrapper.emitted('pick-workspace')).toHaveLength(1);
+    wrapper.unmount();
+  });
 });

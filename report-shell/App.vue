@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue';
-import { ProfilingReport } from '../src/index';
-import { HTML_EXPORT_B64_PLACEHOLDER, HTML_EXPORT_LOCALE_PLACEHOLDER, htmlExportLocale } from '../src/export/stitchHtmlReport';
+import {
+  ProfilingReport,
+  workspaceSourceResolver,
+} from '../src/index';
+import {
+  HTML_EXPORT_B64_PLACEHOLDER,
+  HTML_EXPORT_LOCALE_PLACEHOLDER,
+  htmlExportLocale,
+  sourceWorkspaceFromTexts,
+} from '../src/export/stitchHtmlReport';
 import {
   createBaselinesHost,
   withDemoBaselineOperators,
@@ -12,11 +20,19 @@ declare global {
     __NPU_REP_B64__?: string;
     __NPU_REP_NAME__?: string;
     __NPU_REP_LOCALE__?: string;
+    __NPU_SOURCE_TEXTS__?: Record<string, string>;
   }
 }
 
 const error = shallowRef<string | null>(null);
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
+
+/** Source text the exporting host resolved (keyed by file id) rides in the HTML. */
+const sourceWorkspace = computed(() => sourceWorkspaceFromTexts(window.__NPU_SOURCE_TEXTS__));
+const resolveSourceFile = computed(() => {
+  const pick = sourceWorkspace.value;
+  return pick ? workspaceSourceResolver(pick) : undefined;
+});
 
 /**
  * Baselines (对比基线) — the exported HTML is a host too: shared host glue
@@ -103,6 +119,7 @@ onMounted(() => {
       :report-meta="reportMeta"
       :locale="locale"
       :allow-html-export="false"
+      :resolve-source-file="resolveSourceFile"
       :baselines="viewerBaselines"
       :baseline-rows="baselineRows"
       :pick-baseline-file="pickBaselineFile"

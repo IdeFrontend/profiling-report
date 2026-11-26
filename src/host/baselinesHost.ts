@@ -650,9 +650,9 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
   },
   // Source-diff packs: each carries its own `sourceCorrelation`, so the 源码对比
   // entry pairs against them. The fixture packs have no generated run id, so a
-  // readable host name titles them. Only the packs whose source TEXT differs
-  // from the open fixture (`demo.npu-rep`) are listed: demo/left hold the same
-  // lines, so comparing them renders an empty diff.
+  // readable host name titles them. `demo.npu-rep` is listed as the paths-only
+  // example (source path, no source text); `left` stays out because the open
+  // fixture already represents it.
   {
     id: 'demo-recent-6',
     name: 'source-diff mid',
@@ -664,6 +664,12 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
     name: 'source-diff right',
     path: '/data/source-diff/right.npu-rep',
     pickedAt: new Date(2026, 10, 11, 9, 30).getTime(),
+  },
+  {
+    id: 'demo-recent-8',
+    name: 'source-diff paths only',
+    path: '/data/source-diff/demo.npu-rep',
+    pickedAt: new Date(2026, 10, 11, 9, 35).getTime(),
   },
 ];
 

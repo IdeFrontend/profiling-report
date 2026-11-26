@@ -9,8 +9,10 @@ Generate the Source-diff demo fixtures under `data/source-diff/`:
                  HwdefectFind signature plus a changed `threshold` initializer
   right.npu-rep  leaf 160-byte npu-rep, same embeds, sharpen.asc with one changed line
                  and five lines that exist only on the LEFT
-  demo.npu-rep   outer 160-byte npu-rep with three `type 1` entries whose payloads are
-                 exactly the three leaf files (operators `left` / `mid` / `right`)
+  demo.npu-rep   outer 160-byte npu-rep with three `type 1` entries (operators
+                 `left` / `mid` / `right`) built the same way as the leaves but
+                 without the source embed: the Source view starts on the
+                 missing-embed placeholder until a host workspace pick fills it
 
 Layout matches `src/adapters/parseNpuRep160.ts` / `data/scripts/pack_rep.py`:
 36-byte head (version 0x00010000, origin 1, fileInfoLength 160), 160-byte
@@ -168,6 +170,7 @@ CHANGED_MID = "    __aicore__ inline void HwdefectFind(Mat srclm, Mat * dstlm)"
 MID_EDIT_FROM = "        defectCount += acc > threshold ? 1 : 0;"
 MID_EDIT_TO = "        defectCount += acc >= threshold ? 1 : 0;"
 MID_SOURCE_NAME = "sharpen_mid.asc"
+RIGHT_SOURCE_NAME = "sharpen2.asc"
 
 MID_LINES = list(LEFT_LINES)
 MID_LINES[0] = MID_HEADER_TO
@@ -446,23 +449,23 @@ def build_summary_db(seed, special):
     return blob
 
 
-def leaf(asc_text, source_name, special):
-    return pack_npu_rep(
-        [
-            ("objdump.txt", TYPE_TXT, OBJDUMP_TXT.encode("utf-8")),
-            (
-                "symbolizer.json",
-                TYPE_JSON,
-                build_symbolizer(source_name).encode("utf-8"),
-            ),
-            ("summary.db", TYPE_SQLITE, build_summary_db(0x5EED, special)),
-            (source_name, TYPE_TXT, asc_text.encode("utf-8")),
-            ("PipeTrace.json", TYPE_JSON, PIPE_TRACE_JSON),
-        ]
-    )
+def leaf(asc_text, source_name, special, embed_source=True):
+    entries = [
+        ("objdump.txt", TYPE_TXT, OBJDUMP_TXT.encode("utf-8")),
+        (
+            "symbolizer.json",
+            TYPE_JSON,
+            build_symbolizer(source_name).encode("utf-8"),
+        ),
+        ("summary.db", TYPE_SQLITE, build_summary_db(0x5EED, special)),
+    ]
+    if embed_source:
+        entries.append((source_name, TYPE_TXT, asc_text.encode("utf-8")))
+    entries.append(("PipeTrace.json", TYPE_JSON, PIPE_TRACE_JSON))
+    return pack_npu_rep(entries)
 
 
-def verify_container(blob, *, nested_count):
+def verify_container(blob, *, nested_count, embedded_source=True):
     view = memoryview(blob)
     magic, version, origin, head_len, count, info_len, reserved, total = (
         struct.unpack_from("<8sIHHIIIQ", view, 0)
@@ -495,13 +498,11 @@ def verify_container(blob, *, nested_count):
         raise RuntimeError("payloads do not cover the file exactly")
     if nested_count and types != [TYPE_NESTED] * nested_count:
         raise RuntimeError(f"outer container types {types}, want {nested_count} nested")
-    if not nested_count and types != [
-        TYPE_TXT,
-        TYPE_JSON,
-        TYPE_SQLITE,
-        TYPE_TXT,
-        TYPE_JSON,
-    ]:
+    if not nested_count and types != (
+        [TYPE_TXT, TYPE_JSON, TYPE_SQLITE, TYPE_TXT, TYPE_JSON]
+        if embedded_source
+        else [TYPE_TXT, TYPE_JSON, TYPE_SQLITE, TYPE_JSON]
+    ):
         raise RuntimeError(f"leaf container types {types}")
 
 
@@ -514,34 +515,39 @@ PIPE_TRACE_JSON = load_donor_entry("PipeTrace.json")
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    left_args = (left_text, "sharpen.asc", {CHANGED_LINE: (135332032, 0.5)})
+    mid_args = (
+        mid_text,
+        MID_SOURCE_NAME,
+        {CHANGED_LINE: (42424242, 0.61), MID_EDIT_LINE: (90000011, 0.91)},
+    )
+    right_args = (right_text, "sharpen.asc", {CHANGED_LINE: (135332032, 0.8)})
     outputs = [
+        ("left.npu-rep", leaf(*left_args)),
+        ("mid.npu-rep", leaf(*mid_args)),
+        ("right.npu-rep", leaf(*right_args)),
+    ]
+    # Demo leaves ship no source text: the view shows the missing-embed
+    # placeholder until a host workspace pick fills it.
+    demo_leaves = [
         (
-            "left.npu-rep",
-            leaf(left_text, "sharpen.asc", {CHANGED_LINE: (135332032, 0.5)}),
+            "left.npu.rep",
+            leaf(left_args[0], left_args[1], left_args[2], embed_source=False),
         ),
         (
-            "mid.npu-rep",
-            leaf(
-                mid_text,
-                MID_SOURCE_NAME,
-                {CHANGED_LINE: (42424242, 0.61), MID_EDIT_LINE: (90000011, 0.91)},
-            ),
+            "mid.npu.rep",
+            leaf(mid_args[0], mid_args[1], mid_args[2], embed_source=False),
         ),
         (
-            "right.npu-rep",
-            leaf(right_text, "sharpen.asc", {CHANGED_LINE: (135332032, 0.8)}),
+            "right.npu.rep",
+            leaf(right_args[0], RIGHT_SOURCE_NAME, right_args[2], embed_source=False),
         ),
     ]
-    blobs = dict(outputs)
-    demo = pack_npu_rep(
-        [
-            ("left.npu.rep", TYPE_NESTED, blobs["left.npu-rep"]),
-            ("mid.npu.rep", TYPE_NESTED, blobs["mid.npu-rep"]),
-            ("right.npu.rep", TYPE_NESTED, blobs["right.npu-rep"]),
-        ]
-    )
+    demo = pack_npu_rep([(name, TYPE_NESTED, blob) for name, blob in demo_leaves])
     for _name, blob in outputs:
         verify_container(blob, nested_count=0)
+    for _name, blob in demo_leaves:
+        verify_container(blob, nested_count=0, embedded_source=False)
     verify_container(demo, nested_count=3)
 
     for name, blob in outputs + [("demo.npu-rep", demo)]:
@@ -553,7 +559,7 @@ def main():
     for name, text in (
         ("sharpen.asc", left_text),
         (MID_SOURCE_NAME, mid_text),
-        ("sharpen2.asc", right_text),
+        (RIGHT_SOURCE_NAME, right_text),
     ):
         path = os.path.join(OUT_DIR, name)
         with open(path, "w", encoding="utf-8", newline="\n") as fh:

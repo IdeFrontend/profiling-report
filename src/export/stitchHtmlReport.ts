@@ -1,3 +1,5 @@
+import type { SourceWorkspacePick } from '../adapters/sourceCorrelation/resolveSourceFile';
+
 /** Markers written into report-shell/index.html; the CLI / in-app export replace only this block. */
 export const HTML_EXPORT_EMBED_START = '<!-- __NPU_REP_EMBED_START__ -->';
 export const HTML_EXPORT_EMBED_END = '<!-- __NPU_REP_EMBED_END__ -->';
@@ -21,6 +23,18 @@ export function htmlExportLocale(locale?: string): 'en' | 'zh-CN' {
   if (lower.startsWith('en')) return 'en';
   if (lower.startsWith('zh')) return 'zh-CN';
   return 'zh-CN';
+}
+
+/**
+ * Rebuild the workspace pick an exported HTML carries in
+ * `window.__NPU_SOURCE_TEXTS__` (file id → text), or `null` when empty.
+ */
+export function sourceWorkspaceFromTexts(
+  sourceTexts: Record<string, string> | null | undefined,
+): SourceWorkspacePick | null {
+  if (!sourceTexts) return null;
+  const files = Object.entries(sourceTexts).map(([path, text]) => ({ path, text }));
+  return files.length > 0 ? { files } : null;
 }
 
 /**
@@ -54,6 +68,8 @@ export function stitchHtmlReport(
   reportBytes: Uint8Array,
   reportName: string,
   locale?: string,
+  /** Source text the host resolved, keyed by source file id. */
+  sourceTexts?: Record<string, string>,
 ): string {
   const b64 = uint8ToBase64(reportBytes);
   const nameEncoded = encodeURIComponent(reportName);
@@ -69,7 +85,11 @@ export function stitchHtmlReport(
   embed = embed.split(HTML_EXPORT_B64_PLACEHOLDER).join(b64);
   embed = embed.split(HTML_EXPORT_NAME_PLACEHOLDER).join(nameEncoded);
   embed = embed.split(HTML_EXPORT_LOCALE_PLACEHOLDER).join(loc);
-  let html = template.slice(0, start) + embed + template.slice(endExclusive);
+  const sourceScript =
+    sourceTexts && Object.keys(sourceTexts).length > 0
+      ? `<script>window.__NPU_SOURCE_TEXTS__ = ${serializeSourceTexts(sourceTexts)};</script>`
+      : '';
+  let html = template.slice(0, start) + sourceScript + embed + template.slice(endExclusive);
   const title = reportName
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -82,6 +102,15 @@ export function stitchHtmlReport(
     html = html.replace(/<html\b/i, `<html lang="${loc}"`);
   }
   return html;
+}
+
+function serializeSourceTexts(sourceTexts: Record<string, string>): string {
+  return JSON.stringify(sourceTexts)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }
 
 function uint8ToBase64(bytes: Uint8Array): string {

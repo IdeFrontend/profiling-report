@@ -9,7 +9,7 @@ import { buildMemoryTopology } from '../adapters/memoryTopology';
 import { metricDiff, summaryDiffs } from '../domain/metricDiff';
 import { emptyReportViewModel } from '../adapters/adaptRep';
 import { loadReportSource } from '../adapters/loadReportSource';
-import { alignSourceLines, splitSourceLines } from '../ui/SourceDiff/diffAlign';
+import { isMissingSourceEmbed, modelNeedsSourceResolve } from '../adapters';
 import type { MemoryTopologyPlate, ReportViewModel } from '../domain/types';
 
 function platesOf(model: ReportViewModel): MemoryTopologyPlate[] {
@@ -700,7 +700,7 @@ describe('createBaselinesHost', () => {
   );
 
   it('DEMO BASELINES: the source-diff packs carry source, title and a real diff', { timeout: 30_000 }, () => {
-    expect(DEMO_RECENT_BASELINES).toHaveLength(7);
+    expect(DEMO_RECENT_BASELINES).toHaveLength(8);
     expect(DEMO_RECENT_BASELINES.slice(0, 5).map((b) => b.path)).toEqual([
       '/data/out.rep',
       '/data/example.rep',
@@ -712,19 +712,29 @@ describe('createBaselinesHost', () => {
     expect(sourceDiff.map((b) => b.path)).toEqual([
       '/data/source-diff/mid.npu-rep',
       '/data/source-diff/right.npu-rep',
+      '/data/source-diff/demo.npu-rep',
     ]);
-    // The identical-source packs stay out: they would render an empty diff.
+    // The paths-only pack stays listed; only the open fixture's twin stays out.
     const paths = DEMO_RECENT_BASELINES.map((b) => b.path);
-    expect(paths).not.toContain('/data/source-diff/demo.npu-rep');
     expect(paths).not.toContain('/data/source-diff/left.npu-rep');
     const titles = DEMO_RECENT_BASELINES.map((b) => baselineDisplayTitle(b));
     expect(new Set(titles).size).toBe(DEMO_RECENT_BASELINES.length);
-    const openText = (): string => {
-      const open = loadReportSource(
-        new Uint8Array(readFileSync('playground/public/data/source-diff/demo.npu-rep')),
-      );
-      return open.reportModel.sourceCorrelation!.files[0]!.text;
-    };
+    // The open fixture ships no source text, so every operator starts on the
+    // missing-embed placeholder and the view offers the workspace refill.
+    const open = loadReportSource(
+      new Uint8Array(readFileSync('playground/public/data/source-diff/demo.npu-rep')),
+    );
+    const openModels = [
+      open.reportModel.sourceCorrelation,
+      ...Object.values(open.operatorReports ?? {}).map(
+        (op) => op.reportModel.sourceCorrelation,
+      ),
+    ];
+    expect(openModels).toHaveLength(4);
+    for (const model of openModels) {
+      expect(modelNeedsSourceResolve(model)).toBe(true);
+      expect(isMissingSourceEmbed(model!.files[0]!.text)).toBe(true);
+    }
     for (const entry of sourceDiff) {
       expect(baselineDisplayTitle(entry)).toContain('source-diff');
       const bytes = readFileSync(`playground/public${entry.path}`);
@@ -733,13 +743,16 @@ describe('createBaselinesHost', () => {
       for (const op of Object.values(pack.operatorReports ?? {})) {
         expect(op.reportModel.sourceCorrelation?.files.length).toBeGreaterThan(0);
       }
-      // Compare the same texts the view aligns: the baseline's primary file
-      // against the open fixture's. A same-only alignment is the zero diff.
-      const rows = alignSourceLines(
-        splitSourceLines(openText()),
-        splitSourceLines(pack.reportModel.sourceCorrelation!.files[0]!.text),
-      );
-      expect(rows.filter((row) => row.kind !== 'same')).not.toHaveLength(0);
+      // The paths-only pack has no source text, so the view offers the workspace refill.
+      if (entry.path === '/data/source-diff/demo.npu-rep') {
+        expect(pack.reportModel.sourceCorrelation?.files).toHaveLength(1);
+        expect(pack.reportModel.sourceCorrelation!.files[0].path).toBe('sharpen.asc');
+        expect(isMissingSourceEmbed(pack.reportModel.sourceCorrelation!.files[0].text)).toBe(true);
+        expect(modelNeedsSourceResolve(pack.reportModel.sourceCorrelation)).toBe(true);
+        continue;
+      }
+      // The standalone leaves still embed their own source, so nothing to fill.
+      expect(modelNeedsSourceResolve(pack.reportModel.sourceCorrelation)).toBe(false);
     }
   });
 });

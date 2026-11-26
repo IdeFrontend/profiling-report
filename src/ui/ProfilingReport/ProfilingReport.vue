@@ -2,8 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, watchEffect } from 'vue';
 import {
   ensurePcSamplingSql,
+  fileNeedsSourceResolve,
   loadReportSource,
+  modelNeedsSourceResolve,
   resolveMissingSourceFiles,
+  sourceResolveRequests,
+  workspaceSourceResolver,
+  type PickSourceWorkspace,
   type ResolveSourceFile,
 } from '../../adapters';
 import {
@@ -175,6 +180,11 @@ const props = withDefaults(defineProps<{
    * Library never reads the filesystem; return `null` to keep the placeholder.
    */
   resolveSourceFile?: ResolveSourceFile;
+  /**
+   * Optional host hook: let the operator pick a source workspace (directory)
+   * that fills the missing source files. Absent = the workspace buttons hide.
+   */
+  pickSourceWorkspace?: PickSourceWorkspace;
   /** Host-owned baseline list (对比基线) — the library renders and selects; the
    *  host persists (ARCHITECTURE: host persistence via props/state, no storage in
    *  the library). */
@@ -228,6 +238,7 @@ const props = withDefaults(defineProps<{
   environment: undefined,
   suduWorkerUrl: '/sudu/worker.js',
   resolveSourceFile: undefined,
+  pickSourceWorkspace: undefined,
   baselines: undefined,
   baselineRows: undefined,
   pickBaselineFile: undefined,
@@ -264,6 +275,10 @@ const internalCapabilities = ref<ReportCapability[] | null>(null);
  * Overlay on top of `reportModel` / `internalReport` so Vue refreshes SourceView.
  */
 const resolvedSourceCorrelation = ref<SourceCorrelationModel | null>(null);
+/** Source text the host filled, keyed by file id — carried into the HTML export. */
+const resolvedSourceTexts = ref<Record<string, string>>({});
+/** Baseline-side fill overlays, keyed `${baselineId}:${operatorId}`. */
+const baselineSourceCorrelation = ref<Record<string, SourceCorrelationModel>>({});
 /**
  * Bumps on load / operator / host `reportModel` swap — not when the resolve
  * overlay fills text. SourceView uses this to reset search across operators
@@ -274,6 +289,8 @@ const sourceSession = ref(0);
 function bumpSourceSession() {
   sourceSession.value += 1;
   resolvedSourceCorrelation.value = null;
+  // Export must carry the current report's text, not a previous load's picks.
+  resolvedSourceTexts.value = {};
 }
 const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
@@ -557,18 +574,24 @@ const overviewTabEnabled = computed(
 );
 const activeTab = ref<'overview' | 'timeline' | 'source'>('timeline');
 const showOverviewTab = computed(() => activeTab.value === 'overview');
-/** Source-compare mode: left = open report, right = the primary saved baseline. */
+/** Source-compare mode: left = open report, right = the selected saved baseline. */
 const compareMode = ref(false);
+/** Compare-scoped picks; they never rewrite the host's baselineRows. */
+const compareBaselineId = ref<string | null>(null);
+/** '' resolves the selected baseline's default operator. */
+const compareOperatorId = ref('');
+/** True until the user picks a report; pack arrivals keep re-seeding the default. */
+const compareAutoSeeded = ref(false);
 const sourceDiffRef = ref<InstanceType<typeof SourceDiffView> | null>(null);
 /** The saved baseline row's operator, resolved like the aside's popups. */
-function compareOperatorIdOf(row: BaselineRow, pack: AdaptedReport): string | null {
+function compareOperatorIdOf(row: BaselineRow, pack: AdaptedReport | null): string | null {
   const declared = props.baselines?.find((b) => b.id === row.baselineId)?.operators;
-  const keys = Object.keys(pack.operatorReports ?? {});
+  const keys = Object.keys(pack?.operatorReports ?? {});
   const options = declared?.length
     ? declared.map((o) => o.id)
     : keys.length > 0
       ? keys
-      : pack.reportModel.summary.opName
+      : pack?.reportModel.summary.opName
         ? [pack.reportModel.summary.opName]
         : [];
   if (options.length === 0) return null;
@@ -577,23 +600,108 @@ function compareOperatorIdOf(row: BaselineRow, pack: AdaptedReport): string | nu
   if (opName != null && options.includes(opName)) return opName;
   return options[0]!;
 }
-const compareBaselineModel = computed<SourceCorrelationModel | null>(() => {
-  const row = (props.baselineRows ?? [])[0];
-  const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
-  if (!row || !pack) return null;
+function compareCorrelationOf(row: BaselineRow, pack: AdaptedReport): SourceCorrelationModel | null {
   const operatorId = compareOperatorIdOf(row, pack);
   return (
     (operatorId ? pack.operatorReports?.[operatorId]?.reportModel.sourceCorrelation : null) ??
     pack.reportModel.sourceCorrelation ??
     null
   );
+}
+function compareSourceKeyOf(row: BaselineRow, pack: AdaptedReport): string {
+  return `${row.baselineId}:${compareOperatorIdOf(row, pack) ?? ''}`;
+}
+/** The host row for a baseline, or a synthetic row for checkbox-only flows. */
+function compareRowFor(baselineId: string): BaselineRow {
+  const host = (props.baselineRows ?? []).find((r) => r.baselineId === baselineId);
+  return {
+    id: host?.id ?? 'brow-' + baselineId,
+    baselineId,
+    operatorId: compareOperatorId.value || host?.operatorId || '',
+  };
+}
+/** Default pair: the first checked baseline with source, else the first checked baseline. */
+function defaultCompareBaselineId(): string | null {
+  const items = props.baselines ?? [];
+  for (const baseline of items) {
+    const pack = props.baselineReports?.[baseline.id]?.report;
+    if (pack && compareCorrelationOf(compareRowFor(baseline.id), pack) != null) {
+      return baseline.id;
+    }
+  }
+  return items[0]?.id ?? null;
+}
+const compareRow = computed<BaselineRow | null>(() => {
+  const baselineId = compareBaselineId.value;
+  if (baselineId == null) return null;
+  if (!(props.baselines ?? []).some((b) => b.id === baselineId)) return null;
+  return compareRowFor(baselineId);
 });
+const compareBaselineModel = computed<SourceCorrelationModel | null>(() => {
+  const row = compareRow.value;
+  const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
+  if (!row || !pack) return null;
+  return (
+    baselineSourceCorrelation.value[compareSourceKeyOf(row, pack)] ??
+    compareCorrelationOf(row, pack)
+  );
+});
+/** Compare opens with any checked baseline; a baseline without source gets an empty pane. */
 const compareAvailable = computed(
-  () => report.value?.sourceCorrelation != null && compareBaselineModel.value != null,
+  () => report.value?.sourceCorrelation != null && (props.baselines?.length ?? 0) > 0,
+);
+/** Operators of the selected baseline, labeled by their declared label or id. */
+const compareOperators = computed<ReportOperator[]>(() => {
+  const baseline = props.baselines?.find((b) => b.id === compareBaselineId.value);
+  const pack = compareBaselineId.value
+    ? props.baselineReports?.[compareBaselineId.value]?.report
+    : null;
+  if (baseline?.operators?.length) return baseline.operators;
+  const keys = Object.keys(pack?.operatorReports ?? {});
+  if (keys.length > 0) return keys.map((id) => ({ id, label: id }));
+  const opName = pack?.reportModel.summary.opName;
+  return opName ? [{ id: opName, label: opName }] : [];
+});
+const compareSelectedOperatorId = computed<string | null>(() => {
+  const row = compareRow.value;
+  const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
+  return row ? compareOperatorIdOf(row, pack ?? null) : null;
+});
+/** A workspace pick can fill the open report's placeholder files. */
+const reportSourceNeedsResolve = computed(() =>
+  modelNeedsSourceResolve(report.value?.sourceCorrelation),
+);
+/** A workspace pick can fill the baseline pane's placeholder files. */
+const baselineSourceNeedsResolve = computed(() =>
+  modelNeedsSourceResolve(compareBaselineModel.value),
+);
+/** The right workspace button shows only with a host hook: enabled for placeholders,
+ * disabled inside the empty state, hidden for packed text. */
+const baselineWorkspaceAvailable = computed(
+  () =>
+    props.pickSourceWorkspace != null &&
+    (compareBaselineModel.value == null ||
+      compareBaselineModel.value.files.length === 0 ||
+      baselineSourceNeedsResolve.value),
+);
+// A host swap replaces every baseline pack; overlays key on the old packs.
+watch(
+  () => props.baselineReports,
+  () => {
+    baselineResolveGen += 1;
+    baselineSourceCorrelation.value = {};
+    if (compareAutoSeeded.value) {
+      compareBaselineId.value = defaultCompareBaselineId();
+      compareOperatorId.value = '';
+    }
+  },
 );
 
 function exitCompareMode() {
   compareMode.value = false;
+  compareBaselineId.value = null;
+  compareOperatorId.value = '';
+  compareAutoSeeded.value = false;
 }
 
 /** Explicit exit (toolbar button, diff Escape) lands on the Source tab. */
@@ -603,12 +711,58 @@ function onCompareExit() {
 }
 
 function enterCompareMode() {
-  if (compareAvailable.value) compareMode.value = true;
+  if (!compareAvailable.value) return;
+  if (compareBaselineId.value == null) {
+    compareOperatorId.value = '';
+    compareBaselineId.value = defaultCompareBaselineId();
+    compareAutoSeeded.value = true;
+  }
+  compareMode.value = true;
 }
 
-// A new report invalidates the comparison pair. Switching operator keeps compare mode
-// (left pane reloads); a lost baseline correlation falls back to the single pane.
-watch([() => props.reportModel], () => exitCompareMode());
+/** Picking a report resets the operator to that baseline's default. */
+function onCompareBaselineChange(id: string) {
+  if (id === compareBaselineId.value) return;
+  if (!(props.baselines ?? []).some((b) => b.id === id)) return;
+  compareBaselineId.value = id;
+  compareOperatorId.value = '';
+  compareAutoSeeded.value = false;
+}
+
+function onCompareOperatorChange(id: string) {
+  compareOperatorId.value = id;
+  compareAutoSeeded.value = false;
+}
+
+// Removing the selected checked baseline moves the compare pair to the next one.
+watch(
+  () => props.baselines,
+  (list, prev) => {
+    const items = list ?? [];
+    if (items.length === 0) {
+      compareBaselineId.value = null;
+      compareOperatorId.value = '';
+      compareAutoSeeded.value = false;
+      exitCompareMode();
+      return;
+    }
+    const selected = compareBaselineId.value;
+    if (selected == null || items.some((b) => b.id === selected)) return;
+    const removedIndex = (prev ?? []).findIndex((b) => b.id === selected);
+    const next = items[Math.min(Math.max(removedIndex, 0), items.length - 1)]!;
+    compareBaselineId.value = next.id;
+    compareOperatorId.value = '';
+    compareAutoSeeded.value = true;
+  },
+);
+
+// A new report invalidates the comparison pair and its auto-seed; re-opening defaults again.
+watch([() => props.reportModel], () => {
+  compareBaselineId.value = null;
+  compareOperatorId.value = '';
+  compareAutoSeeded.value = false;
+  exitCompareMode();
+});
 
 watch(compareAvailable, (ok) => {
   if (!ok) exitCompareMode();
@@ -1197,17 +1351,91 @@ function failLoad(cause: unknown) {
 let sourceLoadGen = 0;
 /** Bumps when starting a resolve pass so stale host replies do not overwrite. */
 let sourceResolveGen = 0;
+/** The baseline pane's own pass counter — never invalidates the open report. */
+let baselineResolveGen = 0;
 
+/** Fill placeholder text; `null` when nothing changed. Never mutates state. */
 async function fillMissingSourceFiles(
-  reportModel: ReportViewModel | null | undefined,
+  model: SourceCorrelationModel | null | undefined,
+  resolve: ResolveSourceFile | undefined = props.resolveSourceFile,
+): Promise<SourceCorrelationModel | null> {
+  if (!model || model.mock || !resolve) return null;
+  const next = await resolveMissingSourceFiles(model, resolve);
+  return next === model ? null : next;
+}
+
+/**
+ * Record open-report text for the HTML export (baseline fills never do),
+ * keyed by file path so the exported shell can match its workspace pick.
+ * Only files the fill changed from placeholder to real are carried — text the
+ * pack already embedded stays out of the map.
+ */
+function recordSourceTexts(
+  prev: SourceCorrelationModel | null | undefined,
+  next: SourceCorrelationModel,
+): void {
+  const texts = { ...resolvedSourceTexts.value };
+  let recorded = false;
+  next.files.forEach((file, index) => {
+    const before = prev?.files[index];
+    if (!before || !fileNeedsSourceResolve(before) || fileNeedsSourceResolve(file)) return;
+    if (texts[file.path] === file.text) return;
+    texts[file.path] = file.text;
+    recorded = true;
+  });
+  if (recorded) resolvedSourceTexts.value = texts;
+}
+
+async function fillReportSourceFiles(
+  model: SourceCorrelationModel | null | undefined,
   resolveGen: number,
-) {
-  const sc = reportModel?.sourceCorrelation;
-  if (!sc || sc.mock || !props.resolveSourceFile) return;
-  const next = await resolveMissingSourceFiles(sc, props.resolveSourceFile);
-  if (resolveGen !== sourceResolveGen) return;
-  if (next === sc) return;
+  resolve: ResolveSourceFile | undefined = props.resolveSourceFile,
+): Promise<SourceCorrelationModel | null> {
+  const next = await fillMissingSourceFiles(model, resolve);
+  if (resolveGen !== sourceResolveGen || !next) return null;
+  recordSourceTexts(model, next);
   resolvedSourceCorrelation.value = next;
+  return next;
+}
+
+/** Pick a workspace once; `null` when the operator cancels or nothing is missing. */
+async function pickWorkspaceResolver(
+  model: SourceCorrelationModel,
+): Promise<ResolveSourceFile | null> {
+  const pick = props.pickSourceWorkspace;
+  if (!pick) return null;
+  const requests = sourceResolveRequests(model);
+  if (requests.length === 0) return null;
+  const picked = await pick(requests);
+  return picked ? workspaceSourceResolver(picked) : null;
+}
+
+async function onPickReportSourceWorkspace() {
+  const model = report.value?.sourceCorrelation;
+  if (!model) return;
+  // The dialog can outlive the report it was opened for: claim the generation
+  // before awaiting so a report swap while it is open drops the stale result.
+  const resolveGen = ++sourceResolveGen;
+  const resolve = await pickWorkspaceResolver(model);
+  if (!resolve || resolveGen !== sourceResolveGen) return;
+  await fillReportSourceFiles(model, resolveGen, resolve);
+}
+
+async function onPickBaselineSourceWorkspace() {
+  const row = compareRow.value;
+  const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
+  // Overlay-aware: the second pick starts from the text the first one filled.
+  const model = compareBaselineModel.value;
+  if (!row || !pack || !model) return;
+  const resolveGen = ++baselineResolveGen;
+  const resolve = await pickWorkspaceResolver(model);
+  if (!resolve || resolveGen !== baselineResolveGen) return;
+  const next = await fillMissingSourceFiles(model, resolve);
+  if (resolveGen !== baselineResolveGen || !next) return;
+  baselineSourceCorrelation.value = {
+    ...baselineSourceCorrelation.value,
+    [compareSourceKeyOf(row, pack)]: next,
+  };
 }
 
 async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
@@ -1222,7 +1450,7 @@ async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
     if (gen !== sourceLoadGen) return;
     applyAdapted(loadReportSource(source));
     const resolveGen = ++sourceResolveGen;
-    await fillMissingSourceFiles(internalReport.value, resolveGen);
+    await fillReportSourceFiles(internalReport.value?.sourceCorrelation, resolveGen);
   } catch (cause) {
     if (gen !== sourceLoadGen) return;
     failLoad(cause);
@@ -1244,7 +1472,7 @@ function onOperatorChange(id: string) {
     preservePanelWidths: true,
   });
   const resolveGen = ++sourceResolveGen;
-  void fillMissingSourceFiles(rep.reportModel, resolveGen);
+  void fillReportSourceFiles(rep.reportModel.sourceCorrelation, resolveGen);
 }
 
 /** Swap among §11.14 catalog CTEF embeds without re-parsing the leaf. */
@@ -1292,7 +1520,7 @@ watch(
     bumpSourceSession();
     if (!rm?.sourceCorrelation) return;
     const resolveGen = ++sourceResolveGen;
-    void fillMissingSourceFiles(rm, resolveGen);
+    void fillReportSourceFiles(rm.sourceCorrelation, resolveGen);
   },
   { immediate: true },
 );
@@ -1308,7 +1536,7 @@ watch(
     const rm = props.source ? internalReport.value : props.reportModel;
     if (!rm?.sourceCorrelation) return;
     const resolveGen = ++sourceResolveGen;
-    void fillMissingSourceFiles(rm, resolveGen);
+    void fillReportSourceFiles(rm.sourceCorrelation, resolveGen);
   },
 );
 
@@ -1916,7 +2144,13 @@ async function onExportHtml() {
     }
     const template = await res.text();
     if (gen !== htmlExportGeneration) return;
-    const html = stitchHtmlReport(template, bytes, reportName, props.locale);
+    const html = stitchHtmlReport(
+      template,
+      bytes,
+      reportName,
+      props.locale,
+      resolvedSourceTexts.value,
+    );
     if (gen !== htmlExportGeneration) return;
     downloadHtmlFile(html, fileName);
     emit('export-html', { fileName });
@@ -2249,7 +2483,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :hide-tabs="compareOnly"
           :compare-mode="compareMode"
           :compare-available="compareAvailable && sourceTabEnabled"
-          :primary-baseline-id="(baselineRows ?? [])[0]?.baselineId ?? null"
+          :primary-baseline-id="compareBaselineId"
+          :compare-operators="compareOperators"
+          :compare-operator-id="compareSelectedOperatorId"
           :html-export-available="htmlExportAvailable"
           :baselines="baselines"
           :pick-baseline-file="pickBaselineFile"
@@ -2263,6 +2499,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @update:zoom-percent="onZoomPercent"
           @update:measure-mode="onMeasureMode"
           @update:active-tab="onActiveTab"
+          @update:primary-baseline-id="onCompareBaselineChange"
+          @update:compare-operator-id="onCompareOperatorChange"
           @compare-enter="enterCompareMode"
           @compare-exit="onCompareExit"
           @compare-find-next="sourceDiffRef?.findNext()"
@@ -2291,14 +2529,18 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @optimize="emitPerformOptimization($event.opName)"
         />
         <SourceDiffView
-          v-if="showSource && report && report.sourceCorrelation && compareMode && compareBaselineModel"
+          v-if="showSource && report && report.sourceCorrelation && compareMode"
           ref="sourceDiffRef"
           :current="report.sourceCorrelation"
-          :baseline="compareBaselineModel"
+          :baseline="compareBaselineModel ?? undefined"
           :locale="locale"
           :sudu-worker-url="suduWorkerUrl"
           :search-query="viewState.searchQuery"
+          :current-workspace-available="reportSourceNeedsResolve && pickSourceWorkspace != null"
+          :baseline-workspace-available="baselineWorkspaceAvailable"
           @exit="onCompareExit"
+          @pick-current-workspace="onPickReportSourceWorkspace"
+          @pick-baseline-workspace="onPickBaselineSourceWorkspace"
         />
         <SourceView
           v-else-if="showSource && report?.sourceCorrelation"
@@ -2308,7 +2550,9 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :locale="locale"
           :sudu-worker-url="suduWorkerUrl"
           :user-guide-url="userGuideUrl"
+          :workspace-available="reportSourceNeedsResolve && pickSourceWorkspace != null"
           @open-user-guide="emit('open-user-guide', $event)"
+          @pick-workspace="onPickReportSourceWorkspace"
         />
         <TimelineView
           v-if="showTimelineSurface"

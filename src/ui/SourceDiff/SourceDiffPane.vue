@@ -123,6 +123,10 @@ const props = withDefaults(
     highlightColumn?: string | null;
     /** Whether this pane owns the focus ring. */
     focused?: boolean;
+    /** Show this side's workspace picker button (the file text is a placeholder). */
+    workspaceAvailable?: boolean;
+    /** Accessible name / tooltip for the workspace picker button. */
+    workspaceTitle?: string;
   }>(),
   {
     locale: undefined,
@@ -134,6 +138,8 @@ const props = withDefaults(
     linked: true,
     highlightColumn: null,
     focused: false,
+    workspaceAvailable: false,
+    workspaceTitle: '',
   },
 );
 
@@ -141,6 +147,7 @@ const emit = defineEmits<{
   'select-file': [id: string];
   'toggle-link': [];
   'update:navigateBy': [id: string];
+  'pick-workspace': [];
 }>();
 
 const domId = useId().replace(/:/g, '');
@@ -416,6 +423,17 @@ defineExpose({ setScrollCss, scrollToRow, getScrollCss });
         @click="emit('toggle-link')"
       >
         <PrIcon name="link" />
+      </button>
+      <button
+        v-if="workspaceAvailable"
+        type="button"
+        class="pr-src-diff-pane__icon-btn"
+        :data-testid="`source-diff-workspace-${side}`"
+        :aria-label="workspaceTitle"
+        :title="workspaceTitle"
+        @click="emit('pick-workspace')"
+      >
+        <PrIcon name="add-baseline" />
       </button>
       <SourcePillSelect
         class="pr-src-diff-pane__nav"

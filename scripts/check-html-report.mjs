@@ -3,7 +3,8 @@
  * Smoke: assumes `npm run build:report-shell` already ran.
  * Checks in-repo generate script and the zero-dep dist/npu-rep-html.mjs bundle.
  */
-import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, existsSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -38,6 +39,9 @@ function assertHtml(html, label) {
   if (!html.includes(readFileSync(fixture).toString('base64').slice(0, 32))) {
     fail(`${label}: embedded base64 does not match fixture prefix`);
   }
+  if (html.includes('window.__NPU_SOURCE_TEXTS__ = {')) {
+    fail(`${label}: emitted __NPU_SOURCE_TEXTS__ without a source workspace`);
+  }
   // The shell is a host: it must keep the baseline picker contract wired
   // (report-shell/App.vue — views/baselines.md "every host that mounts
   // ProfilingReport"). Without it the control silently vanishes from the
@@ -63,6 +67,37 @@ function runGenerate(script, out) {
     fail(`${script} exited ${r.status}`);
   }
   assertHtml(readFileSync(out, 'utf8'), script);
+  try {
+    unlinkSync(out);
+  } catch {
+    /* keep on failure paths only */
+  }
+}
+
+function assertSourceMap(html, label) {
+  const at = html.indexOf('window.__NPU_SOURCE_TEXTS__ = {');
+  if (at < 0) fail(`${label}: missing __NPU_SOURCE_TEXTS__ map script`);
+  // The viewer bundle also names the variable; only the embed slot assigns it.
+  const embedAt = html.lastIndexOf('__NPU_REP_B64__ =');
+  if (embedAt < 0 || at > embedAt) {
+    fail(`${label}: source map script does not precede __NPU_REP_B64__`);
+  }
+}
+
+function runGenerateWithSource(script, out, sourceDir) {
+  const r = spawnSync(
+    process.execPath,
+    [script, fixture, '-o', out, '--source-workspace', sourceDir],
+    { cwd: root, encoding: 'utf8' },
+  );
+  if (r.status !== 0) {
+    process.stderr.write(r.stderr || r.stdout || '');
+    fail(`${script} --source-workspace exited ${r.status}`);
+  }
+  const html = readFileSync(out, 'utf8');
+  assertSourceMap(html, script);
+  if (!html.includes('"nested/op.asc"')) fail(`${script}: source map lost nested/op.asc`);
+  if (html.includes('blob.bin')) fail(`${script}: source map kept a binary file`);
   try {
     unlinkSync(out);
   } catch {
@@ -114,6 +149,17 @@ if (!existsSync(standalone)) {
   fail(`missing ${standalone} — run: npm run build:report-shell`);
 }
 runGenerate(standalone, join(root, 'dist/report-shell/smoke-standalone.html'));
+
+const sourceDir = mkdtempSync(join(tmpdir(), 'npu-rep-source-'));
+try {
+  mkdirSync(join(sourceDir, 'nested'));
+  writeFileSync(join(sourceDir, 'nested/op.asc'), 'int main() { return 0; }\n');
+  writeFileSync(join(sourceDir, 'blob.bin'), Buffer.from([0x01, 0x00, 0x02]));
+  runGenerateWithSource(generate, join(root, 'dist/report-shell/smoke-source.html'), sourceDir);
+  runGenerateWithSource(standalone, join(root, 'dist/report-shell/smoke-standalone-source.html'), sourceDir);
+} finally {
+  rmSync(sourceDir, { recursive: true, force: true });
+}
 
 const enOut = join(root, 'dist/report-shell/smoke-locale-en.html');
 const enRun = spawnSync(

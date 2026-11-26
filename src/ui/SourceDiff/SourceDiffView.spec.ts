@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import type { SourceCorrelationModel, SourceFileModel, SourceMetricsColumn } from '../../domain/types';
+import { t } from '../../i18n';
 import SourceDiffPane from './SourceDiffPane.vue';
 import SourceDiffView from './SourceDiffView.vue';
 
@@ -190,6 +191,67 @@ describe('SourceDiffView', () => {
     expect((panes[0]!.props('metrics') as SourceFileModel).id).toBe('left-only');
     expect((panes[1]!.props('metrics') as SourceFileModel).id).toBe('right-only');
     expect(sudu.diffModels).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-DIFF-213: each pane forwards its own workspace availability and emit', async () => {
+    const wrapper = mount(SourceDiffView, {
+      props: {
+        current: correlation([file('cur', LEFT_LINES.join('\n'))]),
+        baseline: correlation([file('cur', RIGHT_LINES.join('\n'))]),
+        locale: 'en-US',
+        currentWorkspaceAvailable: true,
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+    const panes = wrapper.findAllComponents(SourceDiffPane);
+    expect(panes[0]!.props('workspaceAvailable')).toBe(true);
+    expect(panes[1]!.props('workspaceAvailable')).toBe(false);
+    expect(panes[0]!.props('workspaceTitle')).toBe(t('sourceWorkspacePick', 'en-US'));
+    expect(panes[1]!.props('workspaceTitle')).toBe(t('sourceWorkspaceBaselinePick', 'en-US'));
+    panes[0]!.vm.$emit('pick-workspace');
+    panes[1]!.vm.$emit('pick-workspace');
+    expect(wrapper.emitted('pick-current-workspace')).toHaveLength(1);
+    expect(wrapper.emitted('pick-baseline-workspace')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('PR-DIFF-216: a missing baseline renders the left pane and an explicit empty right pane', async () => {
+    const wrapper = mount(SourceDiffView, {
+      props: {
+        current: correlation([file('cur', LEFT_LINES.join('\n'))]),
+        locale: 'en-US',
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-pane-left"]').exists()).toBe(true);
+    const empty = wrapper.get('[data-testid="source-diff-baseline-empty"]');
+    expect(empty.text()).toBe(t('sourceDiffBaselineEmpty', 'en-US'));
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-DIFF-217: an empty baseline with a workspace hook shows a disabled right workspace button', async () => {
+    const wrapper = mount(SourceDiffView, {
+      props: {
+        current: correlation([file('cur', LEFT_LINES.join('\n'))]),
+        baseline: correlation([]),
+        locale: 'en-US',
+        baselineWorkspaceAvailable: true,
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-pane-left"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+    const button = wrapper.get('[data-testid="source-diff-workspace-right"]');
+    expect(button.attributes('disabled')).toBeDefined();
+    expect(button.attributes('title')).toBe(t('sourceDiffWorkspaceBaselineDisabled', 'en-US'));
     wrapper.unmount();
   });
 });
