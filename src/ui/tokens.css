@@ -106,13 +106,6 @@
   height: 0;
 }
 
-.pr-root[data-theme='light'] {
-  --pr-bg-deep: #e8ecf0;
-  --pr-bg-aside: #e8ecf0;
-  --pr-bg-panel: #f4f4f4;
-  color-scheme: light;
-}
-
 /**
  * Dark chrome `<select>` pill — shared by the memory CSV / summary PIPE block
  * switchers and Source-tab view controls (`SourceView`) so native-arrow / radius
