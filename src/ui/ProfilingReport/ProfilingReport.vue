@@ -622,10 +622,13 @@ function compareOperatorIdOf(row: BaselineRow, pack: AdaptedReport | null): stri
 }
 function compareCorrelationOf(row: BaselineRow, pack: AdaptedReport): SourceCorrelationModel | null {
   const operatorId = compareOperatorIdOf(row, pack);
-  const operator = operatorId ? pack.operatorReports?.[operatorId] : undefined;
-  // An operator entry with no source is an empty pane. The root model is the
-  // first operator, so falling through would show that operator under this name.
-  if (operator) return operator.reportModel.sourceCorrelation ?? null;
+  const reports = pack.operatorReports;
+  // A non-empty operator map means a missing id is an empty pane. The root
+  // model is the first operator, so it must not stand in for a missing key.
+  if (reports && Object.keys(reports).length > 0) {
+    if (!operatorId) return null;
+    return reports[operatorId]?.reportModel.sourceCorrelation ?? null;
+  }
   return pack.reportModel.sourceCorrelation ?? null;
 }
 function compareSourceKeyOf(row: BaselineRow, pack: AdaptedReport): string {

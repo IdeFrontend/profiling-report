@@ -182,6 +182,8 @@ let pendingEcho = -1;
 /** CSS scrollTop just written by the editor or by setScrollCss. The browser
  *  reports it back asynchronously, after pendingEcho has already been cleared. */
 let mirroredScrollTop: number | null = null;
+/** Scroll requested before SideDiff has booted. Applied at the end of boot. */
+let pendingScrollCss: number | null = null;
 
 const fileOptions = computed<SourceSelectOption[]>(() => {
   const files = props.files?.length ? props.files : [props.metrics];
@@ -350,6 +352,7 @@ async function boot(): Promise<void> {
     if (props.diffModel) view.setModel(props.diffModel);
     view.setVScrollListener(onEditorScroll);
     bindTableScroll();
+    if (pendingScrollCss != null) setScrollCss(pendingScrollCss);
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e);
   } finally {
@@ -407,8 +410,10 @@ onBeforeUnmount(() => {
 
 /** Parent-driven scroll (keeps pane A's wheel in sync with pane B). */
 function setScrollCss(css: number): void {
+  pendingScrollCss = css;
   const dpr = measurement.value?.dpr ?? 0;
   if (!view || !(dpr > 0)) return;
+  pendingScrollCss = null;
   const scroll = tableScrollEl.value;
   if (scroll) {
     scroll.scrollTop = css;

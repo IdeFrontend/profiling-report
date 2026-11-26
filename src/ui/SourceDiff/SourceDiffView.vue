@@ -202,14 +202,20 @@ onUnmounted(() => {
 
 const leftPane = ref<InstanceType<typeof SourceDiffPane> | null>(null);
 const rightPane = ref<InstanceType<typeof SourceDiffPane> | null>(null);
+const sharedScroll = ref(0);
 
 /** Mirror one pane's wheel into the other; the pane's own echo sentinel stops the bounce. */
 function syncScroll(side: 'left' | 'right') {
   return (css: number): void => {
+    sharedScroll.value = css;
     if (side === 'left') rightPane.value?.setScrollCss(css);
     else leftPane.value?.setScrollCss(css);
   };
 }
+
+watch(rightPane, (pane) => {
+  pane?.setScrollCss(sharedScroll.value);
+});
 
 /** Move both panes to a view row. */
 function scrollToRow(index: number): void {

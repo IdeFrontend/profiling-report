@@ -4591,6 +4591,44 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
+  it('a declared operator missing from the pack does not reuse the root source', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const matmul = correlationWith('/src/matmul.asc', 'int matmul() { return 1; }\n');
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+      operatorReports: {
+        matmul: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+        },
+      },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'missing-operator-key',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{
+          id: 'b-1',
+          name: '',
+          path: '/data/a.rep',
+          operators: [{ id: 'matmul', label: 'MatMul' }, { id: 'softmax', label: 'Softmax' }],
+        }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'softmax' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
   it('PR-ROOT-058: the baseline workspace button is hidden when the pack text is real', async () => {
     const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
     const real = correlationWith('/build/kernel.asc', 'int baseline() { return 1; }\n');

@@ -311,6 +311,21 @@ describe('SourceDiffPane', () => {
     wrapper.unmount();
   });
 
+  it('applies a scroll that arrived before SideDiff finished booting', async () => {
+    const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
+    const wrapper = mount(SourceDiffPane, {
+      props: { rows, side: 'left', metrics, locale: 'en-US', diffModel: sudu.diffModel, workers: null },
+      attachTo: document.body,
+    });
+    (wrapper.vm as unknown as { setScrollCss: (css: number) => void }).setScrollCss(40);
+    expect(sudu.views).toHaveLength(0);
+    await wrapper.setProps({ workers: sudu.pool });
+    await flushPromises();
+    await nextTick();
+    expect(sudu.views.at(-1)!.setVScrollPos).toHaveBeenCalledWith(40);
+    wrapper.unmount();
+  });
+
   it('a metrics row click asks the sibling pane to follow', async () => {
     const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
     const listener = vi.fn();
