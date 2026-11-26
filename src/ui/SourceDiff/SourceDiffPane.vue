@@ -246,12 +246,10 @@ const metricColumns = computed(() => props.metrics.metricsColumns);
 const navigateOptions = computed<SourceSelectOption[]>(() =>
   metricColumns.value.map((col) => ({ id: col.id, label: col.label })),
 );
-const navigateValue = computed(
-  () =>
-    navigateOptions.value.find((opt) => opt.id === props.highlightColumn)?.id ??
-    navigateOptions.value[0]?.id ??
-    '',
-);
+const navigateValue = computed(() => {
+  if (props.highlightColumn) return props.highlightColumn;
+  return navigateOptions.value[0]?.id ?? '';
+});
 
 watch(
   () =>

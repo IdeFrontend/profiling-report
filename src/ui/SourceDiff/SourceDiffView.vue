@@ -84,7 +84,7 @@ function fileSetKey(model: SourceCorrelationModel | undefined): string {
 }
 
 watch(
-  () => [fileSetKey(props.current), fileSetKey(props.baseline)] as const,
+  () => `${fileSetKey(props.current)}\n${fileSetKey(props.baseline)}`,
   () => {
     leftFileId.value = '';
     rightFileId.value = '';

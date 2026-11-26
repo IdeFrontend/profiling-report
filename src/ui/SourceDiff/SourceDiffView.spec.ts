@@ -296,12 +296,14 @@ describe('SourceDiffView', () => {
     expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('a');
     expect((panes()[1]!.props('metrics') as SourceFileModel).id).toBe('a');
 
+    panes()[0]!.vm.$emit('select-file', 'b');
+    await nextTick();
     await wrapper.setProps({
-      current: { ...current, files: [leftA, leftB] },
+      current: { ...current, files: [{ ...leftA }, { ...leftB, text: 'beta changed' }] },
     });
     await nextTick();
-    expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('a');
-    expect((panes()[1]!.props('metrics') as SourceFileModel).id).toBe('a');
+    expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('b');
+    expect((panes()[1]!.props('metrics') as SourceFileModel).id).toBe('b');
     wrapper.unmount();
   });
 
