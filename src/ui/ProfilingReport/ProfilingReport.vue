@@ -10,6 +10,8 @@ import {
   workspaceSourceResolver,
   type PickSourceWorkspace,
   type ResolveSourceFile,
+  type ResolveSourceFileRequest,
+  type SourceWorkspaceFile,
 } from '../../adapters';
 import {
   resolveSourceFrame,
@@ -288,8 +290,19 @@ const sourceSession = ref(0);
 
 /** Last open-report workspace resolver, replayed when the operator changes. */
 let reportWorkspaceResolve: ResolveSourceFile | null = null;
+let reportWorkspaceFiles: SourceWorkspaceFile[] = [];
 /** Last baseline workspace resolver, replayed when the compare operator changes. */
 let baselineWorkspaceResolve: ResolveSourceFile | null = null;
+let baselineWorkspaceFiles: SourceWorkspaceFile[] = [];
+
+function chainResolve(
+  primary: ResolveSourceFile | null,
+  fallback: ResolveSourceFile | undefined,
+): ResolveSourceFile | undefined {
+  if (!primary) return fallback;
+  if (!fallback) return primary;
+  return async (request) => (await primary(request)) ?? fallback(request);
+}
 
 function bumpSourceSession() {
   sourceSession.value += 1;
@@ -297,6 +310,7 @@ function bumpSourceSession() {
   // Export must carry the current report's text, not a previous load's picks.
   resolvedSourceTexts.value = {};
   reportWorkspaceResolve = null;
+  reportWorkspaceFiles = [];
 }
 const loadError = ref<string | null>(null);
 const viewState = ref<SwimlaneViewState>(createViewState(null));
@@ -695,14 +709,18 @@ watch(
   () => props.baselineReports,
   (reports, prev) => {
     const ids = new Set([...Object.keys(reports ?? {}), ...Object.keys(prev ?? {})]);
-    const packChanged = [...ids].some((id) => reports?.[id]?.report !== prev?.[id]?.report);
-    if (!packChanged) return;
-    baselineResolveGen += 1;
-    baselineWorkspaceResolve = null;
+    const changedIds = [...ids].filter((id) => reports?.[id]?.report !== prev?.[id]?.report);
+    if (changedIds.length === 0) return;
+    const comparedId = compareBaselineId.value;
+    if (comparedId != null && changedIds.includes(comparedId)) {
+      baselineResolveGen += 1;
+      baselineWorkspaceResolve = null;
+      baselineWorkspaceFiles = [];
+    }
     const kept: Record<string, SourceCorrelationModel> = {};
     for (const [key, model] of Object.entries(baselineSourceCorrelation.value)) {
       const id = key.slice(0, key.indexOf(':'));
-      if (reports?.[id]?.report === prev?.[id]?.report) kept[key] = model;
+      if (!changedIds.includes(id)) kept[key] = model;
     }
     baselineSourceCorrelation.value = kept;
     if (compareAutoSeeded.value) {
@@ -745,27 +763,34 @@ function onCompareBaselineChange(id: string) {
   compareBaselineId.value = id;
   compareOperatorId.value = '';
   compareAutoSeeded.value = false;
+  replayBaselineFill();
 }
 
-function onCompareOperatorChange(id: string) {
-  compareOperatorId.value = id;
-  compareAutoSeeded.value = false;
+function replayBaselineFill(): void {
   if (!baselineWorkspaceResolve) return;
   const resolve = baselineWorkspaceResolve;
   void nextTick(() => {
     const row = compareRow.value;
     const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
-    const model = row && pack ? compareCorrelationOf(row, pack) : null;
-    if (!row || !pack || !model) return;
+    if (!row || !pack) return;
+    const key = compareSourceKeyOf(row, pack);
+    const model = baselineSourceCorrelation.value[key] ?? compareCorrelationOf(row, pack);
+    if (!model) return;
     const resolveGen = ++baselineResolveGen;
     void fillMissingSourceFiles(model, resolve).then((next) => {
       if (resolveGen !== baselineResolveGen || !next) return;
       baselineSourceCorrelation.value = {
         ...baselineSourceCorrelation.value,
-        [compareSourceKeyOf(row, pack)]: next,
+        [key]: next,
       };
     });
   });
+}
+
+function onCompareOperatorChange(id: string) {
+  compareOperatorId.value = id;
+  compareAutoSeeded.value = false;
+  replayBaselineFill();
 }
 
 // Removing the selected checked baseline moves the compare pair to the next one.
@@ -1434,45 +1459,84 @@ async function fillReportSourceFiles(
   return next;
 }
 
-/** Pick a workspace once; `null` when the operator cancels or nothing is missing. */
-async function pickWorkspaceResolver(
-  model: SourceCorrelationModel,
-): Promise<ResolveSourceFile | null> {
-  const pick = props.pickSourceWorkspace;
-  if (!pick) return null;
-  const requests = sourceResolveRequests(model);
-  if (requests.length === 0) return null;
-  const picked = await pick(requests);
-  return picked ? workspaceSourceResolver(picked) : null;
+function unionRequests(models: Array<SourceCorrelationModel | null | undefined>): ResolveSourceFileRequest[] {
+  const seen = new Set<string>();
+  const requests: ResolveSourceFileRequest[] = [];
+  for (const model of models) {
+    if (!model) continue;
+    for (const request of sourceResolveRequests(model)) {
+      if (seen.has(request.fileName)) continue;
+      seen.add(request.fileName);
+      requests.push(request);
+    }
+  }
+  return requests;
+}
+
+function mergeWorkspaceFiles(
+  prev: SourceWorkspaceFile[],
+  picked: { files: SourceWorkspaceFile[] },
+): SourceWorkspaceFile[] {
+  const byPath = new Map(prev.map((file) => [file.path, file]));
+  for (const file of picked.files) byPath.set(file.path, file);
+  return [...byPath.values()];
+}
+
+/** Placeholder files across the open report and every packaged operator. */
+function reportPickRequests(): ResolveSourceFileRequest[] {
+  return unionRequests([
+    report.value?.sourceCorrelation,
+    ...Object.values(operatorReports.value).map((rep) => rep.reportModel.sourceCorrelation),
+  ]);
+}
+
+function baselinePickRequests(pack: AdaptedReport): ResolveSourceFileRequest[] {
+  return unionRequests([
+    pack.reportModel.sourceCorrelation,
+    ...Object.values(pack.operatorReports ?? {}).map((rep) => rep.reportModel.sourceCorrelation),
+  ]);
 }
 
 async function onPickReportSourceWorkspace() {
   const model = report.value?.sourceCorrelation;
-  if (!model) return;
+  const pick = props.pickSourceWorkspace;
+  if (!model || !pick) return;
+  const requests = reportPickRequests();
+  if (requests.length === 0) return;
   // The dialog can outlive the report it was opened for: claim the generation
   // before awaiting so a report swap while it is open drops the stale result.
   const resolveGen = ++sourceResolveGen;
-  const resolve = await pickWorkspaceResolver(model);
-  if (!resolve || resolveGen !== sourceResolveGen) return;
-  reportWorkspaceResolve = resolve;
-  await fillReportSourceFiles(model, resolveGen, resolve);
+  const picked = await pick(requests);
+  if (!picked || resolveGen !== sourceResolveGen) return;
+  reportWorkspaceFiles = mergeWorkspaceFiles(reportWorkspaceFiles, picked);
+  reportWorkspaceResolve = workspaceSourceResolver({ files: reportWorkspaceFiles });
+  await fillReportSourceFiles(
+    model,
+    resolveGen,
+    chainResolve(reportWorkspaceResolve, props.resolveSourceFile),
+  );
 }
 
 async function onPickBaselineSourceWorkspace() {
   const row = compareRow.value;
   const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
-  // Overlay-aware: the second pick starts from the text the first one filled.
+  const pick = props.pickSourceWorkspace;
   const model = compareBaselineModel.value;
-  if (!row || !pack || !model) return;
+  if (!row || !pack || !model || !pick) return;
+  const requests = baselinePickRequests(pack);
+  if (requests.length === 0) return;
   const resolveGen = ++baselineResolveGen;
-  const resolve = await pickWorkspaceResolver(model);
-  if (!resolve || resolveGen !== baselineResolveGen) return;
-  baselineWorkspaceResolve = resolve;
-  const next = await fillMissingSourceFiles(model, resolve);
+  const picked = await pick(requests);
+  if (!picked || resolveGen !== baselineResolveGen) return;
+  baselineWorkspaceFiles = mergeWorkspaceFiles(baselineWorkspaceFiles, picked);
+  baselineWorkspaceResolve = workspaceSourceResolver({ files: baselineWorkspaceFiles });
+  const key = compareSourceKeyOf(row, pack);
+  const start = baselineSourceCorrelation.value[key] ?? model;
+  const next = await fillMissingSourceFiles(start, baselineWorkspaceResolve);
   if (resolveGen !== baselineResolveGen || !next) return;
   baselineSourceCorrelation.value = {
     ...baselineSourceCorrelation.value,
-    [compareSourceKeyOf(row, pack)]: next,
+    [key]: next,
   };
 }
 
@@ -1514,7 +1578,7 @@ function onOperatorChange(id: string) {
   void fillReportSourceFiles(
     rep.reportModel.sourceCorrelation,
     resolveGen,
-    reportWorkspaceResolve ?? undefined,
+    chainResolve(reportWorkspaceResolve, props.resolveSourceFile),
   );
 }
 
