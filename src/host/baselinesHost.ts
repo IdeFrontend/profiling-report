@@ -648,6 +648,23 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
     path: '/data/roofline_multi.npu-rep',
     pickedAt: new Date(2026, 10, 10, 13, 52, 6).getTime(),
   },
+  // Source-diff packs: each carries its own `sourceCorrelation`, so the 源码对比
+  // entry pairs against them. The fixture packs have no generated run id, so a
+  // readable host name titles them. Only the packs whose source TEXT differs
+  // from the open fixture (`demo.npu-rep`) are listed: demo/left hold the same
+  // lines, so comparing them renders an empty diff.
+  {
+    id: 'demo-recent-6',
+    name: 'source-diff mid',
+    path: '/data/source-diff/mid.npu-rep',
+    pickedAt: new Date(2026, 10, 11, 9, 25).getTime(),
+  },
+  {
+    id: 'demo-recent-7',
+    name: 'source-diff right',
+    path: '/data/source-diff/right.npu-rep',
+    pickedAt: new Date(2026, 10, 11, 9, 30).getTime(),
+  },
 ];
 
 /**

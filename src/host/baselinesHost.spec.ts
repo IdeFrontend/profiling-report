@@ -2,12 +2,14 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
-import { createBaselinesHost, withDemoOperatorPack } from './baselinesHost';
+import { createBaselinesHost, DEMO_RECENT_BASELINES, withDemoOperatorPack } from './baselinesHost';
+import { baselineDisplayTitle } from '../domain/baselineTitle';
 import { loadOutRepBuffer, loadOutRepBytes, loadSampleRepBytes } from '../../tests/helpers/fixtures';
 import { buildMemoryTopology } from '../adapters/memoryTopology';
 import { metricDiff, summaryDiffs } from '../domain/metricDiff';
 import { emptyReportViewModel } from '../adapters/adaptRep';
 import { loadReportSource } from '../adapters/loadReportSource';
+import { alignSourceLines, splitSourceLines } from '../ui/SourceDiff/diffAlign';
 import type { MemoryTopologyPlate, ReportViewModel } from '../domain/types';
 
 function platesOf(model: ReportViewModel): MemoryTopologyPlate[] {
@@ -696,4 +698,48 @@ describe('createBaselinesHost', () => {
       }
     },
   );
+
+  it('DEMO BASELINES: the source-diff packs carry source, title and a real diff', { timeout: 30_000 }, () => {
+    expect(DEMO_RECENT_BASELINES).toHaveLength(7);
+    expect(DEMO_RECENT_BASELINES.slice(0, 5).map((b) => b.path)).toEqual([
+      '/data/out.rep',
+      '/data/example.rep',
+      '/data/gelu.npu-rep',
+      '/data/gather_2d.npu-rep',
+      '/data/roofline_multi.npu-rep',
+    ]);
+    const sourceDiff = DEMO_RECENT_BASELINES.filter((b) => b.path.startsWith('/data/source-diff/'));
+    expect(sourceDiff.map((b) => b.path)).toEqual([
+      '/data/source-diff/mid.npu-rep',
+      '/data/source-diff/right.npu-rep',
+    ]);
+    // The identical-source packs stay out: they would render an empty diff.
+    const paths = DEMO_RECENT_BASELINES.map((b) => b.path);
+    expect(paths).not.toContain('/data/source-diff/demo.npu-rep');
+    expect(paths).not.toContain('/data/source-diff/left.npu-rep');
+    const titles = DEMO_RECENT_BASELINES.map((b) => baselineDisplayTitle(b));
+    expect(new Set(titles).size).toBe(DEMO_RECENT_BASELINES.length);
+    const openText = (): string => {
+      const open = loadReportSource(
+        new Uint8Array(readFileSync('playground/public/data/source-diff/demo.npu-rep')),
+      );
+      return open.reportModel.sourceCorrelation!.files[0]!.text;
+    };
+    for (const entry of sourceDiff) {
+      expect(baselineDisplayTitle(entry)).toContain('source-diff');
+      const bytes = readFileSync(`playground/public${entry.path}`);
+      const pack = withDemoOperatorPack(loadReportSource(new Uint8Array(bytes)), entry.id);
+      expect(pack.reportModel.sourceCorrelation?.files.length).toBeGreaterThan(0);
+      for (const op of Object.values(pack.operatorReports ?? {})) {
+        expect(op.reportModel.sourceCorrelation?.files.length).toBeGreaterThan(0);
+      }
+      // Compare the same texts the view aligns: the baseline's primary file
+      // against the open fixture's. A same-only alignment is the zero diff.
+      const rows = alignSourceLines(
+        splitSourceLines(openText()),
+        splitSourceLines(pack.reportModel.sourceCorrelation!.files[0]!.text),
+      );
+      expect(rows.filter((row) => row.kind !== 'same')).not.toHaveLength(0);
+    }
+  });
 });
