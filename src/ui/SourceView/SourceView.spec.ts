@@ -1833,4 +1833,62 @@ describe('SourceView', () => {
     expect(fallback.text().split('\n').length).toBeLessThan(10);
     wrapper.unmount();
   });
+
+  it('PR-SRC-018i: a gap caret survives hiding Source, and an unmapped asm click clears it', async () => {
+    const base = mockSourceCorrelation();
+    const dense = base.files[0]!;
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        {
+          ...dense,
+          sparse: true,
+          lineCount: 128,
+          lines: [
+            { line: 17, values: { instructionsExecuted: 1 } },
+            { line: 46, values: { instructionsExecuted: 9 } },
+            { line: 61, values: { instructionsExecuted: 2 } },
+          ],
+        },
+      ],
+    };
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
+    await flushPromises();
+    const sourceTable = () => wrapper.findAll('[data-testid="source-metrics"]')[0]!;
+    // Document: 17, gap, gap, 46, gap, gap, 61. Row 5 is the gap after 46.
+    await sourceTable().find('tr[data-line="46"]').trigger('click');
+    await flushPromises();
+    let ed = await latestSuduEditor();
+    ed.setPosition({ lineNumber: 5, column: 1 });
+    await flushPromises();
+    expect(sourceTable().findAll('tr.pr-src-metrics__row--gap')[2]!.classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+
+    await pickNavigate(wrapper, 'source-view-select', 'asm');
+    await pickNavigate(wrapper, 'source-view-select', 'both');
+    await flushPromises();
+    ed = await latestSuduEditor();
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 5, column: 1 });
+    expect(sourceTable().findAll('tr.pr-src-metrics__row--gap')[2]!.classes()).toContain(
+      'pr-src-metrics__row--current',
+    );
+    expect(sourceTable().find('tr[data-line="46"]').classes()).not.toContain(
+      'pr-src-metrics__row--current',
+    );
+
+    await pickNavigate(wrapper, 'source-view-select', 'asm');
+    const unmapped = model.assembly.lines.find((row) => !model.asmToSource.has(row.line))?.line;
+    expect(unmapped).not.toBeNull();
+    await wrapper.get(`[data-testid="source-pane-asm"] tr[data-line="${unmapped}"]`).trigger('click');
+    await pickNavigate(wrapper, 'source-view-select', 'source');
+    await flushPromises();
+    expect(sourceTable().findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
+    ed = await latestSuduEditor();
+    ed.setPosition.mockClear();
+    await wrapper.find('[data-testid="source-find-next"]').trigger('click');
+    await flushPromises();
+    expect(ed.setPosition).toHaveBeenCalledWith({ lineNumber: 1, column: 1 });
+    wrapper.unmount();
+  });
 });

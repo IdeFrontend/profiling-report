@@ -359,8 +359,13 @@ function onAsmLine(line: number) {
     if (fileChanged) {
       syncOrigin.value = null;
       sourceLine.value = hit.line;
+      sourceOnGap.value = false;
+      sourceDocRow.value = null;
     } else {
       sourceLine.value = hit.line;
+      // The mapped source line replaces a gap caret. Leaving sourceOnGap set
+      // would restore the blank row when Source mounts again.
+      sourceOnGap.value = false;
       const pane = sourcePane.value;
       // No mounted source pane can echo (SASS-only). Arming the gate here
       // swallows the next source click after the pane comes back (PR-SOURCE-030).
@@ -377,7 +382,11 @@ function onAsmLine(line: number) {
     }
   } else {
     // No mapped source — clear metrics current row and Sudu caret/current-line paint.
+    // clearLine emits caretDoc null when the pane is mounted. It is gone in
+    // SASS-only, so drop the gap caret here or Navigate By still steps from it.
     sourceLine.value = null;
+    sourceDocRow.value = null;
+    sourceOnGap.value = false;
     sourcePane.value?.clearLine?.();
   }
 }
@@ -829,6 +838,7 @@ onBeforeUnmount(() => {
           :file="sourceFile"
           :worker-url="suduWorkerUrl"
           :current-line="sourceLine"
+          :restore-doc-row="sourceOnGap ? sourceDocRow : null"
           :correlated-lines="correlatedSource"
           :search-query="trimmedSearch"
           :editor-ratio="0.62"
