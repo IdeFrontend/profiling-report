@@ -726,6 +726,7 @@ watch(
     if (compareAutoSeeded.value) {
       compareBaselineId.value = defaultCompareBaselineId();
       compareOperatorId.value = '';
+      replayBaselineFill();
     }
   },
 );
@@ -754,6 +755,7 @@ function enterCompareMode() {
     compareAutoSeeded.value = true;
   }
   compareMode.value = true;
+  replayBaselineFill();
 }
 
 /** Picking a report resets the operator to that baseline's default. */
@@ -812,6 +814,7 @@ watch(
     compareBaselineId.value = next.id;
     compareOperatorId.value = '';
     compareAutoSeeded.value = true;
+    replayBaselineFill();
   },
 );
 
@@ -1491,10 +1494,12 @@ function reportPickRequests(): ResolveSourceFileRequest[] {
 }
 
 function baselinePickRequests(pack: AdaptedReport): ResolveSourceFileRequest[] {
-  return unionRequests([
-    pack.reportModel.sourceCorrelation,
-    ...Object.values(pack.operatorReports ?? {}).map((rep) => rep.reportModel.sourceCorrelation),
-  ]);
+  const activeId = compareSelectedOperatorId.value;
+  const others = Object.entries(pack.operatorReports ?? {})
+    .filter(([id]) => id !== activeId)
+    .map(([, rep]) => rep.reportModel.sourceCorrelation);
+  // The pane model is the overlay when one exists, so filled files are not requested again.
+  return unionRequests([compareBaselineModel.value, ...others]);
 }
 
 async function onPickReportSourceWorkspace() {

@@ -313,7 +313,10 @@ function onTableScroll(): void {
 
 /** Metrics row click scrolls the canvas to the same view row; SideDiff has no caret API. */
 function onRowClick(line: number): void {
-  setScrollCss(Math.max(0, (line - 1) * rowH.value));
+  const css = Math.max(0, (line - 1) * rowH.value);
+  setScrollCss(css);
+  // setScrollCss swallows its own table echo, so the sibling pane must be told directly.
+  props.scrollListener?.(getScrollCss());
 }
 
 function bindTableScroll(): void {

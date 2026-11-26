@@ -311,6 +311,28 @@ describe('SourceDiffPane', () => {
     wrapper.unmount();
   });
 
+  it('a metrics row click asks the sibling pane to follow', async () => {
+    const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
+    const listener = vi.fn();
+    const wrapper = mount(SourceDiffPane, {
+      props: {
+        rows,
+        side: 'left',
+        metrics,
+        locale: 'en-US',
+        diffModel: sudu.diffModel,
+        workers: sudu.pool,
+        scrollListener: listener,
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+    await wrapper.get('tr[data-line="1"]').trigger('click');
+    expect(listener).toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('a programmatic scroll does not bounce back into the editor', async () => {
     const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
     const wrapper = await mountPane(rows, 'left');
