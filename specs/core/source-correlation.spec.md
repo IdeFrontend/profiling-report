@@ -17,8 +17,9 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 - Line numbers are **1-based**.
 - Correlation maps: per-file `sourceToAsm: Map<sourceLine, asmLines[]>` and model `asmToSource: Map<asmLine, { fileId, line }>`.
+- Current emulate packs carry the complete file text in `SourceLines.csv` as `SourceFileId,SourceLineNum,SourceLineId,SourceLine`; legacy packs have only `SourceLineId,SourceLine` and rely on `DebugInfo` for placement.
 - Sparse emulate source files may set `lineCount` (max reported line) while `lines` stays sparse; dense listings omit `lineCount`.
-- Sparse emulate source files set **sparse** so the view renders only reported lines; a host-resolved full file clears it.
+- Sparse emulate source files set **sparse** so the view renders only reported lines; a complete `SourceLines` range or a host-resolved full file clears it.
 - `mock: true` only on the deterministic fixture; real embeds set `mock: false`.
 
 ## Behavior
@@ -44,9 +45,10 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 - Asm rows from `SourceInstructions` (prefer) or `AsmMetrics` fallback; Address = hex report PC; Assembly = `SourceInstrText` / `InstrName`.
 - MVP metrics from `AsmMetrics` / `SourceLineMetrics`: ExecutionCount, TickCount, RelTime, WarpOccupancy, VectorUtilization (producer 0–100 stored as 0–1 for percent display). NULL → unavailable; numeric 0 stays 0.
-- Maps from `SourceInstructions` ⟕ `DebugInfo` ⟕ `SourceFiles` ⟕ `SourceLines`; `LineNum > 0` only. Unmapped clears correlation.
+- Text from `SourceLines` `(SourceFileId, SourceLineNum) → SourceLine` (current 4-column layout, indentation preserved). A contiguous `1..N` range is a complete file and renders as a normal full document with sparse metric rows (`sparse: false`); the source view shows every line and unreported metric cells stay blank.
+- Instruction → line join: `SourceInstructions.DebugInfoId` → `DebugInfo`; when `DebugInfo.csv` is absent, fall back to `SourceLineMetrics.DebugInfoId`, then to `AsmMetrics` `(FileId, LineNum)` by `PC`. `LineNum > 0` only. Unmapped clears correlation.
 - `SourceFiles` / `SourceLines` optional — assembly-only (`files: []`) or missing-embed placeholder (shared UX with compute).
-- Sparse emulate files render a **mapped document**: only reported lines carry a line number, and non-contiguous runs are separated by two blank unnumbered rows. Metrics rows follow the same collapsed order (no phantom zero rows), and caret / row selection translate between document rows and source lines. Gap rows do not paint metric bars. A caret on a gap row marks that same metrics row. A missing-embed banner stays on the first rendered row; a file with no reported lines renders that banner as the one shared row.
+- Legacy packs (`SourceLines` without file/line columns) render a **mapped document**: text is placed through `DebugInfo`, only reported lines carry a line number, and non-contiguous runs are separated by two blank unnumbered rows. Same fallback for a truncated line range (missing line numbers inside `1..N`). Metrics rows follow the collapsed order (no phantom zero rows), and caret / row selection translate between document rows and source lines. Gap rows do not paint metric bars. A caret on a gap row marks that same metrics row. A missing-embed banner stays on the first rendered row; a file with no reported lines renders that banner as the one shared row.
 - Do **not** light from `IPCAsmMetrics` or hint CSVs alone ([DATA-53b](../../docs/context/decisions/interim/DATA.md#data-53b)).
 - Deferred emulate slices: stalls ([DATA-53a](../../docs/context/decisions/interim/DATA.md#data-53a)), richer metrics / BB / stacks ([DATA-53c](../../docs/context/decisions/interim/DATA.md#data-53c)), full-file resolve ([DATA-53d](../../docs/context/decisions/interim/DATA.md#data-53d)), tick→ns ([DATA-53e](../../docs/context/decisions/interim/DATA.md#data-53e)), SASS label ([UI-53a](../../docs/context/decisions/interim/UI.md#ui-53a)).
 
@@ -78,6 +80,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 16. **PR-SRC-016** — `adaptSourceCorrelation` dispatches emulate ELF packs.
 17. **PR-SRC-017** — `adaptEmulate` with ELF attaches `sourceCorrelation` + `'sourceTab'`.
 18. **PR-SRC-018** — Sparse emulate lines render as mapped document.
+19. **PR-SRC-019** — Located SourceLines build the full file text.
 
 ## Dependencies
 
@@ -85,6 +88,7 @@ readPcSamplingDb(bytes: Uint8Array): Promise<PcSamplingRow[]>
 
 ## Changelog
 
+- **2026-11-26** — Emulate adapter uses the current `SourceLines` layout (`SourceFileId,SourceLineNum,SourceLineId,SourceLine`) as complete file text, with `AsmMetrics` / `SourceLineMetrics` mapping fallbacks (`PR-SRC-019`). Legacy 2-column packs keep the collapsed view.
 - **2026-11-25** — Sparse gap rows hide metric bars, the caret row stays aligned with the metrics highlight, and a missing-embed banner stays on the first rendered row (`PR-SRC-018`).
 - **2026-11-25** — Sparse emulate source renders a mapped document (`newTextModelFromLines`) with blank gap rows; metrics table follows the collapsed order (`PR-SRC-018`).
 - **2026-11-17** — Emulate ELF Source path (`adaptEmulateSourceCorrelation`, DATA-53): PR-SRC-012…017.

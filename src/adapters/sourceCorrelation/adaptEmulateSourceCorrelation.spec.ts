@@ -213,4 +213,89 @@ describe('adaptEmulateSourceCorrelation', () => {
     expect(report.reportModel.sourceCorrelation).toBeUndefined();
     expect(report.capabilities).not.toContain('sourceTab');
   });
+
+  /** Current producer layout: SourceLines carries (file, line, id, text) for the whole file. */
+  function locatedSourcePayloads(): Record<string, Uint8Array> {
+    return {
+      'SourceFiles.csv': enc(['SourceFileId,SourceFilePath', '7,/sdk/kernel.asc'].join('\n')),
+      'SourceLines.csv': enc(
+        [
+          'SourceFileId,SourceLineNum,SourceLineId,SourceLine',
+          '7,1,10,"int main() {"',
+          '7,2,11,"  return 0;"',
+          '7,3,12,}',
+        ].join('\n'),
+      ),
+      'SourceInstructions.csv': enc(
+        [
+          'SourceInstrSection,SourceInstrAddr,SourceInstrEncoding,SourceInstrText,DebugInfoId',
+          '0,0,aabb,"MOV x0, x1",1',
+          '0,4,ccdd,RET,2',
+        ].join('\n'),
+      ),
+      'AsmMetrics.csv': enc(
+        [
+          'PC,InstrName,FileId,LineNum,ExecutionCount,TickCount,RelTime,WarpOccupancy,VectorUtilization',
+          '0,"MOV x0, x1",7,2,4,40,0.4,0.5,50',
+          '4,RET,7,3,0,,,,0',
+        ].join('\n'),
+      ),
+      'SourceLineMetrics.csv': enc(
+        [
+          'DebugInfoId,FileId,LineId,LineNum,ExecutionCount,TickCount,RelTime,WarpOccupancy,VectorUtilization',
+          '1,7,11,2,4,40,0.4,0.5,50',
+        ].join('\n'),
+      ),
+    };
+  }
+
+  it('PR-SRC-019: located SourceLines become the full file text (dense, not collapsed)', () => {
+    const model = adaptEmulateSourceCorrelation(locatedSourcePayloads())!;
+    expect(model.files).toHaveLength(1);
+    const file = model.files[0]!;
+    expect(file.sparse).toBe(false);
+    expect(file.lineCount).toBe(3);
+    expect(file.text).toBe('int main() {\n  return 0;\n}\n');
+    // Only metric / mapped lines carry rows; the table fills the rest blank.
+    expect(file.lines.map((l) => l.line)).toEqual([2, 3]);
+    expect(file.lines.find((l) => l.line === 2)?.values.executionCount).toBe(4);
+    expect(file.lines.find((l) => l.line === 3)?.values.executionCount).toBeNull();
+    // No DebugInfo.csv: AsmMetrics FileId/LineNum maps the instructions.
+    expect(file.sourceToAsm?.get(2)).toEqual([1]);
+    expect(file.sourceToAsm?.get(3)).toEqual([2]);
+  });
+
+  it('PR-SRC-019b: SourceLineMetrics maps instructions when DebugInfo is absent', () => {
+    const payloads = locatedSourcePayloads();
+    delete payloads['AsmMetrics.csv'];
+    payloads['SourceInstructions.csv'] = enc(
+      [
+        'SourceInstrSection,SourceInstrAddr,SourceInstrEncoding,SourceInstrText,DebugInfoId',
+        '0,0,aabb,"MOV x0, x1",1',
+      ].join('\n'),
+    );
+    payloads['SourceLineMetrics.csv'] = enc(
+      [
+        'DebugInfoId,FileId,LineId,LineNum,ExecutionCount,TickCount,RelTime,WarpOccupancy,VectorUtilization',
+        '1,7,11,2,4,40,0.4,0.5,50',
+      ].join('\n'),
+    );
+    const model = adaptEmulateSourceCorrelation(payloads)!;
+    expect(model.files[0]!.sourceToAsm?.get(2)).toEqual([1]);
+    expect(model.asmToSource.get(1)).toEqual({ fileId: '7', line: 2 });
+  });
+
+  it('PR-SRC-019c: partial located SourceLines keep the collapsed sparse view', () => {
+    const payloads = locatedSourcePayloads();
+    payloads['SourceLines.csv'] = enc(
+      [
+        'SourceFileId,SourceLineNum,SourceLineId,SourceLine',
+        '7,1,10,"int main() {"',
+        '7,3,12,}',
+      ].join('\n'),
+    );
+    const file = adaptEmulateSourceCorrelation(payloads)!.files[0]!;
+    expect(file.sparse).toBe(true);
+    expect(file.text).toBe('int main() {\n\n}\n');
+  });
 });

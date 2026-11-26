@@ -1374,12 +1374,14 @@ Remaining gelu `manifest.json` tables.
 | Kind | table |
 | Gelu rows | 0 |
 | CSV file | `SourceLines.csv` |
-| Role | ELF / source / call-graph metadata; often empty without `--object-file`. *inferred* |
+| Role | Complete source text per file / line. *inferred* |
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `SourceLineId` | `INTEGER` | Identifier for `SourceLine`. *inferred* |
-| `SourceLine` | `VARCHAR(200)` | Source line number or id. *inferred* |
+| `SourceFileId` | `INTEGER` | FK → `SourceFiles.SourceFileId` (current layout). |
+| `SourceLineNum` | `INTEGER` | 1-based line number in that file (current layout). |
+| `SourceLineId` | `INTEGER` | Identifier for `SourceLine`; joined from `DebugInfo` / `SourceLineMetrics`. |
+| `SourceLine` | `VARCHAR` | Raw line text; may contain commas/quotes (RFC-4180 quoted). |
 
 ### `SprInfoPerInstr` {#sprinfoperinstr}
 

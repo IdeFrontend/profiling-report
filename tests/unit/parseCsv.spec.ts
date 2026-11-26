@@ -68,4 +68,17 @@ describe('parseCsv quote handling', () => {
     expect(parseCsv('')).toEqual({ headers: [], rows: [] });
     expect(parseCsv('\n\n')).toEqual({ headers: [], rows: [] });
   });
+
+  it('trim: false preserves source text indentation', () => {
+    const { rows } = parseCsv(
+      'SourceFileId,SourceLineNum,SourceLineId,SourceLine\n7,2,11,"    return x;"\n',
+      { trim: false },
+    );
+    expect(rows[0]).toEqual({
+      SourceFileId: '7',
+      SourceLineNum: '2',
+      SourceLineId: '11',
+      SourceLine: '    return x;',
+    });
+  });
 });

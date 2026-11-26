@@ -63,10 +63,11 @@ function decodeUtf8(bytes: Uint8Array): string {
 function csvRows(
   payloads: Record<string, Uint8Array>,
   names: readonly string[],
+  options?: { trim?: boolean },
 ): Record<string, string>[] {
   const bytes = payloadByName(payloads, names);
   if (!bytes || bytes.byteLength === 0) return [];
-  return parseCsv(decodeUtf8(bytes)).rows;
+  return parseCsv(decodeUtf8(bytes), options).rows;
 }
 
 function cell(row: Record<string, string>, ...keys: string[]): string {
@@ -81,6 +82,22 @@ function cell(row: Record<string, string>, ...keys: string[]): string {
   for (const key of keys) {
     const v = lower[key.toLowerCase()];
     if (v != null && v !== '') return v.trim();
+  }
+  return '';
+}
+
+/** Like `cell`, but preserves leading / trailing whitespace (source text). */
+function rawCell(row: Record<string, string>, ...keys: string[]): string {
+  for (const key of keys) {
+    const v = row[key];
+    if (v != null) return v;
+  }
+  const lower = Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [k.toLowerCase(), v]),
+  );
+  for (const key of keys) {
+    const v = lower[key.toLowerCase()];
+    if (v != null) return v;
   }
   return '';
 }
@@ -216,7 +233,7 @@ export function adaptEmulateSourceCorrelation(
   const instrRows = csvRows(payloads, EMULATE_SOURCE_EMBED_NAMES.sourceInstructions);
   const asmMetricRows = csvRows(payloads, EMULATE_SOURCE_EMBED_NAMES.asmMetrics);
   const fileRows = csvRows(payloads, EMULATE_SOURCE_EMBED_NAMES.sourceFiles);
-  const lineRows = csvRows(payloads, EMULATE_SOURCE_EMBED_NAMES.sourceLines);
+  const lineRows = csvRows(payloads, EMULATE_SOURCE_EMBED_NAMES.sourceLines, { trim: false });
   const debugRows = csvRows(payloads, EMULATE_SOURCE_EMBED_NAMES.debugInfo);
   const sourceMetricRows = csvRows(payloads, EMULATE_SOURCE_EMBED_NAMES.sourceLineMetrics);
 
@@ -232,6 +249,16 @@ export function adaptEmulateSourceCorrelation(
     if (pc == null) continue;
     metricsByPc.set(pc, metricsFromRow(row));
   }
+
+  const filesById = new Map<string, { path: string }>();
+  for (const row of fileRows) {
+    const id = cell(row, 'SourceFileId');
+    if (!id) continue;
+    filesById.set(id, { path: cell(row, 'SourceFilePath') || id });
+  }
+  const ensureFile = (fileId: string) => {
+    if (!filesById.has(fileId)) filesById.set(fileId, { path: fileId });
+  };
 
   // DebugInfoId → mapping
   const debugById = new Map<
@@ -249,18 +276,48 @@ export function adaptEmulateSourceCorrelation(
     });
   }
 
-  const lineTextById = new Map<string, string>();
-  for (const row of lineRows) {
-    const id = cell(row, 'SourceLineId');
-    if (!id) continue;
-    lineTextById.set(id, cell(row, 'SourceLine'));
+  // SourceLineMetrics also carries DebugInfoId → (FileId, LineNum); it keeps
+  // instruction mapping working when DebugInfo.csv is absent.
+  const metricLineByDebugInfoId = new Map<
+    string,
+    { fileId: string; lineNum: number }
+  >();
+  for (const row of sourceMetricRows) {
+    const id = cell(row, 'DebugInfoId');
+    const fileId = cell(row, 'FileId', 'SourceFileId');
+    const lineNum = Number(cell(row, 'LineNum'));
+    if (!id || !fileId || !Number.isFinite(lineNum) || lineNum <= 0) continue;
+    metricLineByDebugInfoId.set(id, { fileId, lineNum });
   }
 
-  const filesById = new Map<string, { path: string }>();
-  for (const row of fileRows) {
-    const id = cell(row, 'SourceFileId');
-    if (!id) continue;
-    filesById.set(id, { path: cell(row, 'SourceFilePath') || id });
+  /**
+   * Current producer layout: `SourceFileId,SourceLineNum,SourceLineId,SourceLine`
+   * is the complete source text (one row per physical line). Legacy packs have
+   * only `SourceLineId,SourceLine`, where DebugInfo is the file/line authority.
+   */
+  const locatedTextByFile = new Map<string, Map<number, string>>();
+  const legacyTextById = new Map<string, string>();
+  let hasSourceLineLocations = false;
+  const ensureLocatedText = (fileId: string) => {
+    let m = locatedTextByFile.get(fileId);
+    if (!m) {
+      m = new Map();
+      locatedTextByFile.set(fileId, m);
+    }
+    return m;
+  };
+  for (const row of lineRows) {
+    const lineId = cell(row, 'SourceLineId');
+    const text = rawCell(row, 'SourceLine');
+    const fileId = cell(row, 'SourceFileId', 'FileId');
+    const lineNum = Number(cell(row, 'SourceLineNum', 'LineNum'));
+    if (fileId && Number.isFinite(lineNum) && lineNum > 0) {
+      hasSourceLineLocations = true;
+      ensureFile(fileId);
+      ensureLocatedText(fileId).set(lineNum, text);
+    } else if (lineId) {
+      legacyTextById.set(lineId, text);
+    }
   }
 
   // Also accept FileId/LineNum directly on AsmMetrics when DebugInfo is sparse.
@@ -291,18 +348,21 @@ export function adaptEmulateSourceCorrelation(
         // File identity from DebugInfo even when SourceFiles row missing —
         // still useful for maps if we synthesize a file entry below.
         mapped = { fileId: d.fileId, lineNum: d.lineNum };
-        if (!filesById.has(d.fileId)) {
-          filesById.set(d.fileId, { path: d.fileId });
-        }
+        ensureFile(d.fileId);
+      }
+    }
+    if (!mapped && insn.debugInfoId) {
+      const fromMetric = metricLineByDebugInfoId.get(insn.debugInfoId);
+      if (fromMetric) {
+        mapped = fromMetric;
+        ensureFile(fromMetric.fileId);
       }
     }
     if (!mapped) {
       const fromAsm = fileLineByPc.get(insn.pc);
       if (fromAsm) {
         mapped = fromAsm;
-        if (!filesById.has(fromAsm.fileId)) {
-          filesById.set(fromAsm.fileId, { path: fromAsm.fileId });
-        }
+        ensureFile(fromAsm.fileId);
       }
     }
 
@@ -330,24 +390,28 @@ export function adaptEmulateSourceCorrelation(
     };
   });
 
-  // Sparse source text: lineNum → text per file
-  const textByFileLine = new Map<string, Map<number, string>>();
-  const ensureTextMap = (fileId: string) => {
-    let m = textByFileLine.get(fileId);
-    if (!m) {
-      m = new Map();
-      textByFileLine.set(fileId, m);
-    }
-    return m;
-  };
-
-  for (const insn of insns) {
-    if (!insn.debugInfoId) continue;
-    const d = debugById.get(insn.debugInfoId);
-    if (!d || !d.fileId || d.lineNum <= 0) continue;
-    if (d.lineId) {
-      const text = lineTextById.get(d.lineId);
-      if (text != null) ensureTextMap(d.fileId).set(d.lineNum, text);
+  // Source text. Current packs already carry (file, line) per row. Legacy
+  // packs only have line ids, so place their text through DebugInfo.
+  const textByFileLine = hasSourceLineLocations
+    ? locatedTextByFile
+    : new Map<string, Map<number, string>>();
+  if (!hasSourceLineLocations) {
+    const ensureTextMap = (fileId: string) => {
+      let m = textByFileLine.get(fileId);
+      if (!m) {
+        m = new Map();
+        textByFileLine.set(fileId, m);
+      }
+      return m;
+    };
+    for (const insn of insns) {
+      if (!insn.debugInfoId) continue;
+      const d = debugById.get(insn.debugInfoId);
+      if (!d || !d.fileId || d.lineNum <= 0) continue;
+      if (d.lineId) {
+        const text = legacyTextById.get(d.lineId);
+        if (text != null) ensureTextMap(d.fileId).set(d.lineNum, text);
+      }
     }
   }
 
@@ -364,10 +428,10 @@ export function adaptEmulateSourceCorrelation(
     byLine.set(lineNum, metricsFromRow(row));
   }
 
-  // Sparse metrics + padded text: Sudu needs correct 1-based line numbers, but
-  // allocating a dense metrics row per empty gap OOM/lags falite-scale packs.
-  // `sparse` makes the Source view render only these lines (blank gap rows
-  // between runs) instead of a mostly-empty full-height document.
+  // Source files. Current packs ship the complete text, so render it as a
+  // normal full document and keep metric rows sparse. A partial line range
+  // (legacy packs or a truncated SourceLines file) keeps the collapsed sparse
+  // document (reported lines plus blank gap rows).
   const files: SourceFileModel[] = [];
   for (const [fileId, meta] of filesById) {
     const texts = textByFileLine.get(fileId) ?? new Map();
@@ -375,33 +439,41 @@ export function adaptEmulateSourceCorrelation(
     const fileMetrics = sourceMetricsByFile.get(fileId) ?? new Map<number, MetricVals>();
     const interesting = new Set<number>();
     let maxLine = 0;
+    let maxTextLine = 0;
     for (const line of texts.keys()) {
-      interesting.add(line);
+      if (line > maxTextLine) maxTextLine = line;
       maxLine = Math.max(maxLine, line);
     }
     for (const line of fileSourceToAsm.keys()) {
-      interesting.add(line);
       maxLine = Math.max(maxLine, line);
     }
     for (const line of fileMetrics.keys()) {
-      interesting.add(line);
       maxLine = Math.max(maxLine, line);
     }
     if (maxLine < 1) maxLine = 1;
 
+    // Complete text = every physical line 1..maxLine is present.
+    const fullText =
+      hasSourceLineLocations &&
+      texts.size > 0 &&
+      texts.size === maxLine &&
+      maxTextLine === maxLine;
+    if (!fullText) {
+      for (const line of texts.keys()) interesting.add(line);
+    }
+    for (const line of fileSourceToAsm.keys()) interesting.add(line);
+    for (const line of fileMetrics.keys()) interesting.add(line);
+
     const lineArr: string[] = Array.from({ length: maxLine }, () => '');
-    let anyText = false;
     for (const [line, text] of texts) {
-      if (line >= 1 && line <= maxLine) {
-        lineArr[line - 1] = text;
-        if (text) anyText = true;
-      }
+      if (line >= 1 && line <= maxLine) lineArr[line - 1] = text;
     }
 
     const path = meta.path;
-    const text = anyText
-      ? `${lineArr.join('\n')}\n`
-      : missingSourceEmbedText(path, maxLine);
+    const text =
+      texts.size > 0
+        ? `${lineArr.join('\n')}\n`
+        : missingSourceEmbedText(path, maxLine);
 
     const lines: SourceLineMetrics[] = [...interesting]
       .sort((a, b) => a - b)
@@ -418,7 +490,7 @@ export function adaptEmulateSourceCorrelation(
       metricsColumns: SOURCE_COLUMNS,
       lines,
       lineCount: maxLine,
-      sparse: true,
+      sparse: !fullText,
       sourceToAsm: fileSourceToAsm,
     });
   }

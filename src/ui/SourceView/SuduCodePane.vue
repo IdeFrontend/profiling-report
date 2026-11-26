@@ -966,7 +966,7 @@ defineExpose({
             v-model:column-widths="metricColWidths"
             :file="file"
             :current-line="currentLine ?? null"
-            :current-doc-row="caretDocRow"
+            :current-doc-row="file.sparse ? caretDocRow : null"
             :correlated-lines="correlatedLines"
             :match-lines="matchLines"
             :dim-zero-for="dimZeroFor"

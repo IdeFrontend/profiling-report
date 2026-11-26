@@ -304,9 +304,17 @@ const windowRows = computed<TableRow[]>(() => {
   for (let i = 0; i < count; i++) {
     const index = start + i;
     const line = sparse ? (sparse[index] ?? 0) : index + 1;
+    // Sparse metrics: a line with no metric row stays `null` (blank cells),
+    // not a placeholder that paints empty bar tracks.
+    const metrics =
+      line > 0
+        ? sparseMetrics.value
+          ? (metricsByLine.value.get(line) ?? null)
+          : rowForLine(line)
+        : null;
     out.push(
       line > 0
-        ? { doc: index + 1, line, metrics: rowForLine(line) }
+        ? { doc: index + 1, line, metrics }
         : { doc: index + 1, line: null, metrics: null },
     );
   }
@@ -617,8 +625,12 @@ const styleVars = computed(() => {
             >
               <template v-if="row.line == null" />
               <template v-else-if="col.kind === 'bar'">
-                <!-- Sketch: hatch background, solid used fill, % at the right end -->
-                <span class="pr-src-metrics__bar-track">
+                <!-- Sketch: hatch background, solid used fill, % at the right end.
+                     A gap (no metric row) stays blank instead of an empty track. -->
+                <span
+                  v-if="row.metrics != null"
+                  class="pr-src-metrics__bar-track"
+                >
                   <span
                     class="pr-src-metrics__bar-fill"
                     :style="{ width: `${barWidth(row.metrics, col.id)}%` }"
