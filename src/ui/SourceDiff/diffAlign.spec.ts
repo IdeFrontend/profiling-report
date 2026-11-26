@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignSourceLines, diffRowsByKind, splitSourceLines, type DiffRow } from './diffAlign';
+import { alignSourceLines, diffRowsByKind, splitSourceLines, textForSideDiff, type DiffRow } from './diffAlign';
 
 function leftLines(rows: DiffRow[]): number[] {
   return rows.flatMap((row) => (row.leftLine === null ? [] : [row.leftLine]))
@@ -24,6 +24,13 @@ describe('splitSourceLines', () => {
 
   it('returns no lines for empty text', () => {
     expect(splitSourceLines('')).toEqual([]);
+  });
+
+  it('strips one trailing newline before Sudu so the canvas matches the table', () => {
+    const raw = 'a\nb\n';
+    expect(textForSideDiff(raw)).toBe('a\nb');
+    expect(splitSourceLines(raw)).toEqual(splitSourceLines(textForSideDiff(raw)));
+    expect(textForSideDiff('a\nb')).toBe('a\nb');
   });
 });
 

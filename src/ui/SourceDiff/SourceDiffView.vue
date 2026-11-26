@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, shall
 import type { ITextDiffModel } from '@sudu-ide/code-review';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
-import { alignSourceLines, splitSourceLines, type DiffRow } from './diffAlign';
+import { alignSourceLines, splitSourceLines, textForSideDiff, type DiffRow } from './diffAlign';
 import SourceDiffPane from './SourceDiffPane.vue';
 import PrIcon from '../PrIcon.vue';
 import { getSuduWorkerPool, loadSuduApi, type SuduApi, type SuduWorkerPool } from '../SourceView/suduRuntime';
@@ -135,8 +135,8 @@ let disposed = false;
 function buildDiffModel(api: SuduApi, pool: SuduWorkerPool): DiffModel {
   return api.newDiffModel(
     pool,
-    leftFile.value.text,
-    rightFile.value.text,
+    textForSideDiff(leftFile.value.text),
+    textForSideDiff(rightFile.value.text),
     { path: leftFile.value.path },
     { path: rightFile.value.path },
     leftFile.value.language ?? rightFile.value.language,
@@ -232,6 +232,18 @@ function valuesByLine(file: SourceFileModel): Map<number, SourceFileModel['lines
 
 const leftByLine = computed(() => valuesByLine(leftFile.value));
 const rightByLine = computed(() => valuesByLine(rightFile.value));
+
+function focusPane(side: PaneSide): void {
+  if (side === 'right' && baselineEmpty.value) {
+    activeSide.value = 'left';
+    return;
+  }
+  activeSide.value = side;
+}
+
+watch(baselineEmpty, (empty) => {
+  if (empty) activeSide.value = 'left';
+});
 
 function activeByLine(): Map<number, SourceFileModel['lines'][number]['values']> {
   return activeSide.value === 'right' ? rightByLine.value : leftByLine.value;
@@ -375,7 +387,7 @@ defineExpose({
       <div
         class="pr-src-diff__pane pr-src-diff__pane--left"
         data-testid="source-diff-pane-host-left"
-        @pointerdown="activeSide = 'left'"
+        @pointerdown="focusPane('left')"
       >
         <SourceDiffPane
           ref="leftPane"
@@ -405,7 +417,7 @@ defineExpose({
       <div
         class="pr-src-diff__pane"
         data-testid="source-diff-pane-host-right"
-        @pointerdown="activeSide = 'right'"
+        @pointerdown="focusPane('right')"
       >
         <SourceDiffPane
           v-if="!baselineEmpty"

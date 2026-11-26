@@ -179,12 +179,15 @@ let disposed = false;
 let booting = false;
 /** Device px applied by the parent; its own scroll echo must not bounce back. */
 let pendingEcho = -1;
+/** CSS scrollTop just written by the editor or by setScrollCss. The browser
+ *  reports it back asynchronously, after pendingEcho has already been cleared. */
+let mirroredScrollTop: number | null = null;
 
 const fileOptions = computed<SourceSelectOption[]>(() => {
   const files = props.files?.length ? props.files : [props.metrics];
   return files.map((file) => ({
     id: file.id,
-    label: file.path.split(/[\\/]/).pop() || file.path,
+    label: file.path,
   }));
 });
 const activeFileId = computed(() => props.activeFileId ?? props.metrics.id);
@@ -241,6 +244,24 @@ const navigateValue = computed(
     navigateOptions.value[0]?.id ??
     '',
 );
+
+watch(
+  () =>
+    [
+      props.focused,
+      props.highlightColumn,
+      navigateOptions.value.map((opt) => opt.id).join('\0'),
+    ] as const,
+  () => {
+    if (!props.focused) return;
+    const first = navigateOptions.value[0]?.id;
+    if (!first) return;
+    if (props.highlightColumn && navigateOptions.value.some((opt) => opt.id === props.highlightColumn)) {
+      return;
+    }
+    emit('update:navigateBy', first);
+  },
+);
 const metricWidths = computed(() =>
   ensureSourceColWidths(metricColumns.value.map((col) => col.id)),
 );
@@ -258,7 +279,10 @@ function onEditorScroll(vScrollPos: number): void {
   if (!(dpr > 0)) return;
   const css = cssScrollFromDevice(vScrollPos, dpr);
   const scroll = tableScrollEl.value;
-  if (scroll && Math.abs(scroll.scrollTop - css) >= 0.5) scroll.scrollTop = css;
+  if (scroll && Math.abs(scroll.scrollTop - css) >= 0.5) {
+    scroll.scrollTop = css;
+    mirroredScrollTop = scroll.scrollTop;
+  }
   // The table clamps at its own scroll range; push the clamped offset back to the canvas.
   const applied = scroll ? scroll.scrollTop : css;
   if (applied !== css) {
@@ -274,6 +298,10 @@ function onTableScroll(): void {
   const scroll = tableScrollEl.value;
   const dpr = measurement.value?.dpr ?? 0;
   if (!view || !(dpr > 0) || !scroll) return;
+  if (mirroredScrollTop != null && Math.abs(scroll.scrollTop - mirroredScrollTop) < 1) {
+    mirroredScrollTop = null;
+    return;
+  }
   const devicePos = deviceScrollFromCss(scroll.scrollTop, dpr);
   if (devicePos === pendingEcho) return;
   pendingEcho = devicePos;
@@ -379,7 +407,10 @@ function setScrollCss(css: number): void {
   const dpr = measurement.value?.dpr ?? 0;
   if (!view || !(dpr > 0)) return;
   const scroll = tableScrollEl.value;
-  if (scroll) scroll.scrollTop = css;
+  if (scroll) {
+    scroll.scrollTop = css;
+    mirroredScrollTop = scroll.scrollTop;
+  }
   // Clamp to the table's range so table rows and the canvas share one offset.
   const applied = scroll ? scroll.scrollTop : css;
   const devicePos = deviceScrollFromCss(applied, dpr);

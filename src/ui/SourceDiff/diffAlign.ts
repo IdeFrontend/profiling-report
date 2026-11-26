@@ -29,6 +29,14 @@ export function splitSourceLines(text: string): string[] {
   return lines
 }
 
+/**
+ * Sudu `SplitText` flushes one extra empty line when the text already ends in a
+ * newline. Drop that newline so the canvas row count matches `splitSourceLines`.
+ */
+export function textForSideDiff(text: string): string {
+  return text.replace(/\r?\n$/, '')
+}
+
 /** Indices (into `rows`) of every row with the given kind. */
 export function diffRowsByKind(rows: DiffRow[], kind: DiffRowKind): number[] {
   const out: number[] = []

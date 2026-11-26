@@ -456,6 +456,30 @@ describe('createBaselinesHost', () => {
     expect(JSON.stringify(source.files.map((f) => f.lines.map((l) => l.values)))).toBe(beforeValues);
   });
 
+  it('a full bar still changes for every demo operator', () => {
+    const base = emptyReportViewModel();
+    base.sourceCorrelation = {
+      files: [{
+        id: 'f',
+        path: 'f.asc',
+        text: 'a',
+        metricsColumns: [{ id: 'occ', label: 'Occ', kind: 'bar' }],
+        lines: [{ line: 1, values: { occ: 1 } }],
+      }],
+      assembly: { id: 'asm', path: 'asm', text: '', metricsColumns: [], lines: [] },
+      asmToSource: new Map(),
+      navigateBy: [],
+      mock: false,
+    };
+    const pack = withDemoOperatorPack({ reportModel: base, swimlaneModel: null }, 'full-bar');
+    for (const adapted of Object.values(pack.operatorReports!)) {
+      const value = adapted.reportModel.sourceCorrelation!.files[0]!.lines[0]!.values.occ;
+      expect(value).not.toBe(1);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('reseeds the memory topology per baseline and scales it per operator', () => {
     // out.rep carries real plates (23.04% / 7.19%) and a 0% L2 peak — the demo
     // seeding must REPLACE them: filling only missing values would leave

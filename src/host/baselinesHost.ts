@@ -90,7 +90,10 @@ function varyDemoSourceCorrelation(
           // A ratio stays inside 0..1; a zero line takes a small visible bar.
           const pct = (h % 25) - 12 || 1;
           const scaled = value === 0 ? ((h % 9) + 1) / 100 : value * (1 + pct / 100);
-          line.values[key] = Math.min(1, Math.max(0, scaled));
+          let next = Math.min(1, Math.max(0, scaled));
+          // A full bar clamps back to 1 and would show a zero delta.
+          if (next === value) next = value > 0 ? Math.max(0, value - 0.01) : Math.min(1, 0.01);
+          line.values[key] = next;
           continue;
         }
         // A count moves by at least one so rounding can never erase the diff.

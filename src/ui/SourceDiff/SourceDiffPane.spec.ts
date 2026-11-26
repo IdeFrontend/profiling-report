@@ -311,6 +311,28 @@ describe('SourceDiffPane', () => {
     wrapper.unmount();
   });
 
+  it('a programmatic scroll does not bounce back into the editor', async () => {
+    const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
+    const wrapper = await mountPane(rows, 'left');
+    const view = sudu.views.at(-1)!;
+    (wrapper.vm as unknown as { setScrollCss: (css: number) => void }).setScrollCss(40);
+    view.setVScrollPos.mockClear();
+    wrapper.get('[data-testid="source-metrics-scroll"]').element.dispatchEvent(new Event('scroll'));
+    expect(view.setVScrollPos).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('labels each file with its path', async () => {
+    const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1 })];
+    const wrapper = await mountPane(rows, 'left', {
+      ...metrics,
+      path: 'src/kernel.asc',
+      id: 'src/kernel.asc',
+    });
+    expect(wrapper.get('[data-testid="source-diff-file-left-label"]').text()).toBe('src/kernel.asc');
+    wrapper.unmount();
+  });
+
   it('PR-DIFF-112: workspace pick button follows availability and emits', async () => {
     const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1 })];
     const bare = await mountPane(rows, 'left');

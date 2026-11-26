@@ -348,4 +348,51 @@ describe('SourceDiffView', () => {
     expect(rightScroll).toHaveBeenLastCalledWith(2);
     wrapper.unmount();
   });
+
+  it('an empty right pane does not steal search or Navigate By', async () => {
+    const columns: SourceMetricsColumn[] = [{ id: 'cycles', label: 'Cycles', kind: 'number' }];
+    const left = file('cur', 'keep\nkeep', columns);
+    left.lines = [
+      { line: 1, values: { cycles: 3 } },
+      { line: 2, values: { cycles: 0 } },
+    ];
+    const wrapper = mount(SourceDiffView, {
+      props: { current: correlation([left]), locale: 'en-US' },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const leftScroll = vi.spyOn(
+      wrapper.findAllComponents(SourceDiffPane)[0]!.vm.$.exposed as { scrollToRow: (index: number) => void },
+      'scrollToRow',
+    );
+    await wrapper.find('[data-testid="source-diff-pane-host-right"]').trigger('pointerdown');
+    expect(
+      wrapper.find('[data-testid="source-diff-pane-left"] .pr-src-diff-pane__surface--focused').exists(),
+    ).toBe(true);
+    (wrapper.vm as unknown as { findNext: () => void }).findNext();
+    expect(leftScroll).toHaveBeenCalledWith(0);
+    wrapper.unmount();
+  });
+
+  it('the focused pane snaps Navigate By onto a column it actually has', async () => {
+    const left = file('cur', 'a\nb', [{ id: 'instructionsExecuted', label: 'Instructions', kind: 'number' }]);
+    const right = file('cur', 'a\nb', [{ id: 'relTime', label: 'Rel Time', kind: 'number' }]);
+    const wrapper = mount(SourceDiffView, {
+      props: {
+        current: correlation([left]),
+        baseline: correlation([right]),
+        locale: 'en-US',
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+    const panes = () => wrapper.findAllComponents(SourceDiffPane);
+    expect(panes()[0]!.props('highlightColumn')).toBe('instructionsExecuted');
+    await wrapper.find('[data-testid="source-diff-pane-host-right"]').trigger('pointerdown');
+    await nextTick();
+    expect(panes()[0]!.props('highlightColumn')).toBe('relTime');
+    expect(panes()[1]!.props('highlightColumn')).toBe('relTime');
+    wrapper.unmount();
+  });
 });
