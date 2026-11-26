@@ -387,8 +387,7 @@ describe('SourceView', () => {
     expect(wrapper.find('[data-testid="source-hide-zeros"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="source-toggle-shortcuts"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="source-user-guide"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-link-source"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="source-link-asm"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-view-select"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-redo-resolve"]').exists()).toBe(false);
     // Shared chrome pill (tokens.css) — same family as CSV / PIPE block selects.
     expect(wrapper.find('[data-testid="source-file-select"]').classes()).toContain('pr-block-pill');
@@ -521,30 +520,23 @@ describe('SourceView', () => {
     expect(src).not.toMatch(/#2e4a7a/);
   });
 
-  it('PR-SOURCE-009: shared Link views off keeps source click from moving asm caret', async () => {
+  it('PR-SOURCE-009: caret sync is always on; source click moves asm caret', async () => {
     const model = mockSourceCorrelation();
     const wrapper = mount(SourceView, { props: { model } });
-    const linkSource = wrapper.find('[data-testid="source-link-source"]');
-    const linkAsm = wrapper.find('[data-testid="source-link-asm"]');
-    expect(linkSource.attributes('aria-pressed')).toBe('true');
-    expect(linkAsm.attributes('aria-pressed')).toBe('true');
-    await linkAsm.trigger('click');
-    await wrapper.vm.$nextTick();
-    // Both sides share one toggle state.
-    expect(linkSource.attributes('aria-pressed')).toBe('false');
-    expect(linkAsm.attributes('aria-pressed')).toBe('false');
+    await flushPromises();
+    // Link toggles are gone: no control may switch the sync off.
+    expect(wrapper.find('[data-testid="source-link-source"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-link-asm"]').exists()).toBe(false);
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     await sourceTable.find('tr[data-line="46"]').trigger('click');
     await wrapper.vm.$nextTick();
     expect(sourceTable.find('tr[data-line="46"]').classes()).toContain('pr-src-metrics__row--current');
-    expect(asmTable.findAll('tr.pr-src-metrics__row--current')).toHaveLength(0);
-    expect(asmTable.findAll('tr.pr-src-metrics__row--correlated')).toHaveLength(0);
-    // Toggling the other button turns linking back on for both.
-    await linkSource.trigger('click');
-    await wrapper.vm.$nextTick();
-    expect(linkSource.attributes('aria-pressed')).toBe('true');
-    expect(linkAsm.attributes('aria-pressed')).toBe('true');
+    // Always-on sync moves the asm caret to mapped[0] and marks the sibling rows.
+    expect(asmTable.find('tr[data-line="1"]').classes()).toContain('pr-src-metrics__row--current');
+    expect(
+      asmTable.findAll('tr.pr-src-metrics__row--correlated').map((r) => Number(r.attributes('data-line'))),
+    ).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('PR-SOURCE-010: bottom dock (inline / markers / stats) is not rendered', () => {
@@ -561,7 +553,6 @@ describe('SourceView', () => {
     const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
     const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
     expect(asmNav.attributes('disabled')).toBeUndefined();
-    expect(wrapper.get('[data-testid="source-link-asm"]').attributes('aria-pressed')).toBe('true');
 
     await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
     expect(asmNav.text()).toContain('Sampling Stall');
@@ -573,7 +564,7 @@ describe('SourceView', () => {
     wrapper.unmount();
   });
 
-  it('PR-SOURCE-025: Navigate By stays put when unlinked or the metric is missing', async () => {
+  it('PR-SOURCE-025: Navigate By mirrors only when the other pane lists the metric', async () => {
     const model = mockSourceCorrelation();
     model.assembly = {
       ...model.assembly,
@@ -583,12 +574,12 @@ describe('SourceView', () => {
     const asmNav = wrapper.get('[data-testid="source-asm-navigate-by"]');
     const sourceNav = wrapper.get('[data-testid="source-navigate-by"]');
 
-    await wrapper.get('[data-testid="source-link-source"]').trigger('click');
+    // A metric present in both dropdowns mirrors to the other pane.
     await pickNavigate(wrapper, 'source-asm-navigate-by', 'samplingStall');
     expect(asmNav.text()).toContain('Sampling Stall');
-    expect(sourceNav.text()).toContain('Instructions Executed');
+    expect(sourceNav.text()).toContain('Sampling Stall');
 
-    await wrapper.get('[data-testid="source-link-source"]').trigger('click');
+    // A metric missing from the asm dropdown is not applied there.
     await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
     expect(
       document.querySelector('[data-testid="source-asm-navigate-by-menu"] [data-value="warpOccupancy"]'),
@@ -632,13 +623,10 @@ describe('SourceView', () => {
     file.lines.find((row) => row.line === 12)!.values.instructionsExecuted = 0.5;
     const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
     await flushPromises();
-    // The other pane's Navigate By must not steer this jump.
-    await wrapper.find('[data-testid="source-link-asm"]').trigger('click');
+    // Linked Navigate By mirrors the asm pick onto Source; give Source its own metric back.
     await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
-    await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
-    (document.querySelector(
-      '[data-testid="source-asm-navigate-by-menu"] [data-value="warpOccupancy"]',
-    ) as HTMLElement).click();
+    await pickNavigate(wrapper, 'source-asm-navigate-by', 'warpOccupancy');
+    await pickNavigate(wrapper, 'source-navigate-by', 'instructionsExecuted');
     await wrapper.find('[data-testid="source-pane-source"]').trigger('pointerdown');
 
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
@@ -949,11 +937,10 @@ describe('SourceView', () => {
     expect(pct(stall)).toBeCloseTo(beforeStall, 5);
   });
 
-  it('PR-SOURCE-019: single-item dropdowns open; popup uses the metric menu', async () => {
+  it('PR-SOURCE-019: every Source dropdown opens; popup uses the metric menu', async () => {
     const wrapper = mount(SourceView, { props: { model: mockSourceCorrelation() }, attachTo: document.body });
     const ids = [
-      'source-left-view',
-      'source-right-view',
+      'source-view-select',
       'source-file-select',
       'source-navigate-by',
       'source-asm-select',
@@ -966,14 +953,20 @@ describe('SourceView', () => {
       expect(trigger.classes()).toContain('pr-block-pill');
     }
 
-    await wrapper.get('[data-testid="source-left-view"]').trigger('click');
-    const menu = document.querySelector('[data-testid="source-left-view-menu"]');
+    expect(wrapper.get('[data-testid="source-view-select"]').attributes('aria-label')).toBe('View');
+    await wrapper.get('[data-testid="source-view-select"]').trigger('click');
+    const menu = document.querySelector('[data-testid="source-view-select-menu"]');
     expect(menu).toBeTruthy();
     expect(menu?.classList.contains('pr-source-select__menu')).toBe(true);
-    const options = menu!.querySelectorAll('[data-testid="source-left-view-option"]');
-    expect(options).toHaveLength(1);
-    expect(options[0]?.classList.contains('pr-source-select__option--selected')).toBe(true);
-    expect(options[0]?.textContent).toContain('Source');
+    const options = [...menu!.querySelectorAll('[data-testid="source-view-select-option"]')];
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Source',
+      'SASS',
+      'Source and SASS',
+    ]);
+    // Default mode is both panes.
+    expect(options[0]?.classList.contains('pr-source-select__option--selected')).toBe(false);
+    expect(options[2]?.classList.contains('pr-source-select__option--selected')).toBe(true);
 
     await wrapper.get('[data-testid="source-asm-select"]').trigger('click');
     const asmMenu = document.querySelector('[data-testid="source-asm-select-menu"]');
@@ -999,6 +992,131 @@ describe('SourceView', () => {
       /\.pr-source-select__menu::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*#5a5a5a/,
     );
     expect(popup).toMatch(/\.pr-source-select__menu::-webkit-scrollbar-button\s*\{[^}]*display:\s*none/);
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-030: View selector defaults to both and filters the panes', async () => {
+    const wrapper = mount(SourceView, {
+      props: { model: mockSourceCorrelation() },
+      attachTo: document.body,
+    });
+    const view = wrapper.get('[data-testid="source-view-select"]');
+    expect(view.attributes('aria-label')).toBe('View');
+    expect(wrapper.get('[data-testid="source-view-toolbar"] label').text()).toBe('View:');
+    expect(view.text()).toBe('Source and SASS');
+    expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(true);
+
+    // Source only hides the SASS pane and selects Source.
+    await pickNavigate(wrapper, 'source-view-select', 'source');
+    expect(view.text()).toBe('Source');
+    expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="source-pane-source"]').classes()).toContain(
+      'pr-source-view__pane--selected',
+    );
+
+    // SASS only hides the Source pane and selects SASS.
+    await pickNavigate(wrapper, 'source-view-select', 'asm');
+    expect(view.text()).toBe('SASS');
+    expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="source-pane-asm"]').classes()).toContain(
+      'pr-source-view__pane--selected',
+    );
+
+    // Both restores both panes and keeps the SASS selection.
+    await pickNavigate(wrapper, 'source-view-select', 'both');
+    expect(view.text()).toBe('Source and SASS');
+    expect(wrapper.find('[data-testid="source-pane-source"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-pane-asm"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="source-pane-asm"]').classes()).toContain(
+      'pr-source-view__pane--selected',
+    );
+    expect(wrapper.get('[data-testid="source-pane-source"]').classes()).not.toContain(
+      'pr-source-view__pane--selected',
+    );
+
+    // Asm click while Source is unmounted must not swallow the next source click.
+    await pickNavigate(wrapper, 'source-view-select', 'asm');
+    await wrapper.get('[data-testid="source-pane-asm"] tr[data-line="2"]').trigger('click');
+    await pickNavigate(wrapper, 'source-view-select', 'both');
+    await wrapper.get('[data-testid="source-pane-source"] tr[data-line="61"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('[data-testid="source-pane-source"]').classes()).toContain(
+      'pr-source-view__pane--selected',
+    );
+    expect(
+      wrapper.get('[data-testid="source-pane-asm"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('6');
+    wrapper.unmount();
+  });
+
+  it('PR-SOURCE-030: remounting SASS scrolls to the stored asm line', async () => {
+    const base = mockSourceCorrelation();
+    const sharpen = base.files[0]!;
+    const late = sharpen.sourceToAsm!.get(128)!;
+    const sharpenMap = new Map(sharpen.sourceToAsm);
+    sharpenMap.delete(128);
+    const asmToSource = new Map(base.asmToSource);
+    for (const line of late) asmToSource.set(line, { fileId: 'other.cpp', line: 2 });
+    const model = {
+      ...base,
+      files: [
+        { ...sharpen, sourceToAsm: sharpenMap },
+        {
+          ...sharpen,
+          id: 'other.cpp',
+          path: 'other.cpp',
+          sourceToAsm: new Map([[2, late]]),
+        },
+      ],
+      asmToSource,
+    };
+    const wrapper = mount(SourceView, { props: { model }, attachTo: document.body });
+    await pickNavigate(wrapper, 'source-view-select', 'source');
+    await wrapper.get('[data-testid="source-pane-source"] tr[data-line="85"]').trigger('click');
+    await pickNavigate(wrapper, 'source-view-select', 'both');
+    const scroll = wrapper.get(
+      '[data-testid="source-pane-asm"] [data-testid="source-metrics-scroll"]',
+    ).element;
+    let scrollTop = 0;
+    Object.defineProperty(scroll, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set(next: number) {
+        scrollTop = next;
+      },
+    });
+    await flushPromises();
+    // Line 85 maps to asm 17, past the fallback viewport's first third.
+    expect(scrollTop).toBeGreaterThan(0);
+    expect(
+      wrapper.get('[data-testid="source-pane-asm"] tr.pr-src-metrics__row--current').attributes('data-line'),
+    ).toBe('17');
+
+    // No caret: remount scrolls to the first instruction of the selected file.
+    await pickNavigate(wrapper, 'source-view-select', 'source');
+    await pickNavigate(wrapper, 'source-file-select', 'other.cpp');
+    await pickNavigate(wrapper, 'source-view-select', 'both');
+    const fileScroll = wrapper.get(
+      '[data-testid="source-pane-asm"] [data-testid="source-metrics-scroll"]',
+    ).element;
+    let fileScrollTop = 0;
+    Object.defineProperty(fileScroll, 'scrollTop', {
+      configurable: true,
+      get: () => fileScrollTop,
+      set(next: number) {
+        fileScrollTop = next;
+      },
+    });
+    await flushPromises();
+    expect(fileScrollTop).toBeGreaterThan(0);
+    expect(
+      wrapper
+        .findAll('[data-testid="source-pane-asm"] tr.pr-src-metrics__row--correlated')
+        .map((row) => row.attributes('data-line')),
+    ).toEqual(late.map(String));
     wrapper.unmount();
   });
 
@@ -1277,14 +1395,7 @@ describe('SourceView', () => {
     const asmStall = ordered(model.assembly, 'samplingStall', false);
     expect(asmInstr[0]!.line).not.toBe(asmStall[0]!.line);
 
-    await wrapper.find('[data-testid="source-link-asm"]').trigger('click');
     await wrapper.find('[data-testid="source-pane-asm"]').trigger('pointerdown');
-    // Other pane's Navigate By must not steer this walk.
-    await wrapper.get('[data-testid="source-navigate-by"]').trigger('click');
-    (document.querySelector(
-      '[data-testid="source-navigate-by-menu"] [data-value="samplingStall"]',
-    ) as HTMLElement).click();
-    await wrapper.vm.$nextTick();
 
     const asmTable = wrapper.findAll('[data-testid="source-metrics"]')[1]!;
     const asmCurrent = () => {
@@ -1337,16 +1448,10 @@ describe('SourceView', () => {
     await wrapper.vm.$nextTick();
     expect(asmCurrent()).toBe(asmDesc[0]!.line);
 
-    // Source pane uses its own Navigate By, not the asm selector.
+    // Source pane walks its Navigate By; the linked pick sets both panes to Sampling Stall.
     await wrapper.find('[data-testid="source-pane-source"]').trigger('pointerdown');
-    await wrapper.get('[data-testid="source-asm-navigate-by"]').trigger('click');
-    (document.querySelector(
-      '[data-testid="source-asm-navigate-by-menu"] [data-value="warpOccupancy"]',
-    ) as HTMLElement).click();
-    await wrapper.vm.$nextTick();
+    await pickNavigate(wrapper, 'source-navigate-by', 'samplingStall');
     const sourceStall = ordered(model.files[0]!, 'samplingStall', false);
-    const sourceWarp = ordered(model.files[0]!, 'warpOccupancy', false);
-    expect(sourceStall[0]!.line).not.toBe(sourceWarp[0]!.line);
     const sourceTable = wrapper.findAll('[data-testid="source-metrics"]')[0]!;
     await wrapper.find('[data-testid="source-sort-asc"]').trigger('click');
     await wrapper.vm.$nextTick();
@@ -1438,13 +1543,7 @@ describe('SourceView', () => {
     expect(asmLines()).toContain('1');
     expect(asmLines()).toContain(String(moved[0]));
     expect(correlated()).toEqual(moved.map(String));
-
-    await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
-    expect(correlated()).toEqual([]);
-    await wrapper.get('[data-testid="source-link-asm"]').trigger('click');
-    await flushPromises();
-    expect(correlated()).toEqual(moved.map(String));
-    // File-match re-link calls AsmTablePane.setLine → scrollToLine (thirds placement).
+    // Sync stays on: the file match highlights without a link toggle.
 
     await wrapper.find('[data-testid="asm-table-pane"] tr[data-line="40"]').trigger('click');
     await flushPromises();

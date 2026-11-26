@@ -24,8 +24,8 @@ Meta-rules, MVP scope checklist, and related specs: [README.md](README.md).
 
 ### UI-53a — Emulate Source keeps shared SASS chrome label
 
-**Status:** `interim`
-**Question:** [DATA-53](../DATA.md) (resolved; presentation default) / related open [UI-56](../../questions/UI.md)
+**Status:** `interim` — **SUPERSEDED** 2026-11-26 by [UI-56](../UI.md)
+**Question:** [DATA-53](../DATA.md) (resolved; presentation default) / [UI-56](../UI.md)
 **Interim:** Keep the dual-pane right-side label / language id **SASS** for emulate (shared with compute). Do not invent a separate “Assembly” / ISA chrome name in this slice. Metric columns come from `model.assembly.metricsColumns` (compute stall set vs emulate MVP) — Address / Assembly stay leading text columns ([PR-SOURCE-013](../../../../src/ui/SourceView/SourceView.spec.md)).
 **Implement / test as:** `SourceView` / `AsmTablePane`; assembly `language: 'sass'`; no `profile === 'emulate'` branching in the view
-**Superseded when:** Product renames the right pane or locks Left/Right View modes ([UI-56](../../questions/UI.md))
+**Superseded when:** — already superseded by UI-56 (2026-11-26)

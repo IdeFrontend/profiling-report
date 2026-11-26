@@ -253,3 +253,13 @@ Format and statuses: [README.md](README.md).
 **Answer:** Hide while no baseline is checked — no row, no dropdowns, with an empty checked set. With a non-empty set the row renders as before. The reviewer also settled three adjacent behaviors in the same review: the first added baseline autoselects (empty → non-empty transition; a restored session state never autoselects); the Operator default is the baseline's operator matching the open report's opName (else the first); pressing the bar closes the baselines popover. Display titles derive from the entry — filename + timestamp instead of a generated boilerplate id — and the popup title is Select baselines.
 
 **Specs:** [StatsAside.spec.md](../../../src/ui/StatsAside/StatsAside.spec.md) (PR-STATS-052/054 restated, PR-STATS-057/058), [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md) (PR-ROOT-052/053), [BaselinePicker.spec.md](../../../src/ui/ReportToolbar/BaselinePicker/BaselinePicker.spec.md) (PR-BASELINE-028..030), [baselines](../../views/baselines.md).
+
+---
+
+## UI-56
+
+- **Resolved:** 2026-11-26
+- **Question:** Beyond **Source | SASS**, which Left View / Right View modes does Product want (metrics-only, source-only, dual SASS, …), and which combinations are valid?
+- **Decision:** Replace the two **Left View** / **Right View** pickers with **one View picker**: `Source`, `SASS`, `Source and SASS`; default **Source and SASS**. Each option renders only its panes. Remove the per-pane **Link views** toggles — caret, correlation, and Navigate By sync stay always on.
+- **Specs:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md) (`PR-SOURCE-007`/`009`/`019`/`025`/`030`), [source](../../views/source.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)
+- **Source:** Product answer 2026-11-26 (three options, default Source and SASS, no link toggles).
