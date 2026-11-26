@@ -365,6 +365,45 @@ defineExpose({ close });
   gap: 2px;
   max-height: 260px;
   overflow-y: auto;
+  /* Teleported to `body` — outside `.pr-root` — so the tokens.css scrollbar
+     rules do not apply. Mirror the other teleported menus (SourcePillSelect,
+     CardMetricSelect): keep AUTO so Chromium stays in custom-ruleset mode and
+     paints the ::-webkit-scrollbar block below; any non-auto value makes it
+     drop that whole block and paint its default bar with step buttons — the
+     arrow squares issue #266 is about. */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+.pr-baseline__list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pr-baseline__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pr-baseline__list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #5a5a5a;
+  background-clip: content-box;
+}
+
+.pr-baseline__list::-webkit-scrollbar-thumb:hover {
+  background: #6e6e6e;
+  background-clip: content-box;
+}
+
+.pr-baseline__list::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.pr-baseline__list::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .pr-baseline__empty {
