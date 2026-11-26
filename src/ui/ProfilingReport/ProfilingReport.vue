@@ -132,8 +132,6 @@ const props = withDefaults(defineProps<{
   /** CANNWork 最新会话状态（scope → session），宿主全量推送；缺省即全部 idle。 */
   cannbotSessions?: CannbotSessions;
   /** Accepted for host compatibility; `'light'` currently paints the dark palette. */
-  /** Accepted for host compatibility (`'light'` currently paints the dark palette). */
-  /** Accepted for host compatibility; `'light'` currently paints the dark palette. */
   theme?: 'light' | 'dark';
   locale?: string;
   timeDisplayMode?: TimeDisplayMode;
