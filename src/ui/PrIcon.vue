@@ -29,6 +29,7 @@ export type PrIconName =
   | 'sort-desc'
   | 'layers'
   | 'add-baseline'
+  | 'add-report-file'
   | 'diff-up'
   | 'diff-down';
 
@@ -153,6 +154,11 @@ defineProps<{ name: PrIconName }>();
 .pr-icon--add-baseline {
   -webkit-mask-image: url('./icons/add-baseline.png');
   mask-image: url('./icons/add-baseline.png');
+}
+
+.pr-icon--add-report-file {
+  -webkit-mask-image: url('./icons/add-report-file.svg');
+  mask-image: url('./icons/add-report-file.svg');
 }
 
 .pr-icon--diff-up {

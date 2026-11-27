@@ -3093,7 +3093,7 @@ describe('ProfilingReport scaffold', () => {
     deferred.unmount();
   });
 
-  it('PR-ROOT-045: a checkbox toggle forwards the checked set as update:baselines', async () => {
+  it('PR-ROOT-045: a checkbox toggle forwards the checked set immediately', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         swimlaneModel: depsModel(),
@@ -3117,6 +3117,9 @@ describe('ProfilingReport scaffold', () => {
     expect(wrapper.emitted('update:baselines')).toEqual([
       [[{ id: 'r1', name: 'R1', path: '/r1' }]],
     ]);
+    // The host applies the emitted list back through the prop.
+    await wrapper.setProps({ baselines: [{ id: 'r1', name: 'R1', path: '/r1' }] });
+    await nextTick();
     // Unchecking removes it — the checked set IS the host-owned list.
     check().checked = false;
     check().dispatchEvent(new Event('change'));
@@ -3128,7 +3131,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-046: Browse appends the picked report as a checked baseline', async () => {
+  it('PR-ROOT-046: 添加报告文件 appends the picked report as a checked baseline immediately', async () => {
     const pick = vi.fn().mockResolvedValue({ path: '/data/new.npu-rep', name: 'new-baseline' });
     const wrapper = mount(ProfilingReport, {
       props: {
@@ -3150,7 +3153,7 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-047: unchecking a baseline drops its comparison rows (host-owned invariant)', async () => {
+  it('PR-ROOT-047: removing a baseline drops its comparison rows (host-owned invariant)', async () => {
     const wrapper = mount(ProfilingReport, {
       props: {
         swimlaneModel: depsModel(),
@@ -3200,40 +3203,11 @@ describe('ProfilingReport scaffold', () => {
     wrapper.unmount();
   });
 
-  it('PR-ROOT-052: a checked set defaults one comparison row (first add + restored list)', async () => {
+  it('PR-ROOT-052: 基线对比 starts the comparison with one default row', async () => {
     const entry = { id: 'b1', name: 'OPPROF_A', path: '/a' };
-    const wrapper = mount(ProfilingReport, {
-      props: {
-        swimlaneModel: depsModel(),
-        reportModel: emptyReportViewModel(),
-        baselines: [],
-        baselineRows: [],
-        pickBaselineFile: vi.fn().mockResolvedValue(null),
-      },
-    });
-    // Empty → non-empty (the first add the host applies back) → the default row.
-    await wrapper.setProps({ baselines: [entry] });
-    await nextTick();
-    const first = wrapper.emitted('update:baselineRows')?.[0]?.[0] as {
-      baselineId: string;
-      operatorId: string;
-    }[];
-    expect(first).toHaveLength(1);
-    expect(first[0]).toMatchObject({ baselineId: 'b1', operatorId: '' });
-
-    // An add onto a NON-empty list never adds another row.
-    const emitted = wrapper.emitted('update:baselineRows')!.length;
-    await wrapper.setProps({
-      baselines: [entry, { id: 'b2', name: 'OPPROF_B', path: '/b' }],
-      baselineRows: first as never,
-    });
-    await nextTick();
-    expect(wrapper.emitted('update:baselineRows')!.length).toBe(emitted);
-    wrapper.unmount();
-
-    // A host-restored non-empty list with no rows mounts with the default row
-    // (the design's 默认一个基线 — unlike the old single-selection contract).
-    const restored = mount(ProfilingReport, {
+    // A checked set with no rows (selected without comparing, or host-restored)
+    // mounts in the plain state — no row is created behind the picker's back.
+    const plain = mount(ProfilingReport, {
       props: {
         swimlaneModel: depsModel(),
         reportModel: emptyReportViewModel(),
@@ -3243,10 +3217,54 @@ describe('ProfilingReport scaffold', () => {
       },
     });
     await nextTick();
-    const rows = restored.emitted('update:baselineRows')?.[0]?.[0] as { baselineId: string }[];
+    expect(plain.emitted('update:baselineRows')).toBeUndefined();
+    plain.unmount();
+
+    // 基线对比 starts the comparison: the first checked baseline gets 基线1.
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [entry],
+        baselineRows: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    (document.querySelector('[data-testid="baseline-compare"]') as HTMLElement).click();
+    await nextTick();
+    const rows = wrapper.emitted('update:baselineRows')?.[0]?.[0] as {
+      baselineId: string;
+      operatorId: string;
+    }[];
     expect(rows).toHaveLength(1);
-    expect(rows[0].baselineId).toBe('b1');
-    restored.unmount();
+    expect(rows[0]).toMatchObject({ baselineId: 'b1', operatorId: '' });
+
+    // Once rows exist the picker swaps Compare for Cancel — no second row.
+    await wrapper.setProps({ baselineRows: rows as never });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    expect(document.querySelector('[data-testid="baseline-cancel-compare"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="baseline-compare"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054: 取消对比 clears the comparison rows and keeps the baseline list', async () => {
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: emptyReportViewModel(),
+        baselines: [{ id: 'b1', name: 'OPPROF_A', path: '/a' }],
+        baselineRows: [{ id: 'row1', baselineId: 'b1', operatorId: '' }],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    (document.querySelector('[data-testid="baseline-cancel-compare"]') as HTMLElement).click();
+    await nextTick();
+    expect(wrapper.emitted('update:baselineRows')).toEqual([[[]]]);
+    // The baseline list is untouched — only the comparison rows clear.
+    expect(wrapper.emitted('update:baselines')).toBeUndefined();
+    wrapper.unmount();
   });
 
   it('PR-ROOT-053: a pointerdown on the aside comparison bar closes the baselines popover', async () => {

@@ -18,14 +18,14 @@ const props = withDefaults(
   defineProps<{
     /**
      * Host-owned checked reports (对比基线): the checkbox state IS this list.
-     * The picker only renders and toggles — every change emits the new list via
-     * `update:baselines` and the host owns persistence.
+     * Every toggle / 添加报告文件 pick emits the new list via `update:baselines`;
+     * the host owns persistence.
      */
     baselines: Baseline[];
     /**
-     * Host file dialog (Browse). Absent = the trigger is not rendered: the
-     * library never reads the filesystem itself (same contract as
-     * `resolveSourceFile`).
+     * Host file dialog (添加报告文件 / Add report file). Absent = the trigger is
+     * not rendered: the library never reads the filesystem itself (same
+     * contract as `resolveSourceFile`).
      */
     pickBaselineFile?: () => Promise<BaselinePick | null>;
     /**
@@ -33,18 +33,25 @@ const props = withDefaults(
      * Performance results tree; the bundled web hosts: the shared demo list).
      */
     recentBaselines?: Baseline[];
+    /** Comparison rows exist — the footer swaps Compare baselines for 取消对比 / Cancel comparison. */
+    comparing?: boolean;
     locale?: string;
   }>(),
   {
     pickBaselineFile: undefined,
     recentBaselines: undefined,
+    comparing: false,
     locale: undefined,
   },
 );
 
 const emit = defineEmits<{
-  /** The new checked set after a toggle or Browse — host-owned persistence. */
+  /** The new checked set after a toggle or Add report file — host-owned persistence. */
   'update:baselines': [baselines: Baseline[]];
+  /** 基线对比 / Compare baselines: enter comparison mode with the checked set. */
+  'compare-baselines': [baselines: Baseline[]];
+  /** 取消对比 / Cancel comparison: leave comparison mode (the checked set stays). */
+  'cancel-comparison': [];
 }>();
 
 const open = ref(false);
@@ -84,28 +91,54 @@ function positionPanel() {
 }
 
 /**
- * Checkbox rows: the host's recent reports first, then checked entries the
- * recent list does not carry (session browsed picks) — derived from the
- * host-owned list, so the popover never keeps a private copy of the state.
+ * One row per report: the host's recent list first, then checked entries the
+ * recent list does not carry (browsed picks). Path is the baseline identity —
+ * a checked state derives from the host-owned list, never a local copy.
  */
-const recentIds = computed(() => new Set((props.recentBaselines ?? []).map((r) => r.id)));
-const extraRows = computed(() => props.baselines.filter((b) => !recentIds.value.has(b.id)));
-const rows = computed<Baseline[]>(() => [...(props.recentBaselines ?? []), ...extraRows.value]);
+const rows = computed<Baseline[]>(() => {
+  const recent = props.recentBaselines ?? [];
+  const recentPaths = new Set(recent.map((entry) => entry.path));
+  return [...recent, ...props.baselines.filter((entry) => !recentPaths.has(entry.path))];
+});
 
-function isChecked(id: string): boolean {
-  return props.baselines.some((b) => b.id === id);
+function isChecked(path: string): boolean {
+  return props.baselines.some((entry) => entry.path === path);
 }
+
+/** 基线对比 is available once at least one report is checked. */
+const compareDisabled = computed(() => props.baselines.length === 0);
 
 /** Row title: filename + timestamp instead of a generated boilerplate id (review PR #234). */
 function titleOf(row: Baseline): string {
   return baselineDisplayTitle(row);
 }
 
+/**
+ * Immediate toggle (the host list IS the checkbox set). Checking reuses the
+ * already-committed entry when one exists, so a re-render never replaces its
+ * id / host-declared `operators` / `pickedAt` with the display row's copy.
+ */
 function setChecked(row: Baseline, checked: boolean): void {
-  const next = checked
-    ? [...props.baselines.filter((b) => b.id !== row.id), row]
-    : props.baselines.filter((b) => b.id !== row.id);
-  emit('update:baselines', next);
+  const committed = props.baselines.find((entry) => entry.path === row.path);
+  if (checked) {
+    if (committed) return;
+    emit('update:baselines', [...props.baselines, { ...row }]);
+  } else {
+    if (!committed) return;
+    emit('update:baselines', props.baselines.filter((entry) => entry.path !== row.path));
+  }
+}
+
+/** 基线对比 / Compare baselines: start comparing with the checked set, then close. */
+function compareBaselines(): void {
+  if (compareDisabled.value) return;
+  emit('compare-baselines', props.baselines);
+  void close({ restoreFocus: true });
+}
+
+/** 取消对比 / Cancel comparison: leave comparison mode; the checked set stays. */
+function cancelComparison(): void {
+  emit('cancel-comparison');
 }
 
 function toggle() {
@@ -180,9 +213,9 @@ watch(
 );
 
 /**
- * Browse: the file dialog pick joins the checkbox list as a CHECKED row (it is
- * appended to the host-owned list right away — the popover has no local state).
- * The same file already checked changes nothing.
+ * 添加报告文件 / Add report file: the pick joins the host-owned list as a
+ * CHECKED entry right away (the popover keeps no local state). The same path
+ * already checked changes nothing.
  */
 async function browse(): Promise<void> {
   if (!props.pickBaselineFile) return;
@@ -194,7 +227,7 @@ async function browse(): Promise<void> {
   }
   if (!pick) return;
   const path = pick.path;
-  if (props.baselines.some((b) => b.path === path)) return;
+  if (props.baselines.some((entry) => entry.path === path)) return;
   const entry: Baseline = {
     id: newBaselineId(),
     name: pick.name?.trim() || path.split(/[\\/]/).pop() || path,
@@ -244,7 +277,10 @@ defineExpose({ close });
         :aria-label="t('baselines', locale)"
       >
         <div class="pr-baseline__head">
-          <span class="pr-baseline__title">{{ t('baselineAddTitle', locale) }}</span>
+          <span class="pr-baseline__title">
+            <PrIcon name="list" />
+            <span>{{ t('baselineLabel', locale) }}</span>
+          </span>
           <CloseButton
             class="pr-baseline__close"
             data-testid="baselines-close"
@@ -266,7 +302,7 @@ defineExpose({ close });
           </p>
           <label
             v-for="row in rows"
-            :key="row.id"
+            :key="row.path"
             class="pr-baseline__item pr-baseline__item--check"
           >
             <span class="pr-baseline__check">
@@ -274,7 +310,7 @@ defineExpose({ close });
                 type="checkbox"
                 class="pr-baseline__check-input"
                 data-testid="baseline-check"
-                :checked="isChecked(row.id)"
+                :checked="isChecked(row.path)"
                 @change="setChecked(row, ($event.target as HTMLInputElement).checked)"
               >
               <span
@@ -290,14 +326,41 @@ defineExpose({ close });
         </div>
 
         <div class="pr-baseline__foot">
-          <button
-            type="button"
-            class="pr-baseline__action pr-baseline__action--primary"
-            data-testid="baseline-browse"
-            @click="browse"
-          >
-            {{ t('baselineBrowse', locale) }}
-          </button>
+          <div class="pr-baseline__foot-left">
+            <button
+              type="button"
+              class="pr-baseline__action pr-baseline__action--muted"
+              data-testid="baseline-browse"
+              @click="browse"
+            >
+              <PrIcon name="add-report-file" />
+              <span>{{ t('baselineAddReportFile', locale) }}</span>
+            </button>
+          </div>
+          <div class="pr-baseline__foot-right">
+            <!-- One action slot: Compare baselines starts comparing; while a
+                 comparison runs it is replaced by Cancel comparison (the
+                 checked set is untouched). -->
+            <button
+              v-if="comparing"
+              type="button"
+              class="pr-baseline__action"
+              data-testid="baseline-cancel-compare"
+              @click="cancelComparison"
+            >
+              {{ t('baselineCancelCompare', locale) }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="pr-baseline__action"
+              data-testid="baseline-compare"
+              :disabled="compareDisabled"
+              @click="compareBaselines"
+            >
+              {{ t('baselineCompare', locale) }}
+            </button>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -336,10 +399,17 @@ defineExpose({ close });
 }
 
 .pr-baseline__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
   color: #ffffff;
   line-height: 1.2;
+}
+
+.pr-baseline__title .pr-icon {
+  color: #b3b3b3;
 }
 
 .pr-baseline__close {
@@ -439,7 +509,7 @@ defineExpose({ close });
   cursor: pointer;
 }
 
-/* Checkbox dot: 12px square (same family as the radio dot was, square = multi). */
+/* Checkbox: design square + white checkmark (not a dot). */
 .pr-baseline__check {
   display: inline-flex;
   align-items: center;
@@ -465,18 +535,30 @@ defineExpose({ close });
 }
 
 .pr-baseline__check-dot {
+  position: relative;
   box-sizing: border-box;
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   border: 1px solid #8a8a8a;
-  border-radius: 2px;
+  border-radius: 3px;
   background: transparent;
 }
 
 .pr-baseline__check-input:checked ~ .pr-baseline__check-dot {
   border-color: var(--pr-accent, #2d70e3);
   background: var(--pr-accent, #2d70e3);
-  box-shadow: inset 0 0 0 2px var(--pr-surface-raised, #363636);
+}
+
+.pr-baseline__check-input:checked ~ .pr-baseline__check-dot::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1.5px;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .pr-baseline__pick {
@@ -515,31 +597,55 @@ defineExpose({ close });
   color: #c8c8c8;
 }
 
-/* Footer: Browse only — the checkbox set IS the saved list. */
+/* Footer: 添加报告文件 / Add report file on the left; one right-hand slot that
+   is Compare baselines, or Cancel comparison while a comparison runs. */
 .pr-baseline__foot {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 16px;
   margin: 12px 0 0;
+}
+
+.pr-baseline__foot-left,
+.pr-baseline__foot-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .pr-baseline__action {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
-  padding: 5px 10px;
+  padding: 2px 0;
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #2d70e3;
-  font-size: 12px;
-  line-height: 1.4;
+  color: var(--pr-accent, #2d70e3);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
   text-align: left;
   cursor: pointer;
 }
 
-.pr-baseline__action:hover {
-  background: rgba(255, 255, 255, 0.1);
+.pr-baseline__action:hover:not(:disabled) {
   color: #6a9ff0;
+}
+
+.pr-baseline__action--muted {
+  color: #b3b3b3;
+}
+
+.pr-baseline__action--muted:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+.pr-baseline__action:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 </style>

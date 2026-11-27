@@ -2965,7 +2965,7 @@ describe('StatsAside', () => {
     };
   }
 
-  it('PR-STATS-052: the comparison bar renders only with a non-empty checked set', () => {
+  it('PR-STATS-052: the comparison bar renders only with comparison rows', () => {
     // No baselines at all → no row, no dropdowns (UI-63 resolved: hide).
     const plain = mount(StatsAside, { props: { report: report({ summary: { pid: '9' } }) } });
     expect(plain.find('[data-testid="stats-baseline-bar"]').exists()).toBe(false);
@@ -2976,7 +2976,18 @@ describe('StatsAside', () => {
     });
     expect(empty.find('[data-testid="stats-baseline-bar"]').exists()).toBe(false);
 
-    // A checked set with one row → the bar renders the two dropdowns per row.
+    // PR #273: selecting baselines alone does NOT start the comparison —
+    // no rows, no bar.
+    const addedOnly = mount(StatsAside, {
+      props: {
+        report: report({ summary: { pid: '9' } }),
+        baselines: baselineList,
+        baselineRows: [],
+      },
+    });
+    expect(addedOnly.find('[data-testid="stats-baseline-bar"]').exists()).toBe(false);
+
+    // 基线对比 created the row → the bar renders the two dropdowns per row.
     const withRow = mount(StatsAside, {
       props: {
         report: report({ summary: { pid: '9' } }),
