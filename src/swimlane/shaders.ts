@@ -27,10 +27,28 @@ export const extendMargin1Css = 2;
 export const extendMargin2Css = 4;
 
 /**
- * Odd stripe multiplier for thin-event count-hit stipple (matches Canvas
- * `TICK_ALTERNATE_FACTOR` in layout.ts). Long dense fills zebra instead of a solid bar.
- * Stripes are pan-stable `floor(floor(t/dt) / uStipplePeriod)` with period ≈ 1 CSS px
- * (`round(dpr)` device columns) so zoom-out packs stay readable on retina.
+ * Tick density ladder (PR-EXPERIMENT).
+ *
+ * A tick paints a bar uTickWidthPx device px wide. When bars overlap, N = width / gap of them
+ * hit one pixel, and source-over accumulates 1 - (1-a)^N. Rather than let that pile up into a
+ * solid brick, the per-tick alpha is pre-divided by the expected overlap:
+ *
+ *   alpha = 1 - (1 - band)^(gap / width),  clamped to [0, alphaMax]
+ *
+ * so a fully covered column converges to band at EVERY zoom level, while a separated tick keeps
+ * growing toward alphaMax (the isolated look). No density cap, no zebra, no overflow: brightness
+ * is bounded by alphaMax by construction.
+ *
+ * band = 0.6  -> dense ICACHE runs read as a medium band (not a bright slab).
+ * alphaMax = 0.8 -> an isolated tick is clearly brighter than that band.
+ */
+export const tickBand = 0.6;
+export const tickAlphaMax = 0.8;
+
+/**
+ * Odd stripe multiplier for the Canvas thin-tick density alternate (matches
+ * `TICK_ALTERNATE_FACTOR` in layout.ts). Canvas-only now: the WebGL pass encodes density
+ * in alpha (no stipple), so this constant no longer reaches the swimlane shader.
  */
 export const thinEventAlternateFactor = 0.4;
 
@@ -45,17 +63,19 @@ precision highp float;
 uniform vec4 uSizePos;
 uniform vec2 uResolution;
 uniform vec3 uExtendParameters; // xyz = targetSize, margin1, margin2, all in device px (CSS px × dpr); targetSize 0 disables
-uniform float uStipplePeriod; // device columns per zebra stripe (≈ round(dpr) = 1 CSS px)
 
 in vec2 aPos;
 in vec2 aTex;
 in vec2 aData; // x = distance to prev event end, y = distance to next event start (event coords)
-in float aHit; // collapsed same-x tick count; generic 1 when the attrib array is off
+
+uniform float uTickBand; // target brightness of a fully covered column (dense plateau)
+uniform float uTickAlphaMax; // cap on one tick's alpha (isolated tick look)
+uniform float uTickWidthPx; // device px painted per tick (1 CSS px, >= 1)
 
 out vec2 vScreenPos;
 out vec2 vLrScreen;
-out float vStippleAlt; // pan-stable odd/even CSS-px stripe factor for count-hit zebra
-out float vHit;
+out float vTick; // 1.0 = zero-duration tick quad, 0.0 = durable interval
+out float vTickA; // density alpha for ticks (unused when vTick == 0)
 
 float translateScaleX(float x) { return x * uSizePos.x + uSizePos.z; }
 float translateScaleY(float y) { return y * uSizePos.y + uSizePos.w; }
@@ -88,44 +108,52 @@ void main() {
     (gapPrevPx - margin1) / (margin2 - margin1), 0.0, 1.0);
   float factorR = clamp(
     (gapNextPx - margin1) / (margin2 - margin1), 0.0, 1.0);
-  float factor = (factorL + factorR) * 0.5;
-  float extend = extendMax * factor;
+  // Averaged side factor - the pre-tick renderer's rule, kept so durable geometry stays
+  // pixel-identical: symmetric growth, full extension only when both sides are open.
+  // Ticks do not use it (their bar is a fixed uTickWidthPx column).
+  float extend = extendMax * (factorL + factorR) * 0.5;
   float extendedL = lPx - extend;
   float extendedR = rPx + extend;
 
+  // Zero-duration ticks: alpha scales with the local inter-tick gap (no lower clamp at 0).
+  // A uniformly covered column converges to 1 - e^(-1/g0) at any zoom (no overflow); ticks that
+  // separate brighten toward full, so mid-zoom does not fall into a dim band. At equal spacing
+  // N ticks in one pixel still accumulate 1-(1-alpha)^N (2 > 1, 3 > 2, smaller step).
+  // Encoder contract (layout.ts encodeIntervalPair): a duration-0 tick is the only event that
+  // encodes a degenerate pair; durables always have end > start. No extra vertex attribute needed.
+  // Accepted edge case: a durable whose two endpoints round to the same float32 (about 1 ns at
+  // timestamps near 1 s) is indistinguishable from a tick and paints as one - such an event is
+  // sub-pixel at every zoom, so the mis-paint is invisible.
+  vTick = (lX == rX) ? 1.0 : 0.0;
+  float gapAvgPx = (gapPrevPx + gapNextPx) * 0.5;
+  // Pre-divide by the expected bar overlap: N bars hit one pixel = width / gap, so
+  // alpha = 1 - (1 - band)^(gap / width) keeps a covered column at band for any density.
+  // The 0.05 floor = "at least one twentieth of a bar apart" so coincident ticks stay faintly
+  // visible instead of collapsing to alpha 0.
+  float tickWpx = max(1.0, uTickWidthPx);
+  float overlap = max(gapAvgPx / tickWpx, 0.05);
+  vTickA = clamp(1.0 - pow(1.0 - uTickBand, overlap), 0.0, uTickAlphaMax);
+
   float screenY = glToPixelY(pos.y);
-  // Wide events: snap edges to pixel bounds (sudu AA). Sub-pixel / zero-width ticks:
-  // continuous center±0.5 — floor/ceil under fractional pan makes neighbors gap or
-  // double-cover at different phases (zebra flicker). Isolates that thin-extend to
-  // ≥1 device px take the snapped path and stay full bright in the FS.
-  float extW = extendedR - extendedL;
-  float screenL;
-  float screenR;
-  if (extW < 1.0) {
-    float c = (extendedL + extendedR) * 0.5;
-    screenL = c - 0.5;
-    screenR = c + 0.5;
-  } else {
-    screenL = floor(extendedL);
-    screenR = ceil(extendedR);
-    if (screenR <= screenL) screenR = screenL + 1.0;
+  // Geometry no longer encodes tick density: a duration-0 tick paints exactly one device
+  // column centred on its timestamp; durables keep the exact extended span (+1 col if degenerate).
+  float screenL = floor(extendedL);
+  float screenR = ceil(extendedR);
+  if (vTick > 0.5) {
+    // Pixel-snapped bar, uTickWidthPx device px wide: coverage is exactly 1 across it.
+    float tickL = floor((lPx + rPx) * 0.5 - tickWpx * 0.5);
+    screenL = tickL;
+    screenR = tickL + tickWpx;
+  } else if (screenR <= screenL) {
+    screenR = screenL + 1.0;
   }
   float screenX = mix(screenL, screenR, aTex.y);
   pos.x = pixelToGlX(screenX);
 
-  // Pan-stable stipple: world column from unextended event center (aPos times are
-  // timeBase-relative; sx = 2/span so span = 2/sx). Group by uStipplePeriod (~1 CSS px)
-  // so dense zoom-out packs keep visible zebra on high-dpr; same event keeps odd/even
-  // under horizontal pan; zoom changes dt and may reflow (acceptable).
-  float span = 2.0 / uSizePos.x;
-  float dt = span / max(uResolution.x, 1.0);
-  float worldCol = floor(((lX + rX) * 0.5) / dt);
-  float stripe = floor(worldCol / max(uStipplePeriod, 1.0));
-  vStippleAlt = mod(stripe, 2.0) < 1.0 ? 1.0 : ${thinEventAlternateFactor};
-  vHit = aHit;
 
   vScreenPos = vec2(screenX, screenY);
-  vLrScreen = vec2(extendedL, extendedR);
+  // Ticks: the snapped column is also their coverage (cov ~ 1 in that pixel). Durables: exact edges.
+  vLrScreen = vTick > 0.5 ? vec2(screenL, screenR) : vec2(extendedL, extendedR);
   gl_Position = vec4(pos, 0.0, 1.0);
 }
 `;
@@ -137,13 +165,11 @@ uniform vec4 uColor;
 uniform vec2 uYBounds; // top, bottom in device pixels (integer-snapped)
 uniform vec3 uRR; // xy = min/max painted radii (device px, rounded in JS); z = exact switch threshold × dpr
 uniform float uSrcOver; // 1.0 = premultiplied source-over (summary bars); 0.0 = additive (events)
-uniform float uUseCountMetric; // 1.0 = per-pipe count-hit; 0.0 = length AA (durable-majority pipes)
-uniform float uDensityCap; // zoom-adaptive saturation count for thin count-path (median→1)
 
 in vec2 vScreenPos;
 in vec2 vLrScreen;
-in float vStippleAlt;
-in float vHit;
+in float vTick;
+in float vTickA;
 out vec4 outColor;
 
 float sdRoundBox(vec2 p, vec2 halfSize, float r) {
@@ -173,36 +199,16 @@ void main() {
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
   float rrShape = clamp(0.5 - dist, 0.0, 1.0);
-  // Per-pipe metric (uUseCountMetric): durable-majority pipes use length AA; tick-majority /
-  // tie pipes use count-hit so dense zero-width interiors accumulate by event count. Count hits
-  // when hCoverage > 0 or the event center lies in this device column (L≈R still paints).
-  // A hit is a full stipple unit: the zero-width SDF is ~0 and would drop the 1 px quad.
-  // Zebra only for non-extended hits (rawW < 1): isolates that thin-extend to ≥1 device px stay
-  // full bright (durable parity); dense pack interiors use pan-stable vStippleAlt / uDensityCap
-  // so stacked additive hits approach full when N ≈ zoom-adaptive median cap.
-  // Same-x float32 stacks are one quad (vHit); clamp so a late-trace clump cannot add past 1.
-  float cov;
-  if (uUseCountMetric < 0.5) {
-    cov = min(hCoverage, rrShape);
-  } else {
-    float center = (l + r) * 0.5;
-    bool hit = hCoverage > 0.0 || abs(vScreenPos.x - center) <= 0.5;
-    if (hit) {
-      // Extended isolates: full bright. Muted src-over base: full cov (even gray, no /cap).
-      // Resting additive thin: stack * stipple / zoom-adaptive cap, clamped to 1.
-      cov = rawW >= 1.0 || uSrcOver > 0.5
-        ? 1.0
-        : min(1.0, vHit * vStippleAlt / max(uDensityCap, 1.0));
-    } else {
-      cov = 0.0;
-    }
-  }
-  // Straight RGB × coverage. In additive mode alpha stays 1.0 (the additive blend
-  // (ONE, ONE, ONE, ONE) makes SRC_ALPHA ≡ ONE, so pixels accumulate all event coverage
-  // across lanes with no quadratic dim). In source-over mode (uSrcOver = 1.0, summary bars)
-  // alpha is uColor.a * cov. uColor.a is the search / collapse dim (Canvas density dims stay
-  // on the 2D path; WebGL has no per-quad density attribute).
-  outColor = vec4(uColor.xyz * cov, mix(1.0, uColor.a * cov, uSrcOver));
+  // Analytical length AA for durables (ticks add their density alpha on top).
+  float cov = min(hCoverage, rrShape);
+  // Tick ladder: premultiplied output, one blend func for the whole interval pass
+  // (ONE, ONE_MINUS_SRC_ALPHA). Durables emit alpha 0 -> the blend degenerates to additive.
+  // Ticks emit alpha = c*cov -> overlaps accumulate source-over, converging to the lane
+  // colour (never white) with a gap-driven ladder: 1-(1-c)^N.
+  float tickK = vTick * vTickA; // 0 for durables
+  float rgbK = uSrcOver > 0.5 ? cov : cov * mix(1.0, uColor.a * tickK, vTick);
+  float alpha = uSrcOver > 0.5 ? uColor.a * cov : uColor.a * tickK * cov;
+  outColor = vec4(uColor.xyz * rgbK, alpha);
 }
 `;
 
