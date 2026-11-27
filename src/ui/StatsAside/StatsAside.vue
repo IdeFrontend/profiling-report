@@ -556,16 +556,18 @@ const bwWriteTip = bandwidthTip('write');
 const roofline = computed(() => {
   const id = blockId.value;
   if (!id) return props.report?.roofline;
-  // Undecidable for this block ⇒ hide, rather than the All GM under a block label.
-  // Chip-level series roofs and non-GM measured points (HardwareInfo Roofline)
-  // stay on the All model; only the GM point + mix labels are block-scoped.
+  // A block with no GM rebuild must not wear the All GM label. Chip-level series
+  // and non-GM measured points (Roofline category) stay on the All model.
+  const all = props.report?.roofline;
   const rebuilt = rooflineFromRows(
     rowsForBlock('ArithmeticUtilization.csv', id),
     rowsForBlock('Memory.csv', id),
   );
-  if (!rebuilt) return undefined;
-  const all = props.report?.roofline;
   const chipPoints = (all?.points ?? []).filter((p) => p.id !== 'gm');
+  if (!rebuilt) {
+    if (!all || chipPoints.length === 0) return undefined;
+    return { ...all, points: chipPoints, mixLabels: [] };
+  }
   const points = [...chipPoints, ...rebuilt.points];
   const allSeries = all?.series;
   if (allSeries && allSeries.length > 0) {

@@ -963,11 +963,13 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
   // as the classic-`.rep` fallback (no `summary.jsonl` ⇒ no aggregate exists).
   const hwJsonl = payloadByName(payloads, ['HardwareInfo.jsonl']);
   const hwText = hwJsonl ? decodeUtf8(hwJsonl) : undefined;
+  const summaryText = summaryJsonl ? decodeUtf8(summaryJsonl) : undefined;
   const arithCsv = payloadByName(payloads, ['ArithmeticUtilization.csv']);
   const memCsv = payloadByName(payloads, ['Memory.csv']);
   // DATA-19 All = summary.jsonl categories when both exist; else classic CSV means.
-  // HardwareInfo Roofline category (when present) supplies points + roofs; mix still
-  // comes from the ArithmeticUtilization + Memory rows passed here.
+  // Roofline category: HardwareInfo first, then summary.jsonl (DATA-37). parseRooflineJsonl
+  // keeps the first Roofline line, so a HardwareInfo category still wins when both exist.
+  // Mix still comes from the ArithmeticUtilization + Memory rows passed here.
   const summaryArith = summaryCategoryRows(summaryCategories, 'ArithmeticUtilization');
   const summaryMem = summaryCategoryRows(summaryCategories, 'Memory');
   const useSummaryRoof = summaryArith.length > 0 && summaryMem.length > 0;
@@ -981,7 +983,8 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
     : memCsv
       ? parseCsv(decodeUtf8(memCsv)).rows
       : [];
-  const roofline = rooflineFromRows(arithRows, memRows, hwText);
+  const roofText = [hwText, summaryText].filter(Boolean).join('\n');
+  const roofline = rooflineFromRows(arithRows, memRows, roofText || undefined);
   const memoryTopology =
     buildMemoryTopologyFromCategories(summaryCategories) ??
     // UI-49: PipeUtilization joins the classic fallback too, so a CSV-only `.rep` that has a

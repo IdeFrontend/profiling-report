@@ -504,6 +504,97 @@ describe('StatsAside', () => {
     );
   });
 
+  it('PR-STATS-014f: a block that cannot rebuild GM keeps All non-gm Roofline points', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['roofline'],
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          roofline: {
+            points: [
+              {
+                id: 'aiv_simd_b32',
+                label: 'AIV fp32',
+                intensity: 0.167,
+                performance: 0.00225,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
+            mixLabels: [{ id: 'fp32', label: 'Vec_FP32', percent: 100 }],
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'dashed',
+              },
+            ],
+          },
+          computeTables: [
+            {
+              fileName: 'ArithmeticUtilization.csv',
+              headers: ['block_id', 'aiv_time(us)', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', 'aiv_time(us)': '5.5', aiv_vec_ratio: '0.09' },
+                { block_id: '1', 'aiv_time(us)': '6.1', aiv_vec_ratio: '0.1' },
+              ],
+              blockIds: ['0', '1'],
+            },
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.5' },
+                { block_id: '1', aiv_vec_ratio: '0.6' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          memoryTables: [
+            {
+              fileName: 'Memory.csv',
+              headers: ['block_id', 'read_main_memory_datas(KB)', 'write_main_memory_datas(KB)'],
+              rows: [
+                {
+                  block_id: '0',
+                  'read_main_memory_datas(KB)': '64.5',
+                  'write_main_memory_datas(KB)': '32',
+                },
+                {
+                  block_id: '1',
+                  'read_main_memory_datas(KB)': '70',
+                  'write_main_memory_datas(KB)': '30',
+                },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    await pickPipeBlock(wrapper, '0');
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="roofline-point"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid="roofline-roof"]')).toHaveLength(1);
+    await wrapper.get('[data-testid="roofline-point"]').trigger('mouseenter', {
+      clientX: 40,
+      clientY: 80,
+    });
+    expect(document.querySelector('[data-testid="roofline-tooltip"]')?.textContent).toContain(
+      'AIV fp32',
+    );
+  });
+
   it('PR-STATS-014e: a picked block keeps an interim root roof', async () => {
     const wrapper = mount(StatsAside, {
       props: {

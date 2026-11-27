@@ -1,7 +1,8 @@
 /**
  * Roofline view-model builder (npu-compute §11.8).
  *
- * Prefer `HardwareInfo.jsonl` category `Roofline` series (`p_peak`, `b_peak`, `w`, `t`, `q`).
+ * Prefer a `Roofline` category (`p_peak`, `b_peak`, `w`, `t`, `q`): `HardwareInfo.jsonl`
+ * first, then the same object in `summary.jsonl` (the caller concatenates them).
  * Otherwise: theoretical roofs from §11.8.1 (HardwareInfo counts + freq, or product example
  * ceilings) plus a measured GM point from ArithmeticUtilization + Memory.
  */
