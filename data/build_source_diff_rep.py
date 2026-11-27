@@ -3,27 +3,34 @@
 """
 Generate the Source-diff demo fixtures under `data/source-diff/`:
 
-  left.npu-rep   leaf 160-byte npu-rep (objdump.txt / symbolizer.json / summary.db / sharpen.asc /
-                 PipeTrace.json)
-  mid.npu-rep    leaf 160-byte npu-rep, same embeds, sharpen_mid.asc: a third
-                 HwdefectFind signature plus a changed `threshold` initializer
-  right.npu-rep  leaf 160-byte npu-rep, same embeds, sharpen.asc with one changed line
-                 and five lines that exist only on the LEFT
+  left.npu-rep   leaf 160-byte npu-rep (objdump.txt / symbolizer.json / summary.db /
+                 sharpen_left.asc / sharpen_common.asc / PipeTrace.json)
+  mid.npu-rep    leaf 160-byte npu-rep, same embed layout, its own sharpen_mid.asc
+  right.npu-rep  leaf 160-byte npu-rep, same embed layout, its own sharpen_right.asc
   demo.npu-rep   outer 160-byte npu-rep with three `type 1` entries (operators
                  `left` / `mid` / `right`) built the same way as the leaves but
-                 without the source embed: the Source view starts on the
+                 without the source embeds: the Source view starts on the
                  missing-embed placeholder until a host workspace pick fills it
+
+Every operator carries TWO source files, each 250-350 lines:
+
+  sharpen_<side>.asc   the kernel variant, renamed per operator, so a workspace
+                       pick resolves a different document for left / mid / right
+  sharpen_common.asc   one shared helper, exact same name in every operator, so
+                       the exact-name tier of `resolveSourceFile` pairs it
+
+Each operator pair (left-mid, left-right, mid-right) has at least eight diff
+hunks and every pair covers a pure insert, a pure delete and a one-for-one
+replace. Line 1 and the last line take part in a change in every pair.
+
+Only the sample-mapped lines enter the symbolizer / objdump / summary.db, so the
+site count scales with the sampled lines instead of a fixed 24. Two sampled
+changed lines carry distinct Instructions_Executed and Warp_Occupancy per
+operator.
 
 Layout matches `src/adapters/parseNpuRep160.ts` / `data/scripts/pack_rep.py`:
 36-byte head (version 0x00010000, origin 1, fileInfoLength 160), 160-byte
 FileInfo entries, payloads contiguous and covering the file exactly.
-
-Both leaves share the same symbolizer mapping, so line numbers stay comparable.
-Only line 37 (`HwdefectFind`) plus the five left-only lines differ. summary.db
-gives that changed line distinct Warp_Occupancy (0.5 left / 0.8 right) and the
-same Instructions_Executed (135332032). `sharpen_mid.asc` keeps the left line
-count and differs on line 1 (doxygen marker), line 37 (third signature) and
-line 49 (`>` vs `>=`).
 """
 
 import json
@@ -64,174 +71,259 @@ def load_donor_entry(entry_name):
 
 
 # --- source texts -----------------------------------------------------------
-# Left-only lines are inserted right after `uint32_t acc = 0;` so the diff reads:
-# common prefix, one modified line (`Mat * deslm` vs `Mat * endlm`), five lines
-# only in the left file, common suffix. LEFT has exactly 5 more lines.
-SOURCE_PREFIX = [
-    "/* !",
-    " * \\file sharpen.asc",
-    " * \\brief Ascend C sharpen kernel: GM -> L1 -> UB -> GM.",
-    " */",
-    '#include "kernel_operator.h"',
-    "",
-    "using namespace AscendC;",
-    "",
-    "constexpr int32_t TILE_ROWS = 16;",
-    "",
-    "class KernelSharpen {",
-    "public:",
-    "    __aicore__ inline void Init(__gm__ uint8_t *src, __gm__ uint8_t *dst)",
-    "    {",
-    "        srcGm.SetGlobalBuffer((__gm__ half *)src);",
-    "        dstGm.SetGlobalBuffer((__gm__ half *)dst);",
-    "        pipe.InitBuffer(inQueue, 2, TILE_ROWS * sizeof(half));",
-    "        pipe.InitBuffer(outQueue, 2, TILE_ROWS * sizeof(half));",
-    "    }",
-    "",
-    "    __aicore__ inline void Process(int32_t blocks)",
-    "    {",
-    "        for (int32_t r = 0; r < blocks; ++r) {",
-    "            CopyIn(r);",
-    "            SharpenWindow(r);",
-    "        }",
-    "    }",
-    "",
-    "private:",
-    "    __aicore__ inline void CopyIn(int32_t r)",
-    "    {",
-    "        LocalTensor<half> src = inQueue.AllocTensor<half>();",
-    "        DataCopy(src, srcGm[r * TILE_ROWS], TILE_ROWS);",
-    "        inQueue.EnQue(src);",
-    "    }",
-    "",
-]
+SIDES = ("left", "mid", "right")
+PRIMARY_NAMES = {side: f"sharpen_{side}.asc" for side in SIDES}
+COMMON_NAME = "sharpen_common.asc"
 
-CHANGED_LEFT = "    __aicore__ inline void HwdefectFind(Mat srclm, Mat * deslm)"
-CHANGED_RIGHT = "    __aicore__ inline void HwdefectFind(Mat srclm, Mat * endlm)"
-
-BODY_OPEN = [
-    "    {",
-    "        uint32_t acc = 0;",
-]
-
-LEFT_ONLY = [
-    "        uint32_t bad = 0;",
-    "        uint32_t good = 0;",
-    "        uint32_t mean = 0;",
-    "        uint32_t var = 0;",
-    "        uint32_t edge = 0;",
-]
-
-SOURCE_SUFFIX = [
-    "        for (uint32_t i = 0; i < TILE_ROWS; ++i) {",
-    "            acc += srcLm.GetValue(i) * kernelWeight[i];",
-    "        }",
-    "        desLm->SetValue(0, acc);",
-    "        defectCount += acc > threshold ? 1 : 0;",
-    "    }",
-    "",
-    "    __aicore__ inline void SharpenWindow(int32_t r)",
-    "    {",
-    "        LocalTensor<half> src = inQueue.DeQue<half>();",
-    "        LocalTensor<half> dst = outQueue.AllocTensor<half>();",
-    "        HwdefectFind(Mat(src), &Mat(dst));",
-    "        outQueue.EnQue(dst);",
-    "        inQueue.FreeTensor(src);",
-    "    }",
-    "",
-    "    TPipe pipe;",
-    "    GlobalTensor<half> srcGm;",
-    "    GlobalTensor<half> dstGm;",
-    "    TQue<TPosition::VECIN, 2> inQueue;",
-    "    TQue<TPosition::VECOUT, 2> outQueue;",
-    "    half kernelWeight[TILE_ROWS];",
-    "    uint32_t threshold = 64;",
-    "    uint32_t defectCount = 0;",
-    "};",
-]
+SIGNATURE_PARAM = {"left": "deslm", "mid": "dstlm", "right": "endlm"}
+INSERT_LINE = {
+    "left": "    // left: dual-buffer prefetch keeps MTE2 and VECIN overlapped",
+    "mid": "    // mid: single-buffer prefetch trades latency for bank pressure",
+    "right": "    // right: descriptor table stays resident in the scalar cache",
+}
+# Two sampled changed lines per operator: (Instructions_Executed, Warp_Occupancy).
+SPECIALS = {
+    "left": [(135332032, 0.5), (22000011, 0.44)],
+    "mid": [(42424242, 0.61), (33000022, 0.55)],
+    "right": [(98765432, 0.73), (44000033, 0.66)],
+}
 
 
-def source_lines(changed, extra):
-    return SOURCE_PREFIX + [changed] + BODY_OPEN + extra + SOURCE_SUFFIX
+def _source_header(file_name):
+    return [
+        # Line 1 is replaced per operator so the first rendered row changes.
+        f"/* ! \\file {file_name} : generated sharpen kernel demo source */",
+        " * \\brief Fixture for the 源码对比 (source-diff) demo; not compiled.",
+        " * Long comment kept above 100 characters so the demo exercises horizontal scrolling in the compare panes for real.",
+        "\t// tab-indented marker: keeps tab rendering covered by the demo",
+        '#include "kernel_operator.h"',
+        "",
+        "using namespace AscendC;",
+        "",
+        "constexpr int32_t TILE_ROWS = 16;",
+        "constexpr int32_t TILE_COLS = 32;",
+        "",
+    ]
 
 
-LEFT_LINES = source_lines(CHANGED_LEFT, LEFT_ONLY)
-RIGHT_LINES = source_lines(CHANGED_RIGHT, [])
-CHANGED_LINE = LEFT_LINES.index(CHANGED_LEFT) + 1
-LEFT_ONLY_LINES = list(
-    range(LEFT_LINES.index(LEFT_ONLY[0]) + 1, LEFT_LINES.index(LEFT_ONLY[-1]) + 2)
+def _source_block(i, prefix):
+    return [
+        f"    __aicore__ inline void {prefix}Stage{i}(int32_t tile{i})",
+        "    {",
+        f"        LocalTensor<half> src{i} = {prefix}InQueue{i}.AllocTensor<half>();",
+        f"        DataCopy(src{i}, srcGm[tile{i} * TILE_ROWS], TILE_ROWS);",
+        f"        {prefix}InQueue{i}.EnQue(src{i});",
+        f"        for (int32_t r{i} = 0; r{i} < TILE_ROWS; ++r{i}) {{",
+        f"            src{i}.SetValue(r{i}, src{i}.GetValue(r{i}) * kernelWeight[r{i}]);",
+        "        }",
+        f"        float mean{i} = 0.0f;",
+        f"        mean{i} += src{i}.GetValue(0) + src{i}.GetValue(TILE_ROWS - 1);",
+        f"        if (mean{i} > static_cast<float>(threshold)) {{",
+        f"            defectCount += {i + 1};",
+        "        }",
+        f"        {prefix}OutQueue{i}.EnQue(src{i});",
+        "    }",
+        "",
+    ]
+
+
+def _source_tail(prefix):
+    return [
+        f"    TPipe {prefix}Pipe;",
+        "    GlobalTensor<half> srcGm;",
+        "    GlobalTensor<half> dstGm;",
+        "    TQue<TPosition::VECIN, 2> inQueue;",
+        "    TQue<TPosition::VECOUT, 2> outQueue;",
+        "    half kernelWeight[TILE_ROWS];",
+        "    uint32_t threshold = 64;",
+        "    uint32_t defectCount = 0;",
+        "};",
+        "// end of generated sharpen kernel",
+    ]
+
+
+def _source_text(file_name, prefix):
+    lines = _source_header(file_name)
+    for i in range(18):
+        lines.extend(_source_block(i, prefix))
+    lines.extend(_source_tail(prefix))
+    return lines
+
+
+COMMON_LINES = _source_text(COMMON_NAME, "Common")
+COMMON_TEXT = "\n".join(COMMON_LINES) + "\n"
+PRIMARY_BASE = _source_text(PRIMARY_NAMES["left"], "Kernel")
+
+_PRIMARY_LINE_COUNT = len(PRIMARY_BASE)
+# Nine isolated change regions: first line, seven interior statements, last line.
+REGION_INDICES = sorted(
+    {
+        0,
+        _PRIMARY_LINE_COUNT // 8,
+        _PRIMARY_LINE_COUNT // 4,
+        3 * _PRIMARY_LINE_COUNT // 8,
+        _PRIMARY_LINE_COUNT // 2,
+        5 * _PRIMARY_LINE_COUNT // 8,
+        3 * _PRIMARY_LINE_COUNT // 4,
+        7 * _PRIMARY_LINE_COUNT // 8,
+        _PRIMARY_LINE_COUNT - 1,
+    }
 )
+SIGNATURE_REGION = REGION_INDICES[3]
+INSERT_AT = {
+    "left": _PRIMARY_LINE_COUNT // 16,
+    "mid": 5 * _PRIMARY_LINE_COUNT // 16,
+    "right": 15 * _PRIMARY_LINE_COUNT // 16,
+}
+DELETE_AT = 9 * _PRIMARY_LINE_COUNT // 16
+if set(INSERT_AT.values()) & set(REGION_INDICES):
+    raise RuntimeError(f"insert index collides with a change region: {INSERT_AT}")
+if DELETE_AT in REGION_INDICES or DELETE_AT in INSERT_AT.values():
+    raise RuntimeError(f"delete index {DELETE_AT} collides with another edit")
 
-# Row 1 differs so the first rendered row changes when the baseline drops from mid to right.
-MID_HEADER_FROM = "/* !"
-MID_HEADER_TO = "/*!"
-CHANGED_MID = "    __aicore__ inline void HwdefectFind(Mat srclm, Mat * dstlm)"
-# Line 49 is one of the 24 symbolizer-mapped lines, so its metrics are visible.
-MID_EDIT_FROM = "        defectCount += acc > threshold ? 1 : 0;"
-MID_EDIT_TO = "        defectCount += acc >= threshold ? 1 : 0;"
-MID_SOURCE_NAME = "sharpen_mid.asc"
-RIGHT_SOURCE_NAME = "sharpen2.asc"
 
-MID_LINES = list(LEFT_LINES)
-MID_LINES[0] = MID_HEADER_TO
-MID_LINES[MID_LINES.index(CHANGED_LEFT)] = CHANGED_MID
-MID_LINES[MID_LINES.index(MID_EDIT_FROM)] = MID_EDIT_TO
-MID_EDIT_LINE = MID_LINES.index(MID_EDIT_TO) + 1
+def _region_line(side, index):
+    if index == 0:
+        return f"/* ! \\file {PRIMARY_NAMES[side]} : {side} sharpen kernel variant */"
+    if index == REGION_INDICES[-1]:
+        return f"// {side} build: end of generated sharpen kernel"
+    if index == SIGNATURE_REGION:
+        return (
+            "    __aicore__ inline void HwdefectFind("
+            f"Mat srclm, Mat * {SIGNATURE_PARAM[side]})"
+        )
+    depth = 11 + index * 3 + SIDES.index(side)
+    return f"        constexpr int32_t kStage{index}Depth = {depth};"
+
+
+def _build_variant(side):
+    """Apply the side's edits to `PRIMARY_BASE` and track base -> variant lines."""
+    lines = []
+    variant_line = {}
+    for index, base_line in enumerate(PRIMARY_BASE):
+        if index == INSERT_AT[side]:
+            lines.append(INSERT_LINE[side])
+        if side == "right" and index == DELETE_AT:
+            continue
+        variant_line[index] = len(lines) + 1
+        lines.append(
+            _region_line(side, index) if index in REGION_INDICES else base_line
+        )
+    return lines, variant_line
+
+
+VARIANTS = {side: _build_variant(side) for side in SIDES}
+PRIMARY_TEXT = {side: "\n".join(VARIANTS[side][0]) + "\n" for side in SIDES}
+PRIMARY_SAMPLE_LINES = {}
+for _side in SIDES:
+    _lines, _variant_line = VARIANTS[_side]
+    _changed = {_variant_line[index] for index in REGION_INDICES}
+    _changed.add(_variant_line[INSERT_AT[_side]] - 1)
+    _spread = set(range(2, len(_lines) + 1, 27))
+    PRIMARY_SAMPLE_LINES[_side] = sorted(_changed | _spread)
+COMMON_SAMPLE_LINES = sorted(set(range(3, len(COMMON_LINES) + 1, 27)))
+SIGNATURE_LINE = {side: VARIANTS[side][1][SIGNATURE_REGION] for side in SIDES}
+SPECIAL_LINES = {
+    side: (
+        VARIANTS[side][1][REGION_INDICES[1]],
+        VARIANTS[side][1][REGION_INDICES[5]],
+    )
+    for side in SIDES
+}
+
+
+def symbolizer_lines():
+    """One site per sampled line, scaled to the sample instead of a fixed 24."""
+    specs = {}
+    for side in SIDES:
+        side_specs = [
+            (PRIMARY_NAMES[side], line) for line in PRIMARY_SAMPLE_LINES[side]
+        ]
+        side_specs += [(COMMON_NAME, line) for line in COMMON_SAMPLE_LINES]
+        if len(side_specs) <= 24:
+            raise RuntimeError(
+                f"{side} symbolizer covers {len(side_specs)} lines, want > 24"
+            )
+        for file_name, line in side_specs:
+            document = (
+                VARIANTS[side][0] if file_name == PRIMARY_NAMES[side] else COMMON_LINES
+            )
+            if not 1 <= line <= len(document):
+                raise RuntimeError(f"{side} site {file_name}:{line} is out of range")
+        missing = {VARIANTS[side][1][index] for index in REGION_INDICES}
+        missing.add(VARIANTS[side][1][INSERT_AT[side]] - 1)
+        uncovered = missing - {line for _name, line in side_specs}
+        if uncovered:
+            raise RuntimeError(f"{side} changed lines not sampled: {sorted(uncovered)}")
+        specs[side] = side_specs
+    return specs
+
+
+SITE_SPECS = symbolizer_lines()
 
 
 def check_source_shape():
     import difflib
 
-    left = "\n".join(LEFT_LINES) + "\n"
-    mid = "\n".join(MID_LINES) + "\n"
-    right = "\n".join(RIGHT_LINES) + "\n"
-    if len(LEFT_LINES) - len(RIGHT_LINES) != 5:
-        raise RuntimeError(
-            f"left has {len(LEFT_LINES)} lines, right {len(RIGHT_LINES)}, want +5"
-        )
-    if len(MID_LINES) != len(LEFT_LINES):
-        raise RuntimeError(
-            f"mid has {len(MID_LINES)} lines, left {len(LEFT_LINES)}, want equal"
-        )
-    ops = difflib.SequenceMatcher(
-        None, left.splitlines(), right.splitlines()
-    ).get_opcodes()
-    kinds = [op[0] for op in ops]
-    if (
-        kinds.count("replace") != 1
-        or kinds.count("delete") != 1
-        or kinds.count("insert") != 0
-    ):
-        raise RuntimeError(f"unexpected diff opcodes: {ops}")
-    replace = ops[kinds.index("replace")]
-    delete = ops[kinds.index("delete")]
-    if replace[2] - replace[1] != 1 or replace[4] - replace[3] != 1:
-        raise RuntimeError(f"modified block is not one-for-one: {replace}")
-    if delete[2] - delete[1] != 5:
-        raise RuntimeError(f"left-only block is {delete[2] - delete[1]} lines, want 5")
-    mid_ops = difflib.SequenceMatcher(
-        None, left.splitlines(), mid.splitlines()
-    ).get_opcodes()
-    changed = [(op[1] + 1, op[3] + 1) for op in mid_ops if op[0] != "equal"]
-    if changed != [
-        (1, 1),
-        (CHANGED_LINE, CHANGED_LINE),
-        (MID_EDIT_LINE, MID_EDIT_LINE),
-    ]:
-        raise RuntimeError(
-            f"mid diff lines {changed}, want 1, {CHANGED_LINE} and {MID_EDIT_LINE}"
-        )
-    if MID_EDIT_LINE == CHANGED_LINE:
-        raise RuntimeError("mid changes the same line twice")
-    if any(len(line) > 88 for line in MID_LINES):
-        raise RuntimeError("mid source line exceeds 88 chars")
-    if any(len(line) >= 100 for line in LEFT_LINES + RIGHT_LINES):
-        raise RuntimeError("source line reaches 100 chars")
-    if any(
-        ord(ch) > 0x7F for line in LEFT_LINES + MID_LINES + RIGHT_LINES for ch in line
-    ):
-        raise RuntimeError("source contains non-ASCII characters")
-    return left, mid, right
+    for side in SIDES:
+        count = len(VARIANTS[side][0])
+        if not 250 <= count <= 350:
+            raise RuntimeError(f"{side} primary has {count} lines, want 250-350")
+    if not 250 <= len(COMMON_LINES) <= 350:
+        raise RuntimeError(f"common source has {len(COMMON_LINES)} lines, want 250-350")
+
+    pairs = (("left", "mid"), ("left", "right"), ("mid", "right"))
+    summary = {}
+    for left_side, right_side in pairs:
+        left = PRIMARY_TEXT[left_side].splitlines()
+        right = PRIMARY_TEXT[right_side].splitlines()
+        changes = [
+            op
+            for op in difflib.SequenceMatcher(None, left, right).get_opcodes()
+            if op[0] != "equal"
+        ]
+        kinds = {op[0] for op in changes}
+        if len(changes) < 8:
+            raise RuntimeError(
+                f"{left_side}-{right_side} has {len(changes)} hunks, want >= 8"
+            )
+        if not {"insert", "delete", "replace"} <= kinds:
+            raise RuntimeError(f"{left_side}-{right_side} diff kinds {kinds}")
+        if not any(
+            op[0] == "replace" and op[2] - op[1] == 1 and op[4] - op[3] == 1
+            for op in changes
+        ):
+            raise RuntimeError(f"{left_side}-{right_side} has no one-for-one replace")
+        if changes[0][1] != 0 or changes[0][3] != 0:
+            raise RuntimeError(f"{left_side}-{right_side} does not change line 1")
+        if changes[-1][2] != len(left) or changes[-1][4] != len(right):
+            raise RuntimeError(
+                f"{left_side}-{right_side} does not change the last line"
+            )
+        summary[(left_side, right_side)] = len(changes)
+
+    primary_lines = [line for side in SIDES for line in VARIANTS[side][0]]
+    if not any(len(line) > 100 for line in primary_lines):
+        raise RuntimeError("no source line exceeds 100 characters")
+    if not any(line.startswith("\t") for line in primary_lines):
+        raise RuntimeError("no tab-indented source line")
+    if len({PRIMARY_NAMES[side] for side in SIDES}) != len(SIDES):
+        raise RuntimeError("primary source names are not unique per operator")
+    if COMMON_NAME in PRIMARY_NAMES.values():
+        raise RuntimeError("common source name collides with a primary name")
+
+    for side in SIDES:
+        sampled = set(PRIMARY_SAMPLE_LINES[side])
+        first, second = SPECIAL_LINES[side]
+        if first not in sampled or second not in sampled:
+            raise RuntimeError(f"{side} special metrics lines are not sampled")
+    for slot in range(2):
+        values = {(SPECIALS[side][slot][0], SPECIALS[side][slot][1]) for side in SIDES}
+        if len(values) != len(SIDES):
+            raise RuntimeError(
+                f"special metrics slot {slot} is not distinct per operator"
+            )
+    return summary
 
 
 # --- packer + helpers (copied from build_sample_rep.py) ---------------------
@@ -315,7 +407,7 @@ _STALL_COLUMNS = (
 
 # --- objdump + symbolizer ---------------------------------------------------
 
-MNEMONICS = [
+_MNEMONIC_TABLE = [
     ("MOV", "X0, PARA_BASE"),
     ("LD_IO.b64", "X10, [X7], #0, #0"),
     ("SET_FLAG", "MTE2, VECIN, EVENT_ID0"),
@@ -343,34 +435,17 @@ MNEMONICS = [
 ]
 
 
-def symbolizer_lines():
-    """24 distinct source lines: the changed line, the five left-only lines, then spread."""
-    required = [CHANGED_LINE, *LEFT_ONLY_LINES]
-    rest = [n for n in range(4, len(LEFT_LINES) + 1) if n not in required]
-    step = max(1, len(rest) // (len(MNEMONICS) - len(required)))
-    picked = rest[::step][: len(MNEMONICS) - len(required)]
-    lines = sorted(set(required) | set(picked))
-    if len(lines) > len(MNEMONICS):
-        lines = lines[: len(MNEMONICS)]
-    if len(lines) < 20:
-        raise RuntimeError(f"symbolizer covers {len(lines)} lines, want >= 20")
-    if len(lines) != len(MNEMONICS):
-        raise RuntimeError(
-            f"symbolizer lines {len(lines)} != instructions {len(MNEMONICS)}"
-        )
-    return lines
+def instructions(count):
+    """One instruction per sampled site: the site count drives the instruction count."""
+    return [_MNEMONIC_TABLE[i % len(_MNEMONIC_TABLE)] for i in range(count)]
 
 
-SYM_LINES = symbolizer_lines()
-if MID_EDIT_LINE not in SYM_LINES:
-    raise RuntimeError(f"mid edit line {MID_EDIT_LINE} is not symbolizer-mapped")
+def pcs(count):
+    return [0x100 + 4 * i for i in range(count)]
 
 
-def pcs():
-    return [0x100 + 4 * i for i in range(len(MNEMONICS))]
-
-
-def build_objdump():
+def build_objdump(side):
+    specs = SITE_SPECS[side]
     rows = [
         "kernel.o:\tfile format elf64-hiipu",
         "",
@@ -378,9 +453,11 @@ def build_objdump():
         "",
         "0000000000000100 <sharpen>:",
     ]
-    for i, ((mnem, ops), line) in enumerate(zip(MNEMONICS, SYM_LINES)):
+    for i, ((mnem, ops), (file_name, line)) in enumerate(
+        zip(instructions(len(specs)), specs)
+    ):
         pc = 0x100 + 4 * i
-        if line == CHANGED_LINE:
+        if file_name == PRIMARY_NAMES[side] and line == SIGNATURE_LINE[side]:
             rows.append("")
             rows.append(f"{pc:016x} <HwdefectFind>:")
         enc = 0x02004880 + (i * 0x101) & 0xFFFFFFFF
@@ -389,10 +466,10 @@ def build_objdump():
     return "\n".join(rows)
 
 
-def build_symbolizer(file_name="sharpen.asc"):
+def build_symbolizer(side):
     sites = []
-    for pc, line in zip(pcs(), SYM_LINES):
-        fn = "HwdefectFind" if line == CHANGED_LINE else "sharpen"
+    for pc, (file_name, line) in zip(pcs(len(SITE_SPECS[side])), SITE_SPECS[side]):
+        is_signature = file_name == PRIMARY_NAMES[side] and line == SIGNATURE_LINE[side]
         sites.append(
             {
                 "Address": f"0x{pc:x}",
@@ -402,7 +479,7 @@ def build_symbolizer(file_name="sharpen.asc"):
                         "Column": 1,
                         "Discriminator": 0,
                         "FileName": file_name,
-                        "FunctionName": fn,
+                        "FunctionName": "HwdefectFind" if is_signature else "sharpen",
                         "Line": line,
                         "StartAddress": f"0x{pc:x}",
                         "StartFileName": file_name,
@@ -414,17 +491,17 @@ def build_symbolizer(file_name="sharpen.asc"):
     return json.dumps(sites, indent=2)
 
 
-def build_summary_db(seed, special):
-    """Same rows for every leaf; `special` maps line -> (executed, occupancy)."""
+def build_summary_db(seed, specs, special):
+    """One row per sampled PC; `special` maps (fileName, line) -> (executed, occupancy)."""
     import sqlite3
 
     rand = mulberry32(seed)
     rows = []
-    for pc, line in zip(pcs(), SYM_LINES):
+    for pc, spec in zip(pcs(len(specs)), specs):
         stall = 400 + int(rand() * 2400)
         parts = _split_total(stall, [1, 2, 9, 3, 4, 1, 0, 1])
-        if line in special:
-            executed, occ = special[line]
+        if spec in special:
+            executed, occ = special[spec]
         else:
             executed = 500 + int(rand() * 20000)
             occ = 0.2 + rand() * 0.6
@@ -449,18 +526,29 @@ def build_summary_db(seed, special):
     return blob
 
 
-def leaf(asc_text, source_name, special, embed_source=True):
+def _special_for(side):
+    return {
+        (PRIMARY_NAMES[side], line): value
+        for line, value in zip(SPECIAL_LINES[side], SPECIALS[side])
+    }
+
+
+def leaf(side, embed_source=True):
+    specs = SITE_SPECS[side]
     entries = [
-        ("objdump.txt", TYPE_TXT, OBJDUMP_TXT.encode("utf-8")),
+        ("objdump.txt", TYPE_TXT, build_objdump(side).encode("utf-8")),
+        ("symbolizer.json", TYPE_JSON, build_symbolizer(side).encode("utf-8")),
         (
-            "symbolizer.json",
-            TYPE_JSON,
-            build_symbolizer(source_name).encode("utf-8"),
+            "summary.db",
+            TYPE_SQLITE,
+            build_summary_db(0x5EED, specs, _special_for(side)),
         ),
-        ("summary.db", TYPE_SQLITE, build_summary_db(0x5EED, special)),
     ]
     if embed_source:
-        entries.append((source_name, TYPE_TXT, asc_text.encode("utf-8")))
+        entries.append(
+            (PRIMARY_NAMES[side], TYPE_TXT, PRIMARY_TEXT[side].encode("utf-8"))
+        )
+        entries.append((COMMON_NAME, TYPE_TXT, COMMON_TEXT.encode("utf-8")))
     entries.append(("PipeTrace.json", TYPE_JSON, PIPE_TRACE_JSON))
     return pack_npu_rep(entries)
 
@@ -499,7 +587,7 @@ def verify_container(blob, *, nested_count, embedded_source=True):
     if nested_count and types != [TYPE_NESTED] * nested_count:
         raise RuntimeError(f"outer container types {types}, want {nested_count} nested")
     if not nested_count and types != (
-        [TYPE_TXT, TYPE_JSON, TYPE_SQLITE, TYPE_TXT, TYPE_JSON]
+        [TYPE_TXT, TYPE_JSON, TYPE_SQLITE, TYPE_TXT, TYPE_TXT, TYPE_JSON]
         if embedded_source
         else [TYPE_TXT, TYPE_JSON, TYPE_SQLITE, TYPE_JSON]
     ):
@@ -508,44 +596,21 @@ def verify_container(blob, *, nested_count, embedded_source=True):
 
 # --- main -------------------------------------------------------------------
 
-left_text, mid_text, right_text = check_source_shape()
-OBJDUMP_TXT = build_objdump()
 PIPE_TRACE_JSON = load_donor_entry("PipeTrace.json")
 
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    left_args = (left_text, "sharpen.asc", {CHANGED_LINE: (135332032, 0.5)})
-    mid_args = (
-        mid_text,
-        MID_SOURCE_NAME,
-        {CHANGED_LINE: (42424242, 0.61), MID_EDIT_LINE: (90000011, 0.91)},
-    )
-    right_args = (right_text, "sharpen.asc", {CHANGED_LINE: (135332032, 0.8)})
-    outputs = [
-        ("left.npu-rep", leaf(*left_args)),
-        ("mid.npu-rep", leaf(*mid_args)),
-        ("right.npu-rep", leaf(*right_args)),
-    ]
+    pair_summary = check_source_shape()
+    outputs = [(f"{side}.npu-rep", leaf(side, embed_source=True)) for side in SIDES]
     # Demo leaves ship no source text: the view shows the missing-embed
     # placeholder until a host workspace pick fills it.
     demo_leaves = [
-        (
-            "left.npu.rep",
-            leaf(left_args[0], left_args[1], left_args[2], embed_source=False),
-        ),
-        (
-            "mid.npu.rep",
-            leaf(mid_args[0], mid_args[1], mid_args[2], embed_source=False),
-        ),
-        (
-            "right.npu.rep",
-            leaf(right_args[0], RIGHT_SOURCE_NAME, right_args[2], embed_source=False),
-        ),
+        (f"{side}.npu.rep", leaf(side, embed_source=False)) for side in SIDES
     ]
     demo = pack_npu_rep([(name, TYPE_NESTED, blob) for name, blob in demo_leaves])
     for _name, blob in outputs:
-        verify_container(blob, nested_count=0)
+        verify_container(blob, nested_count=0, embedded_source=True)
     for _name, blob in demo_leaves:
         verify_container(blob, nested_count=0, embedded_source=False)
     verify_container(demo, nested_count=3)
@@ -556,25 +621,32 @@ def main():
             fh.write(blob)
         print(f"wrote {path} ({len(blob)} bytes)")
 
-    for name, text in (
-        ("sharpen.asc", left_text),
-        (MID_SOURCE_NAME, mid_text),
-        (RIGHT_SOURCE_NAME, right_text),
-    ):
+    loose = [(PRIMARY_NAMES[side], PRIMARY_TEXT[side]) for side in SIDES]
+    loose.append((COMMON_NAME, COMMON_TEXT))
+    for name, text in loose:
         path = os.path.join(OUT_DIR, name)
         with open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
         print(f"wrote {path} ({len(text.splitlines())} lines)")
 
     print(
-        f"source lines: left={len(LEFT_LINES)} mid={len(MID_LINES)} "
-        f"right={len(RIGHT_LINES)} delta=+5"
+        "source lines: "
+        + " ".join(f"{side}={len(VARIANTS[side][0])}" for side in SIDES)
+        + f" common={len(COMMON_LINES)}"
     )
     print(
-        f"changed line: {CHANGED_LINE}; mid edit line: {MID_EDIT_LINE}; "
-        f"left-only lines: {LEFT_ONLY_LINES[0]}-{LEFT_ONLY_LINES[-1]}"
+        "changed lines: " + " ".join(f"{side}={SIGNATURE_LINE[side]}" for side in SIDES)
     )
-    print(f"symbolizer sites: {len(SYM_LINES)}; objdump instructions: {len(MNEMONICS)}")
+    print(
+        "hunks: "
+        + " ".join(
+            f"{left}-{right}={count}" for (left, right), count in pair_summary.items()
+        )
+    )
+    print(
+        "symbolizer sites: "
+        + " ".join(f"{side}={len(SITE_SPECS[side])}" for side in SIDES)
+    )
     return 0
 
 
