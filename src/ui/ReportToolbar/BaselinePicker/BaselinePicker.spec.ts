@@ -401,6 +401,28 @@ describe('BaselinePicker', () => {
     wrapper.unmount();
   });
 
+  it('PR-BASELINE-036: browsing a path already listed in recentBaselines reuses that row id', async () => {
+    const treeRow: Baseline = {
+      id: 'tree-1',
+      name: 'known.npu-rep',
+      path: '/data/known.npu-rep',
+      operators: [{ id: 'matmul', label: 'matmul' }],
+    };
+    const hook = vi.fn().mockResolvedValue({ path: treeRow.path, name: 'known.npu-rep' });
+    const wrapper = mountPicker({ recentBaselines: [treeRow], pickBaselineFile: hook });
+    await open(wrapper);
+    // The tree row is visible but unchecked; browsing the same path checks it
+    // with the tree record's id (MSTT keys baselineReports/operators by it).
+    expect(checks()[0].checked).toBe(false);
+    await click('[data-testid="baseline-browse"]');
+    await flushPromises();
+    const appended = wrapper.emitted('update:baselines')![0][0] as Baseline[];
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toMatchObject({ id: 'tree-1', path: treeRow.path });
+    expect(appended[0].operators).toEqual(treeRow.operators);
+    wrapper.unmount();
+  });
+
   it('PR-BASELINE-030: Add report file prefers the pick mtime for pickedAt', async () => {
     const stamp = new Date(2026, 10, 5, 12, 30).getTime();
     const hook = vi.fn().mockResolvedValue({

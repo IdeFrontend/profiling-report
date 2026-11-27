@@ -59,6 +59,7 @@ Baseline (对比基线) picker: a toolbar popover listing the app's reports as c
 19. **PR-BASELINE-032** — 基线对比 emits `compare-baselines` with the checked set and closes the popover; disabled with nothing checked.
 20. **PR-BASELINE-034** — While comparing, 取消对比 replaces 基线对比 in the same right-hand slot; clicking emits `cancel-comparison`, keeps the popover open and the checked set untouched.
 21. **PR-BASELINE-035** — Checking a path already on the host list reuses the committed entry (no id/operators/pickedAt replacement).
+22. **PR-BASELINE-036** — Browsing a path already listed in `recentBaselines` checks that row and reuses its id/operators instead of minting a fresh id.
 
 ## Edge Cases
 

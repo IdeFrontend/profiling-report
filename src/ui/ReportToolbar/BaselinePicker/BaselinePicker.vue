@@ -227,15 +227,22 @@ async function browse(): Promise<void> {
   }
   if (!pick) return;
   const path = pick.path;
-  if (props.baselines.some((entry) => entry.path === path)) return;
-  const entry: Baseline = {
-    id: newBaselineId(),
-    name: pick.name?.trim() || path.split(/[\\/]/).pop() || path,
-    path,
-    // The derived title's timestamp (review PR #234): the host's mtime, else
-    // the pick moment.
-    pickedAt: pick.pickedAt ?? Date.now(),
-  };
+  if (isChecked(path)) return;
+  // A path already on screen keeps that row's identity: MSTT's tree record id
+  // drives `baselineReports` and the host-declared operators, so browsing the
+  // same file must not mint a second id for it. Only a path with no row gets a
+  // fresh id.
+  const known = (props.recentBaselines ?? []).find((entry) => entry.path === path);
+  const entry: Baseline = known
+    ? { ...known, pickedAt: pick.pickedAt ?? known.pickedAt }
+    : {
+        id: newBaselineId(),
+        name: pick.name?.trim() || path.split(/[\\/]/).pop() || path,
+        path,
+        // The derived title's timestamp (review PR #234): the host's mtime,
+        // else the pick moment.
+        pickedAt: pick.pickedAt ?? Date.now(),
+      };
   emit('update:baselines', [...props.baselines, entry]);
 }
 
