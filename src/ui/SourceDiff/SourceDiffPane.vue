@@ -160,15 +160,16 @@ const scrollCss = ref(0);
 /** Font metrics measured once from a plain editor; SideDiff exposes no geometry. */
 const measurement = ref<DiffMeasurement | null>(null);
 
-/** Same formula as codereview.js: measure the widest line number + 5px, rounded up. */
+/** Same formula as codereview.js: widest source line number + 5px, rounded half up. */
 const gutterCss = computed(() => {
-  const digits = String(Math.max(1, props.rows.length)).length;
+  const lineCount = props.metrics.lineCount ?? props.metrics.lines.length;
+  const digits = String(Math.max(1, lineCount)).length;
   const ctx = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   if (!ctx) return 20;
   const size = measurement.value?.fontSize || SOURCE_TAB_EDITOR_FONT.size;
   const family = measurement.value?.fontFamily || SOURCE_TAB_EDITOR_FONT.family;
   ctx.font = `400 ${size}px ${family}`;
-  return Math.ceil(ctx.measureText('0'.repeat(digits)).width + 5);
+  return (ctx.measureText('0'.repeat(digits)).width + 5.5) | 0;
 });
 
 type SideDiffView = ReturnType<SuduApi['newSideDiff']>;

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../../src/ui/panelResize';
+import { DEMO_RECENT_BASELINES } from '../../src/host/baselinesHost';
 
 /** With fit = [minTime, maxTime], events fill the canvas; probe near the left first. */
 const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.35, 0.5, 0.65, 0.8];
@@ -1399,17 +1400,17 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
     expect(textsByCard.get(testid)!.size, `card ${testid} varies per operator`).toBeGreaterThan(1);
   }
 
-  // EVERY demo baseline paints comparison badges: check all five demo rows
+  // EVERY demo baseline paints comparison badges: check all demo rows
   // (re-opening the popover — the aside press above closed it), then select
   // each baseline in the aside and assert badges render and the values differ
   // from baseline to baseline.
   await page.getByTestId('toggle-baselines').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   const checkRows = page.locator('.pr-baseline__item--check');
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < DEMO_RECENT_BASELINES.length; i++) {
     await checkRows.nth(i).click();
   }
-  const demoIds = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
+  const demoIds = DEMO_RECENT_BASELINES.map((b) => b.id);
   const baselineDurTexts = new Set<string>();
   for (const id of demoIds) {
     await page.getByTestId('aside-baseline-select').getByRole('button').click();
@@ -1884,11 +1885,11 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   // No baseline: zero badge nodes - the un-compared DOM is exactly the old diagram.
   await expect(badges).toHaveCount(0);
 
-  // Check the five original demo baselines (DEMO-DIFF RULE: every baseline must show every badgeable
+  // Check every demo baseline (DEMO-DIFF RULE: every baseline must show every badgeable
   // element, with both tones at once).
   await page.getByTestId('toggle-baselines').click();
   const checkRows = page.locator('.pr-baseline__item--check');
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < DEMO_RECENT_BASELINES.length; i++) {
     await checkRows.nth(i).click();
     await expect(checkRows.nth(i).locator('input')).toBeChecked();
   }
@@ -1903,7 +1904,7 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   await expect(badges.first()).toBeVisible({ timeout: 15_000 });
   const allTones = new Set<string>();
   const titlesPerBaseline = new Set<string>();
-  for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+  for (const id of DEMO_RECENT_BASELINES.map((b) => b.id)) {
     await page.getByTestId('aside-baseline-select').getByRole('button').click();
     await page.getByTestId(`aside-baseline-option-${id}`).click();
     await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', id);

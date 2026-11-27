@@ -58,8 +58,6 @@ const props = withDefaults(
     showHeader?: boolean;
     /** Leading `#` column (SASS table-only pane; Sudu owns line numbers on Source). */
     showLineNumbers?: boolean;
-    /** Metric column emphasized by Navigate By (Source compare). */
-    highlightColumn?: string | null;
     /**
      * Diff plane tint per view line (1-based): `removed` or `modified` renders
      * `pr-src-metrics__row--<tone>` so the metrics row matches the code band beside it.
@@ -83,7 +81,6 @@ const props = withDefaults(
     fontSizeCss: undefined,
     showHeader: true,
     showLineNumbers: false,
-    highlightColumn: null,
     columnWidths: null,
     rowTones: undefined,
     locale: undefined,
