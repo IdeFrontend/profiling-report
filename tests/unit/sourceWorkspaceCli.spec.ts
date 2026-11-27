@@ -43,6 +43,8 @@ describe('readSourceWorkspace', () => {
     writeFileSync(join(dir, 'kernel.h'), '#pragma once\n');
     writeFileSync(join(dir, '.env'), 'TOKEN=secret\n');
     writeFileSync(join(dir, '.cache.asc'), 'hidden\n');
+    mkdirSync(join(dir, '.git'));
+    writeFileSync(join(dir, '.git/op.asc'), 'hidden\n');
     writeFileSync(join(dir, 'secret.txt'), 'notes\n');
     writeFileSync(join(dir, 'blob.json'), '{}\n');
     expect(readSourceWorkspace(dir)).toEqual({

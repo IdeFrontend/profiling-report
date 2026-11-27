@@ -211,15 +211,12 @@ describe('PR-DIFF: source-diff demo fixture', () => {
       ['mid', 'right'],
     ] as const;
     for (const [leftSide, rightSide] of pairs) {
-      const shared = [...rows[leftSide].keys()].filter((line) =>
-        rows[rightSide].has(line),
-      );
       expect(
         [...rows[leftSide].keys()],
         `${leftSide}-${rightSide} shared common lines`,
       ).toEqual([...rows[rightSide].keys()]);
       for (const metric of COMMON_METRICS) {
-        const differing = shared.filter(
+        const differing = [...rows[leftSide].keys()].filter(
           (line) => rows[leftSide].get(line)![metric] !== rows[rightSide].get(line)![metric],
         );
         expect(
