@@ -63,6 +63,18 @@ export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneMod
         children: leaves,
       }));
 
+    // #197: Card header shows Core ids already present in lane names (Core0.Cube → Core0).
+    // Never invent a Core id that the producer did not encode in the flat names.
+    const coreIdNums = [
+      ...new Set(
+        coreFolders
+          .map((c) => /^Core(\d+)/i.exec(c.name)?.[1])
+          .filter((n): n is string => n != null),
+      ),
+    ].sort((a, b) => Number(a) - Number(b));
+    const cardName =
+      coreIdNums.length > 0 ? coreIdNums.map((n) => `Core${n}`).join(', ') : proc.name;
+
     const compute: SwimThread = {
       id: `${proc.id}/compute`,
       name: '计算',
@@ -75,6 +87,7 @@ export function nestCardTreeFromFlatCorePipes(model: SwimlaneModel): SwimlaneMod
     };
     return {
       ...proc,
+      name: cardName,
       threads: [
         // Synthetic category spacers (mockup util, not from CSV).
         { id: `${proc.id}/comm`, name: '通信', categoryKey: 'comm', events: [], utilization: 1 },
