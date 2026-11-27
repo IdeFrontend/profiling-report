@@ -298,7 +298,9 @@ function demoDetailValue(key: string, i: number, mixed: number): number {
   if (key.endsWith('total_cycles')) return 8000 + r * 100;
   if (key.endsWith('(us)')) return 8 + r;
   if (key.endsWith('(GB/s)')) return 60 + r * 10;
-  if (key.endsWith('(KB)')) return 4 + r;
+  // The .485 offset keeps every KB seed at least 0.02 off the sample's own
+  // 8 / 16 / 16.125 KB values at every operator scale.
+  if (key.endsWith('(KB)')) return 4.485 + r;
   if (key.endsWith('_number') || key.includes('instr') || key.endsWith('fops')) {
     return 1000 + r * 100;
   }
@@ -320,6 +322,20 @@ function demoDetailCategories(mixed: number, vary: number): {
       return { key, value: String(value * vary) };
     }),
   }));
+}
+
+/** Base PIPE ratio per row id. Sample.rep's own rows read 0.01–0.55; every base
+ *  sits at least 0.016 clear of that row's value so the operator offset and the
+ *  baseline jitter can never round the badge delta to zero (DEMO-DIFF audit). */
+const DEMO_PIPE_BASE: Record<string, number> = {
+  cube: 0.44, mte1: 0.3, mte2: 0.46, mte3: 0.28,
+  fixp: 0.26, scalar: 0.28, icache: 0.04, vector: 0.12,
+};
+
+/** A row's base plus a ±0.0012 seed jitter: consecutive demo ids must not share
+ *  a bar, but the jitter stays far inside the safety margin above. */
+function demoPipeRatio(id: string, mixed: number, i: number): number {
+  return (DEMO_PIPE_BASE[id] ?? 0.3) + (((mixed >>> (i % 20)) % 5) - 2) * 0.0006;
 }
 
 /**
@@ -392,12 +408,11 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
         ['vector', 'Vector', 'vector', side],
       );
     }
-    // Ratios stay below 0.56 so no operator scale (up to 1.6) hits the 1.0
-    // clamp — a clamped pair painted the SAME delta for two operators. The
-    // 0.29/0.03/10 ramp is searched so no scaled row lands within the 2dp
-    // display step of sample.rep's own pipe ratio (a suppressed delta).
+    // Each row id keeps a base ratio at least 0.016 clear of sample.rep's own
+    // ratio for that row at every operator offset; the mixed seed adds a small
+    // per-row jitter so neighbouring baselines never collapse onto one value.
     model.pipeOccupancy = pipeSeed.map(([id, label, colorKey, side], i) => {
-      const ratio = 0.29 + (((mixed >>> (i % 20)) + i) % 10) * 0.03;
+      const ratio = demoPipeRatio(id, mixed, i);
       return {
         id,
         label,
@@ -467,9 +482,12 @@ function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number
       if (typeof side.measuredGBs === 'number') side.measuredGBs *= scale;
     }
   }
+  // PIPE ratios take a bounded per-operator offset instead of the 0.35..1.6
+  // multiplier: a multiplied ratio sweeps across the open report's own values
+  // and lands inside the 2dp display step, which suppresses the badge.
   for (const p of model.pipeOccupancy ?? []) {
-    p.ratio = Math.min(1, Math.max(0, p.ratio * scale));
-    if (typeof p.absoluteValue === 'number') p.absoluteValue *= scale;
+    p.ratio = Math.min(1, Math.max(0, p.ratio + (scale - 1) * 0.02));
+    if (typeof p.absoluteValue === 'number') p.absoluteValue = p.ratio;
   }
   // Memory-topology plates and the L2 peak are percentages (0..100), so they
   // clamp there instead of at 1. `label` is rewritten with the numeric value:

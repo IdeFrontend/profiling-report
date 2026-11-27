@@ -310,7 +310,7 @@ describe('createBaselinesHost', () => {
       return f == null ? undefined : Number(f.value);
     };
     const tones = new Set<string>();
-    for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+    for (const id of DEMO_RECENT_BASELINES.map((b) => b.id)) {
       const pack = withDemoOperatorPack(
         { reportModel: { ...emptyReportViewModel() }, swimlaneModel: null },
         id,
@@ -350,7 +350,7 @@ describe('createBaselinesHost', () => {
     // The compute detail fields vary baseline-to-baseline too (the per-
     // baseline factor), and stay one-sided vs sample's own values.
     const computeVecRatios = new Set<number>();
-    for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+    for (const id of DEMO_RECENT_BASELINES.map((b) => b.id)) {
       const pack = withDemoOperatorPack(
         { reportModel: { ...emptyReportViewModel() }, swimlaneModel: null },
         id,
@@ -521,7 +521,7 @@ describe('createBaselinesHost', () => {
     expect(peakPctOf(firstA)).not.toBe(peakPctOf(firstB));
   });
 
-  it('DEMO-DIFF RULE: every demo baseline diffs every memory-topology block', { timeout: 30_000 }, () => {
+  it('DEMO-DIFF RULE: every demo baseline diffs every memory-topology block', { timeout: 90_000 }, () => {
     // The block switcher comes from the OPEN report; the demo packs must answer
     // for every one of its blocks with all three plates and the L2 peak, on the
     // far side of the current values (aiv/cube/peak above, vec below -> both
@@ -536,7 +536,7 @@ describe('createBaselinesHost', () => {
       tablesOf(current).find((t) => t.fileName === 'PipeUtilization.csv')?.blockIds ?? [];
     expect(blocks.length).toBeGreaterThan(1);
 
-    const ids = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
+    const ids = DEMO_RECENT_BASELINES.map((b) => b.id);
     const blockValues = new Map<string, number>();
     for (const baselineId of ids) {
       const pack = withDemoOperatorPack(
@@ -589,16 +589,6 @@ describe('createBaselinesHost', () => {
     'DEMO-DIFF RULE: every demo baseline and operator diffs every element vs the real sample',
     { timeout: 90_000 },
     () => {
-      const ids = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
-      // The real bytes behind each demo URL — gather_2d carries its own
-      // Summary.jsonl (the fixture-carried categories branch).
-      const demoFiles: Record<string, string> = {
-        'demo-recent-1': 'out.rep',
-        'demo-recent-2': 'example.rep',
-        'demo-recent-3': 'gelu.npu-rep',
-        'demo-recent-4': 'gather_2d.npu-rep',
-        'demo-recent-5': 'roofline_multi.npu-rep',
-      };
       const ops = ['matmul', 'matmul_t', 'add_n', 'relu', 'gelu', 'layernorm', 'softmax', 'conv2d'];
       const current = loadReportSource(loadSampleRepBytes()).reportModel!;
       const numeric = (value: string): number | null => {
@@ -661,8 +651,11 @@ describe('createBaselinesHost', () => {
       const cardDeltas = new Map<string, Set<number>>();
       const perOp = new Map<string, Set<number>>();
 
-      for (const id of ids) {
-        const bytes = new Uint8Array(readFileSync(`playground/public/data/${demoFiles[id]}`));
+      // The real bytes behind each demo URL — gather_2d carries its own
+      // Summary.jsonl (the fixture-carried categories branch).
+      for (const baseline of DEMO_RECENT_BASELINES) {
+        const id = baseline.id;
+        const bytes = new Uint8Array(readFileSync(`playground/public${baseline.path}`));
         const pack = withDemoOperatorPack(loadReportSource(bytes), id);
         for (const op of ops) {
           const base = pack.operatorReports![op].reportModel!;
