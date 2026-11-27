@@ -286,8 +286,9 @@ export interface RooflineSeries {
 }
 
 /**
- * Roofline chart model (npu-compute §11.8). Prefer HardwareInfo Roofline category;
- * else roofs from §11.8.1 + GM from ArithmeticUtilization + Memory. Omit when no points.
+ * Roofline chart model (npu-compute §11.8). Prefer a Roofline category in
+ * HardwareInfo.jsonl, else the same object in summary.jsonl; else roofs from
+ * §11.8.1 + GM from ArithmeticUtilization + Memory. Omit when no points.
  * Tabs (内存单元/通路/搬运) omitted.
  */
 export interface RooflineViewModel {

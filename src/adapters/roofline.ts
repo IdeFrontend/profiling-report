@@ -1,7 +1,8 @@
 /**
  * Roofline view-model builder (npu-compute §11.8).
  *
- * Prefer `HardwareInfo.jsonl` category `Roofline` series (`p_peak`, `b_peak`, `w`, `t`, `q`).
+ * Prefer a `Roofline` category (`p_peak`, `b_peak`, `w`, `t`, `q`): `HardwareInfo.jsonl`
+ * first, then the same object in `summary.jsonl` (the caller concatenates them).
  * Otherwise: theoretical roofs from §11.8.1 (HardwareInfo counts + freq, or product example
  * ceilings) plus a measured GM point from ArithmeticUtilization + Memory.
  */
@@ -441,14 +442,18 @@ function measuredGmPoint(
 /**
  * §11.8 GM point + AIV/AIC roof catalog over the given rows (DATA-19 / DATA-29 scopes).
  * `All` passes summary.jsonl category records; a picked block passes that block's CSV rows.
- * Pass `hardwareInfoJsonlText` so roofs stay chip-level (Roofline category or §11.8.1 counts).
+ * `hardwareInfoJsonlText` supplies §11.8.1 core counts. `rooflineJsonlText`, when set, is the
+ * Roofline-category scan (HardwareInfo first, then summary.jsonl). Counts never read that join:
+ * a later summary line must not replace the HardwareInfo peaks.
  */
 export function rooflineFromRows(
   arithRows: Record<string, string>[],
   memRows: Record<string, string>[],
   hardwareInfoJsonlText?: string,
+  rooflineJsonlText?: string,
 ): RooflineViewModel | undefined {
-  const fromJson = hardwareInfoJsonlText ? parseRooflineJsonl(hardwareInfoJsonlText) : undefined;
+  const roofSource = rooflineJsonlText ?? hardwareInfoJsonlText;
+  const fromJson = roofSource ? parseRooflineJsonl(roofSource) : undefined;
   const counts = parseHardwareCounts(hardwareInfoJsonlText);
   const catalog = defaultSeriesCatalog(
     counts.cubeNum,

@@ -245,7 +245,7 @@ This example does not include the FLOPS keys the viewer already reads (`aic_flop
 
 ### `Roofline`
 
-§11.8. One object, `category` `"Roofline"`. Each series key holds `p_peak`, `b_peak`, `w`, `t`, `q`.
+§11.8. One object, `category` `"Roofline"`. Each series key holds `p_peak`, `b_peak`, `w`, `t`, `q`. The viewer reads this category for measured points and roofs. A `HardwareInfo.jsonl` `Roofline` line wins when both files have one.
 
 Series keys in the example: `aiv_simd_b8`, `aiv_simt_b8`, `aiv_simd_b16`, `aiv_simt_b16`, `aiv_simd_b32`, `aiv_simt_b32`, `aic_b8`, `aic_b16`, `aic_b32`. `b8` / `b16` / `b32` are the 8 / 16 / 32-bit widths. `simd` and `simt` are the Vector execution modes.
 

@@ -556,16 +556,20 @@ const bwWriteTip = bandwidthTip('write');
 const roofline = computed(() => {
   const id = blockId.value;
   if (!id) return props.report?.roofline;
-  // Undecidable for this block ⇒ hide, rather than the All GM under a block label.
-  // Chip-level series roofs and non-GM measured points (HardwareInfo Roofline)
-  // stay on the All model; only the GM point + mix labels are block-scoped.
-  const rebuilt = rooflineFromRows(
-    rowsForBlock('ArithmeticUtilization.csv', id),
-    rowsForBlock('Memory.csv', id),
-  );
-  if (!rebuilt) return undefined;
+  // A block with no GM rebuild must not wear the All GM label. Chip-level series
+  // and non-GM measured points stay when this block has CSV rows that cannot
+  // build GM (PR-STATS-014f). No arith/mem rows at all still hides the chart
+  // (PR-STATS-014d) — do not repeat the All points under a block label.
   const all = props.report?.roofline;
+  const arithRows = rowsForBlock('ArithmeticUtilization.csv', id);
+  const memRows = rowsForBlock('Memory.csv', id);
+  const rebuilt = rooflineFromRows(arithRows, memRows);
   const chipPoints = (all?.points ?? []).filter((p) => p.id !== 'gm');
+  if (!rebuilt) {
+    if (arithRows.length === 0 && memRows.length === 0) return undefined;
+    if (!all || chipPoints.length === 0) return undefined;
+    return { ...all, points: chipPoints, mixLabels: [] };
+  }
   const points = [...chipPoints, ...rebuilt.points];
   const allSeries = all?.series;
   if (allSeries && allSeries.length > 0) {
