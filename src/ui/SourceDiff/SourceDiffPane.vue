@@ -443,7 +443,7 @@ function getScrollCss(): number {
   return tableScrollEl.value?.scrollTop ?? scrollCss.value;
 }
 
-defineExpose({ setScrollCss, scrollToRow, getScrollCss });
+defineExpose({ setScrollCss, scrollToRow });
 </script>
 
 <template>
