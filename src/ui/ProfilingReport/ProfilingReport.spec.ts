@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, markRaw, nextTick } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
+import { nextCompareBaselineId } from './compareBaselines';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
 import SourceDiffView from '../SourceDiff/SourceDiffView.vue';
@@ -4538,6 +4539,69 @@ describe('ProfilingReport scaffold', () => {
     await nextTick();
     expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
     wrapper.unmount();
+  });
+
+  it('PR-ROOT-066: switching the compare report drops the previous baseline workspace pick', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const placeholder = (path: string) =>
+      correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    const first = placeholder('/build/kernel.asc');
+    const second = placeholder('/build/kernel.asc');
+    const pack = (sourceCorrelation: SourceCorrelationModel): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int first() { return 1; }' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-baseline-switch',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [
+          { id: 'b-1', name: '', path: '/data/a.rep' },
+          { id: 'b-2', name: '', path: '/data/b.rep' },
+        ],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': { baselineId: 'b-1', report: pack(first) },
+          'b-2': { baselineId: 'b-2', report: pack(second) },
+        },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain('int first()');
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+
+    // b-2 ships the same basename as a placeholder: it must not inherit b-1's text.
+    await wrapper.get('[data-testid="compare-report-select"]').get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-report-option-b-2"]')?.click();
+    await nextTick();
+    await flushPromises();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain(MISSING_SOURCE_EMBED_PREFIX);
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-067: removing a baseline absent from the previous list picks the last checked one', () => {
+    const items = [{ id: 'b-2' }, { id: 'b-3' }];
+    // The doc's `else the last checked one` case: no removed index to reuse.
+    expect(nextCompareBaselineId(items, [{ id: 'b-1' }], 'gone')).toBe('b-3');
+    // The usual case still moves to the removed index.
+    expect(nextCompareBaselineId(items, [{ id: 'b-3' }, { id: 'b-2' }], 'b-3')).toBe('b-2');
   });
 
   it('an operator with no source does not show another operator, and Escape on the selector exits', async () => {

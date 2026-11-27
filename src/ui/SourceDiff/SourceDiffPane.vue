@@ -505,7 +505,7 @@ defineExpose({ setScrollCss, scrollToRow });
       <div
         class="pr-src-diff-pane__head"
         data-testid="source-diff-head"
-        :style="{ height: '18px', lineHeight: '18px' }"
+        :style="{ height: `${rowH}px`, lineHeight: `${rowH}px` }"
       >
       <div class="pr-src-diff-pane__head-editor">
         <table class="pr-src-diff-pane__head-table">

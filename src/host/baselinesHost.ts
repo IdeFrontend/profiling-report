@@ -707,7 +707,7 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
 export function createBaselinesHost(
   input: () => HTMLInputElement | null,
 ): BaselinesHost {
-const baselines = ref<Baseline[]>([]);
+  const baselines = ref<Baseline[]>([]);
   /** Comparison rows (report + operator per row); row 0 is the aside's primary. */
   const baselineRows = ref<BaselineRow[]>([]);
   /**

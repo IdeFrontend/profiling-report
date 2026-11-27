@@ -56,7 +56,7 @@ const body = `#!/usr/bin/env node
  *   node npu-rep-html.mjs <input.npu-rep> -o <output.html> [--name <title>] [--en|--zh] [--source-workspace <dir>]
  */
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path';
 
 const TEMPLATE = ${JSON.stringify(template)};
 

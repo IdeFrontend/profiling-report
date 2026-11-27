@@ -244,6 +244,8 @@ Two loading paths produce different results: `.rep` enables full UI (swimlane + 
 63. **PR-ROOT-063** — The export map carries only files the fill changed from placeholder to real. A file whose text the pack already embedded stays out of `resolvedSourceTexts`.
 64. **PR-ROOT-064** — A second baseline pick starts from the overlay-aware `compareBaselineModel`: it requests only the still-missing file and keeps the text the first pick filled.
 65. **PR-ROOT-065** — Both compare workspace buttons hide when the host passes no `pickSourceWorkspace`: the open report and the baseline pack may still hold placeholder files, but neither `source-diff-workspace-left` nor `source-diff-workspace-right` renders.
+66. **PR-ROOT-066** — Switching the checked compare report inside compare mode drops the previous baseline workspace pick: the kept resolver, files, pack id and resolve generation reset, so the new baseline keeps its placeholder text and shows its workspace button instead of inheriting the other baseline's source.
+67. **PR-ROOT-067** — When the checked list loses a compare selection that its previous value never carried (`removedIndex === -1`), the pair moves to the last checked baseline; otherwise it reuses the removed index clamped to the list.
 
 ## Edge Cases
 

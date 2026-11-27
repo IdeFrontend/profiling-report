@@ -27,7 +27,7 @@ export function htmlExportLocale(locale?: string): 'en' | 'zh-CN' {
 
 /**
  * Rebuild the workspace pick an exported HTML carries in
- * `window.__NPU_SOURCE_TEXTS__` (file id → text), or `null` when empty.
+ * `window.__NPU_SOURCE_TEXTS__` (file path → text), or `null` when empty.
  */
 export function sourceWorkspaceFromTexts(
   sourceTexts: Record<string, string> | null | undefined,
@@ -68,7 +68,7 @@ export function stitchHtmlReport(
   reportBytes: Uint8Array,
   reportName: string,
   locale?: string,
-  /** Source text the host resolved, keyed by source file id. */
+  /** Source text the host resolved, keyed by source file path. */
   sourceTexts?: Record<string, string>,
 ): string {
   const b64 = uint8ToBase64(reportBytes);

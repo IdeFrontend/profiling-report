@@ -17,6 +17,7 @@ import {
   resolveSourceFrame,
   type SourceFrameTarget,
 } from '../../adapters/sourceCorrelation/resolveSourceFrame';
+import { nextCompareBaselineId } from './compareBaselines';
 import {
   applyWindow,
   clearMeasure,
@@ -277,7 +278,7 @@ const internalCapabilities = ref<ReportCapability[] | null>(null);
  * Overlay on top of `reportModel` / `internalReport` so Vue refreshes SourceView.
  */
 const resolvedSourceCorrelation = ref<SourceCorrelationModel | null>(null);
-/** Source text the host filled, keyed by file id — carried into the HTML export. */
+/** Source text the host filled, keyed by file path — carried into the HTML export. */
 const resolvedSourceTexts = ref<Record<string, string>>({});
 /** Baseline-side fill overlays, keyed `${baselineId}:${operatorId}`. */
 const baselineSourceCorrelation = ref<Record<string, SourceCorrelationModel>>({});
@@ -296,6 +297,14 @@ let baselineWorkspaceResolve: ResolveSourceFile | null = null;
 let baselineWorkspaceFiles: SourceWorkspaceFile[] = [];
 /** Baseline pack the kept resolver was picked for; a replaced pack invalidates it. */
 let baselineWorkspacePackId: string | null = null;
+
+/** A baseline directory pick applies to one baseline only. */
+function clearBaselineWorkspace() {
+  baselineResolveGen += 1;
+  baselineWorkspaceResolve = null;
+  baselineWorkspaceFiles = [];
+  baselineWorkspacePackId = null;
+}
 
 function chainResolve(
   primary: ResolveSourceFile | null,
@@ -729,10 +738,7 @@ watch(
     const currentPack =
       baselineWorkspacePackId == null ? undefined : reports?.[baselineWorkspacePackId]?.report;
     if (previousPack !== undefined && previousPack !== currentPack) {
-      baselineResolveGen += 1;
-      baselineWorkspaceResolve = null;
-      baselineWorkspaceFiles = [];
-      baselineWorkspacePackId = null;
+      clearBaselineWorkspace();
     }
     const kept: Record<string, SourceCorrelationModel> = {};
     for (const [key, model] of Object.entries(baselineSourceCorrelation.value)) {
@@ -782,6 +788,10 @@ function onCompareBaselineChange(id: string) {
   compareBaselineId.value = id;
   compareOperatorId.value = '';
   compareAutoSeeded.value = false;
+  // A directory pick belongs to the pair it was made for: the new baseline has
+  // placeholders with the same basenames, so replaying the kept files would paint
+  // this baseline with another baseline's source.
+  clearBaselineWorkspace();
   replayBaselineFill();
 }
 
@@ -834,9 +844,8 @@ watch(
     }
     const selected = compareBaselineId.value;
     if (selected == null || items.some((b) => b.id === selected)) return;
-    const removedIndex = (prev ?? []).findIndex((b) => b.id === selected);
-    const next = items[Math.min(Math.max(removedIndex, 0), items.length - 1)]!;
-    compareBaselineId.value = next.id;
+    clearBaselineWorkspace();
+    compareBaselineId.value = nextCompareBaselineId(items, prev, selected);
     compareOperatorId.value = '';
     compareAutoSeeded.value = true;
     replayBaselineFill();

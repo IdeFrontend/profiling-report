@@ -27,7 +27,7 @@ declare global {
 const error = shallowRef<string | null>(null);
 const source = shallowRef<ArrayBuffer | undefined>(undefined);
 
-/** Source text the exporting host resolved (keyed by file id) rides in the HTML. */
+/** Source text the exporting host resolved (keyed by file path) rides in the HTML. */
 const sourceWorkspace = computed(() => sourceWorkspaceFromTexts(window.__NPU_SOURCE_TEXTS__));
 const resolveSourceFile = computed(() => {
   const pick = sourceWorkspace.value;
