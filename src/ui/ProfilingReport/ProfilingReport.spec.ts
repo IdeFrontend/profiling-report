@@ -4604,6 +4604,11 @@ describe('ProfilingReport scaffold', () => {
     expect(nextCompareBaselineId(items, [{ id: 'b-3' }, { id: 'b-2' }], 'b-3')).toBe('b-2');
   });
 
+  it('nextCompareBaselineId returns null when the checked list is empty', () => {
+    expect(nextCompareBaselineId([], [{ id: 'b-1' }], 'b-1')).toBeNull();
+    expect(nextCompareBaselineId([], undefined, 'gone')).toBeNull();
+  });
+
   it('an operator with no source does not show another operator, and Escape on the selector exits', async () => {
     const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
     const matmul = correlationWith('/src/matmul.asc', 'int matmul() { return 1; }\n');

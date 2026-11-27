@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   MISSING_SOURCE_EMBED_PREFIX,
   modelNeedsSourceResolve,
@@ -62,27 +62,21 @@ function correlated(
 const COMMON_METRICS = ['instructionsExecuted', 'samplingStall', 'warpOccupancy'] as const;
 
 /** Sampled common-file rows only: unsampled lines carry no stall value. */
-function commonSampledRows(model: SourceCorrelationModel): Map<number, string> {
+function commonSampledRows(
+  model: SourceCorrelationModel,
+): Map<number, Record<string, number | string | null>> {
   const file = model.files.find((entry) => entry.id === COMMON)!;
-  const rows = new Map<number, string>();
+  const rows = new Map<number, Record<string, number | string | null>>();
   for (const line of file.lines) {
     if (!(Number(line.values.samplingStall) > 0)) continue;
-    rows.set(
-      line.line,
-      COMMON_METRICS.map((metric) => String(line.values[metric])).join('|'),
-    );
+    rows.set(line.line, line.values);
   }
   return rows;
 }
 
 describe('PR-DIFF: source-diff demo fixture', () => {
-  beforeAll(async () => {
-    configurePcSamplingSqlForNodeTests();
-    await ensurePcSamplingSql();
-  }, 30_000);
-
-  // Structure-only: summary.db metrics need ensurePcSamplingSql(), which these
-  // assertions do not depend on.
+  // Structure-only: this test does not decode summary.db metrics, so it needs
+  // no sql.js wasm load.
   it('PR-DIFF-205: demo.npu-rep holds three correlated operators without an embedded source', () => {
     const adapted = loadReportSource(new Uint8Array(readFileSync(DEMO)));
 
@@ -195,7 +189,12 @@ describe('PR-DIFF: source-diff demo fixture', () => {
     }
   });
 
-  it('PR-DIFF-220: the shared common source has different sampled metrics per operator', () => {
+  it('PR-DIFF-220: the shared common source has different sampled metrics per operator', async () => {
+    // This is the only test that decodes summary.db rows, so it owns the
+    // sql.js wasm setup.
+    configurePcSamplingSqlForNodeTests();
+    await ensurePcSamplingSql();
+
     const adapted = loadReportSource(new Uint8Array(readFileSync(DEMO)));
     const rows = {
       left: commonSampledRows(correlated(adapted, 'left')!),
@@ -215,16 +214,19 @@ describe('PR-DIFF: source-diff demo fixture', () => {
       const shared = [...rows[leftSide].keys()].filter((line) =>
         rows[rightSide].has(line),
       );
-      expect(shared.length, `${leftSide}-${rightSide} shared common lines`).toBe(
-        rows[leftSide].size,
-      );
-      const differing = shared.filter(
-        (line) => rows[leftSide].get(line) !== rows[rightSide].get(line),
-      );
       expect(
-        differing.length,
-        `${leftSide}-${rightSide} common metric diff`,
-      ).toBeGreaterThan(0);
+        [...rows[leftSide].keys()],
+        `${leftSide}-${rightSide} shared common lines`,
+      ).toEqual([...rows[rightSide].keys()]);
+      for (const metric of COMMON_METRICS) {
+        const differing = shared.filter(
+          (line) => rows[leftSide].get(line)![metric] !== rows[rightSide].get(line)![metric],
+        );
+        expect(
+          differing.length,
+          `${leftSide}-${rightSide} ${metric} diff`,
+        ).toBeGreaterThan(0);
+      }
     }
   });
 });

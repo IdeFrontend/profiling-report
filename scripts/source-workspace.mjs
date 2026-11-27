@@ -8,7 +8,7 @@ import { extname, join, relative, sep } from 'node:path';
 const MAX_FILE_BYTES = 256 * 1024;
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 const BINARY_SNIFF_BYTES = 4 * 1024;
-const SKIP_DIRS = new Set(['.git', 'node_modules']);
+const SKIP_DIRS = new Set(['node_modules']);
 /** Source types the Source view highlights (Ascend C and its C/C++ headers). */
 const SOURCE_EXTENSIONS = new Set([
   '.asc',
