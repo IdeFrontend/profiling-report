@@ -243,7 +243,8 @@ function syncScroll(side: 'left' | 'right') {
 }
 
 watch(rightPane, (pane) => {
-  pane?.setScrollCss(sharedScroll.value);
+  // A zero seed is not a real offset: it would overwrite the pane's boot scroll.
+  if (sharedScroll.value) pane?.setScrollCss(sharedScroll.value);
 });
 
 /** Move both panes to a view row. */

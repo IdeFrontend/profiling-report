@@ -362,8 +362,11 @@ async function boot(): Promise<void> {
     view.setVScrollListener(onEditorScroll);
     bindTableScroll();
     // A wheel over the metrics table before SideDiff booted is a real user scroll.
+    const seeded = pendingScrollCss != null;
     const initial = pendingScrollCss ?? (tableScrollEl.value ? getScrollCss() : null);
     if (initial != null) setScrollCss(initial);
+    // An adopted table offset is a user scroll; mirror it to the sibling pane.
+    if (!seeded && initial) props.scrollListener?.(getScrollCss());
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e);
   } finally {

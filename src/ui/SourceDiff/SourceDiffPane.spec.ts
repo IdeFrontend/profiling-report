@@ -330,8 +330,17 @@ describe('SourceDiffPane', () => {
 
   it('applies a scroll that arrived before SideDiff finished booting', async () => {
     const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
+    const listener = vi.fn();
     const wrapper = mount(SourceDiffPane, {
-      props: { rows, side: 'left', metrics, locale: 'en-US', diffModel: sudu.diffModel, workers: null },
+      props: {
+        rows,
+        side: 'left',
+        metrics,
+        locale: 'en-US',
+        diffModel: sudu.diffModel,
+        workers: null,
+        scrollListener: listener,
+      },
       attachTo: document.body,
     });
     (wrapper.vm as unknown as { setScrollCss: (css: number) => void }).setScrollCss(40);
@@ -340,6 +349,8 @@ describe('SourceDiffPane', () => {
     await flushPromises();
     await nextTick();
     expect(sudu.views.at(-1)!.setVScrollPos).toHaveBeenCalledWith(40);
+    // The parent seed is authoritative; boot must not echo it back to the sibling.
+    expect(listener).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
@@ -372,8 +383,17 @@ describe('SourceDiffPane', () => {
 
   it('a table scroll before boot is applied once SideDiff boots', async () => {
     const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
+    const listener = vi.fn();
     const wrapper = mount(SourceDiffPane, {
-      props: { rows, side: 'left', metrics, locale: 'en-US', diffModel: sudu.diffModel, workers: null },
+      props: {
+        rows,
+        side: 'left',
+        metrics,
+        locale: 'en-US',
+        diffModel: sudu.diffModel,
+        workers: null,
+        scrollListener: listener,
+      },
       attachTo: document.body,
     });
     const scroll = wrapper.get('[data-testid="source-metrics-scroll"]').element;
@@ -384,6 +404,8 @@ describe('SourceDiffPane', () => {
     await flushPromises();
     await nextTick();
     expect(sudu.views.at(-1)!.setVScrollPos).toHaveBeenLastCalledWith(54);
+    // The adopted offset is a real scroll, so the sibling pane must follow it.
+    expect(listener).toHaveBeenLastCalledWith(54);
     wrapper.unmount();
   });
 
