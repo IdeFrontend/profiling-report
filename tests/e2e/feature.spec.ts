@@ -49,11 +49,14 @@ async function waitForDepCurves(
   gl: ReturnType<Page['getByTestId']>,
   timeoutMs: number,
 ): Promise<boolean> {
-  const before = Number((await gl.getAttribute('data-dep-curves')) ?? 0);
+  // Prefer dep-graph-gen: two events can share the same curve count, so a
+  // curves-only delta misses the second hit (CI flake on PR-E2E-007).
+  const beforeGen = Number((await gl.getAttribute('data-dep-graph-gen')) ?? 0);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    const gen = Number((await gl.getAttribute('data-dep-graph-gen')) ?? 0);
     const now = Number((await gl.getAttribute('data-dep-curves')) ?? 0);
-    if (now > 0 && now !== before) return true;
+    if (gen !== beforeGen && now > 0) return true;
     await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
   }
   return false;
@@ -238,6 +241,15 @@ test.describe('PR-E2E feature paths', () => {
 
     const gl = page.getByTestId('swimlane-webgl');
     await expect(gl).toBeVisible();
+    // render() writes these; wait so the first clicks are not racing attach.
+    await expect(gl).toHaveAttribute('data-dep-curves', /\d+/);
+    await expect(gl).toHaveAttribute('data-dep-graph-gen', /\d+/);
+    await page.getByTestId('zoom-to-fit').click();
+    await page.evaluate(
+      () =>
+        new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
+    );
+
     const overlay = page.getByTestId('swimlane-canvas');
     const box = await overlay.boundingBox();
     expect(box).toBeTruthy();
@@ -247,6 +259,7 @@ test.describe('PR-E2E feature paths', () => {
       await probeSwimlaneDepCurves(page, gl, box!, {
         maxLanes: 40,
         xOffsetsPx: [8, 24, 48, 80, 120, 160, 220, 280, 360, 480, 600],
+        paintTimeoutMs: 800,
       }),
     ).toBe(true);
 

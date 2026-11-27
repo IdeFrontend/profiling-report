@@ -374,14 +374,25 @@ export interface MemoryTopologyModel {
  */
 export type MemoryHeatmapUnitId = 'l1' | 'ub' | 'l0a' | 'l0b' | 'l0c';
 
-/** Traffic coverage of one heat-grid block — the §11.2.3.2 two-state legend (#199). */
+/** Access state of one heat-grid block — `intensity > 0` → withData (#200). */
 export type MemoryHeatmapBlockState = 'withData' | 'withoutData';
 
-/** One block of a unit's heat grid (`已用` / `空闲` — Used / Free). */
+/** One block of a unit's heat grid (Accessed / Not accessed; continuous intensity #200). */
 export interface MemoryHeatmapBlock {
   /** Row-major position in the unit's grid; stable identity for the grid cells. */
   index: number;
   state: MemoryHeatmapBlockState;
+  /**
+   * Traffic intensity in `[0, 1]` — `(Read+Write) / viewMax` for the selected view
+   * ([ui-answers-memory-heatmap](../../ui-answers-memory-heatmap.md) §4). `0` when the
+   * view max is 0 or the cell has no traffic (#200).
+   */
+  intensity: number;
+  /**
+   * Per-cell access count (`ReadAddresses + WriteAddresses`) for the SA cell tip
+   * (Accesses Count / 访问次数). `0` when the cell has no Cells row / no traffic (#194).
+   */
+  accessCount: number;
 }
 
 /**
@@ -397,6 +408,13 @@ export interface MemoryHeatmapView {
   memoryName: string;
   columns: number;
   rows: number;
+  /** Layout `CellSize` (bytes per lattice cell) — tip + capacity Used ([DATA-50]). */
+  cellSize: number;
+  /**
+   * Layout `BaseAddress` (bytes). Cell start = `baseAddress + index * cellSize`
+   * ([DATA-50]). `0` when the column is missing / empty.
+   */
+  baseAddress: number;
   /** Full lattice, row-major — missing Cells rows are `withoutData`. */
   blocks: MemoryHeatmapBlock[];
   /**
