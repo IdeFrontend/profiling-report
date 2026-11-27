@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   MISSING_SOURCE_EMBED_PREFIX,
   modelNeedsSourceResolve,
@@ -9,6 +9,8 @@ import {
 } from '../../src/adapters';
 import { loadReportSource } from '../../src/adapters/loadReportSource';
 import { parseNpuRep160 } from '../../src/adapters/parseNpuRep160';
+import { ensurePcSamplingSql } from '../../src/adapters/sourceCorrelation/readPcSamplingDb';
+import { configurePcSamplingSqlForNodeTests } from '../helpers/sqlJsNode';
 import {
   alignSourceLines,
   splitSourceLines,
@@ -57,7 +59,28 @@ function correlated(
   return entry?.[1].reportModel.sourceCorrelation;
 }
 
+const COMMON_METRICS = ['instructionsExecuted', 'samplingStall', 'warpOccupancy'] as const;
+
+/** Sampled common-file rows only: unsampled lines carry no stall value. */
+function commonSampledRows(model: SourceCorrelationModel): Map<number, string> {
+  const file = model.files.find((entry) => entry.id === COMMON)!;
+  const rows = new Map<number, string>();
+  for (const line of file.lines) {
+    if (!(Number(line.values.samplingStall) > 0)) continue;
+    rows.set(
+      line.line,
+      COMMON_METRICS.map((metric) => String(line.values[metric])).join('|'),
+    );
+  }
+  return rows;
+}
+
 describe('PR-DIFF: source-diff demo fixture', () => {
+  beforeAll(async () => {
+    configurePcSamplingSqlForNodeTests();
+    await ensurePcSamplingSql();
+  }, 30_000);
+
   // Structure-only: summary.db metrics need ensurePcSamplingSql(), which these
   // assertions do not depend on.
   it('PR-DIFF-205: demo.npu-rep holds three correlated operators without an embedded source', () => {
@@ -169,6 +192,39 @@ describe('PR-DIFF: source-diff demo fixture', () => {
       expect(kinds, `${leftSide}-${rightSide} diff kinds`).toContain('onlyRight');
       expect(rows[0]!.kind).not.toBe('same');
       expect(rows[rows.length - 1]!.kind).not.toBe('same');
+    }
+  });
+
+  it('PR-DIFF-220: the shared common source has different sampled metrics per operator', () => {
+    const adapted = loadReportSource(new Uint8Array(readFileSync(DEMO)));
+    const rows = {
+      left: commonSampledRows(correlated(adapted, 'left')!),
+      mid: commonSampledRows(correlated(adapted, 'mid')!),
+      right: commonSampledRows(correlated(adapted, 'right')!),
+    };
+    for (const side of SIDES) {
+      expect(rows[side].size, `${side} sampled common rows`).toBeGreaterThan(0);
+    }
+
+    const pairs = [
+      ['left', 'mid'],
+      ['left', 'right'],
+      ['mid', 'right'],
+    ] as const;
+    for (const [leftSide, rightSide] of pairs) {
+      const shared = [...rows[leftSide].keys()].filter((line) =>
+        rows[rightSide].has(line),
+      );
+      expect(shared.length, `${leftSide}-${rightSide} shared common lines`).toBe(
+        rows[leftSide].size,
+      );
+      const differing = shared.filter(
+        (line) => rows[leftSide].get(line) !== rows[rightSide].get(line),
+      );
+      expect(
+        differing.length,
+        `${leftSide}-${rightSide} common metric diff`,
+      ).toBeGreaterThan(0);
     }
   });
 });

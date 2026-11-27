@@ -87,6 +87,9 @@ SPECIALS = {
     "mid": [(42424242, 0.61), (33000022, 0.55)],
     "right": [(98765432, 0.73), (44000033, 0.66)],
 }
+# One random stream per operator, so the shared common-file rows differ per side
+# instead of repeating the same sampled values. Left keeps the original seed.
+LEAF_SEEDS = {"left": 0x5EED, "mid": 0x5EED0051, "right": 0x5EED00A3}
 
 
 def _source_header(file_name):
@@ -541,7 +544,7 @@ def leaf(side, embed_source=True):
         (
             "summary.db",
             TYPE_SQLITE,
-            build_summary_db(0x5EED, specs, _special_for(side)),
+            build_summary_db(LEAF_SEEDS[side], specs, _special_for(side)),
         ),
     ]
     if embed_source:
