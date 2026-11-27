@@ -108,10 +108,12 @@ void main() {
     (gapPrevPx - margin1) / (margin2 - margin1), 0.0, 1.0);
   float factorR = clamp(
     (gapNextPx - margin1) / (margin2 - margin1), 0.0, 1.0);
-  // Per-side extension: each edge grows only as far as its own gap allows (no averaging,
-  // so a tight neighbour is never encroached on).
-  float extendedL = lPx - extendMax * factorL;
-  float extendedR = rPx + extendMax * factorR;
+  // Averaged side factor - the pre-tick renderer's rule, kept so durable geometry stays
+  // pixel-identical: symmetric growth, full extension only when both sides are open.
+  // Ticks do not use it (their bar is a fixed uTickWidthPx column).
+  float extend = extendMax * (factorL + factorR) * 0.5;
+  float extendedL = lPx - extend;
+  float extendedR = rPx + extend;
 
   // Zero-duration ticks: alpha scales with the local inter-tick gap (no lower clamp at 0).
   // A uniformly covered column converges to 1 - e^(-1/g0) at any zoom (no overflow); ticks that

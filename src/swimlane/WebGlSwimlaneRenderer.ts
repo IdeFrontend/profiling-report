@@ -887,13 +887,16 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
       this.drawSolidRect(solid, unit, 0, y + laneH - 1, devW, 1, [divider, divider, divider], alpha);
     }
 
-    // Coverage-AA intervals (analytical X) — additive (ONE, ONE, ONE, ONE): the FS emits straight
-    // RGB × cov with alpha constant 1.0, so SRC_ALPHA ≡ ONE and each event adds full cov·dim·rgb.
-    // Safe because each sub-row mesh is mutually exclusive (multi-row layout); each device pixel
-    // accumulates the coverage of all events across lanes / sub-rows.
+    // Coverage-AA intervals (analytical X), one pass, one blend: premultiplied source-over.
+    // Durables emit alpha 0, so (ONE, ONE_MINUS_SRC_ALPHA) degenerates to the additive equation
+    // they always had (dst.rgb = src.rgb + dst.rgb) - non-zero-duration rendering is unchanged.
+    // Duration-0 ticks are the only quads with alpha > 0: the pass then attenuates what is
+    // beneath them, which is what makes a dense column converge to uTickBand instead of piling
+    // up to white. Both are clipped to their sub-row band (uYBounds), so a tick never touches a
+    // neighbouring lane, and within a sub-row events are horizontally exclusive by the layout
+    // contract. Producers also do not mix the two kinds in one pipe, so this behaves as two
+    // dedicated modes: additive durables, density-alpha ticks.
     gl.enable(gl.BLEND);
-    // One blend for the whole interval pass: durables emit alpha 0 (=> additive),
-    // ticks emit the density alpha (=> source-over ladder).
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);
     if (swim.uResolution) gl.uniform2f(swim.uResolution, devW, devH);
