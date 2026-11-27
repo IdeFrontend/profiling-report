@@ -1452,7 +1452,18 @@ describe('PR-VM: report view-models (interim)', () => {
       'ai vector frequency(MHZ)': 1650,
     };
     const summaryOnly = adaptPayloads({
-      'summary.jsonl': encoder.encode(`${JSON.stringify(summaryRoof)}\n`),
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify(summaryRoof),
+          JSON.stringify({
+            category: 'AI Core Information',
+            ai_cube_count: 1,
+            ai_vector_count: 1,
+            'ai cube frequency(MHZ)': 100,
+            'ai vector frequency(MHZ)': 100,
+          }),
+        ].join('\n') + '\n',
+      ),
       'HardwareInfo.jsonl': encoder.encode(`${JSON.stringify(hardware)}\n`),
       'ArithmeticUtilization.csv': encoder.encode('block_id,aiv_time(us),aiv_vec_ratio\n0,5.5,0.09\n'),
       'Memory.csv': encoder.encode(
@@ -1465,6 +1476,9 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(summaryOnly.reportModel.roofline!.points.some((p) => p.id === 'gm')).toBe(false);
     expect(point!.intensity).toBeCloseTo(16384 / 98304, 6);
     expect(point!.performance).toBeCloseTo(16384 / 7.27e-6 / 1e12, 6);
+    // Summary's AI Core line must not replace HardwareInfo §11.8.1 peaks.
+    const fp16 = summaryOnly.reportModel.roofline!.series.find((s) => s.id === 'aiv-fp16')!;
+    expect(fp16.peakComputeTops).toBeCloseTo((64 * 128 * 2 * 1650) / 1e6, 6);
 
     const hwRoof = {
       category: 'Roofline',

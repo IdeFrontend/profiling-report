@@ -984,7 +984,7 @@ function reportModelFromPayloads(payloads: Record<string, Uint8Array>): ReportVi
       ? parseCsv(decodeUtf8(memCsv)).rows
       : [];
   const roofText = [hwText, summaryText].filter(Boolean).join('\n');
-  const roofline = rooflineFromRows(arithRows, memRows, roofText || undefined);
+  const roofline = rooflineFromRows(arithRows, memRows, hwText, roofText || undefined);
   const memoryTopology =
     buildMemoryTopologyFromCategories(summaryCategories) ??
     // UI-49: PipeUtilization joins the classic fallback too, so a CSV-only `.rep` that has a

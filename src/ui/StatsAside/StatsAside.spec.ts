@@ -595,6 +595,61 @@ describe('StatsAside', () => {
     );
   });
 
+  it('PR-STATS-014d: non-gm All points stay hidden when the block has no arith or memory rows', async () => {
+    const wrapper = mount(StatsAside, {
+      props: {
+        capabilities: ['roofline'],
+        report: report({
+          summary: { opType: 'vector', taskDurationUs: 1 },
+          pipeOccupancy: [
+            { id: 'vector', label: 'Vector', ratio: 0.5, colorKey: 'vector', side: 'vector' },
+          ],
+          roofline: {
+            points: [
+              {
+                id: 'aiv_simd_b32',
+                label: 'AIV fp32',
+                intensity: 0.167,
+                performance: 0.00225,
+                style: 'solid',
+                color: '#32BE8C',
+                seriesId: 'aiv-fp32',
+              },
+            ],
+            mixLabels: [],
+            series: [
+              {
+                id: 'aiv-fp32',
+                group: 'aiv',
+                label: 'AIV fp32',
+                color: '#32BE8C',
+                peakComputeTops: 13.5,
+                peakBandwidthGBs: 1600,
+                slopeStyle: 'dashed',
+              },
+            ],
+          },
+          computeTables: [
+            {
+              fileName: 'PipeUtilization.csv',
+              headers: ['block_id', 'aiv_vec_ratio'],
+              rows: [
+                { block_id: '0', aiv_vec_ratio: '0.5' },
+                { block_id: '1', aiv_vec_ratio: '0.6' },
+              ],
+              blockIds: ['0', '1'],
+            },
+          ],
+          memoryTables: [],
+        }),
+      },
+    });
+
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(true);
+    await pickPipeBlock(wrapper, '1');
+    expect(wrapper.find('[data-testid="stats-roofline"]').exists()).toBe(false);
+  });
+
   it('PR-STATS-014e: a picked block keeps an interim root roof', async () => {
     const wrapper = mount(StatsAside, {
       props: {
