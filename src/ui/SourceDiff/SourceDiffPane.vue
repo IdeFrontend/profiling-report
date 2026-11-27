@@ -305,9 +305,13 @@ function onTableScroll(): void {
   const scroll = tableScrollEl.value;
   const dpr = measurement.value?.dpr ?? 0;
   if (!view || !(dpr > 0) || !scroll) return;
-  if (mirroredScrollTop != null && Math.abs(scroll.scrollTop - mirroredScrollTop) < 1) {
+  if (mirroredScrollTop != null) {
+    if (Math.abs(scroll.scrollTop - mirroredScrollTop) < 1) {
+      mirroredScrollTop = null;
+      return;
+    }
+    // Any other scroll is the user's; keep no sentinel that could swallow a later one.
     mirroredScrollTop = null;
-    return;
   }
   const devicePos = deviceScrollFromCss(scroll.scrollTop, dpr);
   if (devicePos === pendingEcho) return;
@@ -357,7 +361,9 @@ async function boot(): Promise<void> {
     if (props.diffModel) view.setModel(props.diffModel);
     view.setVScrollListener(onEditorScroll);
     bindTableScroll();
-    if (pendingScrollCss != null) setScrollCss(pendingScrollCss);
+    // A wheel over the metrics table before SideDiff booted is a real user scroll.
+    const initial = pendingScrollCss ?? (tableScrollEl.value ? getScrollCss() : null);
+    if (initial != null) setScrollCss(initial);
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e);
   } finally {
@@ -421,8 +427,11 @@ function setScrollCss(css: number): void {
   pendingScrollCss = null;
   const scroll = tableScrollEl.value;
   if (scroll) {
+    // Arm the echo sentinel only when the write moves the table: a no-op write
+    // emits no scroll event, and a stale sentinel would swallow the user's next one.
+    const before = scroll.scrollTop;
     scroll.scrollTop = css;
-    mirroredScrollTop = scroll.scrollTop;
+    if (scroll.scrollTop !== before) mirroredScrollTop = scroll.scrollTop;
   }
   // Clamp to the table's range so table rows and the canvas share one offset.
   const applied = scroll ? scroll.scrollTop : css;

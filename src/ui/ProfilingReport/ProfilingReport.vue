@@ -294,6 +294,8 @@ let reportWorkspaceFiles: SourceWorkspaceFile[] = [];
 /** Last baseline workspace resolver, replayed when the compare operator changes. */
 let baselineWorkspaceResolve: ResolveSourceFile | null = null;
 let baselineWorkspaceFiles: SourceWorkspaceFile[] = [];
+/** Baseline pack the kept resolver was picked for; a replaced pack invalidates it. */
+let baselineWorkspacePackId: string | null = null;
 
 function chainResolve(
   primary: ResolveSourceFile | null,
@@ -690,6 +692,12 @@ const compareSelectedOperatorId = computed<string | null>(() => {
   const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
   return row ? compareOperatorIdOf(row, pack ?? null) : null;
 });
+/** Resolved pair identity; changes when an operator, baseline or pack swaps the sources. */
+const compareSourceKey = computed(() => {
+  const row = compareRow.value;
+  const pack = row ? props.baselineReports?.[row.baselineId]?.report : null;
+  return row && pack ? compareSourceKeyOf(row, pack) : '';
+});
 /** A workspace pick can fill the open report's placeholder files. */
 const reportSourceNeedsResolve = computed(() =>
   modelNeedsSourceResolve(report.value?.sourceCorrelation),
@@ -714,15 +722,17 @@ watch(
     const ids = new Set([...Object.keys(reports ?? {}), ...Object.keys(prev ?? {})]);
     const changedIds = [...ids].filter((id) => reports?.[id]?.report !== prev?.[id]?.report);
     if (changedIds.length === 0) return;
-    const comparedId = compareBaselineId.value;
-    const comparedPack = comparedId == null ? undefined : reports?.[comparedId]?.report;
-    const previousPack = comparedId == null ? undefined : prev?.[comparedId]?.report;
-    // A removed pack still has a resolver the next baseline can replay.
-    // A replaced pack is new bytes, so the old directory pick does not apply.
-    if (comparedPack && comparedPack !== previousPack) {
+    // A replaced or removed pack is new bytes, so a directory pick made for it no
+    // longer applies — even while compare is closed and the pack is not shown.
+    const previousPack =
+      baselineWorkspacePackId == null ? undefined : prev?.[baselineWorkspacePackId]?.report;
+    const currentPack =
+      baselineWorkspacePackId == null ? undefined : reports?.[baselineWorkspacePackId]?.report;
+    if (previousPack !== undefined && previousPack !== currentPack) {
       baselineResolveGen += 1;
       baselineWorkspaceResolve = null;
       baselineWorkspaceFiles = [];
+      baselineWorkspacePackId = null;
     }
     const kept: Record<string, SourceCorrelationModel> = {};
     for (const [key, model] of Object.entries(baselineSourceCorrelation.value)) {
@@ -801,6 +811,14 @@ function onCompareOperatorChange(id: string) {
   compareAutoSeeded.value = false;
   replayBaselineFill();
 }
+
+// The operator also changes through props.baselineRows and the name fallback:
+// replay the kept resolver and drop in-flight fills on any resolved-key change.
+watch(compareSourceKey, (key, previous) => {
+  if (key === previous) return;
+  baselineResolveGen += 1;
+  if (key) replayBaselineFill();
+});
 
 // Removing the selected checked baseline moves the compare pair to the next one.
 watch(
@@ -1537,19 +1555,13 @@ async function onPickBaselineSourceWorkspace() {
   if (!row || !pack || !model || !pick) return;
   const requests = baselinePickRequests(pack);
   if (requests.length === 0) return;
-  const resolveGen = ++baselineResolveGen;
   const picked = await pick(requests);
-  if (!picked || resolveGen !== baselineResolveGen) return;
+  if (!picked) return;
   baselineWorkspaceFiles = mergeWorkspaceFiles(baselineWorkspaceFiles, picked);
   baselineWorkspaceResolve = workspaceSourceResolver({ files: baselineWorkspaceFiles });
-  const key = compareSourceKeyOf(row, pack);
-  const start = baselineSourceCorrelation.value[key] ?? model;
-  const next = await fillMissingSourceFiles(start, baselineWorkspaceResolve);
-  if (resolveGen !== baselineResolveGen || !next) return;
-  baselineSourceCorrelation.value = {
-    ...baselineSourceCorrelation.value,
-    [key]: next,
-  };
+  // The dialog can outlive the pair it opened for: fill whatever pair is current now.
+  baselineWorkspacePackId = compareRow.value?.baselineId ?? row.baselineId;
+  replayBaselineFill();
 }
 
 async function loadFromSource(source: ArrayBuffer | Uint8Array, gen: number) {
@@ -1658,7 +1670,12 @@ watch(
     const rm = props.source ? internalReport.value : props.reportModel;
     if (!rm?.sourceCorrelation) return;
     const resolveGen = ++sourceResolveGen;
-    void fillReportSourceFiles(rm.sourceCorrelation, resolveGen);
+    // Start from the current overlay and keep the workspace resolver, like the load path.
+    void fillReportSourceFiles(
+      resolvedSourceCorrelation.value ?? rm.sourceCorrelation,
+      resolveGen,
+      chainResolve(reportWorkspaceResolve, props.resolveSourceFile),
+    );
   },
 );
 
@@ -1727,12 +1744,15 @@ function onRootKeydown(e: KeyboardEvent) {
   // before this window listener. Respect that: one Escape press must dismiss
   // only the popover, not also clear measure / the multi-selection behind it.
   if (e.defaultPrevented) return;
+  // An Escape that only ends an IME composition must not close a layer.
+  if (e.key === 'Escape' && (e.isComposing || e.keyCode === 229)) return;
   if (e.key === 'Escape' && htmlExportOpen.value) {
     e.preventDefault();
     closeHtmlExportDialog();
     return;
   }
   if (e.key === 'Escape' && (viewState.value.measureMode || viewState.value.measureRange)) {
+    e.preventDefault();
     viewState.value = clearMeasure(viewState.value);
     // Live marquee preview fills `multiSelected` without a commit — do not clear it here.
     if (!marqueeLive.value && multiSelected.value.length > 0) onSelect(null);
@@ -1743,6 +1763,12 @@ function onRootKeydown(e: KeyboardEvent) {
     closeTopologyFullscreen();
     return;
   }
+  // Compare sits under the html-export and topology layers: only its Escape reaches it.
+  if (e.key === 'Escape' && compareMode.value) {
+    e.preventDefault();
+    onCompareExit();
+    return;
+  }
   // Live preview owns Escape: canvas cancels and emits `multi-select-preview(null)`,
   // which restores the pre-drag dock. Treating preview `multiSelected` as committed
   // would emit host `select(null)` and clear viewState before that restore.
@@ -1750,6 +1776,7 @@ function onRootKeydown(e: KeyboardEvent) {
     return;
   }
   if (e.key === 'Escape' && multiSelected.value.length > 0) {
+    e.preventDefault();
     onSelect(null);
     return;
   }

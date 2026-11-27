@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -24,6 +24,16 @@ describe('readSourceWorkspace', () => {
     writeFileSync(join(dir, 'blob.bin'), Buffer.from([0x41, 0x00, 0x42]));
     writeFileSync(join(dir, 'huge.asc'), Buffer.alloc(256 * 1024 + 1, 0x61));
     expect(readSourceWorkspace(dir)).toEqual({ 'nested/deep/op.asc': 'kernel\n' });
+  });
+
+  it('skips a file bigger than the per-file cap without reading it', () => {
+    const dir = workspace();
+    writeFileSync(join(dir, 'small.asc'), 'kernel\n');
+    // Sparse on purpose: the size is real, the bytes are not on disk.
+    const fd = openSync(join(dir, 'huge.so'), 'w');
+    ftruncateSync(fd, 3 * 1024 ** 3);
+    closeSync(fd);
+    expect(readSourceWorkspace(dir)).toEqual({ 'small.asc': 'kernel\n' });
   });
 
   it('throws when total text exceeds 8 MB', () => {

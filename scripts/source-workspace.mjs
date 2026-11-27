@@ -2,7 +2,7 @@
  * Dependency-free source workspace reader for the CLI HTML export.
  * Mirrors the host workspace pick the in-app export sends as `__NPU_SOURCE_TEXTS__`.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 const MAX_FILE_BYTES = 256 * 1024;
@@ -22,8 +22,9 @@ export function readSourceWorkspace(dir) {
         continue;
       }
       if (!entry.isFile()) continue;
+      // Size first: a build tree can hold a multi-GB binary that readFileSync would buffer.
+      if (statSync(full).size > MAX_FILE_BYTES) continue;
       const bytes = readFileSync(full);
-      if (bytes.length > MAX_FILE_BYTES) continue;
       if (bytes.subarray(0, BINARY_SNIFF_BYTES).includes(0)) continue;
       total += bytes.length;
       if (total > MAX_TOTAL_BYTES) {

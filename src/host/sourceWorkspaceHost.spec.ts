@@ -101,6 +101,46 @@ describe('pickSourceWorkspace host', () => {
     expect(read).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a pick whose change lands well after focus', async () => {
+    vi.useFakeTimers();
+    const read = vi.fn(async () => 'int kernel() {}\n');
+    const promise = pickSourceWorkspace([
+      { fileName: '/sdk/kernel.asc', basename: 'kernel.asc' },
+    ]);
+    const input = hiddenInput()!;
+    window.dispatchEvent(new Event('focus'));
+    // Slower than a frame, far below the fallback: some hosts deliver `change` late.
+    await vi.advanceTimersByTimeAsync(1000);
+    setFiles(input, [
+      { name: 'kernel.asc', webkitRelativePath: 'ws/src/kernel.asc', text: read },
+    ]);
+    input.dispatchEvent(new Event('change'));
+
+    await expect(promise).resolves.toEqual({
+      files: [{ path: 'ws/src/kernel.asc', text: 'int kernel() {}\n' }],
+    });
+    vi.useRealTimers();
+  });
+
+  it('adopts the files already picked when the change event never fires', async () => {
+    vi.useFakeTimers();
+    const read = vi.fn(async () => 'int kernel() {}\n');
+    const promise = pickSourceWorkspace([
+      { fileName: '/sdk/kernel.asc', basename: 'kernel.asc' },
+    ]);
+    const input = hiddenInput()!;
+    window.dispatchEvent(new Event('focus'));
+    setFiles(input, [
+      { name: 'kernel.asc', webkitRelativePath: 'ws/src/kernel.asc', text: read },
+    ]);
+    await vi.advanceTimersByTimeAsync(SOURCE_WORKSPACE_FOCUS_CANCEL_MS);
+
+    await expect(promise).resolves.toEqual({
+      files: [{ path: 'ws/src/kernel.asc', text: 'int kernel() {}\n' }],
+    });
+    vi.useRealTimers();
+  });
+
   it('keeps the picked files when focus follows change', async () => {
     const read = vi.fn(async () => 'int kernel() {}\n');
     const promise = pickSourceWorkspace([

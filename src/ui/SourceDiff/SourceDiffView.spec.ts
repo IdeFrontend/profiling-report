@@ -8,7 +8,12 @@ import SourceDiffView from './SourceDiffView.vue';
 
 const sudu = vi.hoisted(() => ({
   pool: { getNumThreads: () => 3 },
-  diffModels: [] as { dispose: ReturnType<typeof vi.fn> }[],
+  diffModels: [] as {
+    dispose: ReturnType<typeof vi.fn>;
+    getLinesInfo: () => Promise<unknown>;
+    $javaModel0: { $diffModel0: { $ranges: { data: unknown[] } } };
+  }[],
+  ranges: [] as { $fromL: number; $lenL: number; $fromR: number; $lenR: number }[],
   sides: [] as boolean[],
   views: [] as { setModel: ReturnType<typeof vi.fn> }[],
 }));
@@ -16,7 +21,11 @@ const sudu = vi.hoisted(() => ({
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => sudu.pool),
   newDiffModel: vi.fn(() => {
-    const model = { dispose: vi.fn() };
+    const model = {
+      dispose: vi.fn(),
+      getLinesInfo: () => Promise.resolve({}),
+      $javaModel0: { $diffModel0: { $ranges: { data: sudu.ranges } } },
+    };
     sudu.diffModels.push(model);
     return model;
   }),
@@ -77,8 +86,30 @@ async function mountView(leftText = LEFT_LINES.join('\n'), rightText = RIGHT_LIN
 describe('SourceDiffView', () => {
   beforeEach(() => {
     sudu.diffModels.length = 0;
+    sudu.ranges.length = 0;
     sudu.sides.length = 0;
     sudu.views.length = 0;
+  });
+
+  it('rows follow the library ranges once the worker diff lands', async () => {
+    sudu.ranges.push(
+      { $fromL: 0, $lenL: 1, $fromR: 0, $lenR: 1 },
+      { $fromL: 1, $lenL: 2, $fromR: 1, $lenR: 1 },
+    );
+    const wrapper = mount(SourceDiffView, {
+      props: {
+        current: correlation([file('cur', 'a\nb\nc')]),
+        baseline: correlation([file('cur', 'a\nc')]),
+        locale: 'en-US',
+      },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+    const rows = wrapper.findAllComponents(SourceDiffPane)[0]!.props('rows') as { kind: string }[];
+    // The LCS would pair 'b' with nothing and keep 'c' same; the library hunks win.
+    expect(rows.map((row) => row.kind)).toEqual(['same', 'changed', 'onlyLeft']);
+    wrapper.unmount();
   });
 
   it('PR-DIFF-210: both panes share one diff model, rebuilt and disposed on text change', async () => {
@@ -236,6 +267,10 @@ describe('SourceDiffView', () => {
     const empty = wrapper.get('[data-testid="source-diff-baseline-empty"]');
     expect(empty.text()).toBe(t('sourceDiffBaselineEmpty', 'en-US'));
     expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+    // A missing baseline must not paint the open report as removed.
+    const rows = wrapper.findAllComponents(SourceDiffPane)[0]!.props('rows') as { kind: string }[];
+    expect(rows).toHaveLength(LEFT_LINES.length);
+    expect(rows.every((row) => row.kind === 'same')).toBe(true);
     wrapper.unmount();
   });
 
@@ -253,6 +288,8 @@ describe('SourceDiffView', () => {
     await nextTick();
     expect(wrapper.find('[data-testid="source-diff-pane-left"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+    const rows = wrapper.findAllComponents(SourceDiffPane)[0]!.props('rows') as { kind: string }[];
+    expect(rows.every((row) => row.kind === 'same')).toBe(true);
     const button = wrapper.get('[data-testid="source-diff-workspace-right"]');
     expect(button.attributes('disabled')).toBeDefined();
     expect(button.attributes('title')).toBe(t('sourceDiffWorkspaceBaselineDisabled', 'en-US'));
@@ -270,6 +307,28 @@ describe('SourceDiffView', () => {
     expect(wrapper.emitted('exit')).toBeUndefined();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(wrapper.emitted('exit')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('a new baseline file set keeps the file the user picked', async () => {
+    const current = correlation([file('a', 'alpha'), file('b', 'beta')]);
+    const baseline = correlation([file('a', 'ALPHA'), file('b', 'BETA')]);
+    const wrapper = mount(SourceDiffView, {
+      props: { current, baseline, locale: 'en-US' },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const panes = () => wrapper.findAllComponents(SourceDiffPane);
+    panes()[0]!.vm.$emit('select-file', 'b');
+    await nextTick();
+    expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('b');
+
+    await wrapper.setProps({
+      baseline: correlation([file('a', 'ALPHA'), file('b', 'BETA'), file('c', 'GAMMA')]),
+    });
+    await nextTick();
+    expect((panes()[0]!.props('metrics') as SourceFileModel).id).toBe('b');
+    expect((panes()[1]!.props('metrics') as SourceFileModel).id).toBe('b');
     wrapper.unmount();
   });
 

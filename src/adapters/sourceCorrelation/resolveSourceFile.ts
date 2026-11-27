@@ -99,8 +99,8 @@ export function sourceBasename(path: string): string {
 /**
  * Resolver for a workspace the operator picked. Match order: exact path, then
  * the longest suffix shared by path segments, then `request.basename`.
- * Two distinct candidates at a tier are a miss. A case-insensitive pass runs
- * only when the case-sensitive pass finds nothing.
+ * Two distinct candidates at a tier are a miss. Each tier runs case-sensitively
+ * first, so a folded hit never beats a stronger tier.
  */
 export function workspaceSourceResolver(pick: SourceWorkspacePick): ResolveSourceFile {
   const files = pick.files
@@ -112,34 +112,46 @@ export function workspaceSourceResolver(pick: SourceWorkspacePick): ResolveSourc
     }))
     .filter((file) => file.text !== '');
 
-  const matchOne = (request: ResolveSourceFileRequest, foldCase: boolean): string | null => {
+  const matchTier = (
+    request: ResolveSourceFileRequest,
+    foldCase: boolean,
+    tier: 'exact' | 'suffix' | 'basename',
+  ): string | null => {
     const normalize = (value: string) => (foldCase ? value.toLowerCase() : value);
-    const fileName = normalize(slashPath(request.fileName));
-    const basename = normalize(request.basename);
 
-    const exact = files.filter((file) => normalize(file.path) === fileName);
-    if (exact.length === 1) return exact[0].text;
-    if (exact.length > 1) return null;
+    if (tier === 'exact') {
+      const fileName = normalize(slashPath(request.fileName));
+      const exact = files.filter((file) => normalize(file.path) === fileName);
+      return exact.length === 1 ? exact[0].text : null;
+    }
 
     const requestSegments = trailingSegments(request.fileName).map(normalize);
-    const suffix = files
-      .filter((file) => isPathSuffix(file.segments.map(normalize), requestSegments))
-      .map((file) => ({
-        text: file.text,
-        score: commonTrailingSegments(file.segments.map(normalize), requestSegments),
-      }))
-      .filter((file) => file.score > 0);
-    if (suffix.length > 0) {
+    if (tier === 'suffix') {
+      const suffix = files
+        .filter((file) => isPathSuffix(file.segments.map(normalize), requestSegments))
+        .map((file) => ({
+          text: file.text,
+          score: commonTrailingSegments(file.segments.map(normalize), requestSegments),
+        }))
+        .filter((file) => file.score > 0);
+      if (suffix.length === 0) return null;
       const best = Math.max(...suffix.map((file) => file.score));
       const top = suffix.filter((file) => file.score === best);
       return top.length === 1 ? top[0].text : null;
     }
 
+    const basename = normalize(request.basename);
     const byBasename = files.filter((file) => normalize(file.basename) === basename);
     return byBasename.length === 1 ? byBasename[0].text : null;
   };
 
-  return async (request) => matchOne(request, false) ?? matchOne(request, true);
+  return async (request) => {
+    for (const tier of ['exact', 'suffix', 'basename'] as const) {
+      const hit = matchTier(request, false, tier) ?? matchTier(request, true, tier);
+      if (hit != null) return hit;
+    }
+    return null;
+  };
 }
 
 /** True when `model` holds at least one placeholder file and is not mock data. */

@@ -4996,4 +4996,227 @@ describe('ProfilingReport scaffold', () => {
     expect(baseline.files[1]!.text).toContain('int b()');
     wrapper.unmount();
   });
+
+  it('a baseline pick is dropped when its pack is replaced while compare is closed', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const missingPack = (): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: {
+        ...emptyReportViewModel(),
+        sourceCorrelation: correlationWith(
+          '/build/kernel.asc',
+          `${MISSING_SOURCE_EMBED_PREFIX}/build/kernel.asc\n`,
+        ),
+      },
+    });
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int baseline() { return 1; }' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-pack-swap-closed',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: missingPack() } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    const filled = () =>
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text;
+    expect(filled()).toContain('int baseline()');
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    // New bytes for that baseline: the directory pick no longer applies.
+    await wrapper.setProps({ baselineReports: { 'b-1': { baselineId: 'b-1', report: missingPack() } } });
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(filled().startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('an implicit operator change replays the kept workspace pick', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const missing = (path: string) =>
+      correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing('/build/mm.asc') },
+      operatorReports: {
+        mm: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing('/build/mm.asc') },
+        },
+        relu: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing('/build/relu.asc') },
+        },
+      },
+    };
+    const pick = vi.fn(async () => ({
+      // A directory pick returns every file it could resolve, not one name.
+      files: [
+        { path: 'mm.asc', text: 'int mm() {}' },
+        { path: 'relu.asc', text: 'int relu() {}' },
+      ],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-implicit-operator',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    const filled = () =>
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text;
+    expect(filled()).toContain('int mm()');
+
+    // The host row changes the operator without the select's handler.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'relu' }],
+    });
+    await flushPromises();
+    expect(filled()).toContain('int relu()');
+    wrapper.unmount();
+  });
+
+  it('a late resolve hook keeps the open report text a workspace pick supplied', async () => {
+    const path = '/p/kernel.asc';
+    const missing = correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int WORKSPACE() {}' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-late-hook',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing },
+        capabilities: ['sourceTab'],
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    const vm = wrapper.vm as unknown as {
+      onPickReportSourceWorkspace: () => Promise<void>;
+      report: { sourceCorrelation: SourceCorrelationModel | null };
+    };
+    await vm.onPickReportSourceWorkspace();
+    await flushPromises();
+    expect(vm.report.sourceCorrelation!.files[0]!.text).toContain('WORKSPACE');
+
+    const hook = vi.fn(async () => 'int HOOK() {}');
+    await wrapper.setProps({ resolveSourceFile: hook });
+    await flushPromises();
+    expect(vm.report.sourceCorrelation!.files[0]!.text).toContain('WORKSPACE');
+    wrapper.unmount();
+  });
+
+  it('a baseline pick survives a pack arrival while the dialog is open', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const pack = (): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: {
+        ...emptyReportViewModel(),
+        sourceCorrelation: correlationWith(
+          '/build/kernel.asc',
+          `${MISSING_SOURCE_EMBED_PREFIX}/build/kernel.asc\n`,
+        ),
+      },
+    });
+    let openPick: (picked: { files: { path: string; text: string }[] }) => void = () => undefined;
+    const pick = vi.fn(
+      () =>
+        new Promise<{ files: { path: string; text: string }[] }>((resolve) => {
+          openPick = resolve;
+        }),
+    );
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-baseline-late-pack',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack() } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await nextTick();
+    // A new pack arrives mid-dialog and re-seeds the compare pair.
+    await wrapper.setProps({ baselineReports: { 'b-1': { baselineId: 'b-1', report: pack() } } });
+    await nextTick();
+    openPick({ files: [{ path: 'kernel.asc', text: 'int PICKED() {}' }] });
+    await flushPromises();
+    const baseline = wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel;
+    expect(baseline.files[0]!.text).toContain('PICKED');
+    wrapper.unmount();
+  });
+
+  it('window Escape exits compare once and ignores an IME composition', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const baseline = correlationWith('/build/kernel.asc', 'int baseline() { return 1; }\n');
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-escape',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: baseline } },
+          },
+        },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.findComponent(SourceDiffView).exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', isComposing: true }));
+    await nextTick();
+    expect(wrapper.findComponent(SourceDiffView).exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.findComponent(SourceDiffView).exists()).toBe(false);
+    expect(wrapper.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
 });

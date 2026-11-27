@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { alignSourceLines, diffRowsByKind, splitSourceLines, textForSideDiff, type DiffRow } from './diffAlign';
+import {
+  alignSourceLines,
+  diffRowsByKind,
+  diffRowsFromModel,
+  rowsFromRanges,
+  splitSourceLines,
+  textForSideDiff,
+  type DiffRow,
+} from './diffAlign';
 
 function leftLines(rows: DiffRow[]): number[] {
   return rows.flatMap((row) => (row.leftLine === null ? [] : [row.leftLine]))
@@ -124,5 +132,66 @@ describe('alignSourceLines', () => {
     expect(diffRowsByKind(rows, 'same')).toHaveLength(2);
     expect(diffRowsByKind(rows, 'changed')).toHaveLength(1998);
     expect(diffRowsByKind(rows, 'onlyLeft')).toHaveLength(100);
+  });
+});
+
+describe('rowsFromRanges', () => {
+  it('pairs both sides by offset inside each range', () => {
+    const left = ['a', 'b', 'c'];
+    const right = ['a', 'B', 'c'];
+    const ranges = [
+      { $fromL: 0, $lenL: 1, $fromR: 0, $lenR: 1 },
+      { $fromL: 1, $lenL: 1, $fromR: 1, $lenR: 1 },
+      { $fromL: 2, $lenL: 1, $fromR: 2, $lenR: 1 },
+    ];
+    const rows = rowsFromRanges(ranges, left, right)!;
+    expect(rows.map((row) => row.kind)).toEqual(['same', 'changed', 'same']);
+    expect(rows[1]).toMatchObject({ leftLine: 2, rightLine: 2, leftText: 'b', rightText: 'B' });
+  });
+
+  it('keeps the library pairing instead of recomputing an LCS', () => {
+    const left = ['a', 'b', 'c'];
+    const right = ['a', 'c'];
+    // The library pairs 'b' with 'c' inside one hunk.
+    const rows = rowsFromRanges(
+      [
+        { $fromL: 0, $lenL: 1, $fromR: 0, $lenR: 1 },
+        { $fromL: 1, $lenL: 2, $fromR: 1, $lenR: 1 },
+      ],
+      left,
+      right,
+    )!;
+    expect(rows.map((row) => row.kind)).toEqual(['same', 'changed', 'onlyLeft']);
+    expect(alignSourceLines(left, right).map((row) => row.kind)).toEqual(['same', 'onlyLeft', 'same']);
+  });
+
+  it('pads the shorter side with filler rows', () => {
+    const rows = rowsFromRanges([{ $fromL: 0, $lenL: 2, $fromR: 0, $lenR: 1 }], ['a', 'b'], ['a'])!;
+    expect(rows.map((row) => row.kind)).toEqual(['same', 'onlyLeft']);
+    expect(rows[1]).toMatchObject({ leftLine: 2, rightLine: null, rightText: '' });
+  });
+
+  it('returns null when the ranges do not partition both texts', () => {
+    expect(rowsFromRanges([{ $fromL: 0, $lenL: 1, $fromR: 0, $lenR: 1 }], ['a', 'b'], ['a'])).toBeNull();
+    expect(rowsFromRanges([], ['a'], [])).toBeNull();
+  });
+});
+
+describe('diffRowsFromModel', () => {
+  it('reads the library ranges once the worker diff lands', () => {
+    const model = {
+      $javaModel0: {
+        $diffModel0: { $ranges: { data: [{ $fromL: 0, $lenL: 1, $fromR: 0, $lenR: 1 }] } },
+      },
+    };
+    expect(diffRowsFromModel(model, ['a'], ['a'])).toEqual([
+      { kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' },
+    ]);
+  });
+
+  it('returns null before the diff lands or when the private fields move', () => {
+    expect(diffRowsFromModel(null, ['a'], ['a'])).toBeNull();
+    expect(diffRowsFromModel({}, ['a'], ['a'])).toBeNull();
+    expect(diffRowsFromModel({ $javaModel0: { $diffModel0: { $ranges: {} } } }, ['a'], ['a'])).toBeNull();
   });
 });

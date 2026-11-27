@@ -343,6 +343,50 @@ describe('SourceDiffPane', () => {
     wrapper.unmount();
   });
 
+  it('a no-op scroll restore does not swallow the next scroll', async () => {
+    const rows = [
+      row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' }),
+      row({ kind: 'same', leftLine: 2, rightLine: 2, leftText: 'b', rightText: 'b' }),
+    ];
+    const listener = vi.fn();
+    const wrapper = await mountPane(rows, 'left');
+    const view = sudu.views.at(-1)!;
+    const scroll = wrapper.get('[data-testid="source-metrics-scroll"]').element;
+    await wrapper.setProps({ scrollListener: listener });
+
+    // Row 0 is already at the top: the restore writes the same value.
+    (wrapper.vm as unknown as { setScrollCss: (css: number) => void }).setScrollCss(0);
+    scroll.scrollTop = 240;
+    scroll.dispatchEvent(new Event('scroll'));
+    expect(listener).toHaveBeenLastCalledWith(240);
+    expect(view.setVScrollPos).toHaveBeenLastCalledWith(240);
+
+    // A restore that did move the table must not swallow the user's next scroll either.
+    (wrapper.vm as unknown as { setScrollCss: (css: number) => void }).setScrollCss(100);
+    scroll.scrollTop = 300;
+    scroll.dispatchEvent(new Event('scroll'));
+    expect(listener).toHaveBeenLastCalledWith(300);
+    expect(view.setVScrollPos).toHaveBeenLastCalledWith(300);
+    wrapper.unmount();
+  });
+
+  it('a table scroll before boot is applied once SideDiff boots', async () => {
+    const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
+    const wrapper = mount(SourceDiffPane, {
+      props: { rows, side: 'left', metrics, locale: 'en-US', diffModel: sudu.diffModel, workers: null },
+      attachTo: document.body,
+    });
+    const scroll = wrapper.get('[data-testid="source-metrics-scroll"]').element;
+    scroll.scrollTop = 54;
+    scroll.dispatchEvent(new Event('scroll'));
+    expect(sudu.views).toHaveLength(0);
+    await wrapper.setProps({ workers: sudu.pool });
+    await flushPromises();
+    await nextTick();
+    expect(sudu.views.at(-1)!.setVScrollPos).toHaveBeenLastCalledWith(54);
+    wrapper.unmount();
+  });
+
   it('a metrics row click asks the sibling pane to follow', async () => {
     const rows = [row({ kind: 'same', leftLine: 1, rightLine: 1, leftText: 'a', rightText: 'a' })];
     const listener = vi.fn();

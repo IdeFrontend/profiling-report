@@ -46,6 +46,68 @@ export function diffRowsByKind(rows: DiffRow[], kind: DiffRowKind): number[] {
   return out
 }
 
+/** One aligned block from the library's `oseewd_DiffRange` (0-based line indices). */
+export interface DiffRangeLike {
+  $fromL: number
+  $lenL: number
+  $fromR: number
+  $lenR: number
+}
+
+/**
+ * Build rows from the library's own ranges, so the metrics plane, the tints and
+ * row clicks share the canvas' alignment. Returns null when the ranges do not
+ * partition both texts (stale or partial diff) and the LCS fallback must run.
+ */
+export function rowsFromRanges(
+  ranges: readonly DiffRangeLike[],
+  left: string[],
+  right: string[],
+): DiffRow[] | null {
+  let spanLeft = 0
+  let spanRight = 0
+  for (const range of ranges) {
+    spanLeft += range.$lenL
+    spanRight += range.$lenR
+  }
+  if (spanLeft !== left.length || spanRight !== right.length) return null
+
+  const rows: DiffRow[] = []
+  for (const range of ranges) {
+    const count = Math.max(range.$lenL, range.$lenR)
+    for (let k = 0; k < count; k += 1) {
+      const hasLeft = k < range.$lenL
+      const hasRight = k < range.$lenR
+      const leftIndex = range.$fromL + k
+      const rightIndex = range.$fromR + k
+      const leftText = hasLeft ? left[leftIndex] ?? '' : ''
+      const rightText = hasRight ? right[rightIndex] ?? '' : ''
+      rows.push({
+        kind: hasLeft && hasRight ? (leftText === rightText ? 'same' : 'changed') : hasLeft ? 'onlyLeft' : 'onlyRight',
+        leftLine: hasLeft ? leftIndex + 1 : null,
+        rightLine: hasRight ? rightIndex + 1 : null,
+        leftText,
+        rightText,
+      })
+    }
+  }
+  return rows
+}
+
+/**
+ * Rows from a diff model's finished ranges, or null before the worker diff lands.
+ * shortcut: reads the vendored bundle's private `$`-prefixed fields
+ * (`JsTextDiffModel.$javaModel0.$diffModel0.$ranges`); a library upgrade that
+ * renames them returns null and `alignSourceLines` takes over.
+ */
+export function diffRowsFromModel(model: unknown, left: string[], right: string[]): DiffRow[] | null {
+  const data = (
+    model as { $javaModel0?: { $diffModel0?: { $ranges?: { data?: unknown } } } } | null
+  )?.$javaModel0?.$diffModel0?.$ranges?.data
+  if (!Array.isArray(data)) return null
+  return rowsFromRanges(data as DiffRangeLike[], left, right)
+}
+
 export function alignSourceLines(left: string[], right: string[]): DiffRow[] {
   if (left.length * right.length > LCS_CELL_LIMIT) return alignWithoutLcs(left, right)
 

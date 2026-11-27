@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, shall
 import type { ITextDiffModel } from '@sudu-ide/code-review';
 import type { SourceCorrelationModel, SourceFileModel } from '../../domain/types';
 import { t } from '../../i18n';
-import { alignSourceLines, splitSourceLines, textForSideDiff, type DiffRow } from './diffAlign';
+import { alignSourceLines, diffRowsFromModel, splitSourceLines, textForSideDiff, type DiffRow } from './diffAlign';
 import SourceDiffPane from './SourceDiffPane.vue';
 import PrIcon from '../PrIcon.vue';
 import { getSuduWorkerPool, loadSuduApi, type SuduApi, type SuduWorkerPool } from '../SourceView/suduRuntime';
@@ -86,8 +86,7 @@ function fileSetKey(model: SourceCorrelationModel | undefined): string {
 watch(
   () => `${fileSetKey(props.current)}\n${fileSetKey(props.baseline)}`,
   () => {
-    leftFileId.value = '';
-    rightFileId.value = '';
+    // A new baseline must not yank the open report off the file the user picked.
     syncFileIds('left');
   },
   { immediate: true },
@@ -113,12 +112,27 @@ watch(
   { immediate: true },
 );
 
-const rows = computed<DiffRow[]>(() =>
-  alignSourceLines(
-    leftFile.value.text ? splitSourceLines(leftFile.value.text) : [],
-    rightFile.value.text ? splitSourceLines(rightFile.value.text) : [],
-  ),
-);
+const leftLines = computed(() => (leftFile.value.text ? splitSourceLines(leftFile.value.text) : []));
+const rightLines = computed(() => (rightFile.value.text ? splitSourceLines(rightFile.value.text) : []));
+
+/** No baseline source: a plain left pane with no diff tint (PR-DIFF-216). */
+function leftOnlyRows(lines: string[]): DiffRow[] {
+  return lines.map((text, index) => ({
+    kind: 'same' as const,
+    leftLine: index + 1,
+    rightLine: index + 1,
+    leftText: text,
+    rightText: text,
+  }));
+}
+
+/** Rows from the library's own ranges once the worker diff lands. */
+const modelRows = shallowRef<DiffRow[] | null>(null);
+
+const rows = computed<DiffRow[]>(() => {
+  if (baselineEmpty.value) return leftOnlyRows(leftLines.value);
+  return modelRows.value ?? alignSourceLines(leftLines.value, rightLines.value);
+});
 
 /** Unchanged rows stay: the compare chrome has no collapse control (Source has none). */
 const displayRows = computed<DiffRow[]>(() => rows.value);
@@ -133,10 +147,13 @@ let modelGeneration = 0;
 let disposed = false;
 
 function buildDiffModel(api: SuduApi, pool: SuduWorkerPool): DiffModel {
+  const leftText = textForSideDiff(leftFile.value.text);
+  // An empty baseline must not paint the whole file as removed.
+  const rightText = baselineEmpty.value ? leftText : textForSideDiff(rightFile.value.text);
   return api.newDiffModel(
     pool,
-    textForSideDiff(leftFile.value.text),
-    textForSideDiff(rightFile.value.text),
+    leftText,
+    rightText,
     { path: leftFile.value.path },
     { path: rightFile.value.path },
     leftFile.value.language ?? rightFile.value.language,
@@ -146,6 +163,7 @@ function buildDiffModel(api: SuduApi, pool: SuduWorkerPool): DiffModel {
 /** Rebuild on text or language changes; the latest request wins. */
 async function rebuildDiffModel(): Promise<void> {
   const generation = ++modelGeneration;
+  modelRows.value = null;
   try {
     const api = await loadSuduApi();
     const pool = workers.value ?? (await getSuduWorkerPool(props.suduWorkerUrl));
@@ -156,6 +174,15 @@ async function rebuildDiffModel(): Promise<void> {
     diffModel.value = next;
     // Panes apply the new model on the next flush; dispose the old one after that.
     if (previous) void nextTick(() => previous.dispose?.());
+    void next
+      .getLinesInfo()
+      .then(() => {
+        if (disposed || generation !== modelGeneration) return;
+        modelRows.value = diffRowsFromModel(next, leftLines.value, rightLines.value);
+      })
+      .catch(() => {
+        // The LCS rows stay when the worker diff fails.
+      });
   } catch {
     // The metrics table still renders when Sudu is unavailable.
   }
@@ -167,6 +194,7 @@ watch(
     rightFile.value.text,
     leftFile.value.language,
     rightFile.value.language,
+    baselineEmpty.value,
   ],
   () => {
     void rebuildDiffModel();
@@ -176,7 +204,8 @@ watch(
 const rootEl = ref<HTMLElement | null>(null);
 
 function onWindowKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  // An Escape that closes an IME composition or a higher layer is not ours.
+  if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
   event.stopPropagation();
   emit('exit');
 }
@@ -366,10 +395,9 @@ function findSearch(dir: 1 | -1): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    event.stopPropagation();
-    emit('exit');
-  }
+  if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+  event.stopPropagation();
+  emit('exit');
 }
 
 defineExpose({

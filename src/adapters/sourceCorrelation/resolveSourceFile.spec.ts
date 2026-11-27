@@ -221,6 +221,19 @@ describe('workspaceSourceResolver', () => {
     ).resolves.toBe('folded\n');
   });
 
+  it('prefers a folded exact path over a case-sensitive basename', async () => {
+    // The basename hit is real but points at a different file: stronger tiers win first.
+    const resolve = workspaceSourceResolver(
+      pick([
+        { path: '/build/Kernel.asc', text: 'folded exact\n' },
+        { path: 'other/kernel.asc', text: 'wrong basename\n' },
+      ]),
+    );
+    await expect(
+      resolve({ fileName: '/build/kernel.asc', basename: 'kernel.asc' }),
+    ).resolves.toBe('folded exact\n');
+  });
+
   it('skips an empty file and keeps searching', async () => {
     const resolve = workspaceSourceResolver(
       pick([
