@@ -177,7 +177,8 @@ const props = withDefaults(defineProps<{
    * Comparison rows (对比基线): every row is a baseline + the pack operator it
    * compares from; row 0 is the primary and drives the aside, the other rows
    * surface only in the per-value hover popups. Host-owned like the checked
-   * set. Absent/empty = the root defaults one row to the first checked baseline.
+   * set. Absent/empty = the plain, non-comparing state; 基线对比 / Compare
+   * baselines creates one default row for the first checked baseline.
    */
   baselineRows?: BaselineRow[];
   /**
