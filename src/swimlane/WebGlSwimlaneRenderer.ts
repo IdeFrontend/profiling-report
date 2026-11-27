@@ -136,7 +136,7 @@ interface SubRowMesh {
   y: number;
   /** Start-sorted encoded interval starts (same origin as `encodeIntervalPair`). */
   quadStarts: Float32Array;
-  /** All events (including duration-0) — additive blend; metric from lane `useCountMetric`. */
+  /** All events, including duration-0 ticks (one quad each, additive-or-density blend). */
   chunks: MeshChunk[];
   /** When search is active: per-emphasis mesh layers (Canvas parity). */
   emphasisLayers: EmphasisLayer[] | null;
@@ -151,42 +151,6 @@ interface LaneMeshes {
   rows: SubRowMesh[];
   /** Collapsed-folder summary lane: drawn source-over (exact color), never additive. */
   summary?: boolean;
-}
-
-/**
- * Leaf-pipe brightness metric: count when duration-0 events are ≥ durables (tie → count);
- * length AA when durables strictly outnumber zero-width. Skips summary bars.
- */
-/** [debug] Per-lane duration-0 timestamps, used by the view logging above. */
-function collectLaneTickStats(
-  layout: SwimlaneLayout,
-): { name: string; times: number[] }[] {
-  const byLane = new Map<number, number[]>();
-  for (const ev of layout.events) {
-    if (ev.event.duration !== 0 || ev.summary) continue;
-    const list = byLane.get(ev.laneIndex) ?? [];
-    list.push(ev.event.startTime);
-    byLane.set(ev.laneIndex, list);
-  }
-  const out: { name: string; times: number[] }[] = [];
-  for (const [laneIndex, times] of byLane) {
-    const lane = layout.lanes[laneIndex];
-    out.push({ name: lane ? lane.thread.name : String(laneIndex), times });
-  }
-  return out;
-}
-
-export function laneUsesCountMetric(
-  events: ReadonlyArray<{ event: { duration: number }; summary?: boolean }>,
-): boolean {
-  let durable = 0;
-  let zero = 0;
-  for (const item of events) {
-    if (item.summary) continue;
-    if (item.event.duration === 0) zero++;
-    else durable++;
-  }
-  return !(durable > zero);
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -325,7 +289,6 @@ export function setVbSquareWithGaps(
  * the global index (`eventGapPrev` / `eventGapNext`) — no per-chunk copy or gap array is made,
  * so the only allocations are the vertex/index buffers themselves. The 6-float vertex format
  * (pos, uv, data) enables branchless extension in the vertex shader.
- * [exp] count-hit revert: no `aHit` 7th float.
  *
  */
 function createChunk(
@@ -527,6 +490,23 @@ function drawChunkQuads(
  * Draws uniform lane backgrounds, row dividers, rounded coverage-AA interval fills, and instanced
  * dependency polylines. Labels/selection use overlay.
  */
+/** [debug] Per-lane duration-0 timestamps, used by the view logging above. */
+function collectLaneTickStats(layout: SwimlaneLayout): { name: string; times: number[] }[] {
+  const byLane = new Map<number, number[]>();
+  for (const ev of layout.events) {
+    if (ev.event.duration !== 0 || ev.summary) continue;
+    const list = byLane.get(ev.laneIndex) ?? [];
+    list.push(ev.event.startTime);
+    byLane.set(ev.laneIndex, list);
+  }
+  const out: { name: string; times: number[] }[] = [];
+  for (const [laneIndex, times] of byLane) {
+    const lane = layout.lanes[laneIndex];
+    out.push({ name: lane ? lane.thread.name : String(laneIndex), times });
+  }
+  return out;
+}
+
 export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private gl: WebGL2RenderingContext | null = null;
@@ -912,7 +892,7 @@ export class WebGlSwimlaneRenderer implements SwimlaneRenderer {
     // Safe because each sub-row mesh is mutually exclusive (multi-row layout); each device pixel
     // accumulates the coverage of all events across lanes / sub-rows.
     gl.enable(gl.BLEND);
-    // [exp] one blend for the whole interval pass: durables emit alpha 0 (=> additive),
+    // One blend for the whole interval pass: durables emit alpha 0 (=> additive),
     // ticks emit the density alpha (=> source-over ladder).
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(swim.program);

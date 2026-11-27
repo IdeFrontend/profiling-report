@@ -50,7 +50,6 @@ import { CanvasSwimlaneRenderer, SwimlaneOverlayPainter } from '../../src/swimla
 import { dependencyGraph, dependencyStrokeWidth, depLinksForCollapsePaint } from '../../src/swimlane/dependencyLinks';
 import {
   compositeLabelBackdrop,
-  laneUsesCountMetric,
   WebGlSwimlaneRenderer,
 } from '../../src/swimlane/WebGlSwimlaneRenderer';
 import {
@@ -1407,115 +1406,67 @@ describe('PR-RENDER: lane chrome color', () => {
     );
   });
 
-  it('PR-RENDER-064: duration-0 events share the additive interval mesh (#205)', async () => {
+  it('PR-RENDER-064: duration-0 ticks ride the interval mesh with density-compensated alpha (#205)', async () => {
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
+    // One mesh for every event; no separate tick / density pass exists.
     expect(webglSrc).not.toMatch(/partitionIntervalTickIndices/);
     expect(webglSrc).not.toMatch(/tickChunks/);
     expect(webglSrc).not.toMatch(/drawTickChunks/);
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
-    // One createChunksFromPairs path for all events (including duration-0).
-    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs, collapsed\?\.hits\)/);
-    expect(webglSrc).toMatch(/uUseCountMetric/);
-    expect(webglSrc).toMatch(/laneUsesCountMetric/);
-    // Summary + muted count-metric: source-over. Resting count-metric: additive /cap.
-    expect(webglSrc).toMatch(
-      /srcOverBase = !!\(meshes\.summary \|\| \(meshes\.useCountMetric && mute\)\)/,
-    );
-    expect(webglSrc).toMatch(/sampleTickDensityCap/);
-    expect(webglSrc).toMatch(/buildTickDensityCap/);
-    expect(webglSrc).toMatch(/dtDevice/);
+    expect(webglSrc).not.toMatch(/collapseSameXTicks/);
+    expect(webglSrc).not.toMatch(/createDensityChunksFromMarks/);
+    expect(webglSrc).toMatch(/chunks: createChunksFromPairs\(gl, pairs\)/);
 
-    // Per-pipe metric: durable-majority → length; tick-majority / tie → count.
-    const durable = (n: number, d = 10) =>
-      Array.from({ length: n }, () => ({
-        event: { duration: d },
-        summary: false as const,
-      }));
-    const ticks = (n: number) =>
-      Array.from({ length: n }, () => ({
-        event: { duration: 0 },
-        summary: false as const,
-      }));
-    expect(laneUsesCountMetric([...durable(3), ...ticks(1)])).toBe(false);
-    expect(laneUsesCountMetric([...durable(1), ...ticks(3)])).toBe(true);
-    expect(laneUsesCountMetric([...durable(2), ...ticks(2)])).toBe(true);
-    expect(laneUsesCountMetric(ticks(1))).toBe(true);
-    expect(laneUsesCountMetric(durable(1))).toBe(false);
-    // Summary bars do not tip the tally.
-    expect(
-      laneUsesCountMetric([
-        ...durable(2),
-        ...ticks(1),
-        { event: { duration: 0 }, summary: true },
-        { event: { duration: 0 }, summary: true },
-      ]),
-    ).toBe(false);
+    // One blend equation for the whole interval pass: durables emit alpha 0 (=> additive),
+    // ticks emit the density alpha (=> source-over accumulation).
+    expect(webglSrc).toMatch(
+      /blendFuncSeparate\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA, gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/,
+    );
+    // Tick knobs are uniforms; the bar is one CSS px wide in device px.
+    expect(webglSrc).toMatch(/uTickBand/);
+    expect(webglSrc).toMatch(/uTickAlphaMax/);
+    expect(webglSrc).toMatch(/uTickWidthPx/);
+    expect(webglSrc).toMatch(/Math\.max\(1, Math\.round\(dpr\)\)/);
+    // The replaced per-pipe count metric / density cap / stipple are gone.
+    expect(webglSrc).not.toMatch(/uUseCountMetric/);
+    expect(webglSrc).not.toMatch(/uDensityCap/);
+    expect(webglSrc).not.toMatch(/uStipplePeriod/);
+    expect(webglSrc).not.toMatch(/aHit/);
 
     const shaderSrc = (await import('../../src/swimlane/shaders.ts?raw')).default as string;
-    expect(shaderSrc).toMatch(/mix\(1\.0, uColor\.a \* cov, uSrcOver\)/);
-    expect(shaderSrc).not.toMatch(/\baDim\b/);
-    expect(shaderSrc).not.toMatch(/\bvDim\b/);
-    // Per-pipe count-hit (center-in-column); zebra only for non-extended hits.
-    expect(shaderSrc).toMatch(/uUseCountMetric/);
-    expect(shaderSrc).toMatch(/abs\(vScreenPos\.x - center\) <= 0\.5/);
-    expect(shaderSrc).toMatch(/uDensityCap/);
-    expect(shaderSrc).toMatch(/min\(1\.0, vHit \* vStippleAlt \/ max\(uDensityCap, 1\.0\)\)/);
-    expect(shaderSrc).toMatch(/in float aHit/);
-    expect(webglSrc).toMatch(/bindAttribLocation\(program, 3, 'aHit'\)/);
-    expect(webglSrc).toMatch(/vertexAttrib1f\(3, 1\)/);
-    expect(webglSrc).toMatch(/collapseSameXTicks/);
-    expect(shaderSrc).toMatch(/rawW >= 1\.0 \|\| uSrcOver > 0\.5/);
-    // Pan-stable CSS-px stripes (not screen x) — same event keeps odd/even under pan;
-    // period ≈ round(dpr) keeps zebra readable when every device column is filled.
-    expect(shaderSrc).toMatch(/vStippleAlt/);
-    expect(shaderSrc).toMatch(/uStipplePeriod/);
-    expect(shaderSrc).toMatch(/floor\(\(\(lX \+ rX\) \* 0\.5\) \/ dt\)/);
-    expect(shaderSrc).toMatch(/floor\(worldCol \/ max\(uStipplePeriod, 1\.0\)\)/);
-    expect(shaderSrc).not.toMatch(/mod\(floor\(vScreenPos\.x\), 2\.0\)/);
-    // Sub-pixel ticks: continuous center±0.5 (no floor/ceil thrash under fractional pan).
-    expect(shaderSrc).toMatch(/if \(extW < 1\.0\)/);
-    expect(shaderSrc).toMatch(/screenL = c - 0\.5/);
-    expect(shaderSrc).toMatch(/screenR = c \+ 0\.5/);
-    expect(shaderSrc).toMatch(/if \(screenR <= screenL\) screenR = screenL \+ 1\.0/);
-    expect(webglSrc).toMatch(/uStipplePeriod/);
-    expect(webglSrc).toMatch(/Math\.max\(1, Math\.round\(dpr\)\)/);
+    // A tick is the only degenerate encoded pair (encoder contract) - no extra attribute.
+    expect(shaderSrc).toMatch(/vTick = \(lX == rX\) \? 1\.0 : 0\.0;/);
+    // Pixel-snapped bar, round(dpr) device px wide.
+    expect(shaderSrc).toMatch(/tickWpx = max\(1\.0, uTickWidthPx\)/);
+    expect(shaderSrc).toMatch(/screenL = tickL;/);
+    expect(shaderSrc).toMatch(/screenR = tickL \+ tickWpx;/);
+    // A covered column converges to uTickBand for any density: 1 - (1 - band)^(bars per px).
+    expect(shaderSrc).toMatch(/1\.0 - pow\(1\.0 - uTickBand, overlap\)/);
+    // Premultiplied output; durables carry alpha 0 in the shared pass.
+    expect(shaderSrc).toMatch(/uColor\.a \* tickK \* cov/);
+    expect(shaderSrc).not.toMatch(/uUseCountMetric/);
+    expect(shaderSrc).not.toMatch(/vStippleAlt/);
+    expect(shaderSrc).not.toMatch(/uDensityCap/);
+    expect(shaderSrc).not.toMatch(/aHit/);
+    // Canvas keeps the stipple constant; the WebGL shader must not read it.
     expect(thinEventAlternateFactor).toBe(TICK_ALTERNATE_FACTOR);
-    expect(thinEventAlternateFactor).toBe(0.4);
-
-    // 2-point zoom-adaptive density cap: wide median ↔ cap=1 at median gap.
-    // ~10 events per ref column at W=1024 over [0,100] (gap 0.01, dtWide≈0.0977).
-    const dense = Array.from({ length: 10_001 }, (_, i) => i * 0.01);
-    const densCap = buildTickDensityCap(dense, 0, 100);
-    expect(densCap.dtOne).toBeCloseTo(0.01, 5);
-    expect(densCap.capWide).toBeGreaterThan(1);
-    expect(sampleTickDensityCap(densCap, densCap.dtWide)).toBeCloseTo(densCap.capWide, 5);
-    expect(sampleTickDensityCap(densCap, densCap.dtOne)).toBe(1);
-    const midDt = Math.exp(0.5 * (Math.log(densCap.dtWide) + Math.log(densCap.dtOne)));
-    const midCap = sampleTickDensityCap(densCap, midDt);
-    expect(midCap).toBeGreaterThan(1);
-    expect(midCap).toBeLessThan(densCap.capWide);
-    // Wider than the 1024-column anchor: cap keeps growing (a frozen capWide clips white).
-    const wideDt = densCap.dtWide * 4;
-    const wideCap = sampleTickDensityCap(densCap, wideDt);
-    const logWide = Math.log(densCap.dtWide);
-    const logOne = Math.log(densCap.dtOne);
-    const wideT = (logWide - Math.log(wideDt)) / (logWide - logOne);
-    expect(wideCap).toBeCloseTo(Math.exp((1 - wideT) * Math.log(densCap.capWide)), 5);
-    expect(wideCap).toBeGreaterThan(densCap.capWide * 2);
-    expect(tickDensityDim(8, 1)).toBe(1);
-    expect(tickDensityDim(8, 2)).toBe(1);
   });
 
-  it('PR-RENDER-065: duration-0 encodes as a degenerate pair (no ULP width) (#205)', () => {
-    // Tick width is no longer encoded: the mesh carries aTick and the vertex shader paints a
-    // fixed pixel-snapped bar, so the pair must not depend on the timestamp magnitude/ULP.
+  it('PR-RENDER-065: duration-0 encodes a degenerate pair; durables keep a width (#205)', () => {
+    // Tick width is not encoded: the vertex shader detects the degenerate pair and paints a
+    // fixed-width bar, so the pair must not depend on the timestamp magnitude / float32 ULP.
     for (const base of [0, 4300, 10_000_000, 1e9]) {
       for (const t of [base, base + 0.606, base + 0.606 * 39]) {
         const [a, b] = encodeIntervalPair(t, 0, 0);
         expect(a).toBe(b);
       }
     }
+    // Durables must stay distinguishable from a tick: a duration below the float32 ULP of the
+    // timestamp still gets the >= 1 ns nudge, so the pair never collapses.
+    const [a, b] = encodeIntervalPair(10_000_000, 0.1, 0);
+    expect(b).toBeGreaterThan(a);
+    expect(b - a).toBeGreaterThanOrEqual(1);
   });
 
   it('PR-RENDER-066: dense ticks use continuous density LOD with similarity alternate (#205)', async () => {
@@ -1638,7 +1589,8 @@ describe('PR-RENDER: lane chrome color', () => {
     // WebGL: single additive mesh (no tickChunks / density VBO rebuild).
     const webglSrc = (await import('../../src/swimlane/WebGlSwimlaneRenderer.ts?raw'))
       .default as string;
-    expect(webglSrc).toMatch(/createChunksFromPairs\(gl, pairs, collapsed\?\.hits\)/);
+    expect(webglSrc).toMatch(/createChunksFromPairs\(gl, pairs\)/);
+    expect(webglSrc).not.toMatch(/collapsed\?\.hits/);
     expect(webglSrc).not.toMatch(/tickChunks/);
     expect(webglSrc).not.toMatch(/rebuildTickLodMeshes/);
     expect(webglSrc).not.toMatch(/createDensityChunksFromMarks/);
@@ -1662,6 +1614,27 @@ describe('PR-RENDER: lane chrome color', () => {
     expect(densityMarks).not.toMatch(/eventPaintRect/);
     expect(canvasSrc).not.toMatch(/TICK_DENSITY_BAND_SCALE/);
     expect(canvasSrc).not.toMatch(/partitionTickLodByRuns/);
+
+    // 2-point zoom-adaptive density cap (Canvas only now): wide median -> cap=1 at the
+    // median gap. ~10 events per ref column at W=1024 over [0,100] (gap 0.01, dtWide~0.0977).
+    const dense = Array.from({ length: 10_001 }, (_, i) => i * 0.01);
+    const densCap = buildTickDensityCap(dense, 0, 100);
+    expect(densCap.dtOne).toBeCloseTo(0.01, 5);
+    expect(densCap.capWide).toBeGreaterThan(1);
+    expect(sampleTickDensityCap(densCap, densCap.dtWide)).toBeCloseTo(densCap.capWide, 5);
+    expect(sampleTickDensityCap(densCap, densCap.dtOne)).toBe(1);
+    const midDt = Math.exp(0.5 * (Math.log(densCap.dtWide) + Math.log(densCap.dtOne)));
+    const midCap = sampleTickDensityCap(densCap, midDt);
+    expect(midCap).toBeGreaterThan(1);
+    expect(midCap).toBeLessThan(densCap.capWide);
+    // Wider than the 1024-column anchor: the cap keeps growing (a frozen capWide clips white).
+    const wideDt = densCap.dtWide * 4;
+    const wideCap = sampleTickDensityCap(densCap, wideDt);
+    const logWide = Math.log(densCap.dtWide);
+    const logOne = Math.log(densCap.dtOne);
+    const wideT = (logWide - Math.log(wideDt)) / (logWide - logOne);
+    expect(wideCap).toBeCloseTo(Math.exp((1 - wideT) * Math.log(densCap.capWide)), 5);
+    expect(wideCap).toBeGreaterThan(densCap.capWide * 2);
   });
 
   it('PR-RENDER-036: ClearType label backdrop matches the fill and mutes to gray', async () => {

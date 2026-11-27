@@ -133,7 +133,7 @@ void main() {
   vTickA = clamp(1.0 - pow(1.0 - uTickBand, overlap), 0.0, uTickAlphaMax);
 
   float screenY = glToPixelY(pos.y);
-  // [exp] geometry no longer encodes tick density: a duration-0 tick paints exactly one device
+  // Geometry no longer encodes tick density: a duration-0 tick paints exactly one device
   // column centred on its timestamp; durables keep the exact extended span (+1 col if degenerate).
   float screenL = floor(extendedL);
   float screenR = ceil(extendedR);
@@ -197,9 +197,9 @@ void main() {
   vec2 halfSize = vec2(w * 0.5, h * 0.5);
   float dist = sdRoundBox(vScreenPos - center, halfSize, rad);
   float rrShape = clamp(0.5 - dist, 0.0, 1.0);
-  // [exp] count-hit revert: old shader - analytical length AA for every quad.
+  // Analytical length AA for durables (ticks add their density alpha on top).
   float cov = min(hCoverage, rrShape);
-  // [exp] tick ladder: premultiplied output, one blend func for the whole interval pass
+  // Tick ladder: premultiplied output, one blend func for the whole interval pass
   // (ONE, ONE_MINUS_SRC_ALPHA). Durables emit alpha 0 -> the blend degenerates to additive.
   // Ticks emit alpha = c*cov -> overlaps accumulate source-over, converging to the lane
   // colour (never white) with a gap-driven ladder: 1-(1-c)^N.
