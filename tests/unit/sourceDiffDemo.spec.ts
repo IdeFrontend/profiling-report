@@ -9,14 +9,43 @@ import {
 } from '../../src/adapters';
 import { loadReportSource } from '../../src/adapters/loadReportSource';
 import { parseNpuRep160 } from '../../src/adapters/parseNpuRep160';
+import {
+  alignSourceLines,
+  splitSourceLines,
+  type DiffRow,
+} from '../../src/ui/SourceDiff/diffAlign';
 import type { AdaptedReport, SourceCorrelationModel } from '../../src/domain/types';
 
 const DEMO = resolve(__dirname, '../../data/source-diff/demo.npu-rep');
 const SOURCE_DIR = resolve(__dirname, '../../data/source-diff');
 
+const SIDES = ['left', 'mid', 'right'] as const;
+const PRIMARY = {
+  left: 'sharpen_left.asc',
+  mid: 'sharpen_mid.asc',
+  right: 'sharpen_right.asc',
+} as const;
+const COMMON = 'sharpen_common.asc';
+
 const lineCount = (text: string): number => text.split(/\r?\n/).length;
 const signature = (text: string): string =>
   text.split(/\r?\n/).find((line) => line.includes('HwdefectFind(Mat')) ?? '';
+
+/** Hunk = one maximal run of non-'same' rows, matching the rendered diff. */
+function hunks(rows: DiffRow[]): DiffRow[][] {
+  const out: DiffRow[][] = [];
+  let current: DiffRow[] = [];
+  for (const row of rows) {
+    if (row.kind === 'same') {
+      if (current.length > 0) out.push(current);
+      current = [];
+      continue;
+    }
+    current.push(row);
+  }
+  if (current.length > 0) out.push(current);
+  return out;
+}
 
 function correlated(
   report: AdaptedReport | undefined,
@@ -37,13 +66,16 @@ describe('PR-DIFF: source-diff demo fixture', () => {
     const ids = adapted.operators?.map((o) => o.id) ?? [];
     expect(ids).toEqual(['left.npu.rep', 'mid.npu.rep', 'right.npu.rep']);
 
-    for (const side of ['left', 'mid', 'right'] as const) {
+    for (const side of SIDES) {
       const model = correlated(adapted, side)!;
       expect(model.mock).toBe(false);
-      expect(model.files[0]!.metricsColumns).toHaveLength(3);
-      const text = model.files[0]!.text;
-      expect(text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
-      expect(text).not.toContain('HwdefectFind');
+      expect(model.files).toHaveLength(2);
+      expect(model.files.map((file) => file.id)).toEqual([PRIMARY[side], COMMON]);
+      for (const file of model.files) {
+        expect(file.metricsColumns).toHaveLength(3);
+        expect(file.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
+        expect(file.text).not.toContain('HwdefectFind');
+      }
       expect(modelNeedsSourceResolve(model)).toBe(true);
     }
   });
@@ -61,7 +93,7 @@ describe('PR-DIFF: source-diff demo fixture', () => {
     }
 
     const adapted = loadReportSource(bytes);
-    for (const side of ['left', 'mid', 'right'] as const) {
+    for (const side of SIDES) {
       const model = adapted.operatorReports?.[`${side}.npu.rep`]?.swimlaneModel;
       expect(model).not.toBeNull();
       expect(model!.processes.length).toBeGreaterThan(0);
@@ -71,8 +103,9 @@ describe('PR-DIFF: source-diff demo fixture', () => {
 
   it('PR-DIFF-214: a workspace pick refills every demo leaf source', async () => {
     const adapted = loadReportSource(new Uint8Array(readFileSync(DEMO)));
+    const names = [...SIDES.map((side) => PRIMARY[side]), COMMON];
     const pick = {
-      files: ['sharpen.asc', 'sharpen_mid.asc', 'sharpen2.asc'].map((name) => ({
+      files: names.map((name) => ({
         path: `ws/kernel/${name}`,
         text: readFileSync(resolve(SOURCE_DIR, name), 'utf8'),
       })),
@@ -84,7 +117,7 @@ describe('PR-DIFF: source-diff demo fixture', () => {
       mid: correlated(adapted, 'mid')!,
       right: correlated(adapted, 'right')!,
     };
-    for (const side of ['left', 'mid', 'right'] as const) {
+    for (const side of SIDES) {
       expect(modelNeedsSourceResolve(before[side])).toBe(true);
       expect(before[side].files[0]!.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
     }
@@ -95,19 +128,47 @@ describe('PR-DIFF: source-diff demo fixture', () => {
       right: await resolveMissingSourceFiles(before.right, resolveOne),
     };
 
-    for (const side of ['left', 'mid', 'right'] as const) {
-      const text = filled[side].files[0]!.text;
+    for (const side of SIDES) {
       expect(filled[side]).not.toBe(before[side]);
+      expect(filled[side].files.map((file) => file.id)).toEqual([PRIMARY[side], COMMON]);
+      for (const file of filled[side].files) {
+        expect(file.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(false);
+      }
+      const text = filled[side].files[0]!.text;
       expect(text).toContain('HwdefectFind');
-      expect(text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(false);
       expect(modelNeedsSourceResolve(filled[side])).toBe(false);
     }
-    expect(filled.right.files[0]!.id).toBe('sharpen2.asc');
-    expect(lineCount(filled.left.files[0]!.text) - lineCount(filled.right.files[0]!.text)).toBe(5);
+    // The shared helper keeps one name across operators, so the exact-name tier
+    // of the resolver pairs the same document on every side.
+    expect(filled.left.files[1]!.text).toBe(filled.mid.files[1]!.text);
+    expect(filled.left.files[1]!.text).toBe(filled.right.files[1]!.text);
+    expect(filled.right.files[0]!.id).toBe(PRIMARY.right);
+    expect(lineCount(filled.left.files[0]!.text) - lineCount(filled.right.files[0]!.text)).toBe(1);
     expect(
-      new Set(
-        [filled.left, filled.mid, filled.right].map((model) => signature(model.files[0]!.text)),
-      ).size,
+      new Set(SIDES.map((side) => signature(filled[side].files[0]!.text))).size,
     ).toBe(3);
+
+    // Every operator pair is a real manual-check diff: at least eight hunks,
+    // each covering a pure insert, a pure delete and a one-for-one replace,
+    // with the first and the last rendered row changing too.
+    const pairs = [
+      ['left', 'mid'],
+      ['left', 'right'],
+      ['mid', 'right'],
+    ] as const;
+    for (const [leftSide, rightSide] of pairs) {
+      const rows = alignSourceLines(
+        splitSourceLines(filled[leftSide].files[0]!.text),
+        splitSourceLines(filled[rightSide].files[0]!.text),
+      );
+      const found = hunks(rows);
+      expect(found.length, `${leftSide}-${rightSide} hunks`).toBeGreaterThanOrEqual(8);
+      const kinds = new Set(found.flat().map((row) => row.kind));
+      expect(kinds, `${leftSide}-${rightSide} diff kinds`).toContain('changed');
+      expect(kinds, `${leftSide}-${rightSide} diff kinds`).toContain('onlyLeft');
+      expect(kinds, `${leftSide}-${rightSide} diff kinds`).toContain('onlyRight');
+      expect(rows[0]!.kind).not.toBe('same');
+      expect(rows[rows.length - 1]!.kind).not.toBe('same');
+    }
   });
 });

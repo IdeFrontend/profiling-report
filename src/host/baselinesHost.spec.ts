@@ -750,7 +750,10 @@ describe('createBaselinesHost', () => {
     expect(openModels).toHaveLength(4);
     for (const model of openModels) {
       expect(modelNeedsSourceResolve(model)).toBe(true);
-      expect(isMissingSourceEmbed(model!.files[0]!.text)).toBe(true);
+      expect(model!.files).toHaveLength(2);
+      for (const file of model!.files) {
+        expect(isMissingSourceEmbed(file.text)).toBe(true);
+      }
     }
     for (const entry of sourceDiff) {
       expect(baselineDisplayTitle(entry)).toContain('source-diff');
@@ -762,13 +765,18 @@ describe('createBaselinesHost', () => {
       }
       // The paths-only pack has no source text, so the view offers the workspace refill.
       if (entry.path === '/data/source-diff/demo.npu-rep') {
-        expect(pack.reportModel.sourceCorrelation?.files).toHaveLength(1);
-        expect(pack.reportModel.sourceCorrelation!.files[0].path).toBe('sharpen.asc');
-        expect(isMissingSourceEmbed(pack.reportModel.sourceCorrelation!.files[0].text)).toBe(true);
+        const files = pack.reportModel.sourceCorrelation?.files ?? [];
+        expect(files).toHaveLength(2);
+        expect(files[0]!.path).toBe('sharpen_left.asc');
+        expect(files[1]!.path).toBe('sharpen_common.asc');
+        for (const file of files) {
+          expect(isMissingSourceEmbed(file.text)).toBe(true);
+        }
         expect(modelNeedsSourceResolve(pack.reportModel.sourceCorrelation)).toBe(true);
         continue;
       }
       // The standalone leaves still embed their own source, so nothing to fill.
+      expect(pack.reportModel.sourceCorrelation?.files).toHaveLength(2);
       expect(modelNeedsSourceResolve(pack.reportModel.sourceCorrelation)).toBe(false);
     }
   });

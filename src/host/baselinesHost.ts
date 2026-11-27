@@ -672,8 +672,8 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
   // Source-diff packs: each carries its own `sourceCorrelation`, so the 源码对比
   // entry pairs against them. The fixture packs have no generated run id, so a
   // readable host name titles them. `demo.npu-rep` is listed as the paths-only
-  // example (source path, no source text); `left` stays out because the open
-  // fixture already represents it.
+  // example: two source paths per operator, no source text; `left` stays out
+  // because the open fixture already represents it.
   {
     id: 'demo-recent-6',
     name: 'source-diff mid',
