@@ -55,7 +55,7 @@ import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue'
 import DetailChevron from './DetailChevron.vue';
 import CannworkOptimizeIcon from '../CannworkOptimizeIcon.vue';
 import { cooldown } from '../../domain/cooldown';
-import type { CannbotScope, CannbotSessions } from '../../domain/cannbot';
+import type { CannbotBaselineContext, CannbotScope, CannbotSessions } from '../../domain/cannbot';
 
 const props = defineProps<{
   report: ReportViewModel | null | undefined;
@@ -282,6 +282,22 @@ const resolvedRows = computed<ResolvedBaselineRow[]>(() =>
 );
 
 const primaryRow = computed(() => resolvedRows.value[0] ?? null);
+
+const cannbotBaselines = computed<CannbotBaselineContext[]>(() =>
+  resolvedRows.value.flatMap(({ row, index, operatorId, options, model }) => {
+    if (!operatorId) return [];
+
+    const path = checkedBaselines.value.find((entry) => entry.id === row.baselineId)?.path;
+    const pack = packOf(row);
+    // For a nested pack, a missing operator must not borrow the pack's default name.
+    const operatorModel = pack?.operatorReports ? pack.operatorReports[operatorId]?.reportModel : model;
+    const rawName = operatorModel?.summary.opName;
+    const name = rawName?.trim() ? rawName : options.find((option) => option.id === operatorId)?.label;
+    return path?.trim() && name?.trim()
+      ? [{ row_number: index + 1, report_path: path, op_name: name }]
+      : [];
+  }),
+);
 
 /** The primary row's ReportViewModel — the singular comparison every surface reads. */
 const baselineModel = computed<ReportViewModel | null>(() => primaryRow.value?.model ?? null);
@@ -1770,7 +1786,7 @@ const detailTestId = computed(() => {
  * pick and the block scope, so re-deriving the baseline in the root would
  * compare the pack's default operator against the picked one.
  */
-defineExpose({ topologyModel, topologyBaseline, topologyBaselineRows });
+defineExpose({ topologyModel, topologyBaseline, topologyBaselineRows, cannbotBaselines });
 </script>
 
 <template>

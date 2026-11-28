@@ -59,6 +59,7 @@ export { newBaselineId } from './domain/baselineId';
 
 export { buildCannbotPayload, CANNBOT_PROMPT } from './domain/cannbot';
 export type {
+  CannbotBaselineContext,
   CannbotPayload,
   CannbotReportMeta,
   CannbotScope,

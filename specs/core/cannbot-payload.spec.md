@@ -7,13 +7,15 @@
 Pure function that assembles the read-only snapshot payload a host sends to the cannbot plugin (智能问答) for a report section. This library only assembles the data — invoking the plugin is the host's job.
 
 ```ts
-buildCannbotPayload(scope: CannbotScope, report?: ReportViewModel | null, meta?: CannbotReportMeta): CannbotPayload
+buildCannbotPayload(scope: CannbotScope, report?: ReportViewModel | null, meta?: CannbotReportMeta, baselineComparisons?: CannbotBaselineContext[]): CannbotPayload
 CANNBOT_PROMPT: string
 ```
 
 ## Behavior
 
 **Fixed fields and meta fallbacks.** `version` is always `'1.0'`. `report_name` / `report_path` / `collected_at` come from **meta** and default to `''` when absent; `report_id` uses `meta.id` and falls back to `meta.name`; `op_name` comes from `report.summary.opName` (`''` without a report). `prompt` is the requirement-given **CANNBOT_PROMPT** constant, carried verbatim — it declares the read-only snapshot boundary to the assistant (no cross-report baselines, no write operations, no data beyond `data`).
+
+**Baseline comparisons.** `baseline_comparisons` carries the selected baseline rows in panel order. Each entry includes its one-based `row_number`, `report_path`, and `op_name`. Rows missing a path or operator name are omitted, and the remaining rows retain their panel numbers. The field is omitted when no complete row is available.
 
 **Scope data mapping.** `scope` (`summary` / `compute` / `memory` / `roofline`) selects which `ReportViewModel` sections land in `data`:
 
