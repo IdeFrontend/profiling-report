@@ -72,6 +72,8 @@ const props = withDefaults(
     pickBaselineFile?: () => Promise<BaselinePick | null>;
     /** Recent performance reports (Add Recent view); forwarded to the BaselinePicker. */
     recentBaselines?: Baseline[];
+    /** Comparison rows exist — the picker swaps 基线对比 for 取消对比. */
+    comparing?: boolean;
   }>(),
   {
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
@@ -89,6 +91,7 @@ const props = withDefaults(
     baselines: undefined,
     pickBaselineFile: undefined,
     recentBaselines: undefined,
+    comparing: false,
   },
 );
 
@@ -108,6 +111,8 @@ const emit = defineEmits<{
   'open-user-guide': [url: string];
   'export-html': [];
   'update:baselines': [baselines: Baseline[]];
+  'compare-baselines': [baselines: Baseline[]];
+  'cancel-comparison': [];
   'open-cannwork': [];
 }>();
 
@@ -1175,8 +1180,11 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         :baselines="baselines ?? []"
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="recentBaselines"
+        :comparing="comparing"
         :locale="locale"
         @update:baselines="emit('update:baselines', $event)"
+        @compare-baselines="emit('compare-baselines', $event)"
+        @cancel-comparison="emit('cancel-comparison')"
       />
 
       <button

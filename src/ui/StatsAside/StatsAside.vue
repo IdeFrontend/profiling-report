@@ -1123,11 +1123,12 @@ const csvOnly = computed(
 const summary = computed(() => props.report?.summary);
 
 /* ===== Baseline comparison rows (对比基线, 1130 multi-row) =====
- * With any baseline checked the bar renders at least one row (基线1): a report
- * select + an operator select per row, `−` on every row but the first, and `+`
- * to add one. Row 0 is the PRIMARY — every aside value reads it; the other
- * rows surface only in the per-value hover popup. Rows are host-owned; the
- * aside renders and emits the whole edited list. */
+ * The bar renders only while comparison rows exist (基线对比 started the
+ * comparison; selecting baselines alone does not): a report select + an operator select
+ * per row, `−` on every row but the first, and `+` to add one. Row 0 is the
+ * PRIMARY — every aside value reads it; the other rows surface only in the
+ * per-value hover popup. Rows are host-owned; the aside renders and emits the
+ * whole edited list. */
 
 const checkedBaselines = computed(() => props.baselines ?? []);
 const comparisonRows = computed(() => props.baselineRows ?? []);
@@ -1863,14 +1864,15 @@ defineExpose({ topologyModel, topologyBaseline, topologyBaselineRows, cannbotBas
       </div>
 
       <!-- Comparison rows (对比基线, 1130 guide): directly under the title row,
-           above the meta line, only while baselines are checked (UI-63
-           resolved). One row per host `baselineRows` entry: 基线N + the report
-           select + the operator select; the FIRST row ends with `+` (add a
-           row) and every row after it with `−` (the first row cannot be
-           removed). The capture pointerdown closes the baselines popover via
+           above the meta line, only while comparison rows exist — selecting
+           baselines does not enter comparison; 基线对比 / Compare baselines is
+           what starts it. One row per host `baselineRows` entry: 基线N
+           + the report select + the operator select; the FIRST row ends with
+           `+` (add a row) and every row after it with `−` (the first row cannot
+           be removed). The capture pointerdown closes the baselines popover via
            the root. -->
       <div
-        v-if="checkedBaselines.length > 0"
+        v-if="comparisonRows.length > 0"
         ref="baselineBarEl"
         class="pr-aside__baseline-bar"
         :style="baselineSlotStyle"

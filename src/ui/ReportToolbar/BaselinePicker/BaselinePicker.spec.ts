@@ -18,6 +18,7 @@ const pop = () => q('[data-testid="baselines-popover"]');
 const checkRows = () => qa('.pr-baseline__item--check');
 const checks = () => qa<HTMLInputElement>('[data-testid="baseline-check"]');
 const rowNames = () => qa('.pr-baseline__name').map((el) => el.textContent ?? '');
+const button = (testId: string) => q<HTMLButtonElement>(`[data-testid="${testId}"]`);
 
 async function click(selector: string): Promise<void> {
   const el = q(selector);
@@ -55,6 +56,7 @@ describe('BaselinePicker', () => {
     baselines?: Baseline[];
     pickBaselineFile?: () => Promise<BaselinePick | null>;
     recentBaselines?: Baseline[];
+    comparing?: boolean;
     locale?: string;
     attachToBody?: boolean;
   } = {}) {
@@ -94,19 +96,30 @@ describe('BaselinePicker', () => {
     withHook.unmount();
   });
 
-  it('PR-BASELINE-002: click opens the checkbox view with the host reports and Browse', async () => {
+  it('PR-BASELINE-002: opens the checkbox view with Add report file and Compare baselines', async () => {
     const wrapper = mountPicker();
     expect(pop()).toBeNull();
     await open(wrapper);
-    expect(pop()!.textContent).toContain(t('baselineAddTitle'));
+    expect(pop()!.textContent).toContain(t('baselineLabel'));
     expect(q('[data-testid="baselines-recent-list"]')).not.toBeNull();
     expect(checks()).toHaveLength(2);
-    expect(q('[data-testid="baseline-browse"]')).not.toBeNull();
-    // The single view is the checkbox view — no radios, no footer actions beyond Browse.
+    // Footer: 添加报告文件 / Add report file + 基线对比 / Compare baselines.
+    // 添加基线 / Add baseline is deliberately absent (PR #273 requirements).
+    expect(button('baseline-browse')!.textContent).toContain(t('baselineAddReportFile'));
+    expect(button('baseline-browse')!.querySelector('.pr-icon--add-report-file')).not.toBeNull();
+    expect(button('baseline-compare')!.textContent).toContain(t('baselineCompare'));
+    expect(button('baseline-add')).toBeNull();
+    expect(button('baseline-compare')!.disabled).toBe(true);
     expect(q('[data-testid="baseline-radio"]')).toBeNull();
-    expect(q('[data-testid="baseline-add-selected"]')).toBeNull();
     expect(q('[data-testid="baseline-set-current"]')).toBeNull();
     wrapper.unmount();
+
+    // The checkbox is the design's square + white checkmark, not a dot.
+    const src = (await import('./BaselinePicker.vue?raw')).default as string;
+    expect(src).toMatch(/\.pr-baseline__check-dot\s*\{[^}]*border-radius:\s*3px/s);
+    expect(src).toMatch(
+      /\.pr-baseline__check-input:checked ~ \.pr-baseline__check-dot::after\s*\{[^}]*border:\s*solid #ffffff/s,
+    );
   });
 
   it('PR-BASELINE-003: rows render name + dimmed path; the checked state is the host list', async () => {
@@ -121,14 +134,14 @@ describe('BaselinePicker', () => {
     expect(rows[0].textContent).toContain('/workspace/.vscode/opprof/');
     expect(checks()[0].checked).toBe(true);
     expect(checks()[1].checked).toBe(false);
+    expect(button('baseline-compare')!.disabled).toBe(false);
     wrapper.unmount();
   });
 
-  it('PR-BASELINE-023: checking a row emits the appended list; unchecking removes it — the state is host-owned', async () => {
+  it('PR-BASELINE-023: a checkbox toggle applies immediately; the state is host-owned', async () => {
     const wrapper = mountPicker();
     await open(wrapper);
-    // A real host applies each emitted list back through the prop — the
-    // picker keeps no private state.
+    // A real host applies each emitted list back through the prop.
     const applyEmitted = async () => {
       const emitted = wrapper.emitted('update:baselines');
       expect(emitted).toBeTruthy();
@@ -172,13 +185,13 @@ describe('BaselinePicker', () => {
     expect(rows).toHaveLength(3);
     expect(rows[2].textContent).toContain('picked.npu-rep');
     expect(checks()[2].checked).toBe(true);
-    // Unchecking an extra row removes it from the list.
+    // Unchecking an extra row removes it from the host list immediately.
     await setChecked(checks()[2], false);
     expect(wrapper.emitted('update:baselines')).toEqual([[[]]]);
     wrapper.unmount();
   });
 
-  it('PR-BASELINE-025: Browse appends the pick as a checked row; the same path is not re-added', async () => {
+  it('PR-BASELINE-025: Add report file appends the pick as a checked row; the same path is not re-added', async () => {
     const pick: BaselinePick = { path: '/data/extra.npu-rep', name: 'extra.npu-rep' };
     const hook = vi.fn().mockResolvedValue(pick);
     const wrapper = mountPicker({ pickBaselineFile: hook });
@@ -211,7 +224,7 @@ describe('BaselinePicker', () => {
     wrapper.unmount();
   });
 
-  it('PR-BASELINE-006: Browse calls pickBaselineFile; a null result emits nothing', async () => {
+  it('PR-BASELINE-006: Add report file calls pickBaselineFile; a null result emits nothing', async () => {
     const hook = vi.fn().mockResolvedValue(null);
     const wrapper = mountPicker({ pickBaselineFile: hook });
     await open(wrapper);
@@ -255,14 +268,17 @@ describe('BaselinePicker', () => {
     await open(wrapper);
     expect(wrapper.get('[data-testid="toggle-baselines"]').attributes('aria-expanded')).toBe('true');
     expect(wrapper.get('[data-testid="toggle-baselines"]').classes()).toContain('pr-toolbar__icon-btn--on');
-    expect(q('[data-testid="baseline-browse"]')!.textContent).toContain(t('baselineBrowse'));
+    expect(pop()!.textContent).toContain(t('baselineLabel'));
+    expect(button('baseline-browse')!.textContent).toContain(t('baselineAddReportFile'));
+    expect(button('baseline-compare')!.textContent).toContain(t('baselineCompare'));
     wrapper.unmount();
 
     const en = mountPicker({ locale: 'en' });
     expect(en.get('[data-testid="toggle-baselines"]').attributes('aria-label')).toBe('Baselines');
     await open(en);
-    expect(pop()!.textContent).toContain('Select baselines');
-    expect(q('[data-testid="baseline-browse"]')!.textContent).toContain('Browse');
+    expect(pop()!.textContent).toContain('Baseline');
+    expect(button('baseline-browse')!.textContent).toContain('Add report file');
+    expect(button('baseline-compare')!.textContent).toContain('Compare baselines');
     en.unmount();
   });
 
@@ -316,7 +332,7 @@ describe('BaselinePicker', () => {
     wrapper.unmount();
   });
 
-  it('PR-BASELINE-026: without recentBaselines the view shows the empty copy and Browse still works', async () => {
+  it('PR-BASELINE-026: without recentBaselines the view shows the empty copy; the footer still works', async () => {
     const wrapper = mountPicker({ recentBaselines: [] });
     await open(wrapper);
     expect(q('[data-testid="baselines-recent-empty"]')!.textContent!.trim()).toBe(
@@ -324,6 +340,7 @@ describe('BaselinePicker', () => {
     );
     expect(checks()).toHaveLength(0);
     expect(q('[data-testid="baseline-browse"]')).not.toBeNull();
+    expect(button('baseline-compare')!.disabled).toBe(true);
     wrapper.unmount();
   });
 
@@ -384,7 +401,29 @@ describe('BaselinePicker', () => {
     wrapper.unmount();
   });
 
-  it('PR-BASELINE-030: Browse prefers the pick mtime for pickedAt', async () => {
+  it('PR-BASELINE-036: browsing a path already listed in recentBaselines reuses that row id', async () => {
+    const treeRow: Baseline = {
+      id: 'tree-1',
+      name: 'known.npu-rep',
+      path: '/data/known.npu-rep',
+      operators: [{ id: 'matmul', label: 'matmul' }],
+    };
+    const hook = vi.fn().mockResolvedValue({ path: treeRow.path, name: 'known.npu-rep' });
+    const wrapper = mountPicker({ recentBaselines: [treeRow], pickBaselineFile: hook });
+    await open(wrapper);
+    // The tree row is visible but unchecked; browsing the same path checks it
+    // with the tree record's id (MSTT keys baselineReports/operators by it).
+    expect(checks()[0].checked).toBe(false);
+    await click('[data-testid="baseline-browse"]');
+    await flushPromises();
+    const appended = wrapper.emitted('update:baselines')![0][0] as Baseline[];
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toMatchObject({ id: 'tree-1', path: treeRow.path });
+    expect(appended[0].operators).toEqual(treeRow.operators);
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-030: Add report file prefers the pick mtime for pickedAt', async () => {
     const stamp = new Date(2026, 10, 5, 12, 30).getTime();
     const hook = vi.fn().mockResolvedValue({
       path: '/data/m.npu-rep',
@@ -397,6 +436,61 @@ describe('BaselinePicker', () => {
     await flushPromises();
     const appended = (wrapper.emitted('update:baselines')![0][0] as Baseline[])[0];
     expect(appended.pickedAt).toBe(stamp);
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-032: Compare baselines starts comparing with the checked set and closes the popover', async () => {
+    const wrapper = mountPicker();
+    await open(wrapper);
+    expect(button('baseline-compare')!.disabled).toBe(true);
+
+    await setChecked(checks()[0], true);
+    // The host applies the emitted list back through the prop.
+    await wrapper.setProps({ baselines: [recentBaselines[0]] });
+    expect(button('baseline-compare')!.disabled).toBe(false);
+    await click('[data-testid="baseline-compare"]');
+    expect(wrapper.emitted('compare-baselines')).toEqual([[[recentBaselines[0]]]]);
+    // Compare only signals the intent; the immediate toggle already emitted the list.
+    expect(wrapper.emitted('update:baselines')).toHaveLength(1);
+    expect(pop()).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-034: while comparing, Compare is replaced by Cancel comparison', async () => {
+    const wrapper = mountPicker({ comparing: true });
+    await open(wrapper);
+    // One right-hand slot: Cancel comparison replaces Compare baselines.
+    expect(button('baseline-compare')).toBeNull();
+    const cancel = button('baseline-cancel-compare')!;
+    expect(cancel.textContent).toContain(t('baselineCancelCompare'));
+    expect(cancel.parentElement?.classList.contains('pr-baseline__foot-right')).toBe(true);
+    // The left slot keeps Add report file.
+    expect(button('baseline-browse')).not.toBeNull();
+    cancel.click();
+    await nextTick();
+    expect(wrapper.emitted('cancel-comparison')).toHaveLength(1);
+    // The picker stays open and the checked set is untouched.
+    expect(pop()).not.toBeNull();
+    expect(wrapper.emitted('update:baselines')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('PR-BASELINE-035: checking a path already on the host list reuses the committed entry', async () => {
+    // A committed entry with the same path but a different id/operators must
+    // not be replaced by the display row (review finding on PR #273).
+    const committed: Baseline = {
+      id: 'committed-1',
+      name: 'r1',
+      path: recentBaselines[0].path,
+      operators: [{ id: 'matmul', label: 'matmul' }],
+      pickedAt: 123,
+    };
+    const wrapper = mountPicker({ baselines: [committed] });
+    await open(wrapper);
+    expect(checks()[0].checked).toBe(true);
+    // Re-asserting the checked state is a no-op: no emit, no replacement.
+    await setChecked(checks()[0], true);
+    expect(wrapper.emitted('update:baselines')).toBeUndefined();
     wrapper.unmount();
   });
 });

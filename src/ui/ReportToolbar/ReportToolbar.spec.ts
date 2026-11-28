@@ -749,7 +749,7 @@ describe('ReportToolbar', () => {
     wrapper.unmount();
   });
 
-  it('PR-TOOLBAR-033: baselines hidden without the hook; forwards the checked-set emits', async () => {
+  it('PR-TOOLBAR-033: baselines hidden without the hook; forwards the immediate checked-set emits', async () => {
     const hidden = mount(ReportToolbar, { props: defaultProps });
     expect(hidden.find('[data-testid="toggle-baselines"]').exists()).toBe(false);
     hidden.unmount();
@@ -776,19 +776,50 @@ describe('ReportToolbar', () => {
     firstCheck.checked = true;
     firstCheck.dispatchEvent(new Event('change'));
     await nextTick();
+    // The checkbox applies immediately; there is no Add baseline step.
     expect(wrapper.emitted('update:baselines')).toEqual([
       [[{ id: 'r1', name: 'r1', path: '/r1' }]],
     ]);
     // The host applies the emitted list back through the prop.
     await wrapper.setProps({ baselines: [{ id: 'r1', name: 'r1', path: '/r1' }] });
 
-    // Browse forwards the appended checked list too.
+    // 添加报告文件 / Add report file appends the pick immediately too.
     (document.querySelector('[data-testid="baseline-browse"]') as HTMLElement).click();
     await nextTick();
     await flushPromises();
     const appended = wrapper.emitted('update:baselines')![1][0] as { id: string; name: string; path: string }[];
     expect(appended).toHaveLength(2);
     expect(appended[1]).toMatchObject({ name: 'x', path: '/x.npu-rep' });
+    wrapper.unmount();
+  });
+
+  it('PR-TOOLBAR-035: forwards compare-baselines and cancel-comparison', async () => {
+    const wrapper = mount(ReportToolbar, {
+      props: {
+        ...defaultProps,
+        baselines: [],
+        pickBaselineFile: vi.fn().mockResolvedValue(null),
+        recentBaselines: [{ id: 'r1', name: 'r1', path: '/r1' }],
+      },
+    });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    const check = document.querySelector<HTMLInputElement>('[data-testid="baseline-check"]')!;
+    check.checked = true;
+    check.dispatchEvent(new Event('change'));
+    await nextTick();
+    expect(wrapper.emitted('update:baselines')).toEqual([[[{ id: 'r1', name: 'r1', path: '/r1' }]]]);
+    // The host applies the emitted list back through the prop.
+    await wrapper.setProps({ baselines: [{ id: 'r1', name: 'r1', path: '/r1' }] });
+    (document.querySelector('[data-testid="baseline-compare"]') as HTMLElement).click();
+    await nextTick();
+    expect(wrapper.emitted('compare-baselines')).toEqual([[[{ id: 'r1', name: 'r1', path: '/r1' }]]]);
+
+    // Compare closes the popover. While comparing, the same slot is Cancel.
+    await wrapper.setProps({ comparing: true });
+    await wrapper.get('[data-testid="toggle-baselines"]').trigger('click');
+    (document.querySelector('[data-testid="baseline-cancel-compare"]') as HTMLElement).click();
+    await nextTick();
+    expect(wrapper.emitted('cancel-comparison')).toHaveLength(1);
     wrapper.unmount();
   });
 

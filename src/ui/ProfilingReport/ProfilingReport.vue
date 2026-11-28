@@ -177,7 +177,8 @@ const props = withDefaults(defineProps<{
    * Comparison rows (对比基线): every row is a baseline + the pack operator it
    * compares from; row 0 is the primary and drives the aside, the other rows
    * surface only in the per-value hover popups. Host-owned like the checked
-   * set. Absent/empty = the root defaults one row to the first checked baseline.
+   * set. Absent/empty = the plain, non-comparing state; 基线对比 / Compare
+   * baselines creates one default row for the first checked baseline.
    */
   baselineRows?: BaselineRow[];
   /**
@@ -1925,16 +1926,15 @@ const fullscreenBaselineTopology = ref<MemoryTopologyModel | null>(null);
 const fullscreenBaselineRows = ref<{ label: string; model: MemoryTopologyModel }[]>([]);
 
 /**
- * The picker's checkbox set IS the baseline list (host-owned, one view). The
- * root adds two rules on top (review PR #234):
+ * The picker's checkboxes ARE the baseline list (host-owned, immediate
+ * toggles). The root adds two rules on top:
  *
- * 1. Invariant: the selection can never point at a baseline that is not in
- *    the list — an uncheck of the selected report clears it.
- * 2. Default row: a checked set with no rows always gets ONE comparison row —
- *    the just-added baseline, else the first. The watcher runs `immediate`,
- *    so a host-restored non-empty list with no rows mounts with that default
- *    row (PR-ROOT-052); an add onto a non-empty list does not add another row
- *    (the aside's `+` is the user's explicit way to add one).
+ * 1. Invariant: a row can never reference a baseline that is not in the
+ *    list — removing a report from the list drops its comparison rows.
+ * 2. Comparison starts only from 基线对比 (`onCompareBaselines`), which
+ *    defaults ONE row to the first checked baseline; checking baselines
+ *    without comparing leaves the aside in its plain state (no comparison
+ *    bar, no deltas). `取消对比` clears the rows and keeps the baseline list.
  */
 /** Stable ids for root-created rows (the aside's `+` creates its own). Derived
  *  from the host-owned rows: the aside remounts on close/open while the rows
@@ -1948,28 +1948,32 @@ function nextBaselineRowId(): string {
 
 watch(
   () => [props.baselines, props.baselineRows] as const,
-  ([list, rows], oldPair) => {
+  ([list, rows]) => {
     const items = list ?? [];
     const current = rows ?? [];
-    // Invariant: a row can only reference a checked baseline (an uncheck
-    // removes its rows; the remaining checked set keeps at least one).
+    // Invariant: a row can only reference a checked baseline.
     const kept = current.filter((r) => items.some((b) => b.id === r.baselineId));
-    if (kept.length !== current.length) {
-      emit('update:baselineRows', kept);
-      return;
-    }
-    // The design's default: with any baseline checked there is always at least
-    // one comparison row (基线1), defaulting to the added/first baseline.
-    if (items.length > 0 && kept.length === 0) {
-      const prev = oldPair?.[0] ?? [];
-      const added = items.find((b) => !prev.some((p) => p.id === b.id));
-      emit('update:baselineRows', [
-        { id: nextBaselineRowId(), baselineId: (added ?? items[0])!.id, operatorId: '' },
-      ]);
-    }
+    if (kept.length !== current.length) emit('update:baselineRows', kept);
   },
   { immediate: true },
 );
+
+/** 基线对比: enter comparison mode with the checked set, one row on its first baseline. */
+function onCompareBaselines(list: Baseline[]): void {
+  if (list.length === 0) return;
+  if ((props.baselineRows ?? []).length > 0) return;
+  emit('update:baselineRows', [
+    { id: nextBaselineRowId(), baselineId: list[0]!.id, operatorId: '' },
+  ]);
+}
+
+/** 取消对比: leave comparison mode; the baseline list stays. */
+function onCancelComparison(): void {
+  emit('update:baselineRows', []);
+}
+
+/** Comparison rows exist ⇒ the picker swaps 基线对比 for 取消对比. */
+const baselineComparing = computed(() => (props.baselineRows ?? []).length > 0);
 
 /** The aside's Baseline / Operator bar was pressed: close the baselines
  * popover (review PR #234 — the bar stops pointerdown, so the popover's own
@@ -2121,6 +2125,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       :baselines="baselines"
       :pick-baseline-file="pickBaselineFile"
       :recent-baselines="recentBaselines"
+      :comparing="baselineComparing"
       @update:search-query="onSearch"
       @update:selected-operator-id="onOperatorChange"
       @update:selected-timeline-trace-id="onTimelineTraceChange"
@@ -2138,6 +2143,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
       @open-user-guide="emit('open-user-guide', $event)"
       @export-html="onExportHtml"
       @update:baselines="emit('update:baselines', $event)"
+      @compare-baselines="onCompareBaselines"
+      @cancel-comparison="onCancelComparison"
     />
 
     <p
@@ -2182,6 +2189,7 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           :baselines="baselines"
           :pick-baseline-file="pickBaselineFile"
           :recent-baselines="recentBaselines"
+          :comparing="baselineComparing"
           @update:search-query="onSearch"
           @update:selected-operator-id="onOperatorChange"
           @update:selected-timeline-trace-id="onTimelineTraceChange"
@@ -2198,6 +2206,8 @@ defineExpose({ selectEventById, viewState, selectedOperatorId });
           @open-user-guide="emit('open-user-guide', $event)"
           @export-html="onExportHtml"
           @update:baselines="emit('update:baselines', $event)"
+          @compare-baselines="onCompareBaselines"
+          @cancel-comparison="onCancelComparison"
         />
         <OperatorOverview
           v-if="showOverviewTab"

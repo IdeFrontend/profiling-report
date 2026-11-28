@@ -925,6 +925,8 @@ test('PR-STATS-059: comparison tiles go vertical before their diff chips overlap
   await expect(page.getByTestId('playground-ready')).toBeVisible();
   await page.getByTestId('toggle-baselines').click();
   for (let i = 0; i < 5; i++) await page.locator('.pr-baseline__item--check').nth(i).click();
+  // 基线对比 starts the comparison; checking alone does not.
+  await page.getByTestId('baseline-compare').click();
   await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
   await expect(page.locator('[data-testid="stats-summary"].pr-cards--compare')).toBeVisible({
     timeout: 15_000,
@@ -1114,12 +1116,11 @@ test.describe('PR-E2E-019 closed-dock click ensure-scroll', () => {
   });
 });
 
-test('PR-E2E-020: the baselines link opens the checkbox view; checked state is session-only', async ({ page }) => {
+test('PR-E2E-020: the baselines link opens the picker; checked state is session-only', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
   await expect(page.getByTestId('toggle-baselines')).toBeVisible();
 
-  // The "baselines" link opens the picker. The single view is the checkbox
-  // list of the app's reports — nothing checked initially.
+  // The "baselines" link opens the picker: the five demo reports, none checked.
   await page.getByTestId('baselines-link').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   await expect(page.getByTestId('baselines-recent-list')).toBeVisible();
@@ -1131,21 +1132,25 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   // OPPROF boilerplate id (review PR #234).
   await expect(page.locator('.pr-baseline__name').nth(0)).toHaveText('out.rep 2026-11-08 14:25');
   await expect(page.locator('.pr-baseline__name').nth(1)).toHaveText('example.rep 2026-11-09 11:18');
-  // Only Browse in the footer — no Add Selected / radios / other actions.
-  await expect(page.getByTestId('baseline-browse')).toBeVisible();
-  await expect(page.getByTestId('baseline-add-selected')).toHaveCount(0);
+  // Footer: 添加报告文件 / Add report file + 基线对比 / Compare baselines.
+  // 添加基线 / Add baseline is deliberately absent (PR #273 requirements).
+  await expect(page.getByTestId('baseline-browse')).toContainText('添加报告文件');
+  await expect(page.getByTestId('baseline-compare')).toBeDisabled();
+  await expect(page.getByTestId('baseline-add')).toHaveCount(0);
 
-  // Check two reports: the checked set survives closing and reopening.
+  // Checking applies immediately; no comparison until 基线对比.
   const checkRows = page.locator('.pr-baseline__item--check');
   await checkRows.nth(0).click();
   await checkRows.nth(1).click();
+  await expect(page.getByTestId('baseline-compare')).toBeEnabled();
+  await expect(page.getByTestId('stats-baseline-bar')).toHaveCount(0);
   await page.getByTestId('baselines-close').click();
   await page.getByTestId('toggle-baselines').click();
   await expect(page.getByTestId('baseline-check').nth(0)).toBeChecked();
   await expect(page.getByTestId('baseline-check').nth(1)).toBeChecked();
   await expect(page.getByTestId('baseline-check').nth(2)).not.toBeChecked();
 
-  // Browse appends the picked file as a checked row.
+  // 添加报告文件 / Add report file appends the pick as a checked row immediately.
   const chooserPromise = page.waitForEvent('filechooser');
   await page.getByTestId('baseline-browse').click();
   const chooser = await chooserPromise;
@@ -1161,6 +1166,11 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   await expect(page.locator('.pr-baseline__name').last()).toHaveText(
     /^baseline-a\.npu-rep \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/,
   );
+
+  // 基线对比 applies and closes the picker; the comparison starts.
+  await page.getByTestId('baseline-compare').click();
+  await expect(page.getByTestId('baselines-popover')).toHaveCount(0);
+  await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
 
   // Session-only: a reload starts with nothing checked again.
   await page.reload();
@@ -1290,9 +1300,11 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
     buffer: outRep,
   });
 
-  // The browsed report is the FIRST added baseline, so it autoselects (review
-  // PR #234) — no manual pick needed; the host adapts its retained bytes,
-  // wraps them in a demo multi-operator pack, and hands that to the aside.
+  // The browsed report is checked immediately; 基线对比 starts the comparison
+  // and closes the picker — the host adapts its retained bytes, wraps them in a
+  // demo multi-operator pack, and hands that to the aside.
+  await page.getByTestId('baseline-compare').click();
+  await expect(page.getByTestId('baselines-popover')).toHaveCount(0);
   await expect(page.getByTestId('aside-baseline-select')).not.toHaveAttribute('data-value', '');
   await expect(page.locator('.pr-diff').first()).toBeVisible();
 
@@ -1309,6 +1321,7 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
   const widths = new Set(compared.map((b) => Math.round(b.width)));
   expect(widths.size, 'all cards span the same full width').toBe(1);
   // Pressing the aside bar closes the open baselines popover (review PR #234).
+  await page.getByTestId('toggle-baselines').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await expect(page.getByTestId('baselines-popover')).toHaveCount(0);
@@ -1406,6 +1419,7 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
   await page.getByTestId('toggle-baselines').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   const checkRows = page.locator('.pr-baseline__item--check');
+  // Each checkbox applies immediately; the running comparison is untouched.
   for (let i = 0; i < 5; i++) {
     await checkRows.nth(i).click();
   }
@@ -1438,17 +1452,18 @@ test('PR-E2E-022: the aside Baseline bar hides until checked and follows the che
   await expect(page.getByTestId('stats-baseline-bar')).toHaveCount(0);
   await expect(page.getByTestId('aside-baseline-select')).toHaveCount(0);
 
-  // Check two reports: the row appears, and the FIRST add autoselects that
-  // baseline (review PR #234) — no manual pick needed.
+  // Check two demo reports and start the comparison: 基线对比 defaults row 1 to
+  // the first checked baseline.
   await page.getByTestId('toggle-baselines').click();
   const checkRows = page.locator('.pr-baseline__item--check');
   await checkRows.nth(0).click();
+  await checkRows.nth(1).click();
+  await page.getByTestId('baseline-compare').click();
   await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute(
     'data-value',
     'demo-recent-1',
   );
-  await checkRows.nth(1).click();
 
   // Pick one globally through the aside: the value follows, the row's dropdown
   // lists exactly the checked set (no Not-selected sentinel), and the press
@@ -1463,8 +1478,8 @@ test('PR-E2E-022: the aside Baseline bar hides until checked and follows the che
   expect(firstId).not.toBe('');
   await expect(page.getByTestId('aside-baseline-operator-select')).toHaveAttribute('data-value', 'matmul');
 
-  // Unchecking the selected report drops its row; the remaining checked set
-  // keeps the design's default row, now pointing at the other report.
+  // Unchecking the other report leaves the selected row untouched and drops
+  // it from the row's dropdown options.
   await page.getByTestId('toggle-baselines').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   await page.locator('.pr-baseline__item--check').nth(0).click();
@@ -1484,6 +1499,7 @@ test('PR-E2E-022: the aside Baseline bar hides until checked and follows the che
   await page.getByTestId('toggle-baselines').click();
   await page.locator('.pr-baseline__item--check').nth(0).click();
   await page.locator('.pr-baseline__item--check').nth(1).click();
+  await page.getByTestId('baseline-compare').click();
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
   await expect(page.locator('[data-testid^="pipe-diff-"]').first()).toBeVisible();
@@ -1518,11 +1534,13 @@ test('PR-E2E-022: the aside Baseline bar hides until checked and follows the che
 
 test('PR-E2E-023: the aside Operator dropdown defaults to the matching (else first) operator, keeps a session pick, and resets on baseline change', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
-  // Check two reports and select the first.
+  // Check two demo reports, start the comparison, then select the second
+  // baseline in the aside.
   await page.getByTestId('toggle-baselines').click();
   const checkRows = page.locator('.pr-baseline__item--check');
   await checkRows.nth(0).click();
   await checkRows.nth(1).click();
+  await page.getByTestId('baseline-compare').click();
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid^="aside-baseline-option-"]').nth(1).click();
 
@@ -1542,6 +1560,8 @@ test('PR-E2E-023: the aside Operator dropdown defaults to the matching (else fir
   // operators, so its Operator select defaults to the first of them.
   const chooserPromise = page.waitForEvent('filechooser');
   // Re-open the popover — the aside presses above closed it (review PR #234).
+  // 添加报告文件 stays in the left slot while comparing; its pick is added to
+  // the checked set immediately, without restarting the comparison.
   await page.getByTestId('toggle-baselines').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   await page.getByTestId('baseline-browse').click();
@@ -1561,10 +1581,11 @@ test('PR-E2E-023: the aside Operator dropdown defaults to the matching (else fir
 
 test('PR-E2E-024: PIPE comparison keeps one bar with the baseline delta; details show delta badges', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
-  // Check a demo baseline and select it in the aside.
+  // Check a demo baseline and start the comparison.
   await page.getByTestId('toggle-baselines').click();
   await page.locator('.pr-baseline__item--check').nth(0).click();
-  // The default row points at the checked report — the comparison is live.
+  await page.getByTestId('baseline-compare').click();
+  // The default row points at the first checked report — the comparison is live.
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', 'demo-recent-1');
 
   // PIPE rows: ONE bar per metric. Comparison mode adds the baseline delta on
@@ -1663,6 +1684,7 @@ test('PR-E2E-024: PIPE comparison keeps one bar with the baseline delta; details
   await page.goto('/?fixture=gelu');
   await page.getByTestId('toggle-baselines').click();
   await page.locator('.pr-baseline__item--check').nth(0).click();
+  await page.getByTestId('baseline-compare').click();
   // The default row points at the checked report — comparison is live.
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', 'demo-recent-1');
   // Default side is Cube (aic): every row carries ONE bar; emulate rows have no
@@ -1693,10 +1715,12 @@ const TOPO_BADGE_PITCH = 6.6;
 
 test('PR-E2E-026: multiple comparison rows paint only the first inline; hover lists every baseline', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
-  // Check two demo baselines; the first becomes the design's default row.
+  // Check two demo baselines; 基线对比 starts the comparison with the first
+  // checked one as the default row.
   await page.getByTestId('toggle-baselines').click();
   await page.locator('.pr-baseline__item--check').nth(0).click();
   await page.locator('.pr-baseline__item--check').nth(1).click();
+  await page.getByTestId('baseline-compare').click();
   await expect(page.getByTestId('stats-baseline-row-1')).toBeVisible();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', 'demo-recent-1');
 
@@ -1769,6 +1793,7 @@ test('PR-STATS-061b: widening restores the report text first, then the operator 
   // joins as a second row with a DIFFERENT, shorter report name.
   await page.locator('.pr-baseline__item--check').nth(4).click();
   await page.locator('.pr-baseline__item--check').nth(1).click();
+  await page.getByTestId('baseline-compare').click();
   await expect(page.getByTestId('stats-baseline-bar')).toBeVisible();
   await page.getByTestId('baseline-row-add').click();
   await expect(page.getByTestId('stats-baseline-row-2')).toBeVisible();
@@ -1892,6 +1917,7 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
     await checkRows.nth(i).click();
     await expect(checkRows.nth(i).locator('input')).toBeChecked();
   }
+  await page.getByTestId('baseline-compare').click();
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid="aside-baseline-option-demo-recent-1"]').click();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute(
@@ -2162,16 +2188,21 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
     for (const id of persisted) expect(frame).toContain(id);
   }
 
-  // Unchecking the row's report drops that row; the remaining checked set keeps
-  // the default row, so the badges stay. Clearing every baseline removes the
-  // comparison bar and the badges with it.
+  // Unchecking the selected report drops its row; 基线对比 reapplies the
+  // remaining checked set and re-defaults the row, so the badges stay. Clearing
+  // every baseline and applying removes the comparison bar and the badges.
   // (The details click above closed the picker popover - reopen it.)
   await page.getByTestId('toggle-baselines').click();
   await expect(page.locator('.pr-baseline__item--check')).toHaveCount(5);
-  // The in-place sampling above left demo-recent-2 selected - uncheck it.
+  // The in-place sampling above left demo-recent-2 selected - uncheck it
+  // (the row is removed immediately, which prunes its comparison row).
   await page.locator('.pr-baseline__item--check').nth(1).click();
+  await page.getByTestId('baseline-compare').click();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', 'demo-recent-1');
   await expect(badges.first()).toBeVisible();
+  // Compare closes the picker — reopen it before clearing the checked set.
+  await page.getByTestId('toggle-baselines').click();
+  await expect(page.getByTestId('baselines-popover')).toBeVisible();
   const checkedRows = page.locator('.pr-baseline__item--check:has(input:checked)');
   while ((await checkedRows.count()) > 0) {
     await checkedRows.first().click();
