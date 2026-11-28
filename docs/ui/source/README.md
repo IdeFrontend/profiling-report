@@ -34,3 +34,7 @@ Original Chinese filenames are recorded only in [`manifest.yaml`](./manifest.yam
 
 - **Component crops**: `src/ui/{Component}/visual/` with `provenance.yaml` pointing back here
 - **Index**: [`../DESIGN_INDEX.md`](../DESIGN_INDEX.md)
+
+## Annotations in mockups
+
+Filled purple rectangles (#C068FA) with white text are annotations, not controls. Each one carries a leader line that ends in a dot. Read the element the dot points at. Do not copy the purple as a button color, a background, or a palette token.

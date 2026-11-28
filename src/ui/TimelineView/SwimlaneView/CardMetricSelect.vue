@@ -123,6 +123,12 @@ function onDocPointerDown(e: PointerEvent) {
   open.value = false;
 }
 
+function onRootKeydown(e: KeyboardEvent): void {
+  // A closed select must let Escape reach compare-mode's window listener.
+  if (e.key === 'Escape' && !open.value) return;
+  e.stopPropagation();
+}
+
 function onKeydown(e: KeyboardEvent) {
   // Always stop so Enter/Space never bubble to the Card strip (PR-SWIMVIEW-011).
   if (
@@ -238,7 +244,7 @@ watch(
     :data-value="modelValue"
     @click.stop
     @pointerdown.stop
-    @keydown.stop
+    @keydown="onRootKeydown"
   >
     <button
       ref="triggerRef"

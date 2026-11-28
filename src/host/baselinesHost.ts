@@ -68,6 +68,51 @@ function hashKey(key: string): number {
   return h;
 }
 
+/**
+ * 源码对比 (source diff) compares per-line metrics too. Cloning the base pack
+ * would paint an all-equal diff, so each demo operator varies its correlation
+ * numbers deterministically. File ids, paths, text and line counts stay put.
+ */
+function varyDemoSourceCorrelation(
+  model: AdaptedReport['reportModel'],
+  seed: number,
+  opIndex: number,
+): void {
+  const correlation = model.sourceCorrelation;
+  if (!correlation) return;
+  for (const file of [correlation.assembly, ...correlation.files]) {
+    for (const line of file.lines) {
+      for (const [key, value] of Object.entries(line.values)) {
+        if (typeof value !== 'number') continue;
+        const h = hashKey(`${opIndex}:${seed}:${file.id}:${line.line}:${key}`);
+        const kind = file.metricsColumns.find((c) => c.id === key)?.kind;
+        if (kind === 'bar' || kind === 'percent') {
+          // A ratio stays inside 0..1; a zero line takes a small visible bar.
+          const pct = (h % 25) - 12 || 1;
+          const scaled = value === 0 ? ((h % 9) + 1) / 100 : value * (1 + pct / 100);
+          let next = Math.min(1, Math.max(0, scaled));
+          // A full bar clamps back to 1 and would show a zero delta.
+          if (next === value) next = value > 0 ? Math.max(0, value - 0.01) : Math.min(1, 0.01);
+          line.values[key] = next;
+          continue;
+        }
+        // A count moves by at least one so rounding can never erase the diff.
+        const pct = (h % 25) - 12 || 1;
+        const scaled = value === 0 ? (h % 9) + 1 : value * (1 + pct / 100);
+        if (Number.isInteger(value)) {
+          const rounded = Math.round(scaled);
+          line.values[key] = Math.max(
+            0,
+            rounded === value ? value + Math.sign(scaled - value) : rounded,
+          );
+        } else {
+          line.values[key] = scaled;
+        }
+      }
+    }
+  }
+}
+
 /** Percentages clamp at 100, like the PIPE demo ratios clamp at 1. */
 function clampPercent(n: number): number {
   return Math.min(100, Math.max(0, n));
@@ -253,7 +298,9 @@ function demoDetailValue(key: string, i: number, mixed: number): number {
   if (key.endsWith('total_cycles')) return 8000 + r * 100;
   if (key.endsWith('(us)')) return 8 + r;
   if (key.endsWith('(GB/s)')) return 60 + r * 10;
-  if (key.endsWith('(KB)')) return 4 + r;
+  // The .485 offset keeps every KB seed at least 0.02 off the sample's own
+  // 8 / 16 / 16.125 KB values at every operator scale.
+  if (key.endsWith('(KB)')) return 4.485 + r;
   if (key.endsWith('_number') || key.includes('instr') || key.endsWith('fops')) {
     return 1000 + r * 100;
   }
@@ -275,6 +322,20 @@ function demoDetailCategories(mixed: number, vary: number): {
       return { key, value: String(value * vary) };
     }),
   }));
+}
+
+/** Base PIPE ratio per row id. Sample.rep's own rows read 0.01–0.55; every base
+ *  sits at least 0.016 clear of that row's value so the operator offset and the
+ *  baseline jitter can never round the badge delta to zero (DEMO-DIFF audit). */
+const DEMO_PIPE_BASE: Record<string, number> = {
+  cube: 0.44, mte1: 0.3, mte2: 0.46, mte3: 0.28,
+  fixp: 0.26, scalar: 0.28, icache: 0.04, vector: 0.12,
+};
+
+/** A row's base plus a ±0.0012 seed jitter: consecutive demo ids must not share
+ *  a bar, but the jitter stays far inside the safety margin above. */
+function demoPipeRatio(id: string, mixed: number, i: number): number {
+  return (DEMO_PIPE_BASE[id] ?? 0.3) + (((mixed >>> (i % 20)) % 5) - 2) * 0.0006;
 }
 
 /**
@@ -347,12 +408,11 @@ function ensureDemoMetrics(model: AdaptedReport['reportModel'], seed: number): v
         ['vector', 'Vector', 'vector', side],
       );
     }
-    // Ratios stay below 0.56 so no operator scale (up to 1.6) hits the 1.0
-    // clamp — a clamped pair painted the SAME delta for two operators. The
-    // 0.29/0.03/10 ramp is searched so no scaled row lands within the 2dp
-    // display step of sample.rep's own pipe ratio (a suppressed delta).
+    // Each row id keeps a base ratio at least 0.016 clear of sample.rep's own
+    // ratio for that row at every operator offset; the mixed seed adds a small
+    // per-row jitter so neighbouring baselines never collapse onto one value.
     model.pipeOccupancy = pipeSeed.map(([id, label, colorKey, side], i) => {
-      const ratio = 0.29 + (((mixed >>> (i % 20)) + i) % 10) * 0.03;
+      const ratio = demoPipeRatio(id, mixed, i);
       return {
         id,
         label,
@@ -422,9 +482,12 @@ function scaleMeasuredMetrics(model: AdaptedReport['reportModel'], scale: number
       if (typeof side.measuredGBs === 'number') side.measuredGBs *= scale;
     }
   }
+  // PIPE ratios take a bounded per-operator offset instead of the 0.35..1.6
+  // multiplier: a multiplied ratio sweeps across the open report's own values
+  // and lands inside the 2dp display step, which suppresses the badge.
   for (const p of model.pipeOccupancy ?? []) {
-    p.ratio = Math.min(1, Math.max(0, p.ratio * scale));
-    if (typeof p.absoluteValue === 'number') p.absoluteValue *= scale;
+    p.ratio = Math.min(1, Math.max(0, p.ratio + (scale - 1) * 0.02));
+    if (typeof p.absoluteValue === 'number') p.absoluteValue = p.ratio;
   }
   // Memory-topology plates and the L2 peak are percentages (0..100), so they
   // clamp there instead of at 1. `label` is rewritten with the numeric value:
@@ -554,6 +617,7 @@ export function withDemoOperatorPack(report: AdaptedReport, variationKey = ''): 
   const operatorReports: Record<string, AdaptedReport> = {};
   DEMO_BASELINE_OPERATORS.forEach((name, i) => {
     const model = structuredClone(base);
+    varyDemoSourceCorrelation(model, seed, i);
     scaleMeasuredMetrics(model, DEMO_OPERATOR_SCALES[i], seed);
     ensureDemoBlockTopology(model, seed, i);
     operatorReports[name] = { reportModel: model, swimlaneModel: report.swimlaneModel };
@@ -605,6 +669,29 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
     path: '/data/roofline_multi.npu-rep',
     pickedAt: new Date(2026, 10, 10, 13, 52, 6).getTime(),
   },
+  // Source-diff packs: each carries its own `sourceCorrelation`, so the 源码对比
+  // entry pairs against them. The fixture packs have no generated run id, so a
+  // readable host name titles them. `demo.npu-rep` is listed as the paths-only
+  // example: two source paths per operator, no source text; `left` stays out
+  // because the open fixture already represents it.
+  {
+    id: 'demo-recent-6',
+    name: 'source-diff mid',
+    path: '/data/source-diff/mid.npu-rep',
+    pickedAt: new Date(2026, 10, 11, 9, 25).getTime(),
+  },
+  {
+    id: 'demo-recent-7',
+    name: 'source-diff right',
+    path: '/data/source-diff/right.npu-rep',
+    pickedAt: new Date(2026, 10, 11, 9, 30).getTime(),
+  },
+  {
+    id: 'demo-recent-8',
+    name: 'source-diff paths only',
+    path: '/data/source-diff/demo.npu-rep',
+    pickedAt: new Date(2026, 10, 11, 9, 35).getTime(),
+  },
 ];
 
 /**
@@ -620,7 +707,7 @@ export const DEMO_RECENT_BASELINES: Baseline[] = [
 export function createBaselinesHost(
   input: () => HTMLInputElement | null,
 ): BaselinesHost {
-const baselines = ref<Baseline[]>([]);
+  const baselines = ref<Baseline[]>([]);
   /** Comparison rows (report + operator per row); row 0 is the aside's primary. */
   const baselineRows = ref<BaselineRow[]>([]);
   /**

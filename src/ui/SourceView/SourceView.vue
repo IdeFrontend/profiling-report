@@ -46,6 +46,8 @@ const props = withDefaults(
     locale?: string;
     suduWorkerUrl?: string;
     userGuideUrl?: string;
+    /** Show the workspace picker button (at least one file needs source text). */
+    workspaceAvailable?: boolean;
   }>(),
   {
     session: 0,
@@ -53,11 +55,13 @@ const props = withDefaults(
     locale: undefined,
     suduWorkerUrl: '/sudu/worker.js',
     userGuideUrl: DEFAULT_USER_GUIDE_URL,
+    workspaceAvailable: false,
   },
 );
 
 const emit = defineEmits<{
   'open-user-guide': [url: string];
+  'pick-workspace': [];
 }>();
 
 type PaneApi = {
@@ -691,8 +695,11 @@ onBeforeUnmount(() => {
     :data-pane-bars="paneBarsTwoLine ? 'two' : 'one'"
   >
     <!-- First control bar lives on the ReportToolbar tab row (no extra margin).
-         When the host is absent (unit tests), Teleport stays disabled and renders in place. -->
+         When the host is absent (unit tests), the disabled Teleport renders in place.
+         The key forces a fresh Teleport once the host is connected: a Teleport enabled after
+         mount keeps the target it resolved to null while the host was still detached. -->
     <Teleport
+      :key="chromeHostReady ? 'host' : 'inline'"
       :disabled="!chromeHostReady"
       :to="SOURCE_CHROME_HOST"
     >
@@ -818,6 +825,17 @@ onBeforeUnmount(() => {
               test-id="source-file-select"
               @update:model-value="onSourceFileChange"
             />
+            <button
+              v-if="workspaceAvailable"
+              type="button"
+              class="pr-source-view__icon-btn pr-icon-tip"
+              data-testid="source-workspace-pick"
+              :aria-label="t('sourceWorkspacePick', locale)"
+              :title="t('sourceWorkspacePick', locale)"
+              @click="emit('pick-workspace')"
+            >
+              <PrIcon name="add-baseline" />
+            </button>
           </div>
           <div class="pr-source-view__pane-bar-break" />
           <div class="pr-source-view__pane-bar-nav">
@@ -956,8 +974,10 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin: 0;
   padding: 0;
+  /* Shrink to the controls. A width of 100% inside the source toolbar row
+     pushes View to the far end, away from the Compare source button. */
+  flex: 0 1 auto;
   min-width: 0;
-  width: 100%;
   justify-content: flex-end;
   color: var(--pr-src-label);
   font-family: var(--pr-src-ui-font);

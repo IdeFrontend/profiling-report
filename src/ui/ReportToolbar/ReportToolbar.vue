@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
+import { computed, h, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue';
 import PrIcon from '../PrIcon.vue';
 import CloseButton from '../CloseButton.vue';
 import ToolbarSearch from './ToolbarSearch.vue';
 import BaselinePicker from './BaselinePicker/BaselinePicker.vue';
+import CardMetricSelect from '../TimelineView/SwimlaneView/CardMetricSelect.vue';
 import type {
   Baseline,
   BaselinePick,
@@ -20,6 +21,7 @@ import {
   normalizeDependencyDepth,
 } from '../../domain/types';
 import { t, type MessageKey } from '../../i18n';
+import { baselineDisplayTitle } from '../../domain/baselineTitle';
 import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 /* PyPTO multi-color glyphs — img, not PrIcon masks (masks kill #5291FF accents). */
 import shortcutMouseWheel from '../icons/shortcuts/mouse-scrollwheel-dark.svg';
@@ -45,7 +47,6 @@ const props = withDefaults(
     clockFreqMHz?: number;
     dependencyDepth: number;
     locale?: string;
-    title?: string;
     measureMode?: boolean;
     operators?: ReportOperator[];
     selectedOperatorId?: string | null;
@@ -60,6 +61,20 @@ const props = withDefaults(
     sourceTabEnabled?: boolean;
     /** When true, 概览 is selectable (models with operator rows). */
     overviewTabEnabled?: boolean;
+    /** Source-compare mode: swaps the source chrome for the compare controls. */
+    compareMode?: boolean;
+    /** True when a saved baseline with a source correlation exists to compare against. */
+    compareAvailable?: boolean;
+    /** Host embeds the Source surface alone: omit the view-tab strip. */
+    hideTabs?: boolean;
+    /** Compare chrome: the selected saved baseline id. */
+    primaryBaselineId?: string | null;
+    /** Compare chrome: operators of the selected baseline. */
+    compareOperators?: ReportOperator[];
+    /** Compare chrome: the selected operator id. */
+    compareOperatorId?: string | null;
+    /** Compare-only search. Kept off the timeline query. */
+    compareSearchQuery?: string;
     /**
      * Single-file HTML export. Hosts that already *are* that bundle (report-shell)
      * leave this false. Playground (and other hosts that serve the shell template)
@@ -78,10 +93,16 @@ const props = withDefaults(
     activeTab: 'timeline',
     sourceTabEnabled: false,
     overviewTabEnabled: false,
+    compareMode: false,
+    compareAvailable: false,
+    hideTabs: false,
+    primaryBaselineId: null,
+    compareOperators: undefined,
+    compareOperatorId: null,
+    compareSearchQuery: '',
     htmlExportAvailable: false,
     clockFreqMHz: undefined,
     locale: undefined,
-    title: undefined,
     operators: undefined,
     selectedOperatorId: undefined,
     timelineTraces: undefined,
@@ -109,6 +130,18 @@ const emit = defineEmits<{
   'export-html': [];
   'update:baselines': [baselines: Baseline[]];
   'open-cannwork': [];
+  'update:primaryBaselineId': [id: string];
+  'update:compareOperatorId': [id: string];
+  'compare-enter': [];
+  'compare-exit': [];
+  'compare-find-next': [];
+  'compare-find-prev': [];
+  'compare-find-search': [];
+  'compare-nav-highest': [];
+  'compare-nav-lowest': [];
+  'compare-sort-asc': [];
+  'compare-sort-desc': [];
+  'update:compareSearchQuery': [value: string];
 }>();
 
 const TIMELINE_TRACE_LABEL_KEY: Record<TimelineTraceKind, MessageKey> = {
@@ -120,6 +153,28 @@ const TIMELINE_TRACE_LABEL_KEY: Record<TimelineTraceKind, MessageKey> = {
 function timelineTraceLabel(id: TimelineTraceKind): string {
   return t(TIMELINE_TRACE_LABEL_KEY[id], props.locale);
 }
+
+/** Shared download glyph for the timeline and compare export buttons. */
+const ExportHtmlIcon = () =>
+  h(
+    'svg',
+    { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': 'true' },
+    [
+      h('path', {
+        d: 'M8 2v8M5.2 7.8 8 10.6l2.8-2.8',
+        stroke: 'currentColor',
+        'stroke-width': '1.3',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+      }),
+      h('path', {
+        d: 'M3 12.5h10',
+        stroke: 'currentColor',
+        'stroke-width': '1.3',
+        'stroke-linecap': 'round',
+      }),
+    ],
+  );
 
 function onDepthChange(event: Event) {
   // A cleared number input reads as '' — normalizeDependencyDepth turns that (and
@@ -168,6 +223,23 @@ const opTriggerRef = ref<HTMLButtonElement | null>(null);
 const opMenuRef = ref<HTMLElement | null>(null);
 
 const showOperatorSelector = computed(() => (props.operators?.length ?? 0) > 1);
+
+const compareReportOptions = computed(() => (props.baselines ?? []).map((b) => b.id));
+const compareReportLabel = (id: string): string => {
+  const baseline = props.baselines?.find((b) => b.id === id);
+  return baseline ? baselineDisplayTitle(baseline) : id;
+};
+const compareOperatorOptions = computed(() => (props.compareOperators ?? []).map((o) => o.id));
+const compareOperatorLabel = (id: string): string =>
+  props.compareOperators?.find((o) => o.id === id)?.label ?? id;
+const compareReportAriaLabel = computed(() => {
+  const id = props.primaryBaselineId;
+  return `${t('sourceDiffReport', props.locale)}: ${id ? compareReportLabel(id) : ''}`;
+});
+const compareOperatorAriaLabel = computed(() => {
+  const id = props.compareOperatorId;
+  return `${t('sourceDiffOperator', props.locale)}: ${id ? compareOperatorLabel(id) : ''}`;
+});
 const showTimelineTraceSelector = computed(() => (props.timelineTraces?.length ?? 0) > 1);
 
 /** Drop stale open state when the selector unmounts (e.g. host swaps to a single-op source). */
@@ -515,6 +587,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
 <template>
   <div
     class="pr-chrome"
+    :class="{ 'pr-chrome--compare': compareMode }"
     data-testid="report-toolbar"
   >
     <div
@@ -523,6 +596,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
       aria-hidden="true"
     />
     <nav
+      v-if="!hideTabs"
       class="pr-tabs"
       data-testid="report-tabs"
       :aria-label="t('reportViews', locale)"
@@ -594,11 +668,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
           </li>
         </ul>
       </div>
-      <span
-        v-else
-        class="pr-tabs__brand"
-        :title="title || t('tabOp', locale)"
-      >{{ title || t('tabOp', locale) }}</span>
       <button
         v-if="overviewTabEnabled"
         type="button"
@@ -1188,27 +1257,7 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
         :aria-label="t('exportHtml', locale)"
         @click="emit('export-html')"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M8 2v8M5.2 7.8 8 10.6l2.8-2.8"
-            stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M3 12.5h10"
-            stroke="currentColor"
-            stroke-width="1.3"
-            stroke-linecap="round"
-          />
-        </svg>
+        <ExportHtmlIcon />
       </button>
 
       <button
@@ -1224,12 +1273,127 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
     </div>
 
     <!-- Source first control bar (Left/Right View, Search, actions) sits on the tab
-         row — SourceView Teleports into this host (v930-source). -->
+         row — SourceView Teleports into this host (v930-source). Kept mounted (v-show,
+         not v-if) so the teleport target exists while SourceView mounts in the same
+         flush: a target resolved at mount is never re-resolved on the disabled flip. -->
     <div
-      v-else-if="activeTab === 'source'"
+      v-show="activeTab === 'source'"
       class="pr-toolbar pr-toolbar--source"
+      :class="{ 'pr-toolbar--compare': compareMode }"
       data-testid="source-chrome-host"
-    />
+    >
+      <template v-if="compareMode">
+        <div class="pr-compare__left">
+          <span class="pr-compare__title">{{ t('sourceDiffTitle', locale) }}</span>
+          <CardMetricSelect
+            variant="inline"
+            test-id-prefix="compare-report"
+            :model-value="primaryBaselineId ?? ''"
+            :options="compareReportOptions"
+            :ariaLabel="compareReportAriaLabel"
+            :label-of="compareReportLabel"
+            @update:model-value="emit('update:primaryBaselineId', $event)"
+          />
+          <CardMetricSelect
+            variant="inline"
+            test-id-prefix="compare-operator"
+            :model-value="compareOperatorId ?? ''"
+            :options="compareOperatorOptions"
+            :ariaLabel="compareOperatorAriaLabel"
+            :label-of="compareOperatorLabel"
+            @update:model-value="emit('update:compareOperatorId', $event)"
+          />
+        </div>
+        <div class="pr-compare__right">
+          <button
+            type="button"
+            class="pr-compare__exit"
+            data-testid="compare-exit"
+            @click="emit('compare-exit')"
+          >
+            {{ t('sourceDiffExit', locale) }}
+          </button>
+          <ToolbarSearch
+            class="pr-compare-search"
+            :model-value="compareSearchQuery"
+            :locale="locale"
+            input-test-id="compare-search"
+            @update:model-value="emit('update:compareSearchQuery', $event)"
+            @submit="emit('compare-find-search')"
+          />
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-find-next"
+            :aria-label="t('sourceFindNext', locale)"
+            :title="t('sourceFindNext', locale)"
+            @click="emit('compare-find-next')"
+          >
+            <PrIcon name="chevron-down" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-find-prev"
+            :aria-label="t('sourceFindPrev', locale)"
+            :title="t('sourceFindPrev', locale)"
+            @click="emit('compare-find-prev')"
+          >
+            <PrIcon name="chevron-up" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-nav-highest"
+            :aria-label="t('sourceNavHighest', locale)"
+            :title="t('sourceNavHighest', locale)"
+            @click="emit('compare-nav-highest')"
+          >
+            <PrIcon name="to-top" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-sort-asc"
+            :aria-label="t('sourceSortAsc', locale)"
+            :title="t('sourceSortAsc', locale)"
+            @click="emit('compare-sort-asc')"
+          >
+            <PrIcon name="sort-asc" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-sort-desc"
+            :aria-label="t('sourceSortDesc', locale)"
+            :title="t('sourceSortDesc', locale)"
+            @click="emit('compare-sort-desc')"
+          >
+            <PrIcon name="sort-desc" />
+          </button>
+          <button
+            type="button"
+            class="pr-toolbar__icon-btn"
+            data-testid="compare-nav-lowest"
+            :aria-label="t('sourceNavLowest', locale)"
+            :title="t('sourceNavLowest', locale)"
+            @click="emit('compare-nav-lowest')"
+          >
+            <PrIcon name="to-bottom" />
+          </button>
+        </div>
+      </template>
+      <button
+        v-else
+        type="button"
+        class="pr-compare__btn pr-compare__btn--text"
+        data-testid="compare-enter"
+        :disabled="!compareAvailable"
+        @click="emit('compare-enter')"
+      >
+        {{ t('sourceDiffEnter', locale) }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -1289,22 +1453,6 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   gap: 2px;
   flex-shrink: 0;
   min-width: 0;
-}
-
-/* Matches .pr-op-select__trigger: the brand and the OP selector occupy the same
-   slot, so a pack with one operator must not read smaller than a multi-op pack. */
-.pr-tabs__brand {
-  max-width: 200px;
-  margin-right: 8px;
-  padding: 4px 8px;
-  overflow: hidden;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 26px;
-  color: #ffffff;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  opacity: 0.95;
 }
 
 .pr-op-select {
@@ -1439,6 +1587,14 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   overflow-y: visible;
 }
 
+/* Compare chrome reuses the Timeline band: same 60px height, 8px padding and
+   #3a3a3a bottom edge, so the two toolbars line up (PR-TOOLBAR-041). */
+.pr-chrome--compare {
+  border-bottom-color: #3a3a3a;
+  min-height: 60px;
+  padding: 8px;
+}
+
 /* Source first control bar: same tab row, no extra margin/padding (v930-source). */
 .pr-toolbar--source {
   flex: 1 1 auto;
@@ -1447,6 +1603,17 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   margin: 0 0 0 auto;
   padding: 0;
   gap: 0;
+}
+
+.pr-toolbar--compare {
+  /* Wrap the action group to a second row instead of cropping it; at >=1280 the
+     single-row layout is unchanged. */
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-left: 0;
+  gap: 8px;
+  /* Wrapping removes horizontal overflow, so nothing needs clipping here. */
+  overflow-x: visible;
 }
 
 /* Search + zoom stay fully visible; rightmost icon actions are what get clipped. */
@@ -2087,5 +2254,103 @@ function onOptionKeydown(e: KeyboardEvent, id: string) {
   width: 24px;
   height: 24px;
   flex-shrink: 0;
+}
+
+/* Source-compare chrome (v930 sketch): replaces the single-file source toolbar. */
+.pr-compare__left,
+.pr-compare__right {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.pr-compare__left {
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.pr-compare__right {
+  gap: 8px;
+  margin-left: auto;
+}
+
+.pr-compare__title {
+  font-size: 12px;
+  font-weight: 400;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.pr-compare__exit {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: #343434;
+  color: #b4b4b4;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pr-compare__exit:hover {
+  background: #3d3d3d;
+}
+
+.pr-compare__btn:focus-visible,
+.pr-compare__exit:focus-visible {
+  outline: 1px solid var(--pr-accent, #5291ff);
+  outline-offset: 1px;
+}
+
+.pr-compare__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #b2b2b2;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pr-compare__btn:hover {
+  color: var(--pr-text, #e6e6e6);
+  border-color: #3a3a3a;
+}
+
+.pr-compare__btn--text {
+  /* The button is the host's first child; the teleported View caption follows it. */
+  margin-right: 8px;
+  white-space: nowrap;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: #343434;
+  color: #b4b4b4;
+  font-size: 12px;
+}
+
+.pr-compare__btn--text:hover {
+  background: #3d3d3d;
+  color: #b4b4b4;
+}
+
+/* No baseline picked: the entry stays visible but greyed, as the 1130 mockup asks. */
+.pr-compare__btn--text:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pr-compare__btn--text:disabled:hover {
+  background: #343434;
+  color: #b4b4b4;
 }
 </style>

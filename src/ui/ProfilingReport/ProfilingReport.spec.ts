@@ -2,14 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, markRaw, nextTick } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import ProfilingReport from './ProfilingReport.vue';
+import { nextCompareBaselineId } from './compareBaselines';
 import TimelineView from '../TimelineView/TimelineView.vue';
 import SourceView from '../SourceView/SourceView.vue';
+import SourceDiffView from '../SourceDiff/SourceDiffView.vue';
 import ContextMenu from '../ContextMenu/ContextMenu.vue';
 import ReportToolbar from '../ReportToolbar/ReportToolbar.vue';
 import * as adapters from '../../adapters';
+import { t } from '../../i18n';
 import { emptyReportViewModel } from '../../adapters/adaptRep';
 import { mockSourceCorrelation } from '../../adapters/sourceCorrelation/mockSourceCorrelation';
 import { MISSING_SOURCE_EMBED_PREFIX } from '../../adapters/sourceCorrelation/resolveSourceFile';
+import { resolveMissingSourceFiles, workspaceSourceResolver } from '../../adapters';
+import { sourceWorkspaceFromTexts } from '../../export/stitchHtmlReport';
 import { firstLabelledMemoryTopology } from '../../adapters/memoryTopology';
 import { topologyFromArchDiagramMetrics } from '../../adapters/emulateMemoryTopology';
 import { CANNBOT_PROMPT } from '../../domain/cannbot';
@@ -19,33 +24,42 @@ import type {
   Baseline,
   BaselineRow,
   MemoryTopologyModel,
+  ReportCapability,
+  SourceCorrelationModel,
   SwimlaneModel,
 } from '../../domain/types';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED } from '../panelResize';
 
 vi.mock('@sudu-ide/code-review', () => ({
   newWorkerPool: vi.fn(async () => ({ getNumThreads: () => 3 })),
-  newEditor: vi.fn(() => ({
-    setModel: vi.fn(),
-    setVScrollListener: vi.fn(),
-    setVScrollVisible: vi.fn(),
-    setCaretListener: vi.fn(),
-    setPosition: vi.fn(),
-    setTheme: vi.fn(),
-    getPosition: vi.fn(() => ({ lineNumber: 1, column: 1 })),
-    revealLine: vi.fn(),
-    revealLineInCenter: vi.fn(),
-    focus: vi.fn(),
-    dispose: vi.fn(),
-    getDevicePixelRatio: () => 1,
-    getLineHeight: () => 18,
-    getEditorHeight: () => 200,
-    getMaxVScrollPos: () => 0,
-    getNumLines: () => 10,
-    getFontSize: () => 12,
-    getFontFamily: () => 'monospace',
-    setVScrollPos: vi.fn(),
-  })),
+  // Stateful caret: source-line echoes read it back after setPosition.
+  newEditor: vi.fn(() => {
+    let line = 1;
+    return {
+      setModel: vi.fn(),
+      setVScrollListener: vi.fn(),
+      setVScrollVisible: vi.fn(),
+      setCaretListener: vi.fn(),
+      setPosition: vi.fn((position: { lineNumber: number }) => {
+        line = position.lineNumber;
+      }),
+      setTheme: vi.fn(),
+      getPosition: vi.fn(() => ({ lineNumber: line, column: 1 })),
+      highlightRanges: vi.fn(),
+      revealLine: vi.fn(),
+      revealLineInCenter: vi.fn(),
+      focus: vi.fn(),
+      dispose: vi.fn(),
+      getDevicePixelRatio: () => 1,
+      getLineHeight: () => 18,
+      getEditorHeight: () => 200,
+      getMaxVScrollPos: () => 0,
+      getNumLines: () => 10,
+      getFontSize: () => 12,
+      getFontFamily: () => 'monospace',
+      setVScrollPos: vi.fn(),
+    };
+  }),
   newTextModel: vi.fn(() => ({ dispose: vi.fn() })),
 }));
 
@@ -83,6 +97,11 @@ function depsModel(): SwimlaneModel {
     minTime: 0,
     maxTime: 1000,
   };
+}
+
+function markedCorrelation(marker: string): SourceCorrelationModel {
+  const base = { ...mockSourceCorrelation(), mock: false };
+  return { ...base, files: [{ ...base.files[0]!, text: marker }] };
 }
 
 function topologyReport() {
@@ -2917,40 +2936,6 @@ describe('ProfilingReport scaffold', () => {
     }
   });
 
-  it('PR-ROOT-036: adapter-loaded single-op brand shows the short op name, else the file name', async () => {    const { loadOutRepBuffer } = await import('../../../tests/helpers/fixtures');
-    const adapterLoaded = mount(ProfilingReport, {
-      props: { title: 'gather_2d.npu-rep', source: loadOutRepBuffer() },
-    });
-    await flushPromises();
-
-    expect(adapterLoaded.get('.pr-tabs__brand').text()).toBe('add_custom');
-    adapterLoaded.unmount();
-
-    const signature = 'void gather_2d_custom<float, unsigned int>(float*, unsigned int*)';
-    const withSignature = mount(ProfilingReport, {
-      props: {
-        title: 'gather_2d.npu-rep',
-        swimlaneModel: depsModel(),
-        reportModel: {
-          ...emptyReportViewModel(),
-          summary: { ...emptyReportViewModel().summary, opName: signature },
-        },
-      },
-    });
-    expect(withSignature.get('.pr-tabs__brand').text()).toBe('gather_2d_custom');
-    withSignature.unmount();
-
-    const withoutOpName = mount(ProfilingReport, {
-      props: {
-        title: 'gather_2d.npu-rep',
-        swimlaneModel: depsModel(),
-        reportModel: emptyReportViewModel(),
-      },
-    });
-    expect(withoutOpName.get('.pr-tabs__brand').text()).toBe('gather_2d.npu-rep');
-    withoutOpName.unmount();
-  });
-
   it('PR-ROOT-029: a Parameter frame opens Source at its line, or line 1', async () => {
     const correlation = mockSourceCorrelation();
     const file = correlation.files[0]!;
@@ -3719,5 +3704,1667 @@ describe('ProfilingReport scaffold', () => {
   it('tokens.css has no partial light-theme override block (#267)', async () => {
     const css = (await import('../tokens.css?raw')).default as string;
     expect(css).not.toMatch(/\.pr-root\[data-theme=['"]light['"]\]/);
+  });
+
+  it('PR-DIFF-204: compare mode pairs the open report with the checked saved baseline and resets on tab change', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const baselineCorrelation = { ...correlation };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: baselineCorrelation },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-compare',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    const view = wrapper.findComponent({ name: 'SourceDiffView' });
+    expect(view.exists()).toBe(true);
+    expect(view.props('baseline')).toStrictEqual(baselineCorrelation);
+    expect(wrapper.get('[data-testid="compare-report-select"]').text()).toBe('a.rep');
+    expect(wrapper.find('select').exists()).toBe(false);
+
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-DIFF-204: compare search stays off the timeline query, and a new source or a disabled Source tab exits compare', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-compare-reset',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    const search = wrapper.get('[data-testid="compare-search"]');
+    await search.setValue('kernel');
+    await nextTick();
+    expect((wrapper.vm as unknown as { viewState: { searchQuery: string } }).viewState.searchQuery).toBe('');
+    expect((search.element as HTMLInputElement).value).toBe('kernel');
+
+    await wrapper.setProps({
+      reportModel: {
+        ...emptyReportViewModel(),
+        sourceCorrelation: { ...correlation, mock: true },
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    await wrapper.setProps({ source: new Uint8Array([1, 2, 3, 4]) });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-040: compareOnly opens compare without tabs; default keeps both tabs', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+    };
+    const settings = {
+      title: 'compare-only',
+      swimlaneModel: depsModel(),
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+      capabilities: ['sourceTab'] as ReportCapability[],
+      baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+      baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+      baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+    };
+
+    const standard = mount(ProfilingReport, { props: settings });
+    expect(standard.find('[data-testid="tab-timeline"]').exists()).toBe(true);
+    expect(standard.find('[data-testid="tab-source"]').exists()).toBe(true);
+    standard.unmount();
+
+    const wrapper = mount(ProfilingReport, { props: { ...settings, compareOnly: true } });
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.findAll('.pr-tabs__tab')).toHaveLength(0);
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="compare-report-select"]').text()).toBe('a.rep');
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.findAll('.pr-tabs__tab')).toHaveLength(0);
+    wrapper.unmount();
+
+    const single = mount(ProfilingReport, {
+      props: { ...settings, compareOnly: true, swimlaneModel: undefined, baselineRows: [], baselineReports: {} },
+    });
+    await nextTick();
+    await nextTick();
+    expect(single.findAll('.pr-tabs__tab')).toHaveLength(0);
+    expect(single.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(single.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+    expect(single.find('[data-testid="source-diff-pane-host-left"]').exists()).toBe(true);
+    expect(single.find('[data-testid="no-timeline"]').exists()).toBe(false);
+    single.unmount();
+  });
+
+  it('PR-ROOT-054: the right pane follows the selected baseline row into its pack operator correlation', async () => {
+    const correlation = markedCorrelation('open');
+    const packCorrelation = markedCorrelation('pack');
+    const matmulCorrelation = markedCorrelation('matmul');
+    const reluCorrelation = markedCorrelation('relu');
+    const adapted = (sourceCorrelation: typeof correlation): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const pack: AdaptedReport = {
+      ...adapted(packCorrelation),
+      reportModel: {
+        ...adapted(packCorrelation).reportModel,
+        summary: { ...emptyReportViewModel().summary, opName: 'matmul' },
+      },
+      operatorReports: { matmul: adapted(matmulCorrelation), relu: adapted(reluCorrelation) },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'baseline-backed',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          summary: { ...emptyReportViewModel().summary, opName: 'relu' },
+          sourceCorrelation: correlation,
+        },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+
+    // No row operator → the open report's OpName picks the pack operator.
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(reluCorrelation);
+    expect(wrapper.find('select').exists()).toBe(false);
+
+    // A row operator wins and re-pairs the right pane.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'matmul' }],
+    });
+    await nextTick();
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(matmulCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054b: the compare pair skips a row whose pack has no source correlation', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const secondCorrelation = { ...mockSourceCorrelation(), mock: false };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-skip-empty',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [
+          { id: 'b-1', name: '', path: '/data/first.rep' },
+          { id: 'b-2', name: '', path: '/data/second.rep' },
+        ],
+        baselineRows: [
+          { id: 'brow-1', baselineId: 'b-1', operatorId: '' },
+          { id: 'brow-2', baselineId: 'b-2', operatorId: '' },
+        ],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: { swimlaneModel: null, reportModel: emptyReportViewModel() },
+          },
+          'b-2': {
+            baselineId: 'b-2',
+            report: {
+              swimlaneModel: null,
+              reportModel: { ...emptyReportViewModel(), sourceCorrelation: secondCorrelation },
+            },
+          },
+        },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+
+    const enter = wrapper.find('[data-testid="compare-enter"]');
+    expect(enter.attributes('disabled')).toBeUndefined();
+    await enter.trigger('click');
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="compare-report-select"]').text()).toBe('second.rep');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(secondCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054c: the compare pair falls back to a checked baseline with no row', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const secondCorrelation = { ...mockSourceCorrelation(), mock: false };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-checkbox-fallback',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [
+          { id: 'b-1', name: '', path: '/data/first.rep' },
+          { id: 'b-2', name: '', path: '/data/second.rep' },
+        ],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: { swimlaneModel: null, reportModel: emptyReportViewModel() },
+          },
+          'b-2': {
+            baselineId: 'b-2',
+            report: {
+              swimlaneModel: null,
+              reportModel: { ...emptyReportViewModel(), sourceCorrelation: secondCorrelation },
+            },
+          },
+        },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+
+    const enter = wrapper.find('[data-testid="compare-enter"]');
+    expect(enter.attributes('disabled')).toBeUndefined();
+    await enter.trigger('click');
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="compare-report-select"]').text()).toBe('second.rep');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(secondCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-055: a checked baseline without source opens compare on an empty right pane', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const run = (baselineCorrelation: typeof correlation | undefined) => mount(ProfilingReport, {
+      props: {
+        title: 'compare-entry',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: {
+              swimlaneModel: null,
+              reportModel: { ...emptyReportViewModel(), sourceCorrelation: baselineCorrelation },
+            },
+          },
+        },
+      },
+    });
+
+    const noBaseline = run(undefined);
+    await noBaseline.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    const enter = noBaseline.get('[data-testid="compare-enter"]');
+    expect(enter.attributes('disabled')).toBeUndefined();
+    await enter.trigger('click');
+    await nextTick();
+    expect(noBaseline.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+    expect(noBaseline.find('[data-testid="source-diff-pane-host-left"]').exists()).toBe(true);
+    expect(noBaseline.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+    noBaseline.unmount();
+
+    const withBaseline = run(correlation);
+    await withBaseline.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(withBaseline.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    expect(withBaseline.find('[data-testid="compare-enter"]').attributes('disabled')).toBeUndefined();
+    withBaseline.unmount();
+  });
+
+  it('PR-ROOT-055b: an empty baseline with a workspace hook disables the right workspace button', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-empty-workspace',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: { swimlaneModel: null, reportModel: emptyReportViewModel() },
+          },
+        },
+        pickSourceWorkspace: vi.fn(async () => null),
+        locale: 'en-US',
+      },
+    });
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="compare-enter"]').attributes('disabled')).toBeUndefined();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+    const workspace = wrapper.get('[data-testid="source-diff-workspace-right"]');
+    expect(workspace.attributes('disabled')).toBeDefined();
+    expect(workspace.attributes('title')).toBe(t('sourceDiffWorkspaceBaselineDisabled', 'en-US'));
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054d: compare-report-select lists checked baselines, switches the right pane and resets the operator', async () => {
+    const correlation = markedCorrelation('open');
+    const firstCorrelation = markedCorrelation('first-matmul');
+    const reluCorrelation = markedCorrelation('first-relu');
+    const secondCorrelation = markedCorrelation('second-matmul');
+    const secondReluCorrelation = markedCorrelation('second-relu');
+    const adapted = (sourceCorrelation: typeof correlation): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-report-select',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [
+          {
+            id: 'b-1',
+            name: '',
+            path: '/data/a.rep',
+            operators: [
+              { id: 'matmul', label: 'MatMul' },
+              { id: 'relu', label: 'Relu' },
+            ],
+          },
+          {
+            id: 'b-2',
+            name: '',
+            path: '/data/b.rep',
+            operators: [
+              { id: 'matmul', label: 'MatMul' },
+              { id: 'relu', label: 'Relu' },
+            ],
+          },
+        ],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: {
+              ...adapted(firstCorrelation),
+              operatorReports: { matmul: adapted(firstCorrelation), relu: adapted(reluCorrelation) },
+            },
+          },
+          'b-2': {
+            baselineId: 'b-2',
+            report: {
+              ...adapted(secondCorrelation),
+              operatorReports: {
+                matmul: adapted(secondCorrelation),
+                relu: adapted(secondReluCorrelation),
+              },
+            },
+          },
+        },
+      },
+    });
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    const select = wrapper.get('[data-testid="compare-report-select"]');
+    expect(select.attributes('data-value')).toBe('b-1');
+
+    await wrapper.get('[data-testid="compare-operator-select"]').get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-operator-option-relu"]')?.click();
+    await nextTick();
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(reluCorrelation);
+
+    // Re-picking the same report keeps the operator pick.
+    await select.get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-report-option-b-1"]')?.click();
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-operator-select"]').attributes('data-value')).toBe('relu');
+
+    await select.get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-report-option-b-2"]')?.click();
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-2');
+    expect(wrapper.get('[data-testid="compare-operator-select"]').attributes('data-value')).toBe('matmul');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(secondCorrelation);
+
+    // A non-default operator does not survive into the next report.
+    await wrapper.get('[data-testid="compare-operator-select"]').get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-operator-option-relu"]')?.click();
+    await nextTick();
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(secondReluCorrelation);
+
+    // A new open report clears the pair; re-opening seeds the default b-1 and operator.
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: { ...mockSourceCorrelation(), mock: false } },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-1');
+    expect(wrapper.get('[data-testid="compare-operator-select"]').attributes('data-value')).toBe('matmul');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(firstCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054f: auto-seeded compare upgrades when a later pack gains source, until an explicit pick', async () => {
+    const correlation = markedCorrelation('open');
+    const secondCorrelation = markedCorrelation('second');
+    const thirdCorrelation = markedCorrelation('third');
+    const adapted = (sourceCorrelation: typeof correlation): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-late-packs',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [
+          { id: 'b-1', name: '', path: '/data/a.rep' },
+          { id: 'b-2', name: '', path: '/data/b.rep' },
+          { id: 'b-3', name: '', path: '/data/c.rep' },
+        ],
+        baselineRows: [],
+        baselineReports: {},
+        compareOnly: true,
+      },
+    });
+    await flushPromises();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-1');
+
+    await wrapper.setProps({
+      baselineReports: { 'b-2': { baselineId: 'b-2', report: adapted(secondCorrelation) } },
+    });
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-2');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(secondCorrelation);
+
+    await wrapper.get('[data-testid="compare-report-select"]').get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-report-option-b-1"]')?.click();
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-1');
+
+    await wrapper.setProps({
+      baselineReports: {
+        'b-2': { baselineId: 'b-2', report: adapted(secondCorrelation) },
+        'b-3': { baselineId: 'b-3', report: adapted(thirdCorrelation) },
+      },
+    });
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-1');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054g: an operator select shows declared operators before the pack loads', async () => {
+    const correlation = markedCorrelation('open');
+    const matmulCorrelation = markedCorrelation('matmul');
+    const reluCorrelation = markedCorrelation('relu');
+    const adapted = (sourceCorrelation: typeof correlation): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-late-operators',
+        swimlaneModel: depsModel(),
+        reportModel: {
+          ...emptyReportViewModel(),
+          sourceCorrelation: correlation,
+        },
+        capabilities: ['sourceTab'],
+        baselines: [
+          {
+            id: 'b-1',
+            name: '',
+            path: '/data/a.rep',
+            operators: [
+              { id: 'matmul', label: 'MatMul' },
+              { id: 'relu', label: 'Relu' },
+            ],
+          },
+        ],
+        baselineRows: [],
+        baselineReports: {},
+        compareOnly: true,
+      },
+    });
+    await flushPromises();
+    const select = wrapper.get('[data-testid="compare-operator-select"]');
+    expect(select.attributes('data-value')).toBe('matmul');
+
+    await select.get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-operator-option-relu"]')?.click();
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-operator-select"]').attributes('data-value')).toBe('relu');
+
+    // A later pack must not undo the explicit operator pick.
+    await wrapper.setProps({
+      baselineReports: {
+        'b-1': {
+          baselineId: 'b-1',
+          report: {
+            ...adapted(matmulCorrelation),
+            operatorReports: {
+              matmul: adapted(matmulCorrelation),
+              relu: adapted(reluCorrelation),
+            },
+          },
+        },
+      },
+    });
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-operator-select"]').attributes('data-value')).toBe('relu');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(reluCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054h: manual exit then re-open seeds the default baseline again', async () => {
+    const firstCorrelation = markedCorrelation('first');
+    const secondCorrelation = markedCorrelation('second');
+    const adapted = (sourceCorrelation: SourceCorrelationModel): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-reopen',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: markedCorrelation('open') },
+        capabilities: ['sourceTab'],
+        baselines: [
+          { id: 'b-1', name: '', path: '/data/a.rep' },
+          { id: 'b-2', name: '', path: '/data/b.rep' },
+        ],
+        baselineReports: {
+          'b-1': { baselineId: 'b-1', report: adapted(firstCorrelation) },
+          'b-2': { baselineId: 'b-2', report: adapted(secondCorrelation) },
+        },
+        compareOnly: true,
+      },
+    });
+    await flushPromises();
+    await wrapper.get('[data-testid="compare-report-select"]').get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-report-option-b-2"]')?.click();
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-2');
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-1');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(firstCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-054e: compare-operator-select lists the baseline operators and switches the right pane', async () => {
+    const correlation = markedCorrelation('open');
+    const matmulCorrelation = markedCorrelation('matmul');
+    const reluCorrelation = markedCorrelation('relu');
+    const adapted = (sourceCorrelation: typeof correlation): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-operator-select',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [
+          {
+            id: 'b-1',
+            name: '',
+            path: '/data/a.rep',
+            operators: [
+              { id: 'matmul', label: 'MatMul' },
+              { id: 'relu', label: 'Relu' },
+            ],
+          },
+        ],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: {
+              ...adapted(matmulCorrelation),
+              operatorReports: {
+                matmul: adapted(matmulCorrelation),
+                relu: adapted(reluCorrelation),
+              },
+            },
+          },
+        },
+      },
+    });
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    const select = wrapper.get('[data-testid="compare-operator-select"]');
+    expect(select.attributes('data-value')).toBe('matmul');
+    expect(select.text()).toBe('MatMul');
+
+    await select.get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-operator-option-relu"]')?.click();
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-operator-select"]').attributes('data-value')).toBe('relu');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(reluCorrelation);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-055c: removing checked baselines moves compare to the next one, then exits', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const secondCorrelation = { ...mockSourceCorrelation(), mock: false };
+    const pack = (sourceCorrelation: SourceCorrelationModel): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-remove',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [
+          { id: 'b-1', name: '', path: '/data/a.rep' },
+          { id: 'b-2', name: '', path: '/data/b.rep' },
+        ],
+        baselineReports: {
+          'b-1': { baselineId: 'b-1', report: pack(correlation) },
+          'b-2': { baselineId: 'b-2', report: pack(secondCorrelation) },
+        },
+      },
+    });
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-1');
+
+    await wrapper.setProps({ baselines: [{ id: 'b-2', name: '', path: '/data/b.rep' }] });
+    await nextTick();
+    expect(wrapper.get('[data-testid="compare-report-select"]').attributes('data-value')).toBe('b-2');
+    expect(wrapper.findComponent({ name: 'SourceDiffView' }).props('baseline')).toStrictEqual(secondCorrelation);
+
+    await wrapper.setProps({ baselines: [] });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-DIFF-211: explicit compare exit lands on the Source tab', async () => {
+    const correlation = { ...mockSourceCorrelation(), mock: false };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: { ...correlation } },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'source-compare-exit',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: correlation },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="tab-source"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="tab-source"]').classes()).toContain('pr-tabs__tab--active');
+
+    // Programmatic reset: a replaced report closes compare and keeps the tab.
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: { ...correlation } },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="tab-source"]').classes()).toContain('pr-tabs__tab--active');
+    wrapper.unmount();
+  });
+
+  /** Single-file correlation with the text the test wants (real text or a placeholder). */
+  function correlationWith(path: string, text: string): SourceCorrelationModel {
+    const base = mockSourceCorrelation();
+    return {
+      ...base,
+      mock: false,
+      files: [{ ...base.files[0]!, id: path.split('/').pop() ?? path, path, text }],
+    };
+  }
+
+  it('PR-ROOT-056: workspace pick fills open-report placeholders and the export carries the text', async () => {
+    const { loadNpuRepBuffer } = await import('../../../tests/helpers/fixtures');
+    const path = '/sdk/kernel.asc';
+    const missing = correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    missing.files[0]!.id = '7';
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernels/kernel.asc', text: 'float gather_2d(float x) { return x; }' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing },
+        source: loadNpuRepBuffer(),
+        capabilities: ['sourceTab'],
+        allowHtmlExport: true,
+        locale: 'en',
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    const vm = wrapper.vm as unknown as {
+      report: { sourceCorrelation: SourceCorrelationModel | null };
+      reportSourceNeedsResolve: boolean;
+    };
+    expect(vm.reportSourceNeedsResolve).toBe(true);
+    // Real button in SourceView's pane bar, not the handler behind it.
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await flushPromises();
+    const workspaceButton = wrapper.find('[data-testid="source-workspace-pick"]');
+    expect(workspaceButton.exists()).toBe(true);
+    await workspaceButton.trigger('click');
+    await flushPromises();
+    expect(pick).toHaveBeenCalledWith([{ fileName: path, basename: 'kernel.asc' }]);
+    expect(vm.report.sourceCorrelation!.files[0]!.text).toContain('float gather_2d');
+    expect(vm.reportSourceNeedsResolve).toBe(false);
+    expect(wrapper.find('[data-testid="source-workspace-pick"]').exists()).toBe(false);
+    await wrapper.find('[data-testid="tab-timeline"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="export-html"]').exists()).toBe(true);
+
+    const template = `<!doctype html><html lang="zh-CN"><head><title>x</title></head><body>
+<!-- __NPU_REP_EMBED_START__ -->
+<script>window.__NPU_REP_B64__='__HTML_EXPORT_B64__';window.__NPU_REP_NAME__='__HTML_EXPORT_NAME__';window.__NPU_REP_LOCALE__='__HTML_EXPORT_LOCALE__';</script>
+<!-- __NPU_REP_EMBED_END__ --></body></html>`;
+    let resolveFetch: (value: { ok: boolean; text: () => Promise<string> }) => void = () => undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          }),
+      ),
+    );
+    let stitched = '';
+    const OrigBlob = globalThis.Blob;
+    vi.stubGlobal(
+      'Blob',
+      class extends OrigBlob {
+        constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+          super(parts, options);
+          stitched = String(parts?.[0] ?? '');
+        }
+      },
+    );
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:export',
+      revokeObjectURL: () => undefined,
+    });
+    const realCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag, opts) => {
+      const el = realCreate(tag, opts as ElementCreationOptions);
+      if (tag === 'a') el.click = vi.fn();
+      return el;
+    });
+    await wrapper.find('[data-testid="export-html"]').trigger('click');
+    await flushPromises();
+    resolveFetch({ ok: true, text: async () => template });
+    await flushPromises();
+    expect(stitched).toContain('window.__NPU_SOURCE_TEXTS__');
+    expect(stitched).toContain('float gather_2d');
+    const embedded = /window\.__NPU_SOURCE_TEXTS__ = (.*?);<\/script>/.exec(stitched);
+    expect(embedded).not.toBeNull();
+    const texts = JSON.parse(embedded![1]!) as Record<string, string>;
+    expect(texts[path]).toContain('float gather_2d');
+    expect(texts['7']).toBeUndefined();
+    const refilled = await resolveMissingSourceFiles(
+      missing,
+      workspaceSourceResolver(sourceWorkspaceFromTexts(texts)!),
+    );
+    expect(refilled.files[0]!.id).toBe('7');
+    expect(refilled.files[0]!.text).toContain('float gather_2d');
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('PR-ROOT-057: the baseline workspace button fills the compare side only', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const missing = correlationWith(
+      '/build/kernel.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/build/kernel.asc\n`,
+    );
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing },
+    };
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int baseline() { return 1; }' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-baseline',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-workspace-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    expect(pick).toHaveBeenCalledWith([{ fileName: '/build/kernel.asc', basename: 'kernel.asc' }]);
+    const baseline = wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel;
+    expect(baseline.files[0]!.text).toContain('int baseline()');
+    const open = wrapper.findComponent(SourceDiffView).props('current') as SourceCorrelationModel;
+    expect(open.files[0]!.text).toContain('int main()');
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+    // Republishing the same pack object keeps the fill.
+    await wrapper.setProps({ baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } } });
+    await nextTick();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain('int baseline()');
+    // A new pack object clears the overlay, so the placeholder returns.
+    await wrapper.setProps({
+      baselineReports: {
+        'b-1': { baselineId: 'b-1', report: { ...pack, reportModel: { ...pack.reportModel } } },
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-066: switching the compare report drops the previous baseline workspace pick', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const placeholder = (path: string) =>
+      correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    const first = placeholder('/build/kernel.asc');
+    const second = placeholder('/build/kernel.asc');
+    const pack = (sourceCorrelation: SourceCorrelationModel): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation },
+    });
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int first() { return 1; }' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-baseline-switch',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [
+          { id: 'b-1', name: '', path: '/data/a.rep' },
+          { id: 'b-2', name: '', path: '/data/b.rep' },
+        ],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': { baselineId: 'b-1', report: pack(first) },
+          'b-2': { baselineId: 'b-2', report: pack(second) },
+        },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain('int first()');
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+
+    // b-2 ships the same basename as a placeholder: it must not inherit b-1's text.
+    await wrapper.get('[data-testid="compare-report-select"]').get('button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-report-option-b-2"]')?.click();
+    await nextTick();
+    await flushPromises();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain(MISSING_SOURCE_EMBED_PREFIX);
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-067: removing a baseline absent from the previous list picks the last checked one', () => {
+    const items = [{ id: 'b-2' }, { id: 'b-3' }];
+    // The doc's `else the last checked one` case: no removed index to reuse.
+    expect(nextCompareBaselineId(items, [{ id: 'b-1' }], 'gone')).toBe('b-3');
+    // The usual case still moves to the removed index.
+    expect(nextCompareBaselineId(items, [{ id: 'b-3' }, { id: 'b-2' }], 'b-3')).toBe('b-2');
+  });
+
+  it('nextCompareBaselineId returns null when the checked list is empty', () => {
+    expect(nextCompareBaselineId([], [{ id: 'b-1' }], 'b-1')).toBeNull();
+    expect(nextCompareBaselineId([], undefined, 'gone')).toBeNull();
+  });
+
+  it('an operator with no source does not show another operator, and Escape on the selector exits', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const matmul = correlationWith('/src/matmul.asc', 'int matmul() { return 1; }\n');
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+      operatorReports: {
+        matmul: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+        },
+        relu: { swimlaneModel: null, reportModel: emptyReportViewModel() },
+      },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'operator-without-source',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{
+          id: 'b-1',
+          name: '',
+          path: '/data/a.rep',
+          operators: [{ id: 'matmul', label: 'MatMul' }, { id: 'relu', label: 'Relu' }],
+        }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'matmul' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+      attachTo: document.body,
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text,
+    ).toContain('int matmul()');
+    await wrapper.find('[data-testid="compare-operator-select"] button').trigger('click');
+    document.querySelector<HTMLElement>('[data-testid="compare-operator-option-relu"]')?.click();
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+
+    const select = wrapper.get('[data-testid="compare-operator-select"]').element;
+    select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('a declared operator missing from the pack does not reuse the root source', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const matmul = correlationWith('/src/matmul.asc', 'int matmul() { return 1; }\n');
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+      operatorReports: {
+        matmul: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: matmul },
+        },
+      },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'missing-operator-key',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{
+          id: 'b-1',
+          name: '',
+          path: '/data/a.rep',
+          operators: [{ id: 'matmul', label: 'MatMul' }, { id: 'softmax', label: 'Softmax' }],
+        }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'softmax' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-baseline-empty"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-058: the baseline workspace button is hidden when the pack text is real', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const real = correlationWith('/build/kernel.asc', 'int baseline() { return 1; }\n');
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: real },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-baseline-real',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+        pickSourceWorkspace: vi.fn(async () => null),
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-workspace-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-065: both compare workspace buttons are hidden without a picker hook', async () => {
+    const current = correlationWith(
+      '/src/kernel.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/src/kernel.asc\n`,
+    );
+    const missing = correlationWith(
+      '/build/kernel.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/build/kernel.asc\n`,
+    );
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-no-hook-compare',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-diff-view"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-diff-workspace-left"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-059: the workspace button is hidden without a picker hook', async () => {
+    const missing = correlationWith(
+      '/build/src/gather_2d.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/build/src/gather_2d.asc\n`,
+    );
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-no-hook',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing },
+        capabilities: ['sourceTab'],
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="source-view"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="source-workspace-pick"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-060: a baseline pick never overwrites the open-report export text', async () => {
+    const { loadNpuRepBuffer } = await import('../../../tests/helpers/fixtures');
+    const current = correlationWith(
+      '/cur/kernel.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/cur/kernel.asc\n`,
+    );
+    const baseline = correlationWith(
+      '/base/kernel.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/base/kernel.asc\n`,
+    );
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: baseline },
+    };
+    const pick = vi.fn(async (request: { fileName: string }[]) => {
+      const base = request[0]!.fileName.startsWith('/base/');
+      return {
+        files: [{ path: 'kernel.asc', text: base ? 'int BASELINE_TEXT()' : 'int CURRENT_TEXT()' }],
+      };
+    });
+    const wrapper = mount(ProfilingReport, {
+      attachTo: document.body,
+      props: {
+        title: 'workspace-same-basename',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        source: loadNpuRepBuffer(),
+        capabilities: ['sourceTab'],
+        allowHtmlExport: true,
+        locale: 'en',
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      onPickReportSourceWorkspace: () => Promise<void>;
+      onPickBaselineSourceWorkspace: () => Promise<void>;
+      resolvedSourceTexts: Record<string, string>;
+      report: { sourceCorrelation: SourceCorrelationModel | null };
+    };
+    await vm.onPickReportSourceWorkspace();
+    await nextTick();
+    expect(vm.resolvedSourceTexts).toEqual({ '/cur/kernel.asc': 'int CURRENT_TEXT()' });
+
+    await vm.onPickBaselineSourceWorkspace();
+    await nextTick();
+    expect(vm.resolvedSourceTexts).toEqual({ '/cur/kernel.asc': 'int CURRENT_TEXT()' });
+    expect(vm.report.sourceCorrelation!.files[0]!.text).toContain('CURRENT_TEXT');
+
+    const template = `<!doctype html><html lang="zh-CN"><head><title>x</title></head><body>
+<!-- __NPU_REP_EMBED_START__ -->
+<script>window.__NPU_REP_B64__='__HTML_EXPORT_B64__';window.__NPU_REP_NAME__='__HTML_EXPORT_NAME__';window.__NPU_REP_LOCALE__='__HTML_EXPORT_LOCALE__';</script>
+<!-- __NPU_REP_EMBED_END__ --></body></html>`;
+    let resolveFetch: (value: { ok: boolean; text: () => Promise<string> }) => void = () => undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          }),
+      ),
+    );
+    let stitched = '';
+    const OrigBlob = globalThis.Blob;
+    vi.stubGlobal(
+      'Blob',
+      class extends OrigBlob {
+        constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+          super(parts, options);
+          stitched = String(parts?.[0] ?? '');
+        }
+      },
+    );
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:export',
+      revokeObjectURL: () => undefined,
+    });
+    const realCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag, opts) => {
+      const el = realCreate(tag, opts as ElementCreationOptions);
+      if (tag === 'a') el.click = vi.fn();
+      return el;
+    });
+    await wrapper.find('[data-testid="export-html"]').trigger('click');
+    await flushPromises();
+    resolveFetch({ ok: true, text: async () => template });
+    await flushPromises();
+    expect(stitched).toContain('CURRENT_TEXT');
+    expect(stitched).not.toContain('BASELINE_TEXT');
+    wrapper.unmount();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('PR-ROOT-061: a baseline pick keeps an in-flight open-report resolve alive', async () => {
+    const current = correlationWith(
+      '/cur/kernel.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/cur/kernel.asc\n`,
+    );
+    const baseline = correlationWith(
+      '/base/kernel.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/base/kernel.asc\n`,
+    );
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: baseline },
+    };
+    let release: (text: string) => void = () => undefined;
+    const resolveSourceFile = vi.fn(
+      () => new Promise<string>((resolve) => { release = resolve; }),
+    );
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int BASELINE_TEXT()' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-inflight-report',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        locale: 'en',
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+        resolveSourceFile,
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    const vm = wrapper.vm as unknown as {
+      onPickBaselineSourceWorkspace: () => Promise<void>;
+      report: { sourceCorrelation: SourceCorrelationModel | null };
+    };
+    await vm.onPickBaselineSourceWorkspace();
+    release('int CURRENT_TEXT()');
+    await flushPromises();
+    expect(vm.report.sourceCorrelation!.files[0]!.text).toContain('CURRENT_TEXT');
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-062: a report swap while the pick dialog is open drops the stale fill', async () => {
+    const oldPath = '/old/kernel.asc';
+    const newPath = '/new/kernel.asc';
+    const missing = (path: string) =>
+      correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    let openPick: (pick: { files: Array<{ path: string; text: string }> }) => void = () => undefined;
+    const pick = vi.fn(
+      () =>
+        new Promise<{ files: Array<{ path: string; text: string }> }>((resolve) => {
+          openPick = resolve;
+        }),
+    );
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-swap-while-picking',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing(oldPath) },
+        capabilities: ['sourceTab'],
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    const vm = wrapper.vm as unknown as {
+      onPickReportSourceWorkspace: () => Promise<void>;
+      resolvedSourceTexts: Record<string, string>;
+      report: { sourceCorrelation: SourceCorrelationModel | null };
+    };
+    const pending = vm.onPickReportSourceWorkspace();
+    await nextTick();
+    await wrapper.setProps({
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing(newPath) },
+    });
+    await nextTick();
+    openPick({ files: [{ path: 'kernel.asc', text: 'int STALE()' }] });
+    await pending;
+    await flushPromises();
+
+    expect(vm.report.sourceCorrelation!.files[0]!.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(
+      true,
+    );
+    expect(vm.resolvedSourceTexts).toEqual({});
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-063: only text the fill changed enters the export map', async () => {
+    const base = correlationWith('/build/a.asc', `${MISSING_SOURCE_EMBED_PREFIX}/build/a.asc\n`);
+    const embedded = 'int embedded() { return 1; }\n';
+    const model: SourceCorrelationModel = {
+      ...base,
+      files: [
+        { ...base.files[0]!, id: '7', path: '/build/a.asc' },
+        { ...base.files[0]!, id: 'b.asc', path: '/build/b.asc', text: embedded },
+      ],
+    };
+    const pick = vi.fn(async () => ({
+      files: [
+        { path: 'a.asc', text: 'int a() { return 0; }\n' },
+        { path: 'b.asc', text: 'int b() { return 2; }\n' },
+      ],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-export-map',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: model },
+        capabilities: ['sourceTab'],
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    const vm = wrapper.vm as unknown as {
+      onPickReportSourceWorkspace: () => Promise<void>;
+      resolvedSourceTexts: Record<string, string>;
+      report: { sourceCorrelation: SourceCorrelationModel | null };
+    };
+    await vm.onPickReportSourceWorkspace();
+    await nextTick();
+
+    expect(vm.report.sourceCorrelation!.files[1]!.text).toBe(embedded);
+    expect(vm.resolvedSourceTexts).toEqual({ '/build/a.asc': 'int a() { return 0; }\n' });
+    wrapper.unmount();
+  });
+
+  it('PR-ROOT-064: a second baseline pick accumulates on the first one', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const base = correlationWith(
+      '/build/a.asc',
+      `${MISSING_SOURCE_EMBED_PREFIX}/build/a.asc\n`,
+    );
+    const missing = (path: string) =>
+      correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`).files[0]!;
+    const twoFiles: SourceCorrelationModel = {
+      ...base,
+      files: [
+        { ...missing('/build/a.asc'), id: 'a.asc' },
+        { ...missing('/build/b.asc'), id: 'b.asc' },
+      ],
+    };
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: twoFiles },
+    };
+    const pick = vi.fn(async (request: { basename: string }[]) => {
+      const name = request[0]!.basename;
+      return { files: [{ path: name, text: `int ${name.replace('.asc', '')}() {}\n` }] };
+    });
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-baseline-accumulate',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    let baseline = wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel;
+    expect(baseline.files[0]!.text).toContain('int a()');
+    expect(baseline.files[1]!.text.startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
+
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    expect(pick).toHaveBeenLastCalledWith([{ fileName: '/build/b.asc', basename: 'b.asc' }]);
+    baseline = wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel;
+    expect(baseline.files[0]!.text).toContain('int a()');
+    expect(baseline.files[1]!.text).toContain('int b()');
+    wrapper.unmount();
+  });
+
+  it('a baseline pick is dropped when its pack is replaced while compare is closed', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const missingPack = (): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: {
+        ...emptyReportViewModel(),
+        sourceCorrelation: correlationWith(
+          '/build/kernel.asc',
+          `${MISSING_SOURCE_EMBED_PREFIX}/build/kernel.asc\n`,
+        ),
+      },
+    });
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int baseline() { return 1; }' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-pack-swap-closed',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: missingPack() } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    const filled = () =>
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text;
+    expect(filled()).toContain('int baseline()');
+
+    await wrapper.find('[data-testid="compare-exit"]').trigger('click');
+    await nextTick();
+    // New bytes for that baseline: the directory pick no longer applies.
+    await wrapper.setProps({ baselineReports: { 'b-1': { baselineId: 'b-1', report: missingPack() } } });
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(filled().startsWith(MISSING_SOURCE_EMBED_PREFIX)).toBe(true);
+    expect(wrapper.find('[data-testid="source-diff-workspace-right"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('an implicit operator change replays the kept workspace pick', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const missing = (path: string) =>
+      correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    const pack: AdaptedReport = {
+      swimlaneModel: null,
+      reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing('/build/mm.asc') },
+      operatorReports: {
+        mm: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing('/build/mm.asc') },
+        },
+        relu: {
+          swimlaneModel: null,
+          reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing('/build/relu.asc') },
+        },
+      },
+    };
+    const pick = vi.fn(async () => ({
+      // A directory pick returns every file it could resolve, not one name.
+      files: [
+        { path: 'mm.asc', text: 'int mm() {}' },
+        { path: 'relu.asc', text: 'int relu() {}' },
+      ],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-implicit-operator',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await flushPromises();
+    const filled = () =>
+      (wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel).files[0]!.text;
+    expect(filled()).toContain('int mm()');
+
+    // The host row changes the operator without the select's handler.
+    await wrapper.setProps({
+      baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: 'relu' }],
+    });
+    await flushPromises();
+    expect(filled()).toContain('int relu()');
+    wrapper.unmount();
+  });
+
+  it('a late resolve hook keeps the open report text a workspace pick supplied', async () => {
+    const path = '/p/kernel.asc';
+    const missing = correlationWith(path, `${MISSING_SOURCE_EMBED_PREFIX}${path}\n`);
+    const pick = vi.fn(async () => ({
+      files: [{ path: 'kernel.asc', text: 'int WORKSPACE() {}' }],
+    }));
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-late-hook',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: missing },
+        capabilities: ['sourceTab'],
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    const vm = wrapper.vm as unknown as {
+      onPickReportSourceWorkspace: () => Promise<void>;
+      report: { sourceCorrelation: SourceCorrelationModel | null };
+    };
+    await vm.onPickReportSourceWorkspace();
+    await flushPromises();
+    expect(vm.report.sourceCorrelation!.files[0]!.text).toContain('WORKSPACE');
+
+    const hook = vi.fn(async () => 'int HOOK() {}');
+    await wrapper.setProps({ resolveSourceFile: hook });
+    await flushPromises();
+    expect(vm.report.sourceCorrelation!.files[0]!.text).toContain('WORKSPACE');
+    wrapper.unmount();
+  });
+
+  it('a baseline pick survives a pack arrival while the dialog is open', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const pack = (): AdaptedReport => ({
+      swimlaneModel: null,
+      reportModel: {
+        ...emptyReportViewModel(),
+        sourceCorrelation: correlationWith(
+          '/build/kernel.asc',
+          `${MISSING_SOURCE_EMBED_PREFIX}/build/kernel.asc\n`,
+        ),
+      },
+    });
+    let openPick: (picked: { files: { path: string; text: string }[] }) => void = () => undefined;
+    const pick = vi.fn(
+      () =>
+        new Promise<{ files: { path: string; text: string }[] }>((resolve) => {
+          openPick = resolve;
+        }),
+    );
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'workspace-baseline-late-pack',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: { 'b-1': { baselineId: 'b-1', report: pack() } },
+        pickSourceWorkspace: pick,
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="source-diff-workspace-right"]').trigger('click');
+    await nextTick();
+    // A new pack arrives mid-dialog and re-seeds the compare pair.
+    await wrapper.setProps({ baselineReports: { 'b-1': { baselineId: 'b-1', report: pack() } } });
+    await nextTick();
+    openPick({ files: [{ path: 'kernel.asc', text: 'int PICKED() {}' }] });
+    await flushPromises();
+    const baseline = wrapper.findComponent(SourceDiffView).props('baseline') as SourceCorrelationModel;
+    expect(baseline.files[0]!.text).toContain('PICKED');
+    wrapper.unmount();
+  });
+
+  it('window Escape exits compare once and ignores an IME composition', async () => {
+    const current = correlationWith('/src/kernel.asc', 'int main() { return 0; }\n');
+    const baseline = correlationWith('/build/kernel.asc', 'int baseline() { return 1; }\n');
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        title: 'compare-escape',
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), sourceCorrelation: current },
+        capabilities: ['sourceTab'],
+        baselines: [{ id: 'b-1', name: '', path: '/data/a.rep' }],
+        baselineRows: [{ id: 'brow-1', baselineId: 'b-1', operatorId: '' }],
+        baselineReports: {
+          'b-1': {
+            baselineId: 'b-1',
+            report: { swimlaneModel: null, reportModel: { ...emptyReportViewModel(), sourceCorrelation: baseline } },
+          },
+        },
+      },
+    });
+    await nextTick();
+    await wrapper.find('[data-testid="tab-source"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="compare-enter"]').trigger('click');
+    await nextTick();
+    expect(wrapper.findComponent(SourceDiffView).exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', isComposing: true }));
+    await nextTick();
+    expect(wrapper.findComponent(SourceDiffView).exists()).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(wrapper.findComponent(SourceDiffView).exists()).toBe(false);
+    expect(wrapper.find('[data-testid="compare-enter"]').exists()).toBe(true);
+    wrapper.unmount();
   });
 });

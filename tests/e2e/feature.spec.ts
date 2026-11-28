@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { LANE_GROUP_HEADER_HEIGHT, LANE_HEIGHT } from '../../src/swimlane/CanvasSwimlaneRenderer';
 import { DOCK_HEIGHT_COLLAPSED, DOCK_HEIGHT_EXPANDED, DOCK_HEIGHT_MARQUEE_PREVIEW } from '../../src/ui/panelResize';
+import { DEMO_RECENT_BASELINES } from '../../src/host/baselinesHost';
 
 /** With fit = [minTime, maxTime], events fill the canvas; probe near the left first. */
 const EVENT_X_FRACTIONS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.35, 0.5, 0.65, 0.8];
@@ -1123,8 +1124,8 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   await page.getByTestId('baselines-link').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   await expect(page.getByTestId('baselines-recent-list')).toBeVisible();
-  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
-  for (let i = 0; i < 5; i++) {
+  await expect(page.getByTestId('baseline-check')).toHaveCount(8);
+  for (let i = 0; i < 8; i++) {
     await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
   }
   // Rows title through the derived filename + timestamp, never the generated
@@ -1154,7 +1155,7 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
     mimeType: 'application/octet-stream',
     buffer: Buffer.from('npu-rep\0fake-baseline'),
   });
-  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await expect(page.getByTestId('baseline-check')).toHaveCount(9);
   await expect(page.getByTestId('baseline-check').last()).toBeChecked();
   await expect(page.locator('.pr-baseline__item--check').last()).toContainText('baseline-a.npu-rep');
   // The browsed title is the filename + the pick timestamp (PR-BASELINE-030).
@@ -1166,8 +1167,8 @@ test('PR-E2E-020: the baselines link opens the checkbox view; checked state is s
   await page.reload();
   await expect(page.getByTestId('toggle-baselines')).toBeVisible();
   await page.getByTestId('baselines-link').click();
-  await expect(page.getByTestId('baseline-check')).toHaveCount(5);
-  for (let i = 0; i < 5; i++) {
+  await expect(page.getByTestId('baseline-check')).toHaveCount(8);
+  for (let i = 0; i < 8; i++) {
     await expect(page.getByTestId('baseline-check').nth(i)).not.toBeChecked();
   }
 });
@@ -1399,17 +1400,17 @@ test('PR-E2E-021: the bar Operator select drives per-operator comparison badges'
     expect(textsByCard.get(testid)!.size, `card ${testid} varies per operator`).toBeGreaterThan(1);
   }
 
-  // EVERY demo baseline paints comparison badges: check all five demo rows
+  // EVERY demo baseline paints comparison badges: check all demo rows
   // (re-opening the popover — the aside press above closed it), then select
   // each baseline in the aside and assert badges render and the values differ
   // from baseline to baseline.
   await page.getByTestId('toggle-baselines').click();
   await expect(page.getByTestId('baselines-popover')).toBeVisible();
   const checkRows = page.locator('.pr-baseline__item--check');
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < DEMO_RECENT_BASELINES.length; i++) {
     await checkRows.nth(i).click();
   }
-  const demoIds = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
+  const demoIds = DEMO_RECENT_BASELINES.map((b) => b.id);
   const baselineDurTexts = new Set<string>();
   for (const id of demoIds) {
     await page.getByTestId('aside-baseline-select').getByRole('button').click();
@@ -1551,7 +1552,7 @@ test('PR-E2E-023: the aside Operator dropdown defaults to the matching (else fir
     mimeType: 'application/octet-stream',
     buffer: readFileSync(resolve(process.cwd(), 'data/out.rep')),
   });
-  await expect(page.getByTestId('baseline-check')).toHaveCount(6);
+  await expect(page.getByTestId('baseline-check')).toHaveCount(9);
   await page.getByTestId('aside-baseline-select').getByRole('button').click();
   await page.locator('[data-testid^="aside-baseline-option-"]').last().click();
   // The real browsed report adapts into a demo multi-operator pack; its first
@@ -1884,11 +1885,11 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   // No baseline: zero badge nodes - the un-compared DOM is exactly the old diagram.
   await expect(badges).toHaveCount(0);
 
-  // Check ALL five demo baselines (DEMO-DIFF RULE: every baseline must show every badgeable
+  // Check every demo baseline (DEMO-DIFF RULE: every baseline must show every badgeable
   // element, with both tones at once).
   await page.getByTestId('toggle-baselines').click();
   const checkRows = page.locator('.pr-baseline__item--check');
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < DEMO_RECENT_BASELINES.length; i++) {
     await checkRows.nth(i).click();
     await expect(checkRows.nth(i).locator('input')).toBeChecked();
   }
@@ -1903,7 +1904,7 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   await expect(badges.first()).toBeVisible({ timeout: 15_000 });
   const allTones = new Set<string>();
   const titlesPerBaseline = new Set<string>();
-  for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+  for (const id of DEMO_RECENT_BASELINES.map((b) => b.id)) {
     await page.getByTestId('aside-baseline-select').getByRole('button').click();
     await page.getByTestId(`aside-baseline-option-${id}`).click();
     await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', id);
@@ -2167,7 +2168,7 @@ test('PR-E2E-025: memory topology node percentages paint in-place baseline badge
   // comparison bar and the badges with it.
   // (The details click above closed the picker popover - reopen it.)
   await page.getByTestId('toggle-baselines').click();
-  await expect(page.locator('.pr-baseline__item--check')).toHaveCount(5);
+  await expect(page.locator('.pr-baseline__item--check')).toHaveCount(8);
   // The in-place sampling above left demo-recent-2 selected - uncheck it.
   await page.locator('.pr-baseline__item--check').nth(1).click();
   await expect(page.getByTestId('aside-baseline-select')).toHaveAttribute('data-value', 'demo-recent-1');

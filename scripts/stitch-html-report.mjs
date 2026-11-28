@@ -32,7 +32,7 @@ export function findHtmlExportEmbed(template) {
   throw new Error('shell template is missing embed markers');
 }
 
-export function stitchHtmlReport(template, reportBytes, reportName, locale) {
+export function stitchHtmlReport(template, reportBytes, reportName, locale, sourceTexts) {
   const b64 = Buffer.from(reportBytes).toString('base64');
   const nameEncoded = encodeURIComponent(reportName);
   const loc = htmlExportLocale(locale);
@@ -47,7 +47,11 @@ export function stitchHtmlReport(template, reportBytes, reportName, locale) {
   embed = embed.split(HTML_EXPORT_B64_PLACEHOLDER).join(b64);
   embed = embed.split(HTML_EXPORT_NAME_PLACEHOLDER).join(nameEncoded);
   embed = embed.split(HTML_EXPORT_LOCALE_PLACEHOLDER).join(loc);
-  let html = template.slice(0, start) + embed + template.slice(endExclusive);
+  const sourceScript =
+    sourceTexts && Object.keys(sourceTexts).length > 0
+      ? `<script>window.__NPU_SOURCE_TEXTS__ = ${serializeSourceTexts(sourceTexts)};</script>`
+      : '';
+  let html = template.slice(0, start) + sourceScript + embed + template.slice(endExclusive);
   const title = reportName
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -60,4 +64,13 @@ export function stitchHtmlReport(template, reportBytes, reportName, locale) {
     html = html.replace(/<html\b/i, `<html lang="${loc}"`);
   }
   return html;
+}
+
+function serializeSourceTexts(sourceTexts) {
+  return JSON.stringify(sourceTexts)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }

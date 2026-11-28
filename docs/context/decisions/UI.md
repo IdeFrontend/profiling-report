@@ -204,6 +204,16 @@ Format and statuses: [README.md](README.md).
 
 ---
 
+## UI-58
+
+- **Resolved:** 2026-11-24
+- **Question:** What are the real row schemas and interactions for **Inline Functions**, **Source Markers**, and **Statistics** dock tabs under the compare view?
+- **Decision:** The compare view ships **without** the bottom dock. The two Source panes fill the view height, and Inline Functions / Source Markers / Statistics are not rendered. Re-introduce them only with Product-locked row schemas.
+- **Specs:** [SourceDiffView.spec.md](../../../src/ui/SourceDiff/SourceDiffView.spec.md) (`PR-DIFF-203`), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md)
+- **Source:** Engineering decision in review (2026-11-24): the dock and its mock tables were deleted; the schemas stayed unanswered.
+
+---
+
 ## UI-60
 
 - **Resolved:** 2026-11-02
@@ -263,3 +273,54 @@ Format and statuses: [README.md](README.md).
 - **Decision:** Replace the two **Left View** / **Right View** pickers with **one View picker**: `Source`, `SASS`, `Source and SASS`; default **Source and SASS**. Each option renders only its panes. Remove the per-pane **Link views** toggles — caret, correlation, and Navigate By sync stay always on.
 - **Specs:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md) (`PR-SOURCE-007`/`009`/`019`/`025`/`030`), [source](../../views/source.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md)
 - **Source:** Product answer 2026-11-26 (three options, default Source and SASS, no link toggles).
+
+---
+
+## UI-64
+
+- **Resolved:** 2026-11-26
+- **Was:** Product answers on source workspace fill (no prior open-question row; updates the packing clause in [DATA-52](../questions/DATA.md) and the cross-reference in [UI-57](../questions/UI.md))
+- **Question:** How does the viewer fill source text that a pack omits, which packs still embed source, and what do the workspace controls and HTML export do?
+
+**Product answers (2026-11-26):**
+
+1. "Only the source-diff demo pack stops packing source; other packs keep packed source."
+2. "One host hook: browser opens a directory picker; VS Code reads a folder."
+3. "Workspace fills only placeholder source files; packed text stays authoritative."
+4. "HTML export must include matched source file content."
+5. "Baseline workspace button hides when the baseline pack already has source files."
+
+- **Decision:**
+  1. **Packing.** Only the `source-diff` demo fixtures omit embedded `.asc` source; every other pack keeps packed source. Leaf source text is optional, never a replacement for packed text. Each demo operator carries two source files: a renamed kernel variant (250-350 lines) and one shared helper name, so the resolver covers both the basename tier and the exact-path tier.
+  2. **One host hook.** `pickSourceWorkspace` receives the deduped `{ fileName, basename }` files that still hold a `// missing source embed:` placeholder and returns `{ files: { path, text }[] } | null`. The browser host opens a directory picker (hidden `webkitdirectory` input); VS Code / MSTT opens a folder and reads through `workspace.fs`. The library never opens a disk path.
+  3. **Fill only placeholders.** `workspaceSourceResolver` matches exact path, then the longest shared suffix, then basename; an ambiguous tier is a miss, with a case-insensitive second pass. Packed text is never replaced. `null`, a throw, or no match leaves the placeholder and the button.
+  4. **Two sides.** The Source tab shows one **Pick source workspace** button while the open report has placeholders and the hook exists. 源码对比 shows one button per pane: open report left, baseline right. The baseline button appears only while that row's pack has placeholders and hides once every file resolves; its fill stays in a local overlay keyed `${baselineId}:${operatorId}` and never mutates the cached pack.
+  5. **Compare gate.** Superseded by [UI-65](#ui-65) on 2026-11-26: any checked baseline enables 源码对比, and the default pair is the first checked baseline with a resolvable correlation, else the first checked baseline. Row 0 keeps its numeric aside role; the source gate is independent.
+  6. **Export.** Only open-report fills record matched text in `resolvedSourceTexts`, keyed by file path and limited to files that changed placeholder→real. `export-html` passes the map to `stitchHtmlReport`, which injects `window.__NPU_SOURCE_TEXTS__`; `sourceWorkspaceFromTexts` rebuilds a pick in the exported shell. A baseline fill never enters the export.
+- **Specs:** [source-correlation](../../../specs/core/source-correlation.spec.md), [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md) (PR-ROOT-054..064), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [SourceDiffView.spec.md](../../../src/ui/SourceDiff/SourceDiffView.spec.md), [MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md), [source](../../views/source.md), [symbolizer.json](../../formats/compute/symbolizer.json.md#source-text).
+- **Source:** Product answers 2026-11-26.
+
+---
+
+## UI-65
+
+- **Resolved:** 2026-11-26
+- **Was:** Source-compare enablement, default pair, and header selectors (follow-up to [UI-64](#ui-64); no open-question row)
+- **Question:** What enables 源码对比 when a baseline has no source model, which report and operator pair does it open on, and how does the header switch them?
+
+**Product answers (2026-11-26):**
+
+1. Any checked baseline enables compare, with no baseline source model required. The header has two selectors, report and operator, and the workspace control belongs to the right pane.
+2. "Пустая панель + подсказка" — a baseline without source opens an empty right pane with a hint.
+3. "Только отмеченные" — the report selector lists only checked baselines.
+
+- **Decision:**
+  1. **Gate.** 源码对比 is enabled while the open report has a non-mock source correlation and at least one baseline is checked. The baseline does not need a source model or packed source. Without either condition the entry stays visible but disabled.
+  2. **Default pair.** Compare opens on the first checked baseline whose adapted pack resolves a source correlation, else the first checked baseline. A baseline with no source model or no files still opens; its right pane is empty with a hint.
+  3. **Two selectors.** The compare header holds a report selector (checked baselines only, labelled by the baseline display title) and an operator selector (the selected baseline's declared operators, else its pack's operator keys, else the report's `opName`). Changing to a different report resets the operator to that baseline's default; re-picking the same report keeps the current operator. The operator selector swaps only the right pane.
+  4. **Empty baseline.** With no source model or an empty file list, the left pane renders and the right pane shows `sourceDiffBaselineEmpty`. When the host provides a workspace hook, the right workspace button renders disabled with the `sourceDiffWorkspaceBaselineDisabled` hint.
+  5. **Workspace button.** Placeholder files keep the right workspace button enabled. Packed source text hides it, and no host hook hides it.
+  6. **Removal and reset.** Removing the selected checked baseline moves the pair to the baseline now at the removed position, else the last checked one, and resets the operator. Removing the last checked baseline exits compare. A manual exit or a new open report resets the pair, so the next open seeds the default again.
+  7. **Late packs.** A pair seeded automatically upgrades when a matching baseline pack arrives later. It stops upgrading after the user picks a different report or an operator.
+- **Specs:** [ProfilingReport.spec.md](../../../src/ui/ProfilingReport/ProfilingReport.spec.md) (PR-ROOT-054..054h, PR-DIFF-204), [ReportToolbar.spec.md](../../../src/ui/ReportToolbar/ReportToolbar.spec.md) (PR-TOOLBAR-040, PR-TOOLBAR-042), [SourceDiffView.spec.md](../../../src/ui/SourceDiff/SourceDiffView.spec.md) (PR-DIFF-216, PR-DIFF-217), [MSTT_INTEGRATION](../../architecture/MSTT_INTEGRATION.md), [source](../../views/source.md).
+- **Source:** Product answers 2026-11-26.

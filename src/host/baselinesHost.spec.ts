@@ -2,12 +2,14 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
-import { createBaselinesHost, withDemoOperatorPack } from './baselinesHost';
+import { createBaselinesHost, DEMO_RECENT_BASELINES, withDemoOperatorPack } from './baselinesHost';
+import { baselineDisplayTitle } from '../domain/baselineTitle';
 import { loadOutRepBuffer, loadOutRepBytes, loadSampleRepBytes } from '../../tests/helpers/fixtures';
 import { buildMemoryTopology } from '../adapters/memoryTopology';
 import { metricDiff, summaryDiffs } from '../domain/metricDiff';
 import { emptyReportViewModel } from '../adapters/adaptRep';
 import { loadReportSource } from '../adapters/loadReportSource';
+import { isMissingSourceEmbed, modelNeedsSourceResolve } from '../adapters';
 import type { MemoryTopologyPlate, ReportViewModel } from '../domain/types';
 
 function platesOf(model: ReportViewModel): MemoryTopologyPlate[] {
@@ -308,7 +310,7 @@ describe('createBaselinesHost', () => {
       return f == null ? undefined : Number(f.value);
     };
     const tones = new Set<string>();
-    for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+    for (const id of DEMO_RECENT_BASELINES.map((b) => b.id)) {
       const pack = withDemoOperatorPack(
         { reportModel: { ...emptyReportViewModel() }, swimlaneModel: null },
         id,
@@ -348,7 +350,7 @@ describe('createBaselinesHost', () => {
     // The compute detail fields vary baseline-to-baseline too (the per-
     // baseline factor), and stay one-sided vs sample's own values.
     const computeVecRatios = new Set<number>();
-    for (const id of ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5']) {
+    for (const id of DEMO_RECENT_BASELINES.map((b) => b.id)) {
       const pack = withDemoOperatorPack(
         { reportModel: { ...emptyReportViewModel() }, swimlaneModel: null },
         id,
@@ -410,6 +412,74 @@ describe('createBaselinesHost', () => {
     expect(peakPctOf(first(a))).not.toBe(peakPctOf(first(b)));
   });
 
+  it('varies sourceCorrelation per operator and baseline without touching file identity', () => {
+    const base = loadReportSource(
+      new Uint8Array(readFileSync('playground/public/data/gather_2d.npu-rep')),
+    );
+    const source = base.reportModel.sourceCorrelation!;
+    let hotFile = -1;
+    let hotLine = -1;
+    let hotKey = '';
+    let hotValue = 0;
+    for (const [fi, f] of source.files.entries()) {
+      for (const [li, l] of f.lines.entries()) {
+        const hit = Object.entries(l.values).find(([, v]) => typeof v === 'number');
+        if (hit) {
+          [hotFile, hotLine] = [fi, li];
+          [hotKey, hotValue] = [hit[0], hit[1] as number];
+          break;
+        }
+      }
+      if (hotFile >= 0) break;
+    }
+    expect(hotFile, 'a numeric source metric exists').toBeGreaterThanOrEqual(0);
+    const identity = (corr: typeof source) =>
+      corr.files.map((f) => ({ id: f.id, path: f.path, text: f.text, lines: f.lines.length }));
+    const before = identity(source);
+    const beforeValues = JSON.stringify(source.files.map((f) => f.lines.map((l) => l.values)));
+
+    const seen = new Set<number>();
+    for (const id of ['demo-recent-1', 'demo-recent-2']) {
+      const pack = withDemoOperatorPack(base, id);
+      for (const adapted of Object.values(pack.operatorReports!)) {
+        const corr = adapted.reportModel.sourceCorrelation!;
+        expect(identity(corr)).toEqual(before);
+        const value = corr.files[hotFile]!.lines[hotLine]!.values[hotKey] as number;
+        expect(value, `${id}: hot line must differ`).not.toBe(hotValue);
+        seen.add(value);
+      }
+    }
+    // Neither operator nor baseline can land on the same numbers.
+    expect(seen.size).toBeGreaterThan(1);
+    // The pack cloned the model, so the caller's report is untouched.
+    expect(identity(source)).toEqual(before);
+    expect(JSON.stringify(source.files.map((f) => f.lines.map((l) => l.values)))).toBe(beforeValues);
+  });
+
+  it('a full bar still changes for every demo operator', () => {
+    const base = emptyReportViewModel();
+    base.sourceCorrelation = {
+      files: [{
+        id: 'f',
+        path: 'f.asc',
+        text: 'a',
+        metricsColumns: [{ id: 'occ', label: 'Occ', kind: 'bar' }],
+        lines: [{ line: 1, values: { occ: 1 } }],
+      }],
+      assembly: { id: 'asm', path: 'asm', text: '', metricsColumns: [], lines: [] },
+      asmToSource: new Map(),
+      navigateBy: [],
+      mock: false,
+    };
+    const pack = withDemoOperatorPack({ reportModel: base, swimlaneModel: null }, 'full-bar');
+    for (const adapted of Object.values(pack.operatorReports!)) {
+      const value = adapted.reportModel.sourceCorrelation!.files[0]!.lines[0]!.values.occ;
+      expect(value).not.toBe(1);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('reseeds the memory topology per baseline and scales it per operator', () => {
     // out.rep carries real plates (23.04% / 7.19%) and a 0% L2 peak — the demo
     // seeding must REPLACE them: filling only missing values would leave
@@ -451,7 +521,7 @@ describe('createBaselinesHost', () => {
     expect(peakPctOf(firstA)).not.toBe(peakPctOf(firstB));
   });
 
-  it('DEMO-DIFF RULE: every demo baseline diffs every memory-topology block', { timeout: 30_000 }, () => {
+  it('DEMO-DIFF RULE: every demo baseline diffs every memory-topology block', { timeout: 90_000 }, () => {
     // The block switcher comes from the OPEN report; the demo packs must answer
     // for every one of its blocks with all three plates and the L2 peak, on the
     // far side of the current values (aiv/cube/peak above, vec below -> both
@@ -466,7 +536,7 @@ describe('createBaselinesHost', () => {
       tablesOf(current).find((t) => t.fileName === 'PipeUtilization.csv')?.blockIds ?? [];
     expect(blocks.length).toBeGreaterThan(1);
 
-    const ids = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
+    const ids = DEMO_RECENT_BASELINES.map((b) => b.id);
     const blockValues = new Map<string, number>();
     for (const baselineId of ids) {
       const pack = withDemoOperatorPack(
@@ -519,16 +589,6 @@ describe('createBaselinesHost', () => {
     'DEMO-DIFF RULE: every demo baseline and operator diffs every element vs the real sample',
     { timeout: 90_000 },
     () => {
-      const ids = ['demo-recent-1', 'demo-recent-2', 'demo-recent-3', 'demo-recent-4', 'demo-recent-5'];
-      // The real bytes behind each demo URL — gather_2d carries its own
-      // Summary.jsonl (the fixture-carried categories branch).
-      const demoFiles: Record<string, string> = {
-        'demo-recent-1': 'out.rep',
-        'demo-recent-2': 'example.rep',
-        'demo-recent-3': 'gelu.npu-rep',
-        'demo-recent-4': 'gather_2d.npu-rep',
-        'demo-recent-5': 'roofline_multi.npu-rep',
-      };
       const ops = ['matmul', 'matmul_t', 'add_n', 'relu', 'gelu', 'layernorm', 'softmax', 'conv2d'];
       const current = loadReportSource(loadSampleRepBytes()).reportModel!;
       const numeric = (value: string): number | null => {
@@ -591,8 +651,11 @@ describe('createBaselinesHost', () => {
       const cardDeltas = new Map<string, Set<number>>();
       const perOp = new Map<string, Set<number>>();
 
-      for (const id of ids) {
-        const bytes = new Uint8Array(readFileSync(`playground/public/data/${demoFiles[id]}`));
+      // The real bytes behind each demo URL — gather_2d carries its own
+      // Summary.jsonl (the fixture-carried categories branch).
+      for (const baseline of DEMO_RECENT_BASELINES) {
+        const id = baseline.id;
+        const bytes = new Uint8Array(readFileSync(`playground/public${baseline.path}`));
         const pack = withDemoOperatorPack(loadReportSource(bytes), id);
         for (const op of ops) {
           const base = pack.operatorReports![op].reportModel!;
@@ -652,4 +715,69 @@ describe('createBaselinesHost', () => {
       }
     },
   );
+
+  it('DEMO BASELINES: the source-diff packs carry source, title and a real diff', { timeout: 30_000 }, () => {
+    expect(DEMO_RECENT_BASELINES).toHaveLength(8);
+    expect(DEMO_RECENT_BASELINES.slice(0, 5).map((b) => b.path)).toEqual([
+      '/data/out.rep',
+      '/data/example.rep',
+      '/data/gelu.npu-rep',
+      '/data/gather_2d.npu-rep',
+      '/data/roofline_multi.npu-rep',
+    ]);
+    const sourceDiff = DEMO_RECENT_BASELINES.filter((b) => b.path.startsWith('/data/source-diff/'));
+    expect(sourceDiff.map((b) => b.path)).toEqual([
+      '/data/source-diff/mid.npu-rep',
+      '/data/source-diff/right.npu-rep',
+      '/data/source-diff/demo.npu-rep',
+    ]);
+    // The paths-only pack stays listed; only the open fixture's twin stays out.
+    const paths = DEMO_RECENT_BASELINES.map((b) => b.path);
+    expect(paths).not.toContain('/data/source-diff/left.npu-rep');
+    const titles = DEMO_RECENT_BASELINES.map((b) => baselineDisplayTitle(b));
+    expect(new Set(titles).size).toBe(DEMO_RECENT_BASELINES.length);
+    // The open fixture ships no source text, so every operator starts on the
+    // missing-embed placeholder and the view offers the workspace refill.
+    const open = loadReportSource(
+      new Uint8Array(readFileSync('playground/public/data/source-diff/demo.npu-rep')),
+    );
+    const openModels = [
+      open.reportModel.sourceCorrelation,
+      ...Object.values(open.operatorReports ?? {}).map(
+        (op) => op.reportModel.sourceCorrelation,
+      ),
+    ];
+    expect(openModels).toHaveLength(4);
+    for (const model of openModels) {
+      expect(modelNeedsSourceResolve(model)).toBe(true);
+      expect(model!.files).toHaveLength(2);
+      for (const file of model!.files) {
+        expect(isMissingSourceEmbed(file.text)).toBe(true);
+      }
+    }
+    for (const entry of sourceDiff) {
+      expect(baselineDisplayTitle(entry)).toContain('source-diff');
+      const bytes = readFileSync(`playground/public${entry.path}`);
+      const pack = withDemoOperatorPack(loadReportSource(new Uint8Array(bytes)), entry.id);
+      expect(pack.reportModel.sourceCorrelation?.files.length).toBeGreaterThan(0);
+      for (const op of Object.values(pack.operatorReports ?? {})) {
+        expect(op.reportModel.sourceCorrelation?.files.length).toBeGreaterThan(0);
+      }
+      // The paths-only pack has no source text, so the view offers the workspace refill.
+      if (entry.path === '/data/source-diff/demo.npu-rep') {
+        const files = pack.reportModel.sourceCorrelation?.files ?? [];
+        expect(files).toHaveLength(2);
+        expect(files[0]!.path).toBe('sharpen_left.asc');
+        expect(files[1]!.path).toBe('sharpen_common.asc');
+        for (const file of files) {
+          expect(isMissingSourceEmbed(file.text)).toBe(true);
+        }
+        expect(modelNeedsSourceResolve(pack.reportModel.sourceCorrelation)).toBe(true);
+        continue;
+      }
+      // The standalone leaves still embed their own source, so nothing to fill.
+      expect(pack.reportModel.sourceCorrelation?.files).toHaveLength(2);
+      expect(modelNeedsSourceResolve(pack.reportModel.sourceCorrelation)).toBe(false);
+    }
+  });
 });

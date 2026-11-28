@@ -13,6 +13,7 @@ import {
   DEMO_RECENT_BASELINES,
   withDemoBaselineOperators,
 } from '../src/host/baselinesHost';
+import { pickSourceWorkspace } from '../src/host/sourceWorkspaceHost';
 import { depsTraceFixture } from './depsFixture';
 import { hydrateSampleRep } from './hydrateSampleRep';
 
@@ -31,6 +32,8 @@ const FILE_FIXTURES = {
     name: 'simt_gather_1d_roofline.npu-rep',
     url: '/data/simt_gather_1d_roofline.npu-rep',
   },
+  /** 源码对比 demo: three leaves whose source differs pairwise (baseline switching). */
+  'source-diff': { name: 'source-diff-demo.npu-rep', url: '/data/source-diff/demo.npu-rep' },
   ffn_dense: { name: 'ffn_dense.trace.json', url: '/data/ffn_dense.trace.json' },
 } as const;
 
@@ -354,6 +357,10 @@ onMounted(async () => {
           data-testid="fixture-simt-roofline"
         >simt_gather_1d_roofline.npu-rep</a>
         <a
+          :href="fixtureHref('source-diff')"
+          data-testid="fixture-source-diff"
+        >source-diff demo</a>
+        <a
           :href="fixtureHref('deps')"
           data-testid="fixture-deps"
         >deps</a>
@@ -473,6 +480,7 @@ onMounted(async () => {
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="DEMO_RECENT_BASELINES"
         :baseline-reports="baselineReports"
+        :pick-source-workspace="pickSourceWorkspace"
         @view-full-csv="onViewFullCsv"
         @update:baselines="onBaselinesUpdate"
         @update:baseline-rows="onBaselineRows"
@@ -491,6 +499,7 @@ onMounted(async () => {
         :pick-baseline-file="pickBaselineFile"
         :recent-baselines="DEMO_RECENT_BASELINES"
         :baseline-reports="baselineReports"
+        :pick-source-workspace="pickSourceWorkspace"
         @view-full-csv="onViewFullCsv"
         @update:baselines="onBaselinesUpdate"
         @update:baseline-rows="onBaselineRows"

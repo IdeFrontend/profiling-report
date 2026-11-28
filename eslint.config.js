@@ -10,6 +10,7 @@ export default tseslint.config(
       'dist/**',
       'playground/dist/**',
       'playground/public/sudu/**',
+      'playground/public/sudu/worker.js',
       'node_modules/**',
       '.vercel/**',
       '.remember/**',

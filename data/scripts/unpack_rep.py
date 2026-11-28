@@ -20,7 +20,7 @@ HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 ENTRY_SIZE = struct.calcsize(ENTRY_FORMAT)
 NAME_SIZE = 128
 NPU_REP_TYPE = 1
-KNOWN_TYPES = {1, 2, 3, 4, 5, 6}
+KNOWN_TYPES = {1, 2, 3, 4, 5, 6, 7}
 TYPE_NAMES = {
     1: "npu-rep",
     2: "json",
@@ -28,6 +28,7 @@ TYPE_NAMES = {
     4: "csv",
     5: "sqlite3",
     6: "protobuf",
+    7: "txt",
 }
 
 
@@ -54,8 +55,8 @@ def decode_name(raw_name):
 def decode_rep(encoded, logical_path):
     if len(encoded) < HEADER_SIZE:
         fail(f"invalid REP {logical_path}: rep is shorter than its header")
-    magic, version, origin, head_size, count, entry_size, reserved, rep_size = struct.unpack_from(
-        HEADER_FORMAT, encoded, 0
+    magic, version, origin, head_size, count, entry_size, reserved, rep_size = (
+        struct.unpack_from(HEADER_FORMAT, encoded, 0)
     )
     if magic != MAGIC:
         fail(f"invalid REP {logical_path}: invalid rep header magic")
@@ -81,20 +82,28 @@ def decode_rep(encoded, logical_path):
     expected_payload_offset = payload_start
     for index in range(count):
         offset = head_size + index * entry_size
-        magic, raw_name, file_type, reserved16, reserved32, length, payload_offset = struct.unpack_from(
-            ENTRY_FORMAT, encoded, offset
+        magic, raw_name, file_type, reserved16, reserved32, length, payload_offset = (
+            struct.unpack_from(ENTRY_FORMAT, encoded, offset)
         )
         if magic != MAGIC:
             fail(f"invalid REP {logical_path}: invalid rep file info magic")
         name = decode_name(raw_name)
         if name in names:
-            fail(f"invalid REP {logical_path}: rep contains duplicate file names: {name}")
+            fail(
+                f"invalid REP {logical_path}: rep contains duplicate file names: {name}"
+            )
         names.add(name)
         if file_type not in KNOWN_TYPES:
             fail(f"invalid REP {logical_path}: rep entry has an unknown file type")
         if reserved16 != 0 or reserved32 != 0:
-            fail(f"invalid REP {logical_path}: rep file info reserved field is not zero")
-        if payload_offset != expected_payload_offset or payload_offset > len(encoded) or length > len(encoded) - payload_offset:
+            fail(
+                f"invalid REP {logical_path}: rep file info reserved field is not zero"
+            )
+        if (
+            payload_offset != expected_payload_offset
+            or payload_offset > len(encoded)
+            or length > len(encoded) - payload_offset
+        ):
             fail(f"invalid REP {logical_path}: invalid rep file payload range")
         payload = encoded[payload_offset : payload_offset + length]
         expected_payload_offset += length
@@ -120,9 +129,13 @@ def validate_tree(entries, logical_path):
     for name, file_type, payload in entries:
         output_name = directory_name(name) if file_type == NPU_REP_TYPE else name
         if output_name == ".hardware_info.lock":
-            fail(f"HardwareInfo lock is not a collection result: {logical_path}/{output_name}")
+            fail(
+                f"HardwareInfo lock is not a collection result: {logical_path}/{output_name}"
+            )
         if output_name in output_names:
-            fail(f"imported entries conflict after unpacking: {logical_path}/{output_name}")
+            fail(
+                f"imported entries conflict after unpacking: {logical_path}/{output_name}"
+            )
         output_names.add(output_name)
         if file_type == NPU_REP_TYPE:
             validate_tree(payload, f"{logical_path}/{output_name}")
@@ -153,14 +166,16 @@ def parse_arguments():
 
 
 def version_text(version):
-    return f"{version >> 16}.{(version >> 8) & 0xff}.{version & 0xff}"
+    return f"{version >> 16}.{(version >> 8) & 0xFF}.{version & 0xFF}"
 
 
 def print_root_entries(header, entries):
     version, origin, count, rep_size = header
     if origin != ORIGIN:
         fail(f"unsupported rep origin: {origin}")
-    print(f"[root] origin={ORIGIN_NAME} count={count} repLen={rep_size} ver={version_text(version)}")
+    print(
+        f"[root] origin={ORIGIN_NAME} count={count} repLen={rep_size} ver={version_text(version)}"
+    )
     for name, file_type, payload in entries:
         print(f"  - {name}  type={TYPE_NAMES[file_type]}  len={len(payload)}")
 
