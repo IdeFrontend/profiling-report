@@ -394,9 +394,9 @@ Format and statuses: [README.md](README.md).
 - **Decision:**
   1. **Gate:** Light `'sourceTab'` when non-empty `SourceInstructions.csv` **or** non-empty `AsmMetrics.csv` with `PC` + instruction text. Do **not** light from `IPCAsmMetrics`, hint CSVs, or empty ELF tables alone. Gelu-without-ELF stays tab-absent ([UI-37](UI.md)).
   2. **Assembly-only OK (shared with compute):** `SourceFiles` / `SourceLines` are optional. Missing source text uses the same missing-embed placeholder path as compute; empty `files[]` is allowed when no file identity exists. Usable SASS pane remains.
-  3. **Maps:** Build from `SourceInstructions` ⟕ `DebugInfo` ⟕ `SourceFiles` ⟕ `SourceLines`. `asmToSource` uses the first valid `(FileId, LineNum)` with `LineNum > 0`; `sourceToAsm` is 1:N. Unmapped clears correlation; never invent line 1. Report/launch-relative PCs only (no `object_entry_pc` conversion for UI joins).
+  3. **Maps:** Build from `SourceInstructions` ⟕ `DebugInfo` ⟕ `SourceFiles` ⟕ `SourceLines`; when `DebugInfo` is absent, fall back to `SourceLineMetrics.DebugInfoId` and `AsmMetrics` `(FileId, LineNum)`. `asmToSource` uses the first valid `(FileId, LineNum)` with `LineNum > 0`; `sourceToAsm` is 1:N. Unmapped clears correlation; never invent line 1. Report/launch-relative PCs only (no `object_entry_pc` conversion for UI joins).
   4. **Metrics MVP (both panes):** `ExecutionCount` (number), `TickCount` (number, raw ticks), `RelTime` (bar, producer 0–1), `WarpOccupancy` (bar, producer fraction 0–1), `VectorUtilization` (percent — producer 0–100 stored as 0–1 for UI percent kind) from `AsmMetrics` / `SourceLineMetrics`. Preserve NULL as unavailable; numeric 0 stays 0. Do **not** invent compute Sampling Stall.
-  5. **Source text:** Sparse reconstruct from `SourceLines` fragments only. No automatic host read of absolute producer paths; optional `resolveMissingSourceFiles` may fill placeholders later ([DATA-53d](interim/DATA.md#data-53d)).
+  5. **Source text:** Current packs carry the complete file text in `SourceLines` (`SourceFileId,SourceLineNum,SourceLineId,SourceLine`) and render the full document with sparse metric rows; legacy 2-column packs keep the sparse mapped document. No automatic host read of absolute producer paths; optional `resolveMissingSourceFiles` may fill placeholders later ([DATA-53d](interim/DATA.md#data-53d)).
   6. **Adapter:** `adaptSourceCorrelation` → `adaptEmulateSourceCorrelation` after the compute-pack check. Attach only when `mock: false`.
   7. **Deferred (interim):** stalls tooltip ([DATA-53a](interim/DATA.md#data-53a)), `IPCAsmMetrics` ([DATA-53b](interim/DATA.md#data-53b)), richer metrics / function-BB / call stacks / charts ([DATA-53c](interim/DATA.md#data-53c)), tick→ns ([DATA-53e](interim/DATA.md#data-53e)), SASS chrome label ([UI-53a](interim/UI.md#ui-53a)).
 - **Specs:** [source](../../views/source.md), [source-correlation](../../../specs/core/source-correlation.spec.md), [adapt-emulate](../../../specs/core/adapt-emulate.spec.md), [emulate/FORMAT](../../formats/emulate/FORMAT.md), [ADAPTERS](../../formats/ADAPTERS.md), [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md)
@@ -436,10 +436,10 @@ Format and statuses: [README.md](README.md).
 
 ## DATA-37 (was: Q11)
 
-- **Resolved:** 2026-10-19
+- **Resolved:** 2026-10-19 (revised 2026-11-27 — product Roofline object lives on `summary.jsonl`)
 - **Question:** Which file, field, and formula feeds each element of the Roofline chart (axes, GM/L2 points, roofs, mix labels, tabs)?
 - **Decision:**
-  1. **Axes:** Prefer `HardwareInfo.jsonl` category `Roofline` series (`w`, `t`, `q`, `p_peak`, `b_peak`). Intensity `I = w / q` (Ops/Byte); performance `P = w / t` (ops/s → TOps/s via `/ 1e12`). Else GM from ArithmeticUtilization + Memory: `P = fops / timeUs / 1e6`, `I = fops / ((read+write KB) × 1024)` (Vector preferred; Cube when Vector fops absent).
+  1. **Axes:** Prefer a `Roofline` category (`w`, `t`, `q`, `p_peak`, `b_peak`). `HardwareInfo.jsonl` wins when it has that line; otherwise the same object in `summary.jsonl`. Intensity `I = w / q` (Ops/Byte); performance `P = w / t` (ops/s → TOps/s via `/ 1e12`). Else GM from ArithmeticUtilization + Memory: `P = fops / timeUs / 1e6`, `I = fops / ((read+write KB) × 1024)` (Vector preferred; Cube when Vector fops absent).
   2. **Roofs:** Multi-series AIV/AIC dtype roofs. Theoretical = `min(p_peak, b_peak × I / 1000)` with default `b_peak = 1600` GB/s. When JSON absent, `p_peak` from §11.8.1 formulas (cube/vector counts × frequency) or product example ceilings.
   3. **L2 measured point:** **Omit** (no L2 byte traffic field).
   4. **Op-mix:** Normalize non-zero Vector `aiv_vec_{fp32,fp16,int32,int16,misc}_ratio` (or Cube `aic_cube_*`) to %; dominant series colors the GM point.
@@ -462,7 +462,7 @@ Format and statuses: [README.md](README.md).
 ## DATA-12 (was: HQ X Ops/Byte)
 
 - **Resolved:** 2026-10-19
-- **Decision:** `I = w / q` from HardwareInfo Roofline, else GM `fops / bytes` — [DATA-37](./DATA.md#data-37-was-q11).
+- **Decision:** `I = w / q` from the Roofline category (`HardwareInfo.jsonl`, else `summary.jsonl`), else GM `fops / bytes` — [DATA-37](./DATA.md#data-37-was-q11).
 - **Specs:** [roofline](../../views/roofline.md)
 - **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-12.png`.
 
@@ -471,7 +471,7 @@ Format and statuses: [README.md](README.md).
 ## DATA-13 (was: HQ Y TOps/s)
 
 - **Resolved:** 2026-10-19
-- **Decision:** `P = w / t / 1e12` from HardwareInfo Roofline, else GM `fops / timeUs / 1e6` — [DATA-37](./DATA.md#data-37-was-q11).
+- **Decision:** `P = w / t / 1e12` from the Roofline category (`HardwareInfo.jsonl`, else `summary.jsonl`), else GM `fops / timeUs / 1e6` — [DATA-37](./DATA.md#data-37-was-q11).
 - **Specs:** [roofline](../../views/roofline.md)
 - **Source:** Same as DATA-37. Former crop: `docs/context/visual/questions/data-13.png`.
 

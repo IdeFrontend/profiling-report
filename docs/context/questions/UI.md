@@ -42,16 +42,6 @@ Open **UI** questions (presentation / UX). Status enum, prefix taxonomy, and mig
 
 **Specs when answered:** [ContextMenu.spec.md](../../../src/ui/ContextMenu/ContextMenu.spec.md), [view-state.spec.md](../../../specs/core/view-state.spec.md), [INTERACTIONS.md](../../ui/INTERACTIONS.md).
 
-### UI-56 — Source tab Left View / Right View modes
-
-**Status:** `open`
-
-**Question:** Beyond **Source | SASS**, which Left View / Right View modes does Product want (metrics-only, source-only, dual SASS, …), and which combinations are valid?
-
-**Answer so far:** Sketch shows Source | SASS only; controls stay disabled with those fixed options until Product lists modes.
-
-**Specs when answered:** [SourceView.spec.md](../../../src/ui/SourceView/SourceView.spec.md), [FEATURE_MATRIX](../../ui/FEATURE_MATRIX.md), [UX_SPEC](../../ui/UX_SPEC.md).
-
 ### UI-57 — Redo Resolve contract
 
 **Status:** `open`

@@ -29,7 +29,6 @@ describe('i18n', () => {
     // Source sketch chrome stays English; icon-button tooltips localize.
     expect(t('sourceFile', 'zh-CN')).toBe('Source');
     expect(t('sourceFindNext', 'zh-CN')).toBe('跳到对应指标列中下一个有数据的行。');
-    expect(t('sourceLinkSync', 'zh-CN')).toBe('联动视图');
     expect(t('sourceFindNext', 'en')).toBe(
       'Navigate to the next row with data in the corresponding metric column.',
     );

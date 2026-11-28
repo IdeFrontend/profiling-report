@@ -173,7 +173,7 @@ Chrome: [`memory-topology.svg`](./memory-topology.svg) — official export, stat
 
 | Token | Value |
 |-------|--------|
-| Panel bg | `#262626` literal (dark-only chrome; not `--pr-bg-panel`, which light theme remaps) |
+| Panel bg | `#262626` literal (dark-only chrome; not `--pr-bg-panel`) |
 | Row panel | `#2d2d2d` (the chrome's 3% white lift over the panel) |
 | Chrome art | `memory-topology.svg` (self-contained fills: GM `#4d4d4d`, L2 `#666666`, cache/UB units `#668cf7`, compute units `#36c18d`, muted `#666666`, MTE chips `#f69e39`) |
 | Edge label | `#f9b766` `800` `6.3px` base — the export's values measure 27.6 × 4.25 units (cap height), so the size is set from the cap height; the system sans is ~1.2× wider per cap height and real values are longer than its placeholders, so a value that outgrows its corridor is scaled down per slot (PR-MEMTOP-010) |

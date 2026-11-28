@@ -50,7 +50,7 @@ biprof **§11.2.3.2 Memory Utilization Heatmap** — the right-hand panel of the
 
 ## Visual
 
-Dark-only: panel `#262626` (the topology card's surface, not `--pr-bg-panel`), tab strip ruled on `#333333`, active tab on the short white bar. The panel is mounted as the 全屏 overlay's right column (**400px**, the sketch's ~398px band) and meets the diagram with **no** stroke between them — the frame's own boundary is the panel's `#262626` against the overlay's literal `#1a1a1a` (not `--pr-bg-aside`, which light-theme remaps), not a divider line. Every value below is measured off the sketch crop (`visual/heat-panel.png`, a 1:1 crop of the 7680×4320 frame, i.e. **4×** — so sketch px ÷ 4 = frame px).
+Dark-only: panel `#262626` (the topology card's surface, not `--pr-bg-panel`), tab strip ruled on `#333333`, active tab on the short white bar. The panel is mounted as the 全屏 overlay's right column (**400px**, the sketch's ~398px band) and meets the diagram with **no** stroke between them — the frame's own boundary is the panel's `#262626` against the overlay's literal `#1a1a1a` (dark-only chrome, not `--pr-bg-aside`), not a divider line. Every value below is measured off the sketch crop (`visual/heat-panel.png`, a 1:1 crop of the 7680×4320 frame, i.e. **4×** — so sketch px ÷ 4 = frame px).
 
 Shipped block order: tab strip → rule → legend → **reserved view-bar** (multi-view pill or empty band, PR-HEAT-012) → optional `OutsideDeclared` badge → body (`grid` → selected view name → `Total / Used / Free` caption). Nothing sits *above* the lattice inside the body except the grid itself.
 

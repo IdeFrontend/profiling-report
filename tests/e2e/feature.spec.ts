@@ -1211,6 +1211,48 @@ test('PR-BASELINE-027: the baselines popover teleports above the overview hover 
     .toBe(true);
 });
 
+test('PR-BASELINE-031: the baselines list keeps Chromium in webkit scrollbar mode', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?fixture=sample');
+  await expect(page.getByTestId('playground-ready')).toBeVisible();
+  await page.getByTestId('toggle-baselines').click();
+  const list = page.locator('[data-testid="baselines-popover"] .pr-baseline__list');
+  await expect(list).toBeVisible();
+
+  // Issue #266: the default bar paints light with step arrow buttons. Auto keeps
+  // Chromium in custom-ruleset mode, so the ::-webkit-scrollbar block below is
+  // what paints — any non-auto value drops the whole block and restores the
+  // native bar. Playwright hides scrollbars, so assert the declarations and the
+  // rules that control rendering, not pixels.
+  const state = await list.evaluate((el) => {
+    const style = getComputedStyle(el);
+    let thumb = '';
+    let button = '';
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules: CSSRuleList;
+      try {
+        rules = (sheet as CSSStyleSheet).cssRules;
+      } catch {
+        continue;
+      }
+      for (const rule of Array.from(rules)) {
+        if (!(rule instanceof CSSStyleRule) || !rule.selectorText.includes('pr-baseline__list')) {
+          continue;
+        }
+        if (rule.selectorText.includes('::-webkit-scrollbar-thumb')) thumb += rule.cssText;
+        if (rule.selectorText.includes('::-webkit-scrollbar-button')) button += rule.cssText;
+      }
+    }
+    return { width: style.scrollbarWidth, color: style.scrollbarColor, thumb, button };
+  });
+  expect(state.width).toBe('auto');
+  expect(state.color).toBe('auto');
+  // Chromium serializes the authored `background` + `background-clip` pair as
+  // the shorthand `background: content-box rgb(90, 90, 90)`.
+  expect(state.thumb).toMatch(/content-box\s+rgb\(90,\s*90,\s*90\)/);
+  expect(state.button).toMatch(/display:\s*none/);
+});
+
 test('PR-E2E-021: the bar Operator select drives per-operator comparison badges', async ({ page }) => {
   await page.goto('/?fixture=vector_muladd');
   await expect(page.getByTestId('stats-aside')).toBeVisible();

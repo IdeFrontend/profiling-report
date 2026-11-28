@@ -63,6 +63,7 @@ describe('resolveSourceFile helpers', () => {
     const next = applyResolvedSourceText(
       placeholderFile({
         lineCount: 1728,
+        sparse: true,
         metricsColumns: [
           { id: 'instructionsExecuted', label: 'Instructions Executed', kind: 'number' },
           { id: 'samplingStall', label: 'Sampling Stall', kind: 'number' },
@@ -74,6 +75,7 @@ describe('resolveSourceFile helpers', () => {
     expect(next.text).toBe(text);
     expect(next.lines).toHaveLength(40);
     expect(next.lineCount).toBeUndefined();
+    expect(next.sparse).toBe(false);
     expect(next.lines[38]!.values.samplingStall).toBe(12);
     expect(next.lines[38]!.stallBreakdown?.[0]?.metric).toBe('IBuf empty');
     expect(next.lines[0]!.values.samplingStall).toBe(0);

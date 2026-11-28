@@ -4,7 +4,7 @@ import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 export type SourceSelectOption = { id: string; label: string };
 
 const props = defineProps<{
-  /** Visible caption, without the trailing colon. */
+  /** Visible caption, without the trailing colon. Also the accessible name. */
   caption: string;
   modelValue: string;
   options: readonly SourceSelectOption[];

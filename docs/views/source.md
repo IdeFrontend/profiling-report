@@ -63,10 +63,11 @@ No real Source pack adapted → omit `sourceCorrelation` and `'sourceTab'` ([DAT
 ```text
 SourceInstructions ──DebugInfoId──► DebugInfo
        │                               ├──SourceFileId──► SourceFiles
-       │                               └──SourceLineId──► SourceLines
-       └──PC──► AsmMetrics
+       │                               └──SourceLineId──► SourceLines (legacy text)
+       └──PC──► AsmMetrics ──(FileId, LineNum)──► source line
 
 SourceLineMetrics ──(FileId, LineNum)──► source file metric rows
+SourceLines ──(SourceFileId, SourceLineNum)──► complete file text
 ```
 
 ### VM field ← source
@@ -76,9 +77,10 @@ SourceLineMetrics ──(FileId, LineNum)──► source file metric rows
 | `assembly` rows | [`SourceInstructions.csv`](../formats/emulate/SourceInstructions.csv.md) (+ [`AsmMetrics.csv`](../formats/emulate/AsmMetrics.csv.md) by `PC`) | `SourceInstrAddr` = `PC` | Order by `(SourceInstrSection, SourceInstrAddr)`; Address = hex report PC; Assembly = `SourceInstrText` (prefer) / `InstrName`. Fallback listing from AsmMetrics alone when SourceInstructions absent |
 | `assembly.lines` metrics | [`AsmMetrics.csv`](../formats/emulate/AsmMetrics.csv.md) | `PC` | MVP: ExecutionCount, TickCount, RelTime, WarpOccupancy, VectorUtilization. NULL → unavailable; 0 stays 0. Unexecuted static insn may show `ExecutionCount = 0` |
 | `files[]` | [`SourceFiles.csv`](../formats/emulate/SourceFiles.csv.md) | `SourceFileId` | One file per id; `id` = string id; `path` = `SourceFilePath`. Absent → `files: []` (assembly-only) |
-| `files[].text` | [`DebugInfo.csv`](../formats/emulate/DebugInfo.csv.md) + [`SourceLines.csv`](../formats/emulate/SourceLines.csv.md) | `DebugInfoId` / `SourceLineId` | Sparse reconstruct at `DebugInfoLineNum`; gaps empty. Null `SourceLineId` or missing text → missing-embed placeholder (same prefix as compute). Not a full editor document; no host auto-read of absolute producer paths |
-| `files[].lines` metrics | [`SourceLineMetrics.csv`](../formats/emulate/SourceLineMetrics.csv.md) | `(FileId, LineNum)` | Same MVP column ids as asm |
-| `sourceToAsm` (per file) / `asmToSource` | SourceInstructions ⟕ DebugInfo ⟕ SourceFiles | `LineNum > 0` + file present | 1:N source→asm; first valid map wins for asm→source. Unmapped clears selection (never invent line 1) |
+| `files[].text` | [`SourceLines.csv`](../formats/emulate/SourceLines.csv.md) | `(SourceFileId, SourceLineNum)` | Complete file text when the current 4-column layout is present; each row is one physical line (indentation preserved). Legacy 2-column packs fall back to `DebugInfoId` → `SourceLineId` at `DebugInfoLineNum` and stay sparse. No text → missing-embed placeholder (same prefix as compute). No host auto-read of absolute producer paths |
+| `files[].sparse` | [`SourceLines.csv`](../formats/emulate/SourceLines.csv.md) + [`SourceLineMetrics.csv`](../formats/emulate/SourceLineMetrics.csv.md) | line range / reported-line union | `false` for current packs with a complete `1..N` text range — the Source view shows the whole file and metrics stay sparse (unreported rows are blank). `true` for legacy packs or a truncated range: the view renders a mapped document of reported lines only, with two blank unnumbered rows between non-contiguous runs. Gap rows do not paint metric bars; a missing-embed banner stays on the first rendered row. A host-resolved full file also clears `sparse` |
+| `files[].lines` metrics | [`SourceLineMetrics.csv`](../formats/emulate/SourceLineMetrics.csv.md) | `(FileId, LineNum)` | Sparse metric rows only (no dense zero-filled rows). Same MVP column ids as asm |
+| `sourceToAsm` (per file) / `asmToSource` | SourceInstructions ⟕ DebugInfo ⟕ SourceFiles | `LineNum > 0` + file present | Primary join is `DebugInfoId` → `DebugInfo`; if absent, `SourceLineMetrics.DebugInfoId`, then `AsmMetrics` `(FileId, LineNum)` by `PC`. 1:N source→asm; first valid map wins for asm→source. Unmapped clears selection (never invent line 1) |
 | `navigateBy` | — | — | `executionCount`, `tickCount`, `relTime`, `warpOccupancy`, `vectorUtilization` |
 | `mock` | — | — | Always `false` when gate passes |
 
@@ -108,7 +110,7 @@ SourceLineMetrics ──(FileId, LineNum)──► source file metric rows
 
 ## Open
 
-DATA-52 (pack `.asc` rule / single JSON), DATA-54 (`Line: 0`), DATA-55 (extra compute metric columns), UI-56–59 (chrome modes / dock / heat tint). Emulate Source follow-ons ride interim [DATA-53a](../context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../context/decisions/interim/DATA.md#data-53e) / [UI-53a](../context/decisions/interim/UI.md#ui-53a).
+DATA-52 (pack `.asc` rule / single JSON), DATA-54 (`Line: 0`), DATA-55 (extra compute metric columns), UI-57–59 (dock / heat tint). Emulate Source follow-ons ride interim [DATA-53a](../context/decisions/interim/DATA.md#data-53a)–[DATA-53e](../context/decisions/interim/DATA.md#data-53e) / [UI-53a](../context/decisions/interim/UI.md#ui-53a).
 
 ## Specs / code
 

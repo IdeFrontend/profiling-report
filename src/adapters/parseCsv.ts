@@ -1,8 +1,9 @@
 /**
  * Minimal RFC-4180 CSV split — quote-aware (single-line quoted fields).
  * Shared by compute + emulate adapters. Strips a leading BOM; trims cell
- * whitespace; skips blank lines. Behavior-identical to the old naive split
- * for quote-free tables.
+ * whitespace by default (`trim: false` preserves source text indentation);
+ * skips blank lines. Behavior-identical to the old naive split for quote-free
+ * tables.
  *
  * ponytail: quoted fields must not span lines (no multi-line records) — the
  * line pre-pass splits on CR/LF before the quote scanner runs, so a quoted
@@ -10,11 +11,23 @@
  * producer tables need multi-line records (HintMessages row 1 is the only
  * quoted field in the committed fixtures, and it is single-line).
  */
-export function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
+export interface ParseCsvOptions {
+  /**
+   * Trim cell values (default `true`). Source text needs `false` so leading
+   * indentation survives the CSV round-trip.
+   */
+  trim?: boolean;
+}
+
+export function parseCsv(
+  text: string,
+  options: ParseCsvOptions = {},
+): { headers: string[]; rows: Record<string, string>[] } {
+  const trim = options.trim !== false;
   const lines = text
     .replace(/^\uFEFF/, '')
     .split(/\r?\n/)
-    .map((l) => l.trimEnd())
+    .map((l) => (trim ? l.trimEnd() : l))
     .filter((l) => l.length > 0);
   if (lines.length === 0) return { headers: [], rows: [] };
   const headers = splitCsvLine(lines[0]).map((h) => h.trim());
@@ -22,7 +35,7 @@ export function parseCsv(text: string): { headers: string[]; rows: Record<string
     const cols = splitCsvLine(line);
     const row: Record<string, string> = {};
     headers.forEach((h, i) => {
-      row[h] = (cols[i] ?? '').trim();
+      row[h] = trim ? (cols[i] ?? '').trim() : (cols[i] ?? '');
     });
     return row;
   });

@@ -25,8 +25,13 @@ import {
 import {
   getSuduWorkerPool,
   loadSuduApi,
+  type SuduApi,
   type SuduWorkerPool,
 } from './suduRuntime';
+import {
+  sparseSourceDocument,
+  type SparseSourceDocument,
+} from './sourceDocument';
 import {
   ensureSourceColWidths,
   sourceColCanResize,
@@ -74,6 +79,11 @@ const props = withDefaults(
     /** Editor flex share (0–1). */
     editorRatio?: number;
     currentLine?: number | null;
+    /**
+     * Sparse gap document row to place on boot. Wins over `currentLine`, which
+     * still names the last real source line while the caret sits on a blank row.
+     */
+    restoreDocRow?: number | null;
     correlatedLines?: number[];
     matchLines?: number[];
     /** When non-empty, paints Sudu search highlights (`highlightRanges`). */
@@ -85,6 +95,7 @@ const props = withDefaults(
   {
     editorRatio: 0.62,
     currentLine: null,
+    restoreDocRow: null,
     correlatedLines: () => [],
     matchLines: () => [],
     searchQuery: '',
@@ -95,6 +106,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:currentLine': [line: number];
+  /** Document row of the caret, or null when the current-line band is cleared. */
+  'update:caretDoc': [row: number | null];
   'row-click': [line: number];
 }>();
 
@@ -118,6 +131,8 @@ const geom = ref<EditorGeometry>({
 });
 
 const rowH = ref(20);
+/** Editor caret document row, including a blank gap. Null when the band is cleared. */
+const caretDocRow = ref<number | null>(null);
 const filler = ref(0);
 const fontSizeCss = ref(12);
 const fontFamily = ref<string | null>(null);
@@ -135,6 +150,11 @@ let paintedSearchRanges: SearchRange[] = [];
 let editor: EditorView | null = null;
 let model: TextModel | null = null;
 let pool: SuduWorkerPool | null = null;
+/**
+ * Sparse emulate layout for the current model: reported source lines plus blank
+ * gap rows. `null` on dense files, where document lines are source lines.
+ */
+let doc: SparseSourceDocument | null = null;
 /**
  * Suppresses the *synchronous* editor→table→editor hop inside `setVScrollPos`
  * (listener sees the same device pos we just wrote). Cleared before the
@@ -169,6 +189,35 @@ let caretEchoed = false;
 let mirroredScrollTop: number | null = null;
 /** True after `clearLine` hides the current-line band; cleared on first restore. */
 let themeOverridden = false;
+
+/** Source line → document row. `null` when the line is not in a sparse document. */
+function toDocLine(line: number): number | null {
+  if (!doc) return line;
+  return doc.docLineOfSource.get(line) ?? null;
+}
+
+/** Document row → source line. `null` on a blank gap row. */
+function toSourceLine(row: number): number | null {
+  if (!doc) return row;
+  const line = doc.sourceLineOfDoc[row - 1] ?? 0;
+  return line > 0 ? line : null;
+}
+
+/**
+ * Sparse emulate files render a mapped document (`newTextModelFromLines`):
+ * only reported lines carry a number, non-contiguous runs are separated by
+ * blank attached rows. Dense files keep the plain full-text model.
+ */
+function createModel(api: SuduApi, file: SourceFileModel): TextModel {
+  if (!pool) throw new Error('Sudu worker pool is not ready');
+  doc = sparseSourceDocument(file);
+  if (doc) {
+    return api.newTextModelFromLines(pool, doc.rows, file.language, {
+      path: file.path,
+    });
+  }
+  return api.newTextModel(pool, file.text, file.language, { path: file.path });
+}
 
 /** True when Sudu reports focus — covers click, tab, and other focus paths. */
 function editorHasFocus(): boolean {
@@ -296,12 +345,7 @@ async function boot() {
       theme: suduEditorTheme(),
     });
     editor.setVScrollVisible(false);
-    model = api.newTextModel(
-      pool,
-      props.file.text,
-      props.file.language,
-      { path: props.file.path },
-    );
+    model = createModel(api, props.file);
     editor.setModel(model);
     wireSync();
     applySearchHighlights();
@@ -314,7 +358,17 @@ async function boot() {
     // Bind before setLine so a vscroll during reveal can reach the table once
     // geometry exists. waitForGeom replays the caret if this event was dropped.
     bindTableScroll();
-    if (bootLine != null) {
+    // A gap caret is not `currentLine`. Restoring that source line would jump
+    // the highlight back onto the last reported row (PR-SRC-018).
+    const gapRow = !echo && props.restoreDocRow != null ? props.restoreDocRow : null;
+    if (gapRow != null) {
+      ignoreCaret = true;
+      try {
+        placeDocRow(gapRow);
+      } finally {
+        ignoreCaret = false;
+      }
+    } else if (bootLine != null) {
       if (echo) {
         caretEchoed = false;
         const applied = setLine(bootLine);
@@ -322,8 +376,8 @@ async function boot() {
         // stays put (lastNotifiedCaretLine is -1). If it did, do not emit the
         // requested line — Sudu may have clamped it.
         if (!caretEchoed && applied === 'unchanged') {
-          const actual = editor.getPosition?.()?.lineNumber ?? bootLine;
-          emit('update:currentLine', actual);
+          const row = editor.getPosition?.()?.lineNumber ?? 1;
+          emit('update:currentLine', toSourceLine(row) ?? bootLine);
         }
       } else {
         // Prop-only boot line: place caret without stealing focus from the host.
@@ -448,7 +502,13 @@ function wireSync() {
     caretEchoed = true;
     // Only rebuild the theme when clearLine actually hid the current-line band.
     restoreThemeIfOverridden();
-    emit('update:currentLine', lineNumber);
+    // Gap rows are not source lines, so correlation stays put, but the metrics
+    // highlight must follow this caret or the two panes drift on a skipped range.
+    caretDocRow.value = lineNumber;
+    emit('update:caretDoc', lineNumber);
+    const line = toSourceLine(lineNumber);
+    if (line == null) return;
+    emit('update:currentLine', line);
   });
 }
 
@@ -552,7 +612,7 @@ watch(
 /** Paint (or clear) Sudu search segment highlights for the current query. */
 function applySearchHighlights() {
   if (!editor) return;
-  const ranges = matchRanges(props.file.text, props.searchQuery ?? '');
+  const ranges = matchRanges(doc?.text ?? props.file.text, props.searchQuery ?? '');
   paintedSearchRanges = ranges;
   editor.highlightRanges(ranges.length ? ranges : null);
 }
@@ -588,12 +648,18 @@ function stepSearch(dir: 1 | -1) {
 function onEditorPointerDown() {
   if (!editor) return;
   restoreThemeIfOverridden();
-  const line = editor.getPosition?.()?.lineNumber;
-  if (line == null) return;
+  const row = editor.getPosition?.()?.lineNumber;
+  if (row == null) return;
   void nextTick(() => {
     if (!editor || ignoreCaret) return;
     const now = editor.getPosition?.()?.lineNumber;
-    if (now === line && props.currentLine !== line) emit('update:currentLine', line);
+    if (now !== row) return;
+    // Same-row click (including a gap left in place by clearLine) must
+    // restore the metrics highlight. A gap has no source line to emit.
+    caretDocRow.value = row;
+    emit('update:caretDoc', row);
+    const line = toSourceLine(row);
+    if (line != null && props.currentLine !== line) emit('update:currentLine', line);
   });
 }
 
@@ -603,15 +669,30 @@ function onRowClick(line: number) {
     emit('update:currentLine', line);
     return;
   }
+  const target = toDocLine(line);
+  if (target == null) return;
   // setCaretListener runs only when the line changes. A click on the line
   // already under the caret (initial line, or the line clearLine left in place)
   // still has to select it.
   // clearLine hides the current-line band; a click must paint it again.
   restoreThemeIfOverridden();
-  const already = editor.getPosition?.()?.lineNumber === line;
-  editor.setPosition({ lineNumber: line, column: 1 });
+  const already = editor.getPosition?.()?.lineNumber === target;
+  editor.setPosition({ lineNumber: target, column: 1 });
+  caretDocRow.value = editor.getPosition?.()?.lineNumber ?? target;
+  emit('update:caretDoc', caretDocRow.value);
   editor.focus();
   if (already) emit('update:currentLine', line);
+}
+
+/** Place the caret on a document row (a sparse gap has no source line). No focus, no currentLine echo. */
+function placeDocRow(row: number) {
+  if (!editor) return;
+  restoreThemeIfOverridden();
+  editor.setPosition({ lineNumber: row, column: 1 });
+  editor.revealLine(row);
+  const next = editor.getPosition?.()?.lineNumber ?? row;
+  caretDocRow.value = next;
+  emit('update:caretDoc', next);
 }
 
 /**
@@ -625,13 +706,16 @@ function setLine(
   opts?: { focus?: boolean },
 ): 'unchanged' | 'moved' {
   if (!editor) return 'unchanged';
+  const target = toDocLine(line);
+  // Sparse document without this source line — nothing to reveal.
+  if (target == null) return 'unchanged';
   restoreThemeIfOverridden();
   const prev = editor.getPosition?.()?.lineNumber;
   // Imperative only (asm → source, Navigate By, boot). Prop echoes while focused
   // are blocked in the currentLine watch — do not skip reveal here or correlation
   // jumps would fail when the canvas still has focus.
-  editor.setPosition({ lineNumber: line, column: 1 });
-  editor.revealLine(line);
+  editor.setPosition({ lineNumber: target, column: 1 });
+  editor.revealLine(target);
   if (opts?.focus !== false) editor.focus();
   // Do not emit here. A live caller reads 'unchanged' (onAsmLine drops the gate).
   // Boot emits only for an imperative queue — a prop-driven same line (scroll)
@@ -639,7 +723,9 @@ function setLine(
   // Compare the caret after setPosition: Sudu clamps past EOF and does not notify
   // when the line did not change, which must not be reported as 'moved'.
   const next = editor.getPosition?.()?.lineNumber;
-  if (prev == null || next == null) return prev === line ? 'unchanged' : 'moved';
+  caretDocRow.value = next ?? target;
+  emit('update:caretDoc', caretDocRow.value);
+  if (prev == null || next == null) return prev === target ? 'unchanged' : 'moved';
   return next === prev ? 'unchanged' : 'moved';
 }
 
@@ -651,6 +737,8 @@ function setLine(
 function clearLine() {
   pendingLine = null;
   pendingCaretEcho = false;
+  caretDocRow.value = null;
+  emit('update:caretDoc', null);
   if (!editor) return;
   ignoreCaret = true;
   try {
@@ -693,18 +781,14 @@ watch(
     if (!editor || !pool || !model) return;
     // Before the await, so a currentLine watch cannot move the old document.
     ignoreCaret = true;
+    caretDocRow.value = null;
     const api = await loadSuduApi();
     if (disposed || !editor || !pool || !model) {
       ignoreCaret = false;
       return;
     }
     const prev = model;
-    model = api.newTextModel(
-      pool,
-      file.text,
-      file.language,
-      { path: file.path },
-    );
+    model = createModel(api, file);
     // setModel resets lastNotifiedCaretLine and always notifies line 1.
     // That echo would undo a file-switch clear (PR-SOURCE-015).
     ignoreCaret = true;
@@ -747,9 +831,15 @@ watch(
     }
     // Focused editor owns the caret (click, tab, …) — do not bounce prop updates back.
     if (editorHasFocus()) return;
+    const target = toDocLine(line);
+    if (target == null) {
+      // Sparse document has no row for this source line.
+      clearLine();
+      return;
+    }
     const pos = editor.getPosition?.();
     // Already on the line — setPosition is a no-op for caret; do not fight scroll.
-    if (pos && pos.lineNumber === line) return;
+    if (pos && pos.lineNumber === target) return;
     setLine(line);
   },
 );
@@ -779,6 +869,7 @@ onBeforeUnmount(() => {
   model?.dispose();
   editor = null;
   model = null;
+  doc = null;
 });
 
 defineExpose({
@@ -893,7 +984,7 @@ defineExpose({
             v-if="loadError"
             class="pr-sudu-pane__fallback"
             data-testid="sudu-fallback"
-          >{{ file.text }}</pre>
+          >{{ sparseSourceDocument(file)?.text ?? file.text }}</pre>
         </div>
         <div class="pr-sudu-pane__splitter" />
         <div class="pr-sudu-pane__table">
@@ -902,6 +993,7 @@ defineExpose({
             v-model:column-widths="metricColWidths"
             :file="file"
             :current-line="currentLine ?? null"
+            :current-doc-row="file.sparse ? caretDocRow : null"
             :correlated-lines="correlatedLines"
             :match-lines="matchLines"
             :dim-zero-for="dimZeroFor"

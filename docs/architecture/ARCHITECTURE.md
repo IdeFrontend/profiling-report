@@ -116,7 +116,7 @@ interface ProfilingReportProps {
   source?: ArrayBuffer | Uint8Array | ParsedReport;
   swimlaneModel?: SwimlaneModel;
   reportModel?: ReportViewModel;
-  theme?: 'light' | 'dark';
+  theme?: 'light' | 'dark'; // 'light' is accepted and currently paints the dark palette
   locale?: string;
   capabilities?: ReportCapability[]; // see COMPONENTS.md for full union
 }

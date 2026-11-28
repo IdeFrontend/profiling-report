@@ -1438,6 +1438,60 @@ describe('PR-VM: report view-models (interim)', () => {
     expect(gm?.intensity).toBeCloseTo(2e7 / 1024 / 1024, 6);
   });
 
+  it('PR-VM-009d: summary.jsonl Roofline yields points without FLOPs; HardwareInfo wins when both exist', () => {
+    const encoder = new TextEncoder();
+    const summaryRoof = {
+      category: 'Roofline',
+      aiv_simd_b32: { p_peak: 13516800000000, b_peak: 1600, w: 16384, t: 7.27e-6, q: 98304 },
+    };
+    const hardware = {
+      category: 'AI Core Information',
+      'ai cube count': 32,
+      'ai vector count': 64,
+      'ai cube frequency(MHZ)': 1650,
+      'ai vector frequency(MHZ)': 1650,
+    };
+    const summaryOnly = adaptPayloads({
+      'summary.jsonl': encoder.encode(
+        [
+          JSON.stringify(summaryRoof),
+          JSON.stringify({
+            category: 'AI Core Information',
+            ai_cube_count: 1,
+            ai_vector_count: 1,
+            'ai cube frequency(MHZ)': 100,
+            'ai vector frequency(MHZ)': 100,
+          }),
+        ].join('\n') + '\n',
+      ),
+      'HardwareInfo.jsonl': encoder.encode(`${JSON.stringify(hardware)}\n`),
+      'ArithmeticUtilization.csv': encoder.encode('block_id,aiv_time(us),aiv_vec_ratio\n0,5.5,0.09\n'),
+      'Memory.csv': encoder.encode(
+        'block_id,read_main_memory_datas(KB),write_main_memory_datas(KB)\n0,64.5,32\n',
+      ),
+    });
+    expect(summaryOnly.capabilities).toContain('roofline');
+    const point = summaryOnly.reportModel.roofline!.points.find((p) => p.id === 'aiv_simd_b32');
+    expect(point).toBeDefined();
+    expect(summaryOnly.reportModel.roofline!.points.some((p) => p.id === 'gm')).toBe(false);
+    expect(point!.intensity).toBeCloseTo(16384 / 98304, 6);
+    expect(point!.performance).toBeCloseTo(16384 / 7.27e-6 / 1e12, 6);
+    // Summary's AI Core line must not replace HardwareInfo §11.8.1 peaks.
+    const fp16 = summaryOnly.reportModel.roofline!.series.find((s) => s.id === 'aiv-fp16')!;
+    expect(fp16.peakComputeTops).toBeCloseTo((64 * 128 * 2 * 1650) / 1e6, 6);
+
+    const hwRoof = {
+      category: 'Roofline',
+      aiv_simt_b32: { p_peak: 2e13, b_peak: 800, w: 100, t: 1e-3, q: 50 },
+    };
+    const both = adaptPayloads({
+      'summary.jsonl': encoder.encode(`${JSON.stringify(summaryRoof)}\n`),
+      'HardwareInfo.jsonl': encoder.encode(`${JSON.stringify(hwRoof)}\n`),
+    });
+    expect(both.capabilities).toContain('roofline');
+    expect(both.reportModel.roofline!.points.map((p) => p.id)).toEqual(['aiv_simt_b32']);
+  });
+
   it('PR-VM-020 (DATA-8/19): bandwidthCardsFromRows sums a block’s aic + aiv sides per direction', () => {
     const rows = [
       {

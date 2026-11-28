@@ -9,6 +9,7 @@ import { DEFAULT_USER_GUIDE_URL } from '../userGuide';
 import AsmTablePane from './AsmTablePane.vue';
 import { paneBarsUseTwoLines } from './paneBarLayout';
 import SourcePillSelect from './SourcePillSelect.vue';
+import { sparseLayout } from './sourceDocument';
 import SuduCodePane from './SuduCodePane.vue';
 
 /** ReportToolbar mounts `[data-testid=source-chrome-host]` on the tab row. */
@@ -75,12 +76,16 @@ const asmNavigateBy = ref(
 );
 const sourceLine = ref<number | null>(null);
 const asmLine = ref<number | null>(null);
+/** Editor caret document row. A gap row keeps `sourceLine` for correlation. */
+const sourceDocRow = ref<number | null>(null);
+const sourceOnGap = ref(false);
 const sourcePane = ref<PaneApi | null>(null);
 const asmPane = ref<PaneApi | null>(null);
 
 const searchQuery = ref('');
-/** Shared Link Views state — both pane toggles stay in sync. */
-const linkViews = ref(true);
+type SourceViewMode = 'source' | 'asm' | 'both';
+/** Which panes the toolbar View picker shows. `both` on load and on reset. */
+const sourceView = ref<SourceViewMode>('both');
 /**
  * Which dual pane owns chrome actions (search / navigate). Always one of the two;
  * defaults to Source. Clicks outside the panes do not clear it.
@@ -96,11 +101,6 @@ const syncOrigin = ref<'source' | 'asm' | null>(null);
  * file. The shared listing stays complete — this does not hide other files' rows.
  */
 const showFileMatch = ref(false);
-
-function toggleLinkViews() {
-  linkViews.value = !linkViews.value;
-  if (linkViews.value) scrollToFileMatch();
-}
 
 /** Last `{fileId}:{line}` applied from `focus`, so a manual file change is left alone. */
 let appliedFocusKey = '';
@@ -157,9 +157,16 @@ watch(
     asmNavigateBy.value = firstListedNavigate(m.navigateBy, m.assembly.metricsColumns);
     sourceLine.value = null;
     asmLine.value = null;
+    // A gap caret leaves sourceLine null, so the currentLine watch does not
+    // clear the metrics highlight or the document row Navigate By still uses.
+    sourceDocRow.value = null;
+    sourceOnGap.value = false;
+    sourcePane.value?.clearLine?.();
+    asmPane.value?.clearLine?.();
     searchQuery.value = '';
     syncOrigin.value = null;
     showFileMatch.value = false;
+    sourceView.value = 'both';
     appliedFocusKey = '';
     applyFocus();
   },
@@ -194,10 +201,19 @@ function sourceMappedAsm(file: SourceFileModel | null | undefined, line: number)
   return file?.sourceToAsm?.get(line) ?? [];
 }
 
+function onSourceCaretDoc(row: number | null) {
+  sourceDocRow.value = row;
+  const layout = sourceFile.value && row != null ? sparseLayout(sourceFile.value) : null;
+  const at = row == null || !layout ? -1 : (layout[row - 1] ?? 0);
+  sourceOnGap.value = at === 0;
+}
+
 /** File picker only — asm→source correlation may change `selectedFileId` without reset. */
 function onSourceFileChange(fileId: string) {
   selectedFileId.value = fileId;
   sourceLine.value = null;
+  sourceDocRow.value = null;
+  sourceOnGap.value = false;
   asmLine.value = null;
   syncOrigin.value = null;
   showFileMatch.value = true;
@@ -210,7 +226,7 @@ const sourceFile = computed<SourceFileModel | null>(() => {
 
 /** Scroll the shared listing to the first instruction of the selected file. */
 function scrollToFileMatch() {
-  if (!linkViews.value || !showFileMatch.value) return;
+  if (!showFileMatch.value) return;
   if (sourceLine.value != null || asmLine.value != null) return;
   const fileId = sourceFile.value?.id;
   if (!fileId) return;
@@ -219,7 +235,6 @@ function scrollToFileMatch() {
 }
 
 const correlatedAsm = computed(() => {
-  if (!linkViews.value) return [];
   const file = sourceFile.value;
   if (file && sourceLine.value != null) {
     return sourceMappedAsm(file, sourceLine.value);
@@ -234,7 +249,6 @@ const correlatedAsm = computed(() => {
 });
 
 const correlatedSource = computed(() => {
-  if (!linkViews.value) return [];
   if (asmLine.value == null) return [];
   const hit = props.model.asmToSource.get(asmLine.value);
   return hit ? [hit.line] : [];
@@ -294,6 +308,7 @@ function nextHotLine(lines: number[], current: number | null): number | null {
 }
 
 function onSourceLine(line: number) {
+  sourceOnGap.value = false;
   showFileMatch.value = false;
   // Asm-driven setLine echo — keep asm caret; clear the gate (no timer).
   if (syncOrigin.value === 'asm') {
@@ -306,12 +321,11 @@ function onSourceLine(line: number) {
   // Falite-scale: one source line can map to thousands of PCs — Set for O(1).
   const mappedSet = mapped.length > 0 ? new Set(mapped) : null;
   // Late caret echo for the same mapped group: keep asm sibling, do not steal pane.
-  if (sourceLine.value === line && asmLine.value != null && linkViews.value) {
+  if (sourceLine.value === line && asmLine.value != null) {
     if (mappedSet?.has(asmLine.value)) return;
   }
   selectedPane.value = 'source';
   sourceLine.value = line;
-  if (!linkViews.value) return;
   if (mappedSet && mapped.length > 0) {
     syncOrigin.value = 'source';
     // Keep the asm caret if it already belongs to this source line.
@@ -335,7 +349,6 @@ function onAsmLine(line: number) {
   }
   selectedPane.value = 'asm';
   asmLine.value = line;
-  if (!linkViews.value) return;
   const hit = props.model.asmToSource.get(line);
   if (hit) {
     const fileChanged = hit.fileId !== selectedFileId.value;
@@ -346,18 +359,34 @@ function onAsmLine(line: number) {
     if (fileChanged) {
       syncOrigin.value = null;
       sourceLine.value = hit.line;
+      sourceOnGap.value = false;
+      sourceDocRow.value = null;
     } else {
-      syncOrigin.value = 'asm';
       sourceLine.value = hit.line;
+      // The mapped source line replaces a gap caret. Leaving sourceOnGap set
+      // would restore the blank row when Source mounts again.
+      sourceOnGap.value = false;
+      const pane = sourcePane.value;
+      // No mounted source pane can echo (SASS-only). Arming the gate here
+      // swallows the next source click after the pane comes back (PR-SOURCE-030).
       // Same-line setPosition does not emit a caret. Drop the gate or the next
       // source click is swallowed as an echo (PR-SOURCE-006). Queued (pre-boot)
-      // stays armed until that echo.
-      const applied = sourcePane.value?.setLine(hit.line);
-      if (applied === 'unchanged') syncOrigin.value = null;
+      // stays armed until that echo, or until the pane unmounts.
+      if (!pane) {
+        syncOrigin.value = null;
+      } else {
+        syncOrigin.value = 'asm';
+        const applied = pane.setLine(hit.line);
+        if (applied === 'unchanged') syncOrigin.value = null;
+      }
     }
   } else {
     // No mapped source — clear metrics current row and Sudu caret/current-line paint.
+    // clearLine emits caretDoc null when the pane is mounted. It is gone in
+    // SASS-only, so drop the gap caret here or Navigate By still steps from it.
     sourceLine.value = null;
+    sourceDocRow.value = null;
+    sourceOnGap.value = false;
     sourcePane.value?.clearLine?.();
   }
 }
@@ -396,7 +425,33 @@ function selectedNavigateColumn(): string {
 }
 
 function selectedCaret(): number | null {
-  return selectedPane.value === 'asm' ? asmLine.value : sourceLine.value;
+  if (selectedPane.value === 'asm') return asmLine.value;
+  // A gap is a row with no data. Value order and extremes must not treat the
+  // last reported line as the selected row.
+  if (sourceOnGap.value) return null;
+  return sourceLine.value;
+}
+
+function lineHasNavigateData(file: SourceFileModel, line: number, col: string): boolean {
+  const row = file.lines.find((l) => l.line === line);
+  return hasNavigateData(row?.values[col]);
+}
+
+/**
+ * Next/previous data row relative to a gap caret. The stale source line is
+ * the row just left, so stepping from it skips that row.
+ */
+function stepFromGap(file: SourceFileModel, col: string, docRow: number, dir: 1 | -1): number | null {
+  const layout = sparseLayout(file);
+  if (!layout) return null;
+  const data = layout
+    .map((line, i) => ({ line, doc: i + 1 }))
+    .filter((r) => r.line > 0 && lineHasNavigateData(file, r.line, col));
+  if (dir === 1) return data.find((r) => r.doc > docRow)?.line ?? null;
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i]!.doc < docRow) return data[i]!.line;
+  }
+  return null;
 }
 
 /** Document order of rows whose Navigate By cell has data. */
@@ -428,6 +483,12 @@ function jumpSelected(line: number) {
 function stepSelectedData(dir: 1 | -1) {
   const file = selectedNavigateFile();
   if (!file) return;
+  if (selectedPane.value === 'source' && sourceOnGap.value && sourceDocRow.value != null) {
+    const next = stepFromGap(file, selectedNavigateColumn(), sourceDocRow.value, dir);
+    if (next == null) return;
+    jumpSelected(next);
+    return;
+  }
   const next = stepDataLine(dataLinesInOrder(file, selectedNavigateColumn()), selectedCaret(), dir);
   if (next == null || next === selectedCaret()) return;
   jumpSelected(next);
@@ -477,8 +538,19 @@ function openUserGuide() {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-const leftViewOptions = [{ id: 'source', label: 'Source' }];
-const rightViewOptions = [{ id: 'sass', label: 'SASS' }];
+const sourceViewOptions: { id: SourceViewMode; label: string }[] = [
+  { id: 'source', label: 'Source' },
+  { id: 'asm', label: 'SASS' },
+  { id: 'both', label: 'Source and SASS' },
+];
+
+/** Picking a single pane also makes it the chrome target (search / Navigate By). */
+function setSourceView(id: string) {
+  const mode = sourceViewOptions.find((o) => o.id === id)?.id;
+  if (!mode) return;
+  sourceView.value = mode;
+  if (mode !== 'both') selectedPane.value = mode;
+}
 
 const sourceFileOptions = computed(() =>
   props.model.files.map((f) => ({ id: f.id, label: f.path })),
@@ -497,19 +569,16 @@ const asmNavigateOptions = computed(() =>
 );
 
 /**
- * Link views mirrors a Navigate By pick onto the other pane only when that
- * pane's dropdown lists the same metric. A missing metric leaves the other
- * pane alone; Link views off never mirrors.
+ * A Navigate By pick mirrors onto the other pane only when that pane's
+ * dropdown lists the same metric. A missing metric leaves the other pane alone.
  */
 function setSourceNavigateBy(id: string) {
   sourceNavigateBy.value = id;
-  if (!linkViews.value) return;
   if (asmNavigateOptions.value.some((o) => o.id === id)) asmNavigateBy.value = id;
 }
 
 function setAsmNavigateBy(id: string) {
   asmNavigateBy.value = id;
-  if (!linkViews.value) return;
   if (sourceNavigateOptions.value.some((o) => o.id === id)) sourceNavigateBy.value = id;
 }
 
@@ -566,6 +635,27 @@ watch(
   () => { void nextTick(syncPaneBars); },
 );
 
+/** Scroll a just-mounted SASS pane to the caret, or the file-match row when there is none. */
+function revealMountedAsm() {
+  if (asmLine.value != null) {
+    asmPane.value?.setLine(asmLine.value);
+    return;
+  }
+  scrollToFileMatch();
+}
+
+// Hidden panes unmount; new bars need the observer rebound and the layout resynced.
+// A queued asm→source echo dies with the unmounted pane, so drop that gate once
+// the pane is gone. Remounting SASS must scroll to the line correlation already stored.
+watch(sourceView, (mode, prev) => {
+  void nextTick(() => {
+    syncPaneBars();
+    bindPaneBarObserver();
+    if (mode === 'asm') syncOrigin.value = null;
+    if (prev === 'source') revealMountedAsm();
+  });
+});
+
 onMounted(() => {
   refreshChromeHost();
   syncPaneBars();
@@ -611,16 +701,11 @@ onBeforeUnmount(() => {
         data-testid="source-view-toolbar"
       >
         <SourcePillSelect
-          :caption="t('sourceLeftView', locale)"
-          model-value="source"
-          :options="leftViewOptions"
-          test-id="source-left-view"
-        />
-        <SourcePillSelect
-          :caption="t('sourceRightView', locale)"
-          model-value="sass"
-          :options="rightViewOptions"
-          test-id="source-right-view"
+          caption="View"
+          :model-value="sourceView"
+          :options="sourceViewOptions"
+          test-id="source-view-select"
+          @update:model-value="setSourceView"
         />
 
         <ToolbarSearch
@@ -715,6 +800,7 @@ onBeforeUnmount(() => {
       class="pr-source-view__panes"
     >
       <div
+        v-if="sourceView !== 'asm'"
         class="pr-source-view__pane"
         :class="{ 'pr-source-view__pane--selected': selectedPane === 'source' }"
         data-testid="source-pane-source"
@@ -732,17 +818,6 @@ onBeforeUnmount(() => {
               test-id="source-file-select"
               @update:model-value="onSourceFileChange"
             />
-            <button
-              type="button"
-              class="pr-source-view__icon-btn pr-icon-tip"
-              data-testid="source-link-source"
-              :class="{ 'pr-source-view__icon-btn--on': linkViews }"
-              :aria-label="t('sourceLinkSync', locale)"
-              :aria-pressed="linkViews"
-              @click="toggleLinkViews"
-            >
-              <PrIcon name="link" />
-            </button>
           </div>
           <div class="pr-source-view__pane-bar-break" />
           <div class="pr-source-view__pane-bar-nav">
@@ -763,13 +838,16 @@ onBeforeUnmount(() => {
           :file="sourceFile"
           :worker-url="suduWorkerUrl"
           :current-line="sourceLine"
+          :restore-doc-row="sourceOnGap ? sourceDocRow : null"
           :correlated-lines="correlatedSource"
           :search-query="trimmedSearch"
           :editor-ratio="0.62"
           @update:current-line="onSourceLine"
+          @update:caret-doc="onSourceCaretDoc"
         />
       </div>
       <div
+        v-if="sourceView !== 'source'"
         class="pr-source-view__pane"
         :class="{ 'pr-source-view__pane--selected': selectedPane === 'asm' }"
         data-testid="source-pane-asm"
@@ -786,17 +864,6 @@ onBeforeUnmount(() => {
               :options="asmFileOptions"
               test-id="source-asm-select"
             />
-            <button
-              type="button"
-              class="pr-source-view__icon-btn pr-icon-tip"
-              data-testid="source-link-asm"
-              :class="{ 'pr-source-view__icon-btn--on': linkViews }"
-              :aria-label="t('sourceLinkSync', locale)"
-              :aria-pressed="linkViews"
-              @click="toggleLinkViews"
-            >
-              <PrIcon name="link" />
-            </button>
           </div>
           <div class="pr-source-view__pane-bar-break" />
           <div class="pr-source-view__pane-bar-nav">
