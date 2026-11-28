@@ -17,6 +17,7 @@ import type { CannbotPayload } from '../../domain/cannbot';
 import type {
   AdaptedReport,
   Baseline,
+  BaselineRow,
   MemoryTopologyModel,
   SwimlaneModel,
 } from '../../domain/types';
@@ -2011,6 +2012,84 @@ describe('ProfilingReport scaffold', () => {
     const summaryPayload = all[1]![0] as CannbotPayload;
     expect(summaryPayload.scope).toBe('summary');
     expect((summaryPayload.data.summary as { opName?: string }).opName).toBe('matmul_v3');
+
+    wrapper.unmount();
+  });
+
+  it('uses all current baseline rows in panel order when starting CANNWork analysis', async () => {
+    vi.useFakeTimers();
+    const pack = (opName?: string): AdaptedReport => ({
+      reportModel: { ...emptyReportViewModel(), summary: { opName, taskDurationUs: 900 } },
+      swimlaneModel: null,
+    });
+    const firstPath = 'C:/reports/基线 A.npu-rep';
+    const baselineReports = {
+      b1: {
+        baselineId: 'b1',
+        report: {
+          ...pack('Pack default'),
+          operators: [{ id: 'other.npu.rep', label: 'Other' }, { id: 'Add', label: 'Short Add' }],
+          operatorReports: { 'other.npu.rep': pack(), Add: pack('Add::kernel') },
+        },
+      },
+      b2: { baselineId: 'b2', report: pack('Secondary') },
+      b3: { baselineId: 'b3', report: pack('ThirdAdd') },
+    };
+    const wrapper = mount(ProfilingReport, {
+      props: {
+        swimlaneModel: depsModel(),
+        reportModel: { ...emptyReportViewModel(), summary: { opName: 'Add', taskDurationUs: 1000 } },
+        baselines: [
+          { id: 'b1', name: 'First', path: firstPath },
+          { id: 'b2', name: 'Second', path: 'C:/reports/b.npu-rep' },
+          { id: 'b3', name: 'Third', path: 'C:/reports/c.npu-rep' },
+        ],
+        baselineRows: [
+          { id: 'row1', baselineId: 'b1', operatorId: '' },
+          { id: 'row2', baselineId: 'b2', operatorId: '' },
+        ],
+        baselineReports,
+      },
+    });
+
+    async function pickBaselineOption(prefix: string, value: string) {
+      await wrapper.get(`[data-testid="${prefix}-select"] .pr-metric-select__trigger`).trigger('click');
+      document.querySelector<HTMLElement>(`[data-testid="${prefix}-option-${value}"]`)!.click();
+      await wrapper.setProps({ baselineRows: wrapper.emitted('update:baselineRows')!.at(-1)![0] as BaselineRow[] });
+    }
+
+    async function analyze() {
+      const previousCount = wrapper.emitted('cannbot-request')?.length ?? 0;
+      vi.advanceTimersByTime(1000);
+      await wrapper.get('[data-testid="cannbot-summary"]').trigger('click');
+      const requests = wrapper.emitted<CannbotPayload[]>('cannbot-request')!;
+      expect(requests).toHaveLength(previousCount + 1);
+      return requests.at(-1)![0];
+    }
+
+    expect(await analyze()).toMatchObject({
+      op_name: 'Add',
+      baseline_comparisons: [
+        { row_number: 1, report_path: firstPath, op_name: 'Add::kernel' },
+        { row_number: 2, report_path: 'C:/reports/b.npu-rep', op_name: 'Secondary' },
+      ],
+    });
+    await pickBaselineOption('aside-baseline-operator', 'other.npu.rep');
+    await pickBaselineOption('aside-baseline-2', 'b1');
+    const secondRow = { row_number: 2, report_path: firstPath, op_name: 'Add::kernel' };
+    expect((await analyze()).baseline_comparisons).toEqual([
+      { row_number: 1, report_path: firstPath, op_name: 'Other' },
+      secondRow,
+    ]);
+    await pickBaselineOption('aside-baseline', 'b3');
+    expect((await analyze()).baseline_comparisons).toEqual([
+      { row_number: 1, report_path: 'C:/reports/c.npu-rep', op_name: 'ThirdAdd' },
+      secondRow,
+    ]);
+    await wrapper.setProps({ baselineReports: { b1: baselineReports.b1 } });
+    expect((await analyze()).baseline_comparisons).toEqual([secondRow]);
+    await wrapper.setProps({ baselines: [], baselineRows: [] });
+    expect(await analyze()).not.toHaveProperty('baseline_comparisons');
 
     wrapper.unmount();
   });

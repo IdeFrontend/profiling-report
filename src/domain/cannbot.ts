@@ -33,6 +33,13 @@ export interface CannbotReportMeta {
   collectedAt?: string;
 }
 
+export interface CannbotBaselineContext {
+  /** One-based row number in the statistics panel. */
+  row_number: number;
+  report_path: string;
+  op_name: string;
+}
+
 export interface CannbotPayload {
   version: '1.0';
   scope: CannbotScope;
@@ -40,6 +47,7 @@ export interface CannbotPayload {
   report_id: string;
   report_path: string;
   op_name: string;
+  baseline_comparisons?: CannbotBaselineContext[];
   collected_at: string;
   data: Record<string, unknown>;
   prompt: string;
@@ -75,6 +83,7 @@ export function buildCannbotPayload(
   scope: CannbotScope,
   report?: ReportViewModel | null,
   meta?: CannbotReportMeta,
+  baselineComparisons?: CannbotBaselineContext[],
 ): CannbotPayload {
   const data: Record<string, unknown> = {};
   if (report) {
@@ -109,6 +118,7 @@ export function buildCannbotPayload(
     report_id: meta?.id ?? meta?.name ?? '',
     report_path: meta?.path ?? '',
     op_name: report?.summary.opName ?? '',
+    ...(baselineComparisons?.length ? { baseline_comparisons: baselineComparisons } : {}),
     collected_at: meta?.collectedAt ?? '',
     data,
     prompt: CANNBOT_PROMPT,

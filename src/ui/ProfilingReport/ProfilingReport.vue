@@ -2008,7 +2008,7 @@ const CANNBOT_EMIT_COOLDOWN_MS = 1000;
 
 const emitCannbot = cooldown(
   (scope: CannbotScope) =>
-    emit('cannbot-request', buildCannbotPayload(scope, report.value, props.reportMeta)),
+    emit('cannbot-request', buildCannbotPayload(scope, report.value, props.reportMeta, asideRef.value?.cannbotBaselines)),
   CANNBOT_EMIT_COOLDOWN_MS,
 );
 
